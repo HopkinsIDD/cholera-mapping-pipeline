@@ -1,0 +1,113 @@
+pop:
+  name: population
+  description: population in each gridcell
+  alias: pop
+  abbr: p
+  dir:  /home/big_cholera_data/Layers/pop/WORLD/ppp_2000_1km_Aggregated.tif
+  type: static
+  time_aggregator: ~
+  space_aggregator: sum
+  transform: ceiling
+  unit: number
+chirps_cum:
+  name: chirps
+  alias: cumprecip
+  description: Daily precipitation
+  abbr: pr
+  dir: /home/jkaminsky/CHIRPS/ftp.chg.ucsb.edu/pub/org/chg/products/CHIRPS-2.0/global_daily/netcdf/p05/
+  type: temporal
+  time_aggregator: sum
+  space_aggregator: average
+  transform: ~
+  unit: ~
+logpop:
+  name: log_population
+  description: Log of population
+  alias: logpop
+  abbr: lp
+  dir: /home/big_cholera_data/covariates/AFR_PPP_2000_adj_v2.tif
+  type: static
+  time_aggregator: ~
+  space_aggregator: sum
+  transform: log1p
+  unit: number
+dist_to_water:
+  name: dist_to_water
+  description: Distance to closest water body (either lakes, coast or or rivers)
+  alias: dist_water
+  abbr: dw
+  dir: /home/big_cholera_data/covariates/water_dist_5km_raster.tif
+  type: static
+  time_aggregator: ~
+  space_aggregator: average
+  transform: ~
+  unit: km
+dist_to_lakes:
+  name: distance_to_lakes
+  description: Distance to closest lake
+  alias: dist_lakes
+  abbr: dl
+  dir: /home/big_cholera_data/covariates/lake_dist_5km_raster.tif
+  type: static
+  time_aggregator: ~
+  space_aggregator: average
+  transform: ~
+  unit: km
+dist_to_rivers:
+  name: distance_to_rivers
+  description: Distance to closest river
+  alias: dist_rivers
+  abbr: dr
+  dir: /home/big_cholera_data/covariates/river_dist_5km_raster.tif
+  type: static
+  time_aggregator: ~
+  space_aggregator: average
+  transform: ~
+  unit: km
+dist_to_coast:
+  name: distance_to_coast
+  description: Distance to closest coastline
+  alias: dist_coast
+  abbr: dc
+  dir: /home/big_cholera_data/covariates/coast_dist_5km_raster.tif
+  type: static
+  time_aggregator: ~
+  space_aggregator: average
+  transform: ~
+  unit: km
+san_access:
+  name: access_to_sanitation
+  description: Access to improved sanitation as defined by IHME (Sewer, septic, improved latrines, etc.)
+  alias: san_access
+  abbr: as
+  dir: /home/perez/final_lbd_wash/rasters/netcdf/yearly/s_imp/
+  type: temporal
+  time_aggregator: mean
+  res_time: 1 years
+  space_aggregator: average
+  transform: ~
+  unit: fraction
+water_access:
+  name: access_to_drinking_water
+  description: Access to improved water source as defined by IHME (Piped, improved wells and springs, etc.)
+  alias: water_access
+  abbr: aw
+  dir: /home/perez/final_lbd_wash/rasters/netcdf/yearly/w_imp
+  type: temporal
+  time_aggregator: mean
+  res_time: 1 years
+  space_aggregator: average
+  transform: ~
+  unit: fraction
+open_defe:
+  name: open_defecation
+  description: Open defecation
+  alias: open_defecation
+  abbr: ao
+  dir: /home/perez/final_lbd_wash/rasters/netcdf/yearly/s_od
+  type: temporal
+  time_aggregator: mean
+  space_aggregator: average
+  res_time: 1 years
+  transform: ~
+  unit: fraction
