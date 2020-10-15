@@ -9,18 +9,18 @@
 
 echo "Beginning of script"
 date
-TAXDIR=/home/perez/projects/cholera-taxonomy/branches/postgis-covar/
-CONFIGDIR=$1
+TAXDIR=/home/jkaminsky/git/cholera-taxonomy/branches/postgis-covar/
+CONFIGDIR=$TAXDIR/Analysis/configs/2015_2019
 OUTDIR=Analysis/output
 RBIN=/opt/R/4.0.3/bin/R
 export LTO=-pg
 # export GMON_OUT_PREFIX='/home/jkaminsky/gprof/'
-CONFIGNAMES=($(ls $TAXDIR/$CONFIGDIR | tr ' ' '\n'))
+CONFIGNAMES=($(ls $CONFIGDIR | tr ' ' '\n'))
 THISCONFIG=${CONFIGNAMES[$SLURM_ARRAY_TASK_ID]}
 THISHTML="${THISCONFIG/yml/html}"
 THISHTML="${THISHTML/config/report}"
 OUTFILE="$TAXDIR/${OUTDIR}/reports/${THISHTML}"
-CALL="rmarkdown::render('$TAXDIR/${OUTDIR}/model_run_report.Rmd', output_file = '$OUTFILE', params = list(config = '$TAXDIR/$CONFIGDIR/${THISCONFIG}'))"
+CALL="rmarkdown::render('$TAXDIR/${OUTDIR}/model_run_report.Rmd', output_file = '$OUTFILE', params = list(config = '$CONFIGDIR/${THISCONFIG}'))"
 # CONFIGNAMES=$(ls $TAXDIR/$CONFIGDIR)
 
 if [ -f "$OUTFILE" ]; then

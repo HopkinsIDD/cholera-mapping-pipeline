@@ -165,8 +165,12 @@ get_observation_statistics <- function(preprocessed_data_filename,
   
 }
 
-get_disjoint_set_sf_cases <- function(preprocessed_data_filename) {
-  sf_cases <- read_file_of_type(preprocessed_data_filename,"sf_cases")
+get_disjoint_set_sf_cases <- function(preprocessed_data) {
+  if(is.character(preprocessed_data)){
+    sf_cases <- read_file_of_type(preprocessed_data_filename,"sf_cases")
+  } else {
+    sf_cases <- preprocessed_data
+  }
   my_names <- names(sf_cases)[
     c(grep("location", names(sf_cases)), grep("name_", names(sf_cases)))
   ]
@@ -243,6 +247,118 @@ get_obs_stats <- function(df) {
     )
 }
 
+color_scale = function(type='cases', use_case = 'leaflet', use_log = FALSE){
+  rate_palette <- brewer.pal(9, name="RdBu")
+  discrete_rate_palette <-colorRampPalette(rate_palette, space = "Lab")
+
+  transform <- c()
+  colors <- c()
+  limits <- c()
+  if(type %in% c('case','cases')){
+    colors <- c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404")
+    transform <- ifelse(use_log,scales::log10_trans(),scales::identity_trans())
+    limits <- c(exp(-5),NA)
+  } else if (type %in% c('rate', 'rates')){
+    colors <- c("blue","white","red")
+    limits <- c(1e-7,1e-1) # 1e-2 to 1e4 on cases per 1e5
+    if(use_log){
+      transform <- scales::trans_new(name='log10per1e5',transform = function(x){log10(x*1e5)},inverse=function(x){exp(x)/1e5}, domain=c(0,Inf))
+    } else {
+      transform <- scales::trans_new(name='per1e5',transform = function(x){x*1e5},inverse=function(x){x/1e5})
+    }
+  } else {
+    stop(paste("The type",type,"is not recognized"))
+  }
+  
+  if(use_case == "leaflet"){
+    return(colorRampPalette(colors, space="Lab"))
+  } else if(use_case == 'ggplot map'){
+    return(
+      scale_fill_gradientn(colours=colors,oob=scales::squish, limits=limits, trans=transform, guide = guide_colorbar(label.theme=element_text(angle=45)))
+    )
+  } else {
+    stop(paste("The use case",use_case,"is not recognized"))
+  }
+  if(type %in% c('rate','rates')){
+    palette <- "RdBu"
+    if(use_case == "leaflet"){
+      rate_palette <- brewer.pal(9,name=palette)
+      return(colorRampPalette(rate_palette,space="Lab"))
+    }
+    if(use_case == 'ggplot map'){
+      transform <- scales::trans_new(name='per1e5',transform = function(x){x*1e5},inverse=function(x){x/1e5})
+      if(use_log){
+        transform <- scales::trans_new(name='log10per1e5',transform = function(x){log10(x*1e5)},inverse=function(x){exp(x)/1e5}, domain=c(0,Inf))
+      }
+      return(
+        scale_fill_fermenter(palette=palette,oob=scales::squish, limits=c(exp(-4),2), trans=transform)
+      )
+    }
+  }
+  stop(paste("The type",type,"is not recognized"))
+}
+
+
+
+plot_rates <- function(sf_rates,rate_column = 'rates', facet_column = "set", render = F, plot_file = NULL, width= NULL, height = NULL, plot_border = TRUE, ...){
+  plt <- ggplot2::ggplot()
+  if(plot_border){
+  plt <- plt +
+    ggplot2::geom_sf(
+      data = sf_rates,
+      ggplot2::aes_string(fill = rate_column)
+    )
+  } else {
+  plt <- plt +
+    ggplot2::geom_sf(
+      data = sf_rates,
+      ggplot2::aes_string(fill = rate_column),
+      color=NA
+    )
+  }
+  plt <- plt + 
+    color_scale(type='rates',use_case='ggplot map', ...) +
+    ggplot2::theme_bw() +
+    ggplot2::theme(legend.position = 'bottom') +
+    ggplot2::facet_wrap(formula(paste("~", facet_column)))
+
+  if (!is.null(plot_file)) {
+    ggsave(plt, plot_file, width = width , heigth = height)
+  }
+  if(render){
+    plt
+  }
+}
+plot_cases <- function(sf_cases,case_column = 'cases', facet_column = "set", render = F, plot_file = NULL, width= NULL, height = NULL, plot_border = TRUE){
+  plt <- ggplot2::ggplot()
+  if(plot_border){
+  plt <- plt +
+    ggplot2::geom_sf(
+      data = sf_cases,
+      ggplot2::aes_string(fill = case_column)
+    )
+  } else {
+  plt <- plt +
+    ggplot2::geom_sf(
+      data = sf_cases,
+      ggplot2::aes_string(fill = case_column),
+      color=NA
+    )
+  }
+  plt <- plt + 
+    color_scale(type='cases',use_case='ggplot map') +
+    ggplot2::theme_bw() +
+    ggplot2::theme(legend.position = 'bottom') +
+    ggplot2::facet_wrap(formula(paste("~", facet_column)))
+
+  if (!is.null(plot_file)) {
+    ggsave(plt, plot_file, width = width , heigth = height)
+  }
+  if(render){
+    plt
+  }
+}
+
 plot_raw_observed_cases <- function(disjoint_set_sf_cases,
                                     render = F,
                                     plot_file = NULL,
@@ -252,10 +368,10 @@ plot_raw_observed_cases <- function(disjoint_set_sf_cases,
   plt <- plt +
     ggplot2::geom_sf(
       data = disjoint_set_sf_cases,
-      ggplot2::aes(fill = cases)
+      ggplot2::aes(fill = cases),
+      color = NA
     ) + 
-    ggplot2::scale_fill_continuous("Average cases by location period") +
-    ggplot2::scale_fill_gradient2(low="white",mid="orange",high="red",na.value='blue') +
+    ggplot2::scale_fill_gradient(low="white",high="red") +
     ggplot2::theme_bw() + 
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::facet_wrap(~set)
