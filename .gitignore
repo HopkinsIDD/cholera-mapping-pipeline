@@ -1,2 +1,4 @@
 Analysis/data/*
 Analysis/configs/*
+Analysis/output/logs/*
+Analysis/output/reports/*
