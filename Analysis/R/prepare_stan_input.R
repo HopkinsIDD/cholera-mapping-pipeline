@@ -265,7 +265,7 @@ prepare_stan_input <- function(
         adjacent_obs[adjacent_obs$rhs$id == rhs_id,]$rhs <- adjacent_obs$lhs[pair_idx,]
         .x$id[rhs_id] <- lhs_id
       }
-      .x <- .x %>% group_by(id) %>% summarize(TL = min(TL), TR = max(TR), !!cases_column := sum(!!rlang::sym(cases_column),na.rm=TRUE))
+      .x <- .x %>% group_by(id) %>% summarize(TL = min(TL), TR = max(TR), !!cases_column := sum(!!rlang::sym(cases_column),na.rm=TRUE)) %>% ungroup() %>% select(-id)
       return(.x)
     })
   ind_mapping_resized <- getSpaceTimeIndSpeedup(
