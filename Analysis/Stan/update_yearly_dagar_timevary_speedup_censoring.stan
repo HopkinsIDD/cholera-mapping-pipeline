@@ -17,13 +17,13 @@ data {
   
   int <lower=0> M; //number of observations
   int <lower=0> y[M];      //observed counts
-  int <lower=0> M_full;    // number of observations that cover a full modeling time slice
-  int <lower=0> M_left;    // number of left-censored observations (open lower bound on the observation)
-  int <lower=0> M_right;   // number of right-censored observations (open upper bound on the observation)
+  int <lower=0, upper=M> M_full;    // number of observations that cover a full modeling time slice
+  int <lower=0, upper=M> M_left;    // number of left-censored observations (open lower bound on the observation)
+  int <lower=0, upper=M> M_right;   // number of right-censored observations (open upper bound on the observation)
   
-  int <lower=0, upper=M> ind_full[M_full];    // indexes of full observations
-  int <lower=0, upper=M> ind_left[M_left];    // indexes of left-censored observations
-  int <lower=0, upper=M> ind_right[M_right];   // indexes of right-censored observations
+  int <lower=1, upper=M> ind_full[M_full];    // indexes of full observations
+  int <lower=1, upper=M> ind_left[M_left];    // indexes of left-censored observations
+  int <lower=1, upper=M> ind_right[M_right];   // indexes of right-censored observations
   
   int <lower=0> L; // number of location periods (space and time)
   
