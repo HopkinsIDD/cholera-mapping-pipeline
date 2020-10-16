@@ -164,9 +164,9 @@ model {
   
   if (M_left > 0) {
     //data model for estimated rates for left-censored observations
-    //note that according to the Stan helppage the CDF(Y) is defined as Pr(Y < y)
-    //we therefore add the probability Pr(y = modeled_cases) to CDF(y|modeled_casees)
-    //to get Pr(y <= modeled_cases)
+    //note that according to the Stan helppage the CDF(y) is defined as Pr(Y < y)
+    //we therefore add the probability Pr(Y = y|modeled_cases) to CDF(y|modeled_casees)
+    //to get Pr(Y <= y|modeled_cases)
     //https://mc-stan.org/docs/2_18/functions-reference/cumulative-distribution-functions.html
     for(i in 1:M_left){
       target += (poisson_lcdf(y[ind_left[i]] | modeled_cases[ind_left[i]]) + 
@@ -176,7 +176,7 @@ model {
   
   if (M_right > 0) {
     //data model for estimated rates for left-censored time slice observations
-    //note that according to Stan the complementary CDF, or CCDF(y|modeled_cases)) is defined as Pr(y >= modeled_cases)
+    //note that according to Stan the complementary CDF, or CCDF(Y|modeled_cases)) is defined as Pr(Y >= y | modeled_cases)
     //https://mc-stan.org/docs/2_18/functions-reference/cumulative-distribution-functions.html
     for(i in 1:M_right){
       target += poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]])/weights[i];
