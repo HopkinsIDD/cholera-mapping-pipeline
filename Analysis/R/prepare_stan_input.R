@@ -238,21 +238,57 @@ prepare_stan_input <- function(
   
   non_na_obs <- sort(unique(ind_mapping$map_obs_loctime_obs))
   sf_cases_resized <- sf_cases[non_na_obs, ]
+  
+
+  ## aggregate observations:
+  sf_cases_resized$loctime <- ""
+  for(i in seq_len(length(ind_mapping$map_obs_loctime_obs))) {
+    sf_cases_resized$loctime[[ind_mapping$map_obs_loctime_obs[[i]] ]] <- paste(sf_cases_resized$loctime[[ind_mapping$map_obs_loctime_obs[[i]] ]] , ind_mapping$map_obs_loctime_loc[[i]])
+  }
+  sf_cases_resized$loctime <- gsub("^ ","",sf_cases_resized$loctime)
+  sf_cases_resized <- sf_cases_resized %>%
+    dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
+    dplyr::group_modify(function(.x,.y){
+      if(nrow(.x) <= 1 ){return(.x)}
+      intervals <- tibble::tibble(id = seq_len(nrow(.x)), TL = .x$TL, TR = .x$TR)
+      .x$id <- seq_len(nrow(.x))
+      adjacent_obs <- tidyr::crossing(lhs=intervals,rhs=intervals) %>%
+        dplyr::filter(lhs$id != rhs$id, rhs$TL == lhs$TR + lubridate::days(1))
+      for(pair_idx in seq_len(nrow(adjacent_obs))){
+        lhs_id <- adjacent_obs$lhs$id[pair_idx]
+        lhs_TL <- adjacent_obs$lhs$TL[pair_idx]
+        lhs_TR <- adjacent_obs$lhs$TR[pair_idx]
+        rhs_id <- adjacent_obs$rhs$id[pair_idx]
+        rhs_TL <- adjacent_obs$rhs$TL[pair_idx]
+        rhs_TR <- adjacent_obs$rhs$TR[pair_idx]
+        adjacent_obs[adjacent_obs$lhs$id == rhs_id,]$lhs <- adjacent_obs$lhs[pair_idx,]
+        adjacent_obs[adjacent_obs$rhs$id == rhs_id,]$rhs <- adjacent_obs$lhs[pair_idx,]
+        .x$id[rhs_id] <- lhs_id
+      }
+      .x <- .x %>% group_by(id) %>% summarize(TL = min(TL), TR = max(TR), !!cases_column := sum(!!rlang::sym(cases_column),na.rm=TRUE))
+      return(.x)
+    })
+  ind_mapping_resized <- getSpaceTimeIndSpeedup(
+    df = sf_cases_resized, 
+    lp_dict = location_periods_dict,
+    model_time_slices = time_slices,
+    res_time = res_time,
+    n_cpus = ncore,
+    do_parallel = TRUE)
+
+
   obs_changer <- setNames(seq_len(length(non_na_obs)),non_na_obs)
-  stan_data$map_obs_loctime_obs <- obs_changer[as.character(ind_mapping$map_obs_loctime_obs)]
-  stan_data$map_obs_loctime_loc <- ind_mapping$map_obs_loctime_loc
-  stan_data$tfrac <- ind_mapping$tfrac
-  stan_data$map_loc_grid_loc <- ind_mapping$map_loc_grid_loc
-  stan_data$map_loc_grid_grid <- ind_mapping$map_loc_grid_grid
+  stan_data$map_obs_loctime_obs <- obs_changer[as.character(ind_mapping_resized$map_obs_loctime_obs)]
+  stan_data$map_obs_loctime_loc <- ind_mapping_resized$map_obs_loctime_loc
+  stan_data$tfrac <- ind_mapping_resized$tfrac
+  stan_data$map_loc_grid_loc <- ind_mapping_resized$map_loc_grid_loc
+  stan_data$map_loc_grid_grid <- ind_mapping_resized$map_loc_grid_grid
   
   y_tfrac <- tibble(tfrac = stan_data$tfrac, 
                     map_obs_loctime_obs = stan_data$map_obs_loctime_obs) %>% 
     dplyr::group_by(map_obs_loctime_obs) %>% 
-    dplyr::summarize(tfrac = mean(tfrac)) %>% 
+    dplyr::summarize(tfrac = mean(tfrac)) %>%  # We take the average over time so we can sum population over time
     .[["tfrac"]]
-  # stan_data$tfrac <- dplyr::group_by(ind_mapping, map_obs) %>% 
-  #   dplyr::summarize(tfrac = mean(tfrac)) %>% 
-  #   .[["tfrac"]]
   
   stan_data$M <- nrow(sf_cases_resized)
   stan_data$y <- sf_cases_resized[[cases_column]]
@@ -283,7 +319,7 @@ prepare_stan_input <- function(
   
   stan_data$K1 <- length(stan_data$map_obs_loctime_obs)
   stan_data$K2 <- length(stan_data$map_loc_grid_loc)
-  stan_data$L <- length(ind_mapping$u_loctimes)
+  stan_data$L <- length(ind_mapping_resized$u_loctimes)
   stan_data$ncovar <- length(covariate_choices)
   
   print(stan_data$ncovar)
@@ -323,14 +359,19 @@ prepare_stan_input <- function(
   aggpop <- rep(0, nobs)
   for(i in 1:nobs) {
     lps <- stan_data$map_obs_loctime_loc[which(stan_data$map_obs_loctime_obs==i)]
-    for (lp in lps) {
-      aggpop[i] <- sum(stan_data$pop[stan_data$map_loc_grid_grid[stan_data$map_loc_grid_loc == lp]])
+    for (lp in lps) { # This is summed over years so tfrac is averaged over years
+      aggpop[i] <- aggpop[i] + sum(stan_data$pop[stan_data$map_loc_grid_grid[stan_data$map_loc_grid_loc == lp]])
     }
   }
   
   # Compute the mean incidence
   # Note that this is in the model's temporal resolution
-  stan_data$meanrate <- sum(stan_data$y * y_tfrac)/sum(aggpop)
+  stan_data$meanrate <- mean(stan_data$y / aggpop, probs = y_tfrac,na.rm=TRUE)
+  if(stan_data$meanrate < 1e-10){
+    stan_data$meanrate <- 1e-10
+    print("The mean rate was less than 1e-10, so increased it to 1e-10")
+    warning("The mean rate was less than 1e-10, so increased it to 1e-10")
+  }
   
   cat("----\nMean cholera incidence is of", formatC(stan_data$meanrate*1e5, format = "e", digits = 2), 
       "cases per 100'000 people per", res_time, "\n----")
