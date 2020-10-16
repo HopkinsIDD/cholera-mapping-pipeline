@@ -267,7 +267,7 @@ color_scale = function(type='cases', use_case = 'leaflet', use_log = FALSE){
     colors <- c("blue","white","red")
     limits <- c(1e-7,1e-1) # 1e-2 to 1e4 on cases per 1e5
     if(use_log){
-      transform <- scales::trans_new(name='log10per1e5',transform = function(x){log10(x*1e5)},inverse=function(x){exp(x)/1e5}, domain=c(0,Inf))
+      transform <- scales::trans_new(name='log10per1e5',transform = function(x){log10(x*1e5)},inverse=function(x){exp(x)/1e5}, domain=c(1e-100,Inf), breaks = scales::log_breaks(base=10))
     } else {
       transform <- scales::trans_new(name='per1e5',transform = function(x){x*1e5},inverse=function(x){x/1e5})
     }

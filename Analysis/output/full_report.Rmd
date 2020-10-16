@@ -22,7 +22,6 @@ source(str_c(params$cholera_directory,"/packages/taxdat/R/readData.R"))
 ```
 
 ```{r datapull, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
-max_pull <- 2
 all_configs <- list.files(params$config_directory,full.names=TRUE)
 all_locations <- str_extract(all_configs, "(?<=g_)[A-Z]{3}(?=_)")
 all_times <- unique(str_extract(all_configs, "(?<=_)[0-9]{4}_[0-9]{4}(?=\\.)"))
@@ -34,8 +33,6 @@ sf_cases_resized <- list()
 sf_grid <- list()
 pull <- 0
 for(config_filename in all_configs){
-  pull <- pull + 1
-  if(pull >= max_pull){break}
   config <- yaml::read_yaml(config_filename)
   file_names <- getFilenames(config, params$cholera_directory)
   if(all(file.exists(file_names))){
@@ -99,14 +96,14 @@ for(config_filename in all_configs){
 ```
 
 ```{r gridoutcaselog, fig.cap="Plot Grid Output Cases with log transform", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_cases(sf_grid,"modeled_cases","t",render=TRUE, plot_border = FALSE, use_log = TRUE)
+# plot_cases(sf_grid,"modeled_cases","t",render=TRUE, plot_border = FALSE, use_log = TRUE)
 ```
 
 ```{r gridoutratelog, fig.caps = "Plot Grid Output Rates with log transform", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-# plot_rates(sf_grid,"modeled_rate","t", render=TRUE, plot_border = FALSE, use_log = TRUE)
+plot_rates(sf_grid,"modeled_rate","t", render=TRUE, plot_border = FALSE, use_log = TRUE, plot_file = "full_log_rates.pdf", width=1620,height=1080)
 ```
 
-```{r obsin, fig.cap="Plot Observation Cases Input", echo=FALSE, warning=FALSE,message=FALSE}, fig.fullwidth=TRUE
+```{r obsin, fig.cap="Plot Observation Cases Input", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
 # plot_cases(disjoint_set_sf_cases,"modeled_cases","set", render=TRUE)
 ```
 

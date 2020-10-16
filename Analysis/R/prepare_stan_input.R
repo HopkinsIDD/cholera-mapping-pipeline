@@ -199,7 +199,7 @@ prepare_stan_input <- function(
         as.data.frame(adjacency_list),
         row
       ),
-       n = length(col)
+      n = length(col)
     )
   )
   number_of_neighbors <- rep(0,times = nrow(smooth_grid))
@@ -239,7 +239,7 @@ prepare_stan_input <- function(
   non_na_obs <- sort(unique(ind_mapping$map_obs_loctime_obs))
   sf_cases_resized <- sf_cases[non_na_obs, ]
   
-
+  
   ## aggregate observations:
   sf_cases_resized$loctime <- ""
   for(i in seq_len(length(ind_mapping$map_obs_loctime_obs))) {
@@ -249,9 +249,9 @@ prepare_stan_input <- function(
   sf_cases_resized <- sf_cases_resized %>%
     dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
     dplyr::group_modify(function(.x,.y){
-      if(nrow(.x) <= 1 ){return(.x)}
+      if(nrow(.x) <= 1 ){return(.x %>% mutate(cid = NA))}
       intervals <- tibble::tibble(id = seq_len(nrow(.x)), TL = .x$TL, TR = .x$TR)
-      .x$id <- seq_len(nrow(.x))
+      .x$cid <- seq_len(nrow(.x))
       adjacent_obs <- tidyr::crossing(lhs=intervals,rhs=intervals) %>%
         dplyr::filter(lhs$id != rhs$id, rhs$TL == lhs$TR + lubridate::days(1))
       for(pair_idx in seq_len(nrow(adjacent_obs))){
@@ -263,11 +263,13 @@ prepare_stan_input <- function(
         rhs_TR <- adjacent_obs$rhs$TR[pair_idx]
         adjacent_obs[adjacent_obs$lhs$id == rhs_id,]$lhs <- adjacent_obs$lhs[pair_idx,]
         adjacent_obs[adjacent_obs$rhs$id == rhs_id,]$rhs <- adjacent_obs$lhs[pair_idx,]
-        .x$id[rhs_id] <- lhs_id
+        .x$cid[rhs_id] <- lhs_id
       }
-      .x <- .x %>% group_by(id) %>% summarize(TL = min(TL), TR = max(TR), !!cases_column := sum(!!rlang::sym(cases_column),na.rm=TRUE)) %>% ungroup() %>% select(-id)
+      .x <- .x %>% group_by(cid) %>% summarize(TL = min(TL), TR = max(TR), !!cases_column := sum(!!rlang::sym(cases_column),na.rm=TRUE)) %>% ungroup() %>% select(-cid)
       return(.x)
     })
+  
+  # Re-compute space-time indices based on aggretated data
   ind_mapping_resized <- getSpaceTimeIndSpeedup(
     df = sf_cases_resized, 
     lp_dict = location_periods_dict,
@@ -275,8 +277,7 @@ prepare_stan_input <- function(
     res_time = res_time,
     n_cpus = ncore,
     do_parallel = TRUE)
-
-
+  
   obs_changer <- setNames(seq_len(length(non_na_obs)),non_na_obs)
   stan_data$map_obs_loctime_obs <- obs_changer[as.character(ind_mapping_resized$map_obs_loctime_obs)]
   stan_data$map_obs_loctime_loc <- ind_mapping_resized$map_obs_loctime_loc
@@ -292,6 +293,26 @@ prepare_stan_input <- function(
   
   stan_data$M <- nrow(sf_cases_resized)
   stan_data$y <- sf_cases_resized[[cases_column]]
+  
+  # Extract censoring information
+  censoring_inds <- map_chr(
+    1:stan_data$M, 
+    function(x) {
+      # Get all tfracs for the given observation
+      tfracs <- stan_data$tfrac[stan_data$map_obs_loctime_obs == x]
+      # Define right-censored if any tfrac is smaller than 95% of the time slice
+      ifelse(any(tfracs < 0.95), "right-censored", "full")
+    })
+  
+  # Get censoring indexes 
+  stan_data$ind_full <- which(censoring_inds == "full") %>% array()
+  stan_data$M_full <- length(stan_data$ind_full)
+  # TODO Left-censoring is not implemented for now
+  stan_data$ind_left <- which(censoring_inds == "left-censored") %>% array()
+  stan_data$M_left <- length(stan_data$ind_left)
+  stan_data$ind_right <- which(censoring_inds == "right-censored") %>% array()
+  stan_data$M_right <- length(stan_data$ind_right)
+  
   
   bad_data <- as.data.frame(sf_cases)[
     !(seq_len(nrow(sf_cases)) %in% non_na_obs),
