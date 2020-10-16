@@ -256,7 +256,12 @@ color_scale = function(type='cases', use_case = 'leaflet', use_log = FALSE){
   limits <- c()
   if(type %in% c('case','cases')){
     colors <- c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404")
-    transform <- ifelse(use_log,scales::log10_trans(),scales::identity_trans())
+    if(use_log){
+      transform <- scales::log10_trans()
+    } else {
+      transform <- scales::identity_trans()
+    }
+
     limits <- c(exp(-5),NA)
   } else if (type %in% c('rate', 'rates')){
     colors <- c("blue","white","red")
@@ -329,7 +334,7 @@ plot_rates <- function(sf_rates,rate_column = 'rates', facet_column = "set", ren
     plt
   }
 }
-plot_cases <- function(sf_cases,case_column = 'cases', facet_column = "set", render = F, plot_file = NULL, width= NULL, height = NULL, plot_border = TRUE){
+plot_cases <- function(sf_cases,case_column = 'cases', facet_column = "set", render = F, plot_file = NULL, width= NULL, height = NULL, plot_border = TRUE, ...){
   plt <- ggplot2::ggplot()
   if(plot_border){
   plt <- plt +
@@ -346,7 +351,7 @@ plot_cases <- function(sf_cases,case_column = 'cases', facet_column = "set", ren
     )
   }
   plt <- plt + 
-    color_scale(type='cases',use_case='ggplot map') +
+    color_scale(type='cases',use_case='ggplot map', ...) +
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = 'bottom') +
     ggplot2::facet_wrap(formula(paste("~", facet_column)))
