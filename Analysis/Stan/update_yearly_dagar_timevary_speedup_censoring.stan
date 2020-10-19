@@ -97,7 +97,6 @@ transformed parameters {
   // real w_sum;
   
   real<lower=0> modeled_cases[M]; //expected number of cases for each observation
-  real<lower=0> tfrac_modeled_cases[M]; //expected number of cases for each observation
   real<lower=0> std_dev_w;
   
   std_dev_w = exp(log_std_dev_w);
@@ -129,13 +128,11 @@ transformed parameters {
   //first initialize to 0
   for (i in 1:M) {
     modeled_cases[i] = 0;
-    tfrac_modeled_cases[i] = 0;
   }
   
   //now accumulate
   for (i in 1:K1) {
     modeled_cases[map_obs_loctime_obs[i]] += location_cases[map_obs_loctime_loc[i]];
-    tfrac_modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
   }
   
   
@@ -187,4 +184,15 @@ model {
     }
   }
   // y ~ poisson(modeled_cases);
+}
+generated quantities {
+  real<lower=0> tfrac_modeled_cases[M]; //expected number of cases for each observation
+  //first initialize to 0
+  for (i in 1:M) {
+    tfrac_modeled_cases[i] = 0;
+  }
+  //now accumulate
+  for (i in 1:K1) {
+    tfrac_modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
+  }
 }
