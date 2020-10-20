@@ -325,7 +325,7 @@ create_worldpop_region_shapefiles <- function(){
   df$worldpop_region = sapply(df$country,lookup_WorldPop_region)
   df$shp = lapply(paste(df$who_region,df$country,sep='_'),function(x){try({get_shape_file(x)})})
   
-  df %>% group_by(worldpop_region) %>% summarize(shp = list(reduce_sf_vector(shp))) -> worldpop_df
+  df %>% group_by(df, worldpop_region) %>% summarize(shp = list(reduce_sf_vector(shp))) -> worldpop_df
   worldpop_regions <- as.list(worldpop_df$worldpop_region)
   names(worldpop_regions) <-  worldpop_df$worldpop_region
   for(idx in 1:nrow(worldpop_df)){

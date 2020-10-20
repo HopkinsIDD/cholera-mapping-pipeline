@@ -21,12 +21,6 @@
 #'  - case_column
 #'  - each of the location_columns
 #'  - each of the confirmed_cases
-#' 
-#' @importFrom dplyr select bind_rows group_map group_by mutate ungroup summarize_all full_join summarize_at
-#' @importFrom tidyr expand nesting separate unite
-#' @importFrom lubridate days ymd day
-#' @importFrom magrittr %>%
-#' @importFrom rlang sym
 linelist2phantom <- function(
   linelist,
   assumed_complete_location,
@@ -100,12 +94,14 @@ linelist2phantom <- function(
   )
   
   # Create combination of all locations and times
-  all_combinations <- test %>% tidyr::expand(
+  all_combinations <- tidyr::expand(
+    test, 
     TL = time_range,
     tidyr::nesting(Location,lowest_level)
-    ) %>%
-    dplyr::mutate(
-      TR = TL
+    )
+  all_combinations <- dplyr::mutate(
+    all_combinations,
+    TR = TL
     )
   
   # Expand to cover all times for all locations
@@ -135,8 +131,8 @@ linelist2phantom <- function(
   test$Phantom = TRUE
   original_linelist$Phantom = FALSE
   if(length(location_columns) > 1){
-    linelist <- dplyr::bind_rows(original_linelist,test) %>%
-      tidyr::separate("Location",location_columns,sep='::')
+    linelist <- dplyr::bind_rows(original_linelist,test)
+    linelist <- tidyr::separate(linelist, "Location",location_columns,sep='::')
   } else {
     linelist <- dplyr::bind_rows(original_linelist,test)
     linelist[[location_columns]] <- linelist$Location
@@ -159,7 +155,6 @@ na_smart_sum <- function(x){
 
 #' @name expand_all_locations
 #' @description Helper function to get full list of locations
-#' @importFrom dplyr summarize_all bind_rows
 expand_all_locations = function(.x, .y, assumed_complete_location, all_locations){
   # Compute some of all data columns for specific combination of location, TL and TR
   .x <- dplyr::summarize_all(.x, na_smart_sum)
