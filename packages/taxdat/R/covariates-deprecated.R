@@ -8,6 +8,9 @@
 #' @param layers_dir Layers directory of the taxonomy folder
 #' @return A RasterLayer object of the same resolution and extent as \code{raster}
 load_population_estimates <- function(region,raster,year,layers_dir = "Layers"){
+
+  .Deprecated(msg = "load_population_estimates is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "load_population_estimates")
+
   allowed_years = c(2000,2005,2010,2015,2020)
   
   if(year > max(allowed_years)){
@@ -126,6 +129,9 @@ load_population_estimates <- function(region,raster,year,layers_dir = "Layers"){
 #' @param layers_dir Layers directory of the taxonomy folder
 #' @return A RasterLayer object of the same resolution and extent as \code{raster_layer}
 load_population_estimates_slow <- function(raster_layer,year,layers_dir = "Layers"){
+
+  .Deprecated(msg = "load_population_estimates_slow is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "load_population_estimates_slow")
+
   ## These are the years that Worldpop has
   allowed_years = c(2000,2005,2010,2015,2020)
   
@@ -237,7 +243,9 @@ load_population_estimates_slow <- function(raster_layer,year,layers_dir = "Layer
 #' @title load_covariate_estimates
 #' @description Find distance to water estimates for a year and overlay them on a raster.
 #' @param raster A Raster* object used to determine the extent and resolution
+#' @param region
 #' @param layers_dir Layers directory of the taxonomy folder
+#' @param tol
 #' @return A RasterLayer object of the same resolution and extent as \code{raster_layer}
 load_covariate_estimates <- function(
   raster,
@@ -245,6 +253,9 @@ load_covariate_estimates <- function(
   layers_dir = 'Layers',
   tol = 1e-5
 ){
+
+  .Deprecated(msg = "load_covariate_estimates is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "load_covariate_estimates")
+
   if(region != 'AFR'){
     stop("Only written for AFR right now")
   }
@@ -299,9 +310,15 @@ load_covariate_estimates <- function(
 
 
 
-# description Create shapefiles for the worldpop regions.  Only intended to be run on a server or similar
-# return a list of shapefiles one for each worldpop region named.
+#' @export
+#' @name create_worldpop_region_shapefiles
+#' @title create_worldpop_region_shapefiles
+#' @description Create shapefiles for the worldpop regions.  Only intended to be run on a server or similar
+#' @return a list of shapefiles one for each worldpop region named.
 create_worldpop_region_shapefiles <- function(){
+
+  .Deprecated(msg = "create_worldpop_region_shapefiles is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "create_worldpop_region_shapefiles")
+
   df = read_csv('packages/taxdat/inst/extdata/all_countries.csv',col_names=FALSE)
   names(df) <- 'country'
   df$who_region = sapply(df$country,lookup_WHO_region)
@@ -317,9 +334,16 @@ create_worldpop_region_shapefiles <- function(){
   return(worldpop_regions)
 }
 
-# description Create shapefiles for the water in each worldpop region.  Only intended to be run on a server or similar
-# return a list of shapefiles one for each worldpop region named.
+#' @export
+#' @name create_water_shapefiles
+#' @title create_water_shapefiles
+#' @description Create shapefiles for the water in each worldpop region.  Only intended to be run on a server or similar
+#' @param layers_dir
+#' @return a list of shapefiles one for each worldpop region named.
 create_water_shapefiles <- function(layers_dir = 'Layers'){
+
+  .Deprecated(msg = "create_water_shapefiles is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "create_water_shapefiles")
+
   #' @importFrom readr read_csv
   fname <- system.file("extdata","all_countries.csv",package = "taxdat")
   df = read_csv(fname,col_names=FALSE)
@@ -377,7 +401,18 @@ create_water_shapefiles <- function(layers_dir = 'Layers'){
   st_write(river_shp,paste(layers_dir,"water","world_rivers.shp",sep='/'))
 }
 
+
+#' @export
+#' @name create_water_rasters
+#' @title create_water_rasters
+#' @description 
+#' @param layers_dir
+#' @param maximum_shapefiles_in_mem
+#' @return 
 create_water_rasters <- function(layers_dir = 'Layers',maximum_shapefiles_in_mem = 90000){
+
+  .Deprecated(msg = "create_water_rasters is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "create_water_rasters")
+
   water_types = c('lake','river','coast')
   
   worldpop_regions <- c('AFR','ASI','LAC','EUR','OCE')
