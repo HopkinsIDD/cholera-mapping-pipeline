@@ -1,10 +1,12 @@
 #' @include readData.R
+
 #' @export classify_date
 #' @name classify_date
 #' @title classify_date
 #' @description Take the length of a report and classify it as daily, weekly, biweekly, monthly, bimonthly, yearly, or biyearly.
 #' @param date The length of time as a difftime.
 classify_date = function(date){
+  .Deprecated(msg = "classify_date is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "classify_date")
   ifelse(date <= 2,
          "day",
          ifelse(
@@ -41,6 +43,7 @@ classify_date = function(date){
 #' @description This function takes all reports in a taxonomy and classifies them by their duration
 #' @param taxonomy A taxonomy read with read_taxonomy_data
 get_report_type = function(taxonomy){
+
   return(
     #' @importFrom dplyr mutate
     mutate(
@@ -53,6 +56,7 @@ get_report_type = function(taxonomy){
 
 ### Double check what this does before adding documentation
 get_report_classes <- function(taxonomy,ISO_L2_level=0){
+  .Deprecated(msg = "get_report_classes is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "get_report_classes")
   if(!('report_length_class' %in% names(taxonomy))){
     taxonomy = get_report_type(taxonomy)
   }
@@ -68,13 +72,13 @@ get_report_classes <- function(taxonomy,ISO_L2_level=0){
     }
   }
   #' @importFrom tidyr spread
-  spread(
+  tidyr::spread(
     #' @importFrom dplyr summarize
-    summarize(
+    dplyr::summarize(
       #' @importFrom dplyr group_by_
-      group_by_(
+      dplyr::group_by_(
         #' @importFrom dplyr filter_
-        mutate_(
+        dplyr::mutate_(
           taxonomy,
           .dots = setNames(
             list(paste('is.na(ISO_A2_L',ISO_L2_level+ 1,')',sep='')),
@@ -103,6 +107,7 @@ get_report_classes <- function(taxonomy,ISO_L2_level=0){
 #' @param result The result of a (particular kind of) stan model
 #' @param fun The function to apply to summarize the results
 stan_result_summarize <- function(result,fun){
+  .Deprecated(msg = "stan_result_summarize is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "stan_result_summarize")
   lapply(result,function(x){
     if(is.null(dim(x)) || (length(dim(x)) <= 1)){
       fun(x)
@@ -118,6 +123,7 @@ stan_result_summarize <- function(result,fun){
 #' @param n The number of times to sample
 #' @param result The results of a stan model to draw from
 rdist_stan_model = function(n,result){
+  .Deprecated(msg = "rdist_stan_model is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "rdist_stan_model")
   rc <- matrix(NA,n,dim(result$log_lambda)[2])
   for(trial in 1:n){
     rc[trial,] <- stan_result_summarize(result['log_lambda'],function(x){quantile(x,runif(1,0,1))})[[1]]
@@ -134,6 +140,7 @@ rdist_stan_model = function(n,result){
 #' @return An integer vector of indices of pop, where the data is included in at least one location and also has non NA population
 
 get_observed_cells = function(locs,pop,taxonomy_dir='taxonomy_verified',verbose=FALSE){
+  .Deprecated(msg = "get_observed_cells is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "get_observed_cells")
   contain_observations = unique(unlist(
     sapply(
       locs,
@@ -156,6 +163,7 @@ get_observed_cells = function(locs,pop,taxonomy_dir='taxonomy_verified',verbose=
 #' @param locs A character vector of location names where there are observations
 #' @param pop_raster The underlying population raster.  Used for determining the raster shape and finding places with no population
 sample_stan_model = function(n,result,locs,pop_raster){
+  .Deprecated(msg = "sample_stan_model is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "sample_stan_model")
   rc <- raster(pop_raster)
   samples <- rdist_stan_model(n,result)
   non_na_cells <- get_observed_cells(locs,pop_raster)
@@ -175,7 +183,7 @@ sample_stan_model = function(n,result,locs,pop_raster){
 #' @param simplified if TRUE returns a simplified overview of DESC files, if FALSE a table with all details from DESC files
 #' @return knitr table with country data overview
 country_data_overview <- function(country,taxonomy.dir="taxonomy-verified",simplified=TRUE,pretty=TRUE){
-
+    .Deprecated(msg = "country_data_overview is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "country_data_overview")
     if(!dir.exists(taxonomy.dir)) stop("check taxonomy directory and your working directory")
 
     cntry_iso <- fix_country_name(country)
@@ -217,6 +225,7 @@ country_data_overview <- function(country,taxonomy.dir="taxonomy-verified",simpl
 
 #' @export
 get_log_scores <- function(predicted,actual,lookup,probs){
+  .Deprecated(msg = "get_log_scores is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "get_log_scores")
   predicted = MCMCvis::MCMCchains(predicted)
   samples = abind::abind(predicted[,grep(lookup,colnames(predicted))],along=1)
   qsamp = apply(samples,2,quantile,probs=probs)
@@ -229,6 +238,7 @@ get_log_scores <- function(predicted,actual,lookup,probs){
 
 #' @export
 get_expectation <- function(predicted,lookup,probs){
+  .Deprecated(msg = "get_expectation is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "get_expectation")
   predicted = MCMCvis::MCMCchains(predicted)
   samples = abind::abind(predicted[,grep(lookup,colnames(predicted))],along=1)
   qsamp = apply(samples,2,mean)
@@ -237,6 +247,7 @@ get_expectation <- function(predicted,lookup,probs){
 
 #' @export
 get_quantile <- function(predicted,lookup,probs){
+  .Deprecated(msg = "get_quantile is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "get_quantile")
   predicted = MCMCvis::MCMCchains(predicted)
   samples = abind::abind(predicted[,grep(lookup,colnames(predicted))],along=1)
   qsamp = apply(samples,2,quantile,probs=probs)
@@ -245,6 +256,7 @@ get_quantile <- function(predicted,lookup,probs){
 
 #' @export
 get_standard_deviation <- function(predicted,lookup){
+  .Deprecated(msg = "get_standard_deviation is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "get_standard_deviation")
   predicted = MCMCvis::MCMCchains(predicted)
   samples = abind::abind(predicted[,grep(lookup,colnames(predicted))],along=1)
   qsamp = apply(samples,2,sd)
@@ -253,6 +265,7 @@ get_standard_deviation <- function(predicted,lookup){
 
 #' @export
 non_na_cells = function(raster_layer){
+  .Deprecated(msg = "non_na_cells is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "non_na_cells")
   if('population' %in% names(raster_layer)){
     non_na_gridcells = which(
       (taxdat::aggregate_raster_xlayers(raster_layer,function(x){!any(is.na(x))})[]) &
@@ -274,6 +287,7 @@ non_na_cells = function(raster_layer){
 ## find all primes less than a number
 
 all_primes_less_than <- function(n) {
+  .Deprecated(msg = "all_primes_less_than is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "all_primes_less_than")
   n <- as.integer(n)
   if (n > 1e6) {
     stop("n too large")
@@ -291,6 +305,7 @@ all_primes_less_than <- function(n) {
 
 ## finds all prime factors of a number
 all_prime_factors <- function(n) {
+  .Deprecated(msg = "all_prime_factors is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "all_prime_factors")
   all_primes <- all_primes_less_than(n)
   rc  <- c()
   for (prime in all_primes) {
@@ -307,6 +322,7 @@ all_prime_factors <- function(n) {
 ## param a the first factor of n divides a
 ## param b the second factor of n divides b
 split_into_factors <- function(n, a, b) {
+  .Deprecated(msg = "split_into_factors is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "split_into_factors")
   if (n == 1) {
     return(c(1, 1))
   }
@@ -397,6 +413,7 @@ split_into_factors <- function(n, a, b) {
 ## param dims The dimension of the array
 ## idx the multidimensional index
 sub2ind <- function(dims, idx) {
+  .Deprecated(msg = "sub2ind is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "sub2ind")
   if (isTRUE(any(dims < idx))) {
     stop("Invalid index")
   }
@@ -411,11 +428,13 @@ sub2ind <- function(dims, idx) {
 ## param dims The dimension of the array
 ## idx the single dimensional index
 ind2sub <- function(dims, idx) {
+  .Deprecated(msg = "ind2sub is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "ind2sub")
   return(arrayInd(idx, dims))
 }
 
 ## convert between single dimensional and multidimensional indices
 convert_index <- function(dims, idx) {
+  .Deprecated(msg = "convert_index is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "convert_index")
   if (is.null(dim(idx))) {
     if (length(idx) == length(dims)) {
       return(sub2ind(dims, idx))
@@ -434,6 +453,7 @@ convert_index <- function(dims, idx) {
 #' @description get the centroids of the gridcells of an array
 #' @param arr array The array to get the centers of
 array_to_centers <- function(arr) {
+  .Deprecated(msg = "array_to_centers is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "array_to_centers")
   dimensions  <- dim(arr)
   stepsize  <- 1 / (dimensions)
   idx  <- seq_len(prod(dimensions))
@@ -448,6 +468,7 @@ array_to_centers <- function(arr) {
 #' @param arr array The array to get the centers of
 #' @param sparse boolean whether to return a sparse or dense matrix
 array_to_adjacency <- function(arr, sparse = TRUE) {
+  .Deprecated(msg = "array_to_adjacency is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "array_to_adjacency")
   rc  <- Matrix::sparseMatrix(
     i = 1,
     j = 1,
@@ -505,6 +526,7 @@ array_to_adjacency <- function(arr, sparse = TRUE) {
 #' @description Perform checks to see if a shapefile is valid for use in the pipeline. This function will look at each row of the provided object, run it through several checks, issue a single warning if at least one check fails, and return a report of all failed objects.
 #' @param shapefile an sf or sfc object
 is_shapefile_valid <- function(shapefile, allowed_geometry_types = c("POLYGON","MULTIPOLYGON")){
+  .Deprecated(msg = "is_shapefile_valid is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "is_shapefile_valid")
 
   if("sfc" %in% class(shapefile)){
     shapefile <- sf::st_sf(shapefile)
@@ -566,6 +588,7 @@ is_shapefile_valid <- function(shapefile, allowed_geometry_types = c("POLYGON","
 }
 
 check_missing_cases <- function(sf_cases,column_names = c("attributes.fields.suspected_cases","attributes.fields.deaths")){
+  .Deprecated(msg = "check_missing_cases is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "check_missing_cases")
   missing_shapefile <- is.na(sf_cases$attributes.location_period_id)
   missing_cases <- sf_cases[missing_shapefile,]
   present_cases <- sf_cases[!missing_shapefile,]
