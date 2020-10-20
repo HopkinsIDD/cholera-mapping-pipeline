@@ -1,25 +1,32 @@
 #' @export
 #' @name linelist2phantom
 #' @title linelist2phantom
-#' @description Takes a linelist and adds phantom observations where appropriate
+#' @description Takes a line ist and adds daily primary phantom observations for locations and dates not present in the linelist
 #' @param linelist A linelist.  The following columns are required:
 #'   - location
 #'   - TL 
 #'   - TR
 #'   - at least one of 
-#'     - suspected_cases
-#'     - confirmed_cases
-#' @param assumed_complete_location The location the data is assumed complete below
-#' @param assumed_complete_TL The starting time for the linelist data (defaults to the first time reported)
+#'     - sCh (suspected cases)
+#'     - cCh (confirmed cases)
+#'     - deaths
+#' @param assumed_complete_location The location below which the data is assumed complete (e.g., "AFR::ETH" for a linelist representing the whole country of Ethiopia)
+#' @param assumed_complete_TL The starting time for the linelist data (defaults to the first time reported in the linelist)
 #' @param assumed_complete_TR The ending time for the linelist data (defaults to the first time reported)
-#' @param location_columns One or more columns containing locations.  If one column is given, delimit location levels by '::'
-#' @param case_columns One or more columns containing case values to accumulate
+#' @param location_columns The names of one or more columns containing locations (e.g., "Location" or c("ISO_A1", "ISO_A2_L1")). If only one column is given, delimit location levels by '::'
+#' @param case_columns One or more columns containing case values across which to accumulate. Defaults to sCh, cCh, and deaths.
 #' @return A data_frame with the following columns
 #'  - TL
 #'  - TR
 #'  - case_column
 #'  - each of the location_columns
 #'  - each of the confirmed_cases
+#' 
+#' @importFrom dplyr select bind_rows group_map group_by mutate ungroup summarize_all full_join summarize_at
+#' @importFrom tidyr expand nesting separate unite
+#' @importFrom lubridate days ymd day
+#' @importFrom magrittr %>%
+#' @importFrom rlang sym
 linelist2phantom <- function(
   linelist,
   assumed_complete_location,
@@ -97,7 +104,7 @@ linelist2phantom <- function(
     TL = time_range,
     tidyr::nesting(Location,lowest_level)
     ) %>%
-    mutate(
+    dplyr::mutate(
       TR = TL
     )
   
@@ -140,6 +147,8 @@ linelist2phantom <- function(
   return(linelist)
 }
 
+#' @name na_smart_sum
+#' @description Helper function to sum vectors with NA values correctly
 na_smart_sum <- function(x){
   if(all(is.na(x))){
     return(as.numeric(NA))
@@ -148,9 +157,12 @@ na_smart_sum <- function(x){
   }
 }
 
+#' @name expand_all_locations
+#' @description Helper function to get full list of locations
+#' @importFrom dplyr summarize_all bind_rows
 expand_all_locations = function(.x, .y, assumed_complete_location, all_locations){
   # Compute some of all data columns for specific combination of location, TL and TR
-  .x <- summarize_all(.x, na_smart_sum)
+  .x <- dplyr::summarize_all(.x, na_smart_sum)
   # Get all the names of all location levels in location period
   all_location <- strsplit(.y$Location, "::")[[1]]
   # Create consistent location hierarchy
