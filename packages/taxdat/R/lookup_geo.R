@@ -224,36 +224,4 @@ standardize_string <- function(string){
 }
 
 
-#' @export
-#' @name reduce_sf_vector
-#' @title reduce_sf_vector
-#' @description recursively rbind a list of sf objects
-#' @param vec a vector/list of sf objects
-#' @return a single sf object which contains all the rows bound together
-reduce_sf_vector <- function(vec){
-
-  if(length(vec) == 0){
-    return(sf::st_sf(sf::st_sfc()))
-  }
-  if(is.null(names(vec))){
-    names(vec) = 1:length(vec)
-  }
-  if(length(names(vec)) != length(vec)){
-    names(vec) = 1:length(vec)
-  }
-  k = 1
-  all_columns = unlist(vec,recursive=FALSE)
-  split_names = strsplit(names(all_columns),'.',fixed=TRUE)
-  column_names = sapply(split_names,function(x){x[[2]]})
-  geom_columns = which(column_names == 'geometry')
-  geometry = sf::st_as_sfc(unlist(all_columns[geom_columns],recursive=FALSE))
-  rc = sf::st_sf(geometry)
-  frame_only = dplyr::bind_rows(lapply(vec,function(x){
-    x = as.data.frame(x)
-    x = x[-grep('geometry',names(x))]
-    return(x)
-  }))
-  rc = dplyr::bind_cols(rc,frame_only)
-  return(rc)
-}
 
