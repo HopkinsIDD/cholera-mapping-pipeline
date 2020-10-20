@@ -1,9 +1,8 @@
 #' @include auxiliary_functions.R
-###
 
-## @name get_or_set_seed
-## @title get_or_set_seed
-## @description Set the seed to the given value (maybe) and return current seed
+#' @name get_or_set_seed
+#' @title get_or_set_seed
+#' @description Set the seed to the given value (maybe) and return current seed
 get_or_set_seed <- function(seed) {
   if (missing(seed)) {
     rnorm(1, 1)
@@ -14,7 +13,7 @@ get_or_set_seed <- function(seed) {
 
 }
 
-#'
+
 #' @export
 #' @name create_test_extent
 #' @title create_test_extent
@@ -26,6 +25,7 @@ create_test_extent <- function(seed) {
   attr(rc, "seed") <- seed
   return(rc)
 }
+
 
 #' @export
 #' @name create_test_raster
@@ -320,14 +320,14 @@ create_test_layered_polygons <- function(
         polygon_idx  <-
           intersections[[idx]][sample(length(intersections[[idx]]), 1)]
         polygon_name  <- tmp_frame[[parent_name]][[polygon_idx]]
-        if (!st_intersects(
+        if (!sf::st_intersects(
           tmp_frame[polygon_idx, ], tmp[idx, ], sparse = FALSE
         )) {
-          browser()
+          stop("This code is not yet written")
         }
         idx2  <- smallest_layer[[parent_name]] == polygon_name
-        if (!st_intersects(
-          tmp_frame[polygon_idx, ], st_union(smallest_layer[idx2, ]), sparse = FALSE
+        if (!sf::st_intersects(
+          tmp_frame[polygon_idx, ], sf::st_union(smallest_layer[idx2, ]), sparse = FALSE
         )) {
           stop("This code is not yet written")
         }
@@ -341,7 +341,8 @@ create_test_layered_polygons <- function(
 }
 
 
-## see create_test_covariates
+## @name independent_covariate
+## See create_test_covariate for details
 independent_covariate <- function(
   test_raster,
   spatially_variable,
@@ -371,7 +372,8 @@ independent_covariate <- function(
   return(matrix(0, nrow = n_spatial, ncol = n_temporal))
 }
 
-## see create_test_covariates
+## @name smoothed_covariate
+## See create_test_covariate for details
 smoothed_covariate <- function(
   test_raster,
   spatially_variable,
@@ -429,7 +431,8 @@ smoothed_covariate <- function(
   }
 }
 
-## see create_test_covariates
+## @name polygonal_covariate
+## See create_test_covariate for details
 polygonal_covariate <- function(
   test_raster,
   polygonal,
@@ -465,7 +468,8 @@ polygonal_covariate <- function(
   ))
 }
 
-## see create_test_covariates
+## @name radiating_covariate
+## See create_test_covariate for details
 radiating_covariate <- function(
   test_raster,
   radiating,
@@ -501,7 +505,8 @@ radiating_covariate <- function(
   ))
 }
 
-## see create_test_covariates
+## @name constant_covariate
+## See create_test_covariate for details
 constant_covariate <- function(
   test_raster,
   constant
@@ -516,10 +521,9 @@ constant_covariate <- function(
   ))
 }
 
+
 #' @export
-#' @description Create a test covariate.  The covariate is the sum of
-#' various layers. Each layer is governed by various flags and
-#' parameters.  The components are:
+#' @description Create a test covariate.  The covariate is the sum of various layers. Each layer is governed by various flags and parameters.  The components are:
 #'   independent : each cell is drawn from rnorm(0,1);
 #'   locally correlated : cells are drawn from mvrnorm(0,Sigma), where Sigma is based on the adjacency of gridcells;
 #'   polygonal : Polygons are assigned random values, and each cell is the sum of the value of any polygon it is contained in;
@@ -591,6 +595,7 @@ create_test_covariate <- function(
   attr(test_raster, "seed") <- seed
   return(test_raster)
 }
+
 
 #' @export
 #' @param test_raster raster::raster The raster to make the covariate over.
@@ -939,7 +944,7 @@ observe_polygons <- function(
       }
     ) %>%
     do.call(what=rbind) %>%
-    left_join(explicit_layered_polygons) %>%
+    dplyr::left_join(explicit_layered_polygons) %>%
     tidyr::unite('location',!!!layer_name,sep='_')
 
   time_censored_observations$weight <- 1
@@ -955,7 +960,7 @@ observe_polygons <- function(
       prob = time_censored_observations$weight
     )
   }
-  observed_observations <- st_as_sf(time_censored_observations[polygon_observation_idx, ] %>% dplyr::select(location, draw, cases, tmin, tmax, time_left, time_right, tfrac, geometry))
+  observed_observations <- sf::st_as_sf(time_censored_observations[polygon_observation_idx, ] %>% dplyr::select(location, draw, cases, tmin, tmax, time_left, time_right, tfrac, geometry))
   attr(observed_observations, "seed") <- seed
   return(observed_observations)
 }
