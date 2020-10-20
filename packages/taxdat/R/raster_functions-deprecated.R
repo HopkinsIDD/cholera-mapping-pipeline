@@ -10,6 +10,9 @@
 #' @param tol The distance in (degrees lat/long) rasters are permitted to shift
 #' @param trim_small Remove values with less than this fraction of the median overlap
 extract_country_from_raster <- function(raster_layer,shapefile,partial_cover = FALSE,method='raster',trim_small=0,tol = 1e-5){
+
+  .Deprecated(msg = "extract_country_from_raster is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "extract_country_from_raster")
+
   if("sf" %in% class(shapefile)){
     shapefile = shapefile$geometry
   }
@@ -122,8 +125,10 @@ extract_country_from_raster <- function(raster_layer,shapefile,partial_cover = F
 #' @param fun function that returns a single value, e.g. mean or min, and that takes a na.rm argument (or can pass through arguments via ...)
 #' @param ... additional arguments as for writeRaster
 #' @return A RasterLayer
-
 aggregate_raster_xlayers <- function(x,fun,...){
+
+  .Deprecated(msg = "aggregate_raster_xlayers is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "aggregate_raster_xlayers")
+
   #' @importFrom raster getValues
   if(is.null(dim(getValues(x)))){
     return(x)
@@ -143,6 +148,9 @@ aggregate_raster_xlayers <- function(x,fun,...){
 #' @param ... additional arguments as for writeRaster
 #' @return A vector
 aggregate_raster_xcells <- function(x,fun,...){
+
+  .Deprecated(msg = "aggregate_raster_xcells is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "aggregate_raster_xcells")
+
   if(is.null(dim(getValues(x)))){
     #' @importFrom raster getValues
     return(fun(getValues(x),...))
@@ -158,6 +166,9 @@ aggregate_raster_xcells <- function(x,fun,...){
 #' @param extent An raster::extent The extent to expand.  Should be the result of raster::expand
 #' @param expansion A numeric describing how much bigger to make the extent as a numeric.
 expand_extent <- function(extent,expansion=2){
+
+  .Deprecated(msg = "expand_extent is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "expand_extent")
+
   xrange <- extent@xmax - extent@xmin
   yrange <- extent@ymax - extent@ymin
   xmed <- (extent@xmax + extent@xmin)/2
@@ -174,11 +185,14 @@ expand_extent <- function(extent,expansion=2){
 #' @title apply_to_all_sublevels
 #' @description Apply a function to a raster with different answers for each subregion of a country at a particular ISO level
 #' @param location_name The name of the country
-#' @param raster The raster to apply the function to
+#' @param raster_layer The raster to apply the function to
 #' @param ISO_level The level to get the shapefiles at
+#' @param fun
 #' @param taxonomy_dir The taxonomy directory to store the shapefiles in
 #' @param verbose Set to true for more warnings and messages
 #' @param partial_cover Set to true to get accurate partial matches by subsampling the raster grid.
+#' @param trim_small
+#' @param method
 apply_to_all_sublevels <- function(location_name,
                                    raster_layer,
                                    ISO_level,
@@ -191,6 +205,8 @@ apply_to_all_sublevels <- function(location_name,
                                    method = 'not raster',
                                    ...){
   
+  .Deprecated(msg = "apply_to_all_sublevels is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "apply_to_all_sublevels")
+
   all_shapefiles <- get_country_sublevels(location_name,ISO_level,taxonomy_dir,verbose)
   rc <- apply(
     all_shapefiles,
@@ -237,8 +253,13 @@ apply_to_all_sublevels <- function(location_name,
 #' @description using linear combinations, put one raster on the grid of another raster
 #' @param x The Raster* object to regrid
 #' @param y The Raster* object to obtain the extent,resolution etc from
+#' @param aggregate
+#' @param .fun
 #' @return A Raster* of the same type and layers as x with the same extent/resolution/etc as y
 regrid_raster <- function(x,y,aggregate = TRUE, .fun = sum){
+
+  .Deprecated(msg = "regrid_raster is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "regrid_raster")
+
   ## Delete raster names for x and y so that default names (layer.1, etc) are used
   names(x) <- rep("", length(names(x)))
   names(y) <- rep("", length(names(y)))
@@ -427,6 +448,9 @@ regrid_raster <- function(x,y,aggregate = TRUE, .fun = sum){
 #' @param method only used if trim==TRUE, passed to extract_country_from_raster.
 #' @return A RasterLayer
 create_raster_from_shapefile <- function(shapefile,region=NULL,layers_dir = "Layers",resol=10,trim=TRUE,partial_cover=FALSE,trim_small=0, method = 'not raster'){
+
+  .Deprecated(msg = "regrid_raster is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "regrid_raster")
+
   if(is.null(region)){
     region = lookup_WorldPop_region(shapefile)
   }
@@ -463,7 +487,12 @@ create_raster_from_shapefile <- function(shapefile,region=NULL,layers_dir = "Lay
 }
 
 
+#' @name compare_extents
+#' @description Helper function to compare raster extents
 compare_extents <- function(shapefile,raster){
+
+  .Deprecated(msg = "compare_extents is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "compare_extents")
+
   #' @importFrom raster extent
   lhs = extent(shapefile)
   #' @importFrom raster extent
@@ -487,6 +516,9 @@ compare_extents <- function(shapefile,raster){
 #' @param sparse Whether to return a sparse matrix or a dense one.  See Matrix for details
 #' @return a Matrix object with the nearest neigbhors as 1, and everything else as 0.
 extract_nearest_neighbor_matrix <- function(raster_layer,cell_mask,sparse=T){
+
+  .Deprecated(msg = "extract_nearest_neighbor_matrix is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "extract_nearest_neighbor_matrix")
+
   raster_dim = dim(raster_layer)[1:2]
   cell_mask_row = floor((cell_mask-1)/ncol(raster_layer)) + 1
   cell_mask_col = ((cell_mask - 1) %% ncol(raster_layer)) + 1
@@ -582,6 +614,8 @@ extract_nearest_neighbor_matrix <- function(raster_layer,cell_mask,sparse=T){
 #' @param nn_mat nearest neighbor matrix (see extract_nearest_neighbors_matrix)
 #' @return vector of estimates for the determinant of nn_mat
 estimate_determinant = function(rho_samples,nn_mat){
+
+  .Deprecated(msg = "estimate_determinant is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "estimate_determinant")
   
   # Create a matrix with diagonal apply(D_mat,1,sum)
   #' @importFrom Matrix Matrix
@@ -618,9 +652,13 @@ estimate_determinant = function(rho_samples,nn_mat){
 #' @description Create a RasterLayer that is 0 on a shapefile and the distance to the nearest cell intersecting the shapefile otherwise
 #' @param shapefile The shapefile of features
 #' @param region A worldpop region containing the shapefile (or NULL to lookup automatically)
+#' @param layers_dir
 #' @param resol Approximate resolution of the output raster in km
 #' @return A RasterLayer
 create_distance_to_shapefile_raster <- function(shapefile,region=NULL,layers_dir = "Layers",resol=10){
+
+  .Deprecated(msg = "create_distance_to_shapefile_raster is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "create_distance_to_shapefile_raster")
+
   if(is.null(region)){
     region = lookup_WorldPop_region(shapefile)
   }
@@ -767,6 +805,9 @@ create_distance_to_shapefile_raster <- function(shapefile,region=NULL,layers_dir
 #' @param shapefile The shapefile to use for bounding
 #' @return A Raster* of the same type as \code{raster_layer} with the extent determined by \code{shapefile}
 crop_raster_to_shapefile <- function(raster_layer,shapefile){
+
+  .Deprecated(msg = "crop_raster_to_shapefile is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "crop_raster_to_shapefile")
+  
   if("sf" %in% class(shapefile)){
     shapefile = shapefile$geometry
   }
