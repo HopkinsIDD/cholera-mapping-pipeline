@@ -56,7 +56,7 @@ my_ISO_3166 = inner_join(
 #' @return an sf::sf with the results
 #' @importFrom lubridate now
 get_shape_file <- function(location_name,taxonomy_dir = 'taxonomy-verified', verbose=FALSE,method='name',date=now(),thorough=FALSE){
-  
+  .Deprecated(msg = "get_shape_file is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "get_shape_file")
   if(!dir.exists(taxonomy_dir)){
     stop(paste("The taxonomy directory",taxonomy_dir,"does not exist in the current working directory"))
   }
@@ -515,6 +515,7 @@ get_shape_file <- function(location_name,taxonomy_dir = 'taxonomy-verified', ver
 #' @return boolean TRUE if a custom shapefile exists, FALSE otherwise
 #' @importFrom lubridate now
 exists_shape_file = function(location,taxonomy_dir = 'taxonomy-verified',verbose=FALSE,date=now()){
+  .Deprecated(msg = "exists_shape_file is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "exists_shape_file")
   file = paste0(taxonomy_dir,'/Location/',location,'_LOC.csv')
   ## Check if there is a shapefile
   if(!file.exists(file)){
@@ -573,6 +574,7 @@ exists_shape_file = function(location,taxonomy_dir = 'taxonomy-verified',verbose
 #' @param taxonomy_dir Name of a taxonomy directory (shapefiles will be stored here)
 #' @return A character containing the corrected filename or NA in case of failure
 fix_location_name = function(location,taxonomy_dir = 'taxonomy-verified',verbose=FALSE,method='name'){
+  .Deprecated(msg = "fix_location_name is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "fix_location_name")
   location = standardize_locations(location)
 
   # location should look like `WHO-REGION_ISO-A1_ISO-A2-L1_...`
@@ -720,6 +722,7 @@ fix_location_name = function(location,taxonomy_dir = 'taxonomy-verified',verbose
 #' @param location Name of a location as a character
 #' @param taxonomy_dir Name of a taxonomy directory (shapefiles will be stored here)
 create_population_file = function(data,taxonomy_dir = 'taxonomy-verified',replace.existing=FALSE){
+  .Deprecated(msg = "create_population_file is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "create_population_file")
   if(!'location' %in% names(data)){
     stop("data should have a column called location with the locations.")
   }
@@ -793,6 +796,7 @@ create_population_file = function(data,taxonomy_dir = 'taxonomy-verified',replac
 #' @param taxonomy_dir Name of a taxonomy directory (shapefiles will be stored here)
 #' @param shapefile shapefile for location
 create_location_file = function(location,taxonomy_dir = 'taxonomy-verified',shapefile, start_date, end_date, replace.existing=FALSE,verbose=TRUE){
+  .Deprecated(msg = "create_location_file is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "create_location_file")
   missing_shape_file = missing(shapefile)
   if(missing(shapefile)){
     if(location != fix_location_name(location,taxonomy_dir,verbose)){
@@ -867,25 +871,7 @@ create_location_file = function(location,taxonomy_dir = 'taxonomy-verified',shap
   }
 }
 
-#' @export
-#' @name lookup_WHO_region
-#' @title lookup_WHO_region
-#' @param x A vector of country or subcountry codes to look up the WHO region for
-### Note: This should probably work better than it does now (ie use code or name, use alternate names etc)
-lookup_WHO_region = function(x){
-  data('WHO_regions',package='taxdat')
-  rc <- c()
-  for (cntry in x) {
-    if(cntry %in% WHO_regions$Entity){
-      rc <- c(rc, as.character(WHO_regions$WHO.region.code[WHO_regions$Entity==cntry]))
-    } else if (cntry %in% WHO_regions$Country.code){
-      rc <- c(rc, as.character(WHO_regions$WHO.region.code[WHO_regions$Country.code==cntry]))
-    } else {
-      rc <- c(rc,NA)
-    }
-  }
-  return(rc)
-}
+
 
 #' @export
 #' @name get_country_shapefile
@@ -893,6 +879,7 @@ lookup_WHO_region = function(x){
 #' @param name The name of the country to get a shapefile for
 #' @param taxonomy_dir The path to the taxonomy filesystem to store the shapefile in.
 get_country_shapefile = function(name,taxonomy_dir = 'taxonomy-verified',verbose=FALSE){
+  .Deprecated(msg = "get_country_shapefile is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "get_country_shapefile")
   location_name = paste("UNK",fix_country_name(name),sep='_')
   if(!is.na(location_name)){
     return(get_shape_file(location_name,taxonomy_dir,verbose=FALSE))
@@ -910,7 +897,7 @@ get_country_shapefile = function(name,taxonomy_dir = 'taxonomy-verified',verbose
 #' @param verbose Set to TRUE for more warnings and messages.
 #' @importFrom lubridate now
 get_country_sublevels = function(location_name,ISO_level,taxonomy_dir = 'taxonomy-verified', land_only=FALSE,method='center',layers_dir = 'Layers',date=now(),verbose=(method=='center')){
-  
+  .Deprecated(msg = "get_country_sublevels is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "get_country_sublevels")
   ## just because I always forget 
   if(endsWith(taxonomy_dir,"/")){
     taxonomy_dir <- substr(taxonomy_dir,1,nchar(taxonomy_dir)-1)
@@ -997,87 +984,7 @@ get_country_sublevels = function(location_name,ISO_level,taxonomy_dir = 'taxonom
   return(all_shape_files)
 }
 
-#' @export
-#' @name fix_country_name
-#' @title fix_country_name
-#' @description Change a country name to its ISO_3166_1 alpha-3 code
-#' @param country_name The name of the country
-fix_country_name <- function(country_name,verbose=TRUE){
-  country_name = standardize_string(country_name)
-  fname <- system.file("extdata","country_aliases.csv",package = "taxdat")
-  if(nchar(fname) == 0){
-    if(verbose){
-      warning("Could not load country_aliases.csv from the package directory.  Try reinstalling the package or contacting the maintainer.")
-    }
-    return(NA)
-  }
-  country_aliases  = tryCatch(
-    read.csv(
-      fname,
-      sep=',',
-      header=TRUE,
-      stringsAsFactors=FALSE,
-      na.strings = "",
-      colClasses = 'character',
-      quote = "\"",
-      check.names = FALSE
-    ),
-    warning = function(w){
-      if(length(w$message > 0)){
-        if(grepl(pattern="ncomplete final line",x=w$message)){
-          return(suppressWarnings(
-            read.csv(
-              fname,
-              sep=',',
-              header=TRUE,
-              stringsAsFactors=FALSE,
-              na.strings = "",
-              colClasses = 'character',
-              quote = "\"",
-              check.names = FALSE
-            )
-          ))
-        }
-      }
-      if(verbose){
-        warning(paste(fname,":",w$message),immediate.=TRUE)
-      }
-      return(w)
-    },
-    error = function(e){
-      if(verbose){
-        warning(paste(fname,":",e),immediate.=TRUE)
-      }
-      return(e)
-    }
-  )
-  rc <- NA
-  country_aliases[,2] = sapply(standardize_string(country_aliases[,2]),function(x){x[[1]]})
-  rc = rep('UNK',length(country_name))
-  for(country_idx in 1:length(country_name)){
-    if(country_name[country_idx] %in% country_aliases[,2]){
-      rc[country_idx] <- country_aliases[country_name[country_idx] == country_aliases[,2],1]
-    } else if(country_name[country_idx] %in% country_aliases[,1]){
-      rc[country_idx] <- country_name[country_idx]
-    }
-  }
-  if(verbose){
-    mapply(
-      new=rc,
-      old=country_name,
-      function(new,old){
-        if(is.na(old)){
-          message("ISO_A1 ",old," is not a valid region")
-        } else if(is.na(new)){
-          message("ISO_A1 ",old," could not be located in the lookup table maintained by the package")
-        } else if(old != new){
-          message("The ISO_A1 was changed from ",old," to ",new," using the lookup table maintained by the package")
-        }
-      }
-    )
-  }
-  return(rc)
-}
+
 
 #' @export
 #' @name fix_a2_l1_name
@@ -1085,6 +992,7 @@ fix_country_name <- function(country_name,verbose=TRUE){
 #' @description Change an iso_a2_l1 name to its ISO_3166_1 code
 #' @param location_name the name of the location to fix
 fix_a2_l1_name <- function(location_name,country_name = NULL,verbose=TRUE){
+  .Deprecated(msg = "fix_a2_l1_name is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "fix_a2_l1_name")
   location_name = standardize_string(location_name)
   fname <- system.file("extdata","isoa2l1_aliases.csv",package = "taxdat")
   if(nchar(fname) == 0){
@@ -1177,6 +1085,7 @@ fix_a2_l1_name <- function(location_name,country_name = NULL,verbose=TRUE){
 #' @param raster_layer a Raster* object to use for determining the extent to intersect with the shapefile.
 #' @param expansion An optional numeric parameter to use if expanding the extent of \code{raster_layer} to include nearby shapes.
 extract_shapefile_from_raster <- function(shapefile,raster_layer,expansion=1){
+  .Deprecated(msg = "extract_shapefile_from_raster is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "extract_shapefile_from_raster")
   return(shapefile[
     which(
       sapply(
@@ -1210,6 +1119,7 @@ extract_shapefile_from_raster <- function(shapefile,raster_layer,expansion=1){
 #' @param taxonomy_dir The path to the taxonomy filesystem to store the shapefile in.
 #' @param verbose Whether to pass along messages about altered location names
 get_shapefile_cover <- function(country_names,taxonomy_dir = 'taxonomy-verified',verbose=TRUE){
+  .Deprecated(msg = "get_shapefile_cover is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "get_shapefile_cover")
   shapefiles <- lapply(
     country_names,
     get_country_shapefile,
@@ -1229,101 +1139,7 @@ get_shapefile_cover <- function(country_names,taxonomy_dir = 'taxonomy-verified'
   return(full_shapefile)
 }
 
-#' @export
-#' @name lookup_WorldPop_region
-#' @title lookup_WorldPop_region
-#' @description Determine which WorldPop raster to look at for population of a country
-#' @param location The name of the country
-#' @param verbose Whether to print detailed error messages
-lookup_WorldPop_region <- function(location,verbose=TRUE){
-  if('character' %in% class(location)){
-    fname <- system.file("extdata","country_worldpop_regions.csv",package = "taxdat")
-    if(nchar(fname) == 0){
-      if(verbose){
-        warning("Could not load country_worldpop_regions.csv from the package directory.  Try reinstalling the package or contacting the maintainer.")
-      }
-      return(NA)
-    }
-    worldpop_regions = tryCatch(
-      read.csv(
-        fname,
-        sep=',',
-        header=TRUE,
-        stringsAsFactors=FALSE,
-        na.strings = "",
-        colClasses = 'character',
-        quote = "\"",
-        check.names = FALSE
-      ),
-      warning = function(w){
-        if(length(w$message > 0)){
-          if(grepl(pattern="ncomplete final line",x=w$message)){
-            return(suppressWarnings(
-              read.csv(
-                fname,
-                sep=',',
-                header=TRUE,
-                stringsAsFactors=FALSE,
-                na.strings = "",
-                colClasses = 'character',
-                quote = "\"",
-                check.names = FALSE
-              )
-            ))
-          }
-        }
-        if(verbose){
-          warning(paste(fname,":",w$message),immediate.=TRUE)
-        }
-        return(w)
-      },
-      error = function(e){
-        if(verbose){
-          warning(paste(fname,":",e),immediate.=TRUE)
-        }
-        return(e)
-      }
-    )
-    if(location %in% worldpop_regions[,'country']){
-      return(worldpop_regions[location == worldpop_regions[,'country'],'region_code'])
-    }
-    if(location %in% worldpop_regions[,'country_code']){
-      return(worldpop_regions[location == worldpop_regions[,'country_code'],'region_code'])
-    }
-    
-    if(verbose){
-      warning(paste("Could not find WorldPop data for country",location))
-      return(NA)
-    }
-  } else if('sf' %in% class(location)){
-    all_Worldpop_regions <- c("AMR","AFR","OCE","ASI")
-    intersects = c()
-    for(region in all_Worldpop_regions){
-      files <- list.files(paste("Layers","pop",region,sep='/'))
-      # files <- files[grepl('adj',files)]
-      files <- files[grepl('tif$',files)]
-      files <- files[1]
-      raster_layer <- raster(paste("Layers","pop",region,files,sep='/'))
-      # #' @importFrom sf st_bbox
-      # raster_shapefile<- st_bbox(raster_layer)
-      #' @importFrom sf st_intersects
-      intersects[region] = st_intersects(
-        #' @importFrom sf st_as_sfc
-        #' @importFrom sf st_bbox
-        st_as_sfc(st_bbox(raster_layer)),
-        #' @importFrom sf st_as_sfc
-        #' @importFrom sf st_bbox
-        st_as_sfc(st_bbox(location$geometry)),
-        sparse = FALSE
-      )
-    }
-    if(sum(intersects) == 1){
-      return(names(intersects)[intersects])
-    } else {
-      stop("Not yet written")
-    }
-  }
-}
+
 
 #' @export
 #' @name extract_shapefile_from_shapefile
@@ -1333,6 +1149,7 @@ lookup_WorldPop_region <- function(location,verbose=TRUE){
 #' @param shp2 The shapefile to use as a bounding box to determine what to extract from shp1
 #' @param strict.  boolean  If TRUE, take the intersection of the relevent parts of shp1 with shp2.  If FALSE, keep shapes from shp1 as they are, and include if any of the interior overlaps with the interior of shp2.
 extract_shapefile_from_shapefile <- function(shp1,shp2,strict=FALSE){
+  .Deprecated(msg = "extract_shapefile_from_shapefile is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "extract_shapefile_from_shapefile")
   #' @importFrom sf st_union
   shp2 <- st_union(shp2)
   #' @importFrom sf st_relate
@@ -1350,6 +1167,7 @@ extract_shapefile_from_shapefile <- function(shp1,shp2,strict=FALSE){
 #' @title coordinate_to_shapefile
 #' @description Convert a coordinate to the shapefile containing it.
 coordinate_to_shapefile <- function(lat,long,country,ISO_level){
+  .Deprecated(msg = "coordinate_to_shapefile is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "coordinate_to_shapefile")
   #' @importFrom sf st_sfc
   #' @importFrom sf st_point
   point <- st_sfc(st_point(c(long,lat)))
@@ -1360,64 +1178,9 @@ coordinate_to_shapefile <- function(lat,long,country,ISO_level){
   return(st_intersection(polys,point))
 }
 
-#' @export
-#' @name reduce_sf_vector
-#' @title reduce_sf_vector
-#' @description recursively rbind a list of sf objects
-#' @param vec a vector/list of sf objects
-#' @return a single sf object which contains all the rows bound together
-reduce_sf_vector <- function(vec){
-  if(length(vec) == 0){
-    return(st_sf(st_sfc()))
-  }
-  if(is.null(names(vec))){
-    names(vec) = 1:length(vec)
-  }
-  if(length(names(vec)) != length(vec)){
-    names(vec) = 1:length(vec)
-  }
-  k = 1
-  all_columns = unlist(vec,recursive=FALSE)
-  split_names = strsplit(names(all_columns),'.',fixed=TRUE)
-  column_names = sapply(split_names,function(x){x[[2]]})
-  geom_columns = which(column_names == 'geometry')
-  geometry = st_as_sfc(unlist(all_columns[geom_columns],recursive=FALSE))
-  rc = st_sf(geometry)
-  #' @importFrom dplyr bind_rows
-  frame_only = bind_rows(lapply(vec,function(x){
-    x = as.data.frame(x)
-    x = x[-grep('geometry',names(x))]
-    return(x)
-  }))
-  rc = bind_cols(rc,frame_only)
-  return(rc)
-}
-
-standardize_string <- function(string){
-  # if(is.na(string)){return(NA)}
-  string = as.character(string)
-  string = strsplit(string,'|',fixed=TRUE)
-  string = lapply(string,function(x){gsub(' ','',x)})
-  string = lapply(string,function(x){
-    if(length(x) == 0){
-      return(x)
-    }
-    for(i in 1:length(x)){
-      if(Encoding(x[i]) != 'unknown'){
-        x[i] = iconv(from=Encoding(x[i]),to='ASCII//TRANSLIT',x[i])
-      } else {
-        x[i] = iconv(from='UTF-8',to='ASCII//TRANSLIT',x[i])
-      }
-    }
-    return(x)
-  })
-  string = lapply(string,function(x){gsub('[[:punct:]]','',x)})
-  string = lapply(string,function(x){toupper(x)})
-  string[sapply(string,length) == 0] = ''
-  return(string)
-}
 
 standardize_locations <- function(location_name){
+  .Deprecated(msg = "standardize_locations is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "standardize_locations")
   location_tmp = location_name
   location_tmp = gsub('|','VERTCHARACTER',location_tmp,fixed=TRUE)
   location_tmp = gsub('-','DASHCHARACTER',location_tmp,fixed=TRUE)
@@ -1441,6 +1204,7 @@ standardize_locations <- function(location_name){
 #' @export
 #' @param location_name character vector of location names to turn into a data frame
 create_location_sf <- function(location_name,date,thorough=FALSE){
+  .Deprecated(msg = "create_location_sf is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "create_location_sf")
   original_location_name = location_name
   location_name = standardize_locations(location_name)
   location_array = strsplit(location_name,split='_')
@@ -1542,6 +1306,7 @@ create_location_sf <- function(location_name,date,thorough=FALSE){
 
 #' @export
 group_location_sf <- function(location_sf){
+  .Deprecated(msg = "group_location_sf is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "group_location_sf")
   #' @import sf
   library(sf)
   # valid_locations = st_is_valid(location_sf)
@@ -1636,6 +1401,7 @@ group_location_sf <- function(location_sf){
 #' @param shp an sf object
 #' @return a copy of shp with a modified bounding box
 st_update_bounding_box <- function(shp){
+  .Deprecated(msg = "st_update_bounding_box is deprecated because it is no longer used by the cholera mapping pipeline.", package = "taxdat", old = "st_update_bounding_box")
   original_bbox = st_bbox(shp)
   new_bbox = as.vector(st_bbox(shp[1,]$geometry))
   names(new_bbox) = c('xmin','ymin','xmax','ymax')
