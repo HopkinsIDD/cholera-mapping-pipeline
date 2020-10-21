@@ -9,7 +9,7 @@ Description: This package is designed to load and work with taxonomy files in a 
 License: GPL (>= 2)
 Depends: R (>= 3.4),ISOcodes,magrittr
 Suggests: dplyr, readxl, sf, tidyr, sp, raster, rgdal, testthat, knitr, rmarkdown
-RoxygenNote: 7.1.0
+RoxygenNote: 7.1.1
 Collate:
     'readData.R'
     'auxiliary_functions.R'
