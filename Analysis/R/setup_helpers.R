@@ -102,26 +102,6 @@ checkCovariateChoices <- function(covar_choices,
   return(covar_choices)
 }
 
-#' @title Check covariate choices
-#' @description Verifies whether user-defined covariate choices are in the available
-#' set
-#'
-#' @param covar_choices
-#' @param available_choices
-#'
-#' @return if valid the vector of covariate choices
-checkCovariateChoices <- function(covar_choices,
-                                  available_choices){
-  
-  if (any(map_lgl(covar_choices, ~ !(. %in% available_choices))))
-    stop("Covariate choices [", str_c(setdiff(covar_choices, available_choices), collapse = ", "), "] not available. \n",
-         "Choose among: [", str_c(available_choices, collapse = ", "),"]")
-  
-  cat("---- Running with covariates:", str_c(covar_choices, collapse = ", "), "\n")
-  
-  return(covar_choices)
-}
-
 #' @title Check stan model
 #' @description Checks whether the stan model file exists
 #'
