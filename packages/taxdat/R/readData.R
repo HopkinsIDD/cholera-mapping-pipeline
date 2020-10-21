@@ -61,6 +61,59 @@ time_unit_to_aggregate_function <- function(unit){
 
 
 #' @export
+#' @name case_definition_to_column_name
+#' @title case_definition_to_column_name
+#' @description Turns human readable types of cholera case definitions into taxdat codes
+#' @param type string of type
+#' @param database Whether or not we're using the database
+#' @param sql logical for whether data is pulled from sql
+#' @return string of column names in the data taxonomy data frame.
+case_definition_to_column_name = function(type,database=FALSE,sql=FALSE){
+  if((!database) & (!sql)){
+    warning("The svn column names are deprecated, please use database column names.")
+    changer <- c(
+      'suspected' = 'sCh',
+      'confirmed' = 'cCh',
+      "presence"=c("sCh","sCh_R","sCh_L","cCh","cCh_L","cCh_R","deaths","deaths_L","deaths_R")
+    )
+  } else if((database) & (!sql)){
+    changer <- c(
+      'suspected' = 'attributes.fields.suspected_cases',
+      'confirmed' = 'attributes.fields.confirmed_cases',
+      "presence"=c(
+        "attributes.fields.suspected_cases",
+        "attributes.fields.suspected_cases_R",
+        "attributes.fields.suspected_cases_L",
+        "attributes.fields.confirmed_cases",
+        "attributes.fields.confirmed_cases_L",
+        "attributes.fields.confirmed_cases_R",
+        "attributes.fields.deaths",
+        "attributes.fields.deaths_L",
+        "attributes.fields.deaths_R"
+      )
+    )
+  } else if((!database) & (sql)){
+    changer <- c(
+      "suspected" = "suspected_cases",
+      "confirmed" = "confirmed_cases",
+      "presence"=c(
+        "suspected_cases",
+        "suspected_cases_R",
+        "suspected_cases_L",
+        "confirmed_cases",
+        "confirmed_cases_L",
+        "confirmed_cases_R",
+        "deaths",
+        "deaths_L",
+        "deaths_R"
+      )
+    )
+  }
+  return(changer[type])
+}
+
+
+#' @export
 #' @name reduce_sf_vector
 #' @title reduce_sf_vector
 #' @description recursively rbind a list of sf objects
