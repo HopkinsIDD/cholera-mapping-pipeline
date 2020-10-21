@@ -43,8 +43,8 @@ jobs:
       uses: docker/build-push-action@v2
       with:
         tags: |
-          hopkinsidd/covidscenariopipeline:latest
-          hopkinsidd/covidscenariopipeline:latest-master
-          hopkinsidd/covidscenariopipeline:${{steps.tags.outputs.shashort}}
-          hopkinsidd/covidscenariopipeline:${{steps.tags.outputs.reftag}}
-          hopkinsidd/covidscenariopipeline:${{ github.sha }}
+          hopkinsidd/choleramappingpipeline:latest
+          hopkinsidd/choleramappingpipeline:latest-master
+          hopkinsidd/choleramappingpipeline:${{steps.tags.outputs.shashort}}
+          hopkinsidd/choleramappingpipeline:${{steps.tags.outputs.reftag}}
+          hopkinsidd/choleramappingpipeline:${{ github.sha }}
