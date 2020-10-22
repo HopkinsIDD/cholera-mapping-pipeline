@@ -28,7 +28,7 @@ prepare_grid <- function(
   library(ncdf4)
   
   # Get files
-  source(str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
+  source(stringr::str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
   
   # Inputs ------------------------------------------------------------------
   
@@ -41,14 +41,14 @@ prepare_grid <- function(
   km_to_deg <- 1/110.57    # how many degrees is a km at the equator
   
   # Other objects
-  conn_pg <- connectToDB(dbuser)
+  conn_pg <- taxdat::connect_to_db(dbuser)
   
   # Process grid ------------------------------------------------------------------
   
   cat("**** PROCESSING GRID ****\n")
   
   # Check if the master grid is set
-  if (dbExistsTable(conn=conn_pg, DBI::Id(schema = "grids", table="master_grid"))) {
+  if (DBI::dbExistsTable(conn=conn_pg, DBI::Id(schema = "grids", table="master_grid"))) {
     
     cat("---- Found master grid \n")
     
@@ -69,13 +69,13 @@ prepare_grid <- function(
                      psql -w -h localhost -d cholera_covariates")
     system(r2psql_cmd)
     
-    dbSendStatement(conn_pg, "UPDATE grids.master_grid SET rast = ST_Reclass(rast, 1, '[0-1000000]:1', '32BF', 0);")
-    dbSendStatement(conn_pg, "SELECT AddRasterConstraints('grids'::name, 'master_grid'::name, 'rast'::name);")
+    DBI::dbSendStatement(conn_pg, "UPDATE grids.master_grid SET rast = ST_Reclass(rast, 1, '[0-1000000]:1', '32BF', 0);")
+    DBI::dbSendStatement(conn_pg, "SELECT AddRasterConstraints('grids'::name, 'master_grid'::name, 'rast'::name);")
   }
   
   # Set the desired reference grid name
-  grid_name <- str_c("grid_", res_x, "_", res_y)
-  grid_in_db <- dbExistsTableMulti(conn_pg, c("public", "grids"), grid_name)
+  grid_name <- stringr::str_c("grid_", res_x, "_", res_y)
+  grid_in_db <- taxdat::db_exists_table_multi(conn_pg, c("public", "grids"), grid_name)
   
   if (sum(grid_in_db) == 0) {
     
@@ -84,11 +84,11 @@ prepare_grid <- function(
     
     cat("Couldn't find grid at", res_x, "x", res_y, "[km] resolution, computing it.\n")
     
-    tmp_rast <- str_c(tmpDir(), "grid_resampled.tif")
+    tmp_rast <- stringr::str_c(raster::tmpDir(), "grid_resampled.tif")
     ref_grid <- glue::glue("PG:\"host=localhost dbname=cholera_covariates schema=grids table=master_grid user={dbuser} mode=2\"")
     
     # Aggregate
-    gdalwarp2(ref_grid, tmp_rast,
+    taxdat::gdalwarp2(ref_grid, tmp_rast,
               tr = c(res_x, res_y) * km_to_deg, 
               t_srs = "EPSG:4326",
               s_srs = "EPSG:4326")
@@ -97,8 +97,8 @@ prepare_grid <- function(
     system(r2psql_cmd)
     
     # Create centroids table and spatial index
-    buildGeomsQuery(conn_pg, schema = "public", grid_name, "centroids")
-    buildGeomsQuery(conn_pg, schema = "public", grid_name, "polygons")
+    taxdat::build_geoms_query(conn_pg, schema = "public", grid_name, "centroids")
+    taxdat::build_geoms_query(conn_pg, schema = "public", grid_name, "polygons")
     
     # Set the schema to public
     grid_schema <- "public"
@@ -109,7 +109,7 @@ prepare_grid <- function(
     cat("---- Found grid at ", res_x, "x", res_y, " km resolution in schema '", grid_schema, "'\n", sep = "")
   }
   
-  full_grid_name <- str_c(grid_schema, grid_name, sep = ".")
+  full_grid_name <- stringr::str_c(grid_schema, grid_name, sep = ".")
   
   cat("**** DONE GRID ****\n")
   

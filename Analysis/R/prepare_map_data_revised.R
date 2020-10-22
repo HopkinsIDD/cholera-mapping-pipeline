@@ -32,7 +32,7 @@ if (data_source == "api") {
   username <- taxonomy_username
   password <- taxonomy_password
 } else {
-  stop("Uknown data source, must be one of 'api', 'sql', found ", data_source)
+  stop("Unknown data source, must be one of 'api', 'sql', found ", data_source)
 }
 
 # This pulls the data either from the mid-distance database or the postgresql
@@ -93,38 +93,38 @@ shapefiles <- cases %>%
   dplyr::summarize(n = dplyr::n()) %>% 
   dplyr::rename(location_period_id = attributes.location_period_id)
 
-shapefiles$valid <- st_is_valid(shapefiles)
+shapefiles$valid <- sf::st_is_valid(shapefiles)
 if (!all(shapefiles$valid)) {
   warning("At least one location period is invalid.  See output for details")
   print(paste(sum(!shapefiles$valid), "shapefiles were invalid."))
   print(paste("The following location periods were affected:", paste(shapefiles$location_period_id[!shapefiles$valid], collapse = ", ")))
   shapefiles$geojson[!shapefiles$valid] <- sf::st_make_valid(shapefiles$geojson[!shapefiles$valid])
-  shapefiles$valid <- st_is_valid(shapefiles)
+  shapefiles$valid <- sf::st_is_valid(shapefiles)
   print("An attempt was made to fix the invalid shapefiles")
 }
 
 ## This is not a long term solution in any capacity
-if (any(grepl("GEOMETRYCOLLECTION", st_geometry_type(shapefiles)))) {
+if (any(grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles)))) {
   warning("Geometry collections present in locations.  See output for details")
-  print(paste("The following location periods are affected:", paste(shapefiles[grepl("GEOMETRYCOLLECTION", st_geometry_type(shapefiles)), ][["location_period_id"]], collapse = ", ")))
+  print(paste("The following location periods are affected:", paste(shapefiles[grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles)), ][["location_period_id"]], collapse = ", ")))
   warning("Attempting to fix geometry collections, but not in a smart way.  Please fix the underlying data instead.")
-  tmp2 <- do.call(sf:::rbind.sf, lapply(shapefiles$geojson[grepl("GEOMETRYCOLLECTION", st_geometry_type(shapefiles))], function(x) {
+  tmp2 <- do.call(sf:::rbind.sf, lapply(shapefiles$geojson[grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles))], function(x) {
     sf::st_sf(sf::st_sfc(x[[1]]))
   }))
-  shapefiles[st_geometry_type(shapefiles) == "GEOMETRYCOLLECTION", ]$geojson <- st_geometry(tmp2)
+  shapefiles[sf::st_geometry_type(shapefiles) == "GEOMETRYCOLLECTION", ]$geojson <- sf::st_geometry(tmp2)
 }
 
 # Write location periods in data ---------------------------------------
 
 # Database connection
-conn_pg <- connectToDB(dbuser)
+conn_pg <- taxdat::connect_to_db(dbuser)
 
 # Set user-specific name for location_periods table to use
-lp_name <- makeLocationPeriodsTableName(dbuser = dbuser)
+lp_name <- taxdat::make_locationperiods_table_name(dbuser = dbuser)
 
 # Make sf object to multiploygons to be consistent
 shapefiles <- sf::st_cast(shapefiles, "MULTIPOLYGON") %>% 
-  rename(geom = geojson)
+  dplyr::rename(geom = geojson)
 
 # Write to database
 sf::st_write(obj = shapefiles, 
@@ -158,7 +158,7 @@ DBI::dbSendStatement(
 )
 
 # Get the dictionary of location periods to pixel ids
-cntrd_table <- makeGridCentroidsTableName(dbuser = dbuser)
+cntrd_table <- taxdat::make_grid_centroids_table_name(dbuser = dbuser)
 
 # Create table of grid centroids included in the model
 DBI::dbSendStatement(
@@ -184,8 +184,8 @@ DBI::dbSendStatement(
 
 # Create sf_chol ---------------------------------------------------------------
 
-st_crs(cases) <- st_crs(shapefiles) ## same crs needed for st_join
-st_geometry(cases) <- NULL
+sf::st_crs(cases) <- sf::st_crs(shapefiles) ## same crs needed for st_join
+sf::st_geometry(cases) <- NULL
 sf_cases <- sf::st_as_sf(
   dplyr::left_join(cases, 
                    shapefiles, 

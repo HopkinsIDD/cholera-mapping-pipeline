@@ -43,7 +43,7 @@ prepare_covar_cube <- function(
   aggregate_to_end <- taxdat::time_unit_to_end_function(temporal_aggregate_time_unit)
   
   # Define modeling time slices (set of time periods at which the data generating process occurs)
-  time_slices <- modelingTimeSlices(start_time = start_time, 
+  time_slices <- taxdat::modeling_time_slices(start_time = start_time, 
                                     end_time = end_time, 
                                     res_time = res_time,
                                     time_change_func = time_change_func,
@@ -92,7 +92,7 @@ prepare_covar_cube <- function(
       covar_TR_seq <- aggregate_to_end(time_change_func(covar_TL_seq))
       
       cat("---- Extracting ", covar, "\n")
-      covar_bands <- getTemporalBands(model_time_slices = time_slices, 
+      covar_bands <- taxdat::get_temporal_bands(model_time_slices = time_slices, 
                                       covar_TL_seq = covar_TL_seq,
                                       covar_TR_seq = covar_TR_seq)
       
@@ -172,7 +172,7 @@ prepare_covar_cube <- function(
                               sf_grid
                             }
                      )) %>% 
-    dplyr::mutate(long_id = row_number())  # this is the overall cell id (from 1 to n_space x n_times)
+    dplyr::mutate(long_id = dplyr::row_number())  # this is the overall cell id (from 1 to n_space x n_times)
   
   # Table of correspondence between location periods and grid cells
   username <- Sys.getenv("USER")
