@@ -36,7 +36,7 @@ prepare_covariates <- function(
   library(ncdf4)
   
   # Get files
-  source(str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
+  source(stringr::str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
   
   # print(str(list(
   #   dbuser =  dbuser,
@@ -61,19 +61,19 @@ prepare_covariates <- function(
   res_y <- res_space    # latitude resolution in km
   
   # Temporal resolution 
-  res_time_list <- parseTimeRes(res_time)
+  res_time_list <- taxdat::parse_time_res(res_time)
   
   # Other parameters
   km_to_deg <- 1/110.57    # how many degrees is a km at the equator
   
   # Other objects
-  conn_pg <- connectToDB(dbuser)
+  conn_pg <- taxdat::connect_to_db(dbuser)
   
   # Dictionary of aliases and aggregators for covariates
   covar_dict <- yaml::read_yaml(paste0(cholera_directory, "/Layers/covariate_dictionary.yml"))
   
   # Covariates to include in the model
-  covar_abbr_list <- str_split(covar, ",")[[1]]
+  covar_abbr_list <- stringr::str_split(covar, ",")[[1]]
   covar_toingest_list <- covar_dict[unlist(lapply(covar_dict, function (x) x$abbr %in% covar_abbr_list))]
   
   # Check if all covariates were found
@@ -94,20 +94,20 @@ prepare_covariates <- function(
     list(name = "raw", extent = NULL),
     list(name = "SSD", extent = raster::extent(23, 37, 3, 13)),   # SSD
     list(name = "KEN", extent = raster::extent(33, 42, -5.2, 5)),   # Kenya
-    list(name = "SSA", extent = extent(-18.8, 52.6, -35.4, 28))   # SSA
+    list(name = "SSA", extent = raster::extent(-18.8, 52.6, -35.4, 28))   # SSA
   )
   aoi_names <- purrr::map_chr(aois, "name")
   
   if (!(aoi_name %in% aoi_names)) {
-    stop("Area of interest ", aoi_name, " not among pre-defined areas (", str_c(aoi_names, collapse = ","), ")")
+    stop("Area of interest ", aoi_name, " not among pre-defined areas (", stringr::str_c(aoi_names, collapse = ","), ")")
   } else {
     aoi <- aois[[which(aoi_name == aoi_names)]]
   }
   
   if (ovrt_metadata_table) {
     # Recreate the metadata table
-    dbSendStatement(conn_pg, "DROP TABLE IF EXISTS covariates.metadata;")
-    dbSendStatement(conn_pg, 
+    DBI::dbSendStatement(conn_pg, "DROP TABLE IF EXISTS covariates.metadata;")
+    DBI::dbSendStatement(conn_pg, 
                     "CREATE TABLE covariates.metadata(
                   covariate TEXT PRIMARY KEY,
                   src_res_x DOUBLE PRECISION,
@@ -127,20 +127,20 @@ prepare_covariates <- function(
   
   for (covarit in covar_toingest_list) {
     
-    covar_alias <- makeCovarAlias(alias = covarit$alias,
+    covar_alias <- taxdat::make_covar_alias(alias = covarit$alias,
                                   type = covarit$type,
                                   res_time = res_time,
                                   res_space = c(res_x, res_y))
     
     # Check whether table exists in the public or covariates schemas
-    covar_in_db <- dbExistsTableMulti(conn_pg, c("public", "covariates"), covar_alias)
+    covar_in_db <- taxdat::db_exists_table_multi(conn_pg, c("public", "covariates"), covar_alias)
     covar_schema <- "covariates"
     
     if (!any(covar_in_db) & !ingest) 
       stop(glue::glue("Couldn't find {covarit$type} covariate '{covarit$alias}' at temporal resolution of: {res_time}, and spatial resolution of: {res_x}x{res_y}km. The covariate needs to be preprocessed and ingested by an authorized users."))
     
     if(!any(covar_in_db) | ovrt_covar) {
-      ingestCovariate(conn = conn_pg,
+      taxdat::ingest_covariate(conn = conn_pg,
                       covar_name = covarit$name,
                       covar_dir = covarit$dir,
                       covar_alias = covar_alias,
@@ -170,7 +170,7 @@ prepare_covariates <- function(
     
     
     if (redo_metadata) {
-      writeMetadata(conn = conn_pg,
+      taxdat::write_metadata(conn = conn_pg,
                     covar_dir = covarit$dir,
                     covar_type = covarit$type,
                     covar_alias = covar_alias,
@@ -182,7 +182,7 @@ prepare_covariates <- function(
                     dbuser = dbuser)
     }
     
-    covar_list <- c(covar_list, str_c(covar_schema, covar_alias, sep = "."))
+    covar_list <- c(covar_list, stringr::str_c(covar_schema, covar_alias, sep = "."))
   } 
   
   # Write covariate names to file

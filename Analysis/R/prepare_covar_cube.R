@@ -30,12 +30,12 @@ prepare_covar_cube <- function(
   res_time
 ) {
   
-  source(str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
-  source(str_c(cholera_directory, "/Analysis/R/setup_helpers.R"))
+  source(stringr::str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
+  source(stringr::str_c(cholera_directory, "/Analysis/R/setup_helpers.R"))
   
   # Extract data cube ------------------------------------------------------------
   # Database connection
-  conn_pg <- connectToDB(dbuser)
+  conn_pg <- taxdat::connect_to_db(dbuser)
   
   # Get various functions to convert between time units and dates
   time_change_func <- taxdat::time_unit_to_aggregate_function(temporal_aggregate_time_unit)
@@ -55,7 +55,7 @@ prepare_covar_cube <- function(
   n_time_slices <- nrow(time_slices)
   n_covar <- length(covar_list)
   # Get the grid centroids corresponding to the location periods centroids table
-  cntrd_table <- makeGridCentroidsTableName(dbuser)
+  cntrd_table <- taxdat::make_grid_centroids_table_name(dbuser)
   n_grid_cells <- DBI::dbGetQuery(
     conn_pg, 
     glue::glue_sql("SELECT COUNT(*) FROM {`{DBI::SQL(cntrd_table)}`};", .con = conn_pg)
@@ -143,7 +143,7 @@ prepare_covar_cube <- function(
     }
     
     # Set covariate names in covar_cube
-    dimnames(covar_cube)[[3]] <- str_split(covar_list, "\\.") %>% purrr::map_chr(~ .[2])
+    dimnames(covar_cube)[[3]] <- stringr::str_split(covar_list, "\\.") %>% purrr::map_chr(~ .[2])
     
     cat("---- Done ", covar, "\n")
   } 
@@ -154,7 +154,7 @@ prepare_covar_cube <- function(
   grid_changer <- setNames(seq_len(length(non_na_gridcells)), non_na_gridcells)
   
   # Get the modelling grid
-  sf_grid <- st_read(conn_pg, 
+  sf_grid <- sf::st_read(conn_pg, 
                      query = glue::glue_sql(
                        "SELECT p.* FROM
                    {`{DBI::SQL(paste0(full_grid_name, '_polys'))}`} p 
@@ -191,9 +191,9 @@ prepare_covar_cube <- function(
   
   # Create a unique location period id which also accounts for the modeling time slice
   location_periods_dict <- location_periods_dict %>% 
-    distinct(location_period_id, t) %>% 
-    mutate(loctime_id = row_number()) %>% 
-    inner_join(location_periods_dict)
+    dplyr::distinct(location_period_id, t) %>% 
+    dplyr::mutate(loctime_id = dplyr::row_number()) %>% 
+    dplyr::inner_join(location_periods_dict)
   
   cat("**** FINISHED EXTRACTING COVARITE CUBE OF DIMENSINONS", paste0(dim(covar_cube), collapse = "x"), "[n_pix x n_time x n_covar] \n")
   
