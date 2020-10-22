@@ -4,6 +4,7 @@ output: html_document
 params:
   cholera_directory: "../../"
   config_directory: "../configs/2015_2019"
+  max_countries: Inf
 ---
 ```{r setup, include=FALSE, dev="CairoPNG"}
 knitr::opts_chunk$set(inlude = FALSE, dev="CairoPNG")
@@ -15,7 +16,9 @@ library(readr)
 library(ggplot2)
 library(kableExtra)
 library(RColorBrewer)
+library(MCMCvis)
 library(sf)
+library(abind)
 
 source(str_c(params$cholera_directory, "/Analysis/output/model_run_report_helpers.R"))
 source(str_c(params$cholera_directory,"/packages/taxdat/R/readData.R"))
@@ -31,23 +34,47 @@ if(length(all_times) > 1){
 
 sf_cases_resized <- list()
 sf_grid <- list()
-pull <- 0
+country_count <- 0
 for(config_filename in all_configs){
+  print(config_filename)
+  if(country_count >= params$max_countries){break}
   config <- yaml::read_yaml(config_filename)
   file_names <- getFilenames(config, params$cholera_directory)
   if(all(file.exists(file_names))){
     stan_input <- read_file_of_type(file_names[['stan_input']], "stan_input")
-    stan_output <- rstan::extract(read_file_of_type(file_names[['stan_output']], "model.rand"))
+    model.rand <- read_file_of_type(file_names[['stan_output']], "model.rand")
+    niter_per_chain <- dim(MCMCvis::MCMCchains(model.rand,params='lp__',chain_num=1))[1]
+    nchain <- dim(MCMCvis::MCMCchains(model.rand,params='lp__'))[1] / niter_per_chain
+    stan_output <- lapply(rstan::extract(model.rand), function(x){array(x,c(niter_per_chain, nchain, dim(x)[-1]))})
+
     
-    stan_input$sf_grid <- stan_input$sf_grid %>% select(t,id)
-    stan_input$sf_grid$modeled_cases <- apply(stan_output$grid_cases, 2, mean)
-    stan_input$sf_grid$modeled_rate <- apply(exp(stan_output$log_lambda), 2, mean)
+    stan_input$sf_grid <- stan_input$sf_grid %>% dplyr::ungroup() %>% dplyr::select(t,id)
+    stan_input$sf_grid[paste('cases','chain',seq_len(nchain),sep='_')] <- apply(stan_output$grid_cases, c(3,2), mean)
+    stan_input$sf_grid[paste('rate','chain',seq_len(nchain),sep='_')] <- apply(exp(stan_output$log_lambda), c(3,2), mean)
+    stan_input$sf_grid$row_index <- seq_len(nrow(stan_input$sf_grid))
+    stan_input$sf_grid <- tidyr::pivot_longer(
+      stan_input$sf_grid,
+      cols=c(
+        paste('cases','chain',seq_len(nchain),sep='_'),
+        paste('rate','chain',seq_len(nchain),sep='_')
+      ),
+      names_to="scenario",
+      values_to="modeled"
+    ) %>% sf::st_sf()
+    stan_input$sf_grid <- tidyr::separate(col=scenario, into = c('type',NA,'chain'),stan_input$sf_grid)
   
     stan_input$sf_cases_resized <- dplyr::rename(
-      dplyr::select(stan_input$sf_cases_resized, location_name, OC_UID,TL,TR,suspected_cases),
-      observed_cases = suspected_cases
+      dplyr::select(sf::st_as_sf(dplyr::ungroup(stan_input$sf_cases_resized)), location_name, OC_UID,TL,TR,suspected_cases),
+      observed = suspected_cases
     )
-    stan_input$sf_cases_resized$modeled_cases <- apply(stan_output$modeled_cases,2,mean)
+    # stan_input$sf_cases_resized$modeled_cases <- apply(stan_output$modeled_cases,3,mean)
+    stan_input$sf_cases_resized[paste('cases','chain',seq_len(nchain),sep='_')] <- apply(stan_output$modeled_cases, c(3,2), mean)
+    stan_input$sf_cases_resized$row_index <- seq_len(nrow(stan_input$sf_cases_resized))
+    stan_input$sf_cases_resized <- tidyr::pivot_longer(stan_input$sf_cases_resized,cols=paste('cases','chain',seq_len(nchain),sep='_'),names_to="scenario",values_to="modeled") %>% sf::st_sf()
+    stan_input$sf_cases_resized <- tidyr::separate(col=scenario, into = c('type',NA,'chain'),stan_input$sf_cases_resized)
+
+    stan_input$sf_cases_resized$filename <- config_filename
+    stan_input$sf_grid$filename <- config_filename
   
     if("list" %in% class(sf_grid)){
       sf_grid <- stan_input$sf_grid
@@ -59,52 +86,104 @@ for(config_filename in all_configs){
     } else {
       sf_cases_resized <- rbind(sf_cases_resized, stan_input$sf_cases_resized)
     }
+    country_count <- country_count + 1
   }
 }
 
-# disjoint_set_sf_cases_observed <- get_disjoint_set_sf_cases(dplyr::mutate(sf_cases_resized,attributes.fields.suspected_cases = observed_cases))
-#disjoint_set_sf_cases_modeled <- get_disjoint_set_sf_cases(dplyr::mutate(sf_cases_resized,attributes.fields.suspected_cases = modeled_cases))
-#if(!all(disjoint_set_sf_cases_observed$attributes.location_period_id == disjoint_set_sf_cases_modeled$attributes.location_period_id,na.rm=TRUE)){
-#  stop("Expected disjoint_set_sf_cases to be in the same order")
-#}
-#if(!all(disjoint_set_sf_cases_observed$set == disjoint_set_sf_cases_modeled$set,na.rm=TRUE)){
-#  stop("Expected disjoint_set_sf_cases to have the same sets")
-#}
-#disjoint_set_sf_cases <- disjoint_set_sf_cases_observed[,c("set","attributes.location_period_id")]
-#
-#disjoint_set_sf_cases$observed_cases <- disjoint_set_sf_cases_observed$cases
-#disjoint_set_sf_cases$observed_area_adjusted_cases <- disjoint_set_sf_cases_observed$area_adjusted_cases
-#disjoint_set_sf_cases$observed_variance <- disjoint_set_sf_cases_observed$variance
-#disjoint_set_sf_cases$observed_number_observations <- disjoint_set_sf_cases_observed$observations
-#
-#disjoint_set_sf_cases$modeled_cases <- disjoint_set_sf_cases_modeled$cases
-#disjoint_set_sf_cases$modeled_area_adjusted_cases <- disjoint_set_sf_cases_modeled$area_adjusted_cases
-#disjoint_set_sf_cases$modeled_variance <- disjoint_set_sf_cases_modeled$variance
-#disjoint_set_sf_cases$modeled_number_observations <- disjoint_set_sf_cases_modeled$observations
-#disjoint_set_sf_cases$error_cases <- (disjoint_set_sf_cases$modeled_cases - disjoint_set_sf_cases$observed_cases)
-```
+afr_shp <- sf::st_boundary(sf::st_read(paste(params$cholera_directory,"Layers/afr.shp",sep='/')))
 
+# disjoint_set_sf_cases_observed <- get_disjoint_set_sf_cases(dplyr::mutate(sf_cases_resized,attributes.fields.suspected_cases = observed_cases))
+# disjoint_set_sf_cases_modeled <- get_disjoint_set_sf_cases(dplyr::mutate(sf_cases_resized,attributes.fields.suspected_cases = modeled_cases))
+# if(!all(disjoint_set_sf_cases_observed$attributes.location_period_id == disjoint_set_sf_cases_modeled$attributes.location_period_id,na.rm=TRUE)){
+#   stop("Expected disjoint_set_sf_cases to be in the same order")
+# }
+# if(!all(disjoint_set_sf_cases_observed$set == disjoint_set_sf_cases_modeled$set,na.rm=TRUE)){
+#   stop("Expected disjoint_set_sf_cases to have the same sets")
+# }
+# disjoint_set_sf_cases <- disjoint_set_sf_cases_observed[,c("set","attributes.location_period_id")]
+# 
+# disjoint_set_sf_cases$observed_cases <- disjoint_set_sf_cases_observed$cases
+# disjoint_set_sf_cases$observed_area_adjusted_cases <- disjoint_set_sf_cases_observed$area_adjusted_cases
+# disjoint_set_sf_cases$observed_variance <- disjoint_set_sf_cases_observed$variance
+# disjoint_set_sf_cases$observed_number_observations <- disjoint_set_sf_cases_observed$observations
+# 
+# disjoint_set_sf_cases$modeled_cases <- disjoint_set_sf_cases_modeled$cases
+# disjoint_set_sf_cases$modeled_area_adjusted_cases <- disjoint_set_sf_cases_modeled$area_adjusted_cases
+# disjoint_set_sf_cases$modeled_variance <- disjoint_set_sf_cases_modeled$variance
+# disjoint_set_sf_cases$modeled_number_observations <- disjoint_set_sf_cases_modeled$observations
+# disjoint_set_sf_cases$error_cases <- (disjoint_set_sf_cases$modeled_cases - disjoint_set_sf_cases$observed_cases)
+```
 
 # Mapping results summary for `r paste(all_locations, collapse =', ')` and period `r all_times`
 
-```{r grdioutcase, fig.cap="Plot Grid Output Cases", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-# plot_cases(sf_grid,"modeled_cases","t",render=TRUE, plot_border = FALSE)
+```{r makenosplit, echo=FALSE, warning=FALSE,message=FALSE}
+single_sf_grid <- sf_grid %>% group_by(filename, id,type) %>% summarize(modeled = mean(modeled), geometry = unique(geom)) %>% ungroup()
+```
+
+```{r gridoutcase, fig.cap="Plot Grid Output Cases", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+plot_map(dplyr::filter(single_sf_grid,type=='cases'),"modeled", facet_column='type', type = 'cases', render=TRUE, plot_border = afr_shp)
 ```
 
 ```{r gridoutrate, fig.cap="Plot Grid Output Rates", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-# plot_rates(sf_grid,"modeled_rate","t", render=TRUE, plot_border = FALSE)
+plot_map(dplyr::filter(single_sf_grid,type=='rate'),"modeled", facet_column='type', type = 'rates', render=TRUE, plot_border = afr_shp)
 ```
 
 ```{r gridoutcaselog, fig.cap="Plot Grid Output Cases with log transform", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-# plot_cases(sf_grid,"modeled_cases","t",render=TRUE, plot_border = FALSE, use_log = TRUE)
+plot_map(dplyr::filter(single_sf_grid,type=='cases'),"modeled", facet_column='type', type = 'cases', render=TRUE, plot_border = afr_shp, use_log=TRUE)
 ```
 
-```{r gridoutratelog, fig.caps = "Plot Grid Output Rates with log transform", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_rates(sf_grid,"modeled_rate","t", render=TRUE, plot_border = FALSE, use_log = TRUE, plot_file = "full_log_rates.pdf", width=1620,height=1080)
+```{r gridoutratelog, fig.cap="Plot Grid Output Rates with log transform", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+plot_map(dplyr::filter(single_sf_grid,type=='rate'),"modeled", facet_column='type', type = 'rates', render=TRUE, plot_border = afr_shp, use_log=TRUE)
+```
+
+```{r makechainsplit, echo=FALSE, warning=FALSE,message=FALSE}
+rm(single_sf_grid)
+chain_sf_grid <- sf_grid %>% group_by(filename, id,chain,type) %>% summarize(modeled = mean(modeled), geometry = unique(geom)) %>% ungroup()
+```
+
+```{r chaingrdioutcase, fig.cap="Plot Grid Output Cases by chain", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+plot_map(dplyr::filter(chain_sf_grid,type=='cases'), "modeled", "chain", type = 'cases', render=TRUE, plot_border = afr_shp)
+```
+
+```{r chaingridoutrate, fig.cap="Plot Grid Output Rates by chain", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+plot_map(dplyr::filter(chain_sf_grid,type=='rate'), "modeled", "chain", type = 'rates', render=TRUE, plot_border = afr_shp)
+```
+
+```{r chaingridoutcaselog, fig.cap="Plot Grid Output Cases with log transform by chain", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+plot_map(dplyr::filter(chain_sf_grid,type=='cases'), "modeled", "chain",type = 'cases', render=TRUE, plot_border = afr_shp, use_log = TRUE)
+```
+
+```{r chaingridoutratelog, fig.caps = "Plot Grid Output Rates with log transform by chain", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+plot_map(dplyr::filter(chain_sf_grid,type=='rate'), "modeled", "chain", type = 'rates', render=TRUE, plot_border = afr_shp, use_log = TRUE)
+```
+
+```{r maketimesplit, echo=FALSE, warning=FALSE,message=FALSE}
+rm(chain_sf_grid)
+time_sf_grid <- sf_grid %>% group_by(filename, id,t,type) %>% summarize(modeled = mean(modeled), geometry = unique(geom)) %>% ungroup()
+```
+
+```{r timegrdioutcase, fig.cap="Plot Grid Output Cases by time", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+plot_map(dplyr::filter(time_sf_grid,type=='cases'), "modeled", "t", type = 'cases', render=TRUE, plot_border = afr_shp)
+```
+
+```{r timegridoutrate, fig.cap="Plot Grid Output Rates by time", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+plot_map(dplyr::filter(time_sf_grid,type=='rate'), "modeled", "t", type = 'rates', render=TRUE, plot_border = afr_shp)
+```
+
+```{r timegridoutcaselog, fig.cap="Plot Grid Output Cases with log transform by time", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+plot_map(dplyr::filter(time_sf_grid,type=='cases'), "modeled", "t",type = 'cases', render=TRUE, plot_border = afr_shp, use_log = TRUE)
+```
+
+```{r timegridoutratelog, fig.caps = "Plot Grid Output Rates with log transform by time", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+plot_map(dplyr::filter(time_sf_grid,type=='rate'), "modeled", "t", type = 'rates', render=TRUE, plot_border = afr_shp, use_log = TRUE)
+```
+
+```{r cleantimesplit, echo=FALSE, warning=FALSE,message=FALSE}
+rm(time_sf_grid)
 ```
 
 ```{r obsin, fig.cap="Plot Observation Cases Input", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-# plot_cases(disjoint_set_sf_cases,"modeled_cases","set", render=TRUE)
+# plot_cases(disjoint_set_sf_cases,"modeled""set", render=TRUE)
 ```
 
 ```{r obsout, fig.cap="Plot Observation Cases Output", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
@@ -113,4 +192,12 @@ plot_rates(sf_grid,"modeled_rate","t", render=TRUE, plot_border = FALSE, use_log
 
 ```{r obserr, fig.cap="Plot Observation Cases Error", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
 # plot_cases(disjoint_set_sf_cases,"error_cases","set", render=TRUE)
+```
+
+```{r modelfit, fig.cap="Plot Observed vs Modeled", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+sf_cases_resized %>%
+  ggplot() +
+  geom_point(aes(x=modeled+1,y=observed+1,color=as.character(chain))) +
+  scale_x_continuous(trans="log10") +
+  scale_y_continuous(trans="log10")
 ```
