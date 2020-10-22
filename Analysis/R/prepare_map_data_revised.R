@@ -45,7 +45,7 @@ cases <- taxdat::pull_taxonomy_data(
   time_right = aggregate_to_end(end_time),
   source = data_source
 ) %>%
-  rename_database_fields(source = data_source)
+  taxdat::rename_database_fields(source = data_source)
 
 # Get OC UIDs for all extracted data
 uids <- sort(unique(cases$OC_UID))
@@ -53,7 +53,7 @@ uids <- sort(unique(cases$OC_UID))
 # Filter out NA cases, which represent missing observations, and non-primary observations (primary observations are only space-time stratified and these are the ones we want to focus on in these maps)
 cases <- dplyr::filter(cases, !is.na(.data[[cases_column]])) %>%
   dplyr::filter(is_primary) %>%
-  dplyr::mutate(shapefile.exists = !is.na(st_dimension(geojson)) & (st_dimension(geojson) > 0))
+  dplyr::mutate(shapefile.exists = !is.na(sf::st_dimension(geojson)) & (sf::st_dimension(geojson) > 0))
 
 # Sanity check (There should be at least one report)
 if (nrow(cases) == 0) {
