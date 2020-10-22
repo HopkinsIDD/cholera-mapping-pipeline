@@ -10,7 +10,7 @@ options(error=function(...){quit(...,status=2)})
     detach('package:taxdat')
   }
   # Install required packages 
-  package_list <- c('inline', 'parallel', 'rstan', 'sf', 'magrittr', 'RPostgreSQL',
+  package_list <- c('inline', 'DBI', 'parallel', 'rstan', 'sf', 'magrittr', 'RPostgreSQL',
                     'odbc', 'sf', 'raster', 'lubridate', 'tidync', 'ncdf4', 'stringr',
                     'dplyr', 'R.utils', 'ncdf4', 'gdalUtils', 'foreach', 'glue',
                     'spdep', 'igraph', 'itertools', 'purrr', 'optparse', 'RPostgres', 'rjson',
@@ -81,7 +81,7 @@ spatial_aggregate_iso_a2_level <- Inf # Aggregate data to ISO_A2_L? use 0 for IS
 # - - - -
 # What is the time unit to aggregate to?
 res_time <- checkTimeRes(config$res_time)
-temporal_aggregate_time_unit <- str_split(res_time, " ")[[1]][2]
+temporal_aggregate_time_unit <- stringr::str_split(res_time, " ")[[1]][2]
 
 # Get various functions to convert between time units and dates
 time_change_func <- taxdat::time_unit_to_aggregate_function(temporal_aggregate_time_unit)
@@ -100,7 +100,7 @@ smooth_covariate_number_timesteps <- config$smoothing_period
 
 # - - - -
 # What case definition should be used
-suspected_or_confirmed <- checkCaseDefinition(config$case_definition)
+suspected_or_confirmed <- taxdat::check_case_definition(config$case_definition)
 # Determine the column name that the number of cases is stored in
 # TODO check the flag for use_database
 cases_column <- taxdat::case_definition_to_column_name(suspected_or_confirmed,
@@ -112,7 +112,7 @@ cases_column <- taxdat::case_definition_to_column_name(suspected_or_confirmed,
 start_time <- lubridate::ymd(config$start_time)
 end_time <- lubridate::ymd(config$end_time)
 
-checkModelDateRange(start_time = start_time, 
+taxdat::check_model_date_range(start_time = start_time, 
                     end_time = end_time,
                     time_change_func = time_change_func,
                     aggregate_to_start = aggregate_to_start,
@@ -121,7 +121,7 @@ checkModelDateRange(start_time = start_time,
 
 # - - - -
 # Define modeling time slices (set of time periods at which the data generating process occurs)
-time_slices <- modelingTimeSlices(start_time = start_time, 
+time_slices <- taxdat::modeling_time_slices(start_time = start_time, 
                                   end_time = end_time, 
                                   res_time = res_time,
                                   time_change_func = time_change_func,
@@ -137,7 +137,7 @@ all_covariate_choices <- names(covariate_dict)
 short_covariate_choices <- purrr::map_chr(covariate_dict, "abbr")
 
 # User-defined covariates names and abbreviations
-covariate_choices <- checkCovariateChoices(covar_choices = config$covariate_choices,
+covariate_choices <- taxdat::check_covariate_choices(covar_choices = config$covariate_choices,
                                            available_choices = all_covariate_choices)
 short_covariates <- short_covariate_choices[covariate_choices]
 
@@ -147,12 +147,12 @@ short_covariates <- short_covariate_choices[covariate_choices]
 ncore <- config$stan$ncores
 nchain <- ncore
 if(ncore == 1) {nchain = 2}
-rstan_options(auto_write = FALSE)
+rstan::rstan_options(auto_write = FALSE)
 options(mc.cores = ncore)
 niter <- config$stan$niter
 stan_dir <- paste0(cholera_directory, '/Analysis/Stan/')
 stan_model <- config$stan$model
-stan_model_path <- checkStanModel(stan_model_path = paste(stan_dir, stan_model, sep=''),
+stan_model_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, stan_model, sep=''),
                                   stan_dir = stan_dir)
 
 # Should we be using a lower-triangular adjacency matrix 
@@ -228,14 +228,14 @@ for(t_idx in 1:length(all_test_idx)){
   setwd(cholera_directory)
   dir.create("Analysis/output", showWarnings = FALSE)
   
-  preprocessed_data_fname <- makeObservationsFilename(cholera_directory, map_name) 
-  preprocessed_covar_fname <- makeCovarFilename(cholera_directory, map_name, covariate_name_part)
-  stan_input_fname <- makeStanInputFilename(cholera_directory, map_name, covariate_name_part, stan_model, niter)
-  stan_output_fname <- makeStanOutputFilename(cholera_directory, map_name, covariate_name_part, stan_model, niter)
-  map_output_fname <- makeMapOutputFilename(cholera_directory, map_name, covariate_name_part, stan_model, niter)
+  preprocessed_data_fname <- taxdat::make_observations_filename(cholera_directory, map_name) 
+  preprocessed_covar_fname <- taxdat::make_covar_filename(cholera_directory, map_name, covariate_name_part)
+  stan_input_fname <- taxdat::make_stan_input_filename(cholera_directory, map_name, covariate_name_part, stan_model, niter)
+  stan_output_fname <- taxdat::make_stan_output_filename(cholera_directory, map_name, covariate_name_part, stan_model, niter)
+  map_output_fname <- taxdat::make_map_output_filename(cholera_directory, map_name, covariate_name_part, stan_model, niter) ## ECL 10/22 I don't think this is used anywhere...
   
   # Preparation: Load auxillary functions
-  source(str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
+  source(stringr::str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
   
   ## Step 1: process observation shapefiles and prepare data ##
   print(preprocessed_data_fname)
