@@ -6,6 +6,7 @@
 #' @param source Whether the source is the staging database (sing the API) or taxdat (using SQL).
 #' @details source is one of 'api' or 'sql'
 #' @return the renamed dataframe
+#' @export
 rename_database_fields <- function(database_df,
                                    source = "api") {
   
