@@ -524,6 +524,8 @@ constant_covariate <- function(
 
 
 #' @export
+#' @name create_test_covariate
+#' @title create test covariate
 #' @description Create a test covariate.  The covariate is the sum of various layers. Each layer is governed by various flags and parameters.  The components are:
 #'   independent : each cell is drawn from rnorm(0,1);
 #'   locally correlated : cells are drawn from mvrnorm(0,Sigma), where Sigma is based on the adjacency of gridcells;
@@ -599,6 +601,8 @@ create_test_covariate <- function(
 
 
 #' @export
+#' @name create_multiple_test_covariates
+#' @title create multiple test covariates
 #' @param test_raster raster::raster The raster to make the covariate over.
 #' It should have one layer per time step
 #' @param ncovariates integer the number of covariates to make
@@ -835,6 +839,8 @@ observe_gridcells <- function(
 }
 
 #' @export
+#' @name observe_polygons
+#' @title observe_polygons
 #' @param test_polygons A set of polygons to (potentially) observe cases over
 #' @param test_covariates A set of covariates to create a distribution out of (not needed if underlying distribution is specified)
 #' @param underlying_distribution An underlying distribution of cases

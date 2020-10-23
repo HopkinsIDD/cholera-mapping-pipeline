@@ -1223,6 +1223,7 @@ write_pg_raster <- function(dbuser, schema, table, outfile, band = 1) {
 # align_raster, gdalinfo and gdal_cmd_builder were modified so as to allow for unquoted dataset
 # names, which enables the use of postgis layers, the rest of the codes were untouched
 
+#' @title gdalinfo2
 #' @name gdalinfo2
 #' @description Modified version of gdalUtils::gdalinfo to allow for unquoted dataset names, which enables the use of postgis layers, the rest of the codes were untouched
 #' @export
@@ -1321,6 +1322,7 @@ gdalinfo2 <- function (datasetname, json, mm, stats, approx_stats, hist, nogcp,
 }
 
 
+#' @title gdal_cmd_builder2
 #' @name gdal_cmd_builder2
 #' @description Modified version of gdalUtils::gdal_cmd)builder to allow for unquoted dataset names, which enables the use of postgis layers, the rest of the codes were untouched
 gdal_cmd_builder2 <- function (executable, parameter_variables = c(), parameter_values = c(), 
@@ -1566,7 +1568,7 @@ gdal_cmd_builder2 <- function (executable, parameter_variables = c(), parameter_
 }
 
 
-
+#' @title align_rasters2
 #' @name align_rasters2
 #' @description Modified version of gdalUtils::align_rasters to allow for unquoted dataset names, which enables the use of postgis layers, the rest of the codes were untouched
 align_rasters2 <- function (unaligned, reference, dstfile, output_Raster = FALSE, 
@@ -1612,6 +1614,7 @@ align_rasters2 <- function (unaligned, reference, dstfile, output_Raster = FALSE
 }
 
 
+#' @title gdalwarp2
 #' @name gdalwarp2
 #' @description Modified version of gdalUtils::gdalwarp to allow for unquoted dataset names, which enables the use of postgis layers, the rest of the codes were untouched
 #' @export

@@ -1,6 +1,6 @@
 
 #' @name nb2graph
-#'
+#' @title nb2graph
 #' @param x nb_object
 #'
 #' @return dataframe containing num nodes, num edges, and a list of graph edges from node1 to node2. from: https://github.com/stan-dev/example-models/blob/master/knitr/car-iar-poisson/nb_data_funs.R

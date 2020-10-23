@@ -6,16 +6,25 @@ Date: 2016-07-14
 Author: Joshua Kaminsky
 Maintainer: Joshua Kaminsky <jkaminsky@jhu.edu>
 Description: This package is designed to load and work with taxonomy files in a particular file structure.
+Encoding: UTF-8
 License: GPL (>= 2)
 Depends: R (>= 3.4),ISOcodes,magrittr
 Suggests: dplyr, readxl, sf, tidyr, sp, raster, rgdal, testthat, knitr, rmarkdown
 RoxygenNote: 7.1.0
 Collate:
     'readData.R'
+    'auxiliary_functions-deprecated.R'
     'auxiliary_functions.R'
-    'covariates.R'
+    'config_helpers.R'
+    'covariate_helpers.R'
+    'covariates-deprecated.R'
+    'geo_lookup.R'
     'linelists.R'
-    'raster_functions.R'
-    'shapefiles.R'
+    'pull_data_helpers.R'
+    'raster_functions-deprecated.R'
+    'readData-deprecated.R'
+    'setup_helpers.R'
+    'shapefiles-deprecated.R'
     'simulation.R'
+    'stan_input_helpers.R'
 VignetteBuilder: knitr
