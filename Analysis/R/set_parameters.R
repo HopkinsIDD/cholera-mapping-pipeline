@@ -45,7 +45,7 @@ cholera_directory <- rprojroot::find_root(rprojroot::has_file('.choldir')) # The
 taxdir <- rprojroot::find_root_file(taxonomy, criterion=rprojroot::has_file('.choldir')) # Relative to the repository, where is the taxonomy
 laydir <- rprojroot::find_root_file('Layers',criterion=rprojroot::has_file('.choldir')) # Relative to the repository, where is the layers directory
 
-source(paste0(cholera_directory, "/Analysis/R/setup_helpers.R"))
+# source(paste0(cholera_directory, "/Analysis/R/setup_helpers.R"))
 
 # Inputs -----------------------------------------------------------------------
 print("---- Reading Parameters ----\n")
@@ -235,7 +235,7 @@ for(t_idx in 1:length(all_test_idx)){
   map_output_fname <- taxdat::make_map_output_filename(cholera_directory, map_name, covariate_name_part, stan_model, niter) ## ECL 10/22 I don't think this is used anywhere...
   
   # Preparation: Load auxillary functions
-  source(stringr::str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
+  # source(stringr::str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
   
   ## Step 1: process observation shapefiles and prepare data ##
   print(preprocessed_data_fname)
