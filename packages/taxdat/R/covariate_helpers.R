@@ -4,15 +4,15 @@
 #'
 #' @param dbuser
 #'
-#' @return return
+#' @return a DBI database connection object
 #' @export
 connect_to_db <- function(dbuser) {
   #' @title Connect to database
   #' @description Connects to the postgres/postgis cholera_covariates database
   #' @return db connection object
-  RPostgres::dbConnect(RPostgres::Postgres(), 
-                       dbname = "cholera_covariates",
-                       user = dbuser)
+  DBI::dbConnect(RPostgres::Postgres(), 
+                 dbname = "cholera_covariates",
+                 user = dbuser)
 }
 
 #' @title Make covariate alias
@@ -27,17 +27,17 @@ connect_to_db <- function(dbuser) {
 #' @return a string with the alias
 #' @export
 make_covar_alias <- function(alias, 
-                           type,
-                           res_time,
-                           res_space) {
+                             type,
+                             res_time,
+                             res_space) {
   
   if (!(type %in% c("temporal", "static"))) 
     stop("Covariate type needs to be either 'temporal' or 'static'")
   
   covar_alias <- stringr::str_c(alias, 
-                       ifelse(type == "temporal", stringr::str_replace(res_time, " ", "_"),  ""),
-                       res_space[1], res_space[2],
-                       sep = "_")
+                                ifelse(type == "temporal", stringr::str_replace(res_time, " ", "_"),  ""),
+                                res_space[1], res_space[2],
+                                sep = "_")
   return(covar_alias)
 }
 
@@ -52,7 +52,9 @@ make_covar_alias <- function(alias,
 #'
 #' @return logical
 #' @export
-db_exists_table_multi <- function(conn, schemas, table_name) {
+db_exists_table_multi <- function(conn, 
+                                  schemas, 
+                                  table_name) {
   check <- lapply(schemas, 
                   function(x, conn, table) {
                     DBI::dbExistsTable(conn, DBI::Id(schema = x, table = table))
@@ -89,17 +91,6 @@ make_grid_centroids_table_name <- function(dbuser) {
   glue::glue("grid_cntrds_{dbuser}")
 }
 
-#' @title make grid file
-#' @name make_grid_file
-#' @description makes the table name for the grid file
-#'
-#' @param dbuser
-#'
-#' @return the table name
-make_grid_file <- function(dbuser) {
-  glue::glue("grid_name_{dbuser}.txt")
-}
-
 #' @title Build geometry
 #' @name build_geoms_query
 #' @description Builds the centroids or the polygons corresponding to a given raster and writes the result to a new table in the database
@@ -112,7 +103,10 @@ make_grid_file <- function(dbuser) {
 #'
 #' @return None
 #' @export
-build_geoms_query <- function(conn, schema = "public", table_name, type = "centroids") {
+build_geoms_query <- function(conn, 
+                              schema = "public",
+                              table_name, 
+                              type = "centroids") {
   
   
   if (!(type %in% c("centroids", "polygons"))) {
@@ -130,8 +124,8 @@ build_geoms_query <- function(conn, schema = "public", table_name, type = "centr
   # Drop table
   suppressMessages(
     DBI::dbSendStatement(conn, 
-                    glue::glue_sql("DROP TABLE IF EXISTS {`table`};", 
-                                   .con = conn)))
+                         glue::glue_sql("DROP TABLE IF EXISTS {`table`};", 
+                                        .con = conn)))
   # Create polygons or centrdois table
   query2 <- glue::glue_sql("
     CREATE TABLE {`table`} AS 
@@ -145,13 +139,13 @@ build_geoms_query <- function(conn, schema = "public", table_name, type = "centr
   # Create indices
   suppressMessages(
     DBI::dbSendStatement(conn, 
-                    glue::glue_sql("
+                         glue::glue_sql("
                     CREATE INDEX {`{str_c(table_full_name, '_gidx')}`}
     ON {`table`} USING GIST(geom);;", 
-                                   .con = conn)))
+                                        .con = conn)))
   suppressMessages(
     DBI::dbSendStatement(conn, 
-                    glue::glue_sql("
+                         glue::glue_sql("
                     CREATE INDEX {`{str_c(table_full_name, '_idx')}`}
     ON {`table`} (rid, x, y);;", .con = conn)))
   
@@ -182,15 +176,15 @@ show_progress <- function(i, tot_length, n_hyph_tot = 80, prefix = "") {
 #' @name extract_covariate_metadata
 #' @description Function to extract the metadata from covariates - this could need to be tailored to each covariate 
 #'
-#' @param covar_alias
-#' @param covar_file
-#' @param covar_type
+#' @param covar_alias the alias of the covariate to look for in the metadata table
+#' @param covar_file the file of the raw covariate
+#' @param covar_type the type of covariate (either 'static' or 'temporal')
 #'
-#' @return None
+#' @return a dataframe with the covariates metadata
 #' @export
 extract_covariate_metadata <- function(covar_alias, 
-                                     covar_file, 
-                                     covar_type) {
+                                       covar_file, 
+                                       covar_type) {
   
   if (covar_type == "temporal") {
     
@@ -204,7 +198,7 @@ extract_covariate_metadata <- function(covar_alias,
     date_vec <- as.Date(time_vec, 
                         origin = as.Date(
                           stringr::str_extract(time_att$units, 
-                                      "(?<=days since )[0-9]+-[0-9]+-[0-9]+(?= )")))
+                                               "(?<=days since )[0-9]+-[0-9]+-[0-9]+(?= )")))
     
     if (length(date_vec) > 1) {
       # Time resolution of the source in days
@@ -365,10 +359,10 @@ parse_gdal_res <- function(src_file) {
 #' @param res_file the raster to transform
 #' @param transform the transform to apply
 #'
-#' @return none
+#' @return none (writes resulting rater to file)
 #' @export
 transform_raster <- function(res_file, 
-                            transform) {
+                             transform) {
   
   cat("Transforming ", res_file, "with", transform)
   
@@ -388,17 +382,17 @@ transform_raster <- function(res_file,
 #' @title Sum non-NA cells
 #' @name sum_nonNA
 #' @description Sums the number of non-NA cells in a resampled raster
-#' @param conn
+#' @param conn the postgres connection to the database
 #' @param r_file the processed raster file 
 #' @param ref_grid_db the reference grid in the database
-#' @param dbuser
+#' @param dbuser the database user name
 #' 
 #' @return A raster with the number of non-NA cells
 #' @export
 sum_nonNA <- function(conn,
-                     r_file, 
-                     ref_grid_db,
-                     dbuser) {
+                      r_file, 
+                      ref_grid_db,
+                      dbuser) {
   
   # temporary file to which to write the result
   tmp_file1 <- stringr::str_c(raster::tmpDir(), "resampled_zeros_1.tif")
@@ -448,13 +442,13 @@ sum_nonNA <- function(conn,
 #' @return null
 #' @export
 write_ncdf <- function(data, 
-                      res_file,
-                      mv = -9999,
-                      var_name, 
-                      long_var_name,
-                      var_unit,
-                      time_units,
-                      time_vals) {
+                       res_file,
+                       mv = -9999,
+                       var_name, 
+                       long_var_name,
+                       var_unit,
+                       time_units,
+                       time_vals) {
   # Longitude and Latitude data
   xvals <- unique(values(init(data, "x")))
   yvals <- unique(values(init(data, "y")))
@@ -466,10 +460,10 @@ write_ncdf <- function(data,
   # Time component
   if (!is.null(time_vals)) {
     time <- ncdf4::ncdim_def(name = "time", 
-                      units = time_units, 
-                      vals = time_vals, 
-                      unlim = TRUE,
-                      longname = "time")
+                             units = time_units, 
+                             vals = time_vals, 
+                             unlim = TRUE,
+                             longname = "time")
     dim <- list(lon, lat, time) 
   } else {
     dim <- list(lon, lat) 
@@ -477,11 +471,11 @@ write_ncdf <- function(data,
   
   # Define the temperature variables
   var_data <- ncdf4::ncvar_def(name = var_name,
-                        units = var_unit,
-                        dim = dim,
-                        longname = long_var_name,
-                        missval = mv,
-                        compression = 9)
+                               units = var_unit,
+                               dim = dim,
+                               longname = long_var_name,
+                               missval = mv,
+                               compression = 9)
   
   # Add the variables to the file
   ncout <- ncdf4::nc_create(res_file, list(var_data), force_v4 = TRUE)
@@ -498,16 +492,16 @@ write_ncdf <- function(data,
     
     if (is.null(time_vals)) {
       ncdf4::ncvar_put(nc = ncout, 
-                varid = var_data, 
-                vals = values(data), 
-                start = c(1, 1), 
-                count = c(-1, -1))
+                       varid = var_data, 
+                       vals = values(data), 
+                       start = c(1, 1), 
+                       count = c(-1, -1))
     } else {
       ncdf4::ncvar_put(nc = ncout, 
-                varid = var_data, 
-                vals = raster::values(data[[i]]), 
-                start = c(1, 1, i), 
-                count = c(-1, -1, 1))
+                       varid = var_data, 
+                       vals = raster::values(data[[i]]), 
+                       start = c(1, 1, i), 
+                       count = c(-1, -1, 1))
     }
   }
   # Close the netcdf file when finished adding variables
@@ -520,11 +514,14 @@ write_ncdf <- function(data,
 #' @description Get the time resolution of covariate in required time units
 #'
 #' @param dates Covariate dates
+#' @param covar_res_time the time resolution of the covariate
 #' @param units Time resolution units required for the model, one of days, months, years
 #'
 #' @return Time resolution as numeric rounded to the first digit
 #' @export 
-get_time_res <- function(dates, covar_res_time, units) {
+get_time_res <- function(dates,
+                         covar_res_time,
+                         units) {
   
   if (length(dates) < 2) {
     dt_days <- ifelse(stringr::str_detect(covar_res_time, "day"), 1, 
@@ -554,7 +551,9 @@ get_time_res <- function(dates, covar_res_time, units) {
 #'
 #' @return A vector with the sequence of dates
 #' @export
-generate_time_sequence <- function(dates, res_time_source, res_time) {
+generate_time_sequence <- function(dates, 
+                                   res_time_source, 
+                                   res_time) {
   start_date <- dates[1]
   end_date <- dplyr::last(dates)
   
@@ -604,14 +603,14 @@ generate_time_sequence <- function(dates, res_time_source, res_time) {
 #' @return a string with the path to the result
 #' @export
 time_aggregate <- function(src_file,
-                          covar_name, 
-                          covar_unit, 
-                          covar_type, 
-                          covar_res_time,
-                          res_file, 
-                          res_time, 
-                          aggregator, 
-                          aoi_extent = NULL) {
+                           covar_name, 
+                           covar_unit, 
+                           covar_type, 
+                           covar_res_time,
+                           res_file, 
+                           res_time, 
+                           aggregator, 
+                           aoi_extent = NULL) {
   
   # Extract time resolution
   res_time_list <- parse_time_res(res_time)
@@ -641,8 +640,8 @@ time_aggregate <- function(src_file,
       
       # Get the source's temporal resolution
       res_time_source <- get_time_res(dates = r_metadata$dates, 
-                                    covar_res_time = covar_res_time,
-                                    units = res_time_list$units)
+                                      covar_res_time = covar_res_time,
+                                      units = res_time_list$units)
     
     # Check whether the source's temporal resolution is coarser than the required resolution
     if (res_time_source$dt_units >= res_time_list$k) {
@@ -653,8 +652,8 @@ time_aggregate <- function(src_file,
       
       # Generate the time sequence to fill
       r_covar_dates <- generate_time_sequence(dates = r_metadata$dates,
-                                            res_time_source = res_time_source,
-                                            res_time = res_time)
+                                              res_time_source = res_time_source,
+                                              res_time = res_time)
       # Unpack result
       r_dates <- r_covar_dates$dates - r_metadata$start_date
       date_mapping <- r_covar_dates$date_mapping
@@ -686,21 +685,21 @@ time_aggregate <- function(src_file,
     
     # Arguments for writeRaster
     var_unit <- stringr::str_c(r_metadata$var_att$units,
-                      " aggregated at [time resolution:", 
-                      res_time, 
-                      "] with [aggregator:", 
-                      aggregator, "]")
+                               " aggregated at [time resolution:", 
+                               res_time, 
+                               "] with [aggregator:", 
+                               aggregator, "]")
     long_var_name <- stringr::str_c(r_metadata$var_att$long_name, "-",
-                           res_time, aggregator, sep = " ")
+                                    res_time, aggregator, sep = " ")
     
     write_ncdf(data = r_out, 
-              res_file = res_file,
-              mv = -9999,
-              var_name = r_metadata$var_name,
-              var_unit = var_unit, 
-              long_var_name = long_var_name,
-              time_units = r_metadata$time_info$units,
-              time_vals = as.numeric(r_dates))
+               res_file = res_file,
+               mv = -9999,
+               var_name = r_metadata$var_name,
+               var_unit = var_unit, 
+               long_var_name = long_var_name,
+               time_units = r_metadata$time_info$units,
+               time_vals = as.numeric(r_dates))
     
   } else {
     # For static covariates process the raw file
@@ -708,13 +707,13 @@ time_aggregate <- function(src_file,
     if (!file.exists(res_file)) {
       
       write_ncdf(data = r, 
-                res_file = res_file,
-                mv = -9999,
-                var_name = covar_name,
-                var_unit = covar_unit, 
-                long_var_name = covar_name,
-                time_units = "static",
-                time_vals = NULL)
+                 res_file = res_file,
+                 mv = -9999,
+                 var_name = covar_name,
+                 var_unit = covar_unit, 
+                 long_var_name = covar_name,
+                 time_units = "static",
+                 time_vals = NULL)
     }
   }
   return(res_file)
@@ -729,16 +728,16 @@ time_aggregate <- function(src_file,
 #' @param ref_grid_db reference grid
 #' @param covar_type type of covariate, one of 'temporal' or 'static'
 #' @param aggregator string defining the aggregator to use 
-#' @param dbuser
+#' @param dbuser the database user name
 #' 
 #' @return None
 #' @export
 space_aggregate <- function(src_file, 
-                           res_file, 
-                           ref_grid_db, 
-                           covar_type, 
-                           aggregator,
-                           dbuser) {
+                            res_file, 
+                            ref_grid_db, 
+                            covar_type, 
+                            aggregator,
+                            dbuser) {
   
   # Spatial aggregators available to GDAL
   spat_aggregators <- c("average", "max", "min", "sum")
@@ -746,7 +745,7 @@ space_aggregate <- function(src_file,
   if (!(aggregator %in% spat_aggregators)) {
     stop(
       stringr::str_c("Spatial aggregator '", aggregator,"' not in {",
-            stringr::str_c(spat_aggregators, collapse = ", "), "}")
+                     stringr::str_c(spat_aggregators, collapse = ", "), "}")
     )
   }
   
@@ -822,13 +821,13 @@ space_aggregate <- function(src_file,
 #' @return a list with the band indices, and the left and right time bounds
 #' @export
 get_temporal_bands <- function(model_time_slices, 
-                             covar_TL_seq,
-                             covar_TR_seq) {
+                               covar_TL_seq,
+                               covar_TR_seq) {
   
   # Get the covariate stack band indices that correspond to the model time slices
   ind_vec <- purrr::map(1:nrow(model_time_slices),
-                 ~ which(covar_TL_seq == model_time_slices$TL[.] &
-                           covar_TR_seq == model_time_slices$TR[.]))
+                        ~ which(covar_TL_seq == model_time_slices$TL[.] &
+                                  covar_TR_seq == model_time_slices$TR[.]))
   
   for (i in 1:nrow(model_time_slices)) {
     if (length(ind_vec[[i]]) == 0)  
@@ -877,27 +876,27 @@ get_temporal_bands <- function(model_time_slices,
 #' @return None
 #' @export
 ingest_covariate <- function(conn, 
-                            covar_name, 
-                            covar_alias, 
-                            covar_dir,
-                            covar_unit,
-                            covar_type,
-                            covar_res_time = NULL,
-                            covar_schema,
-                            ref_grid,
-                            aoi_extent = NULL,
-                            aoi_name = "raw",
-                            res_time,
-                            time_aggregator = "sum",
-                            res_x,
-                            res_y,
-                            space_aggregator = "mean",
-                            transform = NULL,
-                            path_to_trunk,
-                            write_to_db = F,
-                            do_parallel = F,
-                            n_cpus = 0,
-                            dbuser) {
+                             covar_name, 
+                             covar_alias, 
+                             covar_dir,
+                             covar_unit,
+                             covar_type,
+                             covar_res_time = NULL,
+                             covar_schema,
+                             ref_grid,
+                             aoi_extent = NULL,
+                             aoi_name = "raw",
+                             res_time,
+                             time_aggregator = "sum",
+                             res_x,
+                             res_y,
+                             space_aggregator = "mean",
+                             transform = NULL,
+                             path_to_trunk,
+                             write_to_db = F,
+                             do_parallel = F,
+                             n_cpus = 0,
+                             dbuser) {
   
   # Checks
   if(do_parallel & write_to_db)
@@ -935,7 +934,7 @@ ingest_covariate <- function(conn,
   
   # Directory to which to write files
   proc_dir <- stringr::str_c(path_to_trunk, "/Layers/processed_covariates/",
-                    covar_name, "/", aoi_name, "/")
+                             covar_name, "/", aoi_name, "/")
   
   if (!dir.exists(proc_dir)) {
     cat("Couldn't find", proc_dir, ", creating it \n")
@@ -958,9 +957,6 @@ ingest_covariate <- function(conn,
       envir = environment())
     
     parallel::clusterEvalQ(cl, {
-      library(DBI)
-      library(RPostgres)
-      library(ncdf4)
       conn <- connect_to_db(dbuser)
       NULL
     })
@@ -974,11 +970,11 @@ ingest_covariate <- function(conn,
                    "gdalinfo2", "gdal_cmd_builder2", "gdalwarp2", "align_rasters2")
   doFun(
     foreach::foreach(j = seq_along(raster_files),
-            .combine = rbind,
-            .inorder = T,
-            .export = export_funs,
-            .noexport = no_export,
-            .packages = c("dplyr", "stringr", "raster", "gdalUtils")),
+                     .combine = rbind,
+                     .inorder = T,
+                     .export = export_funs,
+                     .noexport = no_export,
+                     .packages = c("dplyr", "stringr", "raster", "gdalUtils")),
     {
       t_start <- Sys.time()    # timing file
       
@@ -990,8 +986,8 @@ ingest_covariate <- function(conn,
       res_file_time <- stringr::str_c(
         proc_dir,
         stringr::str_replace(f_name, stringr::str_c(".", f_format),
-                    stringr::str_c("__", time_aggregator, "_",
-                          stringr::str_replace(res_time, " ", "-"), ".nc")))
+                             stringr::str_c("__", time_aggregator, "_",
+                                            stringr::str_replace(res_time, " ", "-"), ".nc")))
       
       # Aggregate covariate in time 
       if (!file.exists(res_file_time)) {
@@ -999,14 +995,14 @@ ingest_covariate <- function(conn,
         cat("Aggregating", f_name, "in time at", res_time, "resolution \n")
         
         res_file_time <- time_aggregate(src_file = full_path,
-                                       covar_name = covar_name,
-                                       covar_unit = covar_unit,
-                                       covar_type = covar_type,
-                                       covar_res_time = covar_res_time,
-                                       res_file = res_file_time,
-                                       res_time = res_time,
-                                       aggregator = time_aggregator,
-                                       aoi_extent = aoi_extent)
+                                        covar_name = covar_name,
+                                        covar_unit = covar_unit,
+                                        covar_type = covar_type,
+                                        covar_res_time = covar_res_time,
+                                        res_file = res_file_time,
+                                        res_time = res_time,
+                                        aggregator = time_aggregator,
+                                        aoi_extent = aoi_extent)
       }  
       
       # File of the spatial aggregation step
@@ -1016,7 +1012,7 @@ ingest_covariate <- function(conn,
         { str <- .
         if (!is.null(transform)) {
           stringr::str_replace(str, "\\.nc", 
-                      stringr::str_c("_", transform, "_trans.nc"))
+                               stringr::str_c("_", transform, "_trans.nc"))
         } else {
           str
         }
@@ -1028,11 +1024,11 @@ ingest_covariate <- function(conn,
         cat("Aggregating", f_name, "in space at", res_x, "x", res_y, "km resolution \n")
         
         space_aggregate(res_file_time,
-                       res_file = res_file_space,
-                       ref_grid_db = ref_grid_db,
-                       covar_type = covar_type,
-                       aggregator = space_aggregator,
-                       dbuser = dbuser)
+                        res_file = res_file_space,
+                        ref_grid_db = ref_grid_db,
+                        covar_type = covar_type,
+                        aggregator = space_aggregator,
+                        dbuser = dbuser)
         
         if (!is.null(transform)) {
           # if specified, apply transform
@@ -1047,28 +1043,28 @@ ingest_covariate <- function(conn,
         if (j == 1) {
           # Write to database
           r2psql_cmd <- stringr::str_c("raster2pgsql -s 4326:4326 -I -t auto -d ",
-                              res_file_space, covar_table,
-                              "| psql -w -h localhost -d cholera_covariates",
-                              sep = " ")
+                                       res_file_space, covar_table,
+                                       "| psql -w -h localhost -d cholera_covariates",
+                                       sep = " ")
           system(r2psql_cmd)
         } else {
           # Write to database
           r2psql_cmd <- stringr::str_c("raster2pgsql -s 4326:4326 -I -t auto -d ",
-                              res_file_space, 
-                              " tmprast | psql -w -h localhost -d cholera_covariates",
-                              sep = " ")
+                                       res_file_space, 
+                                       " tmprast | psql -w -h localhost -d cholera_covariates",
+                                       sep = " ")
           system(r2psql_cmd)
           n_bands <- DBI::dbGetQuery(conn, "SELECT ST_NumBands(rast) 
                             FROM tmprast LIMIT 1;") %>% unlist()
           
           for (nb in 1:n_bands) {
             DBI::dbSendStatement(conn, 
-                            glue::glue_sql(
-                              "UPDATE {`{DBI::SQL(covar_table)}`} a
+                                 glue::glue_sql(
+                                   "UPDATE {`{DBI::SQL(covar_table)}`} a
                               SET rast = ST_AddBand(a.rast, b.rast, {nb})
                               FROM tmprast b
                               WHERE a.rid = b.rid;",
-                              .con = conn))
+                                   .con = conn))
             
             show_progress(nb, n_bands, prefix = f_name)
           }
@@ -1106,19 +1102,27 @@ ingest_covariate <- function(conn,
 #' @description writes the covariate metadata to the metadata table
 #'
 #' @param conn database connection
-#'
+#' @param covar_dir directory where to find the covariate
+#' @param covar_alias alias of the covariate in the database
+#' @param res_x longitudinal spatial resolution in km
+#' @param res_y latitudinal spatial resolution in km
+#' @param res_time string with the input temporal resolution
+#' @param space_aggregator string with the spatial aggregator to use
+#' @param time_aggregator string with the aggregator to use along the temporal
+#' dimention
+#' @param dbuser user name
 #' @return return
 #' @export
 write_metadata <- function(conn, 
-                          covar_dir,
-                          covar_type,
-                          covar_alias,
-                          res_x, 
-                          res_y,
-                          res_time,
-                          space_aggregator,
-                          time_aggregator,
-                          dbuser) {
+                           covar_dir,
+                           covar_type,
+                           covar_alias,
+                           res_x, 
+                           res_y,
+                           res_time,
+                           space_aggregator,
+                           time_aggregator,
+                           dbuser) {
   
   if (covar_type == "temporal") {
     raster_files <- dir(covar_dir, pattern = "\\.", full.names = T)
@@ -1134,8 +1138,8 @@ write_metadata <- function(conn,
   
   # Get covariate metadata for each layer
   covar_metadata <- foreach::foreach(full_path = raster_files,
-                            .combine = rbind,
-                            .inorder = T) %do% 
+                                     .combine = rbind,
+                                     .inorder = T) %do% 
     {
       # Extract metadata
       extract_covariate_metadata(covar_alias, full_path, covar_type)
@@ -1146,53 +1150,36 @@ write_metadata <- function(conn,
   covar_metadata <-  covar_metadata %>% 
     dplyr::group_by(covariate) %>% 
     dplyr::summarise(src_res_x = src_res_x[1], 
-              src_res_y = src_res_y[1], 
-              src_res_time = src_res_time[1],
-              first_TL = min(first_TL),
-              last_TL = max(last_TL)) %>% 
+                     src_res_y = src_res_y[1], 
+                     src_res_time = src_res_time[1],
+                     first_TL = min(first_TL),
+                     last_TL = max(last_TL)) %>% 
     dplyr::ungroup() %>% 
     dplyr::mutate(src_dir = covar_dir,
-           res_x = res_x, 
-           res_y = res_y,
-           res_time = ifelse(covar_type == "temporal", res_time, as.character(NA)),
-           space_agg = space_aggregator,
-           time_agg = time_aggregator) 
+                  res_x = res_x, 
+                  res_y = res_y,
+                  res_time = ifelse(covar_type == "temporal", res_time, as.character(NA)),
+                  space_agg = space_aggregator,
+                  time_agg = time_aggregator) 
   
   # Temporary table to write metadata
   tmp_name <- stringr::str_c("tmp_", dbuser)
   
   DBI::dbWriteTable(conn = conn, 
-                          name = tmp_name, 
-                          covar_metadata,
-                          row.names = F,
-                          apppend = F,
-                          overwrite = T)
+                    name = tmp_name, 
+                    covar_metadata,
+                    row.names = F,
+                    apppend = F,
+                    overwrite = T)
   
   try(DBI::dbSendStatement(conn, 
-                      glue::glue_sql("INSERT INTO covariates.metadata 
+                           glue::glue_sql("INSERT INTO covariates.metadata 
                                      SELECT * FROM {`DBI::SQL(tmp_name)`};", 
-                                     .con = conn)), 
+                                          .con = conn)), 
       silent = T)
   
   DBI::dbSendStatement(conn, glue::glue_sql("DROP TABLE IF EXISTS {`DBI::SQL(tmp_name)`};", 
-                                       .con = conn))
-}
-
-
-#' @title Time overlap
-#' @name time_overlap
-#' @description Computes the time overlap between a date range and a vector of ranges
-#'
-#' @param tl
-#' @param tr
-#' @param tl_vec
-#' @param tr_vec
-#'
-#' @return a list with the time overlaps
-#' 
-time_overlap <- function(tl, tr, res_time, tl_vec, tr_vec){
-  # TODO 
-  warning("This function is not written")
+                                            .con = conn))
 }
 
 
@@ -1200,15 +1187,20 @@ time_overlap <- function(tl, tr, res_time, tl_vec, tr_vec){
 #' @name write_pg_raster
 #' @description Write raster from postgis table
 #'
-#' @param dbuser
-#' @param schema
-#' @param table
-#' @param outfile
+#' @param dbuser user name
+#' @param schema schema read the raster from
+#' @param table raster table name
+#' @param outfile file to which to write the raster
 #' 
 #' @details currently only works for 1 band rasters
 #' from https://gis.stackexchange.com/questions/118138/how-to-load-postgis-raster-layers-into-r
 #'
-write_pg_raster <- function(dbuser, schema, table, outfile, band = 1) {
+#' @export
+write_pg_raster <- function(dbuser, 
+                            schema, 
+                            table, 
+                            outfile, 
+                            band = 1) {
   dsn <- glue::glue("PG:dbname='cholera_covariates' host=localhost",
                     " user='{dbuser}' port=5432", 
                     " schema='{schema}' table='{table}' mode=2")
@@ -1236,7 +1228,7 @@ gdalinfo2 <- function (datasetname, json, mm, stats, approx_stats, hist, nogcp,
   if (verbose) 
     message("Checking gdal_installation...")
   gdalUtils::gdal_setInstallation(ignore.full_scan = ignore.full_scan, 
-                       verbose = verbose)
+                                  verbose = verbose)
   if (is.null(getOption("gdalUtils_gdalPath"))) 
     return()
   parameter_variables <- list(logical = list(varnames <- c("json", 
@@ -1256,9 +1248,9 @@ gdalinfo2 <- function (datasetname, json, mm, stats, approx_stats, hist, nogcp,
                             "optfile", "config", "debug")
   executable <- "gdalinfo"
   cmd <- gdalUtils::gdal_cmd_builder2(executable = executable, parameter_noquotes = "datasetname", parameter_variables = parameter_variables, 
-                           parameter_values = parameter_values, parameter_order = parameter_order, 
-                           parameter_noflags = parameter_noflags, parameter_doubledash = parameter_doubledash,
-                           verbose = verbose)
+                                      parameter_values = parameter_values, parameter_order = parameter_order, 
+                                      parameter_noflags = parameter_noflags, parameter_doubledash = parameter_doubledash,
+                                      verbose = verbose)
   if (verbose) 
     message(paste("GDAL command being used:", cmd))
   cmd_output <- system(cmd, intern = TRUE)
@@ -1407,7 +1399,7 @@ gdal_cmd_builder2 <- function (executable, parameter_variables = c(), parameter_
                                                      else {
                                                        parameter_variables_vector_string <- paste(flag, 
                                                                                                   gdalUtils::qm(paste(parameter_values[[which(names(parameter_values) == 
-                                                                                                                                     X)]], collapse = " ")), sep = "")
+                                                                                                                                                X)]], collapse = " ")), sep = "")
                                                      }
                                                      return(parameter_variables_vector_string)
                                                    }, parameter_values = parameter_values, parameter_doubledash = parameter_doubledash)
@@ -1441,7 +1433,7 @@ gdal_cmd_builder2 <- function (executable, parameter_variables = c(), parameter_
                                                      }
                                                      parameter_variables_scalar_string <- paste(flag, 
                                                                                                 gdalUtils::qm(parameter_values[[which(names(parameter_values) == 
-                                                                                                                             X)]]), sep = "")
+                                                                                                                                        X)]]), sep = "")
                                                      return(parameter_variables_scalar_string)
                                                    }, parameter_values = parameter_values, parameter_doubledash = parameter_doubledash)
     }
@@ -1525,7 +1517,7 @@ gdal_cmd_builder2 <- function (executable, parameter_variables = c(), parameter_
                                                          else {
                                                            parameter_variables_repeatable_string <- paste(paste(flag, 
                                                                                                                 gdalUtils::qm(parameter_values[[which(names(parameter_values) == 
-                                                                                                                                             X)]]), sep = ""), collapse = " ")
+                                                                                                                                                        X)]]), sep = ""), collapse = " ")
                                                          }
                                                          return(parameter_variables_repeatable_string)
                                                        }, parameter_values = parameter_values, parameter_doubledash = parameter_doubledash)
@@ -1633,7 +1625,7 @@ gdalwarp2 <- function (srcfile, dstfile, s_srs, t_srs, to, order, tps, rpc,
   if (verbose) 
     message("Checking gdal_installation...")
   gdalUtils::gdal_setInstallation(ignore.full_scan = ignore.full_scan, 
-                       verbose = verbose)
+                                  verbose = verbose)
   if (is.null(getOption("gdalUtils_gdalPath"))) 
     return()
   parameter_variables <- list(

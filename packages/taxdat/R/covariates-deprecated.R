@@ -500,3 +500,31 @@ create_water_rasters <- function(layers_dir = 'Layers',maximum_shapefiles_in_mem
     }
   }
 }
+
+#' @title make grid file
+#' @name make_grid_file
+#' @description makes the table name for the grid file
+#'
+#' @param dbuser
+#'
+#' @return the table name
+make_grid_file <- function(dbuser) {
+  glue::glue("grid_name_{dbuser}.txt")
+}
+
+
+#' @title Time overlap
+#' @name time_overlap
+#' @description Computes the time overlap between a date range and a vector of ranges
+#'
+#' @param tl
+#' @param tr
+#' @param tl_vec
+#' @param tr_vec
+#'
+#' @return a list with the time overlaps
+#' 
+time_overlap <- function(tl, tr, res_time, tl_vec, tr_vec){
+  # TODO 
+  warning("This function is not written")
+}
