@@ -37,7 +37,7 @@ prepare_stan_input <- function(
   covar_cube
 ) {
   
-  source(str_c(cholera_directory, "/Analysis/R/stan_input_helpers.R"))
+  source(stringr::str_c(cholera_directory, "/Analysis/R/stan_input_helpers.R"))
   
   # Get covariate choices from covar_cube slice names
   covariate_choices <- dimnames(covar_cube)[[3]][-1]
@@ -55,17 +55,17 @@ prepare_stan_input <- function(
   
   temporally_inconsistant_cells <- sf_grid %>%
     group_by(id) %>%
-    summarize(bad_percentage = sum(!(id %in% non_na_gridcells))/length(id)) %>%
-    filter(bad_percentage != 0, bad_percentage != 1)
+    dplyr::summarize(bad_percentage = sum(!(id %in% non_na_gridcells))/length(id)) %>%
+    dplyr::filter(bad_percentage != 0, bad_percentage != 1)
   
   if (nrow(temporally_inconsistant_cells)) {
     warning("The following cells were included at some time points, but not others. See output for details")
     print(temporally_inconsistant_cells)
   }
   
-  sf_grid <- sf_grid %>% filter(long_id %in% non_na_gridcells)
+  sf_grid <- sf_grid %>% dplyr::filter(long_id %in% non_na_gridcells)
   sf_grid$upd_id <- grid_changer[as.character(sf_grid$long_id)]
-  smooth_grid <- sf_grid %>% group_by(id,s) %>% summarize() %>% ungroup() %>% mutate(smooth_id = row_number())
+  smooth_grid <- sf_grid %>% dplyr::group_by(id,s) %>% dplyr::summarize() %>% dplyr::ungroup() %>% mutate(smooth_id = dplyr::row_number())
   nearest_neighbor_matrices <- list()
   # this is the mapping between the grid ids (from 1 to number of cells that intersect 
   # location_periods) and the model ids in space (from 1 to the number of non-NA cells, 
@@ -76,11 +76,11 @@ prepare_stan_input <- function(
   for (it in model_time_slices) {
     
     poly_adj <- smooth_grid %>% 
-      filter(s == it) %>% 
+      dplyr::filter(s == it) %>% 
       dplyr::select(id) %>% 
       spdep::poly2nb(.)
     
-    adj_dat <- nb2graph(poly_adj) #[non_na_gridcells, ]))
+    adj_dat <- taxdat::nb2graph(poly_adj) #[non_na_gridcells, ]))
     
     N <- adj_dat$N    # number of spatial units at the level of spatial interactions
     node1 <- adj_dat$node1    # "origine" node list
@@ -143,7 +143,7 @@ prepare_stan_input <- function(
     # }
     nearest_neighbor_matrices <- append(nearest_neighbor_matrices, list(nn_mat))
     ids <- smooth_grid %>% 
-      filter(s == it, id %in% non_na_gridcells)
+      dplyr::filter(s == it, id %in% non_na_gridcells)
     
     cell_id_mapping <- rbind(cell_id_mapping, 
                              data.frame(s = it, 
@@ -228,7 +228,7 @@ prepare_stan_input <- function(
   
   # Mapping between observations to location periods and between
   # location periods and grid cells
-  ind_mapping <- getSpaceTimeIndSpeedup(
+  ind_mapping <- taxdat::get_space_time_ind_speedup(
     df = sf_cases, 
     lp_dict = location_periods_dict,
     model_time_slices = time_slices,
@@ -245,7 +245,7 @@ prepare_stan_input <- function(
   stan_data$map_loc_grid_loc <- ind_mapping$map_loc_grid_loc
   stan_data$map_loc_grid_grid <- ind_mapping$map_loc_grid_grid
   
-  y_tfrac <- tibble(tfrac = stan_data$tfrac, 
+  y_tfrac <- tibble::tibble(tfrac = stan_data$tfrac, 
                     map_obs_loctime_obs = stan_data$map_obs_loctime_obs) %>% 
     dplyr::group_by(map_obs_loctime_obs) %>% 
     dplyr::summarize(tfrac = mean(tfrac)) %>% 
