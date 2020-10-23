@@ -246,28 +246,47 @@ prepare_stan_input <- function(
     sf_cases_resized$loctime[[ind_mapping$map_obs_loctime_obs[[i]] ]] <- paste(sf_cases_resized$loctime[[ind_mapping$map_obs_loctime_obs[[i]] ]] , ind_mapping$map_obs_loctime_loc[[i]])
   }
   sf_cases_resized$loctime <- gsub("^ ","",sf_cases_resized$loctime)
+  ocrs <- sf::st_crs(sf_cases_resized)
   sf_cases_resized <- sf_cases_resized %>%
     dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
     dplyr::group_modify(function(.x,.y){
-      if(nrow(.x) <= 1 ){return(.x %>% mutate(cid = NA))}
-      intervals <- tibble::tibble(id = seq_len(nrow(.x)), TL = .x$TL, TR = .x$TR)
-      .x$cid <- seq_len(nrow(.x))
-      adjacent_obs <- tidyr::crossing(lhs=intervals,rhs=intervals) %>%
-        dplyr::filter(lhs$id != rhs$id, rhs$TL == lhs$TR + lubridate::days(1))
-      for(pair_idx in seq_len(nrow(adjacent_obs))){
-        lhs_id <- adjacent_obs$lhs$id[pair_idx]
-        lhs_TL <- adjacent_obs$lhs$TL[pair_idx]
-        lhs_TR <- adjacent_obs$lhs$TR[pair_idx]
-        rhs_id <- adjacent_obs$rhs$id[pair_idx]
-        rhs_TL <- adjacent_obs$rhs$TL[pair_idx]
-        rhs_TR <- adjacent_obs$rhs$TR[pair_idx]
-        adjacent_obs[adjacent_obs$lhs$id == rhs_id,]$lhs <- adjacent_obs$lhs[pair_idx,]
-        adjacent_obs[adjacent_obs$rhs$id == rhs_id,]$rhs <- adjacent_obs$lhs[pair_idx,]
-        .x$cid[rhs_id] <- lhs_id
+      print("iter")
+      if(nrow(.x) <= 1 ){return(.x %>% select(TL,TR,!!rlang::sym(cases_column)))}
+      ## combine non-adjacent but overlapping observations
+      .x <- dplyr::arrange(dplyr::mutate(.x, set=as.integer(NA)),desc(TR))
+      .x$set[[1]] <- 0
+      current_set <- 1
+      something_changed <- TRUE
+      while(any(is.na(.x$set))){
+ 	new_set_indices <- (rev(cummax(rev(!is.na(.x$set)))) == 1) & is.na(.x$set)
+        if(any(new_set_indices)){
+          .x$set[[which(new_set_indices)[[1]] ]] <- current_set
+          current_set <- current_set + 1
+          something_changed <- TRUE
+        } else if(!something_changed){
+          .x$set[[which(is.na(.x$set))[[1]] ]] <- current_set
+          current_set <- current_set + 1
+          something_changed <- TRUE
+        }
+        something_changed <- FALSE
+        for(set_idx in (seq_len(current_set) - 1) ){
+          possible_extensions <- .x$TR < .x$TL[max(which((.x$set == set_idx) & !is.na(.x$set)))]
+          if(any(possible_extensions)){
+            .x$set[[min(which(possible_extensions))]] <- set_idx
+            something_changed <- TRUE
+          }
+        }
       }
-      .x <- .x %>% group_by(cid) %>% summarize(TL = min(TL), TR = max(TR), !!cases_column := sum(!!rlang::sym(cases_column),na.rm=TRUE)) %>% ungroup() %>% select(-cid)
+      ## The TL calculation here is made up
+      .ox <- .x
+      .x$duration <- .x$TR - .x$TL + 1
+      .x <- .x %>% group_by(set) %>% summarize(TL = min(TL), TR = min(TL) + sum(duration) - 1 , !!cases_column := sum(!!rlang::sym(cases_column),na.rm=TRUE)) %>% ungroup() %>% select(-set)
       return(.x)
-    })
+    }) %>% 
+    ungroup() 
+  sf_cases_resized$geom <- sf::st_as_sfc(sf_cases_resized$geom)
+  sf_cases_resized <- sf::st_as_sf(sf_cases_resized)
+  sf::st_crs(sf_cases_resized) <- ocrs
   
   # Re-compute space-time indices based on aggretated data
   ind_mapping_resized <- getSpaceTimeIndSpeedup(
