@@ -27,8 +27,6 @@ prepare_grid <- function(
   library(glue)
   library(ncdf4)
   
-  # Get files
-  # source(stringr::str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
   
   # Inputs ------------------------------------------------------------------
   
