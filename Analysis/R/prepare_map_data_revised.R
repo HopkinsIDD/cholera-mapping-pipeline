@@ -4,8 +4,8 @@
 
 setwd(cholera_directory)
 source("Analysis/R/database_api_key.R")
-source("Analysis/R/covariate_helpers.R")
-source("Analysis/R/pull_data_helpers.R")
+# source("Analysis/R/covariate_helpers.R")
+# source("Analysis/R/pull_data_helpers.R")
 
 # Shapefile check ------------------------------------------------------------
 print("Starting Data Preparation Process")

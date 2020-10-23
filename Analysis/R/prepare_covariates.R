@@ -36,7 +36,7 @@ prepare_covariates <- function(
   library(ncdf4)
   
   # Get files
-  source(stringr::str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
+  # source(stringr::str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
   
   # print(str(list(
   #   dbuser =  dbuser,

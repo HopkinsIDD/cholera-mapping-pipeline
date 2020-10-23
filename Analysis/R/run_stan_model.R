@@ -11,8 +11,8 @@
 ### gam for warm start
 library(mgcv)
 coord_frame = data.frame(
-  x = unlist(lapply(st_geometry(st_centroid(sf_grid)),function(x){x[[2]]})),
-  y = unlist(lapply(st_geometry(st_centroid(sf_grid)),function(x){x[[1]]}))
+  x = unlist(lapply(sf::st_geometry(sf::st_centroid(sf_grid)),function(x){x[[2]]})),
+  y = unlist(lapply(sf::st_geometry(sf::st_centroid(sf_grid)),function(x){x[[1]]}))
 )
 old_percent <- 0
 df <- purrr::map_dfr(

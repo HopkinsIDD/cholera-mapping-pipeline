@@ -37,7 +37,7 @@ prepare_stan_input <- function(
   covar_cube
 ) {
   
-  source(stringr::str_c(cholera_directory, "/Analysis/R/stan_input_helpers.R"))
+  # source(stringr::str_c(cholera_directory, "/Analysis/R/stan_input_helpers.R"))
   
   # Get covariate choices from covar_cube slice names
   covariate_choices <- dimnames(covar_cube)[[3]][-1]
