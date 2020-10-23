@@ -215,6 +215,7 @@ create_test_points <- function(
 #' @param randomize boolean Whether to randomly (as opposed to uniformly) generate the polygons
 #' @param dimension integer The dimension of polygons to create (0,1, or 2)
 #' @param seed integer A seed to use for the randomly constructed portions of this object
+#' @export
 create_test_polygons <- function(
   test_raster = create_test_raster(),
   number=10,
@@ -965,8 +966,8 @@ observe_polygons <- function(
   return(observed_observations)
 }
 
-#' name create_standardized_test_data
-#' title create_standardized_test_data
+#' @name create_standardized_test_data
+#' @title create_standardized_test_data
 #' @description create a testing data set for modeling
 #' @export
                                         # Extent parameters:
@@ -1017,6 +1018,7 @@ observe_polygons <- function(
 #' @param max_time_right The last time associated with an observation
                                         # This functions parameter
 #' @param seed integer A seed to use for the randomly constructed portions of this object
+#' @export
 create_standardized_test_data <- function(
   ## Extent parameters:,
   ### NONE,

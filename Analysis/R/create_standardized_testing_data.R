@@ -29,10 +29,10 @@ all_data[["full observation single covariate"]] <- function(){taxdat:::create_st
   radiating = c(FALSE,TRUE),
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.25,0.25)),
-    st_point(c(0.75,0.75)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.25,0.25)),
+    sf::st_point(c(0.75,0.75)),
+    crs=sf::st_crs(taxdat::create_test_polygons())
   ))),
   radiation_function = rep(list(function(x,mu){mu*RandomFieldsUtils::matern(x/1000,3/4)}),nc),
   radiating_means = list(NA,c(1)),
@@ -95,10 +95,10 @@ all_data[["partial observation single covariate mode 1"]] <- function(){taxdat::
   radiating = c(FALSE,TRUE),
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.25,0.25)),
-    st_point(c(0.75,0.75)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.25,0.25)),
+    sf::st_point(c(0.75,0.75)),
+    crs=sf::st_crs(taxdat::create_test_polygons())
   ))),
   radiating_means = list(NA,c(1)),
   smoothing_function = rep(
@@ -137,7 +137,7 @@ all_data[["partial observation single covariate mode 1"]] <- function(){taxdat::
 )}
 
 #### testing.3 ####
-all_data[["partial observation single covariate mode 2"]] <- function(){create_standardized_test_data(
+all_data[["partial observation single covariate mode 2"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -160,10 +160,10 @@ all_data[["partial observation single covariate mode 2"]] <- function(){create_s
   radiating = c(FALSE,TRUE),
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.25,0.25)),
-    st_point(c(0.75,0.75)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.25,0.25)),
+    sf::st_point(c(0.75,0.75)),
+    crs=sf::st_crs(taxdat::create_test_polygons())
   ))),
   radiating_means = list(NA,c(1)),
   smoothing_function = rep(
@@ -202,7 +202,7 @@ all_data[["partial observation single covariate mode 2"]] <- function(){create_s
 )}
 
 #### testing.4 ####
-all_data[["partial observation single covariate mode 3"]] <- function(){create_standardized_test_data(
+all_data[["partial observation single covariate mode 3"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -225,10 +225,10 @@ all_data[["partial observation single covariate mode 3"]] <- function(){create_s
   radiating = c(FALSE,TRUE),
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.25,0.25)),
-    st_point(c(0.75,0.75)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.25,0.25)),
+    sf::st_point(c(0.75,0.75)),
+    crs=sf::st_crs(taxdat::create_test_polygons())
   ))),
   radiating_means = list(NA,c(1)),
   smoothing_function = rep(
@@ -267,7 +267,7 @@ all_data[["partial observation single covariate mode 3"]] <- function(){create_s
 )}
 
 #### testing.5 ####
-all_data[["full observation single polygonal covariate"]] <- function(){create_standardized_test_data(
+all_data[["full observation single polygonal covariate"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -328,7 +328,7 @@ all_data[["full observation single polygonal covariate"]] <- function(){create_s
 )}
 
 #### testing.6 ####
-all_data[["partial observation single polygonal covariate mode 0"]] <- function(){create_standardized_test_data(
+all_data[["partial observation single polygonal covariate mode 0"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -389,7 +389,7 @@ all_data[["partial observation single polygonal covariate mode 0"]] <- function(
 )}
 
 #### testing.7 ####
-all_data[["partial observation single polygonal covariate mode 1"]] <- function(){create_standardized_test_data(
+all_data[["partial observation single polygonal covariate mode 1"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -450,7 +450,7 @@ all_data[["partial observation single polygonal covariate mode 1"]] <- function(
 )}
 
 #### testing.8 ####
-all_data[["partial observation single polygonal covariate mode 2"]] <- function(){create_standardized_test_data(
+all_data[["partial observation single polygonal covariate mode 2"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -511,7 +511,7 @@ all_data[["partial observation single polygonal covariate mode 2"]] <- function(
 )}
 
 #### testing.9 ####
-all_data[["partial observation single polygonal covariate mode 3"]] <- function(){create_standardized_test_data(
+all_data[["partial observation single polygonal covariate mode 3"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -572,7 +572,7 @@ all_data[["partial observation single polygonal covariate mode 3"]] <- function(
 )}
 
 #### testing.10 ####
-all_data[["partial observation single polygonal covariate mode 4"]] <- function(){create_standardized_test_data(
+all_data[["partial observation single polygonal covariate mode 4"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -633,7 +633,7 @@ all_data[["partial observation single polygonal covariate mode 4"]] <- function(
 )}
 
 #### testing.11 ####
-all_data[["full observation single matern smoothed covariate"]] <- function(){create_standardized_test_data(
+all_data[["full observation single matern smoothed covariate"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ## Raster parameters:,
   nrows = 20, 
@@ -694,7 +694,7 @@ all_data[["full observation single matern smoothed covariate"]] <- function(){cr
 )}
 
 #### testing.12 ####
-all_data[["full observation single matern smoothed covariate finer observation scale"]] <- function(){create_standardized_test_data(
+all_data[["full observation single matern smoothed covariate finer observation scale"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ## Raster parameters:,
   nrows = 20, 
@@ -752,7 +752,7 @@ all_data[["full observation single matern smoothed covariate finer observation s
 
 
 #### testing.13 ####
-all_data[["single matern smooth spacetime covariate"]] <- function(){create_standardized_test_data(
+all_data[["single matern smooth spacetime covariate"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ## Raster parameters:,
   nrows = 20, 
@@ -813,7 +813,7 @@ all_data[["single matern smooth spacetime covariate"]] <- function(){create_stan
 )}
 
 #### testing.14 ####
-all_data[["grid sampled observation single covariate"]] <- function(){taxdat:::create_standardized_test_data(
+all_data[["grid sampled observation single covariate"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -836,10 +836,10 @@ all_data[["grid sampled observation single covariate"]] <- function(){taxdat:::c
   radiating = c(FALSE,TRUE),
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.25,0.25)),
-    st_point(c(0.75,0.75)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.25,0.25)),
+    sf::st_point(c(0.75,0.75)),
+    crs=sf::st_crs(taxdat::create_test_polygons())
   ))),
   radiation_function = rep(list(function(x,mu){mu*RandomFieldsUtils::matern(x/1000,3/4)}),nc),
   radiating_means = list(NA,c(1)),
@@ -879,7 +879,7 @@ all_data[["grid sampled observation single covariate"]] <- function(){taxdat:::c
 )}
 
 #### testing.15 ####
-all_data[["matern smoothed population with simple covariate."]] <- function(){create_standardized_test_data(
+all_data[["matern smoothed population with simple covariate."]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ## Raster parameters:,
   nrows = 20, 
@@ -897,10 +897,10 @@ all_data[["matern smoothed population with simple covariate."]] <- function(){cr
   radiating = c(FALSE,TRUE), 
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.25,0.25)),
-    st_point(c(0.75,0.75)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.25,0.25)),
+    sf::st_point(c(0.75,0.75)),
+    crs=sf::st_crs(taxdat::create_test_polygons())
   ))),
   radiation_function = rep(list(function(x,mu){mu*RandomFieldsUtils::matern(x/1000,3/4)}),nc),
   radiating_means = list(NA,c(1)),
@@ -941,7 +941,7 @@ all_data[["matern smoothed population with simple covariate."]] <- function(){cr
 )}
 
 #### testing.16 ####
-all_data[["oversampled observation single covariate"]] <- function(){taxdat:::create_standardized_test_data(
+all_data[["oversampled observation single covariate"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -964,10 +964,10 @@ all_data[["oversampled observation single covariate"]] <- function(){taxdat:::cr
   radiating = c(FALSE,TRUE),
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.25,0.25)),
-    st_point(c(0.75,0.75)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.25,0.25)),
+    sf::st_point(c(0.75,0.75)),
+    crs=sf::st_crs(sf::create_test_polygons())
   ))),
   radiation_function = rep(list(function(x,mu){mu*RandomFieldsUtils::matern(x/1000,3/4)}),nc),
   radiating_means = list(NA,c(1)),
@@ -1004,7 +1004,7 @@ all_data[["oversampled observation single covariate"]] <- function(){taxdat:::cr
 )}
 
 #### testing.17 ####
-all_data[["full observation single matern smoothed covariate finer observation scale with small population"]] <- function(){create_standardized_test_data(
+all_data[["full observation single matern smoothed covariate finer observation scale with small population"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ## Raster parameters:,
   nrows = 20, 
@@ -1061,7 +1061,7 @@ all_data[["full observation single matern smoothed covariate finer observation s
 )}
 
 #### testing.18 ####
-all_data[["10 % sampled observation single covariate"]] <- function(){taxdat:::create_standardized_test_data(
+all_data[["10 % sampled observation single covariate"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -1084,10 +1084,10 @@ all_data[["10 % sampled observation single covariate"]] <- function(){taxdat:::c
   radiating = c(FALSE,TRUE),
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.25,0.25)),
-    st_point(c(0.75,0.75)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.25,0.25)),
+    sf::st_point(c(0.75,0.75)),
+    crs=sf::st_crs(taxdat::create_test_polygons())
   ))),
   radiation_function = rep(list(function(x,mu){mu*RandomFieldsUtils::matern(x/1000,3/4)}),nc),
   radiating_means = list(NA,c(1)),
@@ -1127,7 +1127,7 @@ all_data[["10 % sampled observation single covariate"]] <- function(){taxdat:::c
 )}
 
 #### testing.19 ####
-all_data[["30 % sampled observation single covariate"]] <- function(){taxdat:::create_standardized_test_data(
+all_data[["30 % sampled observation single covariate"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -1150,10 +1150,10 @@ all_data[["30 % sampled observation single covariate"]] <- function(){taxdat:::c
   radiating = c(FALSE,TRUE),
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.25,0.25)),
-    st_point(c(0.75,0.75)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.25,0.25)),
+    sf::st_point(c(0.75,0.75)),
+    crs=sf::st_crs(taxdat::create_test_polygons())
   ))),
   radiation_function = rep(list(function(x,mu){mu*RandomFieldsUtils::matern(x/1000,3/4)}),nc),
   radiating_means = list(NA,c(1)),
@@ -1193,7 +1193,7 @@ all_data[["30 % sampled observation single covariate"]] <- function(){taxdat:::c
 )}
 
 #### testing.20 ####
-all_data[["50 % sampled observation single covariate"]] <- function(){taxdat:::create_standardized_test_data(
+all_data[["50 % sampled observation single covariate"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -1216,10 +1216,10 @@ all_data[["50 % sampled observation single covariate"]] <- function(){taxdat:::c
   radiating = c(FALSE,TRUE),
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.25,0.25)),
-    st_point(c(0.75,0.75)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.25,0.25)),
+    sf::st_point(c(0.75,0.75)),
+    crs=sf::st_crs(taxdat::create_test_polygons())
   ))),
   radiation_function = rep(list(function(x,mu){mu*RandomFieldsUtils::matern(x/1000,3/4)}),nc),
   radiating_means = list(NA,c(1)),
@@ -1259,7 +1259,7 @@ all_data[["50 % sampled observation single covariate"]] <- function(){taxdat:::c
 )}
 
 #### testing.21 ####
-all_data[["70 % sampled observation single covariate"]] <- function(){taxdat:::create_standardized_test_data(
+all_data[["70 % sampled observation single covariate"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -1282,10 +1282,10 @@ all_data[["70 % sampled observation single covariate"]] <- function(){taxdat:::c
   radiating = c(FALSE,TRUE),
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.25,0.25)),
-    st_point(c(0.75,0.75)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.25,0.25)),
+    sf::st_point(c(0.75,0.75)),
+    crs=sf::st_crs(taxdat::create_test_polygons())
   ))),
   radiation_function = rep(list(function(x,mu){mu*RandomFieldsUtils::matern(x/1000,3/4)}),nc),
   radiating_means = list(NA,c(1)),
@@ -1325,7 +1325,7 @@ all_data[["70 % sampled observation single covariate"]] <- function(){taxdat:::c
 )}
 
 #### testing.22 ####
-all_data[["80 % sampled observation single covariate"]] <- function(){taxdat:::create_standardized_test_data(
+all_data[["80 % sampled observation single covariate"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -1348,10 +1348,10 @@ all_data[["80 % sampled observation single covariate"]] <- function(){taxdat:::c
   radiating = c(FALSE,TRUE),
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.25,0.25)),
-    st_point(c(0.75,0.75)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.25,0.25)),
+    sf::st_point(c(0.75,0.75)),
+    crs=sf::st_crs(taxdat::create_test_polygons())
   ))),
   radiation_function = rep(list(function(x,mu){mu*RandomFieldsUtils::matern(x/1000,3/4)}),nc),
   radiating_means = list(NA,c(1)),
@@ -1391,7 +1391,7 @@ all_data[["80 % sampled observation single covariate"]] <- function(){taxdat:::c
 )}
 
 #### testing.23 ####
-all_data[["90 % sampled observation single covariate"]] <- function(){taxdat:::create_standardized_test_data(
+all_data[["90 % sampled observation single covariate"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -1414,10 +1414,10 @@ all_data[["90 % sampled observation single covariate"]] <- function(){taxdat:::c
   radiating = c(FALSE,TRUE),
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.25,0.25)),
-    st_point(c(0.75,0.75)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.25,0.25)),
+    sf::st_point(c(0.75,0.75)),
+    crs=sf::st_crs(taxdat::create_test_polygons())
   ))),
   radiation_function = rep(list(function(x,mu){mu*RandomFieldsUtils::matern(x/1000,3/4)}),nc),
   radiating_means = list(NA,c(1)),
@@ -1457,7 +1457,7 @@ all_data[["90 % sampled observation single covariate"]] <- function(){taxdat:::c
 )}
 
 #### testing.24 ####
-all_data[["95 % sampled observation single covariate"]] <- function(){taxdat:::create_standardized_test_data(
+all_data[["95 % sampled observation single covariate"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -1480,10 +1480,10 @@ all_data[["95 % sampled observation single covariate"]] <- function(){taxdat:::c
   radiating = c(FALSE,TRUE),
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.25,0.25)),
-    st_point(c(0.75,0.75)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.25,0.25)),
+    sf::st_point(c(0.75,0.75)),
+    crs=sf::st_crs(taxdat::create_test_polygons())
   ))),
   radiation_function = rep(list(function(x,mu){mu*RandomFieldsUtils::matern(x/1000,3/4)}),nc),
   radiating_means = list(NA,c(1)),
@@ -1523,7 +1523,7 @@ all_data[["95 % sampled observation single covariate"]] <- function(){taxdat:::c
 )}
 
 #### testing.25 ####
-all_data[["99 % sampled observation single covariate"]] <- function(){taxdat:::create_standardized_test_data(
+all_data[["99 % sampled observation single covariate"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -1546,10 +1546,10 @@ all_data[["99 % sampled observation single covariate"]] <- function(){taxdat:::c
   radiating = c(FALSE,TRUE),
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.25,0.25)),
-    st_point(c(0.75,0.75)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.25,0.25)),
+    sf::st_point(c(0.75,0.75)),
+    crs=st_crs(taxdat::create_test_polygons())
   ))),
   radiation_function = rep(list(function(x,mu){mu*RandomFieldsUtils::matern(x/1000,3/4)}),nc),
   radiating_means = list(NA,c(1)),
@@ -1589,7 +1589,7 @@ all_data[["99 % sampled observation single covariate"]] <- function(){taxdat:::c
 )}
 
 #### testing.26 ####
-all_data[["try1 causing orig model to escape prior"]] <- function(){create_standardized_test_data(
+all_data[["try1 causing orig model to escape prior"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ## Raster parameters:,
   nrows = 20, 
@@ -1646,7 +1646,7 @@ all_data[["try1 causing orig model to escape prior"]] <- function(){create_stand
 )}
 
 #### testing.27 ####
-all_data[["try2 causing orig model to escape prior"]] <- function(){create_standardized_test_data(
+all_data[["try2 causing orig model to escape prior"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ## Raster parameters:,
   nrows = 20, 
@@ -1664,9 +1664,9 @@ all_data[["try2 causing orig model to escape prior"]] <- function(){create_stand
   radiating = c(FALSE,TRUE), 
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.35,0.75)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.35,0.75)),
+    crs=sf::st_crs(taxdat::create_test_polygons())
   ))), 
   family = "Gaussian", 
   magnitude = c(8,1),
@@ -1707,7 +1707,7 @@ all_data[["try2 causing orig model to escape prior"]] <- function(){create_stand
 )}
 
 #### testing.28 ####
-all_data[["try3 causing orig model to escape prior"]] <- function(){create_standardized_test_data(
+all_data[["try3 causing orig model to escape prior"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ## Raster parameters:,
   nrows = 20, 
@@ -1725,9 +1725,9 @@ all_data[["try3 causing orig model to escape prior"]] <- function(){create_stand
   radiating = c(FALSE,TRUE), 
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.35,0.85)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.35,0.85)),
+    crs=sf::st_crs(taxdat::create_test_polygons())
   ))), 
   family = "Gaussian", 
   magnitude = c(8,1),
@@ -1768,7 +1768,7 @@ all_data[["try3 causing orig model to escape prior"]] <- function(){create_stand
 )}
 
 #### testing.29 ####
-all_data[["try4 causing orig model to escape prior"]] <- function(){create_standardized_test_data(
+all_data[["try4 causing orig model to escape prior"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ## Raster parameters:,
   nrows = 20, 
@@ -1823,7 +1823,7 @@ all_data[["try4 causing orig model to escape prior"]] <- function(){create_stand
 )}
 
 #### testing.30 ####
-all_data[["try5 causing orig model to escape prior"]] <- function(){create_standardized_test_data(
+all_data[["try5 causing orig model to escape prior"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ## Raster parameters:,
   nrows = 20, 
@@ -1841,10 +1841,10 @@ all_data[["try5 causing orig model to escape prior"]] <- function(){create_stand
   radiating = c(FALSE,TRUE), 
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.35,0.85),
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.35,0.85),
              c(0.55,0.10)),
-    crs=st_crs(create_test_polygons())
+    crs=sf::st_crs(taxdat::create_test_polygons())
   ))), 
   family = "Gaussian", 
   magnitude = c(8,1),
@@ -1885,7 +1885,7 @@ all_data[["try5 causing orig model to escape prior"]] <- function(){create_stand
 )}
 
 #### testing.31 ####
-all_data[["profiling baseline"]] <- function(){taxdat:::create_standardized_test_data(
+all_data[["profiling baseline"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -1908,10 +1908,10 @@ all_data[["profiling baseline"]] <- function(){taxdat:::create_standardized_test
   radiating = c(FALSE,TRUE),
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.25,0.25)),
-    st_point(c(0.75,0.75)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.25,0.25)),
+    sf::st_point(c(0.75,0.75)),
+    crs=sf::st_crs(taxdat::create_test_polygons())
   ))),
   radiation_function = rep(list(function(x,mu){mu*RandomFieldsUtils::matern(x/1000,3/4)}),nc),
   radiating_means = list(NA,c(1)),
@@ -1950,7 +1950,7 @@ all_data[["profiling baseline"]] <- function(){taxdat:::create_standardized_test
 )}
 
 #### testing.32 ####
-all_data[["profiling gridsize 4x"]] <- function(){taxdat:::create_standardized_test_data(
+all_data[["profiling gridsize 4x"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -1973,10 +1973,10 @@ all_data[["profiling gridsize 4x"]] <- function(){taxdat:::create_standardized_t
   radiating = c(FALSE,TRUE),
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.25,0.25)),
-    st_point(c(0.75,0.75)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.25,0.25)),
+    sf::st_point(c(0.75,0.75)),
+    crs=sf::st_crs(taxdat::create_test_polygons())
   ))),
   radiation_function = rep(list(function(x,mu){mu*RandomFieldsUtils::matern(x/1000,3/4)}),nc),
   radiating_means = list(NA,c(1)),
@@ -2016,7 +2016,7 @@ all_data[["profiling gridsize 4x"]] <- function(){taxdat:::create_standardized_t
 )}
 
 #### testing.33 ####
-all_data[["profiling observations 4x"]] <- function(){taxdat:::create_standardized_test_data(
+all_data[["profiling observations 4x"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -2039,10 +2039,10 @@ all_data[["profiling observations 4x"]] <- function(){taxdat:::create_standardiz
   radiating = c(FALSE,TRUE),
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.25,0.25)),
-    st_point(c(0.75,0.75)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.25,0.25)),
+    sf::st_point(c(0.75,0.75)),
+    crs=sf::st_crs(taxdat::create_test_polygons())
   ))),
   radiation_function = rep(list(function(x,mu){mu*RandomFieldsUtils::matern(x/1000,3/4)}),nc),
   radiating_means = list(NA,c(1)),
@@ -2081,7 +2081,7 @@ all_data[["profiling observations 4x"]] <- function(){taxdat:::create_standardiz
 )}
 
 #### testing.34 ####
-all_data[["profiling both 4x"]] <- function(){taxdat:::create_standardized_test_data(
+all_data[["profiling both 4x"]] <- function(){taxdat::create_standardized_test_data(
   ## Extent parameters:,
   ### NONE,
   ## Raster parameters:,
@@ -2104,10 +2104,10 @@ all_data[["profiling both 4x"]] <- function(){taxdat:::create_standardized_test_
   radiating = c(FALSE,TRUE),
   constant = c(TRUE, FALSE),
   rho = rep(.999999, times = nc),
-  radiating_polygons = list(NA,st_union(st_sfc(
-    st_point(c(0.25,0.25)),
-    st_point(c(0.75,0.75)),
-    crs=st_crs(create_test_polygons())
+  radiating_polygons = list(NA,sf::st_union(sf::st_sfc(
+    sf::st_point(c(0.25,0.25)),
+    sf::st_point(c(0.75,0.75)),
+    crs=sf::st_crs(taxdat::create_test_polygons())
   ))),
   radiation_function = rep(list(function(x,mu){mu*RandomFieldsUtils::matern(x/1000,3/4)}),nc),
   radiating_means = list(NA,c(1)),
@@ -2167,7 +2167,7 @@ sf_cases[[cases_column]] <- floor(sf_cases[[cases_column]])
 sf_cases$TL <- sf_cases[['time_left']]
 sf_cases$TR <- sf_cases[['time_right']]
 
-full_shapefile <- st_union(sf_cases)
+full_shapefile <- sf::st_union(sf_cases)
 
 non_na_gridcells <- which(apply(covar_cube,c(1,2),function(x){(x[[1]] > 1) & !any(is.na(x))}))
 gridchanger <- setNames(seq_len(length(non_na_gridcells)),non_na_gridcells)
@@ -2177,7 +2177,7 @@ location_periods_dict <- sf::st_drop_geometry(sf::st_intersection(sf_cases,sf_gr
 names(location_periods_dict) <-                                                     c('location_period_id','rid','x',  'y',  'id','t','long_id','upd_long_id')
 
 # Determine which cells in the raster intersect which shapefiles
-sf_cases <- sf_cases[st_dimension(sf_cases) == 2,]
+sf_cases <- sf_cases[sf::st_dimension(sf_cases) == 2,]
 sf_cases$id <- seq_len(nrow(sf_cases))
 sf_cases$valid <- TRUE
 
