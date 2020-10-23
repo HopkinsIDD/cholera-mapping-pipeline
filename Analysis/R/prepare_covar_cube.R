@@ -30,8 +30,8 @@ prepare_covar_cube <- function(
   res_time
 ) {
   
-  source(stringr::str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
-  source(stringr::str_c(cholera_directory, "/Analysis/R/setup_helpers.R"))
+  # source(stringr::str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
+  # source(stringr::str_c(cholera_directory, "/Analysis/R/setup_helpers.R"))
   
   # Extract data cube ------------------------------------------------------------
   # Database connection
