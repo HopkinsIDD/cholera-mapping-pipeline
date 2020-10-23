@@ -80,7 +80,7 @@ spatial_aggregate_iso_a2_level <- Inf # Aggregate data to ISO_A2_L? use 0 for IS
 
 # - - - -
 # What is the time unit to aggregate to?
-res_time <- checkTimeRes(config$res_time)
+res_time <- taxdat::check_time_res(config$res_time)
 temporal_aggregate_time_unit <- stringr::str_split(res_time, " ")[[1]][2]
 
 # Get various functions to convert between time units and dates
