@@ -1,7 +1,7 @@
 #' @title Check time resolution
 #' @description Checks whether the time resolution input is valid
 #'
-#' @param res_time
+#' @param res_time the time resolution of the model
 #'
 #' @return res_time if valid
 #' @export
@@ -35,7 +35,7 @@ check_time_res <- function(res_time) {
 #' @title Check case definition
 #' @description Checks whether the column name for case definition is valid 
 #'
-#' @param case_column
+#' @param case_column the name of the case column to use in the database
 #'
 #' @return case column if valid
 #' @export
@@ -51,19 +51,20 @@ check_case_definition <- function(case_col) {
 #' @title Check modeling date range
 #' @description Checks if input date ranges are correct
 #'
-#' @param start_time
-#' @param end_time
-#' @param time_change_func
-#' @param aggregate_to_start
-#' @param aggregate_to_end
+#' @param start_time the start time of the modeling time rante
+#' @param end_time the end time of the modeling time range
+#' @param time_change_func function to change dates to the aggregation level 
+#' determined by the time resolution of the model
+#' @param aggregate_to_start function to aggregate dates to the start date of modeling time slices
+#' @param aggregate_to_end function to aggregate dates to the end of the modeling time slices
 #'
 #' @return return
 #' @export
 check_model_date_range <- function(start_time, 
-                                end_time,
-                                time_change_func,
-                                aggregate_to_start,
-                                aggregate_to_end) {
+                                   end_time,
+                                   time_change_func,
+                                   aggregate_to_start,
+                                   aggregate_to_end) {
   
   if(any(c(!is.Date(start_time), !is.Date(end_time))))
     stop("Start and end times need to be in date format")
@@ -89,13 +90,13 @@ check_model_date_range <- function(start_time,
 #' @description Verifies whether user-defined covariate choices are in the available
 #' set
 #'
-#' @param covar_choices
-#' @param available_choices
+#' @param covar_choices vector of user-defined covariate choices
+#' @param available_choices vector of available covaraites choices
 #'
 #' @return if valid the vector of covariate choices
 #' @export
 check_covariate_choices <- function(covar_choices,
-                                  available_choices){
+                                    available_choices){
   
   if (any(purrr::map_lgl(covar_choices, ~ !(. %in% available_choices))))
     stop("Covariate choices [", stringr::str_c(setdiff(covar_choices, available_choices), collapse = ", "), "] not available. \n",
@@ -110,13 +111,13 @@ check_covariate_choices <- function(covar_choices,
 #' @title Check stan model
 #' @description Checks whether the stan model file exists
 #'
-#' @param stan_model_path
-#' @param stan_dir
+#' @param stan_model_path the path to the stan model to use
+#' @param stan_dir the directory to the directory with all available stan models
 #' 
 #' @return if valid the stan model path
 #' @export
 check_stan_model <- function(stan_model_path,
-                           stan_dir) {
+                             stan_dir) {
   
   if (!file.exists(stan_model_path))
     stop("Could not find stan model. Choose among:\n", 
@@ -139,18 +140,18 @@ check_stan_model <- function(stan_model_path,
 #' @return a dataframe left and right bounds of the modeling time slices
 #' @export
 modeling_time_slices <- function(start_time, 
-                               end_time, 
-                               res_time,
-                               time_change_func,
-                               aggregate_to_start,
-                               aggregate_to_end) {
+                                 end_time, 
+                                 res_time,
+                                 time_change_func,
+                                 aggregate_to_start,
+                                 aggregate_to_end) {
   
   left_bounds <- seq.Date(start_time, end_time, by = res_time)
   left_bounds <- aggregate_to_start(time_change_func(left_bounds))
   right_bounds <- aggregate_to_end(time_change_func(left_bounds))
   
   time_slices <- tibble::tibble(TL = left_bounds[left_bounds <= end_time],
-                        TR = right_bounds[right_bounds <= end_time])
+                                TR = right_bounds[right_bounds <= end_time])
   
   cat("-- Model consists of", nrow(time_slices), "time slices of duration", res_time,":\n")
   print(time_slices)
@@ -168,7 +169,7 @@ modeling_time_slices <- function(start_time,
 #' @return a string with the observation file name
 #' @export
 make_observations_filename <- function(cholera_directory, 
-                                     map_name) {
+                                       map_name) {
   paste(cholera_directory, "/Analysis/", "data/",
         map_name, '.preprocess', '.rdata', sep = '')
 }
@@ -184,8 +185,8 @@ make_observations_filename <- function(cholera_directory,
 #' @return a string with the covariate file name
 #' @export
 make_covar_filename <- function(cholera_directory, 
-                              map_name, 
-                              covariate_name_part) {
+                                map_name, 
+                                covariate_name_part) {
   paste(cholera_directory, "/Analysis/", "data/", map_name, ".", 
         covariate_name_part, '.covar', '.rdata', sep = '')
 }
@@ -202,10 +203,10 @@ make_covar_filename <- function(cholera_directory,
 #' @return a string with the Stan input file name
 #' @export
 make_stan_input_filename <- function(cholera_directory, 
-                                  map_name,
-                                  covariate_name_part,
-                                  stan_model,
-                                  niter) {
+                                     map_name,
+                                     covariate_name_part,
+                                     stan_model,
+                                     niter) {
   paste(cholera_directory, "/Analysis/", "data/", map_name, '.', 
         covariate_name_part, '.', stan_model, '.', niter, '.stan_input',
         '.rdata',sep='')
@@ -223,10 +224,10 @@ make_stan_input_filename <- function(cholera_directory,
 #' @return a string with the Stan output file name
 #' @export
 make_stan_output_filename <- function(cholera_directory, 
-                                   map_name,
-                                   covariate_name_part,
-                                   stan_model,
-                                   niter) {
+                                      map_name,
+                                      covariate_name_part,
+                                      stan_model,
+                                      niter) {
   paste(cholera_directory, "/Analysis/", "data/", map_name, '.', 
         covariate_name_part, '.', stan_model, '.', niter, '.stan_output',
         '.rdata',sep='')
@@ -245,10 +246,10 @@ make_stan_output_filename <- function(cholera_directory,
 #' @return a string with the map output file name
 #' @export
 make_map_output_filename <- function(cholera_directory,
-                                  map_name,
-                                  covariate_name_part,
-                                  stan_model,
-                                  niter) {
+                                     map_name,
+                                     covariate_name_part,
+                                     stan_model,
+                                     niter) {
   paste(cholera_directory, "/Analysis/", "output/", map_name, '.',
         covariate_name_part, '.', stan_model, '.', niter, '.pdf', sep = '')
 }
