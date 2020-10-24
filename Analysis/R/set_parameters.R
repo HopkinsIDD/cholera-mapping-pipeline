@@ -360,6 +360,4 @@ for(t_idx in 1:length(all_test_idx)){
     recompile <- FALSE
   }
   
-  ## Step 6: Make maps
-  # source(paste(cholera_directory,'Analysis','R','make_cholera_map.R',sep='/'))
 }
