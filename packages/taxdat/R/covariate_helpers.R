@@ -2,7 +2,7 @@
 #' @name connect_to_db
 #' @description Helper to connect to cholera_covariates database
 #'
-#' @param dbuser
+#' @param dbuser database user name
 #'
 #' @return a DBI database connection object
 #' @export
@@ -70,7 +70,7 @@ db_exists_table_multi <- function(conn,
 #' @name make_locationperiods_table_name
 #' @description makes the table name for the requested location periods
 #'
-#' @param dbuser
+#' @param dbuser database username
 #'
 #' @return the table name
 #' @export
@@ -83,7 +83,7 @@ make_locationperiods_table_name <- function(dbuser) {
 #' @description makes the table name for the centroids of the computation grid 
 #' corresponding to the requested location periods
 #'
-#' @param dbuser
+#' @param dbuser database username
 #'
 #' @return the table name
 #' @export
@@ -152,15 +152,15 @@ build_geoms_query <- function(conn,
   DBI::dbSendStatement(conn, glue::glue_sql("VACUUM ANALYZE {`table`};", .con = conn))
 }
 
+
 #' @title make grid file
 #' @name make_grid_file
 #' @description makes the table name for the grid file
-#' @param dbuser
+#' @param dbuser database username
 #' @return the table name
 make_grid_file <- function(dbuser) {
   glue::glue("grid_name_{dbuser}.txt")
 }
-
 
 
 #' @title Show progress
@@ -860,7 +860,7 @@ get_temporal_bands <- function(model_time_slices,
 #' @param covar_name name of the covariate
 #' @param covar_alias alias of the covariate in the database
 #' @param covar_dir directory where to find the covariate
-#' @param covar_unit
+#' @param covar_unit not sure
 #' @param covar_type type of covariate, either 'temporal' or 'static'
 #' @param covar_res_time default is NULL
 #' @param covar_schema schema where to save the covariate
@@ -1683,10 +1683,10 @@ gdalwarp2 <- function (srcfile, dstfile, s_srs, t_srs, to, order, tps, rpc,
 #' @name time_overlap
 #' @description Computes the time overlap between a date range and a vector of ranges
 #'
-#' @param tl
-#' @param tr
-#' @param tl_vec
-#' @param tr_vec
+#' @param tl time left, starting time
+#' @param tr time right, ending time
+#' @param tl_vec vector of time lefts
+#' @param tr_vec vector of time rights
 #'
 #' @return a list with the time overlaps
 #' 

@@ -144,7 +144,10 @@ linelist2phantom <- function(
 }
 
 #' @name na_smart_sum
+#' @title na_smart_sum
 #' @description Helper function to sum vectors with NA values correctly
+#' @param x vector to sum
+#' @return
 na_smart_sum <- function(x){
   if(all(is.na(x))){
     return(as.numeric(NA))
@@ -154,7 +157,13 @@ na_smart_sum <- function(x){
 }
 
 #' @name expand_all_locations
+#' @title expand_all_locations
 #' @description Helper function to get full list of locations
+#' @param .x dataframe for group_map
+#' @param .y groups for group_map
+#' @param assumed_complete_location string with assumed complete location
+#' @param all_locations list of unique locations
+#' @return
 expand_all_locations = function(.x, .y, assumed_complete_location, all_locations){
   # Compute some of all data columns for specific combination of location, TL and TR
   .x <- dplyr::summarize_all(.x, na_smart_sum)

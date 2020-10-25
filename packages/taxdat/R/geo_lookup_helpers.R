@@ -197,7 +197,7 @@ lookup_WorldPop_region <- function(location,verbose=TRUE){
 
 #' @name standardize_string
 #' @title standardize_string
-#' @param string
+#' @param string character string
 #' @return standardize string
 standardize_string <- function(string){
   # if(is.na(string)){return(NA)}

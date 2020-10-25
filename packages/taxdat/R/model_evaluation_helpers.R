@@ -477,6 +477,40 @@ get_non_na_gridcells <- function(covar_data_filename){
 
 
 #' @export
+#' @name filename_to_stubs
+#' @title filename_to_stubs
+#' @description Parse filename string to get model run information
+#' @param x filename string or vector of strings
+#' @return 
+filename_to_stubs <- function(x){
+  if(length(x)==0){return(x)}
+  print(x)
+  x <- strsplit(x, "/")
+  x <- sapply(
+    x,
+    function(y) {
+      y[[length(y)]]
+    }
+  )
+  x <- strsplit(x, ".", fixed = TRUE)
+  x <- sapply(
+    x,
+    function(y) {
+      if (y[[1]] == "testing") {
+        y[[1]] <- paste(y[1:2], collapse = ".")
+        y <- y[-2]
+      }
+      y <- y[-4]
+      y <- y[-2]
+      if(length(y) > 3){y <- y[-length(y)]}
+      return(y)
+    })
+  return(x)
+}
+
+
+
+#' @export
 #' @name plot_modeled_cases
 #' @title plot_modeled_cases
 #' @description add
