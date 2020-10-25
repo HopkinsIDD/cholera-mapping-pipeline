@@ -152,6 +152,16 @@ build_geoms_query <- function(conn,
   DBI::dbSendStatement(conn, glue::glue_sql("VACUUM ANALYZE {`table`};", .con = conn))
 }
 
+#' @title make grid file
+#' @name make_grid_file
+#' @description makes the table name for the grid file
+#' @param dbuser
+#' @return the table name
+make_grid_file <- function(dbuser) {
+  glue::glue("grid_name_{dbuser}.txt")
+}
+
+
 
 #' @title Show progress
 #' @name show_progress
@@ -1666,4 +1676,21 @@ gdalwarp2 <- function (srcfile, dstfile, s_srs, t_srs, to, order, tps, rpc,
   else {
     return(NULL)
   }
+}
+
+
+#' @title Time overlap
+#' @name time_overlap
+#' @description Computes the time overlap between a date range and a vector of ranges
+#'
+#' @param tl
+#' @param tr
+#' @param tl_vec
+#' @param tr_vec
+#'
+#' @return a list with the time overlaps
+#' 
+time_overlap <- function(tl, tr, res_time, tl_vec, tr_vec){
+  # TODO 
+  warning("This function is not written")
 }

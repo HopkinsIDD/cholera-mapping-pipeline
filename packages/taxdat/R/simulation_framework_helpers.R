@@ -1,4 +1,4 @@
-#' @include auxiliary_functions.R
+#' @include indexing_helpers.R
 
 #' @name get_or_set_seed
 #' @title get_or_set_seed
