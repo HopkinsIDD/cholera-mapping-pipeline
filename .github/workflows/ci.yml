@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-18.04
     container:
       image: docker://hopkinsidd/choleramappingpipeline:latest
-      options: --user app
+      options: --user root
     steps:
       - name: Checkout
         uses: actions/checkout@v2
