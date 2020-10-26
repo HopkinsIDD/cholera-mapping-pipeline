@@ -12,7 +12,7 @@ jobs:
   unit-tests:
     runs-on: ubuntu-18.04
     container:
-      image: docker://hopkinsidd/covidscenariopipeline:latest-dev
+      image: docker://hopkinsidd/choleramappingpipeline:latest
       options: --user root
     steps:
       - name: Checkout
@@ -24,11 +24,11 @@ jobs:
           devtools::test(stop_on_failure=TRUE)
         shell: Rscript {0}
       - name: Run integration tests
-        env: 
-          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+        # env: 
+        #   CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
         run: |
           Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
           cd test
-          Rscript run_tests.R
+          Rscript test/run_tests.R
         shell: bash
 
