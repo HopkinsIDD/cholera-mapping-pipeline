@@ -104,25 +104,21 @@ RUN sudo service postgresql start \
     && sudo -u postgres psql -d  cholera_covariates -c "CREATE EXTENSION postgis_tiger_geocoder;" \
     && sudo -u postgres psql -d  cholera_covariates -c "CREATE SCHEMA covariates;" \
     && sudo -u postgres psql -d  cholera_covariates -c "CREATE SCHEMA data;" \
-    && sudo -u postgres psql -d  cholera_covariates -c "CREATE SCHEMA grids;"
+    && sudo -u postgres psql -d  cholera_covariates -c "CREATE SCHEMA grids;" \
+    && /bin/bash -c "/usr/bin/echo 'sudo service postgresql start' >> /home/app/.bashrc"
 
 #####
 # R
 #####
 
-###RUN Rscript -e "install.packages('packrat',repos='https://cloud.r-project.org/')"
-###COPY --chown=app:app packrat $HOME/packrat
-###COPY --chown=app:app Docker.Rprofile $HOME/.Rprofile
-###COPY --chown=app:app packages $HOME/R/pkgs
-###RUN Rscript -e 'packrat::restore()'
-#### RUN Rscript -e 'install.packages(list.files("R/pkgs",full.names=TRUE,recursive=TRUE),type="source",repos=NULL)'
+COPY --chown=app:app packrat $HOME/packrat
+COPY --chown=app:app Docker.Rprofile $HOME/.Rprofile
+COPY --chown=app:app packages $HOME/R/pkgs
+RUN Rscript -e "install.packages('packrat',repos='https://cloud.r-project.org/')" \
+    # && Rscript -e 'packrat::restore()' \
+    # && Rscript -e 'install.packages(list.files("R/pkgs",full.names=TRUE,recursive=TRUE),type="source",repos=NULL)'
 
 
-# RUN psql -e "???"
-
-# ENTRYPOINT ["/usr/bin/sudo","/usr/sbin/service","postgresql","start"]
-# ENTRYPOINT ["/usr/bin/sudo", "/usr/sbin/service", "postgresql", "start"]
-RUN /bin/bash -c "/usr/bin/echo 'sudo service postgresql start' >> /home/app/.bashrc"
+# RUN /bin/bash -c "/usr/bin/echo 'sudo service postgresql start' >> /home/app/.bashrc"
 
 CMD ["/bin/bash"]
-# CMD ["/usr/bin/sudo", "/usr/bin/pg_ctlcluster", "12", "main", "start", "&&", "/bin/bash"]
