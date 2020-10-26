@@ -111,12 +111,11 @@ RUN sudo service postgresql start \
 # R
 #####
 
+RUN Rscript -e "install.packages('packrat',repos='https://cloud.r-project.org/')" \
 COPY --chown=app:app packrat $HOME/packrat
 COPY --chown=app:app Docker.Rprofile $HOME/.Rprofile
 COPY --chown=app:app packages $HOME/R/pkgs
-RUN Rscript -e "install.packages('packrat',repos='https://cloud.r-project.org/')" \
-    && Rscript -e 'packrat::restore()' \
-    && Rscript -e 'install.packages(list.files("R/pkgs",full.names=TRUE,recursive=TRUE),type="source",repos=NULL)'
+RUN Rscript -e 'packrat::restore()'
 
 
 # RUN /bin/bash -c "/usr/bin/echo 'sudo service postgresql start' >> /home/app/.bashrc"
