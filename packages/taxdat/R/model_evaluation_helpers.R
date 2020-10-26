@@ -210,8 +210,7 @@ plot_raw_observed_cases <- function(disjoint_set_sf_cases,
       data = disjoint_set_sf_cases,
       ggplot2::aes(fill = cases)
     ) + 
-    ggplot2::scale_fill_continuous("Average cases by location period") +
-    ggplot2::scale_fill_gradient2(low="white",mid="orange",high="red",na.value='blue') +
+    ggplot2::scale_fill_gradient2("Average cases by location period", low="white",mid="orange",high="red",na.value='blue') +
     ggplot2::theme_bw() + 
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::facet_wrap(~set)
@@ -247,8 +246,7 @@ plot_area_adjusted_observed_cases <- function(
       data = disjoint_set_sf_cases,
       ggplot2::aes(fill = area_adjusted_cases)
     ) + 
-    ggplot2::scale_fill_continuous("Area-adjusted cases") +
-    ggplot2::scale_fill_gradient2(low="white",mid="orange",high="red",na.value='blue') +
+    ggplot2::scale_fill_gradient2("Area-adjusted cases", low="white",mid="orange",high="red",na.value='blue') +
     ggplot2::theme_bw() + 
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::facet_wrap(~set)
@@ -283,8 +281,7 @@ plot_raw_observations <- function(disjoint_set_sf_cases,
       data = disjoint_set_sf_cases,
       ggplot2::aes(fill = observations)
     ) + 
-    ggplot2::scale_fill_continuous("Observation") +
-    ggplot2::scale_fill_viridis_c() +
+    ggplot2::scale_fill_viridis_c("Observation") +
     ggplot2::facet_wrap(~set, ncol = 5) +
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom") 
@@ -329,7 +326,8 @@ plot_raster_population <- function(covar_data_filename,
                      color = covar)
       ) +
       # ggplot2::scale_fill_continuous("Population") +
-      ggplot2::scale_fill_viridis_c(trans = "log",
+      ggplot2::scale_fill_viridis_c("Population",
+                                    trans = "log",
                                     breaks = c(1e2, 1e3, 1e4, 1e5),
                                     aesthetics = c("colour", "fill"),
                                     guide = ggplot2::guide_colorbar(title = "Population density [per grid cell]"), 

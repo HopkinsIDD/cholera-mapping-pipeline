@@ -3,7 +3,7 @@ title: ""
 output: html_document
 params:
   cholera_directory: "../../"
-  config: "../configs/2010_2014/config_KEN_2010_2014.yml"
+  config: "../configs/config_BDI_2015_2019.yml"
 ---
 ```{r setup, include=FALSE, dev="CairoPNG"}
 knitr::opts_chunk$set(inlude = FALSE, dev="CairoPNG")
@@ -16,8 +16,6 @@ library(ggplot2)
 library(kableExtra)
 library(taxdat)
 
-source(str_c(params$cholera_directory, "/Analysis/output/model_run_report_helpers.R"))
-source(str_c(params$cholera_directory,"/packages/taxdat/R/readData.R"))
 ```
 
 # Mapping results summary for `r stringr::str_extract(params$config, "(?<=g_)[A-Z]{3}(?=_)")` and period `r stringr::str_extract(params$config, "(?<=_)[0-9]{4}_[0-9]{4}(?=\\.)")`
@@ -33,13 +31,15 @@ file_names <- taxdat::get_filenames(config, params$cholera_directory)
 # file_names <- gsub("data/", "data_marcc/", file_names)
 preprocessed_data_filename = file_names["data"]
 stan_input_filename = file_names["stan_input"]
+stan_output_filename = file_names["stan_output"]
 
 sf_cases <- taxdat::read_file_of_type(preprocessed_data_filename, "sf_cases")
 sf_cases_resized <- taxdat::read_file_of_type(stan_input_filename, "stan_input")$sf_cases_resized
+model.rand <- taxdat::read_file_of_type(stan_output_filename, "model.rand")
 
 # Get case data statistics
 obs_stats <- taxdat::get_obs_stats(sf_cases_resized)
-dropped_obs <- sf_cases %>% dplyr::filter(!(id %in% sf_cases_resized$id))
+dropped_obs <- sf_cases %>% sf::st_drop_geometry() %>% dplyr::filter(!(id %in% sf_cases_resized$id))
 dropped_stats <- taxdat::get_obs_stats(dropped_obs)
 
 obs_stats %>% 
@@ -124,7 +124,7 @@ taxdat::plot_modeled_rates(case_raster,
 
 ## Validation
 ```{r datafidelity, echo=FALSE, fig.cap="Observations vs. modeled cases", fig.height=6, fig.width=6, message=FALSE, warning=FALSE}
-data_fidelity <- taxdat::get_data_fidelity(file_names["stan_output"])
+data_fidelity <- taxdat::get_data_fidelity(stan_output_filename)
 
 taxdat::plot_model_fidelity(data_fidelity = data_fidelity,
                     case_raster = case_raster, 
@@ -133,7 +133,7 @@ taxdat::plot_model_fidelity(data_fidelity = data_fidelity,
 
 ```{r traceplots, echo=FALSE, message=FALSE, warning=FALSE, fig.height=8, fig.width=10, fig.cap="Stan trace plots"}
 
-taxdat::plot_chain_convergence(file_names["stan_output"],
+taxdat::plot_chain_convergence(stan_output_filename,
           pars =  c("rho", "betas", "log_std_dev_w"),
           render = T)
 
