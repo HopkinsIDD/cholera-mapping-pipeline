@@ -12,7 +12,7 @@ on:
       - 'packages/**'
       - '.Rprofile'
       - 'packrat/**'
-      - '.github/workflows/**'
+      - '.github/workflows/docker*'
 
 name: Deploy to DockerHub
 
