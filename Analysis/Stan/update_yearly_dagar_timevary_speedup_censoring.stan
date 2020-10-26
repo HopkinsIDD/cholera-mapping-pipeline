@@ -134,8 +134,6 @@ transformed parameters {
   for (i in 1:K1) {
     modeled_cases[map_obs_loctime_obs[i]] += location_cases[map_obs_loctime_loc[i]];
   }
-  
-  
   //w_sum = sum(w);
   std_dev = std_dev_w * sqrt(vec_var);
 }
@@ -160,6 +158,7 @@ model {
     //data model for estimated rates for full time slice observations
     for(i in 1:M_full){
       target += poisson_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]])/weights[ind_full[i]];
+      // print("FULL cases: ", y[ind_right[i]], " model: ", modeled_cases[ind_right[i]], " at ", ind_right[i], "loglik:", poisson_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]]), " log_density=", target())
     }
   }
   
@@ -169,10 +168,10 @@ model {
     //we therefore add the probability Pr(Y = y|modeled_cases) to CDF(y|modeled_casees)
     //to get Pr(Y <= y|modeled_cases)
     //https://mc-stan.org/docs/2_18/functions-reference/cumulative-distribution-functions.html
-    for(i in 1:M_left){
-      target += (poisson_lcdf(y[ind_left[i]] | modeled_cases[ind_left[i]]) + 
-      poisson_lpmf(y[ind_left[i]] | modeled_cases[ind_left[i]]))/weights[i];
-    }
+    // for(i in 1:M_left){
+      //   target += (poisson_lcdf(y[ind_left[i]] | modeled_cases[ind_left[i]]) + 
+      //   poisson_lpmf(y[ind_left[i]] | modeled_cases[ind_left[i]]))/weights[ind_left[i]];
+      // }
   }
   
   if (M_right > 0) {
@@ -180,7 +179,13 @@ model {
     //note that according to Stan the complementary CDF, or CCDF(Y|modeled_cases)) is defined as Pr(Y >= y | modeled_cases)
     //https://mc-stan.org/docs/2_18/functions-reference/cumulative-distribution-functions.html
     for(i in 1:M_right){
-      target += poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]])/weights[i];
+      if (is_inf(poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]))) {
+        // print("cases: ", y[ind_right[i]], " model: ", modeled_cases[ind_right[i]], " at ", ind_right[i], " log_density=", poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]))
+        target += -1e3;
+        print("CENSORED cases: ", y[ind_right[i]], " model: ", modeled_cases[ind_right[i]], " at ", ind_right[i], "loglik:", poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]), " log_density=", target())
+      } else {
+        target += poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]])/weights[ind_right[i]];
+      }
     }
   }
   // y ~ poisson(modeled_cases);
