@@ -234,7 +234,7 @@ prepare_stan_input <- function(
     model_time_slices = time_slices,
     res_time = res_time,
     n_cpus = ncore,
-    do_parallel = TRUE)
+    do_parallel = F)
   
   non_na_obs <- sort(unique(ind_mapping$map_obs_loctime_obs))
   sf_cases_resized <- sf_cases[non_na_obs, ]
@@ -276,7 +276,7 @@ prepare_stan_input <- function(
     model_time_slices = time_slices,
     res_time = res_time,
     n_cpus = ncore,
-    do_parallel = TRUE)
+    do_parallel = F)
   
   obs_changer <- setNames(seq_len(length(non_na_obs)),non_na_obs)
   stan_data$map_obs_loctime_obs <- obs_changer[as.character(ind_mapping_resized$map_obs_loctime_obs)]
@@ -284,7 +284,8 @@ prepare_stan_input <- function(
   stan_data$tfrac <- ind_mapping_resized$tfrac
   stan_data$map_loc_grid_loc <- ind_mapping_resized$map_loc_grid_loc
   stan_data$map_loc_grid_grid <- ind_mapping_resized$map_loc_grid_grid
-  
+  stan_data$u_loctime <- ind_mapping_resized$u_loctimes
+    
   y_tfrac <- tibble(tfrac = stan_data$tfrac, 
                     map_obs_loctime_obs = stan_data$map_obs_loctime_obs) %>% 
     dplyr::group_by(map_obs_loctime_obs) %>% 
@@ -312,7 +313,7 @@ prepare_stan_input <- function(
   stan_data$M_left <- length(stan_data$ind_left)
   stan_data$ind_right <- which(censoring_inds == "right-censored") %>% array()
   stan_data$M_right <- length(stan_data$ind_right)
-  
+  stan_data$censoring_inds <- censoring_inds
   
   bad_data <- as.data.frame(sf_cases)[
     !(seq_len(nrow(sf_cases)) %in% non_na_obs),
