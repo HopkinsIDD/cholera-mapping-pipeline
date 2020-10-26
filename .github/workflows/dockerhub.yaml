@@ -1,0 +1,59 @@
+# This workflow will build and push a new container image to Amazon ECR
+# The following information will need to be included in your Github secrets:
+# - DOCKER_USERNAME: docker user name
+# - DOCKER_PASSWORD: password or access token
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'Dockerfile'
+      - 'packages/**'
+      - '.Rprofile'
+      - 'packrat/**'
+      - '.github/workflows/**'
+
+name: Deploy to DockerHub
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    -
+      name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
+    -
+      name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+        Username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Generate Tags
+      id: tags
+      env:
+        IMAGE_TAG_RUN: ${{ github.run_number }}
+        IMAGE_TAG_REF: ${{ github.ref }}
+      run: |
+        echo "::set-output name=shashort::$(git log -1 --pretty=%h)"
+        echo "::set-output name=reftag::${IMAGE_TAG_REF##*/}-r$IMAGE_TAG_RUN"
+
+    - name: Build Push Master
+      uses: docker/build-push-action@v2
+      with:
+        push: true
+        tags: |
+          hopkinsidd/choleramappingpipeline:latest
+          hopkinsidd/choleramappingpipeline:latest-master
+          hopkinsidd/choleramappingpipeline:${{steps.tags.outputs.shashort}}
+          hopkinsidd/choleramappingpipeline:${{steps.tags.outputs.reftag}}
+          hopkinsidd/choleramappingpipeline:${{ github.sha }}

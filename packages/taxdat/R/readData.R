@@ -1839,7 +1839,7 @@ read_taxonomy_data_sql <- function(username,
   } else {
     stop("Location period id exceeds max integer in R, and glue doesn't work on int64s")
   }
-  lp_query <- glue::glue_sql("SELECT id as location_period_id, geojson FROM location_periods
+  lp_query <- glue::glue_sql("SELECT id::text as location_period_id, geojson FROM location_periods
                              WHERE id IN ({u_lps*});", .con = conn)
   location_periods <- DBI::dbGetQuery(conn = conn, lp_query)
   

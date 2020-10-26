@@ -1,0 +1,34 @@
+name: unit-tests
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-18.04
+    container:
+      image: docker://hopkinsidd/covidscenariopipeline:latest-dev
+      options: --user root
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Run taxdat tests
+        run: |
+          setwd("packages/taxdat")
+          install.packages('devtools',repos='https://cloud.r-project.org/')
+          devtools::test(stop_on_failure=TRUE)
+        shell: Rscript {0}
+      - name: Run integration tests
+        env: 
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+        run: |
+          Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
+          cd test
+          Rscript run_tests.R
+        shell: bash
+
