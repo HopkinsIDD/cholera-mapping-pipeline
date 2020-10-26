@@ -50,6 +50,7 @@ jobs:
     - name: Build Push Master
       uses: docker/build-push-action@v2
       with:
+        push: true
         tags: |
           hopkinsidd/choleramappingpipeline:latest
           hopkinsidd/choleramappingpipeline:latest-master
