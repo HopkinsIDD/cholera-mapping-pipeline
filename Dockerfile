@@ -111,7 +111,7 @@ RUN sudo service postgresql start \
 # R
 #####
 
-RUN Rscript -e "install.packages('packrat',repos='https://cloud.r-project.org/')" \
+RUN Rscript -e "install.packages('packrat',repos='https://cloud.r-project.org/')"
 COPY --chown=app:app packrat $HOME/packrat
 COPY --chown=app:app Docker.Rprofile $HOME/.Rprofile
 COPY --chown=app:app packages $HOME/R/pkgs
