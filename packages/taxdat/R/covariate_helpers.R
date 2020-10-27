@@ -123,7 +123,7 @@ build_geoms_query <- function(conn,
 
   # Drop table
   suppressMessages(
-    DBI::dbClearResult(DBI::dbSendStatement(conn,
+    DBI::dbClearResult(DBI::dbSendStatement(conn,
                          glue::glue_sql("DROP TABLE IF EXISTS {`table`};",
                                         .con = conn))))
   # Create polygons or centrdois table
