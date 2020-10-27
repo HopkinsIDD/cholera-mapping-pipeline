@@ -706,8 +706,8 @@ plot_chain_convergence <- function(model_output_filenames,
 plot_rhat <- function(model.rand,
                       render = T) {
   
-  fit_summary <- rstan::summary(model.rand)
-  rhats <- tibble(Rhat = round(fit_summary$summary[which(str_detect(row.names(fit_summary$summary), "modeled_cases")), "Rhat"], 2)) %>% 
+  fit_summary <- rstan::summary(model.rand, pars = "modeled_cases")
+  rhats <- tibble(Rhat = round(fit_summary$summary[which(str_detect(row.names(fit_summary$summary), "^modeled_cases")), "Rhat"], 2)) %>% 
     mutate(x=row_number())
   rhat_thresh <- 1.05
   frac_above <- sum(rhats$Rhat > rhat_thresh)/nrow(rhats)
