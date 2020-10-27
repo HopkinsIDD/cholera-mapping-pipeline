@@ -14,6 +14,9 @@ time_unit_to_start_function <- function(unit){
     'year' = function(x){
       return(as.Date(paste(x,'01','01',sep='-'),format='%Y-%m-%d'))
     },
+    'month' = function(x){
+      return(as.Date(paste(x, '01',sep='-'),format='%Y-%m-%d'))
+    },
     'isoweek' = function(x){return(stop("Not yet written"))}
   )
   return(changer[[unit]])
@@ -35,6 +38,11 @@ time_unit_to_end_function <- function(unit){
     'year' = function(x){
       return(as.Date(paste(x,'12','31',sep='-'),format='%Y-%m-%d'))
     },
+    'month' = function(x){
+      which_month <- as.Date(paste(x, '01', sep = '-'), format = '%Y-%m-%d')
+      ndays <- lubridate::days_in_month(which_month)
+      return(as.Date(paste(x, ndays, sep = '-'), format = '%Y-%m-%d'))
+    },
     'isoweek' = function(x){return(stop("Not yet written"))}
   )
   return(changer[[unit]])
@@ -54,6 +62,7 @@ time_unit_to_aggregate_function <- function(unit){
   
   changer = list(
     'year' = lubridate::year,
+    'month' = function(x) {format(x, "%Y-%m")},
     'isoweek' = function(x){return(stop("Not yet written"))}
   )
   return(changer[[unit]])

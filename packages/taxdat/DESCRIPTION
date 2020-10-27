@@ -8,9 +8,9 @@ Maintainer: Joshua Kaminsky <jkaminsky@jhu.edu>
 Description: This package is designed to load and work with taxonomy files in a particular file structure.
 Encoding: UTF-8
 License: GPL (>= 2)
-Depends: R (>= 3.4),ISOcodes,magrittr
-Suggests: dplyr, readxl, sf, tidyr, sp, raster, rgdal, testthat, knitr, rmarkdown
-RoxygenNote: 7.1.0
+Depends: R (>= 3.4),ISOcodes,magrittr, dplyr, tidyr
+Suggests: readxl, sf, sp, raster, rgdal, testthat, knitr, rmarkdown
+RoxygenNote: 7.1.1
 Collate:
     'config_helpers.R'
     'covariate_helpers.R'
