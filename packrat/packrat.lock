@@ -491,7 +491,7 @@ Package: taxdat
 Source: source
 Version: 0.1
 Hash: 6725a9f1bc70316999965e2d1e5b87ae
-Requires: ISOcodes, magrittr
+Requires: ISOcodes, magrittr, dplyr
 SourcePath: ~/R/pkgs//taxdat
 
 Package: testthat
