@@ -1,0 +1,17 @@
+name: 'CIV_2015_2019_20km'
+taxonomy: 'taxonomy-working/working-entry1'
+countries: 582
+countries_name: 'CIV'
+res_space: 20
+res_time: '1 years'
+smoothing_period: 1
+case_definition: 'suspected'
+start_time: '2015-01-01'
+end_time: '2019-12-31'
+covariate_choices: ['dist_to_water','water_access']
+data_source: 'sql'
+stan:
+  ncores: 4
+  model: 'dagar_seasonal.stan'
+  niter: 2000
+  recompile: TRUE
