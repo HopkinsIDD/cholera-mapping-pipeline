@@ -66,6 +66,8 @@ RUN apt-get update && \
     libsnappy-dev \
     libncurses-dev \
     libreadline-dev \
+    # for rstan
+    libv8-dev \
     supervisor \
     awscli \
     r-base-dev=$R_VERSION \
