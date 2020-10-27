@@ -32,6 +32,6 @@ jobs:
         run: |
           Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
           cd test
-          Rscript test/run_tests.R
+          Rscript run_tests.R
         shell: bash
 
