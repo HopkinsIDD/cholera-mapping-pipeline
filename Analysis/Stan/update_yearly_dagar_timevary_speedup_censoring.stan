@@ -146,19 +146,14 @@ model {
     // w[i] ~ normal(t_rowsum[i],std_dev[i]);
     target += normal_lpdf(w[i] | t_rowsum[i], std_dev[i]);
   }
-  // try:
-  // w ~ normal(t_rowsum,std_dev )
-  // soft sum-to-zero constraint on phi)
-  // w_sum ~ normal(0, small_N);  // equivalent to mean(phi) ~ normal(0,0.001)
   
-  //beta0 ~ normal(0, 100);
-  //rho ~ beta(2,1);
+  // prior on regression coefficients
+  betas ~ std_normal();
   
   if (M_full > 0) {
     //data model for estimated rates for full time slice observations
     for(i in 1:M_full){
       target += poisson_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]])/weights[ind_full[i]];
-      // print("FULL cases: ", y[ind_right[i]], " model: ", modeled_cases[ind_right[i]], " at ", ind_right[i], "loglik:", poisson_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]]), " log_density=", target())
     }
   }
   
@@ -180,15 +175,13 @@ model {
     //https://mc-stan.org/docs/2_18/functions-reference/cumulative-distribution-functions.html
     for(i in 1:M_right){
       if (is_inf(poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]))) {
-        // print("cases: ", y[ind_right[i]], " model: ", modeled_cases[ind_right[i]], " at ", ind_right[i], " log_density=", poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]))
         target += -1e3;
-        print("CENSORED cases: ", y[ind_right[i]], " model: ", modeled_cases[ind_right[i]], " at ", ind_right[i], "loglik:", poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]), " log_density=", target())
+        print("CENSORED cases: ", y[ind_right[i]], " model: ", modeled_cases[ind_right[i]], " at ", ind_right[i], "| loglik:", poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]), " log_density=", target())
       } else {
         target += poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]])/weights[ind_right[i]];
       }
     }
   }
-  // y ~ poisson(modeled_cases);
 }
 generated quantities {
   real<lower=0> tfrac_modeled_cases[M]; //expected number of cases for each observation

@@ -284,7 +284,7 @@ prepare_stan_input <- function(
       return(.x)
     }) %>% 
     ungroup() 
-  sf_cases_resized$geom <- sf::st_as_sfc(sf_cases_resized$geom)
+  # sf_cases_resized$geom <- sf::st_as_sfc(sf_cases_resized$geom)
   sf_cases_resized <- sf::st_as_sf(sf_cases_resized)
   sf::st_crs(sf_cases_resized) <- ocrs
   
@@ -394,7 +394,7 @@ prepare_stan_input <- function(
     }
   }
   
-  full_grid <- left_join(sf::st_drop_geometry(sf_grid),sf::st_drop_geometry(smooth_grid))[,c('upd_id','smooth_id')]
+  full_grid <- left_join(sf::st_drop_geometry(sf_grid),sf::st_drop_geometry(smooth_grid))[,c('upd_id','smooth_id', 't')]
   nobs <- length(unique(stan_data$map_obs_loctime_obs))
   # Compute population corresponding to each observation
   aggpop <- rep(0, nobs)
@@ -419,6 +419,9 @@ prepare_stan_input <- function(
   
   stan_data$smooth_grid_N <- nrow(smooth_grid)
   stan_data$map_smooth_grid <- full_grid$smooth_id
+  stan_data$map_grid_time <- full_grid$t
+  stan_data['T'] <- nrow(time_slices)
+  
   stan_data$map_full_grid <- full_grid$upd_id
   
   cat("**** FINISHED PREPARING STAN INPUT \n")
