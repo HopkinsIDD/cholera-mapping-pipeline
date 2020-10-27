@@ -165,6 +165,7 @@ model {
   // prior on the yearly random effects
   sigma_eta ~ std_normal();
   eta_tilde ~ std_normal();
+  sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraing for identifiability
   
   if (M_full > 0) {
     //data model for estimated rates for full time slice observations
