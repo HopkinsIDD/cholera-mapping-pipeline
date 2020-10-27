@@ -1,8 +1,4 @@
 # Preamble ---------------------------------------------------------------------
-library(tidyverse)
-library(magrittr)
-library(DBI)
-library(sf)
 
 #' @title Perapre stan input
 #' @description Prepares the data for the Stan code

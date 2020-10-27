@@ -9,7 +9,6 @@
 # Name the output file
 
 ### gam for warm start
-library(mgcv)
 coord_frame = data.frame(
   x = unlist(lapply(sf::st_geometry(sf::st_centroid(sf_grid)),function(x){x[[2]]})),
   y = unlist(lapply(sf::st_geometry(sf::st_centroid(sf_grid)),function(x){x[[1]]}))

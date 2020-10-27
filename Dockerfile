@@ -68,6 +68,8 @@ RUN apt-get update && \
     libreadline-dev \
     # for rstan
     libv8-dev \
+    # for gdal
+    gdal-bin
     supervisor \
     awscli \
     r-base-dev=$R_VERSION \
@@ -107,6 +109,7 @@ RUN sudo service postgresql start \
     && sudo -u postgres psql -d  cholera_covariates -c "CREATE SCHEMA covariates;" \
     && sudo -u postgres psql -d  cholera_covariates -c "CREATE SCHEMA data;" \
     && sudo -u postgres psql -d  cholera_covariates -c "CREATE SCHEMA grids;" \
+    && /bin/bash grant_cholera_database.sh app\
     && /bin/bash -c "/usr/bin/echo 'sudo service postgresql start' >> /home/app/.bashrc"
 
 #####

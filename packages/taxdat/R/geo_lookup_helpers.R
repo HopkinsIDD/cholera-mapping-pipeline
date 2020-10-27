@@ -27,7 +27,7 @@ lookup_WHO_region = function(x){
 #' @param verbose logical
 #' @return return ISO country code
 fix_country_name <- function(country_name,verbose=TRUE){
-  country_name = taxdat::standardize_string(country_name)
+  country_name = standardize_string(country_name)
   fname <- system.file("extdata","country_aliases.csv",package = "taxdat")
   if(nchar(fname) == 0){
     if(verbose){
@@ -76,7 +76,7 @@ fix_country_name <- function(country_name,verbose=TRUE){
     }
   )
   rc <- NA
-  country_aliases[,2] = sapply(taxdat::standardize_string(country_aliases[,2]),function(x){x[[1]]})
+  country_aliases[,2] = sapply(standardize_string(country_aliases[,2]),function(x){x[[1]]})
   rc = rep('UNK',length(country_name))
   for(country_idx in 1:length(country_name)){
     if(country_name[country_idx] %in% country_aliases[,2]){
@@ -166,7 +166,7 @@ lookup_WorldPop_region <- function(location,verbose=TRUE){
     if(location %in% worldpop_regions[,'country_code']){
       return(worldpop_regions[location == worldpop_regions[,'country_code'],'region_code'])
     }
-    
+
     if(verbose){
       warning(paste("Could not find WorldPop data for country",location))
       return(NA)
@@ -222,6 +222,3 @@ standardize_string <- function(string){
   string[sapply(string,length) == 0] = ''
   return(string)
 }
-
-
-

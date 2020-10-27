@@ -1,8 +1,4 @@
 # Preamble ---------------------------------------------------------------------
-library(tidyverse)
-library(magrittr)
-library(DBI)
-library(sf)
 
 #' @title Prepare covariate cube
 #' @description Extracts the covariates for each model gridcell

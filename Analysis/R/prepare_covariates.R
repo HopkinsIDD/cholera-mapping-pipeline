@@ -24,16 +24,6 @@ prepare_covariates <- function(
 ) {
   
   # Preamble ---------------------------------------------------------------------
-  library(tidyverse)
-  library(magrittr)
-  library(DBI)
-  library(foreach)
-  library(raster)
-  library(sf)
-  library(rgdal)
-  library(gdalUtils)
-  library(glue)
-  library(ncdf4)
   
   
   # print(str(list(
