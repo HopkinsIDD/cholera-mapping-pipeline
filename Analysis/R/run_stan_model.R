@@ -16,11 +16,11 @@ coord_frame = data.frame(
 )
 old_percent <- 0
 df <- purrr::map_dfr(
-  1:length(stan_data$y),
+  which(stan_data$censoring_inds == "full"),
   function(i){
-    new_percent <- floor(100*i/length(stan_data$y))
+    new_percent <- floor(100*i/sum(stan_data$censoring_inds == "full"))
     if(new_percent != old_percent){
-      print(paste(i,"/",length(stan_data$y)))
+      print(paste(i,"/",sum(stan_data$censoring_inds == "full")))
       old_percent <<- new_percent
     }
     ind_lp = stan_data$map_obs_loctime_loc[which(stan_data$map_obs_loctime_obs==i)]
