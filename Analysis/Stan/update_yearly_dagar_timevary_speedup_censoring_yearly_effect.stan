@@ -165,7 +165,7 @@ model {
   // prior on the yearly random effects
   sigma_eta ~ std_normal();
   eta_tilde ~ std_normal();
-  sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraing for identifiability
+  sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraint for identifiability
   
   if (M_full > 0) {
     //data model for estimated rates for full time slice observations
@@ -193,7 +193,7 @@ model {
     for(i in 1:M_right){
       if (is_inf(poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]))) {
         target += -1e3;
-        print("CENSORED cases: ", y[ind_right[i]], " model: ", modeled_cases[ind_right[i]], " at ", ind_right[i], "| loglik:", poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]), " log_density=", target())
+        // print("CENSORED cases: ", y[ind_right[i]], " model: ", modeled_cases[ind_right[i]], " at ", ind_right[i], "| loglik:", poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]), " log_density=", target())
       } else {
         target += poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]])/weights[ind_right[i]];
       }
