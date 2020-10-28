@@ -76,8 +76,8 @@ prepare_grid <- function(
     }
 
     update_query <- "UPDATE grids.master_grid SET rast = ST_Reclass(rast, 1, '[0-1000000]:1', '32BF', 0);"
-    DBI::dbSendStatement(conn_pg, update_query)
-    DBI::dbSendStatement(conn_pg, "SELECT AddRasterConstraints('grids'::name, 'master_grid'::name, 'rast'::name);")
+    DBI::dbClearResult(DBI::dbSendStatement(conn_pg, update_query))
+    DBI::dbClearResult(DBI::dbSendStatement(conn_pg, "SELECT AddRasterConstraints('grids'::name, 'master_grid'::name, 'rast'::name);"))
   }
 
   # Set the desired reference grid name

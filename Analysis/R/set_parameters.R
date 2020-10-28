@@ -272,7 +272,7 @@ for(t_idx in 1:length(all_test_idx)){
 
   ## Step 2: Extract the covariate cube and grid ##
   print(preprocessed_covar_fname)
-  if(file.exists(preprocessed_covar_fname)){
+  if (file.exists(preprocessed_covar_fname)) {
     print("Covariate cube already preprocessed, skipping")
     warning("Covariate cube already preprocessed, skipping")
     load(preprocessed_covar_fname)

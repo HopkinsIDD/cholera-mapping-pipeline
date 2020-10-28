@@ -69,7 +69,7 @@ RUN apt-get update && \
     # for rstan
     libv8-dev \
     # for gdal
-    gdal-bin
+    gdal-bin \
     supervisor \
     awscli \
     r-base-dev=$R_VERSION \
@@ -94,6 +94,7 @@ ENV HOME /home/app
 # POSTGIS
 ####
 # TODO: Set up postgis database
+COPY --chown=app:app grant_cholera_database.sh $HOME/grant_cholera_database.sh
 RUN sudo service postgresql start \
     && sudo -u postgres psql -c "CREATE DATABASE cholera_covariates;" \
     && sudo -u postgres psql -c "CREATE USER app WITH LOGIN;" \
