@@ -1,66 +1,122 @@
-#!/usr/bin/Rscript
-##  This scripts purpose is to collect all data required to model cholera incidence, and store it in a form usable by stan.
-##  This script mainly uses functions from the package taxdat, stored in trunk/packages/taxdat.
-# Libraries
-### Control Variables:
+# Stan modeling section
+print("*** STARTING STAN MODEL ***")
 
-### Construct some additional parameters based on the above
-# Define relevent directories
-# Name the output file
+# GAM for warm start of spatial random effects ----------------------------
 
-### gam for warm start
-library(mgcv)
-coord_frame = data.frame(
-  x = unlist(lapply(st_geometry(st_centroid(sf_grid)),function(x){x[[2]]})),
-  y = unlist(lapply(st_geometry(st_centroid(sf_grid)),function(x){x[[1]]}))
-)
+# Create coordinates of cell centroids
+# Avoid using st_cendroid which fails on MARCC for some unkown reason
+coord_frame <- as_tibble(sf::st_coordinates(sf_grid)) %>% 
+  group_by(L2) %>% 
+  summarise(x = mean(X), 
+            y = mean(Y))
+
+# coord_frame = data.frame(
+#   x = unlist(lapply(st_geometry(st_centroid(sf_grid)),function(x){x[[2]]})),
+#   y = unlist(lapply(st_geometry(st_centroid(sf_grid)),function(x){x[[1]]}))
+# )
+
+# Create dataframe for GAM model
 old_percent <- 0
 df <- purrr::map_dfr(
-  which(stan_data$censoring_inds == "full"),
+  1:stan_data$M_full,
   function(i){
-    new_percent <- floor(100*i/sum(stan_data$censoring_inds == "full"))
+    # Print progress
+    new_percent <- floor(100*i/stan_data$M_full)
     if(new_percent != old_percent){
-      print(paste(i,"/",sum(stan_data$censoring_inds == "full")))
+      print(paste(i,"/", stan_data$M_full))
       old_percent <<- new_percent
     }
-    ind_lp = stan_data$map_obs_loctime_loc[which(stan_data$map_obs_loctime_obs==i)]
-    ind=stan_data$map_loc_grid_grid[which(stan_data$map_loc_grid_loc %in% ind_lp)]
-    #y=log(rep(max(stan_data$y[i],0.5),length(ind)))-log(stan_data$pop[ind])
-    y=round(rep(stan_data$y[i],length(ind))/length(ind))
-    sx= coord_frame[ind,'x']
-    sy= coord_frame[ind,'y']
-    pop=stan_data$pop[ind]
-    return(data.frame(y=y,sx=sx,sy=sy,pop=pop,meanrate=stan_data$meanrate,ey=pop*stan_data$meanrate))
+    # Get the location period covered by observation
+    ind_lp <- stan_data$map_obs_loctime_loc[which(stan_data$map_obs_loctime_obs == stan_data$ind_full[i])]
+    # Get the corresponding grid indices
+    ind <- stan_data$map_loc_grid_grid[which(stan_data$map_loc_grid_loc %in% ind_lp)]
+    # Setup the data
+    pop <- stan_data$pop[ind]
+    # Cases are assumed to be proportional to population in the covered grid cells
+    y <- round(rep(stan_data$y[stan_data$ind_full[i]], length(ind))*pop/sum(pop))
+    obs_year <- stan_data$map_grid_time[ind]
+    sx <- coord_frame$x[ind]
+    sy <- coord_frame$y[ind]
+    
+    return(
+      tibble(y = y,
+             sx = sx,
+             sy = sy,
+             pop = pop,
+             obs_year = obs_year,
+             meanrate = stan_data$meanrate,
+             ey = pop*stan_data$meanrate)
+    )
   }
-)
-g=gam(y ~ log(ey) + s(sx,sy),family=poisson,data=df)
+) %>% 
+  mutate(obs_year = factor(obs_year),
+         log_ey = log(ey))
 
-#indall=which(stan_data$map_obs==1)
-indall=seq_len(stan_data$smooth_grid_N)
-w.init=log(g$fitted.values[indall])-log(df$ey[indall])
-#image(matrix(w.init,nrow=20))
-w.list=lapply(1:nchain,function(i) list(w=w.init))
+# Check if the stan model has yearly random effects 
+# TODO this assumes that the modeling time resolution is 1 year!! Need to change
+# it to extract the year
+yearly_effect <- any(str_detect(readLines(paste0(stan_dir, config$stan$model)), "eta"))
 
-model.rand<- stan(
-  file=stan_model_path,
-  data=stan_data,
-  chains=nchain,
-  iter=niter,
-  # refresh= 100,
+if(yearly_effect | res_time != "1 years")
+  stop("Yearly random effects for modeling time resolutions other than 1 year are not yet implemented.")
+
+if (yearly_effect) {
+  gam_frml <- y ~ s(sx,sy) + obs_year - 1
+} else {
+  gam_frml <- y ~ s(sx,sy) - 1
+}
+
+# Fit the GAM
+gam_fit <- mgcv::gam(gam_frml, 
+                     offset = log_ey,
+                     family = poisson, 
+                     data = df)
+# GAM estimates
+gam_coef <- coef(gam_fit)
+# Indexes of smoothing grid
+indall <- seq_len(stan_data$smooth_grid_N)
+
+# Extract smoothing
+if (yearly_effect) {
+  # Extract yearly effects
+  eta <- gam_coef[str_detect(names(gam_coef), "year")]
+  # Remove mean to sum to 0
+  mean_eta <- mean(eta)
+  eta <- eta - mean(eta)
+  w.init <- log(gam_fit$fitted.values[indall]) - log(df$ey[indall]) - mean_eta
+} else {
+  w.init <- log(gam_fit$fitted.values[indall]) - log(df$ey[indall])
+}
+
+# Initial parameter values
+if (yearly_effect) {
+  stan_data$sigma_eta_scale <- 10^round(log10(sd(eta)))
+  
+  init.list <- lapply(1:nchain, 
+                      function(i) {
+                        list(w = w.init,
+                             eta_tilde = eta/sd(eta),
+                             sigma_eta_tilde = sd(eta)/stan_data$sigma_eta_scale)
+                      })
+} else {
+  init.list <- lapply(1:nchain, function(i) list(w = w.init))
+}
+
+# Run model ---------------------------------------------------------------
+model.rand <- stan(
+  file = stan_model_path,
+  data = stan_data,
+  chains = nchain,
+  iter = niter,
   thin = max(1,floor(niter/1000)),
-  #thin=1,
-  # refresh=1# ,
-  # sample_file = paste0(stan_output_fname,'.tmp'),
-  # control = list(
-  #   ### july 5, 2020 runs: delta=0.99, tree=15
-  #   ### increasing it will force Stan to take smaller steps
-  #   #adapt_delta=.99,
-  #   #max_treedepth=15
-  # ),
-  init=w.list
+  control = list(
+    max_treedepth=15
+  ),
+  init = init.list
 )
-save(model.rand,file=stan_output_fname)
 
+# Save output
+save(model.rand,file=stan_output_fname)
 
 
 # split_file <- strsplit(file,'.',fixed=TRUE)[[1]]

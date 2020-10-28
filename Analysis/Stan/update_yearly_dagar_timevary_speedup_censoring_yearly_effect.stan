@@ -42,6 +42,8 @@ data {
   // Covariate stuff
   int ncovar; // Number of covariates
   matrix[N,ncovar] covar; // Covariate matrix
+  
+  real<lower=0> sigma_eta_scale; // the scale of inter-annual variability
 }
 
 transformed data {
@@ -85,7 +87,7 @@ parameters {
   vector[smooth_grid_N] w; // Spatial Random Effect
   
   vector[T] eta_tilde; // yearly random effects
-  real <lower=0> sigma_eta;
+  real <lower=0> sigma_eta_tilde;
   
   // Covariate stuff
   vector[ncovar] betas;
@@ -108,7 +110,7 @@ transformed parameters {
   
   for(i in 1:T) {
     // scale yearly random effects
-    eta[i] = sigma_eta * eta_tilde[i];
+    eta[i] = sigma_eta_scale * sigma_eta_tilde * eta_tilde[i];
   }
   
   std_dev_w = exp(log_std_dev_w);
@@ -163,7 +165,7 @@ model {
   betas ~ std_normal();
   
   // prior on the yearly random effects
-  sigma_eta ~ std_normal();
+  sigma_eta_tilde ~ std_normal();
   eta_tilde ~ std_normal();
   sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraint for identifiability
   

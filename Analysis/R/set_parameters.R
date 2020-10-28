@@ -14,11 +14,11 @@ options(error=function(...){quit(...,status=2)})
                     'odbc', 'sf', 'raster', 'lubridate', 'tidync', 'ncdf4', 'stringr',
                     'dplyr', 'R.utils', 'ncdf4', 'gdalUtils', 'foreach', 'glue',
                     'spdep', 'igraph', 'itertools', 'purrr', 'optparse', 'RPostgres', 'rjson',
-                    'geojsonsf', 'rpostgis')
+                    'geojsonsf', 'rpostgis', 'mgcv')
   
   for (package in package_list) {
     if(!require(package = package, character.only = T)){
-      install.packages(pkgs = package)
+      install.packages(pkgs = package, repos = 'http://cran.us.r-project.org')
       library(package = package, character.only = T)
     }
   }
