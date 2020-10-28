@@ -3,7 +3,7 @@ pop:
   description: population in each gridcell
   alias: pop
   abbr: p
-  dir:  /home/big_cholera_data/Layers/pop/WORLD/ppp_2000_1km_Aggregated.tif
+  dir:  Layers/pop/WORLD/ppp_2000_1km_Aggregated.tif
   type: static
   time_aggregator: ~
   space_aggregator: sum
@@ -25,7 +25,7 @@ logpop:
   description: Log of population
   alias: logpop
   abbr: lp
-  dir: /home/big_cholera_data/covariates/AFR_PPP_2000_adj_v2.tif
+  dir: Layers/AFR_PPP_2000_adj_v2.tif
   type: static
   time_aggregator: ~
   space_aggregator: sum

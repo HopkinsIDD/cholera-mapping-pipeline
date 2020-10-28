@@ -218,7 +218,7 @@ extract_covariate_metadata <- function(covar_alias,
     }
 
     # Space attribute
-    space_res <- parseGdalRes(covar_file)
+    space_res <- parse_gdal_res(covar_file)
     res_x <- space_res[1]
     res_y <- space_res[2]
 
@@ -235,7 +235,7 @@ extract_covariate_metadata <- function(covar_alias,
   } else if (covar_type == "static") {
 
     # Space attribute
-    space_res <- parseGdalRes(covar_file)
+    space_res <- parse_gdal_res(covar_file)
     res_x <- space_res[1]
     res_y <- space_res[2]
 
@@ -460,8 +460,8 @@ write_ncdf <- function(data,
                        time_units,
                        time_vals) {
   # Longitude and Latitude data
-  xvals <- unique(values(init(data, "x")))
-  yvals <- unique(values(init(data, "y")))
+  xvals <- raster::unique(init(data, "x"))
+  yvals <- raster::unique(init(data, "y"))
   nx <- length(xvals)
   ny <- length(yvals)
   lon <- ncdf4::ncdim_def("longitude", "degrees_east", xvals)
@@ -500,12 +500,18 @@ write_ncdf <- function(data,
   for (i in 1:raster::nlayers(data)) {
     cat("Processing layer ", i, " of ", raster::nlayers(data), "\n")
 
+    browser()
     if (is.null(time_vals)) {
-      ncdf4::ncvar_put(nc = ncout,
-                       varid = var_data,
-                       vals = values(data),
-                       start = c(1, 1),
-                       count = c(-1, -1))
+      for(chunk in seq_len(nchunks)){
+        ncdf4::ncvar_put(nc = ncout,
+          varid = var_data,
+          vals = data[chunk_row_start,chunk_col_start],
+          start = c(chunk_row_start, chunk_col_start),
+          count = c(chunk_size,chunk_size),
+          verbose = TRUE
+        )
+
+      }
     } else {
       ncdf4::ncvar_put(nc = ncout,
                        varid = var_data,
@@ -972,9 +978,14 @@ ingest_covariate <- function(conn,
     })
   }
 
-  doFun <- ifelse(do_parallel, `%dopar%`, `%do%`)
+  if (do_parallel) {
+    print(paste("Running in parallel over", n_cpus, "cores"))
+  } else {
+    print("Running in Serial")
+  }
+  doFun <- ifelse(do_parallel, foreach::`%dopar%`, foreach::`%do%`)
   no_export<- ifelse(do_parallel, "conn", "")
-  export_funs <- c("extractCovariateMetadata", "parseGdalRes", "parseTimeRes",
+  export_funs <- c("extractCovariateMetadata", "parse_gdal_res", "parseTimeRes",
                    "dbExistsTableMulti", "buildGeomsQuery", "showProgress",
                    "getNCDFMetadata", "timeAggregate", "spaceAggregate",
                    "gdalinfo2", "gdal_cmd_builder2", "gdalwarp2", "align_rasters2")
@@ -1001,9 +1012,7 @@ ingest_covariate <- function(conn,
 
       # Aggregate covariate in time
       if (!file.exists(res_file_time)) {
-
         cat("Aggregating", f_name, "in time at", res_time, "resolution \n")
-
         res_file_time <- time_aggregate(src_file = full_path,
                                         covar_name = covar_name,
                                         covar_unit = covar_unit,
@@ -1153,13 +1162,14 @@ write_metadata <- function(conn,
     stop("Didn't find any raster files for ", covar_alias, " in ", covar_dir)
 
   # Get covariate metadata for each layer
-  covar_metadata <- foreach::foreach(full_path = raster_files,
-                                     .combine = rbind,
-                                     .inorder = T) %do%
-    {
-      # Extract metadata
+  covar_metadata <- foreach::`%do%`(
+    foreach::foreach(full_path = raster_files,
+      .combine = rbind,
+      .inorder = T), {
+                                        # Extract metadata
       extract_covariate_metadata(covar_alias, full_path, covar_type)
-    } %>%
+    }
+  ) %>%
     dplyr::mutate_at(dplyr::vars(dplyr::contains("date")), as.Date)
 
   # Extract metadata
@@ -1263,7 +1273,7 @@ gdalinfo2 <- function (datasetname, json, mm, stats, approx_stats, hist, nogcp,
   parameter_doubledash <- c("version", "formats", "format",
                             "optfile", "config", "debug")
   executable <- "gdalinfo"
-  cmd <- gdalUtils::gdal_cmd_builder2(executable = executable, parameter_noquotes = "datasetname", parameter_variables = parameter_variables,
+  cmd <- gdal_cmd_builder2(executable = executable, parameter_noquotes = "datasetname", parameter_variables = parameter_variables,
                                       parameter_values = parameter_values, parameter_order = parameter_order,
                                       parameter_noflags = parameter_noflags, parameter_doubledash = parameter_doubledash,
                                       verbose = verbose)
