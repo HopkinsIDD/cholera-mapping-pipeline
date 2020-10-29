@@ -10,8 +10,8 @@
 
 ### gam for warm start
 coord_frame = data.frame(
-  x = unlist(lapply(sf::st_geometry(sf::st_centroid(sf_grid)),function(x){x[[2]]})),
-  y = unlist(lapply(sf::st_geometry(sf::st_centroid(sf_grid)),function(x){x[[1]]}))
+  x = unlist(lapply(sf::st_geometry(suppressWarnings(sf::st_centroid(sf_grid))),function(x){x[[2]]})),
+  y = unlist(lapply(sf::st_geometry(suppressWarnings(sf::st_centroid(sf_grid))),function(x){x[[1]]}))
 )
 old_percent <- 0
 df <- purrr::map_dfr(
@@ -32,7 +32,7 @@ df <- purrr::map_dfr(
     return(data.frame(y=y,sx=sx,sy=sy,pop=pop,meanrate=stan_data$meanrate,ey=pop*stan_data$meanrate))
   }
 )
-g=gam(y ~ log(ey) + s(sx,sy),family=poisson,data=df)
+g=mgcv::gam(y ~ log(ey) + s(sx,sy),family=poisson,data=df)
 
 #indall=which(stan_data$map_obs==1)
 indall=seq_len(stan_data$smooth_grid_N)
@@ -40,22 +40,12 @@ w.init=log(g$fitted.values[indall])-log(df$ey[indall])
 #image(matrix(w.init,nrow=20))
 w.list=lapply(1:nchain,function(i) list(w=w.init))
 
-model.rand<- stan(
+model.rand <- rstan::stan(
   file=stan_model_path,
   data=stan_data,
   chains=nchain,
   iter=niter,
-  # refresh= 100,
   thin = max(1,floor(niter/1000)),
-  #thin=1,
-  # refresh=1# ,
-  # sample_file = paste0(stan_output_fname,'.tmp'),
-  # control = list(
-  #   ### july 5, 2020 runs: delta=0.99, tree=15
-  #   ### increasing it will force Stan to take smaller steps
-  #   #adapt_delta=.99,
-  #   #max_treedepth=15
-  # ),
   init=w.list
 )
 save(model.rand,file=stan_output_fname)
@@ -92,5 +82,6 @@ save(model.rand,file=stan_output_fname)
 #     if(err >= 2){stop("Stan error")}
 #   }
 # }
-# 
+#
 # parallel::stopCluster(cl)
+

@@ -2,7 +2,7 @@
 
 ### Set Error Handling
 if (Sys.getenv("INTERACTIVE_RUN", FALSE)) {
-  options(warn = 2, error = recover)
+  options(warn = 1, error = recover)
 } else {
   options(
     warn = 1,

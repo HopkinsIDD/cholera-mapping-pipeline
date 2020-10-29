@@ -497,33 +497,46 @@ write_ncdf <- function(data,
   # Place the precip and tmax values in the file
   # need to loop through the layers to get them
   # to match to correct time index
-  for (i in 1:raster::nlayers(data)) {
-    cat("Processing layer ", i, " of ", raster::nlayers(data), "\n")
+  # Make me configurable
+  chunk_size <- 1e3
+  nchunk_row <- ceiling(nrow(data) / chunk_size)
+  nchunk_col <- ceiling(ncol(data) / chunk_size)
 
-    browser()
-    if (is.null(time_vals)) {
-      for(chunk in seq_len(nchunks)){
-        ncdf4::ncvar_put(nc = ncout,
-          varid = var_data,
-          vals = data[chunk_row_start,chunk_col_start],
-          start = c(chunk_row_start, chunk_col_start),
-          count = c(chunk_size,chunk_size),
-          verbose = TRUE
-        )
-
+  for (layer_idx in seq_len(raster::nlayers(data))) {
+    for (row_idx in seq_len(nchunk_row)) {
+      chunk_row_start <- (row_idx - 1) * chunk_size + 1
+      chunk_row_end <- min((row_idx) * chunk_size, nrow(data))
+      for (col_idx in seq_len(nchunk_col)) {
+        cat("Processing layer ", layer_idx, " of ", raster::nlayers(data), "\n")
+        cat("Processing row", row_idx, " of ", nchunk_row, "\n")
+        cat("Processing row", col_idx, " of ", nchunk_col, "\n")
+        chunk_col_start <- (col_idx - 1) * chunk_size + 1
+        chunk_col_end <- min((col_idx) * chunk_size, ncol(data))
+        if (is.null(time_vals)) {
+          ncdf4::ncvar_put(
+            nc = ncout,
+            varid = var_data,
+            vals = raster::values(data[chunk_row_start:chunk_row_end, chunk_col_start:chunk_col_end, drop = FALSE]),
+            start = c(chunk_col_start, chunk_row_start),
+            count = c(chunk_col_end - chunk_col_start + 1, chunk_row_end - chunk_row_start + 1),
+            verbose = TRUE
+          )
+        } else {
+          ncdf4::ncvar_put(
+            nc = ncout,
+            varid = var_data,
+            vals = raster::values(data[chunk_row_start:chunk_row_end, chunk_col_start:chunk_col_end, layer_idx, drop = FALSE]),
+            start = c(chunk_col_start, chunk_row_start,layer_idx),
+            count = c(chunk_col_end - chunk_col_start + 1, chunk_row_end - chunk_row_start + 1,1),
+            verbose = TRUE
+          )
+        }
       }
-    } else {
-      ncdf4::ncvar_put(nc = ncout,
-                       varid = var_data,
-                       vals = raster::values(data[[i]]),
-                       start = c(1, 1, i),
-                       count = c(-1, -1, 1))
     }
   }
   # Close the netcdf file when finished adding variables
   ncdf4::nc_close(ncout)
 }
-
 
 #' @title Get time resolution
 #' @name get_time_res

@@ -15,6 +15,6 @@ ingest_new_covariates: TRUE
 data_source: 'api'
 stan:
   ncores: 4
-  model: 'dagar_seasonal.stan'
+  model: 'dagar_seasonal_nocovariates.stan'
   niter: 2000
   recompile: TRUE
