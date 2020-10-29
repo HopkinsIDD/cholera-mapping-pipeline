@@ -273,6 +273,12 @@ Source: CRAN
 Version: 0.6.26
 Hash: b26a2fbb4bfe002c28b2562c38be1dc0
 
+Package: doParallel
+Source: CRAN
+Version: 1.0.16
+Hash: 0bfafffe940c8fc4bc4f785018b17dde
+Requires: foreach, iterators
+
 Package: dplyr
 Source: CRAN
 Version: 1.0.2
@@ -844,8 +850,8 @@ Hash: 7fb0c9e1209a804b329a7df3cd422008
 Package: taxdat
 Source: source
 Version: 0.1
-Hash: 6725a9f1bc70316999965e2d1e5b87ae
-Requires: ISOcodes, magrittr
+Hash: d47b75f8a13103c46631369f02687b20
+Requires: ISOcodes, dplyr, magrittr, tidyr
 SourcePath: ~/R/pkgs//taxdat
 
 Package: testthat
