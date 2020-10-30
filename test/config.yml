@@ -6,8 +6,8 @@ res_space: 20
 res_time: '1 years'
 smoothing_period: 1
 case_definition: 'suspected'
-start_time: '2015-01-01'
-end_time: '2019-12-31'
+start_time: '1990-01-01'
+end_time: '1991-12-31'
 covariate_choices:
 # covariate_choices: ['dist_to_water','water_access']
 ingest_covariates: TRUE
