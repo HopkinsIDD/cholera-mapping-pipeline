@@ -30,7 +30,7 @@ jobs:
         # env: 
         #   CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
         run: |
-          service start postgresql &
+          service start postgresql
           Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
           cd test
           Rscript run_tests.R
