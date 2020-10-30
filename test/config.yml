@@ -1,7 +1,7 @@
-name: 'CIV_2015_2019_20km'
+name: 'KEN_2015_2019_20km'
 taxonomy: 'taxonomy-working/working-entry1'
 countries: "Cote D'Ivoire"
-countries_name: 'CIV'
+countries_name: 'KEN'
 res_space: 20
 res_time: '1 years'
 smoothing_period: 1
@@ -13,6 +13,7 @@ covariate_choices:
 ingest_covariates: TRUE
 ingest_new_covariates: TRUE
 data_source: 'api'
+aoi: "KEN"
 stan:
   ncores: 4
   model: 'dagar_seasonal_nocovariates.stan'

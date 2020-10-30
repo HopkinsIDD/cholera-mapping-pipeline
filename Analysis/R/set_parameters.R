@@ -297,7 +297,7 @@ for(t_idx in 1:length(all_test_idx)){
       redo_metadata = config$ingest_new_covariates,
       covar = paste(c('p', short_covariates), collapse = ','),  # add population as first covariate
       full_grid_name = full_grid_name,
-      aoi_name = "raw"
+      aoi_name = config$aoi
     )
 
     ## Step 2b: create the covar cube
