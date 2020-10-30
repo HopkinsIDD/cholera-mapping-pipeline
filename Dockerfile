@@ -68,6 +68,8 @@ RUN apt-get update && \
     libreadline-dev \
     # for rstan
     libv8-dev \
+    # for gdal
+    gdal-bin \
     supervisor \
     awscli \
     r-base-dev=$R_VERSION \
@@ -92,6 +94,7 @@ ENV HOME /home/app
 # POSTGIS
 ####
 # TODO: Set up postgis database
+COPY --chown=app:app grant_cholera_database.sh $HOME/grant_cholera_database.sh
 RUN sudo service postgresql start \
     && sudo -u postgres psql -c "CREATE DATABASE cholera_covariates;" \
     && sudo -u postgres psql -c "CREATE USER app WITH LOGIN;" \
@@ -107,6 +110,7 @@ RUN sudo service postgresql start \
     && sudo -u postgres psql -d  cholera_covariates -c "CREATE SCHEMA covariates;" \
     && sudo -u postgres psql -d  cholera_covariates -c "CREATE SCHEMA data;" \
     && sudo -u postgres psql -d  cholera_covariates -c "CREATE SCHEMA grids;" \
+    && /bin/bash grant_cholera_database.sh app\
     && /bin/bash -c "/usr/bin/echo 'sudo service postgresql start' >> /home/app/.bashrc"
 
 #####
