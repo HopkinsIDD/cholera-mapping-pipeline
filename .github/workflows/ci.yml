@@ -23,15 +23,16 @@ jobs:
       - name: Run taxdat tests
         run: |
           setwd("packages/taxdat")
-          install.packages('devtools',repos='https://cloud.r-project.org/')
           devtools::test(stop_on_failure=TRUE)
         shell: Rscript {0}
       - name: Run integration tests
         # env: 
         #   CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
         run: |
-          service start postgresql
+          service postgresql start
+          bash grant_cholera_database.sh root
           Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
+          export USER=root
           cd test
           Rscript run_tests.R
         shell: bash
