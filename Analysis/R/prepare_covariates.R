@@ -9,7 +9,7 @@
 
 prepare_covariates <- function(
   dbuser,
-  cholera_directory,
+  cholera_covariates_directory,
   res_space,
   res_time,
   ingest,
@@ -28,7 +28,7 @@ prepare_covariates <- function(
 
   # print(str(list(
   #   dbuser =  dbuser,
-  #   cholera_directory = cholera_directory,
+  #   cholera_covariates_directory = cholera_covariates_directory,
   #   res_space = res_space,
   #   res_time = res_time,
   #   ingest = ingest,
@@ -58,7 +58,7 @@ prepare_covariates <- function(
   conn_pg <- taxdat::connect_to_db(dbuser)
 
   # Dictionary of aliases and aggregators for covariates
-  covar_dict <- yaml::read_yaml(paste0(cholera_directory, "/Layers/covariate_dictionary.yml"))
+  covar_dict <- yaml::read_yaml(paste0(cholera_covariates_directory, "/covariate_dictionary.yml"))
 
   # Covariates to include in the model
   covar_abbr_list <- stringr::str_split(covar, ",")[[1]]
@@ -150,7 +150,7 @@ prepare_covariates <- function(
                       res_y = res_y,
                       space_aggregator = covarit$space_aggregator,
                       transform = covarit$transform,
-                      path_to_trunk = cholera_directory,
+                      path_to_cholera_covariates = cholera_covariates_directory,
                       write_to_db = !do_parallel,
                       do_parallel = do_parallel,
                       n_cpus = n_cores,

@@ -141,7 +141,7 @@ time_slices <- taxdat::modeling_time_slices(start_time = start_time,
                                         # - - - -
                                         # Model covariates
                                         # Get the dictionary of covariates
-covariate_dict <- yaml::read_yaml(paste0(cholera_directory, "/Layers/covariate_dictionary.yml"))
+covariate_dict <- yaml::read_yaml(paste0(laydir, "/covariate_dictionary.yml"))
 all_covariate_choices <- names(covariate_dict)
 short_covariate_choices <- purrr::map_chr(covariate_dict, "abbr")
 
@@ -287,7 +287,7 @@ for(t_idx in 1:length(all_test_idx)){
                                         # included in the model
     covar_list <- prepare_covariates(
       dbuser = dbuser,
-      cholera_directory = cholera_directory,
+      cholera_covariates_directory = laydir,
       res_space = res_space,
       res_time = res_time,
       ingest = config$ingest_covariates,

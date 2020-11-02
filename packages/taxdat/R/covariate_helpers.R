@@ -892,7 +892,7 @@ get_temporal_bands <- function(model_time_slices,
 #' @param res_y latitudinal spatial resolution in km
 #' @param space_aggregator string with the spatial aggregator to use
 #' @param transform default is NULL
-#' @param path_to_trunk path to the trunk of cholera-taxonomy
+#' @param path_to_cholera_covariates path to the trunk of cholera-covariates repository
 #' @param write_to_db flag to write tables to database or not
 #' @param do_parallel flag to perform map computations in parallel
 #' @param n_cpus number of CPUS to run
@@ -921,7 +921,7 @@ ingest_covariate <- function(conn,
                              res_y,
                              space_aggregator = "mean",
                              transform = NULL,
-                             path_to_trunk,
+                             path_to_cholera_covariates,
                              write_to_db = F,
                              do_parallel = F,
                              n_cpus = 0,
@@ -962,7 +962,7 @@ ingest_covariate <- function(conn,
   covar_table <- stringr::str_c(covar_schema, covar_alias, sep = ".")
 
   # Directory to which to write files
-  proc_dir <- stringr::str_c(path_to_trunk, "/Layers/processed_covariates/",
+  proc_dir <- stringr::str_c(path_to_cholera_covariates, "/processed_covariates/",
                              covar_name, "/", aoi_name, "/")
 
   if (!dir.exists(proc_dir)) {
