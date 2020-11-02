@@ -946,6 +946,7 @@ ingest_covariate <- function(conn,
       " ",  stringr::str_to_upper(covar_name), " at resolution [",
       res_time, ", ", res_x, "x", res_y, "km] at ", format(t_start_covar), "\n", sep = "")
 
+  covar_dir <- paste(path_to_cholera_covariates,covar_dir,sep='/')
   if (covar_type == "temporal") {
     raster_files <- dir(covar_dir, pattern = "\\.", full.names = T)
   } else {
