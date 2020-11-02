@@ -259,21 +259,29 @@ prepare_stan_input <- function(
       current_set <- 1
       something_changed <- TRUE
       while(any(is.na(.x$set))){
+        print("LOOPING")
+        print(.x$set)
         new_set_indices <- (rev(cummax(rev(!is.na(.x$set)))) == 1) & is.na(.x$set)
-        if(any(new_set_indices)){
+        if(any(new_set_indices) & (!something_changed)){
           .x$set[[which(new_set_indices)[[1]] ]] <- current_set
+          print("Assigning from new_set_indices")
+          print(.x$set)
           current_set <- current_set + 1
           something_changed <- TRUE
         } else if(!something_changed){
           .x$set[[which(is.na(.x$set))[[1]] ]] <- current_set
+          print("Starting a new set")
+          print(.x$set)
           current_set <- current_set + 1
           something_changed <- TRUE
         }
         something_changed <- FALSE
         for(set_idx in (seq_len(current_set) - 1) ){
-          possible_extensions <- .x$TR < .x$TL[max(which((.x$set == set_idx) & !is.na(.x$set)))]
+          possible_extensions <- (.x$TR < .x$TL[max(which((.x$set == set_idx) & !is.na(.x$set)))]) & is.na(.x$set)
             if(any(possible_extensions)){
               .x$set[[min(which(possible_extensions))]] <- set_idx
+              print(paste("Extending an existing set",set_idx))
+              print(.x$set)
               something_changed <- TRUE
           }
         }
