@@ -17,6 +17,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Checkout Layers
+        uses: actions/checkout@v2
+        with:
+          repository: git@github.com:HopkinsIDD/cholera-covariates.git
+          path: Layers/
+          lfs: true
+          ssh-key: ${{ secrets.GITHUB_SSH_KEY }}
       - name: Set up Rprofile
         run: cp Docker.Rprofile $HOME/.Rprofile
         shell: bash
@@ -30,6 +37,7 @@ jobs:
           CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
           CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
         run: |
+          git clone git@github.com:HopkinsIDD/cholera-covariates.git Layers
           service postgresql start
           bash grant_cholera_database.sh root
           Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
