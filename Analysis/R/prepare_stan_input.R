@@ -306,7 +306,9 @@ prepare_stan_input <- function(
     n_cpus = ncore,
     do_parallel = F)
   
-  obs_changer <- setNames(seq_len(length(non_na_obs)),non_na_obs)
+  non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
+  
+  obs_changer <- setNames(seq_len(length(non_na_obs_resized)),non_na_obs_resized)
   stan_data$map_obs_loctime_obs <- obs_changer[as.character(ind_mapping_resized$map_obs_loctime_obs)]
   stan_data$map_obs_loctime_loc <- ind_mapping_resized$map_obs_loctime_loc
   stan_data$tfrac <- ind_mapping_resized$tfrac

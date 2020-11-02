@@ -109,6 +109,9 @@ predict_df <- tibble(sx = coord_frame$x[indall],
 
 w.init <- predict.gam(gam_fit, predict_df)
 
+# Does the model have a yearly effect
+yearly_effect <- any(str_detect(readLines(stan_model_path), "eta"))
+
 # Initial parameter values
 if (yearly_effect) {
   stan_data$sigma_eta_scale <- 10
