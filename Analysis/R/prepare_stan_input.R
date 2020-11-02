@@ -243,14 +243,15 @@ prepare_stan_input <- function(
   ## aggregate observations:
   sf_cases_resized$loctime <- ""
   for(i in seq_len(length(ind_mapping$map_obs_loctime_obs))) {
-    sf_cases_resized$loctime[[ind_mapping$map_obs_loctime_obs[[i]] ]] <- paste(sf_cases_resized$loctime[[ind_mapping$map_obs_loctime_obs[[i]] ]] , ind_mapping$map_obs_loctime_loc[[i]])
+    sf_cases_resized$loctime[which(non_na_obs == ind_mapping$map_obs_loctime_obs[i])] <- paste(sf_cases_resized$loctime[which(non_na_obs == ind_mapping$map_obs_loctime_obs[i])] , 
+                                                                                               ind_mapping$map_obs_loctime_loc[i])
   }
   sf_cases_resized$loctime <- gsub("^ ","",sf_cases_resized$loctime)
   ocrs <- sf::st_crs(sf_cases_resized)
   sf_cases_resized <- sf_cases_resized %>%
     dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
     dplyr::group_modify(function(.x,.y){
-      print("iter")
+      cat("iter", unlist(.y), "\n")
       if(nrow(.x) <= 1 ){return(.x %>% select(TL,TR,!!rlang::sym(cases_column)))}
       ## combine non-adjacent but overlapping observations
       .x <- dplyr::arrange(dplyr::mutate(.x, set=as.integer(NA)),desc(TR))
@@ -258,7 +259,7 @@ prepare_stan_input <- function(
       current_set <- 1
       something_changed <- TRUE
       while(any(is.na(.x$set))){
- 	new_set_indices <- (rev(cummax(rev(!is.na(.x$set)))) == 1) & is.na(.x$set)
+        new_set_indices <- (rev(cummax(rev(!is.na(.x$set)))) == 1) & is.na(.x$set)
         if(any(new_set_indices)){
           .x$set[[which(new_set_indices)[[1]] ]] <- current_set
           current_set <- current_set + 1
@@ -271,9 +272,9 @@ prepare_stan_input <- function(
         something_changed <- FALSE
         for(set_idx in (seq_len(current_set) - 1) ){
           possible_extensions <- .x$TR < .x$TL[max(which((.x$set == set_idx) & !is.na(.x$set)))]
-          if(any(possible_extensions)){
-            .x$set[[min(which(possible_extensions))]] <- set_idx
-            something_changed <- TRUE
+            if(any(possible_extensions)){
+              .x$set[[min(which(possible_extensions))]] <- set_idx
+              something_changed <- TRUE
           }
         }
       }
@@ -304,7 +305,7 @@ prepare_stan_input <- function(
   stan_data$map_loc_grid_loc <- ind_mapping_resized$map_loc_grid_loc
   stan_data$map_loc_grid_grid <- ind_mapping_resized$map_loc_grid_grid
   stan_data$u_loctime <- ind_mapping_resized$u_loctimes
-    
+  
   y_tfrac <- tibble(tfrac = stan_data$tfrac, 
                     map_obs_loctime_obs = stan_data$map_obs_loctime_obs) %>% 
     dplyr::group_by(map_obs_loctime_obs) %>% 
