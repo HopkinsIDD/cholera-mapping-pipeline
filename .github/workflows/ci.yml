@@ -20,7 +20,7 @@ jobs:
       - name: Checkout Layers
         uses: actions/checkout@v2
         with:
-          repository: https://github.com/HopkinsIDD/cholera-covariates.git
+          repository: HopkinsIDD/cholera-covariates
           path: Layers/
           lfs: true
           token: ${{ secrets.PERSONAL_TOKEN }}
