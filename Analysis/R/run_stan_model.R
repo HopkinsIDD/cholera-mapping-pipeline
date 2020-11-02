@@ -10,6 +10,20 @@ coord_frame <- as_tibble(sf::st_coordinates(sf_grid)) %>%
   summarise(x = mean(X), 
             y = mean(Y))
 
+# Create matrix of time
+year_df <- data.frame(year = stan_data$map_grid_time)
+year_df$year <- factor(year_df$year)
+# Set reference year as the one with the largest number of cases
+ref_year <- which.max(sf_cases_resized %>% 
+                        mutate(year = lubridate::year(TL))  %>% 
+                        group_by(year) %>% 
+                        summarise(x = sum(attributes.fields.suspected_cases)) %>% .[["x"]])
+year_df$year <- relevel(year_df$year, ref = ref_year)
+
+mat_grid_time <- model.matrix(as.formula("~ year - 1"), data = year_df)
+mat_grid_time <- mat_grid_time[, -1] # the reference year is always first
+
+
 # Create dataframe for GAM model
 old_percent <- 0
 df <- purrr::map_dfr(
@@ -36,8 +50,8 @@ df <- purrr::map_dfr(
     tfrac <- stan_data$tfrac[ind_obs]
     # Expand observations to account for multiple tfracs
     y_new <- map(seq_along(ind_obs), function(x)
-                       rep(stan_data$y[i] * tfrac[x]/sum(tfrac), 
-                           sum(obs_year == u_obs_years[x]))) %>% 
+      rep(stan_data$y[i] * tfrac[x]/sum(tfrac), 
+          sum(obs_year == u_obs_years[x]))) %>% 
       unlist()
     
     tfrac_vec <- map(seq_along(ind_obs), function(x)
@@ -48,9 +62,14 @@ df <- purrr::map_dfr(
     
     sx <- coord_frame$x[ind]
     sy <- coord_frame$y[ind]
+    
     beta_mat <- stan_data$covar[ind, ] %>% 
-      as.matrix() %>% 
+      matrix(ncol = stan_data$ncovar) %>% 
       set_colnames(paste0("beta_", 1:stan_data$ncovar))
+    
+    year_mat <- mat_grid_time[ind, ] %>%
+      matrix(ncol = ncol(mat_grid_time)) %>%
+      set_colnames(paste0("year_", 1:ncol(mat_grid_time)))
     
     return(
       tibble(y = y,
@@ -63,9 +82,11 @@ df <- purrr::map_dfr(
              tfrac = tfrac_vec,
              censored = stan_data$censoring_inds[i])
     ) %>% 
-      cbind(beta_mat)
+      cbind(beta_mat) %>% 
+      cbind(year_mat)
   }
 ) %>% 
+  as_tibble() %>% 
   mutate(obs_year = factor(obs_year),
          log_ey = log(ey),
          log_tfrac = log(tfrac),
@@ -78,18 +99,23 @@ df <- purrr::map_dfr(
          y_sqrt = sqrt(y)
   )
 
-# Create matrix of time
-year_df <- data.frame(year = stan_data$map_grid_time)
-year_df$year <- factor(year_df$year)
-# Set reference year as the one with the largest number of cases
-ref_year <- which.max(df %>% group_by(obs_year) %>% summarise(x = sum(y)) %>% .[["x"]])
-year_df$year <- relevel(year_df$year, ref = ref_year)
 
-mat_grid_time <- model.matrix(as.formula("~ year - 1"), data = year_df)
-mat_grid_time <- mat_grid_time[, -1] # the reference year is always first
+# Does the model have a yearly effect
+yearly_effect <- any(str_detect(readLines(stan_model_path), "eta"))
+
+# Create gam frml
+frml <- "y ~ s(sx,sy) - 1"
+
+if (stan_data$ncovar >= 1) {
+  frml <- paste(c(frml, paste0("beta_", 1:stan_data$ncovar)), collapse = " + ")
+}
+
+if (yearly_effect) {
+  frml <- paste(c(frml, colnames(df %>% select(contains("year_")))), collapse = " + ")
+}
 
 # Formula for gam model
-gam_frml <- as.formula("y ~ s(sx,sy) - 1")
+gam_frml <- as.formula(frml)
 
 # Removed censored data for which cases are 0
 df <- df %>% filter(!(y == 0 & right_threshold == 0))
@@ -101,16 +127,30 @@ gam_fit <- mgcv::gam(gam_frml,
                      data = df)
 
 # GAM estimates
-indall <- seq_len(stan_data$smooth_grid_N)
+indall <- sf_grid$upd_id[sf_grid$t == ref_year]
 
 # Predict to get new terms
 predict_df <- tibble(sx = coord_frame$x[indall],
-                     sy = coord_frame$y[indall])
+                     sy = coord_frame$y[indall]) %>% 
+  # Set all years to 0 to get the reference year
+  cbind(mat_grid_time[indall, ] %>% 
+          as_tibble() %>%
+          set_colnames(paste0("year_", 1:ncol(mat_grid_time)))) %>% 
+  # Extract the covariates
+  cbind(stan_data$covar[indall, ] %>% 
+          matrix(ncol = stan_data$ncovar) %>% 
+          set_colnames(paste0("beta_", 1:stan_data$ncovar)))
 
-w.init <- predict.gam(gam_fit, predict_df)
+# Predict log(lambda) for the reference year with covariates
+y_pred_mean <- predict.gam(gam_fit, predict_df)
 
-# Does the model have a yearly effect
-yearly_effect <- any(str_detect(readLines(stan_model_path), "eta"))
+if (stan_data$ncovar >= 1) {
+  # Remove the effect of the betas
+  beta_effect <- as.matrix(select(predict_df, contains("beta"))) %*% matrix(coef(gam_fit)[str_detect(names(coef(gam_fit)), "beta")], ncol = 1)
+  w.init <- y_pred_mean - as.vector(beta_effect)
+} else {
+  w.init <- y_pred_mean
+}
 
 # Initial parameter values
 if (yearly_effect) {
