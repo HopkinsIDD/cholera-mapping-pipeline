@@ -23,7 +23,7 @@ jobs:
           repository: git@github.com:HopkinsIDD/cholera-covariates.git
           path: Layers/
           lfs: true
-          ssh-key: ${{ secrets.GITHUB_SSH_KEY }}
+          token: ${{ secrets.PERSONAL_TOKEN }}
       - name: Set up Rprofile
         run: cp Docker.Rprofile $HOME/.Rprofile
         shell: bash
