@@ -26,8 +26,9 @@ jobs:
           devtools::test(stop_on_failure=TRUE)
         shell: Rscript {0}
       - name: Run integration tests
-        # env: 
-        #   CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+        env: 
+          CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
+          CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
         run: |
           service postgresql start
           bash grant_cholera_database.sh root
