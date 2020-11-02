@@ -33,11 +33,10 @@ jobs:
           devtools::test(stop_on_failure=TRUE)
         shell: Rscript {0}
       - name: Run integration tests
-        env: 
+        env:
           CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
           CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
         run: |
-          git clone git@github.com:HopkinsIDD/cholera-covariates.git Layers
           service postgresql start
           bash grant_cholera_database.sh root
           Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
@@ -45,4 +44,3 @@ jobs:
           cd test
           Rscript run_tests.R
         shell: bash
-
