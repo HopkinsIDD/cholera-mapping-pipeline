@@ -10,33 +10,47 @@ coord_frame <- as_tibble(sf::st_coordinates(sf_grid)) %>%
   summarise(x = mean(X), 
             y = mean(Y))
 
-# coord_frame = data.frame(
-#   x = unlist(lapply(st_geometry(st_centroid(sf_grid)),function(x){x[[2]]})),
-#   y = unlist(lapply(st_geometry(st_centroid(sf_grid)),function(x){x[[1]]}))
-# )
-
 # Create dataframe for GAM model
 old_percent <- 0
 df <- purrr::map_dfr(
-  1:stan_data$M_full,
+  1:length(stan_data$y),
   function(i){
     # Print progress
-    new_percent <- floor(100*i/stan_data$M_full)
+    new_percent <- floor(100*i/stan_data$M)
     if(new_percent != old_percent){
-      print(paste(i,"/", stan_data$M_full))
+      print(paste(i,"/", stan_data$M))
       old_percent <<- new_percent
     }
     # Get the location period covered by observation
-    ind_lp <- stan_data$map_obs_loctime_loc[which(stan_data$map_obs_loctime_obs == stan_data$ind_full[i])]
+    ind_obs <- which(stan_data$map_obs_loctime_obs == i)
+    ind_lp <- stan_data$map_obs_loctime_loc[ind_obs]
+    # ind_lp <- stan_data$map_obs_loctime_loc[which(stan_data$map_obs_loctime_obs == stan_data$ind_full[i])]
     # Get the corresponding grid indices
     ind <- stan_data$map_loc_grid_grid[which(stan_data$map_loc_grid_loc %in% ind_lp)]
     # Setup the data
     pop <- stan_data$pop[ind]
     # Cases are assumed to be proportional to population in the covered grid cells
-    y <- round(rep(stan_data$y[stan_data$ind_full[i]], length(ind))*pop/sum(pop))
+    # y <- round(rep(stan_data$y[stan_data$ind_full[i]], length(ind))*pop/sum(pop))
     obs_year <- stan_data$map_grid_time[ind]
+    u_obs_years <- unique(obs_year)
+    tfrac <- stan_data$tfrac[ind_obs]
+    # Expand observations to account for multiple tfracs
+    y_new <- map(seq_along(ind_obs), function(x)
+                       rep(stan_data$y[i] * tfrac[x]/sum(tfrac), 
+                           sum(obs_year == u_obs_years[x]))) %>% 
+      unlist()
+    
+    tfrac_vec <- map(seq_along(ind_obs), function(x)
+      rep(tfrac[x], sum(obs_year == u_obs_years[x]))) %>% 
+      unlist()
+    
+    y <- round(y_new * pop/sum(pop))
+    
     sx <- coord_frame$x[ind]
     sy <- coord_frame$y[ind]
+    beta_mat <- stan_data$covar[ind, ] %>% 
+      as.matrix() %>% 
+      set_colnames(paste0("beta_", 1:stan_data$ncovar))
     
     return(
       tibble(y = y,
@@ -45,59 +59,63 @@ df <- purrr::map_dfr(
              pop = pop,
              obs_year = obs_year,
              meanrate = stan_data$meanrate,
-             ey = pop*stan_data$meanrate)
-    )
+             ey = pop*stan_data$meanrate,
+             tfrac = tfrac_vec,
+             censored = stan_data$censoring_inds[i])
+    ) %>% 
+      cbind(beta_mat)
   }
 ) %>% 
   mutate(obs_year = factor(obs_year),
-         log_ey = log(ey))
+         log_ey = log(ey),
+         log_tfrac = log(tfrac),
+         gam_offset = log_ey + log_tfrac,
+         # To apply censoring
+         right_threshold = case_when(
+           censored == "right-censored" ~ y,
+           T ~ Inf),
+         # Transform to fit with normal approximation
+         y_sqrt = sqrt(y)
+  )
 
-# Check if the stan model has yearly random effects 
-# TODO this assumes that the modeling time resolution is 1 year!! Need to change
-# it to extract the year
-yearly_effect <- any(str_detect(readLines(paste0(stan_dir, config$stan$model)), "eta"))
+# Create matrix of time
+year_df <- data.frame(year = stan_data$map_grid_time)
+year_df$year <- factor(year_df$year)
+# Set reference year as the one with the largest number of cases
+ref_year <- which.max(df %>% group_by(obs_year) %>% summarise(x = sum(y)) %>% .[["x"]])
+year_df$year <- relevel(year_df$year, ref = ref_year)
 
-if(yearly_effect | res_time != "1 years")
-  stop("Yearly random effects for modeling time resolutions other than 1 year are not yet implemented.")
+mat_grid_time <- model.matrix(as.formula("~ year - 1"), data = year_df)
+mat_grid_time <- mat_grid_time[, -1] # the reference year is always first
 
-if (yearly_effect) {
-  gam_frml <- y ~ s(sx,sy) + obs_year - 1
-} else {
-  gam_frml <- y ~ s(sx,sy) - 1
-}
+# Formula for gam model
+gam_frml <- as.formula("y ~ s(sx,sy) - 1")
+
+# Removed censored data for which cases are 0
+df <- df %>% filter(!(y == 0 & right_threshold == 0))
 
 # Fit the GAM
-gam_fit <- mgcv::gam(gam_frml, 
-                     offset = log_ey,
-                     family = poisson, 
+gam_fit <- mgcv::gam(gam_frml,
+                     offset = gam_offset,
+                     family = "poisson", 
                      data = df)
+
 # GAM estimates
-gam_coef <- coef(gam_fit)
-# Indexes of smoothing grid
 indall <- seq_len(stan_data$smooth_grid_N)
 
-# Extract smoothing
-if (yearly_effect) {
-  # Extract yearly effects
-  eta <- gam_coef[str_detect(names(gam_coef), "year")]
-  # Remove mean to sum to 0
-  mean_eta <- mean(eta)
-  eta <- eta - mean(eta)
-  w.init <- log(gam_fit$fitted.values[indall]) - log(df$ey[indall]) - mean_eta
-} else {
-  w.init <- log(gam_fit$fitted.values[indall]) - log(df$ey[indall])
-}
+# Predict to get new terms
+predict_df <- tibble(sx = coord_frame$x[indall],
+                     sy = coord_frame$y[indall])
+
+w.init <- predict.gam(gam_fit, predict_df)
 
 # Initial parameter values
 if (yearly_effect) {
-  stan_data$sigma_eta_scale <- 10^round(log10(sd(eta)))
-  
+  stan_data$sigma_eta_scale <- 10
+  stan_data$map_grid_time <- mat_grid_time
   init.list <- lapply(1:nchain, 
                       function(i) {
-                        list(w = w.init,
-                             eta_tilde = eta/sd(eta),
-                             sigma_eta_tilde = sd(eta)/stan_data$sigma_eta_scale)
-                      })
+                        list(w = w.init)})
 } else {
   init.list <- lapply(1:nchain, function(i) list(w = w.init))
 }
@@ -109,9 +127,11 @@ model.rand <- stan(
   chains = nchain,
   iter = niter,
   thin = max(1,floor(niter/1000)),
-  control = list(
-    max_treedepth=15
-  ),
+  pars = c("b", "t_rowsum", "vec_var"),
+  include = F,
+  # control = list(
+  #   max_treedepth = 15
+  # ),
   init = init.list
 )
 
