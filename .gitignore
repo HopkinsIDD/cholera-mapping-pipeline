@@ -1,4 +1,4 @@
 packrat/lib*/
 Analysis/data/*
 Analysis/R/database_api_key.R
-Layers/*/**
+Layers/
