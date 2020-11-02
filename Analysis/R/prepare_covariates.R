@@ -130,9 +130,10 @@ prepare_covariates <- function(
       stop(glue::glue("Couldn't find {covarit$type} covariate '{covarit$alias}' at temporal resolution of: {res_time}, and spatial resolution of: {res_x}x{res_y}km. The covariate needs to be preprocessed and ingested by an authorized users."))
 
 
-    print(paste("CHECKPOINT C",paste(covarit,collapse='::')))
-    if(!any(covar_in_db) | ovrt_covar) {
-      print(paste("CHECKPOINT D",paste(covarit,collapse='::')))
+    print(paste("CHECKPOINT C", paste(covarit, collapse = "::")))
+    covarit$dir <- paste(cholera_covariates_directory, covarit$dir, sep="/")
+    if (!any(covar_in_db) | ovrt_covar) {
+      print(paste("CHECKPOINT D", paste(covarit, collapse = "::")))
       taxdat::ingest_covariate(conn = conn_pg,
                       covar_name = covarit$name,
                       covar_dir = covarit$dir,
