@@ -49,7 +49,7 @@ prepare_stan_input <- function(
   model_time_slices <- sort(unique(sf_grid$s))
 
   temporally_inconsistant_cells <- sf_grid %>%
-    group_by(id) %>%
+    dplyr::group_by(id) %>%
     dplyr::summarize(bad_percentage = sum(!(id %in% non_na_gridcells))/length(id)) %>%
     dplyr::filter(bad_percentage != 0, bad_percentage != 1)
 
@@ -60,7 +60,7 @@ prepare_stan_input <- function(
 
   sf_grid <- sf_grid %>% dplyr::filter(long_id %in% non_na_gridcells)
   sf_grid$upd_id <- grid_changer[as.character(sf_grid$long_id)]
-  smooth_grid <- sf_grid %>% dplyr::group_by(id,s) %>% dplyr::summarize() %>% dplyr::ungroup() %>% mutate(smooth_id = dplyr::row_number())
+  smooth_grid <- sf_grid %>% dplyr::group_by(id,s) %>% dplyr::summarize() %>% dplyr::ungroup() %>% dplyr::mutate(smooth_id = dplyr::row_number())
   nearest_neighbor_matrices <- list()
   # this is the mapping between the grid ids (from 1 to number of cells that intersect
   # location_periods) and the model ids in space (from 1 to the number of non-NA cells,
@@ -312,7 +312,7 @@ prepare_stan_input <- function(
     }
   }
 
-  full_grid <- left_join(sf::st_drop_geometry(sf_grid),sf::st_drop_geometry(smooth_grid))[,c('upd_id','smooth_id')]
+  full_grid <- dplyr::left_join(sf::st_drop_geometry(sf_grid),sf::st_drop_geometry(smooth_grid))[,c('upd_id','smooth_id')]
   nobs <- length(unique(stan_data$map_obs_loctime_obs))
   # Compute population corresponding to each observation
   aggpop <- rep(0, nobs)

@@ -509,7 +509,7 @@ write_ncdf <- function(data,
       for (col_idx in seq_len(nchunk_col)) {
         cat("Processing layer ", layer_idx, " of ", raster::nlayers(data), "\n")
         cat("Processing row", row_idx, " of ", nchunk_row, "\n")
-        cat("Processing row", col_idx, " of ", nchunk_col, "\n")
+        cat("Processing col", col_idx, " of ", nchunk_col, "\n")
         chunk_col_start <- (col_idx - 1) * chunk_size + 1
         chunk_col_end <- min((col_idx) * chunk_size, ncol(data))
         if (is.null(time_vals)) {
