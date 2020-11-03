@@ -1,0 +1,20 @@
+name: 'KEN_2015_2019_20km'
+taxonomy: 'taxonomy-working/working-entry1'
+countries: "Cote D'Ivoire"
+countries_name: 'KEN'
+res_space: 20
+res_time: '1 years'
+smoothing_period: 1
+case_definition: 'suspected'
+start_time: '2000-01-01'
+end_time: '2000-12-31'
+covariate_choices: ['dist_to_water','water_access']
+ingest_covariates: TRUE
+ingest_new_covariates: TRUE
+data_source: 'api'
+aoi: "KEN"
+stan:
+  ncores: 4
+  model: 'dagar_seasonal_nocovariates.stan'
+  niter: 2000
+  recompile: TRUE
