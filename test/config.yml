@@ -16,5 +16,5 @@ aoi: "KEN"
 stan:
   ncores: 4
   model: 'dagar_seasonal_nocovariates.stan'
-  niter: 2000
+  niter: 100
   recompile: TRUE
