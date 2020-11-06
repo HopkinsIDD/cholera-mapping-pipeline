@@ -25,7 +25,6 @@ data {
   int <lower=1, upper=M> ind_left[M_left];    // indexes of left-censored observations
   int <lower=1, upper=M> ind_right[M_right];   // indexes of right-censored observations
   
-  int<lower=1> T; // number of time slices
   int <lower=0> L; // number of location periods (space and time)
   
   int <lower=M> K1; // the length of the mapping of observations to location periods and times
@@ -36,20 +35,18 @@ data {
   int <lower=0, upper=L> map_loc_grid_loc[K2]; // the location side of the mapping from locations to gridcells
   int <lower=0, upper=N> map_loc_grid_grid[K2]; // the gridcell side of the mapping from locations to gridcells
   
-  matrix[N, T-1] mat_grid_time; // The time side of the mapping from locations/times to grid
   int <lower=0,upper=smooth_grid_N> map_smooth_grid[N]; //vector with repeating smooth_grid_N indexes repeating 1:N
   
   // Covariate stuff
   int ncovar; // Number of covariates
   matrix[N,ncovar] covar; // Covariate matrix
-  
-  real<lower=0> sigma_eta_scale; // the scale of inter-annual variability
+  int<lower=0> beta_sigma_scale;
 }
 
 transformed data {
   vector<lower=0>[N] logpop;//populations by timestep
   real small_N = .001 * smooth_grid_N;
-  // real<lower=0> weights[M]; //a function of the expected offset for each observation used to downwight the likelihood
+  real<lower=0> weights[M]; //a function of the expected offset for each observation used to downwight the likelihood
   real log_meanrate = log(meanrate);
   real <lower=1> pop_loctimes[L]; // pre-computed population in each location period
   
@@ -65,17 +62,17 @@ transformed data {
     pop_loctimes[map_loc_grid_loc[i]] += pop[map_loc_grid_grid[i]];
   }
   
-  // for (i in 1:M) {
-  //   weights[i] = 1;
-  // }
-  // 
-  // for (i in 1:K1) {
-  //   weights[map_obs_loctime_obs[i]] += meanrate * tfrac[i] * pop_loctimes[map_obs_loctime_loc[i]];
-  // }
-  // 
-  // for (i in 1:M) {
-  //   weights[i] = sqrt(weights[i]);
-  // }
+  for (i in 1:M) {
+    weights[i] = 1;
+  }
+  
+  for (i in 1:K1) {
+    weights[map_obs_loctime_obs[i]] += meanrate * tfrac[i] * pop_loctimes[map_obs_loctime_loc[i]];
+  }
+  
+  for (i in 1:M) {
+    weights[i] = sqrt(weights[i]);
+  }
 }
 
 parameters {
@@ -86,11 +83,9 @@ parameters {
   
   vector[smooth_grid_N] w; // Spatial Random Effect
   
-  vector[T-1] eta_tilde; // yearly random effects
-  real <lower=0> sigma_eta_tilde;
-  
   // Covariate stuff
   vector[ncovar] betas;
+  
 }
 
 transformed parameters {
@@ -101,17 +96,10 @@ transformed parameters {
   vector[smooth_grid_N] std_dev; // Rescaled std_dev by std_dev_w
   vector<lower=0>[L] location_cases; //cases modeled in each (temporal) location.
   vector<lower=0>[N] grid_cases; //cases modeled in each gridcell and time point.
-  vector[T-1] eta; // yearly random effects
-  
   // real w_sum;
   
   real<lower=0> modeled_cases[M]; //expected number of cases for each observation
   real<lower=0> std_dev_w;
-  
-  for(i in 1:(T-1)) {
-    // scale yearly random effects
-    eta[i] = sigma_eta_scale * sigma_eta_tilde * eta_tilde[i];
-  }
   
   std_dev_w = exp(log_std_dev_w);
   
@@ -126,7 +114,7 @@ transformed parameters {
     t_rowsum[node1[i] ] += w[node2[i] ] * b[ node1[i] ];
   }
   
-  log_lambda =  w[map_smooth_grid] + log_meanrate + covar * betas + mat_grid_time * eta;
+  log_lambda =  w[map_smooth_grid] + log_meanrate + covar * betas;
   grid_cases = exp(log_lambda + logpop);
   
   //calculate the expected number of cases by location
@@ -136,7 +124,7 @@ transformed parameters {
     location_cases[i] = 0;
   }
   for(i in 1:K2){
-    location_cases[map_loc_grid_loc[i] ] += grid_cases[map_loc_grid_grid[i]];
+    location_cases[map_loc_grid_loc[i] ] += grid_cases[map_loc_grid_grid[i] ];
   }
   
   //first initialize to 0
@@ -162,19 +150,13 @@ model {
   }
   
   // prior on regression coefficients
-  betas ~ std_normal();
-  
-  // prior on the yearly random effects
-  sigma_eta_tilde ~ std_normal();
-  eta_tilde ~ std_normal();
-  // sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraint for identifiability
+  betas ~ normal(0, beta_sigma_scale);
   
   if (M_full > 0) {
     //data model for estimated rates for full time slice observations
-     y[ind_full] ~ poisson(modeled_cases[ind_full]);
-    // for(i in 1:M_full){
-    //   target += poisson_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]]);///weights[ind_full[i]];
-    // }
+    for(i in 1:M_full){
+      target += poisson_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]]);
+    }
   }
   
   if (M_left > 0) {
@@ -185,7 +167,7 @@ model {
     //https://mc-stan.org/docs/2_18/functions-reference/cumulative-distribution-functions.html
     // for(i in 1:M_left){
       //   target += (poisson_lcdf(y[ind_left[i]] | modeled_cases[ind_left[i]]) + 
-      //   poisson_lpmf(y[ind_left[i]] | modeled_cases[ind_left[i]]));//weights[ind_left[i]];
+      //   poisson_lpmf(y[ind_left[i]] | modeled_cases[ind_left[i]]))/weights[ind_left[i]];
       // }
   }
   
@@ -196,9 +178,9 @@ model {
     for(i in 1:M_right){
       if (is_inf(poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]))) {
         target += -1e3;
-        // print("CENSORED cases: ", y[ind_right[i]], " model: ", modeled_cases[ind_right[i]], " at ", ind_right[i], "| loglik:", poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]), " log_density=", target())
+        print("CENSORED cases: ", y[ind_right[i]], " model: ", modeled_cases[ind_right[i]], " at ", ind_right[i], "| loglik:", poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]), " log_density=", target())
       } else {
-        target += poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);///weights[ind_right[i]];
+        target += poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
       }
     }
   }

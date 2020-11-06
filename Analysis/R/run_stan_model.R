@@ -102,11 +102,12 @@ df <- purrr::map_dfr(
 
 # Does the model have a yearly effect
 yearly_effect <- any(str_detect(readLines(stan_model_path), "eta"))
+censor <- str_detect(stan_model_path, "censoring")
 
 # Create gam frml
 frml <- "y ~ s(sx,sy) - 1"
 
-if (stan_data$ncovar >= 1) {
+if (stan_data$ncovar >= 1 & config$covar_warmup) {
   frml <- paste(c(frml, paste0("beta_", 1:stan_data$ncovar)), collapse = " + ")
 }
 
@@ -117,8 +118,10 @@ if (yearly_effect) {
 # Formula for gam model
 gam_frml <- as.formula(frml)
 
-# Removed censored data for which cases are 0
-df <- df %>% filter(!(y == 0 & right_threshold == 0))
+if (censor) {
+  # Removed censored data for which cases are 0
+  df <- df %>% filter(!(y == 0 & right_threshold == 0))
+}
 
 # Fit the GAM
 gam_fit <- mgcv::gam(gam_frml,
@@ -144,7 +147,7 @@ predict_df <- tibble(sx = coord_frame$x[indall],
 # Predict log(lambda) for the reference year with covariates
 y_pred_mean <- predict.gam(gam_fit, predict_df)
 
-if (stan_data$ncovar >= 1) {
+if (stan_data$ncovar >= 1 & config$covar_warmup) {
   # Remove the effect of the betas
   beta_effect <- as.matrix(select(predict_df, contains("beta"))) %*% matrix(coef(gam_fit)[str_detect(names(coef(gam_fit)), "beta")], ncol = 1)
   w.init <- y_pred_mean - as.vector(beta_effect)
@@ -163,6 +166,12 @@ if (yearly_effect) {
   init.list <- lapply(1:nchain, function(i) list(w = w.init))
 }
 
+# Add scale of covar effect
+if (stan_data$ncovar >= 1) {
+  stan_data$beta_sigma_scale <- config$beta_sigma_scale
+}
+
+
 # Run model ---------------------------------------------------------------
 model.rand <- stan(
   file = stan_model_path,
@@ -172,9 +181,9 @@ model.rand <- stan(
   thin = max(1,floor(niter/1000)),
   pars = c("b", "t_rowsum", "vec_var"),
   include = F,
-  # control = list(
-  #   max_treedepth = 15
-  # ),
+  control = list(
+    max_treedepth = 15
+  ),
   init = init.list
 )
 

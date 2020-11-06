@@ -347,7 +347,7 @@ for(t_idx in 1:length(all_test_idx)){
   
   stan_data <- stan_input$stan_data
   sf_cases_resized <- stan_input$sf_cases_resized
-  sf_grid <- covar_cube_output$sf_grid
+  sf_grid <- stan_input$sf_grid
     
   ## Step 4: Run the model
   print(stan_output_fname)

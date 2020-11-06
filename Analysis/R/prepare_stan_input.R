@@ -239,72 +239,77 @@ prepare_stan_input <- function(
   non_na_obs <- sort(unique(ind_mapping$map_obs_loctime_obs))
   sf_cases_resized <- sf_cases[non_na_obs, ]
   
-  
-  ## aggregate observations:
-  sf_cases_resized$loctime <- ""
-  for(i in seq_len(length(ind_mapping$map_obs_loctime_obs))) {
-    sf_cases_resized$loctime[which(non_na_obs == ind_mapping$map_obs_loctime_obs[i])] <- paste(sf_cases_resized$loctime[which(non_na_obs == ind_mapping$map_obs_loctime_obs[i])] , 
-                                                                                               ind_mapping$map_obs_loctime_loc[i])
-  }
-  sf_cases_resized$loctime <- gsub("^ ","",sf_cases_resized$loctime)
-  ocrs <- sf::st_crs(sf_cases_resized)
-  sf_cases_resized <- sf_cases_resized %>%
-    dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
-    dplyr::group_modify(function(.x,.y){
-      cat("iter", unlist(.y), "\n")
-      if(nrow(.x) <= 1 ){return(.x %>% select(TL,TR,!!rlang::sym(cases_column)))}
-      ## combine non-adjacent but overlapping observations
-      .x <- dplyr::arrange(dplyr::mutate(.x, set=as.integer(NA)),desc(TR))
-      .x$set[[1]] <- 0
-      current_set <- 1
-      something_changed <- TRUE
-      while(any(is.na(.x$set))){
-        print("LOOPING")
-        print(.x$set)
-        new_set_indices <- (rev(cummax(rev(!is.na(.x$set)))) == 1) & is.na(.x$set)
-        if(any(new_set_indices) & (!something_changed)){
-          .x$set[[which(new_set_indices)[[1]] ]] <- current_set
-          print("Assigning from new_set_indices")
+  if (config$aggregate) {
+    print("---- AGGREGATING CHOLERA DATA TO MODELING TIME RES ----")
+    ## aggregate observations:
+    sf_cases_resized$loctime <- ""
+    for(i in seq_len(length(ind_mapping$map_obs_loctime_obs))) {
+      sf_cases_resized$loctime[which(non_na_obs == ind_mapping$map_obs_loctime_obs[i])] <- paste(sf_cases_resized$loctime[which(non_na_obs == ind_mapping$map_obs_loctime_obs[i])] , 
+                                                                                                 ind_mapping$map_obs_loctime_loc[i])
+    }
+    sf_cases_resized$loctime <- gsub("^ ","",sf_cases_resized$loctime)
+    ocrs <- sf::st_crs(sf_cases_resized)
+    sf_cases_resized <- sf_cases_resized %>%
+      dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
+      dplyr::group_modify(function(.x,.y){
+        cat("iter", unlist(.y), "\n")
+        if(nrow(.x) <= 1 ){return(.x %>% select(TL,TR,!!rlang::sym(cases_column)))}
+        ## combine non-adjacent but overlapping observations
+        .x <- dplyr::arrange(dplyr::mutate(.x, set=as.integer(NA)),desc(TR))
+        .x$set[[1]] <- 0
+        current_set <- 1
+        something_changed <- TRUE
+        while(any(is.na(.x$set))){
+          print("LOOPING")
           print(.x$set)
-          current_set <- current_set + 1
-          something_changed <- TRUE
-        } else if(!something_changed){
-          .x$set[[which(is.na(.x$set))[[1]] ]] <- current_set
-          print("Starting a new set")
-          print(.x$set)
-          current_set <- current_set + 1
-          something_changed <- TRUE
-        }
-        something_changed <- FALSE
-        for(set_idx in (seq_len(current_set) - 1) ){
-          possible_extensions <- (.x$TR < .x$TL[max(which((.x$set == set_idx) & !is.na(.x$set)))]) & is.na(.x$set)
+          new_set_indices <- (rev(cummax(rev(!is.na(.x$set)))) == 1) & is.na(.x$set)
+          if(any(new_set_indices) & (!something_changed)){
+            .x$set[[which(new_set_indices)[[1]] ]] <- current_set
+            print("Assigning from new_set_indices")
+            print(.x$set)
+            current_set <- current_set + 1
+            something_changed <- TRUE
+          } else if(!something_changed){
+            .x$set[[which(is.na(.x$set))[[1]] ]] <- current_set
+            print("Starting a new set")
+            print(.x$set)
+            current_set <- current_set + 1
+            something_changed <- TRUE
+          }
+          something_changed <- FALSE
+          for(set_idx in (seq_len(current_set) - 1) ){
+            possible_extensions <- (.x$TR < .x$TL[max(which((.x$set == set_idx) & !is.na(.x$set)))]) & is.na(.x$set)
             if(any(possible_extensions)){
               .x$set[[min(which(possible_extensions))]] <- set_idx
               print(paste("Extending an existing set",set_idx))
               print(.x$set)
               something_changed <- TRUE
+            }
           }
         }
-      }
-      ## The TL calculation here is made up
-      .ox <- .x
-      .x$duration <- .x$TR - .x$TL + 1
-      .x <- .x %>% group_by(set) %>% summarize(TL = min(TL), TR = min(TL) + sum(duration) - 1 , !!cases_column := sum(!!rlang::sym(cases_column),na.rm=TRUE)) %>% ungroup() %>% select(-set)
-      return(.x)
-    }) %>% 
-    ungroup() 
-  # sf_cases_resized$geom <- sf::st_as_sfc(sf_cases_resized$geom)
-  sf_cases_resized <- sf::st_as_sf(sf_cases_resized)
-  sf::st_crs(sf_cases_resized) <- ocrs
-  
-  # Re-compute space-time indices based on aggretated data
-  ind_mapping_resized <- getSpaceTimeIndSpeedup(
-    df = sf_cases_resized, 
-    lp_dict = location_periods_dict,
-    model_time_slices = time_slices,
-    res_time = res_time,
-    n_cpus = ncore,
-    do_parallel = F)
+        ## The TL calculation here is made up
+        .ox <- .x
+        .x$duration <- .x$TR - .x$TL + 1
+        .x <- .x %>% group_by(set) %>% summarize(TL = min(TL), TR = min(TL) + sum(duration) - 1 , !!cases_column := sum(!!rlang::sym(cases_column),na.rm=TRUE)) %>% ungroup() %>% select(-set)
+        return(.x)
+      }) %>% 
+      ungroup() 
+    # sf_cases_resized$geom <- sf::st_as_sfc(sf_cases_resized$geom)
+    sf_cases_resized <- sf::st_as_sf(sf_cases_resized)
+    sf::st_crs(sf_cases_resized) <- ocrs
+    
+    # Re-compute space-time indices based on aggretated data
+    ind_mapping_resized <- getSpaceTimeIndSpeedup(
+      df = sf_cases_resized, 
+      lp_dict = location_periods_dict,
+      model_time_slices = time_slices,
+      res_time = res_time,
+      n_cpus = ncore,
+      do_parallel = F)
+  } else {
+    print("---- USING RAW CHOLERA DATA ----")
+    ind_mapping_resized <- ind_mapping
+  }
   
   non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
   
