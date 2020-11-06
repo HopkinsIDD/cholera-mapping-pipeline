@@ -253,7 +253,7 @@ prepare_stan_input <- function(
       dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
       dplyr::group_modify(function(.x,.y){
         cat("iter", unlist(.y), "\n")
-        if(nrow(.x) <= 1 ){return(.x %>% select(TL,TR,!!rlang::sym(cases_column)))}
+        if(nrow(.x) <= 1 ){return(.x %>% dplyr::select(TL,TR,!!rlang::sym(cases_column)))}
         ## combine non-adjacent but overlapping observations
         .x <- dplyr::arrange(dplyr::mutate(.x, set=as.integer(NA)),desc(TR))
         .x$set[[1]] <- 0
@@ -290,7 +290,7 @@ prepare_stan_input <- function(
         ## The TL calculation here is made up
         .ox <- .x
         .x$duration <- .x$TR - .x$TL + 1
-        .x <- .x %>% group_by(set) %>% summarize(TL = min(TL), TR = min(TL) + sum(duration) - 1 , !!cases_column := sum(!!rlang::sym(cases_column),na.rm=TRUE)) %>% ungroup() %>% select(-set)
+        .x <- .x %>% group_by(set) %>% summarize(TL = min(TL), TR = min(TL) + sum(duration) - 1 , !!cases_column := sum(!!rlang::sym(cases_column),na.rm=TRUE)) %>% ungroup() %>% dplyr::select(-set)
         return(.x)
       }) %>% 
       ungroup() 
