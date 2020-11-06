@@ -112,7 +112,7 @@ if (stan_data$ncovar >= 1 & config$covar_warmup) {
 }
 
 if (yearly_effect) {
-  frml <- paste(c(frml, colnames(df %>% select(contains("year_")))), collapse = " + ")
+  frml <- paste(c(frml, colnames(df %>% dplyr::select(contains("year_")))), collapse = " + ")
 }
 
 # Formula for gam model
@@ -149,7 +149,7 @@ y_pred_mean <- predict.gam(gam_fit, predict_df)
 
 if (stan_data$ncovar >= 1 & config$covar_warmup) {
   # Remove the effect of the betas
-  beta_effect <- as.matrix(select(predict_df, contains("beta"))) %*% matrix(coef(gam_fit)[str_detect(names(coef(gam_fit)), "beta")], ncol = 1)
+  beta_effect <- as.matrix(dplyr::select(predict_df, contains("beta"))) %*% matrix(coef(gam_fit)[str_detect(names(coef(gam_fit)), "beta")], ncol = 1)
   w.init <- y_pred_mean - as.vector(beta_effect)
 } else {
   w.init <- y_pred_mean
