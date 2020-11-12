@@ -15,6 +15,6 @@ data_source: 'api'
 aoi: "KEN"
 stan:
   ncores: 4
-  model: 'dagar_seasonal_nocovariates.stan'
-  niter: 100
+  model: 'dagar_seasonal.stan'
+  niter: 2000
   recompile: TRUE
