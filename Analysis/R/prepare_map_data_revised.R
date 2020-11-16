@@ -120,7 +120,7 @@ if (any(grepl("GEOMETRYCOLLECTION", st_geometry_type(shapefiles)))) {
 conn_pg <- connectToDB(dbuser)
 
 # Set user-specific name for location_periods table to use
-lp_name <- makeLocationPeriodsTableName(dbuser = dbuser)
+lp_name <- makeLocationPeriodsTableName(dbuser = dbuser, map_name = map_name)
 
 # Make sf object to multiploygons to be consistent
 shapefiles <- sf::st_cast(shapefiles, "MULTIPOLYGON") %>% 
@@ -158,7 +158,7 @@ DBI::dbSendStatement(
 )
 
 # Get the dictionary of location periods to pixel ids
-cntrd_table <- makeGridCentroidsTableName(dbuser = dbuser)
+cntrd_table <- makeGridCentroidsTableName(dbuser = dbuser, map_name = map_name)
 
 # Create table of grid centroids included in the model
 DBI::dbSendStatement(
