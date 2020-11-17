@@ -68,7 +68,7 @@ dbExistsTableMulti <- function(conn, schemas, table_name) {
 makeLocationPeriodsTableName <- function(dbuser, map_name) {
   md5hash <- digest::digest(stringr::str_c(dbuser, "_", map_name, algo = "md5"))
   cat("-- MD5 hash for location periods table is:", md5hash, "\n")
-  glue::glue("location_periods_{md5hash}}")
+  glue::glue("location_periods_{md5hash}")
 }
 
 #' @title make grid centroids table name
@@ -81,6 +81,16 @@ makeLocationPeriodsTableName <- function(dbuser, map_name) {
 makeGridCentroidsTableName <- function(dbuser, map_name) {
   md5hash <- digest::digest(stringr::str_c(dbuser, "_", map_name, algo = "md5"))
   glue::glue("grid_cntrds_{md5hash}")
+}
+
+cleanAllTmp <- function(dbuser, map_name) {
+  print("-- Cleaning temporary tables")
+  conn <- connectToDB(dbuser)
+  lp_name <- makeLocationPeriodsTableName(dbuser, map_name)
+  DBI::dbSendStatement(conn, glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(lp_name)}`};", .con = conn)) 
+  cntrd_table <- makeGridCentroidsTableName(dbuser, map_name)
+  DBI::dbSendStatement(conn, glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(cntrd_table)}`};", .con = conn)) 
+  DBI::dbDisconnect(conn)
 }
 
 makeGridFile <- function(dbuser) {
