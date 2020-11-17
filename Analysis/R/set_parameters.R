@@ -220,7 +220,9 @@ for(t_idx in 1:length(all_test_idx)){
                       paste(start_time, end_time, sep = '-'),
                       spatial_aggregate_iso_a2_level,
                       paste(res_space, 'km', sep = ''),
-                      suspected_or_confirmed, sep = '_')
+                      suspected_or_confirmed, 
+                      str_replace(last(str_split(opt$config, "/")[[1]]), "\\.yml", ""),
+                      sep = '_')
   }
   
   covariate_name_part <- paste(short_covariates, collapse = '-')
