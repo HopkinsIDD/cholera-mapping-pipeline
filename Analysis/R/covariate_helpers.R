@@ -66,7 +66,9 @@ dbExistsTableMulti <- function(conn, schemas, table_name) {
 #'
 #' @return the table name
 makeLocationPeriodsTableName <- function(dbuser, map_name) {
-  glue::glue("location_periods_{dbuser}_{str_replace_all(map_name, '-', '_')}")
+  md5hash <- digest::digest(stringr::str_c(dbuser, "_", map_name, algo = "md5"))
+  cat("-- MD5 hash for location periods table is:", md5hash, "\n")
+  glue::glue("location_periods_{md5hash}}")
 }
 
 #' @title make grid centroids table name
@@ -77,7 +79,8 @@ makeLocationPeriodsTableName <- function(dbuser, map_name) {
 #'
 #' @return the table name
 makeGridCentroidsTableName <- function(dbuser, map_name) {
-  glue::glue("grid_cntrds_{dbuser}_{str_replace_all(map_name, '-', '_')}")
+  md5hash <- digest::digest(stringr::str_c(dbuser, "_", map_name, algo = "md5"))
+  glue::glue("grid_cntrds_{md5hash}")
 }
 
 makeGridFile <- function(dbuser) {
