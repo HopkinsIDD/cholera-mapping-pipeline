@@ -297,6 +297,7 @@ for(t_idx in 1:length(all_test_idx)){
     covar_cube_output <- prepare_covar_cube(
       covar_list = covar_list,
       dbuser = dbuser,
+      map_name = map_name,
       cholera_directory = cholera_directory,
       full_grid_name = full_grid_name,
       start_time = start_time,

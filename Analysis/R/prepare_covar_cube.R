@@ -21,6 +21,7 @@ library(sf)
 prepare_covar_cube <- function(
   covar_list,
   dbuser,
+  map_name,
   cholera_directory,
   full_grid_name,
   start_time,
@@ -55,7 +56,7 @@ prepare_covar_cube <- function(
   n_time_slices <- nrow(time_slices)
   n_covar <- length(covar_list)
   # Get the grid centroids corresponding to the location periods centroids table
-  cntrd_table <- makeGridCentroidsTableName(dbuser)
+  cntrd_table <- makeGridCentroidsTableName(dbuser = dbuser, map_name = map_name)
   n_grid_cells <- DBI::dbGetQuery(
     conn_pg, 
     glue::glue_sql("SELECT COUNT(*) FROM {`{DBI::SQL(cntrd_table)}`};", .con = conn_pg)
