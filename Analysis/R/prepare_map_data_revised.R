@@ -179,8 +179,9 @@ DBI::dbSendStatement(
 DBI::dbSendStatement(
   conn_pg, 
   glue::glue_sql(
-    "CREATE INDEX cntrds_{`DBI::SQL(dbuser)`}_gidx on {`{DBI::SQL(cntrd_table)}`} USING GIST(geom);",
+    "CREATE INDEX {`{DBI::SQL(paste0(cntrd_table, '_gidx'))}`} on {`{DBI::SQL(cntrd_table)}`} USING GIST(geom);",
     .con = conn_pg)) 
+DBI::dbSendStatement(conn_pg, glue::glue_sql("VACUUM ANALYZE {`{DBI::SQL(cntrd_table)}`};", .con = conn_pg))
 
 # Create sf_chol ---------------------------------------------------------------
 
