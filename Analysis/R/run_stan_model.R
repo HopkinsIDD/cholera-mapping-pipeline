@@ -196,7 +196,7 @@ model.rand <- stan(
   data = stan_data,
   chains = nchain,
   iter = niter,
-  pars = c("b", "t_rowsum", "vec_var", "lp_censored"),
+  pars = c("b", "t_rowsum", "vec_var"),
   include = T,
   control = list(
     max_treedepth = 15

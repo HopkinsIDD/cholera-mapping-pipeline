@@ -154,35 +154,34 @@ model {
   
   if (M_full > 0) {
     //data model for estimated rates for full time slice observations
-    for(i in 1:M_full){
-      target += poisson_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]]);
-    }
+    target += poisson_lpmf(y[ind_full]| modeled_cases[ind_full]);
   }
   
-  if (M_left > 0) {
-    //data model for estimated rates for left-censored observations
-    //note that according to the Stan helppage the CDF(y) is defined as Pr(Y < y)
-    //we therefore add the probability Pr(Y = y|modeled_cases) to CDF(y|modeled_casees)
-    //to get Pr(Y <= y|modeled_cases)
-    //https://mc-stan.org/docs/2_18/functions-reference/cumulative-distribution-functions.html
-    // for(i in 1:M_left){
-      //   target += (poisson_lcdf(y[ind_left[i]] | modeled_cases[ind_left[i]]) + 
-      //   poisson_lpmf(y[ind_left[i]] | modeled_cases[ind_left[i]]))/weights[ind_left[i]];
-      // }
-  }
   
   if (M_right > 0) {
-    //data model for estimated rates for left-censored time slice observations
-    //note that according to Stan the complementary CDF, or CCDF(Y|modeled_cases)) is defined as Pr(Y >= y | modeled_cases)
-    //https://mc-stan.org/docs/2_18/functions-reference/cumulative-distribution-functions.html
+    //data model for estimated rates for right-censored time slice observations
+    //note that according to Stan the complementary CDF, or CCDF(Y|modeled_cases))
+    // is defined as Pr(Y > y | modeled_cases),
+    // we therefore add the probability Pr(Y = y|modeled_cases) to CCDF(y|modeled_casees)
+    // to get Pr(Y >= y|modeled_cases)
+    //https://mc-stan.org/docs/2_25/functions-reference/cumulative-distribution-functions.html
+    
+    vector[M_right] lp_censored;
+    
     for(i in 1:M_right){
-      if (is_inf(poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]))) {
-        target += -1e3;
-        print("CENSORED cases: ", y[ind_right[i]], " model: ", modeled_cases[ind_right[i]], " at ", ind_right[i], "| loglik:", poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]), " log_density=", target())
+      real lpmf;
+      lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+      // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
+      if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
+        real lls[2];
+        lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+        lls[2] = lpmf;
+        lp_censored[i] = log_sum_exp(lls);
       } else {
-        target += poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+        lp_censored[i] = lpmf;
       }
     }
+    target += sum(lp_censored);
   }
 }
 generated quantities {

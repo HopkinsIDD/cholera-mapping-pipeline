@@ -64,18 +64,6 @@ transformed data {
   for (i in 1:K2) {
     pop_loctimes[map_loc_grid_loc[i]] += pop[map_loc_grid_grid[i]];
   }
-  
-  // for (i in 1:M) {
-    //   weights[i] = 1;
-    // }
-    // 
-    // for (i in 1:K1) {
-      //   weights[map_obs_loctime_obs[i]] += meanrate * tfrac[i] * pop_loctimes[map_obs_loctime_loc[i]];
-      // }
-      // 
-      // for (i in 1:M) {
-        //   weights[i] = sqrt(weights[i]);
-        // }
 }
 
 parameters {
@@ -157,55 +145,49 @@ model {
   // NOTE:  no prior on phi_raw, it is used to construct phi
   // the following computes the prior on phi on the unit scale with std_dev = 1
   for(i in 1:smooth_grid_N){
-    // w[i] ~ normal(t_rowsum[i],std_dev[i]);
     target += normal_lpdf(w[i] | t_rowsum[i], std_dev[i]);
   }
   
-  // prior on regression coefficients
   betas ~ normal(0, beta_sigma_scale);
   
   // prior on the yearly random effects
   sigma_eta_tilde ~ std_normal();
   eta_tilde ~ std_normal();
-  // sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraint for identifiability
   
   if (M_full > 0) {
-    //data model for estimated rates for full time slice observations
-    y[ind_full] ~ poisson(modeled_cases[ind_full]);
-    // for(i in 1:M_full){
-      //   target += poisson_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]]);///weights[ind_full[i]];
-      // }
-  }
-  
-  if (M_left > 0) {
-    //data model for estimated rates for left-censored observations
-    //note that according to the Stan helppage the CDF(y) is defined as Pr(Y < y)
-    //we therefore add the probability Pr(Y = y|modeled_cases) to CDF(y|modeled_casees)
-    //to get Pr(Y <= y|modeled_cases)
-    //https://mc-stan.org/docs/2_18/functions-reference/cumulative-distribution-functions.html
-    // for(i in 1:M_left){
-      //   target += (poisson_lcdf(y[ind_left[i]] | modeled_cases[ind_left[i]]) + 
-      //   poisson_lpmf(y[ind_left[i]] | modeled_cases[ind_left[i]]));//weights[ind_left[i]];
-      // }
+    // data model for estimated rates for full time slice observations
+    target += poisson_lpmf(y[ind_full]| modeled_cases[ind_full]);
   }
   
   if (M_right > 0) {
-    //data model for estimated rates for left-censored time slice observations
-    //note that according to Stan the complementary CDF, or CCDF(Y|modeled_cases)) is defined as Pr(Y >= y | modeled_cases)
-    //https://mc-stan.org/docs/2_18/functions-reference/cumulative-distribution-functions.html
+    //data model for estimated rates for right-censored time slice observations
+    //note that according to Stan the complementary CDF, or CCDF(Y|modeled_cases))
+    // is defined as Pr(Y > y | modeled_cases),
+    // we therefore add the probability Pr(Y = y|modeled_cases) to CCDF(y|modeled_casees)
+    // to get Pr(Y >= y|modeled_cases)
+    //https://mc-stan.org/docs/2_25/functions-reference/cumulative-distribution-functions.html
+    
+    vector[M_right] lp_censored;
+    
     for(i in 1:M_right){
-      if (is_inf(poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]))) {
-        target += -1e3;
-        // print("CENSORED cases: ", y[ind_right[i]], " model: ", modeled_cases[ind_right[i]], " at ", ind_right[i], "| loglik:", poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]), " log_density=", target())
+      real lpmf;
+      lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+      // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
+      if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
+        real lls[2];
+        lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+        lls[2] = lpmf;
+        lp_censored[i] = log_sum_exp(lls);
       } else {
-        target += poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);///weights[ind_right[i]];
+        lp_censored[i] = lpmf;
       }
     }
+    target += sum(lp_censored);
   }
 }
 generated quantities {
   real<lower=0> tfrac_modeled_cases[M]; //expected number of cases for each observation
-  //first initialize to 0
+  // first initialize to 0
   for (i in 1:M) {
     tfrac_modeled_cases[i] = 0;
   }
