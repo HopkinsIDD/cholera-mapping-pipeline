@@ -164,7 +164,6 @@ if (yearly_effect) {
   sd_w <- sd(w.init)
   eta <- coef(gam_fit) %>% .[str_detect(names(.), "year")]
   
-  
   init.list <- lapply(1:nchain, 
                       function(i) {
                         list(
@@ -174,15 +173,15 @@ if (yearly_effect) {
                           eta_tilde = rnorm(length(eta), eta/stan_data$sigma_eta_scale, .05),
                           sigma_eta_tilde = 1
                         )})
-  
-  if (config$covar_warmup) {
-    betas <- coef(gam_fit) %>% .[str_detect(names(.), "beta")]
-    init.list <- append(init.list,
-                        # Perturbation of fitted betas
-                        list(betas = rnorm(length(betas), betas, .1) %>% array()))
-  }
 } else {
   init.list <- lapply(1:nchain, function(i) list(w = rnorm(length(w.init), w.init, .1)))
+}
+
+if (config$covar_warmup) {
+  betas <- coef(gam_fit) %>% .[str_detect(names(.), "beta")]
+  init.list <- append(init.list,
+                      # Perturbation of fitted betas
+                      list(betas = rnorm(length(betas), betas, .1) %>% array()))
 }
 
 # Add scale of covar effect
