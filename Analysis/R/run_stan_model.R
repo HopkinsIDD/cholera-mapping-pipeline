@@ -15,6 +15,7 @@ year_df <- data.frame(year = stan_data$map_grid_time)
 year_df$year <- factor(year_df$year)
 # Set reference year as the one with the largest number of cases
 ref_year <- which.max(sf_cases_resized %>% 
+                        as_tibble() %>% 
                         mutate(year = lubridate::year(TL))  %>% 
                         group_by(year) %>% 
                         summarise(x = sum(attributes.fields.suspected_cases)) %>% .[["x"]])
@@ -72,9 +73,12 @@ df <- purrr::map_dfr(
       set_colnames(paste0("year_", 1:ncol(mat_grid_time)))
     
     return(
-      tibble(y = y,
+      tibble(obs = i,
+             raw_y = stan_data$y[i],
+             y = y,
              sx = sx,
              sy = sy,
+             ind = ind,
              pop = pop,
              obs_year = obs_year,
              meanrate = stan_data$meanrate,
@@ -95,8 +99,6 @@ df <- purrr::map_dfr(
          right_threshold = case_when(
            censored == "right-censored" ~ y,
            T ~ Inf),
-         # Transform to fit with normal approximation
-         y_sqrt = sqrt(y)
   )
 
 
@@ -157,13 +159,30 @@ if (stan_data$ncovar >= 1 & config$covar_warmup) {
 
 # Initial parameter values
 if (yearly_effect) {
-  stan_data$sigma_eta_scale <- 10
-  stan_data$map_grid_time <- mat_grid_time
+  stan_data$sigma_eta_scale <- 5
+  stan_data$mat_grid_time <- mat_grid_time %>% as.matrix()
+  sd_w <- sd(w.init)
+  eta <- coef(gam_fit) %>% .[str_detect(names(.), "year")]
+  
+  
   init.list <- lapply(1:nchain, 
                       function(i) {
-                        list(w = w.init)})
+                        list(
+                          # Perturbation of spatial random effects
+                          w = rnorm(length(w.init), w.init, .1),
+                          # Perturbation of fitted etas
+                          eta_tilde = rnorm(length(eta), eta/stan_data$sigma_eta_scale, .05),
+                          sigma_eta_tilde = 1
+                        )})
+  
+  if (config$covar_warmup) {
+    betas <- coef(gam_fit) %>% .[str_detect(names(.), "beta")]
+    init.list <- append(init.list,
+                        # Perturbation of fitted betas
+                        list(betas = rnorm(length(betas), betas, .1) %>% array()))
+  }
 } else {
-  init.list <- lapply(1:nchain, function(i) list(w = w.init))
+  init.list <- lapply(1:nchain, function(i) list(w = rnorm(length(w.init), w.init, .1)))
 }
 
 # Add scale of covar effect
@@ -171,16 +190,14 @@ if (stan_data$ncovar >= 1) {
   stan_data$beta_sigma_scale <- config$beta_sigma_scale
 }
 
-
 # Run model ---------------------------------------------------------------
 model.rand <- stan(
   file = stan_model_path,
   data = stan_data,
   chains = nchain,
   iter = niter,
-  thin = max(1,floor(niter/1000)),
-  pars = c("b", "t_rowsum", "vec_var"),
-  include = F,
+  pars = c("b", "t_rowsum", "vec_var", "lp_censored"),
+  include = T,
   control = list(
     max_treedepth = 15
   ),
