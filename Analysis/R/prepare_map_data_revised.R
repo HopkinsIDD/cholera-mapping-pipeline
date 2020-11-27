@@ -138,7 +138,7 @@ DBI::dbSendStatement(conn_pg, glue::glue_sql("CREATE INDEX  {`{DBI::SQL(paste0(l
 DBI::dbSendStatement(conn_pg, glue::glue_sql("VACUUM ANALYZE {`{DBI::SQL(lp_name)}`};", .con = conn_pg))
 
 # Table of correspondence between location periods and grid cells
-location_periods_table <- paste0("location_periods_", res_space, "_", res_space, "_dict_", dbuser)
+location_periods_table <- paste0(lp_name, "_dict")
 
 DBI::dbSendStatement(
   conn_pg,

@@ -175,9 +175,10 @@ prepare_covar_cube <- function(
                      )) %>% 
     dplyr::mutate(long_id = row_number())  # this is the overall cell id (from 1 to n_space x n_times)
   
-  # Table of correspondence between location periods and grid cells
-  username <- Sys.getenv("USER")
-  location_periods_table <- paste0("location_periods_", res_space, "_", res_space, "_dict_", username)
+  # Set user-specific name for location_periods table to use
+  lp_name <- makeLocationPeriodsTableName(dbuser = dbuser, map_name = map_name)
+  
+  location_periods_table <- paste0(lp_name, "_dict")
   
   # Get the dictionary of location periods to pixel ids
   location_periods_dict <- DBI::dbReadTable(conn_pg, location_periods_table)
