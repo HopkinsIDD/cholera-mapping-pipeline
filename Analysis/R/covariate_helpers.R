@@ -88,7 +88,7 @@ cleanAllTmp <- function(dbuser, map_name) {
   conn <- connectToDB(dbuser)
   lp_name <- makeLocationPeriodsTableName(dbuser, map_name)
   DBI::dbSendStatement(conn, glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(lp_name)}`};", .con = conn))
-  DBI::dbSendStatement(conn, glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(paste0(lp_name, '_dict')}`};", .con = conn)) 
+  DBI::dbSendStatement(conn, glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(paste0(lp_name, '_dict'))}`};", .con = conn)) 
   cntrd_table <- makeGridCentroidsTableName(dbuser, map_name)
   DBI::dbSendStatement(conn, glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(cntrd_table)}`};", .con = conn)) 
   DBI::dbDisconnect(conn)
