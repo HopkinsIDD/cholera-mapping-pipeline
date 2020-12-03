@@ -1,5 +1,4 @@
-forecast update 11/16
-p:
+pop:
   name: population
   description: population in each gridcell
   alias: pop
