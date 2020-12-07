@@ -121,9 +121,7 @@ prepare_covar_cube <- function(
         as.matrix()
 
       if (covar_date_metadata$src_res_time == "static") {
-        if ((n_time_slices - 1) > 1) {
-          dat <- cbind(dat, matrix(rep(dat, n_time_slices - 1), nrow = n_grid_cells))
-        }
+        dat <- matrix(rep(dat, n_time_slices), nrow = n_grid_cells)
       }
 
       # Verify the dimensions of the extracted covariate
