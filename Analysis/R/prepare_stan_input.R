@@ -30,7 +30,8 @@ prepare_stan_input <- function(
   non_na_gridcells,
   sf_grid,
   location_periods_dict,
-  covar_cube
+  covar_cube,
+  connect_islands = TRUE
 ) {
 
 
@@ -101,7 +102,7 @@ prepare_stan_input <- function(
     ng_cl <- igraph::clusters(ng)
 
     if (ng_cl$no > 1) {
-      cat("Found", ng_cl$no, "clusters of sizes {", paste(ng_cl$csize, collapse = ","), "} in time slice", it ,", adding edges from islands to mainland. \n")
+      cat("Found", ng_cl$no, "clusters of sizes {", paste(ng_cl$csize, collapse = ","), "} in time slice", it)
 
       cluster_ids <- seq_len(ng_cl$no)
       mainland <- which(ng_cl$csize == max(ng_cl$csize))[1]
@@ -111,16 +112,21 @@ prepare_stan_input <- function(
       smooth_centroids <- sf::st_geometry(sf::st_centroid(smooth_grid))
       for (i in cluster_ids[-mainland]) {
         island_ids <- which(ng_cl$membership == i)
-        # find closest mainland pixels (n_pix_islands x n_pix_mainland matrix)
-        dist_to_main <- sf::st_distance(smooth_centroids[island_ids], smooth_centroids[mainland_ids])
-        # get nearest ids for each island pixel
-        nearest_main_ids <- apply(dist_to_main, 1, function(x) which(x == min(x))[1])
-        nearest_dist <- unlist(mapply(x = 1:length(island_ids), y = nearest_main_ids, function(x, y) dist_to_main[x, y]))
-        # get overall nearest mainland pixel
-        nearest_isl_id <- which(nearest_dist == min(nearest_dist))[1]
-        # connect the nearest island to the mainland (symetry)
-        nn_mat[island_ids[nearest_isl_id], mainland_ids[nearest_main_ids[nearest_isl_id] ] ] <- 1
-        nn_mat[mainland_ids[nearest_main_ids[nearest_isl_id] ], island_ids[nearest_isl_id] ] <- 1
+        if (connect_islands) {
+          cat(", adding edges from islands to mainland. \n")
+                                        # find closest mainland pixels (n_pix_islands x n_pix_mainland matrix)
+          dist_to_main <- sf::st_distance(smooth_centroids[island_ids], smooth_centroids[mainland_ids])
+                                        # get nearest ids for each island pixel
+          nearest_main_ids <- apply(dist_to_main, 1, function(x) which(x == min(x))[1])
+          nearest_dist <- unlist(mapply(x = 1:length(island_ids), y = nearest_main_ids, function(x, y) dist_to_main[x, y]))
+                                        # get overall nearest mainland pixel
+          nearest_isl_id <- which(nearest_dist == min(nearest_dist))[1]
+                                        # connect the nearest island to the mainland (symetry)
+          nn_mat[island_ids[nearest_isl_id], mainland_ids[nearest_main_ids[nearest_isl_id] ] ] <- 1
+          nn_mat[mainland_ids[nearest_main_ids[nearest_isl_id] ], island_ids[nearest_isl_id] ] <- 1
+        } else {
+          cat(", removing them. \n")
+        }
       }
 
       # Check that everything is connected now

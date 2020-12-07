@@ -1,16 +1,11 @@
 # Preamble ---------------------------------------------------------------------
 
-# Check if variables exist
-
-setwd(cholera_directory)
-
-# Shapefile check ------------------------------------------------------------
-print("Starting Data Preparation Process")
-
-print(paste("Saving output data to ", preprocessed_data_fname))
+print("Obtaining cholera taxonomy data")
 
 
-# Define credentials for data pull
+
+### Pull case data
+                                        # Define credentials for data pull
 if (data_source == "api") {
   # NEED TO ADD WHO REGION LOOKUP AND APPEND FOR ALL LOCATIONS
   countries <- sapply(countries_name, taxdat::fix_country_name)
@@ -37,32 +32,59 @@ if (data_source == "api") {
   stop("Unknown data source, must be one of 'api', 'sql', found ", data_source)
 }
 
-# This pulls the data either from the mid-distance database or the postgresql
-# database on idmodeling2
-cases <- taxdat::pull_taxonomy_data(
-  username = username,
-  password = password,
-  locations = long_countries,
-  time_left = start_time,
-  time_right = end_time,
-  source = data_source
-) %>%
-  taxdat::rename_database_fields(source = data_source)
+## This pulls the data from either
+## - The web api (available everywhere)
+## - The postgres database (only on idmodeling2)
+cases_raw <- taxdat::pull_taxonomy_data_raw(
+    username = username,
+    password = password,
+    locations = long_countries,
+    time_left = start_time,
+    time_right = end_time,
+    source = data_source
+  )
 
-# Get OC UIDs for all extracted data
-uids <- sort(unique(cases$OC_UID))
-
-# Filter out NA cases, which represent missing observations, and non-primary observations (primary observations are only space-time stratified and these are the ones we want to focus on in these maps)
-cases <- dplyr::filter(cases, !is.na(.data[[cases_column]])) %>%
-  dplyr::filter(is_primary) %>%
-  dplyr::mutate(shapefile.exists = !is.na(sf::st_dimension(geojson)) & (sf::st_dimension(geojson) > 0))
+## Drop the locations and keep only the case data for now
+cases <- taxdat::rename_database_fields(cases_raw$case_data)
 
 # Sanity check (There should be at least one report)
 if (nrow(cases) == 0) {
-  stop("No primary, non-NA observations were found.")
+  stop("No observations were found.")
 } else {
   print(paste(nrow(cases), "observations were found."))
 }
+
+
+### Write cases to postgres
+                                        # Table name
+cases_table_name <- taxdat::create_table_name(map_name, "cases")
+                                        # Database connection
+taxdat::create_table_from_data_frame(
+  df = cases,
+  user_name = dbuser,
+  table_name = cases_table_name,
+  overwrite = config$cases$overwrite
+)
+
+taxdat::create_view_from_table_and_string(
+  table_name = cases_table_name,
+  view_name = taxdat::create_table_name(map_name, "modeling_cases"),
+  filters = c("{case_column} is not NULL", "is_primary")
+)
+
+if (taxdat::database_table_nrow(taxdat::create_table_name(map_name, "modeling_cases")) == 0) {
+  stop("No primary, non-NA observations were found.")
+} else {
+  print(paste(nrow(cases), "primary, non-NA observations were found."))
+}
+
+# Shapefile check ------------------------------------------------------------
+
+### Determine which shapefiles have problems
+
+shapefiles <- cases_raw$location_periods
+taxdat::is_shapefile_valid(shapefiles)
+
 
 ### Perform checks on shapefiles
 print("Finding Locations")
@@ -204,8 +226,6 @@ if (any(sf::st_is_empty(sf_cases))) {
 
 sf_cases$TL <- lubridate::ymd(sf_cases$TL)
 sf_cases$TR <- lubridate::ymd(sf_cases$TR)
-
-save(sf_cases, full_grid_name, file = preprocessed_data_fname)
 
 # close database
 DBI::dbDisconnect(conn_pg)

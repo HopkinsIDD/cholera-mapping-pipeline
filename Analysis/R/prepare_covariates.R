@@ -128,6 +128,8 @@ prepare_covariates <- function(
 
     if (!any(covar_in_db) & !ingest)
       stop(glue::glue("Couldn't find {covarit$type} covariate '{covarit$alias}' at temporal resolution of: {res_time}, and spatial resolution of: {res_x}x{res_y}km. The covariate needs to be preprocessed and ingested by an authorized users."))
+    if (!ovrt_covar & !ingest)
+      stop(glue::glue("Cannot overwrite covariates if not ingesting."))
 
 
     print(paste("CHECKPOINT C", paste(covarit, collapse = "::")))

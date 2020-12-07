@@ -1,5 +1,7 @@
 ## Preamble ------------------------------------------------------------------------------------------------------------
 
+print("---- Initializing ----\n")
+
 ### Set Error Handling
 if (Sys.getenv("INTERACTIVE_RUN", FALSE)) {
   options(warn = 1, error = recover)
@@ -71,7 +73,9 @@ cholera_directory <- rprojroot::find_root(rprojroot::has_file(".choldir"))
 laydir <- rprojroot::find_root_file("Layers", criterion = rprojroot::has_file(".choldir"))
 
 
+
 ## Inputs --------------------------------------------------------------------------------------------------------------
+
 print("---- Reading Parameters ----\n")
 
 ### Source for cholera data
@@ -205,168 +209,184 @@ if(testing){
                                         # Get username of user (docker doesn't provide username so default to app)
 dbuser <- Sys.getenv("USER", "app")
 
-                                        # Pipeline steps ---------------------------------------------------------------
 
-original_countries <- countries
 
-for(t_idx in 1:length(all_test_idx)){
-  gc()
-  test_idx = all_test_idx[t_idx]
-  if(!is.na(test_idx)){
-    countries = original_countries[t_idx]
-    niter = original_niter[t_idx]
-  }
+## Pipeline steps ------------------------------------------------------------------------------------------------------
+
+print("---- Running Pipeline ----\n")
+gc()
+
+any_testing <- FALSE
+if ("testing" %in% unlist(sapply(config, names))) {
+  any_testing <- TRUE
+}
                                         # Name the output file
-  if(testing){
-    map_name <- paste("testing", test_idx, sep = '.')
-  } else {
-    if(is.null(config$countries_name)){
-      if(length(countries) == 1){
-        config$countries_name <- config$countries
-      }
-    }
-    map_name <- paste(paste(config$countries_name, collapse = '-'),
-      res_time,
-      paste(start_time, end_time, sep = '-'),
-      paste(res_space, 'km', sep = ''),
-      suspected_or_confirmed, sep = '_')
+if (is.null(config$countries_name)) {
+  if (length(countries) == 1) {
+    config$countries_name <- config$countries
   }
+}
 
-  covariate_name_part <- paste(short_covariates, collapse = '-')
+map_name <- paste(
+  paste(config$countries_name, collapse = "-"),
+  res_time,
+  paste(start_time, end_time, sep = "-"),
+  paste(res_space, "km", sep = ""),
+  suspected_or_confirmed,
+  dbuser,
+  sep = "_"
+)
 
-  setwd(cholera_directory)
-  dir.create("Analysis/output", showWarnings = FALSE)
+if (any_testing) {
+  map_name <- paste("testing", map_name, sep = "_")
+}
 
-  preprocessed_data_fname <- taxdat::make_observations_filename(cholera_directory, map_name)
-  preprocessed_covar_fname <- taxdat::make_covar_filename(cholera_directory, map_name, covariate_name_part)
-  stan_input_fname <- taxdat::make_stan_input_filename(cholera_directory, map_name, covariate_name_part, stan_model, niter)
-  stan_output_fname <- taxdat::make_stan_output_filename(cholera_directory, map_name, covariate_name_part, stan_model, niter)
-  map_output_fname <- taxdat::make_map_output_filename(cholera_directory, map_name, covariate_name_part, stan_model, niter) ## ECL 10/22 I don't think this is used anywhere...
+covariate_name_part <- paste(short_covariates, collapse = "-")
+
+setwd(cholera_directory)
+dir.create("Analysis/output", showWarnings = FALSE)
+
+
+
+### Pull the case data and ingest into database
+
+source(paste(cholera_directory, "Analysis", "R", "prepare_map_data_revised.R", sep = "/"))
+
+
+
+### Extract extent from case data
+
+
+
+### Prepare master grid of appropriate resolution + extent
+
+
+
+### Compute location period 2D grid relation
+
+
 
                                         # Preparation: Load auxillary functions
                                         # source(stringr::str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
 
-  ## Step 1: process observation shapefiles and prepare data ##
-  print(preprocessed_data_fname)
-  if(file.exists(preprocessed_data_fname)){
-    print("Data already preprocessed, skipping")
-    warning("Data already preprocessed, skipping")
-    load(preprocessed_data_fname)
-  } else if(!testing){
-    source(paste(cholera_directory, 'Analysis', 'R', 'prepare_grid.R', sep='/'))
+## Step 1: process observation shapefiles and prepare data ##
+print(preprocessed_data_fname)
+if(file.exists(preprocessed_data_fname)){
+  print("Data already preprocessed, skipping")
+  warning("Data already preprocessed, skipping")
+  load(preprocessed_data_fname)
+} else if(!testing){
+  source(paste(cholera_directory, 'Analysis', 'R', 'prepare_grid.R', sep='/'))
 
                                         # First prepare the computation grid and get the grid name
-    full_grid_name <- prepare_grid(
-      dbuser = dbuser,
-      cholera_directory = cholera_directory,
-      res_space = res_space,
-      ingest = config$ingest_covariates
-    )
+  full_grid_name <- prepare_grid(
+    dbuser = dbuser,
+    cholera_directory = cholera_directory,
+    res_space = res_space,
+    ingest = config$ingest_covariates
+  )
 
                                         # Pull data from taxonomy database (either using the API or SQL)
-    source(paste(cholera_directory,'Analysis','R','prepare_map_data_revised.R',sep='/'))
 
-  } else {
-    source(paste(cholera_directory,"Analysis", "R", "create_standardized_testing_data.R",sep='/'))
-  }
+} else {
+  source(paste(cholera_directory,"Analysis", "R", "create_standardized_testing_data.R",sep='/'))
+}
 
-  ## Step 2: Extract the covariate cube and grid ##
-  print(preprocessed_covar_fname)
-  if (file.exists(preprocessed_covar_fname)) {
-    print("Covariate cube already preprocessed, skipping")
-    warning("Covariate cube already preprocessed, skipping")
-    load(preprocessed_covar_fname)
-  } else if(!testing){
+## Step 2: Extract the covariate cube and grid ##
+print(preprocessed_covar_fname)
+if (file.exists(preprocessed_covar_fname)) {
+  print("Covariate cube already preprocessed, skipping")
+  warning("Covariate cube already preprocessed, skipping")
+  load(preprocessed_covar_fname)
+} else if(!testing){
 
                                         # Note: the first covariate is always the population raster
-    ## Step 2a: ingest the required covariates ##
+  ## Step 2a: ingest the required covariates ##
                                         # Load the function
-    source(paste(cholera_directory, 'Analysis', 'R', 'prepare_covariates.R', sep='/'))
+  source(paste(cholera_directory, 'Analysis', 'R', 'prepare_covariates.R', sep='/'))
 
                                         # Run covariate preparation. The function return the list of covariate names
                                         # included in the model
-    covar_list <- prepare_covariates(
-      dbuser = dbuser,
-      cholera_covariates_directory = laydir,
-      res_space = res_space,
-      res_time = res_time,
-      ingest = config$ingest_covariates,
-      do_parallel = F,
-      ovrt_covar = config$ingest_new_covariates,
-      ovrt_metadata_table = config$ingest_new_covariates,
-      redo_metadata = config$ingest_new_covariates,
-      covar = paste(c('p', short_covariates), collapse = ','),  # add population as first covariate
-      full_grid_name = full_grid_name,
-      aoi_name = config$aoi
-    )
+  covar_list <- prepare_covariates(
+    dbuser = dbuser,
+    cholera_covariates_directory = laydir,
+    res_space = res_space,
+    res_time = res_time,
+    ingest = config$ingest_covariates,
+    do_parallel = F,
+    ovrt_covar = config$ingest_new_covariates,
+    ovrt_metadata_table = config$ingest_new_covariates,
+    redo_metadata = config$ingest_new_covariates,
+    covar = paste(c('p', short_covariates), collapse = ','),  # add population as first covariate
+    full_grid_name = full_grid_name,
+    aoi_name = config$aoi
+  )
 
-    ## Step 2b: create the covar cube
-    source(paste(cholera_directory, "Analysis/R/prepare_covar_cube.R", sep = "/"))
+  ## Step 2b: create the covar cube
+  source(paste(cholera_directory, "Analysis/R/prepare_covar_cube.R", sep = "/"))
 
-    covar_cube_output <- prepare_covar_cube(
-      covar_list = covar_list,
-      dbuser = dbuser,
-      cholera_directory = cholera_directory,
-      full_grid_name = full_grid_name,
-      start_time = start_time,
-      end_time = end_time,
-      res_space = res_space,
-      res_time = res_time,
-      username = dbuser
-    )
+  covar_cube_output <- prepare_covar_cube(
+    covar_list = covar_list,
+    dbuser = dbuser,
+    cholera_directory = cholera_directory,
+    full_grid_name = full_grid_name,
+    start_time = start_time,
+    end_time = end_time,
+    res_space = res_space,
+    res_time = res_time,
+    username = dbuser
+  )
 
                                         # Save results to file
-    save(covar_cube_output, file = preprocessed_covar_fname)
-  }
-  print("NCOVAR")
-  print(length(covariate_choices))
-  print("NCOVAR")
+  save(covar_cube_output, file = preprocessed_covar_fname)
+}
+print("NCOVAR")
+print(length(covariate_choices))
+print("NCOVAR")
 
-  ## Step 3: Prepare the stan input ##
-  print(stan_input_fname)
-  if(!file.exists(stan_input_fname)){
-    source(paste(cholera_directory, "Analysis/R/prepare_stan_input.R", sep = "/"))
+## Step 3: Prepare the stan input ##
+print(stan_input_fname)
+if(!file.exists(stan_input_fname)){
+  source(paste(cholera_directory, "Analysis/R/prepare_stan_input.R", sep = "/"))
 
-    stan_input <-  prepare_stan_input(
-      dbuser = dbuser,
-      cholera_directory = cholera_directory,
-      ncore = ncore,
-      res_time = res_time,
-      time_slices = time_slices,
-      smooth_covariate_number_timesteps = smooth_covariate_number_timesteps,
-      cases_column = cases_column,
-      sf_cases = sf_cases,
-      non_na_gridcells = covar_cube_output$non_na_gridcells,
-      sf_grid = covar_cube_output$sf_grid,
-      location_periods_dict = covar_cube_output$location_periods_dict,
-      covar_cube = covar_cube_output$covar_cube
-    )
+  stan_input <-  prepare_stan_input(
+    dbuser = dbuser,
+    cholera_directory = cholera_directory,
+    ncore = ncore,
+    res_time = res_time,
+    time_slices = time_slices,
+    smooth_covariate_number_timesteps = smooth_covariate_number_timesteps,
+    cases_column = cases_column,
+    sf_cases = sf_cases,
+    non_na_gridcells = covar_cube_output$non_na_gridcells,
+    sf_grid = covar_cube_output$sf_grid,
+    location_periods_dict = covar_cube_output$location_periods_dict,
+    covar_cube = covar_cube_output$covar_cube
+  )
 
                                         # Save data
-    save(stan_input, file = stan_input_fname)
-    sink(gsub('rdata','json', stan_input_fname))
-    cat(jsonlite::toJSON(stan_input$stan_data, auto_unbox=TRUE,matrix='rowmajor'))
-    sink(NULL)
+  save(stan_input, file = stan_input_fname)
+  sink(gsub('rdata','json', stan_input_fname))
+  cat(jsonlite::toJSON(stan_input$stan_data, auto_unbox=TRUE,matrix='rowmajor'))
+  sink(NULL)
 
-  } else {
-    print("Stan input already created, skipping")
-    warning("Stan input already created, skipping")
-  }
-  load(stan_input_fname)
+} else {
+  print("Stan input already created, skipping")
+  warning("Stan input already created, skipping")
+}
+load(stan_input_fname)
 
-  stan_data <- stan_input$stan_data
-  sf_cases_resized <- stan_input$sf_cases_resized
-  sf_grid <- covar_cube_output$sf_grid
+stan_data <- stan_input$stan_data
+sf_cases_resized <- stan_input$sf_cases_resized
+sf_grid <- covar_cube_output$sf_grid
 
-  ## Step 4: Run the model
-  print(stan_output_fname)
-  if(file.exists(stan_output_fname)){
-    print("Data already modeled, skipping")
-    warning("Data already modeled, skipping")
-    load(stan_output_fname)
-  } else {
-    source(paste(cholera_directory,'Analysis','R','run_stan_model.R',sep='/'))
-    recompile <- FALSE
-  }
-
+## Step 4: Run the model
+print(stan_output_fname)
+if(file.exists(stan_output_fname)){
+  print("Data already modeled, skipping")
+  warning("Data already modeled, skipping")
+  load(stan_output_fname)
+} else {
+  source(paste(cholera_directory,'Analysis','R','run_stan_model.R',sep='/'))
+  recompile <- FALSE
 }
