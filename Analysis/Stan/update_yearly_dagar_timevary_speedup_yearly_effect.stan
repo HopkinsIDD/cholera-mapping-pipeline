@@ -18,6 +18,7 @@ data {
   int <lower=0> M; //number of observations
   int <lower=0> y[M];//observed counts
   
+  int<lower=1> T; // number of time slices
   int <lower=0> L; // number of location periods (space and time)
   
   int <lower=M> K1; // the length of the mapping of observations to location periods and times
@@ -28,12 +29,14 @@ data {
   int <lower=0, upper=L> map_loc_grid_loc[K2]; // the location side of the mapping from locations to gridcells
   int <lower=0, upper=N> map_loc_grid_grid[K2]; // the gridcell side of the mapping from locations to gridcells
   
+  matrix[N, T-1] mat_grid_time; // The time side of the mapping from locations/times to grid
   int <lower=0,upper=smooth_grid_N> map_smooth_grid[N]; //vector with repeating smooth_grid_N indexes repeating 1:N
   
   // Covariate stuff
   int ncovar; // Number of covariates
   matrix[N,ncovar] covar; // Covariate matrix
   int<lower=0> beta_sigma_scale;
+  real<lower=0> sigma_eta_scale; // the scale of inter-annual variability
 }
 
 transformed data {
@@ -76,6 +79,9 @@ parameters {
   
   vector[smooth_grid_N] w; // Spatial Random Effect
   
+  vector[T-1] eta_tilde; // yearly random effects
+  real <lower=0> sigma_eta_tilde;
+  
   // Covariate stuff
   vector[ncovar] betas;
 }
@@ -88,12 +94,18 @@ transformed parameters {
   vector[smooth_grid_N] std_dev; // Rescaled std_dev by std_dev_w
   vector<lower=0>[L] location_cases; //cases modeled in each (temporal) location.
   vector<lower=0>[N] grid_cases; //cases modeled in each gridcell and time point.
-  // real w_sum;
+  vector[T-1] eta; // yearly random effects
   
   real<lower=0> modeled_cases[M]; //expected number of cases for each observation
   real<lower=0> std_dev_w;
   
   std_dev_w = exp(log_std_dev_w);
+  
+  for(i in 1:(T-1)) {
+    // scale yearly random effects
+    eta[i] = sigma_eta_scale * sigma_eta_tilde * eta_tilde[i];
+  }
+  
   
   // Construct w
   vec_var = (1 - rho * rho) ./ (1 + (1. * diag - 1) * rho * rho);
@@ -106,7 +118,7 @@ transformed parameters {
     t_rowsum[node1[i] ] += w[node2[i] ] * b[ node1[i] ];
   }
   
-  log_lambda =  w[map_smooth_grid] + log_meanrate + covar * betas;
+  log_lambda =  w[map_smooth_grid] + log_meanrate + covar * betas + mat_grid_time * eta;
   grid_cases = exp(log_lambda + logpop);
   
   //calculate the expected number of cases by location
@@ -123,7 +135,6 @@ transformed parameters {
   for (i in 1:M) {
     modeled_cases[i] = 0;
   }
-  
   
   //now accumulate
   for (i in 1:K1) {

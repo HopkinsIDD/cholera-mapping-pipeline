@@ -16,7 +16,14 @@ data {
   real <lower=0, upper=1> meanrate;
   
   int <lower=0> M; //number of observations
-  int <lower=0> y[M];//observed counts
+  int <lower=0> y[M];      //observed counts
+  int <lower=0, upper=M> M_full;    // number of observations that cover a full modeling time slice
+  int <lower=0, upper=M> M_left;    // number of left-censored observations (open lower bound on the observation)
+  int <lower=0, upper=M> M_right;   // number of right-censored observations (open upper bound on the observation)
+  
+  int <lower=1, upper=M> ind_full[M_full];    // indexes of full observations
+  int <lower=1, upper=M> ind_left[M_left];    // indexes of left-censored observations
+  int <lower=1, upper=M> ind_right[M_right];   // indexes of right-censored observations
   
   int <lower=0> L; // number of location periods (space and time)
   
@@ -78,6 +85,7 @@ parameters {
   
   // Covariate stuff
   vector[ncovar] betas;
+  
 }
 
 transformed parameters {
@@ -124,10 +132,9 @@ transformed parameters {
     modeled_cases[i] = 0;
   }
   
-  
   //now accumulate
   for (i in 1:K1) {
-    modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i] ];
+    modeled_cases[map_obs_loctime_obs[i]] += location_cases[map_obs_loctime_loc[i]];
   }
   //w_sum = sum(w);
   std_dev = std_dev_w * sqrt(vec_var);
@@ -145,8 +152,46 @@ model {
   // prior on regression coefficients
   betas ~ normal(0, beta_sigma_scale);
   
-  //data model for estimated rates
-  for(i in 1:M){
-    target += poisson_lpmf(y[i] | modeled_cases[i])/weights[i];
+  if (M_full > 0) {
+    //data model for estimated rates for full time slice observations
+    target += poisson_lpmf(y[ind_full]| modeled_cases[ind_full]);
+  }
+  
+  
+  if (M_right > 0) {
+    //data model for estimated rates for right-censored time slice observations
+    //note that according to Stan the complementary CDF, or CCDF(Y|modeled_cases))
+    // is defined as Pr(Y > y | modeled_cases),
+    // we therefore add the probability Pr(Y = y|modeled_cases) to CCDF(y|modeled_casees)
+    // to get Pr(Y >= y|modeled_cases)
+    //https://mc-stan.org/docs/2_25/functions-reference/cumulative-distribution-functions.html
+    
+    vector[M_right] lp_censored;
+    
+    for(i in 1:M_right){
+      real lpmf;
+      lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+      // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
+      if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
+        real lls[2];
+        lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+        lls[2] = lpmf;
+        lp_censored[i] = log_sum_exp(lls);
+      } else {
+        lp_censored[i] = lpmf;
+      }
+    }
+    target += sum(lp_censored);
+  }
+}
+generated quantities {
+  real<lower=0> tfrac_modeled_cases[M]; //expected number of cases for each observation
+  //first initialize to 0
+  for (i in 1:M) {
+    tfrac_modeled_cases[i] = 0;
+  }
+  //now accumulate
+  for (i in 1:K1) {
+    tfrac_modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
   }
 }

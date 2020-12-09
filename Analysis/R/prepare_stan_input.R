@@ -194,7 +194,7 @@ prepare_stan_input <- function(
         as.data.frame(adjacency_list),
         row
       ),
-       n = length(col)
+      n = length(col)
     )
   )
   number_of_neighbors <- rep(0,times = nrow(smooth_grid))
@@ -229,29 +229,124 @@ prepare_stan_input <- function(
     model_time_slices = time_slices,
     res_time = res_time,
     n_cpus = ncore,
-    do_parallel = TRUE)
+    do_parallel = FALSE)
 
   non_na_obs <- sort(unique(ind_mapping$map_obs_loctime_obs))
   sf_cases_resized <- sf_cases[non_na_obs, ]
-  obs_changer <- setNames(seq_len(length(non_na_obs)),non_na_obs)
-  stan_data$map_obs_loctime_obs <- obs_changer[as.character(ind_mapping$map_obs_loctime_obs)]
-  stan_data$map_obs_loctime_loc <- ind_mapping$map_obs_loctime_loc
-  stan_data$tfrac <- ind_mapping$tfrac
-  stan_data$map_loc_grid_loc <- ind_mapping$map_loc_grid_loc
-  stan_data$map_loc_grid_grid <- ind_mapping$map_loc_grid_grid
 
-  y_tfrac <- tibble::tibble(tfrac = stan_data$tfrac,
-                    map_obs_loctime_obs = stan_data$map_obs_loctime_obs) %>%
-    dplyr::group_by(map_obs_loctime_obs) %>%
-    dplyr::summarize(tfrac = mean(tfrac)) %>%
+  if (config$aggregate) {
+    print("---- AGGREGATING CHOLERA DATA TO MODELING TIME RES ----")
+    ## aggregate observations:
+    sf_cases_resized$loctime <- ""
+    for(i in seq_len(length(ind_mapping$map_obs_loctime_obs))) {
+      sf_cases_resized$loctime[which(non_na_obs == ind_mapping$map_obs_loctime_obs[i])] <- paste(sf_cases_resized$loctime[which(non_na_obs == ind_mapping$map_obs_loctime_obs[i])] , 
+                                                                                                 ind_mapping$map_obs_loctime_loc[i])
+    }
+    sf_cases_resized$loctime <- gsub("^ ","",sf_cases_resized$loctime)
+    ocrs <- sf::st_crs(sf_cases_resized)
+    sf_cases_resized <- sf_cases_resized %>%
+      dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
+      dplyr::group_modify(function(.x,.y){
+        cat("iter", unlist(.y), "\n")
+        if(nrow(.x) <= 1 ){return(.x %>% dplyr::select(TL,TR,!!rlang::sym(cases_column)))}
+        ## combine non-adjacent but overlapping observations
+        .x <- dplyr::arrange(dplyr::mutate(.x, set=as.integer(NA)),desc(TR))
+        .x$set[[1]] <- 0
+        current_set <- 1
+        something_changed <- TRUE
+        while(any(is.na(.x$set))){
+          # print("LOOPING")
+          # print(.x$set)
+          new_set_indices <- (rev(cummax(rev(!is.na(.x$set)))) == 1) & is.na(.x$set)
+          if(any(new_set_indices) & (!something_changed)){
+            .x$set[[which(new_set_indices)[[1]] ]] <- current_set
+            # print("Assigning from new_set_indices")
+            # print(.x$set)
+            current_set <- current_set + 1
+            something_changed <- TRUE
+          } else if(!something_changed){
+            .x$set[[which(is.na(.x$set))[[1]] ]] <- current_set
+            # print("Starting a new set")
+            # print(.x$set)
+            current_set <- current_set + 1
+            something_changed <- TRUE
+          }
+          something_changed <- FALSE
+          for(set_idx in (seq_len(current_set) - 1) ){
+            possible_extensions <- (.x$TR < .x$TL[max(which((.x$set == set_idx) & !is.na(.x$set)))]) & is.na(.x$set)
+            if(any(possible_extensions)){
+              .x$set[[min(which(possible_extensions))]] <- set_idx
+              # print(paste("Extending an existing set",set_idx))
+              # print(.x$set)
+              something_changed <- TRUE
+            }
+          }
+        }
+        ## The TL calculation here is made up
+        .ox <- .x
+        .x$duration <- .x$TR - .x$TL + 1
+        .x <- .x %>% group_by(set) %>% summarize(TL = min(TL), TR = min(TL) + sum(duration) - 1 , !!cases_column := sum(!!rlang::sym(cases_column),na.rm=TRUE)) %>% ungroup() %>% dplyr::select(-set)
+        return(.x)
+      }) %>% 
+      ungroup() 
+    # sf_cases_resized$geom <- sf::st_as_sfc(sf_cases_resized$geom)
+    sf_cases_resized <- sf::st_as_sf(sf_cases_resized)
+    sf::st_crs(sf_cases_resized) <- ocrs
+    
+    # Re-compute space-time indices based on aggretated data
+    ind_mapping_resized <- getSpaceTimeIndSpeedup(
+      df = sf_cases_resized, 
+      lp_dict = location_periods_dict,
+      model_time_slices = time_slices,
+      res_time = res_time,
+      n_cpus = ncore,
+      do_parallel = F)
+  } else {
+    print("---- USING RAW CHOLERA DATA ----")
+    ind_mapping_resized <- ind_mapping
+  }
+  
+  
+  
+  non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
+  
+  obs_changer <- setNames(seq_len(length(non_na_obs_resized)),non_na_obs_resized)
+  stan_data$map_obs_loctime_obs <- obs_changer[as.character(ind_mapping_resized$map_obs_loctime_obs)]
+  stan_data$map_obs_loctime_loc <- ind_mapping_resized$map_obs_loctime_loc
+  stan_data$tfrac <- ind_mapping_resized$tfrac
+  stan_data$map_loc_grid_loc <- ind_mapping_resized$map_loc_grid_loc
+  stan_data$map_loc_grid_grid <- ind_mapping_resized$map_loc_grid_grid
+  stan_data$u_loctime <- ind_mapping_resized$u_loctimes
+  
+  y_tfrac <- tibble(tfrac = stan_data$tfrac, 
+                    map_obs_loctime_obs = stan_data$map_obs_loctime_obs) %>% 
+    dplyr::group_by(map_obs_loctime_obs) %>% 
+    dplyr::summarize(tfrac = mean(tfrac)) %>%  # We take the average over time so we can sum population over time
     .[["tfrac"]]
-  # stan_data$tfrac <- dplyr::group_by(ind_mapping, map_obs) %>%
-  #   dplyr::summarize(tfrac = mean(tfrac)) %>%
-  #   .[["tfrac"]]
-
+  
   stan_data$M <- nrow(sf_cases_resized)
   stan_data$y <- sf_cases_resized[[cases_column]]
-
+  
+  # Extract censoring information
+  censoring_inds <- map_chr(
+    1:stan_data$M, 
+    function(x) {
+      # Get all tfracs for the given observation
+      tfracs <- stan_data$tfrac[stan_data$map_obs_loctime_obs == x]
+      # Define right-censored if any tfrac is smaller than 95% of the time slice
+      ifelse(any(tfracs < 0.95), "right-censored", "full")
+    })
+  
+  # Get censoring indexes 
+  stan_data$ind_full <- which(censoring_inds == "full") %>% array()
+  stan_data$M_full <- length(stan_data$ind_full)
+  # TODO Left-censoring is not implemented for now
+  stan_data$ind_left <- which(censoring_inds == "left-censored") %>% array()
+  stan_data$M_left <- length(stan_data$ind_left)
+  stan_data$ind_right <- which(censoring_inds == "right-censored") %>% array()
+  stan_data$M_right <- length(stan_data$ind_right)
+  stan_data$censoring_inds <- censoring_inds
+  
   bad_data <- as.data.frame(sf_cases)[
     !(seq_len(nrow(sf_cases)) %in% non_na_obs),
     c('id','TL','TR',cases_column,'valid','attributes.location_period_id')
@@ -278,7 +373,7 @@ prepare_stan_input <- function(
 
   stan_data$K1 <- length(stan_data$map_obs_loctime_obs)
   stan_data$K2 <- length(stan_data$map_loc_grid_loc)
-  stan_data$L <- length(ind_mapping$u_loctimes)
+  stan_data$L <- length(ind_mapping_resized$u_loctimes)
   stan_data$ncovar <- length(covariate_choices)
 
   print(stan_data$ncovar)
@@ -311,27 +406,34 @@ prepare_stan_input <- function(
       stan_data$covar[,  i] <- stan_data$covar[ , i] / max(abs(stan_data$covar[, i]))
     }
   }
-
-  full_grid <- dplyr::left_join(sf::st_drop_geometry(sf_grid),sf::st_drop_geometry(smooth_grid))[,c('upd_id','smooth_id')]
+  
+  full_grid <- dplyr::left_join(sf::st_drop_geometry(sf_grid),sf::st_drop_geometry(smooth_grid))[,c('upd_id','smooth_id', 't')]
   nobs <- length(unique(stan_data$map_obs_loctime_obs))
   # Compute population corresponding to each observation
   aggpop <- rep(0, nobs)
   for(i in 1:nobs) {
     lps <- stan_data$map_obs_loctime_loc[which(stan_data$map_obs_loctime_obs==i)]
-    for (lp in lps) {
-      aggpop[i] <- sum(stan_data$pop[stan_data$map_loc_grid_grid[stan_data$map_loc_grid_loc == lp]])
+    for (lp in lps) { # This is summed over years so tfrac is averaged over years
+      aggpop[i] <- aggpop[i] + sum(stan_data$pop[stan_data$map_loc_grid_grid[stan_data$map_loc_grid_loc == lp]])
     }
   }
 
   # Compute the mean incidence
   # Note that this is in the model's temporal resolution
   stan_data$meanrate <- sum(stan_data$y * y_tfrac)/sum(aggpop)
-
+  if(stan_data$meanrate < 1e-10){
+    stan_data$meanrate <- 1e-10
+    print("The mean rate was less than 1e-10, so increased it to 1e-10")
+    warning("The mean rate was less than 1e-10, so increased it to 1e-10")
+  }
   cat("----\nMean cholera incidence is of", formatC(stan_data$meanrate*1e5, format = "e", digits = 2),
       "cases per 100'000 people per", res_time, "\n----")
 
   stan_data$smooth_grid_N <- nrow(smooth_grid)
   stan_data$map_smooth_grid <- full_grid$smooth_id
+  stan_data$map_grid_time <- full_grid$t
+  stan_data['T'] <- nrow(time_slices)
+  
   stan_data$map_full_grid <- full_grid$upd_id
 
   cat("**** FINISHED PREPARING STAN INPUT \n")

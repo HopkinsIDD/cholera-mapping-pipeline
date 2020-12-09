@@ -22,11 +22,37 @@ if (!require(taxdat)) {
   detach("package:taxdat")
 }
                                         # Install required packages
-package_list <- c("inline", "DBI", "parallel", "rstan", "sf", "magrittr", "RPostgreSQL",
-  "odbc", "sf", "raster", "lubridate", "tidync", "ncdf4", "stringr",
-  "dplyr", "R.utils", "ncdf4", "gdalUtils", "foreach", "glue",
-  "spdep", "igraph", "itertools", "purrr", "optparse", "RPostgres", "rjson",
-  "geojsonsf", "rpostgis")
+package_list <- c(
+  "DBI",
+  "digest",
+  "dplyr",
+  "foreach",
+  "gdalUtils",
+  "glue",
+  "geojsonsf",
+  "igraph",
+  "inline",
+  "itertools",
+  "lubridate",
+  "magrittr",
+  "mgcv",
+  "ncdf4",
+  "odbc",
+  "optparse",
+  "parallel",
+  "purrr",
+  "R.utils",
+  "raster",
+  "rjson",
+  "rstan",
+  "rpostgis",
+  "RPostgres",
+  "sf",
+  "spdep",
+  "stringr",
+  "tidync",
+  "tibble"
+)
 
 for (package in package_list) {
   if (!require(package = package, character.only = T)) {
@@ -225,11 +251,14 @@ for(t_idx in 1:length(all_test_idx)){
         config$countries_name <- config$countries
       }
     }
+    warning("We should revisit the way we name maps")
     map_name <- paste(paste(config$countries_name, collapse = '-'),
       res_time,
       paste(start_time, end_time, sep = '-'),
       paste(res_space, 'km', sep = ''),
-      suspected_or_confirmed, sep = '_')
+      suspected_or_confirmed,
+      # str_replace(last(str_split(opt$config, "/")[[1]]), "\\.yml", ""),
+      sep = '_')
   }
 
   covariate_name_part <- paste(short_covariates, collapse = '-')
@@ -306,6 +335,7 @@ for(t_idx in 1:length(all_test_idx)){
     covar_cube_output <- prepare_covar_cube(
       covar_list = covar_list,
       dbuser = dbuser,
+      map_name = map_name,
       cholera_directory = cholera_directory,
       full_grid_name = full_grid_name,
       start_time = start_time,
@@ -356,8 +386,8 @@ for(t_idx in 1:length(all_test_idx)){
 
   stan_data <- stan_input$stan_data
   sf_cases_resized <- stan_input$sf_cases_resized
-  sf_grid <- covar_cube_output$sf_grid
-
+  sf_grid <- stan_input$sf_grid
+    
   ## Step 4: Run the model
   print(stan_output_fname)
   if(file.exists(stan_output_fname)){
@@ -368,5 +398,7 @@ for(t_idx in 1:length(all_test_idx)){
     source(paste(cholera_directory,'Analysis','R','run_stan_model.R',sep='/'))
     recompile <- FALSE
   }
-
+  
+  taxdat::clean_all_tmp(dbuser = dbuser, map_name = map_name)
+  
 }
