@@ -33,6 +33,7 @@ package_list <- c(
   "igraph",
   "inline",
   "itertools",
+  "jsonlite",
   "lubridate",
   "magrittr",
   "mgcv",
