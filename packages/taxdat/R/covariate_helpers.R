@@ -299,8 +299,8 @@ parse_time_res <- function(x) {
   res_time <- strsplit(x, " ")[[1]]
 
   # add an 's' to the end
-  if (!str_detect(res_time[2], "s$")) {
-    res_time[2] <- str_c(res_time[2], "s")
+  if (!stringr::str_detect(res_time[2], "s$")) {
+    res_time[2] <- stringr::str_c(res_time[2], "s")
   }
   return(
     list(
