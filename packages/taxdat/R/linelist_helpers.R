@@ -1,19 +1,20 @@
 #' @export
 #' @name linelist2phantom
 #' @title linelist2phantom
-#' @description Takes a linelist and adds phantom observations where appropriate
+#' @description Takes a line ist and adds daily primary phantom observations for locations and dates not present in the linelist
 #' @param linelist A linelist.  The following columns are required:
 #'   - location
 #'   - TL 
 #'   - TR
 #'   - at least one of 
-#'     - suspected_cases
-#'     - confirmed_cases
-#' @param assumed_complete_location The location the data is assumed complete below
-#' @param assumed_complete_TL The starting time for the linelist data (defaults to the first time reported)
+#'     - sCh (suspected cases)
+#'     - cCh (confirmed cases)
+#'     - deaths
+#' @param assumed_complete_location The location below which the data is assumed complete (e.g., "AFR::ETH" for a linelist representing the whole country of Ethiopia)
+#' @param assumed_complete_TL The starting time for the linelist data (defaults to the first time reported in the linelist)
 #' @param assumed_complete_TR The ending time for the linelist data (defaults to the first time reported)
-#' @param location_columns One or more columns containing locations.  If one column is given, delimit location levels by '::'
-#' @param case_columns One or more columns containing case values to accumulate
+#' @param location_columns The names of one or more columns containing locations (e.g., "Location" or c("ISO_A1", "ISO_A2_L1")). If only one column is given, delimit location levels by '::'
+#' @param case_columns One or more columns containing case values across which to accumulate. Defaults to sCh, cCh, and deaths.
 #' @return A data_frame with the following columns
 #'  - TL
 #'  - TR
@@ -93,12 +94,14 @@ linelist2phantom <- function(
   )
   
   # Create combination of all locations and times
-  all_combinations <- test %>% tidyr::expand(
+  all_combinations <- tidyr::expand(
+    test, 
     TL = time_range,
     tidyr::nesting(Location,lowest_level)
-    ) %>%
-    mutate(
-      TR = TL
+    )
+  all_combinations <- dplyr::mutate(
+    all_combinations,
+    TR = TL
     )
   
   # Expand to cover all times for all locations
@@ -128,8 +131,8 @@ linelist2phantom <- function(
   test$Phantom = TRUE
   original_linelist$Phantom = FALSE
   if(length(location_columns) > 1){
-    linelist <- dplyr::bind_rows(original_linelist,test) %>%
-      tidyr::separate("Location",location_columns,sep='::')
+    linelist <- dplyr::bind_rows(original_linelist,test)
+    linelist <- tidyr::separate(linelist, "Location",location_columns,sep='::')
   } else {
     linelist <- dplyr::bind_rows(original_linelist,test)
     linelist[[location_columns]] <- linelist$Location
@@ -140,6 +143,11 @@ linelist2phantom <- function(
   return(linelist)
 }
 
+#' @name na_smart_sum
+#' @title na_smart_sum
+#' @description Helper function to sum vectors with NA values correctly
+#' @param x vector to sum
+#' @return
 na_smart_sum <- function(x){
   if(all(is.na(x))){
     return(as.numeric(NA))
@@ -148,9 +156,17 @@ na_smart_sum <- function(x){
   }
 }
 
+#' @name expand_all_locations
+#' @title expand_all_locations
+#' @description Helper function to get full list of locations
+#' @param .x dataframe for group_map
+#' @param .y groups for group_map
+#' @param assumed_complete_location string with assumed complete location
+#' @param all_locations list of unique locations
+#' @return
 expand_all_locations = function(.x, .y, assumed_complete_location, all_locations){
   # Compute some of all data columns for specific combination of location, TL and TR
-  .x <- summarize_all(.x, na_smart_sum)
+  .x <- dplyr::summarize_all(.x, na_smart_sum)
   # Get all the names of all location levels in location period
   all_location <- strsplit(.y$Location, "::")[[1]]
   # Create consistent location hierarchy

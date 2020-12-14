@@ -17,22 +17,30 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Checkout Layers
+        uses: actions/checkout@v2
+        with:
+          repository: HopkinsIDD/cholera-covariates
+          path: Layers/
+          lfs: true
+          token: ${{ secrets.PERSONAL_TOKEN }}
       - name: Set up Rprofile
         run: cp Docker.Rprofile $HOME/.Rprofile
         shell: bash
       - name: Run taxdat tests
         run: |
           setwd("packages/taxdat")
-          install.packages('devtools',repos='https://cloud.r-project.org/')
           devtools::test(stop_on_failure=TRUE)
         shell: Rscript {0}
       - name: Run integration tests
-        # env: 
-        #   CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+        env:
+          CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
+          CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
         run: |
-          service start postgresql &
+          service postgresql start
+          bash grant_cholera_database.sh root
           Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
+          export USER=root
           cd test
           Rscript run_tests.R
         shell: bash
-

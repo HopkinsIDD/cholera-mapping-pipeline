@@ -1,9 +1,10 @@
-# nb2graph
-#
-# input: nb_object
-# returns: dataframe containing num nodes, num edges,
-#          and a list of graph edges from node1 to node2.
-# from: https://github.com/stan-dev/example-models/blob/master/knitr/car-iar-poisson/nb_data_funs.R
+
+#' @name nb2graph
+#' @title nb2graph
+#' @param x nb_object
+#'
+#' @return dataframe containing num nodes, num edges, and a list of graph edges from node1 to node2. from: https://github.com/stan-dev/example-models/blob/master/knitr/car-iar-poisson/nb_data_funs.R
+#' @export
 nb2graph <- function(x) {
   N <- length(x)
   n_links <- 0
@@ -35,6 +36,7 @@ nb2graph <- function(x) {
   return(list("N" = N, "N_edges" = N_edges, "node1" = node1, "node2" = node2))
 }
 
+
 #' @title Get space time index
 #'
 #' @description Compute the space-time index of observations based on a reference grid and its location-period and time
@@ -42,20 +44,20 @@ nb2graph <- function(x) {
 #' @param df the dataframe of the cholera cases
 #' @param lp_dict the location-periods dictionary
 #' @param model_time_slices dataframe of left and right bounds of the modeling time slices
-#' @param do_parallel 
-#' @param n_cpus
+#' @param res_time the time resolution of the model
+#' @param do_parallel whether to compute indices in parallel or not
+#' @param n_cpus the number of cpus to do parellel computatoin
 #'
 #' @details the space-time indices are a replication of the grid indices with an offset of the number of pixels
 #'
-#' @return a list with the mapping to observations, the mapping to grid cells
-#'  and the fraction of modelling time step covered by each observatoin
-#'  
-getSpaceTimeInd <- function(df, 
-                            lp_dict, 
-                            model_time_slices, 
-                            res_time,
-                            do_parallel = T, 
-                            n_cpus = parallel::detectCores() - 2) {
+#' @return a list with the mapping to observations, the mapping to grid cells and the fraction of modelling time step covered by each observation
+#' @export
+get_space_time_ind <- function(df, 
+                               lp_dict, 
+                               model_time_slices, 
+                               res_time,
+                               do_parallel = T, 
+                               n_cpus = parallel::detectCores() - 2) {
   
   
   if(do_parallel) {
@@ -88,7 +90,7 @@ getSpaceTimeInd <- function(df,
           
           # Get the modeling time slices covered by the data
           temporal_bands <- seq(
-            last(which(model_time_slices$TL <= r$TL[1])),
+            dplyr::last(which(model_time_slices$TL <= r$TL[1])),
             which(model_time_slices$TR >= r$TR[1])[1]
           )
           
@@ -115,9 +117,9 @@ getSpaceTimeInd <- function(df,
             
             timefracs <- tf[as.character(time_slices_ind)]
             
-            tibble(map_obs = rep(i, length(cell_ind)), 
-                   map_cell = cell_ind, 
-                   tfrac = timefracs)
+            tibble::tibble(map_obs = rep(i, length(cell_ind)), 
+                           map_cell = cell_ind, 
+                           tfrac = timefracs)
           }
         }
       )
@@ -136,26 +138,29 @@ getSpaceTimeInd <- function(df,
 #' @title Get space time index
 #'
 #' @description Compute the space-time index of observations based on a reference grid and its location-period and time
+#' This version of the code is to run the speedup Stan code which maps observations to location periods and 
+#' location periods to grid cells
 #'
 #' @param df the dataframe of the cholera cases
 #' @param lp_dict the location-periods dictionary
 #' @param model_time_slices dataframe of left and right bounds of the modeling time slices
 #' @param do_parallel 
-#' @param n_cpus
+#' @param do_parallel whether to compute indices in parallel or not
+#' @param n_cpus the number of cpus to do parellel computatoin
 #'
 #' @details the space-time indices are a replication of the grid indices with an offset of the number of pixels.
 #' In this version we compute to mappings: from observations to location periods and from
 #' location periods to grid cells
 #'
 #' @return a list with the mapping to observations, the mapping to grid cells
-#'  and the fraction of modelling time step covered by each observatoin
-#'  
-getSpaceTimeIndSpeedup <- function(df, 
-                                   lp_dict, 
-                                   model_time_slices, 
-                                   res_time,
-                                   do_parallel = T, 
-                                   n_cpus = parallel::detectCores() - 2) {
+#'  and the fraction of modelling time step covered by each observation
+#' @export
+get_space_time_ind_speedup <- function(df, 
+                                       lp_dict, 
+                                       model_time_slices, 
+                                       res_time,
+                                       do_parallel = T, 
+                                       n_cpus = parallel::detectCores() - 2) {
   
   
   if(do_parallel) {
@@ -190,7 +195,7 @@ getSpaceTimeIndSpeedup <- function(df,
           
           # Get the modeling time slices covered by the data
           temporal_bands <- seq(
-            last(which(model_time_slices$TL <= r$TL[1])),
+            dplyr::last(which(model_time_slices$TL <= r$TL[1])),
             which(model_time_slices$TR >= r$TR[1])[1]
           )
           
@@ -227,12 +232,12 @@ getSpaceTimeIndSpeedup <- function(df,
             
             timefracs <- tf[as.character(lp_loctime_t$t)]
             
-            tibble(obs = i,
-                   map_obs_loctime_obs = list(rep(i, nrow(lp_loctime_t))), 
-                   map_obs_loctime_loc = list(lp_loctime_t$loctime_id),
-                   map_loc_grid_loc = list(lp_inds),
-                   map_loc_grid_grid = list(cell_ind), 
-                   tfrac = list(timefracs))
+            tibble::tibble(obs = i,
+                           map_obs_loctime_obs = list(rep(i, nrow(lp_loctime_t))), 
+                           map_obs_loctime_loc = list(lp_loctime_t$loctime_id),
+                           map_loc_grid_loc = list(lp_inds),
+                           map_loc_grid_grid = list(cell_ind), 
+                           tfrac = list(timefracs))
           }
         }
       )

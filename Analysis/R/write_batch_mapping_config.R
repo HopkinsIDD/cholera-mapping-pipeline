@@ -1,5 +1,3 @@
-library(tidyverse)
-source("Analysis/R/automate_mapping_config_utils.R")
 
 #### Modify the following settings      ############## 
 #### to generate one config per country ##############
@@ -37,7 +35,7 @@ for (i in 1:nrow(params_df)){
   config_fname <- paste0(config_path2, "/config_", row$countries_name, "_", start_year, "_", end_year, ".yml")
 
   sink(file = config_fname)
-  automate_mapping_config(row, covar_names)
+  taxdat::automate_mapping_config(row, covar_names)
   sink()
 
 }

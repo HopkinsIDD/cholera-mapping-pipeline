@@ -9,7 +9,7 @@
 
 prepare_covariates <- function(
   dbuser,
-  cholera_directory,
+  cholera_covariates_directory,
   res_space,
   res_time,
   ingest,
@@ -22,25 +22,13 @@ prepare_covariates <- function(
   full_grid_name,
   aoi_name = "raw"
 ) {
-  
+
   # Preamble ---------------------------------------------------------------------
-  library(tidyverse)
-  library(magrittr)
-  library(DBI)
-  library(foreach)
-  library(raster)
-  library(sf)
-  library(rgdal)
-  library(gdalUtils)
-  library(glue)
-  library(ncdf4)
-  
-  # Get files
-  source(str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
-  
+
+
   # print(str(list(
   #   dbuser =  dbuser,
-  #   cholera_directory = cholera_directory,
+  #   cholera_covariates_directory = cholera_covariates_directory,
   #   res_space = res_space,
   #   res_time = res_time,
   #   ingest = ingest,
@@ -51,63 +39,64 @@ prepare_covariates <- function(
   #   covar = covar,
   #   full_grid_name = full_grid_name
   # )))
-  
-  
+
+
   # Inputs ------------------------------------------------------------------
-  
+
   # User-defined parameters
   # Spatial resolution
   res_x <- res_space    # longitude resolution in km
   res_y <- res_space    # latitude resolution in km
-  
-  # Temporal resolution 
-  res_time_list <- parseTimeRes(res_time)
-  
+
+  # Temporal resolution
+  res_time_list <- taxdat::parse_time_res(res_time)
+
   # Other parameters
   km_to_deg <- 1/110.57    # how many degrees is a km at the equator
-  
+
   # Other objects
-  conn_pg <- connectToDB(dbuser)
-  
+  conn_pg <- taxdat::connect_to_db(dbuser)
+
   # Dictionary of aliases and aggregators for covariates
-  covar_dict <- yaml::read_yaml(paste0(cholera_directory, "/Layers/covariate_dictionary.yml"))
-  
+  covar_dict <- yaml::read_yaml(paste0(cholera_covariates_directory, "/covariate_dictionary.yml"))
+
   # Covariates to include in the model
-  covar_abbr_list <- str_split(covar, ",")[[1]]
+  covar_abbr_list <- stringr::str_split(covar, ",")[[1]]
   covar_toingest_list <- covar_dict[unlist(lapply(covar_dict, function (x) x$abbr %in% covar_abbr_list))]
-  
+
   # Check if all covariates were found
   for (abb in covar_abbr_list) {
     if (sum(unlist(lapply(covar_toingest_list, function(x) x$abbr == abb))) == 0)
       stop("Covariate ", abb, " not specified in dictionary")
   }
-  
+
   # Ingest covariates -----------------------------------------------
-  
+
   cat("**** INGESTING COVARIATES \n")
-  
+
   covar_list <- c()
-  
+
   # Define area of interest for covariate processing
   # This is mostly for testing purposes
   aois <- list(
     list(name = "raw", extent = NULL),
     list(name = "SSD", extent = raster::extent(23, 37, 3, 13)),   # SSD
     list(name = "KEN", extent = raster::extent(33, 42, -5.2, 5)),   # Kenya
-    list(name = "SSA", extent = extent(-18.8, 52.6, -35.4, 28))   # SSA
+    list(name = "SSA", extent = raster::extent(-18.8, 52.6, -35.4, 28))   # SSA
   )
   aoi_names <- purrr::map_chr(aois, "name")
-  
+
   if (!(aoi_name %in% aoi_names)) {
-    stop("Area of interest ", aoi_name, " not among pre-defined areas (", str_c(aoi_names, collapse = ","), ")")
+    stop("Area of interest ", aoi_name, " not among pre-defined areas (", stringr::str_c(aoi_names, collapse = ","), ")")
   } else {
     aoi <- aois[[which(aoi_name == aoi_names)]]
   }
-  
+
+  print("CHECKPOINT A")
   if (ovrt_metadata_table) {
     # Recreate the metadata table
-    dbSendStatement(conn_pg, "DROP TABLE IF EXISTS covariates.metadata;")
-    dbSendStatement(conn_pg, 
+    DBI::dbClearResult(DBI::dbSendStatement(conn_pg, "DROP TABLE IF EXISTS covariates.metadata;"))
+    DBI::dbClearResult(DBI::dbSendStatement(conn_pg,
                     "CREATE TABLE covariates.metadata(
                   covariate TEXT PRIMARY KEY,
                   src_res_x DOUBLE PRECISION,
@@ -121,26 +110,31 @@ prepare_covariates <- function(
                   res_time text,
                   space_agg text,
                   time_agg text
-                  );")
-    
+                  );"))
+
   }
-  
+  print("CHECKPOINT B")
+
   for (covarit in covar_toingest_list) {
-    
-    covar_alias <- makeCovarAlias(alias = covarit$alias,
+
+    covar_alias <- taxdat::make_covar_alias(alias = covarit$alias,
                                   type = covarit$type,
                                   res_time = res_time,
                                   res_space = c(res_x, res_y))
-    
+
     # Check whether table exists in the public or covariates schemas
-    covar_in_db <- dbExistsTableMulti(conn_pg, c("public", "covariates"), covar_alias)
+    covar_in_db <- taxdat::db_exists_table_multi(conn_pg, c("public", "covariates"), covar_alias)
     covar_schema <- "covariates"
-    
-    if (!any(covar_in_db) & !ingest) 
+
+    if (!any(covar_in_db) & !ingest)
       stop(glue::glue("Couldn't find {covarit$type} covariate '{covarit$alias}' at temporal resolution of: {res_time}, and spatial resolution of: {res_x}x{res_y}km. The covariate needs to be preprocessed and ingested by an authorized users."))
-    
-    if(!any(covar_in_db) | ovrt_covar) {
-      ingestCovariate(conn = conn_pg,
+
+
+    print(paste("CHECKPOINT C", paste(covarit, collapse = "::")))
+    covarit$dir <- paste(cholera_covariates_directory, covarit$dir, sep="/")
+    if (!any(covar_in_db) | ovrt_covar) {
+      print(paste("CHECKPOINT D", paste(covarit, collapse = "::")))
+      taxdat::ingest_covariate(conn = conn_pg,
                       covar_name = covarit$name,
                       covar_dir = covarit$dir,
                       covar_alias = covar_alias,
@@ -157,43 +151,48 @@ prepare_covariates <- function(
                       res_y = res_y,
                       space_aggregator = covarit$space_aggregator,
                       transform = covarit$transform,
-                      path_to_trunk = cholera_directory,
+                      path_to_cholera_covariates = cholera_covariates_directory,
                       write_to_db = !do_parallel,
                       do_parallel = do_parallel,
                       n_cpus = n_cores,
                       dbuser = dbuser)
-      
+
     } else {
       covar_schema <- names(covar_in_db)[covar_in_db]
       cat("---- Found pre-computed ", covar_alias, " in schema '", covar_schema, "'\n", sep = "")
     }
-    
-    
+    print(paste("CHECKPOINT E",paste(covarit,collapse='::')))
+
+
+    print(paste("CHECKPOINT F",paste(covarit,collapse='::')))
     if (redo_metadata) {
-      writeMetadata(conn = conn_pg,
+      print(paste("CHECKPOINT G",paste(covarit,collapse='::')))
+      taxdat::write_metadata(conn = conn_pg,
                     covar_dir = covarit$dir,
                     covar_type = covarit$type,
                     covar_alias = covar_alias,
-                    res_x = res_x, 
+                    res_x = res_x,
                     res_y = res_y,
                     res_time = res_time,
                     space_aggregator = covarit$space_aggregator,
                     time_aggregator = covarit$time_aggregator,
                     dbuser = dbuser)
     }
-    
-    covar_list <- c(covar_list, str_c(covar_schema, covar_alias, sep = "."))
-  } 
-  
+    print(paste("CHECKPOINT H",paste(covarit,collapse='::')))
+
+    covar_list <- c(covar_list, stringr::str_c(covar_schema, covar_alias, sep = "."))
+  }
+  print(paste("CHECKPOINT I"))
+
   # Write covariate names to file
   covar_list_file <- paste0("covar_list_", Sys.getenv("USER"), ".txt")
   write(x = covar_list, file = covar_list_file, append = F)
-  
+
   cat("Processed:", covar_list, "\n")
   cat("**** DONE COVARIATES ****\n")
-  
+
   # close database
   DBI::dbDisconnect(conn_pg)
-  
+
   return(covar_list)
 }

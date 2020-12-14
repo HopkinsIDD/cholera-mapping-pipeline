@@ -533,6 +533,12 @@ Version: 1.7.9
 Hash: 132a6c810430a06c9d5e1ffaa497db3c
 Requires: Rcpp, generics
 
+Package: lwgeom
+Source: CRAN
+Version: 0.2-5
+Hash: 5ea9a873e9c5299e3cfdceaad138655e
+Requires: Rcpp, sf, units
+
 Package: magrittr
 Source: CRAN
 Version: 1.5
@@ -851,7 +857,7 @@ Package: taxdat
 Source: source
 Version: 0.1
 Hash: d47b75f8a13103c46631369f02687b20
-Requires: ISOcodes, dplyr, magrittr, tidyr, sf
+Requires: ISOcodes, dplyr, magrittr, tidyr
 SourcePath: ~/R/pkgs//taxdat
 
 Package: testthat

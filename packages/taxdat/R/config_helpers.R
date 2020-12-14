@@ -1,3 +1,13 @@
+
+#' @title Automate generation of config files
+#' @name automate_mapping_config
+#' @description Automate generation of model configuration files from a dataframe of parameters. Generates one config per row in the p dataframe.
+#'
+#' @param p dataframe with config parameters, one config per row
+#' @param covariate_names names of covariates to include in the model
+#'
+#' @return string with yaml config file 
+#' @export
 automate_mapping_config <- function(p, covariate_names){
   
   map_name <- paste0(p$countries_name, "_", lubridate::year(as.Date(p$start_time)), "_", lubridate::year(as.Date(p$end_time)), "_", p$res_space, "km")

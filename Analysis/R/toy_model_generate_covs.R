@@ -1,5 +1,3 @@
-library(mvtnorm)
-library(geoR)
 
 # function that makes distance matrix for a side*side 2D array  
 dist.matrix <- function(side)
