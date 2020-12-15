@@ -25,13 +25,12 @@ year_df <- tibble::tibble(year = stan_data$map_grid_time)
 year_df$year <- factor(year_df$year)
 # Set reference year as the one with the largest number of cases
 #' @importFrom magrittr %>%
-ref_year <- sf_cases_resized %>% 
+cases_by_year <- sf_cases_resized %>% 
               tibble::as_tibble() %>% 
               dplyr::mutate(year = lubridate::year(TL))  %>% 
               dplyr::group_by(year) %>% 
-              dplyr::summarise(x = sum(attributes.fields.suspected_cases) %>%
-              .[["x"]]) %>%
-              which.max()
+              dplyr::summarise(x = sum(attributes.fields.suspected_cases)) 
+ref_year <- which.max(cases_by_year$x)
 year_df$year <- relevel(year_df$year, ref = ref_year)
 
 mat_grid_time <- model.matrix(as.formula("~ year - 1"), data = year_df)
