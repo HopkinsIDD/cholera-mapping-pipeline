@@ -156,7 +156,7 @@ predict_df <- tibble::tibble(sx = coord_frame$x[indall],
   # Extract the covariates
   cbind(stan_data$covar[indall, ] %>% 
           matrix(ncol = stan_data$ncovar) %>% 
-          magrittrr::set_colnames(paste0("beta_", 1:stan_data$ncovar)))
+          magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar)))
 
 # Predict log(lambda) for the reference year with covariates
 y_pred_mean <- mgcv::predict.gam(gam_fit, predict_df)
