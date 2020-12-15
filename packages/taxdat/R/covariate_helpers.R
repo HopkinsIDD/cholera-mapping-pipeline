@@ -10,9 +10,14 @@ connect_to_db <- function(dbuser) {
   #' @title Connect to database
   #' @description Connects to the postgres/postgis cholera_covariates database
   #' @return db connection object
-  DBI::dbConnect(RPostgres::Postgres(),
-                 dbname = "cholera_covariates",
-                 user = dbuser)
+  conn <- DBI::dbConnect(RPostgres::Postgres(),
+    dbname = "cholera_covariates",
+    user = dbuser
+  )
+  ## Give everyone a common role so we don't need to worry so much about permissions
+  DBI::dbClearResult(DBI::dbSendQuery("SET ROLE covariate_user"))
+  return(conn)
+
 }
 
 #' @title Make covariate alias

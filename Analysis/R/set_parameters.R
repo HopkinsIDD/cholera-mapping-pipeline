@@ -209,18 +209,7 @@ if(testing){
                                         # Get username of user (docker doesn't provide username so default to app)
 dbuser <- Sys.getenv("USER", "app")
 
-
-
-## Pipeline steps ------------------------------------------------------------------------------------------------------
-
-print("---- Running Pipeline ----\n")
-gc()
-
-any_testing <- FALSE
-if ("testing" %in% unlist(sapply(config, names))) {
-  any_testing <- TRUE
-}
-                                        # Name the output file
+### Create partial names for use in databases
 if (is.null(config$countries_name)) {
   if (length(countries) == 1) {
     config$countries_name <- config$countries
@@ -248,14 +237,21 @@ dir.create("Analysis/output", showWarnings = FALSE)
 
 
 
+## Pipeline steps ------------------------------------------------------------------------------------------------------
+
+print("---- Running Pipeline ----\n")
+gc()
+
 ### Pull the case data and ingest into database
 
-source(paste(cholera_directory, "Analysis", "R", "prepare_map_data_revised.R", sep = "/"))
+source(paste(cholera_directory, "Analysis", "R", "pull_taxonomy_data.R", sep = "/"))
 
 
 
 ### Extract extent from case data
 
+area_of_interest <- taxdat::extract_boundary(taxdat::create_table_name(map_name, "")
+source(paste(cholera_directory, "Analysis", "R", "prepare_grid.R", sep = "/"))
 
 
 ### Prepare master grid of appropriate resolution + extent
