@@ -62,12 +62,12 @@ df <- purrr::map_dfr(
     u_obs_years <- unique(obs_year)
     tfrac <- stan_data$tfrac[ind_obs]
     # Expand observations to account for multiple tfracs
-    y_new <- map(seq_along(ind_obs), function(x)
+    y_new <- purrr::map(seq_along(ind_obs), function(x)
       rep(stan_data$y[i] * tfrac[x]/sum(tfrac), 
           sum(obs_year == u_obs_years[x]))) %>% 
       unlist()
     
-    tfrac_vec <- map(seq_along(ind_obs), function(x)
+    tfrac_vec <- purrr::map(seq_along(ind_obs), function(x)
       rep(tfrac[x], sum(obs_year == u_obs_years[x]))) %>% 
       unlist()
     
@@ -78,14 +78,14 @@ df <- purrr::map_dfr(
     
     beta_mat <- stan_data$covar[ind, ] %>% 
       matrix(ncol = stan_data$ncovar) %>% 
-      set_colnames(paste0("beta_", 1:stan_data$ncovar))
+      magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar))
     
     year_mat <- mat_grid_time[ind, ] %>%
       matrix(ncol = ncol(mat_grid_time)) %>%
-      set_colnames(paste0("year_", 1:ncol(mat_grid_time)))
+      magrittr::set_colnames(paste0("year_", 1:ncol(mat_grid_time)))
     
     return(
-      tibble(obs = i,
+      tibble::tibble(obs = i,
              raw_y = stan_data$y[i],
              y = y,
              sx = sx,
@@ -102,21 +102,21 @@ df <- purrr::map_dfr(
       cbind(year_mat)
   }
 ) %>% 
-  as_tibble() %>% 
-  mutate(obs_year = factor(obs_year),
+  tibble::as_tibble() %>% 
+  dplyr::mutate(obs_year = factor(obs_year),
          log_ey = log(ey),
          log_tfrac = log(tfrac),
          gam_offset = log_ey + log_tfrac,
          # To apply censoring
-         right_threshold = case_when(
+         right_threshold = dplyr::case_when(
            censored == "right-censored" ~ y,
            T ~ Inf),
   )
 
 
 # Does the model have a yearly effect
-yearly_effect <- any(str_detect(readLines(stan_model_path), "eta"))
-censor <- str_detect(stan_model_path, "censoring")
+yearly_effect <- any(stringr::str_detect(readLines(stan_model_path), "eta"))
+censor <- stringr::str_detect(stan_model_path, "censoring")
 
 # Create gam frml
 frml <- "y ~ s(sx,sy) - 1"
@@ -126,7 +126,7 @@ if (stan_data$ncovar >= 1 & config$covar_warmup) {
 }
 
 if (yearly_effect) {
-  frml <- paste(c(frml, colnames(df %>% dplyr::select(contains("year_")))), collapse = " + ")
+  frml <- paste(c(frml, colnames(df %>% dplyr::select(dplyr::contains("year_")))), collapse = " + ")
 }
 
 # Formula for gam model
@@ -134,7 +134,7 @@ gam_frml <- as.formula(frml)
 
 if (censor) {
   # Removed censored data for which cases are 0
-  df <- df %>% filter(!(y == 0 & right_threshold == 0))
+  df <- df %>% dplyr::filter(!(y == 0 & right_threshold == 0))
 }
 
 # Fit the GAM
@@ -147,23 +147,23 @@ gam_fit <- mgcv::gam(gam_frml,
 indall <- sf_grid$upd_id[sf_grid$t == ref_year]
 
 # Predict to get new terms
-predict_df <- tibble(sx = coord_frame$x[indall],
+predict_df <- tibble::tibble(sx = coord_frame$x[indall],
                      sy = coord_frame$y[indall]) %>% 
   # Set all years to 0 to get the reference year
   cbind(mat_grid_time[indall, ] %>% 
-          as_tibble() %>%
-          set_colnames(paste0("year_", 1:ncol(mat_grid_time)))) %>% 
+          tibble::as_tibble() %>%
+          magrittr::set_colnames(paste0("year_", 1:ncol(mat_grid_time)))) %>% 
   # Extract the covariates
   cbind(stan_data$covar[indall, ] %>% 
           matrix(ncol = stan_data$ncovar) %>% 
-          set_colnames(paste0("beta_", 1:stan_data$ncovar)))
+          magrittrr::set_colnames(paste0("beta_", 1:stan_data$ncovar)))
 
 # Predict log(lambda) for the reference year with covariates
-y_pred_mean <- predict.gam(gam_fit, predict_df)
+y_pred_mean <- mgcv::predict.gam(gam_fit, predict_df)
 
 if (stan_data$ncovar >= 1 & config$covar_warmup) {
   # Remove the effect of the betas
-  beta_effect <- as.matrix(dplyr::select(predict_df, contains("beta"))) %*% matrix(coef(gam_fit)[str_detect(names(coef(gam_fit)), "beta")], ncol = 1)
+  beta_effect <- as.matrix(dplyr::select(predict_df, dplyr::contains("beta"))) %*% matrix(coef(gam_fit)[stringr::str_detect(names(coef(gam_fit)), "beta")], ncol = 1)
   w.init <- y_pred_mean - as.vector(beta_effect)
 } else {
   w.init <- y_pred_mean
@@ -174,7 +174,7 @@ if (yearly_effect) {
   stan_data$sigma_eta_scale <- 5
   stan_data$mat_grid_time <- mat_grid_time %>% as.matrix()
   sd_w <- sd(w.init)
-  eta <- coef(gam_fit) %>% .[str_detect(names(.), "year")]
+  eta <- coef(gam_fit) %>% .[stringr::str_detect(names(.), "year")]
   
   init.list <- lapply(1:nchain, 
                       function(i) {
@@ -190,7 +190,7 @@ if (yearly_effect) {
 }
 
 if (config$covar_warmup) {
-  betas <- coef(gam_fit) %>% .[str_detect(names(.), "beta")]
+  betas <- coef(gam_fit) %>% .[stringr::str_detect(names(.), "beta")]
   init.list <- append(init.list,
                       # Perturbation of fitted betas
                       list(betas = rnorm(length(betas), betas, .1) %>% array()))
@@ -202,7 +202,7 @@ if (stan_data$ncovar >= 1) {
 }
 
 # Run model ---------------------------------------------------------------
-model.rand <- stan(
+model.rand <- rstan::stan(
   file = stan_model_path,
   data = stan_data,
   chains = nchain,
