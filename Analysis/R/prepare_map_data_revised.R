@@ -24,6 +24,7 @@ if (data_source == "api") {
     username <- database_username
     password <- database_api_key
   }
+  cat("cntry:", long_countries, "u:", username, "psswd:", database_api_key, "st:", start_time, "et:", end_time, "\n")
 } else if (data_source == "sql") {
   long_countries <- countries
   username <- Sys.getenv("CHOLERA_SQL_USERNAME", "NONE")
@@ -182,7 +183,7 @@ DBI::dbClearResult(DBI::dbSendStatement(
   conn_pg,
   glue::glue_sql(
     "CREATE INDEX {`{DBI::SQL(paste0(cntrd_table, '_gidx'))}`} on {`{DBI::SQL(cntrd_table)}`} USING GIST(geom);",
-    .con = conn_pg)) 
+    .con = conn_pg))) 
 DBI::dbSendStatement(conn_pg, glue::glue_sql("VACUUM ANALYZE {`{DBI::SQL(cntrd_table)}`};", .con = conn_pg))
 
 # Create sf_chol ---------------------------------------------------------------

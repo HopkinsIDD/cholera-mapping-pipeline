@@ -109,7 +109,7 @@ read_taxonomy_data_api <- function(username,
   ## Every object in R is a vector, even the primitives.  For example, c(1,5,6) is of type
   ## integer.  Because of this, we need to explicitly tell the JSON parser to treat vectors
   ## of length 1 differently.  The option for this is auto_unbox = T
-  json = rjson::toJSON(https_post_argument_list,auto_unbox = T)
+  json = rjson::toJSON(https_post_argument_list,auto_unbox = TRUE)
   #' @importFrom httr POST
   #' @importFrom httr add_headers
   ## Message prints a message to the user.  It's somewhere between a warning and a normal print.

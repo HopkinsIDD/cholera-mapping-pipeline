@@ -25,17 +25,17 @@ year_df <- tibble::tibble(year = stan_data$map_grid_time)
 year_df$year <- factor(year_df$year)
 # Set reference year as the one with the largest number of cases
 #' @importFrom magrittr %>%
-ref_year <- sf_cases_resized %>% 
-              tibble::as_tibble() %>% 
-              dplyr::mutate(year = lubridate::year(TL))  %>% 
-              dplyr::group_by(year) %>% 
-              dplyr::summarise(x = sum(attributes.fields.suspected_cases) %>%
-              .[["x"]]) %>%
-              which.max()
-year_df$year <- relevel(year_df$year, ref = ref_year)
+# ref_year <- sf_cases_resized %>% 
+#               tibble::as_tibble() %>% 
+#               dplyr::mutate(year = lubridate::year(TL))  %>% 
+#               dplyr::group_by(year) %>% 
+#               dplyr::summarise(x = sum(attributes.fields.suspected_cases) %>%
+#               .[["x"]]) %>%
+#               which.max()
+# year_df$year <- relevel(year_df$year, ref = ref_year)
 
 mat_grid_time <- model.matrix(as.formula("~ year - 1"), data = year_df)
-mat_grid_time <- mat_grid_time[, -1, drop = FALSE] # the reference year is always first
+# mat_grid_time <- mat_grid_time[, -1, drop = FALSE] # the reference year is always first
 
 
 # Create dataframe for GAM model
@@ -122,7 +122,7 @@ censor <- str_detect(stan_model_path, "censoring")
 # Create gam frml
 frml <- "y ~ s(sx,sy) - 1"
 
-if (stan_data$ncovar >= 1 & config$covar_warmup) {
+if (stan_data$ncovar >= 1 & covar_warmup) {
   frml <- paste(c(frml, paste0("beta_", 1:stan_data$ncovar)), collapse = " + ")
 }
 
@@ -162,7 +162,7 @@ predict_df <- tibble(sx = coord_frame$x[indall],
 # Predict log(lambda) for the reference year with covariates
 y_pred_mean <- predict.gam(gam_fit, predict_df)
 
-if (stan_data$ncovar >= 1 & config$covar_warmup) {
+if (stan_data$ncovar >= 1 & covar_warmup) {
   # Remove the effect of the betas
   beta_effect <- as.matrix(dplyr::select(predict_df, contains("beta"))) %*% matrix(coef(gam_fit)[str_detect(names(coef(gam_fit)), "beta")], ncol = 1)
   w.init <- y_pred_mean - as.vector(beta_effect)
@@ -170,9 +170,10 @@ if (stan_data$ncovar >= 1 & config$covar_warmup) {
   w.init <- y_pred_mean
 }
 
+
 # Initial parameter values
 if (yearly_effect) {
-  stan_data$sigma_eta_scale <- 5
+  stan_data$sigma_eta_scale <- taxdat::get_stan_parameters(config)$sigma_eta_scale
   stan_data$mat_grid_time <- mat_grid_time %>% as.matrix()
   sd_w <- sd(w.init)
   eta <- coef(gam_fit) %>% .[str_detect(names(.), "year")]
@@ -190,16 +191,16 @@ if (yearly_effect) {
   init.list <- lapply(1:nchain, function(i) list(w = rnorm(length(w.init), w.init, .1)))
 }
 
-if (config$covar_warmup) {
+if (covar_warmup) {
   betas <- coef(gam_fit) %>% .[str_detect(names(.), "beta")]
   init.list <- append(init.list,
                       # Perturbation of fitted betas
                       list(betas = rnorm(length(betas), betas, .1) %>% array()))
 }
 
-# Add scale of covar effect
+# Add scale of prior on the sd of regression coefficients
 if (stan_data$ncovar >= 1) {
-  stan_data$beta_sigma_scale <- config$beta_sigma_scale
+  stan_data$beta_sigma_scale <- taxdat::get_stan_parameters(config)$beta_sigma_scale
 }
 
 # Run model ---------------------------------------------------------------

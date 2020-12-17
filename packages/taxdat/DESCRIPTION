@@ -21,6 +21,7 @@ Collate:
     'read_data_helpers.R'
     'model_evaluation_helpers.R'
     'pull_data_helpers.R'
+    'run_stan_helpers.R'
     'simulation_framework_helpers.R'
     'stan_input_helpers.R'
 VignetteBuilder: knitr
