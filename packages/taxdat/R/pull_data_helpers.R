@@ -92,6 +92,7 @@ read_taxonomy_data_api <- function(username,
       time_left=time_left,
       time_right=time_right
     )
+    
   } else if(is.null(locations) && is.null(time_left) && is.null(time_right)){
     api_type = "by_observation_collections"
     https_post_argument_list = list(
@@ -109,7 +110,7 @@ read_taxonomy_data_api <- function(username,
   ## Every object in R is a vector, even the primitives.  For example, c(1,5,6) is of type
   ## integer.  Because of this, we need to explicitly tell the JSON parser to treat vectors
   ## of length 1 differently.  The option for this is auto_unbox = T
-  json = jsonlite::toJSON(https_post_argument_list,auto_unbox = TRUE)
+  json = jsonlite::toJSON(https_post_argument_list,  auto_unbox = T)
   #' @importFrom httr POST
   #' @importFrom httr add_headers
   ## Message prints a message to the user.  It's somewhere between a warning and a normal print.
@@ -127,7 +128,6 @@ read_taxonomy_data_api <- function(username,
     body=json,
     encode='form'
   )
-  cat("ROWS RESULTS", nrow(results), "\n")
   ## Now we process the status code to make sure that things are working correctly
   #' @importFrom httr status_code
   code = httr::status_code(results)
@@ -143,13 +143,13 @@ read_taxonomy_data_api <- function(username,
   ## odd.  It is a little messy, but instead of debugging the
   ## formatting, for now I'm converting to json and back, which
   ## fixes the problems.
-  jsondata = rjson::toJSON(original_results_data)
+  jsondata = jsonlite::toJSON(original_results_data)
   #' @importFrom jsonlite validate
   if(!jsonlite::validate(jsondata)){
     stop("Could not validate json response")
   }
   #' @importFrom jsonlite fromJSON
-  results_data = rjson::fromJSON(jsondata)
+  results_data = jsonlite::fromJSON(jsondata)
   
   ## Now we have the results of the api data as a nested list.
   ## We want to do the following in no particular order
@@ -311,8 +311,8 @@ pull_taxonomy_data <- function(username,
     rc <- read_taxonomy_data_api(username = username,
                                       api_key = password,
                                       locations = locations,
-                                      time_left = time_left,
-                                      time_right = time_right,
+                                      time_left = as.character(time_left),
+                                      time_right = as.character(time_right),
                                       uids = uids,
                                       website = website)
     
