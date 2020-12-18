@@ -137,7 +137,7 @@ gam_frml <- as.formula(frml)
 
 if (config$censoring) {
   # Removed censored data for which cases are 0
-  df <- df %>% filter(!(y == 0 & right_threshold == 0))
+  df <- df %>% dplyr::filter(!(y == 0 & right_threshold == 0))
 }
 
 # Fit the GAM
@@ -154,7 +154,7 @@ predict_df <- tibble::tibble(sx = coord_frame$x[indall],
                              sy = coord_frame$y[indall]) %>% 
   # Set all years to 0 to get the reference year
   cbind(mat_grid_time[indall, ] %>% 
-          as_tibble() %>%
+          tibble::as_tibble() %>%
           magrittr::set_colnames(paste0("year_", 1:ncol(mat_grid_time)))) %>% 
   # Extract the covariates
   cbind(stan_data$covar[indall, ] %>% 
