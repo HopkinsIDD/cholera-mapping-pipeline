@@ -120,7 +120,7 @@ df <- purrr::map_dfr(
 
 
 # Does the model have a yearly effect
-yearly_effect <- any(str_detect(readLines(stan_model_path), "eta"))
+yearly_effect <- any(stringr::str_detect(readLines(stan_model_path), "eta"))
 censor <- stringr::str_detect(stan_model_path, "censoring")
 
 # Create gam frml
@@ -168,7 +168,7 @@ y_pred_mean <- mgcv::predict.gam(gam_fit, predict_df)
 
 if (stan_data$ncovar >= 1 & covar_warmup) {
   # Remove the effect of the betas
-  beta_effect <- as.matrix(dplyr::select(predict_df, contains("beta"))) %*% matrix(coef(gam_fit)[str_detect(names(coef(gam_fit)), "beta")], ncol = 1)
+  beta_effect <- as.matrix(dplyr::select(predict_df, contains("beta"))) %*% matrix(coef(gam_fit)[stringr::str_detect(names(coef(gam_fit)), "beta")], ncol = 1)
   w.init <- y_pred_mean - as.vector(beta_effect)
 } else {
   w.init <- y_pred_mean
@@ -180,7 +180,7 @@ if (yearly_effect) {
   stan_data$sigma_eta_scale <- taxdat::get_stan_parameters(config)$sigma_eta_scale
   stan_data$mat_grid_time <- mat_grid_time %>% as.matrix()
   sd_w <- sd(w.init)
-  eta <- coef(gam_fit) %>% .[str_detect(names(.), "year")]
+  eta <- coef(gam_fit) %>% .[stringr::str_detect(names(.), "year")]
   
   init.list <- lapply(1:nchain, 
                       function(i) {
@@ -196,7 +196,7 @@ if (yearly_effect) {
 }
 
 if (covar_warmup) {
-  betas <- coef(gam_fit) %>% .[str_detect(names(.), "beta")]
+  betas <- coef(gam_fit) %>% .[stringr::str_detect(names(.), "beta")]
   init.list <- append(init.list,
                       # Perturbation of fitted betas
                       list(betas = rnorm(length(betas), betas, .1) %>% array()))
