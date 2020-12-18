@@ -74,7 +74,7 @@ transformed data {
   }
   
   // Compute observation likelihood weights 
-  if (do_censoring) {
+  if (do_censoring == 0) {
     for (i in 1:M) {
       weights[i] = 1;
     }
@@ -185,7 +185,7 @@ model {
   // prior on regression coefficients
   target += normal_lpdf(betas| 0, beta_sigma_scale);
   
-  if (do_time_slice_effect) {
+  if (do_time_slice_effect == 1) {
     // prior on the time_slice random effects
     // For the autocorrelated model sigma is the sd of the increments in the random effects
     sigma_eta_tilde ~ std_normal();

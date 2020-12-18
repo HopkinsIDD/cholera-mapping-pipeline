@@ -107,7 +107,7 @@ df <- purrr::map_dfr(
       cbind(year_mat)
   }
 ) %>% 
-  as_tibble() %>% 
+  tibble::as_tibble() %>% 
   dplyr::mutate(obs_year = factor(obs_year),
                 log_ey = log(ey),
                 log_tfrac = log(tfrac),
