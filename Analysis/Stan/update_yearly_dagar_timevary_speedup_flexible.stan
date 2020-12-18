@@ -39,7 +39,7 @@ data {
   int <lower=0, upper=L> map_loc_grid_loc[K2]; // the location side of the mapping from locations to gridcells
   int <lower=0, upper=N> map_loc_grid_grid[K2]; // the gridcell side of the mapping from locations to gridcells
   
-  matrix[N, T-1] mat_grid_time; // The time side of the mapping from locations/times to grid
+  matrix[N, T] mat_grid_time; // The time side of the mapping from locations/times to grid
   int <lower=0,upper=smooth_grid_N> map_smooth_grid[N]; //vector with repeating smooth_grid_N indexes repeating 1:N
   
   // Covariate stuff
@@ -196,7 +196,7 @@ model {
       // The increments of the time-slice random effects are assumed to have mean 0
       // and variance 1/tau
       // Sorbye and Rue (2014) https://doi.org/10.1016/j.spasta.2013.06.004
-      target += (T-1)/2 * log(tau) - tau/2 * (dot_self(eta[2:T] - eta[1:(T-1)]));
+      target += (T-1.0)/2.0 * log(tau) - tau/2 * (dot_self(eta[2:T] - eta[1:(T-1)]));
       sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraint
     } else {
       eta_tilde ~ std_normal();
