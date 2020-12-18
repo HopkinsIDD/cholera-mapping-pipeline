@@ -328,7 +328,7 @@ prepare_stan_input <- function(
   stan_data$y <- sf_cases_resized[[cases_column]]
   
   # Extract censoring information
-  censoring_inds <- map_chr(
+  censoring_inds <- purrr::map_chr(
     1:stan_data$M, 
     function(x) {
       # Get all tfracs for the given observation
