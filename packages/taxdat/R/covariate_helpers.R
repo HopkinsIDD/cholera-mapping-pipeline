@@ -104,7 +104,7 @@ make_grid_centroids_table_name <- function(dbuser, map_name) {
 #' @export
 clean_all_tmp <- function(dbuser, map_name) {
   print("-- Cleaning temporary tables")
-  conn <- connectToDB(dbuser)
+  conn <- connect_to_db(dbuser)
   lp_name <- make_locationperiods_table_name(dbuser, map_name)
   DBI::dbSendStatement(conn, glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(lp_name)}`};", .con = conn))
   DBI::dbSendStatement(conn, glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(paste0(lp_name, '_dict'))}`};", .con = conn)) 
