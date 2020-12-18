@@ -149,7 +149,7 @@ gam_fit <- mgcv::gam(gam_frml,
                      data = df)
 
 # GAM estimates
-indall <- sf_grid$upd_id[sf_grid$t == ref_year]
+indall <- sf_grid$upd_id[sf_grid$t == 1]
 
 # Predict to get new terms
 predict_df <- tibble::tibble(sx = coord_frame$x[indall],
