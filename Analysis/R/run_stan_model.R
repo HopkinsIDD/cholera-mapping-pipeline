@@ -34,7 +34,11 @@ year_df$year <- factor(year_df$year)
 #               which.max()
 # year_df$year <- relevel(year_df$year, ref = ref_year)
 
-mat_grid_time <- model.matrix(as.formula("~ year - 1"), data = year_df)
+if (length(unique(year_df$year)) == 1) {
+  mat_grid_time <- matrix(1, nrow(year_df))
+} else {
+  mat_grid_time <- model.matrix(as.formula("~ year - 1"), data = year_df)
+}
 # mat_grid_time <- mat_grid_time[, -1, drop = FALSE] # the reference year is always first
 
 
@@ -63,12 +67,12 @@ df <- purrr::map_dfr(
     u_obs_years <- unique(obs_year)
     tfrac <- stan_data$tfrac[ind_obs]
     # Expand observations to account for multiple tfracs
-    y_new <- map(seq_along(ind_obs), function(x)
+    y_new <- purrr::map(seq_along(ind_obs), function(x)
       rep(stan_data$y[i] * tfrac[x]/sum(tfrac), 
           sum(obs_year == u_obs_years[x]))) %>% 
       unlist()
     
-    tfrac_vec <- map(seq_along(ind_obs), function(x)
+    tfrac_vec <- purrr::map(seq_along(ind_obs), function(x)
       rep(tfrac[x], sum(obs_year == u_obs_years[x]))) %>% 
       unlist()
     
@@ -79,45 +83,45 @@ df <- purrr::map_dfr(
     
     beta_mat <- stan_data$covar[ind, ] %>% 
       matrix(ncol = stan_data$ncovar) %>% 
-      set_colnames(paste0("beta_", 1:stan_data$ncovar))
+      magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar))
     
     year_mat <- mat_grid_time[ind, ] %>%
       matrix(ncol = ncol(mat_grid_time)) %>%
-      set_colnames(paste0("year_", 1:ncol(mat_grid_time)))
+      magrittr::set_colnames(paste0("year_", 1:ncol(mat_grid_time)))
     
     return(
-      tibble(obs = i,
-             raw_y = stan_data$y[i],
-             y = y,
-             sx = sx,
-             sy = sy,
-             ind = ind,
-             pop = pop,
-             obs_year = obs_year,
-             meanrate = stan_data$meanrate,
-             ey = pop*stan_data$meanrate,
-             tfrac = tfrac_vec,
-             censored = stan_data$censoring_inds[i])
+      tibble::tibble(obs = i,
+                     raw_y = stan_data$y[i],
+                     y = y,
+                     sx = sx,
+                     sy = sy,
+                     ind = ind,
+                     pop = pop,
+                     obs_year = obs_year,
+                     meanrate = stan_data$meanrate,
+                     ey = pop*stan_data$meanrate,
+                     tfrac = tfrac_vec,
+                     censored = stan_data$censoring_inds[i])
     ) %>% 
       cbind(beta_mat) %>% 
       cbind(year_mat)
   }
 ) %>% 
   as_tibble() %>% 
-  mutate(obs_year = factor(obs_year),
-         log_ey = log(ey),
-         log_tfrac = log(tfrac),
-         gam_offset = log_ey + log_tfrac,
-         # To apply censoring
-         right_threshold = case_when(
-           censored == "right-censored" ~ y,
-           T ~ Inf),
+  dplyr::mutate(obs_year = factor(obs_year),
+                log_ey = log(ey),
+                log_tfrac = log(tfrac),
+                gam_offset = log_ey + log_tfrac,
+                # To apply censoring
+                right_threshold = case_when(
+                  censored == "right-censored" ~ y,
+                  T ~ Inf),
   )
 
 
 # Does the model have a yearly effect
 yearly_effect <- any(str_detect(readLines(stan_model_path), "eta"))
-censor <- str_detect(stan_model_path, "censoring")
+censor <- stringr::str_detect(stan_model_path, "censoring")
 
 # Create gam frml
 frml <- "y ~ s(sx,sy) - 1"
@@ -148,19 +152,19 @@ gam_fit <- mgcv::gam(gam_frml,
 indall <- sf_grid$upd_id[sf_grid$t == ref_year]
 
 # Predict to get new terms
-predict_df <- tibble(sx = coord_frame$x[indall],
-                     sy = coord_frame$y[indall]) %>% 
+predict_df <- tibble::tibble(sx = coord_frame$x[indall],
+                             sy = coord_frame$y[indall]) %>% 
   # Set all years to 0 to get the reference year
   cbind(mat_grid_time[indall, ] %>% 
           as_tibble() %>%
-          set_colnames(paste0("year_", 1:ncol(mat_grid_time)))) %>% 
+          magrittr::set_colnames(paste0("year_", 1:ncol(mat_grid_time)))) %>% 
   # Extract the covariates
   cbind(stan_data$covar[indall, ] %>% 
           matrix(ncol = stan_data$ncovar) %>% 
-          set_colnames(paste0("beta_", 1:stan_data$ncovar)))
+          magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar)))
 
 # Predict log(lambda) for the reference year with covariates
-y_pred_mean <- predict.gam(gam_fit, predict_df)
+y_pred_mean <- mgcv::predict.gam(gam_fit, predict_df)
 
 if (stan_data$ncovar >= 1 & covar_warmup) {
   # Remove the effect of the betas
