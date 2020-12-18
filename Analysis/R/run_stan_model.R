@@ -120,8 +120,6 @@ df <- purrr::map_dfr(
 
 
 # Does the model have a yearly effect
-yearly_effect <- any(stringr::str_detect(readLines(stan_model_path), "eta"))
-censor <- stringr::str_detect(stan_model_path, "censoring")
 
 # Create gam frml
 frml <- "y ~ s(sx,sy) - 1"
@@ -130,14 +128,14 @@ if (stan_data$ncovar >= 1 & covar_warmup) {
   frml <- paste(c(frml, paste0("beta_", 1:stan_data$ncovar)), collapse = " + ")
 }
 
-if (yearly_effect) {
+if (config$time_effect) {
   frml <- paste(c(frml, colnames(df %>% dplyr::select(contains("year_")))), collapse = " + ")
 }
 
 # Formula for gam model
 gam_frml <- as.formula(frml)
 
-if (censor) {
+if (config$censoring) {
   # Removed censored data for which cases are 0
   df <- df %>% filter(!(y == 0 & right_threshold == 0))
 }
@@ -176,7 +174,7 @@ if (stan_data$ncovar >= 1 & covar_warmup) {
 
 
 # Initial parameter values
-if (yearly_effect) {
+if (config$time_effect) {
   stan_data$sigma_eta_scale <- taxdat::get_stan_parameters(config)$sigma_eta_scale
   stan_data$mat_grid_time <- mat_grid_time %>% as.matrix()
   sd_w <- sd(w.init)
@@ -206,6 +204,11 @@ if (covar_warmup) {
 if (stan_data$ncovar >= 1) {
   stan_data$beta_sigma_scale <- taxdat::get_stan_parameters(config)$beta_sigma_scale
 }
+
+# Set censoring and time effect and autocorrelation
+stan_data$do_censoring <- ifelse(config$censoring, 1, 0)
+stan_data$do_time_slice_effect <- ifelse(config$time_effect, 1, 0)
+stan_data$do_time_slice_effect_autocor <- ifelse(config$time_effect_autocor, 1, 0)
 
 # Run model ---------------------------------------------------------------
 model.rand <- rstan::stan(
