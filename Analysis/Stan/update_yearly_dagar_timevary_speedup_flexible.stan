@@ -141,7 +141,7 @@ transformed parameters {
   log_lambda =  w[map_smooth_grid] + log_meanrate + covar * betas;
   
   // Add time slice effects
-  if (do_time_slice_effect) {
+  if (do_time_slice_effect == 1) {
     log_lambda =+ mat_grid_time * eta;
   }
   
@@ -164,7 +164,7 @@ transformed parameters {
   
   //now accumulate
   for (i in 1:K1) {
-    if (do_censoring) {
+    if (do_censoring == 1) {
       modeled_cases[map_obs_loctime_obs[i]] += location_cases[map_obs_loctime_loc[i]];
     } else {
       modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
@@ -190,7 +190,7 @@ model {
     // For the autocorrelated model sigma is the sd of the increments in the random effects
     sigma_eta_tilde ~ std_normal();
     
-    if (do_time_slice_effect_autocor) {
+    if (do_time_slice_effect_autocor == 1) {
       real tau = 1/(sigma_eta_tilde[1] * sigma_eta_scale)^2; // precision of the increments of the time-slice random effects
       // Autocorrelation on yearly random effects with 0-sum constraint 
       // The increments of the time-slice random effects are assumed to have mean 0
@@ -203,7 +203,7 @@ model {
     }
   }
   
-  if (do_censoring) {
+  if (do_censoring == 1) {
     
     if (M_full > 0) {
       // data model for estimated rates for full time slice observations

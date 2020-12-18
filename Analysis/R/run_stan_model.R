@@ -187,7 +187,7 @@ if (config$time_effect) {
                           w = rnorm(length(w.init), w.init, .1),
                           # Perturbation of fitted etas
                           eta_tilde = rnorm(length(eta), eta/stan_data$sigma_eta_scale, .05),
-                          sigma_eta_tilde = 1
+                          sigma_eta_tilde = as.array(1)
                         )})
 } else {
   init.list <- lapply(1:nchain, function(i) list(w = rnorm(length(w.init), w.init, .1)))
