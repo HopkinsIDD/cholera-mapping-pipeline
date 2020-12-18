@@ -13,13 +13,14 @@ get_stan_parameters <- function(config,
 ) {
   
   default_params <- list(sigma_eta_scale = sigma_eta_scale,
-                         beta_sigma_scale = beta_sigma_scale)
+                         beta_sigma_scale = beta_sigma_scale,
+                         covar_warmup = covar_warmup)
   
   # For each parameter check if specified in config, if not use default value
   params <- purrr::map(names(default_params), 
                        ~ifelse(is.null(config[[.]]), default_params[[.]], config[[.]]))
   
-  names(params) <- default_params
+  names(params) <- names(default_params)
   
   return(params)
 }
