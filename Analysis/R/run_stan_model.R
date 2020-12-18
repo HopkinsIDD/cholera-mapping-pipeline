@@ -208,7 +208,7 @@ if (stan_data$ncovar >= 1) {
 }
 
 # Run model ---------------------------------------------------------------
-model.rand <- stan(
+model.rand <- rstan::stan(
   file = stan_model_path,
   data = stan_data,
   chains = nchain,
