@@ -294,7 +294,7 @@ prepare_stan_input <- function(
     sf::st_crs(sf_cases_resized) <- ocrs
     
     # Re-compute space-time indices based on aggretated data
-    ind_mapping_resized <- getSpaceTimeIndSpeedup(
+    ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
       df = sf_cases_resized, 
       lp_dict = location_periods_dict,
       model_time_slices = time_slices,
