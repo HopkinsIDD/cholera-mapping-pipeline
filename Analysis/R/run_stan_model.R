@@ -23,24 +23,13 @@ coord_frame <- tibble::as_tibble(sf::st_coordinates(sf_grid)) %>%
 # Create matrix of time
 year_df <- tibble::tibble(year = stan_data$map_grid_time)
 year_df$year <- factor(year_df$year)
-# Set reference year as the one with the largest number of cases
-#' @importFrom magrittr %>%
-# ref_year <- sf_cases_resized %>% 
-#               tibble::as_tibble() %>% 
-#               dplyr::mutate(year = lubridate::year(TL))  %>% 
-#               dplyr::group_by(year) %>% 
-#               dplyr::summarise(x = sum(attributes.fields.suspected_cases) %>%
-#               .[["x"]]) %>%
-#               which.max()
-# year_df$year <- relevel(year_df$year, ref = ref_year)
 
+## one random effect per year
 if (length(unique(year_df$year)) == 1) {
   mat_grid_time <- matrix(1, nrow(year_df))
 } else {
   mat_grid_time <- model.matrix(as.formula("~ year - 1"), data = year_df)
 }
-# mat_grid_time <- mat_grid_time[, -1, drop = FALSE] # the reference year is always first
-
 
 # Create dataframe for GAM model
 old_percent <- 0
@@ -115,11 +104,10 @@ df <- purrr::map_dfr(
                 # To apply censoring
                 right_threshold = dplyr::case_when(
                   censored == "right-censored" ~ y,
-                  T ~ Inf),
+                  T ~ Inf)
   )
 
 
-# Does the model have a yearly effect
 
 # Create gam frml
 frml <- "y ~ s(sx,sy) - 1"
@@ -129,7 +117,7 @@ if (stan_data$ncovar >= 1 & covar_warmup) {
 }
 
 if (config$time_effect) {
-  frml <- paste(c(frml, colnames(df %>% dplyr::select(contains("year_")))), collapse = " + ")
+  frml <- paste(c(frml, colnames(df %>% dplyr::select(dplyr::contains("year_")))), collapse = " + ")
 }
 
 # Formula for gam model
@@ -166,7 +154,7 @@ y_pred_mean <- mgcv::predict.gam(gam_fit, predict_df)
 
 if (stan_data$ncovar >= 1 & covar_warmup) {
   # Remove the effect of the betas
-  beta_effect <- as.matrix(dplyr::select(predict_df, contains("beta"))) %*% matrix(coef(gam_fit)[stringr::str_detect(names(coef(gam_fit)), "beta")], ncol = 1)
+  beta_effect <- as.matrix(dplyr::select(predict_df, dplyr::contains("beta"))) %*% matrix(coef(gam_fit)[stringr::str_detect(names(coef(gam_fit)), "beta")], ncol = 1)
   w.init <- y_pred_mean - as.vector(beta_effect)
 } else {
   w.init <- y_pred_mean

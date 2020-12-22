@@ -318,7 +318,7 @@ prepare_stan_input <- function(
   stan_data$map_loc_grid_grid <- ind_mapping_resized$map_loc_grid_grid
   stan_data$u_loctime <- ind_mapping_resized$u_loctimes
   
-  y_tfrac <- tibble(tfrac = stan_data$tfrac, 
+  y_tfrac <- tibble::tibble(tfrac = stan_data$tfrac, 
                     map_obs_loctime_obs = stan_data$map_obs_loctime_obs) %>% 
     dplyr::group_by(map_obs_loctime_obs) %>% 
     dplyr::summarize(tfrac = mean(tfrac)) %>%  # We take the average over time so we can sum population over time
