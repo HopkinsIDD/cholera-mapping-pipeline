@@ -163,13 +163,13 @@ build_geoms_query <- function(conn,
     DBI::dbClearResult(DBI::dbSendStatement(conn,
                          glue::glue_sql("
                     CREATE INDEX {`{str_c(table_full_name, '_gidx')}`}
-    ON {`table`} USING GIST(geom);;",
+    ON {`table`} USING GIST(geom);",
                                         .con = conn))))
   suppressMessages(
     DBI::dbClearResult(DBI::dbSendStatement(conn,
                          glue::glue_sql("
                     CREATE INDEX {`{str_c(table_full_name, '_idx')}`}
-    ON {`table`} (rid, x, y);;", .con = conn))))
+    ON {`table`} (rid, x, y);", .con = conn))))
 
   DBI::dbClearResult(DBI::dbSendStatement(conn, glue::glue_sql("VACUUM ANALYZE {`table`};", .con = conn)))
 }
@@ -1191,6 +1191,11 @@ write_metadata <- function(conn,
 
   if (covar_type == "temporal") {
     raster_files <- dir(covar_dir, pattern = "\\.", full.names = T)
+    # Keep only raster files
+    raster_files <- stringr::str_subset(raster_files, "nc|tif")
+    if (length(raster_files) == 0) {
+      stop("No raster files found in", covar_dir)
+    }
   } else {
     if (!file.exists(covar_dir)) {
       stop("Couldn't find the file", covar_dir)
