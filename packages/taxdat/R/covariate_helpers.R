@@ -970,6 +970,11 @@ ingest_covariate <- function(conn,
 
   if (covar_type == "temporal") {
     raster_files <- dir(covar_dir, pattern = "\\.", full.names = T)
+    # Keep only raster files
+    raster_files <- stringr::str_subset(raster_files, "nc|tif")
+    if (length(raster_files) == 0) {
+      stop("No raster files found in", covar_dir)
+    }
   } else {
     if (!file.exists(covar_dir)) {
       stop("Couldn't find the file", covar_dir)
