@@ -17,7 +17,7 @@ option_list <- list(
 parser <- optparse::OptionParser(option_list=option_list)
 opt <- optparse::parse_args(parser)
 
-source(paste(opt$cholera_directory, "Analysis/R/prepare_covariates.R", sep = "/"))
+source(paste(stringr::str_replace(opt$cholera_covariates_directorys, "/Layers", ""), "Analysis/R/prepare_covariates.R", sep = "/"))
 prepare_covariates(
   dbuser =  opt$dbuser,
   cholera_covariates_directory = opt$cholera_covariates_directory,
