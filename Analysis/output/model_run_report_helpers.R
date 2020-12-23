@@ -93,7 +93,7 @@ read_file_of_type <- function(filename,variable){
 
 getFilenames <- function(config, cholera_directory) {
   
-  taxonomy <- config$taxonomy
+  # taxonomy <- config$taxonomy
   # taxonomy-working/working-entry1'
   # cholera_directory <- rprojroot::find_root(rprojroot::has_file('.choldir')) # The location of the repository
   # taxdir <- rprojroot::find_root_file(taxonomy, criterion=rprojroot::has_file('.choldir')) # Relative to the repository, where is the taxonomy
