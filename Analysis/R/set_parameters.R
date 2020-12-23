@@ -47,6 +47,7 @@ package_list <- c(
   "rjson",
   "rstan",
   "rpostgis",
+  "rts",
   "RPostgres",
   "sf",
   "spdep",
