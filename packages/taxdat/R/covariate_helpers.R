@@ -695,7 +695,7 @@ time_aggregate <- function(src_file,
                                       units = res_time_list$units)
 
     # Check whether the source's temporal resolution is coarser than the required resolution
-    if (res_time_source$dt_units >= res_time_list$k) {
+    if (res_time_source$dt_units > res_time_list$k) {
       cat("Temporal resolution of",
           covar_name, " (", res_time_source$dt_units , " ",  res_time_list$units, ")",
           " is coarser than required resolutionn (", res_time,
