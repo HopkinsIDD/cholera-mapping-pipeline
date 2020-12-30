@@ -42,6 +42,7 @@ package_list <- c(
   "optparse",
   "parallel",
   "purrr",
+  "RCurl",
   "R.utils",
   "raster",
   "rjson",
@@ -53,7 +54,8 @@ package_list <- c(
   "spdep",
   "stringr",
   "tidync",
-  "tibble"
+  "tibble",
+  "zoo"
 )
 
 for (package in package_list) {

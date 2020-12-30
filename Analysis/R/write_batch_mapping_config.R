@@ -7,14 +7,14 @@ library(readr)
 
 scale <- "region" ## country or region maps
 config_path <- "Analysis/configs"
-covar_names <- c("dist_to_water", "water_access", "san_access", "open_defe", "stunting", "wasting", "access_cities")
+covar_names <- c("dist_to_water", "water_access", "san_access")
 
 ids <- read_csv("Analysis/R/locations_todeletelater.csv") # location ids
 cw <- read_csv("Analysis/R/region_country.csv")
 locs <- dplyr::right_join(cw, ids, by = c("country" = "region")) ## region & country grouping
 
 ## rm later
-locs <- dplyr::filter(locs, country != "ETH" & !is.na(region))
+locs <- dplyr::filter(locs, !is.na(region))
 
 params_df <- data.frame(
     aoi = "raw",
