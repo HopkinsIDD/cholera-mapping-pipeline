@@ -1,6 +1,5 @@
 packrat/lib*/
 Analysis/data/*
-Analysis/configs/*
 Analysis/output/logs/*
 Analysis/output/reports/*
 Analysis/R/database_api_key.R
