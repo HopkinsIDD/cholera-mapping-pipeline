@@ -7,7 +7,7 @@ library(readr)
 
 scale <- "region" ## country or region maps
 config_path <- "Analysis/configs"
-covar_names <- c("dist_to_water", "water_access", "san_access")
+covar_names <- c("dist_to_water", "water_access", "san_access", "open_defe", "stunting", "wasting", "access_cities")
 
 ids <- read_csv("Analysis/R/locations_todeletelater.csv") # location ids
 cw <- read_csv("Analysis/R/region_country.csv")

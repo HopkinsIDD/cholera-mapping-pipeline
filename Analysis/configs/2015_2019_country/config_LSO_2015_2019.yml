@@ -8,7 +8,7 @@ smoothing_period: 1
 case_definition: 'suspected'
 start_time: '2015-01-01'
 end_time: '2019-12-31'
-covariate_choices: ['dist_to_water','water_access','san_access']
+covariate_choices: ['dist_to_water','water_access','san_access','open_defe','stunting','wasting','access_cities']
 data_source: 'sql'
 ovrt_metadata_table: no
 ingest_covariates: yes
