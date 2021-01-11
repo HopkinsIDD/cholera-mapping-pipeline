@@ -523,33 +523,43 @@ write_ncdf <- function(data,
   chunk_size <- 1e3
   nchunk_row <- ceiling(nrow(data) / chunk_size)
   nchunk_col <- ceiling(ncol(data) / chunk_size)
-
+  
+ 
   for (layer_idx in seq_len(raster::nlayers(data))) {
+    dataslice <- raster::getValues(data[[layer_idx]], format =  "matrix")
+    
     for (row_idx in seq_len(nchunk_row)) {
       chunk_row_start <- (row_idx - 1) * chunk_size + 1
       chunk_row_end <- min((row_idx) * chunk_size, nrow(data))
+      mat_row_start <- nrow(data) - chunk_row_end + 1
+      # mat_row_end <- nrow(data) - chunk_row_start + 1
       for (col_idx in seq_len(nchunk_col)) {
         cat("Processing layer ", layer_idx, " of ", raster::nlayers(data), "\n")
         cat("Processing row", row_idx, " of ", nchunk_row, "\n")
         cat("Processing col", col_idx, " of ", nchunk_col, "\n")
         chunk_col_start <- (col_idx - 1) * chunk_size + 1
         chunk_col_end <- min((col_idx) * chunk_size, ncol(data))
+        mat_col_start <- ncol(data) - chunk_col_end + 1
+        
+        n_col <- chunk_col_end - chunk_col_start + 1
+        n_row <- chunk_row_end - chunk_row_start + 1
+        
         if (is.null(time_vals)) {
           ncdf4::ncvar_put(
             nc = ncout,
             varid = var_data,
-            vals = raster::values(data[chunk_row_start:chunk_row_end, chunk_col_start:chunk_col_end, drop = FALSE]),
-            start = c(chunk_col_start, chunk_row_start),
-            count = c(chunk_col_end - chunk_col_start + 1, chunk_row_end - chunk_row_start + 1),
+            vals = t(dataslice[chunk_row_start:chunk_row_end, chunk_col_start:chunk_col_end, drop = FALSE])[,n_row:1],
+            start = c(chunk_col_start, mat_row_start),
+            count = c(n_col, n_row),
             verbose = TRUE
           )
         } else {
           ncdf4::ncvar_put(
             nc = ncout,
             varid = var_data,
-            vals = raster::values(data[chunk_row_start:chunk_row_end, chunk_col_start:chunk_col_end, layer_idx, drop = FALSE]),
-            start = c(chunk_col_start, chunk_row_start,layer_idx),
-            count = c(chunk_col_end - chunk_col_start + 1, chunk_row_end - chunk_row_start + 1,1),
+            vals =  t(dataslice[chunk_row_start:chunk_row_end, chunk_col_start:chunk_col_end, drop = FALSE])[,n_row:1],
+            start = c(chunk_col_start, mat_row_start, layer_idx),
+            count = c(n_col, n_row, 1),
             verbose = TRUE
           )
         }
