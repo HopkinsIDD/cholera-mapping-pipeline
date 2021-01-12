@@ -63,7 +63,7 @@ for (package in package_list) {
     install.packages(pkgs = package)
     library(package = package, character.only = T)
   }
-  detach(pos = which(grepl(package, search())))
+  detach(pos = which(grepl(package, search())), force = T)
 }
 
 
