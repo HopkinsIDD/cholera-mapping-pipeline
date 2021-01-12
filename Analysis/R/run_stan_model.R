@@ -160,6 +160,8 @@ if (stan_data$ncovar >= 1 & covar_warmup) {
   w.init <- y_pred_mean
 }
 
+# Set sigma_eta_scale for all models (not used for models without time effect)
+stan_data$sigma_eta_scale <- taxdat::get_stan_parameters(config)$sigma_eta_scale
 
 # Initial parameter values
 if (config$time_effect) {
@@ -191,10 +193,6 @@ if (covar_warmup) {
 if (stan_data$ncovar >= 1) {
   stan_data$beta_sigma_scale <- taxdat::get_stan_parameters(config)$beta_sigma_scale
 }
-
-# Set sigma_eta_scale for all models (not used for models without time effect)
-stan_data$sigma_eta_scale <- taxdat::get_stan_parameters(config)$sigma_eta_scale
-
 
 # Set censoring and time effect and autocorrelation
 stan_data$do_censoring <- ifelse(config$censoring, 1, 0)
