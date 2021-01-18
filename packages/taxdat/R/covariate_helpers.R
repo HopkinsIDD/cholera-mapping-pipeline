@@ -1252,7 +1252,7 @@ write_metadata <- function(conn,
                     row.names = F,
                     apppend = F,
                     overwrite = T)
-
+  
   try(DBI::dbClearResult(DBI::dbSendStatement(conn,
                            glue::glue_sql("INSERT INTO covariates.metadata
                                      SELECT * FROM {`DBI::SQL(tmp_name)`};",

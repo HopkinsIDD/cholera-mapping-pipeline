@@ -77,7 +77,9 @@ option_list <- list(
     default = Sys.getenv("CHOLERA_CONFIG", "config.yml"),
     type = "character",
     help = "Model run configuration file"
-  )
+  ),
+  optparse::make_option(c("-d", "--cholera_directory"), action = "store", default = NULL, type="character", help = "Cholera directory"),
+  optparse::make_option(c("-l", "--layers_directory"), action = "store", default = NULL, type="character", help = "Layers directory")
 )
 
 opt <- optparse::OptionParser(option_list = option_list) %>% optparse::parse_args()
@@ -95,10 +97,14 @@ config <- yaml::read_yaml(opt$config)
 try({setwd(utils::getSrcDirectory())}, silent = TRUE)
 try({setwd(dirname(rstudioapi::getActiveDocumentContext()$path))}, silent = TRUE)
 # Where is the repository
-cholera_directory <- rprojroot::find_root(rprojroot::has_file(".choldir"))
+cholera_directory <- ifelse(is.null(opt$cholera_directory), 
+                            rprojroot::find_root(rprojroot::has_file(".choldir")),
+                            opt$cholera_directory)
 
 # Relative to the repository, where is the layers directory
-laydir <- rprojroot::find_root_file("Layers", criterion = rprojroot::has_file(".choldir"))
+laydir <- ifelse(is.null(opt$layers_directory),
+                 rprojroot::find_root_file("Layers", criterion = rprojroot::has_file(".choldir")),
+                 opt$layers_directory)  
 
 
 ## Inputs --------------------------------------------------------------------------------------------------------------

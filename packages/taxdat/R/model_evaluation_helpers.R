@@ -8,68 +8,57 @@
 #' @param config object representing the imported YAML config file for the model
 #' @param cholera_directory path to cholera directory
 #' @return
-get_filenames <- function(config, cholera_directory) {
-  
-  # taxonomy <- config$taxonomy
-  # taxonomy-working/working-entry1'
-  # cholera_directory <- rprojroot::find_root(rprojroot::has_file('.choldir')) # The location of the repository
-  # taxdir <- rprojroot::find_root_file(taxonomy, criterion=rprojroot::has_file('.choldir')) # Relative to the repository, where is the taxonomy
-  # laydir <- rprojroot::find_root_file('Layers',criterion=rprojroot::has_file('.choldir')) # Relative to the repository, where is the layers directory
-  
-  # - - - - Data source
+get_filenames <- function (config, cholera_directory) {
   data_source <- config$data_source
-  # Countries over which to run the model
   countries <- config$countries
   countries_name <- config$countries_name
-  res_space <- as.numeric(config$res_space) # km by km resolution of analysis
-  spatial_aggregate_iso_a2_level <- Inf # Aggregate data to ISO_A2_L? use 0 for ISO_A1 level
+  res_space <- as.numeric(config$res_space)
+  spatial_aggregate_iso_a2_level <- Inf
   res_time <- check_time_res(config$res_time)
-  temporal_aggregate_time_unit <- stringr::str_split(res_time, " ")[[1]][2]
-  time_change_func <- time_unit_to_aggregate_function(temporal_aggregate_time_unit)
-  aggregate_to_start <- time_unit_to_start_function(temporal_aggregate_time_unit)
-  aggregate_to_end <- time_unit_to_end_function(temporal_aggregate_time_unit)
+  # temporal_aggregate_time_unit <- stringr::str_split(res_time, 
+  # " ")[[1]][2]
+  time_change_func <- time_unit_to_aggregate_function(res_time)
+  aggregate_to_start <- time_unit_to_start_function(res_time)
+  aggregate_to_end <- time_unit_to_end_function(res_time)
   smooth_covariate_number_timesteps <- config$smoothing_period
   suspected_or_confirmed <- check_case_definition(config$case_definition)
-  cases_column <- case_definition_to_column_name(suspected_or_confirmed,
+  cases_column <- case_definition_to_column_name(suspected_or_confirmed, 
                                                  database = T)
   start_time <- lubridate::ymd(config$start_time)
   end_time <- lubridate::ymd(config$end_time)
-  # Get the dictionary of covariates
-  covariate_dict <- yaml::read_yaml(paste0(cholera_directory, "/Layers/covariate_dictionary.yml"))
+  covariate_dict <- yaml::read_yaml(paste0(cholera_directory, 
+                                           "/Layers/covariate_dictionary.yml"))
   all_covariate_choices <- names(covariate_dict)
-  short_covariate_choices <- purrr::map_chr(covariate_dict, "abbr")
-  
-  # User-defined covariates names and abbreviations
-  covariate_choices <- check_covariate_choices(covar_choices = config$covariate_choices,
-                                             available_choices = all_covariate_choices)
+  short_covariate_choices <- purrr::map_chr(covariate_dict, 
+                                            "abbr")
+  covariate_choices <- check_covariate_choices(covar_choices = config$covariate_choices, 
+                                               available_choices = all_covariate_choices)
   short_covariates <- short_covariate_choices[covariate_choices]
-  
-  
-  # - - - -
-  # STAN parameters
   ncore <- config$stan$ncores
   nchain <- ncore
   niter <- config$stan$niter
-  stan_dir <- paste0(cholera_directory, '/Analysis/Stan/')
+  stan_dir <- paste0(cholera_directory, "/Analysis/Stan/")
   stan_model <- config$stan$model
-  stan_model_path <- check_stan_model(stan_model_path = paste(stan_dir, stan_model, sep=''),
-                                    stan_dir = stan_dir)
-  
-  map_name <- paste(paste(config$countries_name, collapse = '-'),
-                    temporal_aggregate_time_unit,
-                    paste(start_time, end_time, sep = '-'),
-                    spatial_aggregate_iso_a2_level,
-                    paste(res_space, 'km', sep = ''),
-                    suspected_or_confirmed, sep = '_')
-  
-  covariate_name_part <- paste(short_covariates, collapse = '-')
-  preprocessed_data_fname <- make_observations_filename(cholera_directory, map_name) 
-  preprocessed_covar_fname <- make_covar_filename(cholera_directory, map_name, covariate_name_part)
-  stan_input_fname <- make_stan_input_filename(cholera_directory, map_name, covariate_name_part, stan_model, niter)
-  stan_output_fname <- make_stan_output_filename(cholera_directory, map_name, covariate_name_part, stan_model, niter)
-
-  rc <- setNames(c(preprocessed_data_fname,       preprocessed_covar_fname, stan_input_fname, stan_output_fname), c("data", "covar", "stan_input", "stan_output"))
-  
+  stan_model_path <- check_stan_model(stan_model_path = paste(stan_dir, 
+                                                              stan_model, sep = ""), stan_dir = stan_dir)
+  map_name <-  paste(paste(config$countries_name, collapse = '-'),
+                     stringr::str_replace(res_time, " ", "_"),
+                     paste(start_time, end_time, sep = '-'),
+                     paste(res_space, 'km', sep = ''),
+                     suspected_or_confirmed,
+                     sep = '_')
+  covariate_name_part <- paste(short_covariates, collapse = "-")
+  preprocessed_data_fname <- make_observations_filename(cholera_directory, 
+                                                        map_name)
+  preprocessed_covar_fname <- make_covar_filename(cholera_directory, 
+                                                  map_name, covariate_name_part)
+  stan_input_fname <- make_stan_input_filename(cholera_directory, 
+                                               map_name, covariate_name_part, stan_model, niter)
+  stan_output_fname <- make_stan_output_filename(cholera_directory, 
+                                                 map_name, covariate_name_part, stan_model, niter)
+  rc <- setNames(c(preprocessed_data_fname, preprocessed_covar_fname, 
+                   stan_input_fname, stan_output_fname), c("data", "covar", 
+                                                           "stan_input", "stan_output"))
   return(rc)
 }
 
