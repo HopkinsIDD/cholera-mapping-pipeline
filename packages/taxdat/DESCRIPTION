@@ -12,6 +12,7 @@ Depends: R (>= 3.4),ISOcodes,magrittr, dplyr, tidyr
 Suggests: readxl, sf, sp, raster, rgdal, testthat, knitr, rmarkdown
 RoxygenNote: 7.1.1
 Collate:
+    'auxiliary_functions.R'
     'config_helpers.R'
     'covariate_helpers.R'
     'geo_lookup_helpers.R'

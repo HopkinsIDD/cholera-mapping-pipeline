@@ -1,4 +1,3 @@
-#' @include readData.R
 #' @export classify_date
 #' @name classify_date
 #' @title classify_date
