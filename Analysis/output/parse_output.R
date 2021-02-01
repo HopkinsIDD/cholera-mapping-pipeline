@@ -48,6 +48,7 @@ country <- str_extract(opt$config, "[A-Z]{3}")
   
 # Prepare out file names for each output type
 obs_stats_filename <- str_c(out_dir, "/", country, "_obs_stats.csv")
+runtimes_filename <- str_c(out_dir, "/", country, "_model_runtimes.csv")
 case_rast_filename <- str_c(out_dir, "/", country, "_case_rast.rds")
 case_comp_filename <- str_c(out_dir, "/", country, "_case_comp.csv")
 rhat_filename <- str_c(out_dir, "/", country, "_case_rhats.csv")
@@ -55,6 +56,14 @@ rhat_filename <- str_c(out_dir, "/", country, "_case_rhats.csv")
 # Get observations --------------------------------------------------------
 sf_cases <- taxdat::read_file_of_type(preprocessed_data_filename, "sf_cases")
 sf_cases_resized <- taxdat::read_file_of_type(stan_input_filename, "stan_input")$sf_cases_resized
+
+# Model runtime
+stan_runtimes <- rstan::get_elapsed_time(model.rand) %>% 
+  as_tibble() %>% 
+  mutate(chain = row_number())
+
+write_csv(stan_runtimes %>% mutate(country = country), path = runtimes_filename)
+
 # Get stan object
 model.rand <- taxdat::read_file_of_type(stan_output_filename, "model.rand")
 
@@ -79,7 +88,7 @@ saveRDS(case_raster %>% mutate(country = country), file = case_rast_filename)
 data_fidelity <- taxdat::get_data_fidelity(stan_output_filename)[[1]] %>% 
   as_tibble()
 
-write_csv(data_fidelity %>% mutate(country = country), path = case_comp_filename)
+write_csv(data_fidelity %>% mutate(country = country) %>% set_colnames(c("chain", "param", "modeled", "actual", "country")), path = case_comp_filename)
 
 # Rhats -------------------------------------------------------------------
 # Extract the Rhats for modeled cases

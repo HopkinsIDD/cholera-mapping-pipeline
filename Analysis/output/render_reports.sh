@@ -9,8 +9,8 @@
 
 echo "Beginning of script"
 date
-TAXDIR=/home/jkaminsky/git/cholera-taxonomy/branches/postgis-covar/
-CONFIGDIR=$TAXDIR/Analysis/configs/2015_2019
+TAXDIR=/home/perez/projects/cholera-mapping-pipeline
+CONFIGDIR=$TAXDIR/Analysis/configs/2015_2019_country
 OUTDIR=Analysis/output
 RBIN=/opt/R/4.0.3/bin/R
 export LTO=-pg
@@ -20,7 +20,7 @@ THISCONFIG=${CONFIGNAMES[$SLURM_ARRAY_TASK_ID]}
 THISHTML="${THISCONFIG/yml/html}"
 THISHTML="${THISHTML/config/report}"
 OUTFILE="$TAXDIR/${OUTDIR}/reports/${THISHTML}"
-CALL="rmarkdown::render('$TAXDIR/${OUTDIR}/model_run_report.Rmd', output_file = '$OUTFILE', params = list(config = '$CONFIGDIR/${THISCONFIG}'))"
+CALL="rmarkdown::render('$TAXDIR/${OUTDIR}/model_run_report.Rmd', output_file = '$OUTFILE', params = list(cholera_directory='$TAXDIR', config = '$CONFIGDIR/${THISCONFIG}'))"
 # CONFIGNAMES=$(ls $TAXDIR/$CONFIGDIR)
 
 if [ -f "$OUTFILE" ]; then
