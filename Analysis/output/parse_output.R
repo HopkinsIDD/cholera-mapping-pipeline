@@ -12,6 +12,7 @@ library(purrr)
 library(readr)
 library(sf)
 library(abind)
+library(rstan)
 
 # Code options
 option_list <- list(
