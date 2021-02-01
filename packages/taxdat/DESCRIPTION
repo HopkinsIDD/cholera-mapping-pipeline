@@ -24,4 +24,5 @@ Collate:
     'run_stan_helpers.R'
     'simulation_framework_helpers.R'
     'stan_input_helpers.R'
+    'tmp.R'
 VignetteBuilder: knitr
