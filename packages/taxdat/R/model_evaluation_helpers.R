@@ -654,6 +654,7 @@ plot_model_fidelity <- function(data_fidelity,
 plot_rhat <- function(model.rand,
                       render = T) {
   
+  
   fit_summary <- rstan::summary(model.rand)
   rhats <- tibble::tibble(Rhat = round(fit_summary$summary[which(str_detect(row.names(fit_summary$summary), "modeled_cases")), "Rhat"], 2)) %>% 
     dplyr::mutate(x=dplyr::row_number())
@@ -679,7 +680,9 @@ plot_rhat <- function(model.rand,
 #' @param sf_cases sf_cases output 
 #' @param source_match string of reference source (e.g., WHO Annual Cholera Reports)
 #' @return 
-pull_output_by_source <- function(sf_cases, source_match){
+pull_output_by_source <- function(sf_cases, 
+                                  source_match,
+                                  database_api_key_rfile = "../R/database_api_key.R"){
   if(missing(source_match)){
     warning("No source filter provided")
     return(sf_cases)
@@ -691,7 +694,7 @@ pull_output_by_source <- function(sf_cases, source_match){
     return(sf_cases[matches,])
   }
 
-  source("../R/database_api_key.R")
+  source(database_api_key_rfile)
   conn <- RPostgres::dbConnect(RPostgres::Postgres(),
                                host = "db.cholera-taxonomy.middle-distance.com",
                                dbname = "CholeraTaxonomy_production",
