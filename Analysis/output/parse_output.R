@@ -58,15 +58,16 @@ rhat_filename <- str_c(out_dir, "/", country, "_case_rhats.csv")
 sf_cases <- taxdat::read_file_of_type(preprocessed_data_filename, "sf_cases")
 sf_cases_resized <- taxdat::read_file_of_type(stan_input_filename, "stan_input")$sf_cases_resized
 
+
+# Get stan object
+model.rand <- taxdat::read_file_of_type(stan_output_filename, "model.rand")
+
 # Model runtime
 stan_runtimes <- rstan::get_elapsed_time(model.rand) %>% 
   as_tibble() %>% 
   mutate(chain = row_number())
 
 write_csv(stan_runtimes %>% mutate(country = country), path = runtimes_filename)
-
-# Get stan object
-model.rand <- taxdat::read_file_of_type(stan_output_filename, "model.rand")
 
 # Get case data statistics
 obs_stats <- taxdat::get_obs_stats(sf_cases_resized)
