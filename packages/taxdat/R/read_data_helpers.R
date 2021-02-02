@@ -394,7 +394,7 @@ read_taxonomy_data_api <- function(username,
     )
   }
 
-  geoinput <- st_sf(geometry=sf::st_sfc(sf::st_point(1.*c(NA,NA))))$geometry
+  geoinput <- sf::st_sf(geometry=sf::st_sfc(sf::st_point(1.*c(NA,NA))))$geometry
   if(nrow(all_results) == 0){
     geoinput <- geoinput[0]
   }

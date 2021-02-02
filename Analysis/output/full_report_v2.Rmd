@@ -1,0 +1,116 @@
+---
+title: ""
+output: html_document
+params:
+  cholera_directory: "../../"
+  config_directory: "../configs/2015_2019_country"
+  max_countries: Inf
+---
+```{r setup, include=FALSE, dev="CairoPNG"}
+knitr::opts_chunk$set(inlude = FALSE, dev="CairoPNG")
+knitr::opts_chunk$set(
+  echo = FALSE,
+  fig.align = "center",
+  message = FALSE,
+  warning = FALSE,
+  cache.lazy = F,
+  bitmapType = "cairo"
+)
+library(stringr)
+library(dplyr)
+library(tidyr)
+library(magrittr)
+library(purrr)
+library(readr)
+library(ggplot2)
+library(kableExtra)
+library(RColorBrewer)
+library(MCMCvis)
+library(sf)
+library(abind)
+```
+
+```{r datapull, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+all_configs <- list.files(params$config_directory, full.names=TRUE)
+all_locations <- str_extract(all_configs, "(?<=g_)[A-Z]{3}(?=_)")
+all_times <- unique(str_extract(all_configs, "(?<=_)[0-9]{4}_[0-9]{4}(?=\\.)"))
+if(length(all_times) > 1){
+  stop("This report was not intended to compile runs from different time ranges")
+}
+
+out_dir <- str_c(params$cholera_directory, "/Analysis/output/reports/", str_split(params$config_directory, "/")[[1]]  %>% last())
+```
+
+# Results summary for `r paste(all_locations, collapse =', ')` and period `r all_times`
+
+## Runtimes
+
+```{r runtimes, fig.height=8, fig.width=6, message=FALSE, warning=FALSE}
+runtimes <- dir(out_dir, 
+                pattern = "runtime", full.names = T) %>% 
+  map_df(~read_csv(.)) %>% 
+  group_by(country, chain) %>% 
+  summarise(runtime = warmup + sample) %>% 
+  group_by(country) %>% 
+  summarise(min = min(runtime),
+            max = max(runtime),
+            mean = mean(runtime))
+
+ggplot(runtimes, aes(y = country, x = mean, xmin = min, xmax = max)) +
+  geom_bar(stat = "identity") +
+  geom_errorbarh(height = .2) +
+  theme_bw()
+
+```
+
+```{r obsstats, fig.height=10, fig.width=8}
+obs_stats <- dir(out_dir, 
+                 pattern = "obs_stats", full.names = T) %>% 
+  map_df(~read_csv(.)) %>% 
+  select(year, country, contains("n_")) %>% 
+  tidyr::gather(var, value, -year, -country)
+
+ggplot(obs_stats, aes(y = country, x = value, fill = year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~var, scales = "free") +
+  ggthemes::scale_fill_few() +
+  theme_bw() 
+
+```
+
+
+```{r casecomp, fig.height=10, fig.width=8}
+case_comp <- dir(out_dir, 
+                 pattern = "case_comp", full.names = T) %>% 
+  map_df(~read_csv(., col_types = c(col_character(), col_character(), col_number(), col_number())))
+
+
+case_comp %>% 
+  ggplot(aes(x = actual, y = modeled, color = chain)) +
+  geom_abline(aes(intercept = 0, slope = 1), lty = 2) +
+  geom_point() +
+  facet_wrap(~country, scales = "free") +
+  theme_bw()
+```
+```{r rhats, fig.height=8, fig.width=6}
+rhats <- dir(out_dir, 
+                 pattern = "rhats", full.names = T) %>% 
+  map_df(~read_csv(.)) 
+
+# Rhat threshold
+rhat_thresh <- 1.05
+
+# Compute fraction above threshold for each country
+rhats_frac <- rhats %>% 
+  group_by(country) %>% 
+  summarise(n_above = sum(Rhat > rhat_thresh),
+            frac_above = n_above/n())
+
+ggplot(rhats_frac, aes(y = country, x = frac_above)) +
+  geom_point() +
+  geom_bar(stat = "identity") +
+  theme_bw() +
+  labs(x = str_c("Fraction of observations above threshold of ", rhat_thresh))
+
+```
+

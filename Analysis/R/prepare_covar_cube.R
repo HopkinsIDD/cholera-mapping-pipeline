@@ -17,6 +17,7 @@
 prepare_covar_cube <- function(
   covar_list,
   dbuser,
+  map_name,
   cholera_directory,
   full_grid_name,
   start_time,
@@ -49,7 +50,7 @@ prepare_covar_cube <- function(
   n_time_slices <- nrow(time_slices)
   n_covar <- length(covar_list)
   # Get the grid centroids corresponding to the location periods centroids table
-  cntrd_table <- taxdat::make_grid_centroids_table_name(dbuser)
+  cntrd_table <- taxdat::make_grid_centroids_table_name(dbuser = dbuser, map_name = map_name)
   n_grid_cells <- DBI::dbGetQuery(
     conn_pg,
     glue::glue_sql("SELECT COUNT(*) FROM {`{DBI::SQL(cntrd_table)}`};", .con = conn_pg)
@@ -166,12 +167,14 @@ prepare_covar_cube <- function(
                               sf_grid$t = t
                               sf_grid
                             }
-                     )) %>%
+                     )) %>% 
     dplyr::mutate(long_id = dplyr::row_number())  # this is the overall cell id (from 1 to n_space x n_times)
-
-  # Table of correspondence between location periods and grid cells
-  location_periods_table <- paste0("location_periods_", res_space, "_", res_space, "_dict_", username)
-
+  
+  # Set user-specific name for location_periods table to use
+  lp_name <- taxdat::make_locationperiods_table_name(dbuser = dbuser, map_name = map_name)
+  
+  location_periods_table <- paste0(lp_name, "_dict")
+  
   # Get the dictionary of location periods to pixel ids
   location_periods_dict <- DBI::dbReadTable(conn_pg, location_periods_table)
 
