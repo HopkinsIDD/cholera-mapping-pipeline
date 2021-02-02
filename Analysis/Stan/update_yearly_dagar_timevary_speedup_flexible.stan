@@ -142,7 +142,7 @@ transformed parameters {
   
   // Add time slice effects
   if (do_time_slice_effect == 1) {
-    log_lambda =+ mat_grid_time * eta;
+    log_lambda += mat_grid_time * eta;
   }
   
   grid_cases = exp(log_lambda + logpop);
