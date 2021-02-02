@@ -704,6 +704,10 @@ pull_output_by_source <- function(sf_cases,
   
   query <- glue::glue_sql(.con=conn,"select id,source from observation_collections where source like {source_match};")
   source_ids <- DBI::dbGetQuery(conn=conn, query)
+  if (is.character(sf_cases$OC_UID[1])) {
+    source_ids$id <- as.character(source_ids$id)
+  } 
+  
   matches <- sf_cases$OC_UID %in% source_ids$id
   return(sf_cases[matches,])
 }

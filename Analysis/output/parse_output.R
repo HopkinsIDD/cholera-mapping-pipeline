@@ -134,9 +134,10 @@ if (!file.exists(who_filename)) {
   chains <- rstan::extract(model.rand)
   who_annual_cases$modeled <- apply(chains$modeled_cases, 2, mean)
   who_annual_cases$observed <- who_annual_cases$attributes.fields.suspected_cases # fix me
-  who_annual_cases <- taxdat::pull_output_by_source(who_annual_cases, "%WHO Annual Cholera Reports%",
+  who_annual_cases <- taxdat::pull_output_by_source(sf_cases = who_annual_cases, 
+                                                    source_match = "%WHO Annual Cholera Reports%",
                                                     database_api_key_rfile = str_c(opt$cholera_directory,
-                                                                                   "Analysis/R/database_api_key.R"))
+                                                                                   "/Analysis/R/database_api_key.R"))
   who_annual_cases %>%
     as.data.frame() %>%
     dplyr::select(OC_UID, TL, TR, observed, modeled) %>% 
