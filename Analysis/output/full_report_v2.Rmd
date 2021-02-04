@@ -1,9 +1,13 @@
 ---
-title: ""
-output: html_document
+title: "Model run report"
+output: 
+  bookdown::html_document2:
+    toc: true
+    toc_float: true
+    number_sections: false
 params:
-  cholera_directory: "../../"
-  config_directory: "../configs/2015_2019_country"
+  cholera_directory: "~/projects/cholera-mapping-pipeline"
+  config_directory: "Analysis/configs/2015_2019_country"
   max_countries: Inf
 ---
 ```{r setup, include=FALSE, dev="CairoPNG"}
@@ -41,32 +45,15 @@ if(length(all_times) > 1){
 out_dir <- str_c(params$cholera_directory, "/Analysis/output/reports/", str_split(params$config_directory, "/")[[1]]  %>% last())
 ```
 
-# Results summary for `r paste(all_locations, collapse =', ')` and period `r all_times`
+Results summary for `r paste(all_locations, collapse =', ')` and period `r all_times`
 
-## Runtimes
 
-```{r runtimes, fig.height=8, fig.width=6, message=FALSE, warning=FALSE}
-runtimes <- dir(out_dir, 
-                pattern = "runtime", full.names = T) %>% 
-  map_df(~read_csv(.)) %>% 
-  group_by(country, chain) %>% 
-  summarise(runtime = warmup + sample) %>% 
-  group_by(country) %>% 
-  summarise(min = min(runtime),
-            max = max(runtime),
-            mean = mean(runtime))
-
-ggplot(runtimes, aes(y = country, x = mean, xmin = min, xmax = max)) +
-  geom_bar(stat = "identity") +
-  geom_errorbarh(height = .2) +
-  theme_bw()
-
-```
-
-```{r obsstats, fig.height=10, fig.width=8}
+## Input data 
+#### Statistics
+```{r obsstats, fig.height=8, fig.width=6, fig.cap="Input data statistics. Number of cases, observations, location periods and observations collections for each country and per modeling year."}
 obs_stats <- dir(out_dir, 
                  pattern = "obs_stats", full.names = T) %>% 
-  map_df(~read_csv(.)) %>% 
+  map_df(function(x) {res <- read_csv(x); if(nrow(res) > 0) return(res)}) %>% 
   select(year, country, contains("n_")) %>% 
   tidyr::gather(var, value, -year, -country)
 
@@ -78,39 +65,222 @@ ggplot(obs_stats, aes(y = country, x = value, fill = year)) +
 
 ```
 
+### Spatial coverage
+```{r spat cov, fig.width=8, fig.height=10, fig.cap="Spatial coverage. Color gives the number of location periods x observations that cover a given hex cell."}
 
-```{r casecomp, fig.height=10, fig.width=8}
+all_coverage <- map(dir(out_dir, pattern = "covera", full.names = T) , function(resfile) {
+  
+  sf_cases_grids <- readRDS(resfile)
+  if(nrow(sf_cases_grids) ==0) 
+    return(NULL)
+  
+  sf_cases_grids %>% 
+    ggplot(aes(x = long, y = lat)) +
+    geom_hex() +
+    scale_fill_viridis_c(trans = "log",
+                         breaks = c(1, 10, 100, 1000, 1e4, 1e5),
+                         guide = guide_colorbar(title = "# lp x obs")) +
+    facet_wrap(~t, nrow = 1) +
+    theme_bw() +
+    ggtitle(sf_cases_grids$country[1])
+})
+
+cowplot::plot_grid(plotlist = all_coverage,
+                   align = "v",
+                   nrow = 1)
+
+```
+
+
+## Runtimes
+
+```{r runtimes, fig.height=5, fig.width=6, message=FALSE, warning=FALSE, fig.cap="Stan model run time per country. Bars indicate the mean across chains, and errobars the min and max chain runtimes."}
+runtimes <- dir(out_dir, 
+                pattern = "runtime", full.names = T) %>% 
+  map_df(function(x) {res <- read_csv(x); if(nrow(res) > 0) return(res)}) %>% 
+  group_by(country, chain) %>% 
+  summarise(runtime = (warmup + sample)/3600) %>% 
+  group_by(country) %>% 
+  summarise(min = min(runtime),
+            max = max(runtime),
+            mean = mean(runtime))
+
+ggplot(runtimes, aes(y = country, x = mean, xmin = min, xmax = max)) +
+  geom_bar(stat = "identity") +
+  geom_errorbarh(height = .2) +
+  theme_bw() +
+  labs(x = "Runtime (hours)")
+
+```
+
+
+## MCMC convergence on modeled cases
+
+```{r rhats, fig.height=4, fig.width=5, fig.cap="Chain convegence for observations"}
+rhats <- dir(out_dir, 
+             pattern = "rhats", full.names = T) %>% 
+  map_df(function(x) {res <- read_csv(x); if(nrow(res) > 0) return(res)}) 
+
+# Rhat threshold
+rhat_thresh <- 1.05
+
+# Case cuts for plotting
+case_cuts <- c(-Inf, 0, 10^seq(1:6))
+
+# Compute fraction above threshold for each country
+rhats_frac <- rhats %>% 
+  filter(max_diff_chains > 1) %>% 
+  mutate(y_class = cut(y, case_cuts)) %>% 
+  rbind(mutate(., y_class = "all")) %>% 
+  group_by(country, y_class) %>% 
+  summarise(n_above = sum(Rhat > rhat_thresh),
+            n_obs = n(),
+            frac_above = n_above/n()) %>% 
+  mutate(label = str_c(n_above, "/", n_obs))
+
+ggplot(rhats_frac, aes(y = country, x = frac_above, fill = n_above)) +
+  geom_point() +
+  geom_bar(stat = "identity") +
+  geom_label(aes(label = label), color = "white") +
+  theme_bw() +
+  facet_wrap(~y_class) +
+  scale_fill_viridis_c(trans = "log",
+                       breaks = 10^seq(4)) +
+  labs(x = str_c("Fraction of observations above threshold of ", rhat_thresh))
+
+```
+
+
+## Model validation
+### Observed vs. modeled by chain
+```{r casecomp, fig.height=12, fig.width=8, fig.cap="Observations against mean modeled cases. Colors indicate the MCMC chain."}
 case_comp <- dir(out_dir, 
                  pattern = "case_comp", full.names = T) %>% 
-  map_df(~read_csv(., col_types = c(col_character(), col_character(), col_number(), col_number())))
-
+  map_df(function(x) {res <- read_csv(x); if(nrow(res) > 0) return(res)})
 
 case_comp %>% 
   ggplot(aes(x = actual, y = modeled, color = chain)) +
   geom_abline(aes(intercept = 0, slope = 1), lty = 2) +
   geom_point() +
-  facet_wrap(~country, scales = "free") +
+  facet_wrap(~country, scales = "free", ncol = 3) +
   theme_bw()
 ```
-```{r rhats, fig.height=8, fig.width=6}
-rhats <- dir(out_dir, 
-                 pattern = "rhats", full.names = T) %>% 
-  map_df(~read_csv(.)) 
 
-# Rhat threshold
-rhat_thresh <- 1.05
+### Observed vs. modeled with CrIs
+```{r casecomp, fig.height=12, fig.width=8, fig.cap="Observations against mean modeled cases. Colors indicate the MCMC chain."}
 
-# Compute fraction above threshold for each country
-rhats_frac <- rhats %>% 
-  group_by(country) %>% 
-  summarise(n_above = sum(Rhat > rhat_thresh),
-            frac_above = n_above/n())
+tfrac_cuts <- c(0, .25, .5, .75, .9, 1)
+all_comp <- map(unique(rhat_obs$country), function(cntry) {
+  rhat_obs %>%
+    filter(country == cntry) %>% 
+    mutate(tfrac_class = cut(tfrac, tfrac_cuts)) %>% 
+    ggplot(aes(x = y, y = mean)) +
+    geom_abline(aes(intercept = 0, slope = 1), lty = 2) +
+    geom_errorbar(aes(ymin = q025, max = q975, alpha = Rhat > rhat_thresh,color = Rhat > rhat_thresh)) +
+    geom_point(aes(pch = Rhat > rhat_thresh, alpha = Rhat > rhat_thresh, color = Rhat > rhat_thresh)) +
+    facet_wrap( ~ tfrac_class, nrow = 1, labeller = label_both) +
+    coord_equal() +
+    theme_bw()+
+    ggtitle(cntry) +
+    guides(alpha = "none", pch = "none", color = "none") +
+    labs(x = "observed", y = "modeled")
+})
 
-ggplot(rhats_frac, aes(y = country, x = frac_above)) +
-  geom_point() +
-  geom_bar(stat = "identity") +
-  theme_bw() +
-  labs(x = str_c("Fraction of observations above threshold of ", rhat_thresh))
-
+cowplot::plot_grid(plotlist = all_comp, ncol = 1, align = "v")
 ```
 
+### Country-level comparison with WHO annual reports
+```{r who, fig.width = 10, fig.height=8, fig.cap="Comparison of annual country-level modeled number of cases against WHO annual reports when available."}
+who_comp <- dir(out_dir, 
+                pattern = "who", full.names = T) %>% 
+  map2_df(.x = ., .y = str_extract(., "[A-Z]{3}"), .f = function(x, y) {res <- read_csv(x); if(nrow(res) > 0) return(res %>% mutate(country = y))}) %>% 
+  mutate(year = as.character(lubridate::year(TL)))
+
+who_comp %>% 
+  pivot_longer(cols = c("observed", "modeled")) %>% 
+  mutate(name = case_when(name == "modeled" ~ "modeled",
+                          T ~ "WHO annual report")) %>%
+  ggplot(aes(x = year, y = value, fill = name)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 1)) +
+  geom_point(aes(color = name), position = position_dodge(width = 1)) +
+  facet_wrap(~country, scales = "free", ncol = 4) +
+  theme_bw() +
+  ggthemes::scale_fill_few(guide = guide_legend(""))+
+  ggthemes::scale_color_few(guide = guide_legend("")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)) +
+  labs(x = "year", 
+       y = "annual number of cases")
+
+```
+## Maps
+
+### Incidence rates [cases/10'000/year]
+```{r maps, fig.width=8, fig.height=10, fig.cap="Modeled case incidence rate"}
+case_rast <- dir(out_dir, 
+                 pattern = "rast", full.names = T) %>% 
+  map_df(function(x) {res <- readRDS(x); if(nrow(res) > 0) return(res)})
+
+# Get years for which we have at least one observation
+avail_times <- rhats %>%
+  count(country, t)
+
+rate_rescaling <-  1e4  # rescale to have incidence per 10'000 people
+
+all_maps <- map(unique(case_rast$country), function(cntry) {
+  plt <- ggplot2::ggplot()
+  plt <- plt +
+    ggplot2::geom_sf(
+      data = case_rast %>% 
+        filter(country == cntry) %>% 
+        inner_join(avail_times) %>%     # filter out years with no observations
+        group_by(country, long_id) %>% 
+        summarise(`modeled rates` = mean(`modeled rates`, na.rm = T)), 
+      ggplot2::aes(fill = `modeled rates` * rate_rescaling, color = `modeled rates` * rate_rescaling)) +
+    ggplot2::scale_fill_viridis_c(trans = "log",
+                                  breaks = c(0.01, 0.1, 1, 10, 100, 1000),
+                                  limits = c(0.001, 5000),
+                                  aesthetics = c("colour", "fill"),
+                                  guide = ggplot2::guide_colorbar(title = "Incidence rate\n [cases/10'000/year]"))  +
+    ggplot2::theme_bw() +
+    ggplot2::theme(legend.position = "none") +
+    # ggplot2::facet_wrap(~t,ncol = 5) +
+    ggplot2::theme(legend.text =  ggplot2::element_text(angle = 45, vjust = 1, hjust = 1)) +
+    ggtitle(cntry)
+  plt
+})
+
+cowplot::plot_grid(plotlist = all_maps,
+                   # align = "hv",
+                   ncol = 4)
+```
+
+### Incidence [cases\year]
+
+```{r casemaps, fig.width=8, fig.height=10, fig.cap="Modeled case incidence rate"}
+
+all_maps <- map(unique(case_rast$country), function(cntry) {
+  plt <- ggplot2::ggplot()
+  plt <- plt +
+    ggplot2::geom_sf(
+      data = case_rast %>% 
+        filter(country == cntry) %>% 
+        group_by(country, long_id) %>% 
+        inner_join(avail_times) %>%     # filter out years with no observations
+        summarise(`modeled cases` = mean(`modeled cases`, na.rm = T)), 
+      ggplot2::aes(fill = `modeled cases`, color = `modeled cases`)) +
+    ggplot2::scale_fill_viridis_c(trans = "log",
+                                  breaks = c(1, 10, 100, 1000),
+                                  limits = c(0.1, 1e5),
+                                  aesthetics = c("colour", "fill"),
+                                  guide = ggplot2::guide_colorbar(title = "Incidence\n [cases/year]"))  +
+    ggplot2::theme_bw() +
+    ggplot2::theme(legend.position = "none") +
+    ggplot2::theme(legend.text =  ggplot2::element_text(angle = 45, vjust = 1, hjust = 1)) +
+    ggtitle(cntry)
+  plt
+})
+
+cowplot::plot_grid(plotlist = all_maps,
+                   # align = "hv",
+                   ncol = 4)
+```
