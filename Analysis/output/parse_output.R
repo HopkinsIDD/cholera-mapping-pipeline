@@ -13,17 +13,20 @@ library(readr)
 library(sf)
 library(abind)
 library(rstan)
+library(foreach)
 
 # Code options
 option_list <- list(
   optparse::make_option(c("-c", "--config"), action = "store", default = Sys.getenv("CHOLERA_CONFIG", "config.yml"),
                         type = "character", help = "Model run configuration file"),
-  optparse::make_option(c("-d", "--cholera_directory"), action = "store", default = NULL, 
-                        type="character", help = "Cholera directory")
+  optparse::make_option(c("-d", "--cholera_directory"), action = "store", default = "./", 
+                        type="character", help = "Cholera directory"),
+  optparse::make_option(c("-r", "--redo"), action = "store", default = FALSE, 
+                        type="logical", help = "REDO")
 )
 
 opt <- optparse::OptionParser(option_list = option_list) %>% optparse::parse_args()
-
+opt$config <- "Analysis/configs/2015_2019_country/config_SSD_2015_2019.yml"
 # Load config
 config <- yaml::read_yaml(opt$config)
 
@@ -52,6 +55,8 @@ case_rast_filename <- str_c(out_dir, "/", country, "_case_rast.rds")
 case_comp_filename <- str_c(out_dir, "/", country, "_case_comp.csv")
 rhat_filename <- str_c(out_dir, "/", country, "_case_rhats.csv")
 who_filename <- str_c(out_dir, "/", country, "_who_comp.csv")
+spatial_coverage_filename <- str_c(out_dir, "/", country, "_spatial_coverage.rds")
+betas_filename <- str_c(out_dir, "/", country, "_betas.csv")
 
 # Get observations --------------------------------------------------------
 sf_cases <- taxdat::read_file_of_type(preprocessed_data_filename, "sf_cases")
@@ -74,7 +79,7 @@ obs_stats <- taxdat::get_obs_stats(sf_cases_resized)
 write_csv(obs_stats %>% mutate(country = country), path = obs_stats_filename)
 
 # Extract the case raster -------------------------------------------------
-if (!file.exists(case_rast_filename)) {
+if (!file.exists(case_rast_filename) | opt$redo) {
   case_raster <- taxdat::get_case_raster(preprocessed_data_filename = file_names["data"],
                                          covar_data_filename = file_names["covar"],
                                          model_output_filenames = file_names["stan_output"])
@@ -87,23 +92,27 @@ if (!file.exists(case_rast_filename)) {
 
 # Cases vs. modeled ---------------------------------------------------------
 
-if (!file.exists(case_comp_filename)) {
+if (!file.exists(case_comp_filename) | opt$redo) {
   # Extract comparison between modeled an observed cases
   data_fidelity <- taxdat::get_data_fidelity(stan_output_filename)[[1]] %>% 
-    as_tibble()
+    as_tibble() 
   
   write_csv(data_fidelity %>% mutate(country = country) %>% 
               set_colnames(c("chain", "param", "modeled", "actual", "country")), 
             path = case_comp_filename)
+} else {
+  data_fidelity <- read_csv(case_comp_filename)
 }
 
 # Rhats -------------------------------------------------------------------
 
-if (!file.exists(rhat_filename)) {
+if (!file.exists(rhat_filename) | opt$redo) {
   # Extract the Rhats for modeled cases
   rhat_obs <- rstan::summary(model.rand, pars = "modeled_cases")$summary %>% 
     as_tibble() %>% 
-    dplyr::select(mean, Rhat) %>% 
+    rename(q025 = `2.5%`,
+           q975 = `97.5%`) %>% 
+    dplyr::select(mean, q025, q975, Rhat) %>% 
     mutate(obs = row_number()) %>% 
     # Join with the information on the data
     inner_join(
@@ -124,12 +133,62 @@ if (!file.exists(rhat_filename)) {
                      summarise(n_cell = n()),
                    by = c("lp" = "loctime_id")) %>%
         mutate(location_period_id = as.character(location_period_id)))
+  
+  # Add mean per chain and maximum diference
+  rhat_obs <- rhat_obs %>% 
+    inner_join(
+      data_fidelity %>% 
+        group_by(param) %>% 
+        summarise(max_diff_chains = diff(range(modeled))) %>% 
+        mutate(obs = str_extract(as.character(param), "[0-9]+") %>% as.numeric()) %>% 
+        select(-param)
+    )
+  
   write_csv(rhat_obs %>% mutate(country = country), path = rhat_filename)
 }
 
 
+# Spatial coverage --------------------------------------------------------
+if (!file.exists(spatial_coverage_filename) | opt$redo) {
+  sf_lp_unique <- sf_cases_resized %>%
+    mutate(obs = row_number()) %>% 
+    inner_join(rhat_obs %>% select(obs, t)) %>% 
+    group_by(t, locationPeriod_id) %>% 
+    mutate(i = row_number(),
+           n = n()) %>% 
+    filter(i == 1) %>% 
+    select(locationPeriod_id, n, t)
+  
+  sf_cases_grids <- foreach(i = 1:nrow(sf_lp_unique),
+                            .combine = rbind) %do%
+    {
+      sf_lp_unique[i,] %>% 
+        st_make_grid(cellsize = 0.1, what = "centers") %>% 
+        st_as_sf() %>% 
+        mutate(t = sf_lp_unique$t[i],
+               n =  sf_lp_unique$n[i],
+               lp_id = sf_lp_unique$locationPeriod_id[i],
+               cell_id = str_c(lp_id, "-", row_number()))
+      
+    }
+  
+  u_coords <- st_coordinates(sf_cases_grids)
+  sf_cases_grids <- sf_cases_grids %>% 
+    mutate(long = u_coords[,1],
+           lat = u_coords[,2])
+  
+  sf_cases_grids <- sf_cases_grids %>% 
+    as_tibble() %>% 
+    select(-x) %>% 
+    group_by(t, lp_id) %>% 
+    group_map(function(x, y) do.call(rbind, map(1:x$n, ~ x)) %>% cbind(y)) %>% 
+    bind_rows()
+  
+  saveRDS(sf_cases_grids %>% mutate(country = country), file = spatial_coverage_filename)
+}
+
 # WHO cases ---------------------------------------------------------------
-if (!file.exists(who_filename)) {
+if (!file.exists(who_filename) | opt$redo) {
   who_annual_cases <- sf_cases_resized
   chains <- rstan::extract(model.rand)
   who_annual_cases$modeled <- apply(chains$modeled_cases, 2, mean)
@@ -141,6 +200,22 @@ if (!file.exists(who_filename)) {
   who_annual_cases %>%
     as.data.frame() %>%
     dplyr::select(OC_UID, TL, TR, observed, modeled) %>% 
+    dplyr::mutate(country = country) %>% 
     write_csv(path = who_filename)
+}
+
+
+# Covariate coefficients --------------------------------------------------
+if (!file.exists(betas_filename) | opt$redo) {
+  betas <- rstan::summary(model.rand, pars = "betas")$summary[, c(1, 4:10)] %>% 
+    as.data.frame() %>% 
+    mutate(param = rownames(.),
+           covar = str_extract(param, "[0-9]+") %>% as.numeric(),
+           covar = dimnames(covar_cube_output$covar_cube)[[3]][-1][covar],
+           param = str_extract(param, "(.*)(?=\\[)"))
+  
+  betas %>% 
+    mutate(country = country) %>% 
+    write_csv(path = betas_filename)
 }
 
