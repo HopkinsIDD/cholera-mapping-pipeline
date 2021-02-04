@@ -26,7 +26,7 @@ option_list <- list(
 )
 
 opt <- optparse::OptionParser(option_list = option_list) %>% optparse::parse_args()
-opt$config <- "Analysis/configs/2015_2019_country/config_SSD_2015_2019.yml"
+
 # Load config
 config <- yaml::read_yaml(opt$config)
 
