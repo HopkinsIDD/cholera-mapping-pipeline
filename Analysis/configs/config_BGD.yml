@@ -1,0 +1,17 @@
+name: 'BGD_2014_2018_20km'
+taxonomy: 'taxonomy-working/working-entry1'
+countries: 'Bangladesh'
+countries_name: 'BGD'
+res_space: 20
+res_time: '1 month'
+smoothing_period: 12
+case_definition: 'suspected'
+start_time: '2014-01-01'
+end_time: '2018-12-31'
+covariate_choices: ['dist_to_water','water_access']
+data_source: 'api'
+stan:
+  ncores: 4
+  model: 'dagar_seasonal.stan'
+  niter: 100
+  recompile: TRUE
