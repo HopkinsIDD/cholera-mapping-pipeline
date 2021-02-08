@@ -130,7 +130,10 @@ for (cov in unique(cov_meta$cov)) {
           )
           plot(rast, main = res_time)}
         if (sum(cov_res_x == res_x & cov_res_t == res_time) > 0) {
-          rast <- cov_plots[[cov_res_x == res_x & cov_res_t == res_time]]
+          rast <- try(cov_plots[[cov_res_x == res_x & cov_res_t == res_time]])
+          if (inherits(rast, "try-error")) {
+            break()
+          }
         } else {
           break()
         }
