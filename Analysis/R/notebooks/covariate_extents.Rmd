@@ -87,7 +87,7 @@ names(cov_rasters) <- cov_meta$covariate
 rast_plots <- list()
 l <- 1
 for (cov in unique(cov_meta$cov)) {
-  # cat(cov, "\n")
+  cat(cov, "\n")
   # Get all rasters of given covariate
   ind_cov <- which(cov_meta$cov == cov)
   cov_plots <- cov_rasters[ind_cov]
@@ -129,7 +129,11 @@ for (cov in unique(cov_meta$cov)) {
             mgp = c(2, 1, 0)
           )
           plot(rast, main = res_time)}
-        rast <- cov_plots[[cov_res_x == res_x & cov_res_t == res_time]]
+        if (sum(cov_res_x == res_x & cov_res_t == res_time) > 0) {
+          rast <- cov_plots[[cov_res_x == res_x & cov_res_t == res_time]]
+        } else {
+          break()
+        }
         p_res_time[[k]] <- cowplot::ggdraw(p1) 
         rm("p1")
         k <- k + 1
