@@ -30,6 +30,7 @@ library(kableExtra)
 library(sf)
 library(raster)
 library(rgdal)
+library(cowplot)
 ```
 ```{r dict}
 covar_dict <- yaml::read_yaml(str_c(params$cholera_directory, "/Layers/covariate_dictionary.yml"))
@@ -96,72 +97,57 @@ for (cov in unique(cov_meta$cov)) {
   cov_res_x <- cov_meta$res_x[ind_cov]
   cov_res_t <- cov_meta$res_time[ind_cov]
   
-  cov_title <- cowplot::ggdraw() + 
-    cowplot::draw_label(cov, fontface = 'bold', x = 0, hjust = 0) +
-    theme(plot.margin = margin(0, 0, 0, 0))
-  
+  # cov_title <- cowplot::ggdraw() +
+  #   cowplot::draw_label(cov, fontface = 'bold', x = 0, hjust = 0) +
+  #   theme(plot.margin = margin(0, 0, 0, 0))
+
   # Plot raters by res_x
-  cov_plot_res_x <- list()
-  j <- 1
-  for (res_x in unique(cov_res_x)) {
-    # cat(res_x, "\n")
-    cov_title_res_x <- cowplot::ggdraw() + 
-      cowplot::draw_label(str_c("Spatial resolution: ", res_x, "x", res_x, " km"), x = 0, hjust = 0) +
-      theme(plot.margin = margin(0, 0, 0, 0))
-    
-    p_res_time <- list()
-    k <- 1
-    if (is.na(unique(cov_res_t[cov_res_x == res_x]))) {
-      p1 <- function() {
-        par(
-          mar = c(3, 3, 1, 1),
-          mgp = c(2, 1, 0)
-        )
-        plot(rast, main = "Static")
+  cov_plot_res_x <- lapply(
+    unique(cov_res_x), 
+    function(res_x) 
+    {
+      # cat(res_x, "\n")
+      # cov_title_res_x <- cowplot::ggdraw() + 
+      #   cowplot::draw_label(str_c("Spatial resolution: ", res_x, "x", res_x, " km"), x = 0, hjust = 0) +
+      #   theme(plot.margin = margin(0, 0, 0, 0))
+      
+      if (is.na(unique(cov_res_t[cov_res_x == res_x]))) {
+        rast <- cov_plots[[cov_res_x == res_x]]
+        plot(cov_plots[[cov_res_x == res_x]], main = str_c("Spatial resolution: ", res_x, "x", res_x, " km; static"))
+      } else {
+        p_res_time <- lapply(
+          unique(cov_res_t[cov_res_x == res_x]), 
+          function(res_time)
+          {
+            if (sum(cov_res_x == res_x & cov_res_t == res_time) > 0) {
+              rast <- try(cov_plots[[cov_res_x == res_x & cov_res_t == res_time]])
+              if (inherits(rast, "try-error")) {
+                break()
+              }
+            } else {
+              break()
+            }
+           plot(cov_plots[[cov_res_x == res_x & cov_res_t == res_time]], main = str_c("Spatial resolution: ", res_x, "x", res_x, " km; temporal: ", res_time))
+          })
       }
-      rast <- cov_plots[[cov_res_x == res_x]]
-      p_res_time[[k]] <- cowplot::ggdraw(p1) 
-      rm("p1")
-    } else {
-      for (res_time in unique(cov_res_t[cov_res_x == res_x])) {
-        # cat(res_time, "\n")
-        p1 <- function() {
-          par(
-            mar = c(3, 3, 1, 1),
-            mgp = c(2, 1, 0)
-          )
-          plot(rast, main = res_time)}
-        if (sum(cov_res_x == res_x & cov_res_t == res_time) > 0) {
-          rast <- try(cov_plots[[cov_res_x == res_x & cov_res_t == res_time]])
-          if (inherits(rast, "try-error")) {
-            break()
-          }
-        } else {
-          break()
-        }
-        p_res_time[[k]] <- cowplot::ggdraw(p1) 
-        rm("p1")
-        k <- k + 1
-      }
-    }
-    
-    cov_plot_res_x[[j]] <- cowplot::plot_grid(
-      plotlist = list(cov_title_res_x, 
-                      cowplot::plot_grid(plotlist = p_res_time, 
-                                         ncol = min(length(p_res_time), 3), 
-                                         align = "h")),
-      ncol = 1,
-      rel_heights = c(.1, 1))
-    
-    j <- j + 1
-  }
-  
-  print(cowplot::plot_grid(
-    plotlist = list(cov_title,
-                    cowplot::plot_grid(plotlist = cov_plot_res_x,
-                                       ncol = 1)),
-    ncol = 1,
-    rel_heights = c(.1, 1)))
+      
+      # gridExtra::arrangeGrob(p_res_time)
+      # cowplot::plot_grid(
+      #   plotlist = list(cov_title_res_x,
+      #                   cowplot::plot_grid(p_res_time,
+      #                                      ncol = min(length(p_res_time), 3),
+      #                                      align = "h")),
+      #   ncol = 1,
+      #   rel_heights = c(.1, 1))
+    })
+  # plot(cov_plot_res_x)
+  # print(cowplot::plot_grid(
+  #   plotlist = list(cov_title,
+  #                   cowplot::plot_grid(cov_plot_res_x,
+  #                                      ncol = 1)),
+  #   ncol = 1,
+  #   rel_heights = c(.1, 1)))
+  # 
   l <- l + 1
 }
 
