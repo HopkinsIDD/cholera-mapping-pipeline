@@ -71,9 +71,14 @@ cov_rasters <- list()
 
 for (i in 1:nrow(cov_meta)) {
   dsn <- glue::glue("PG:dbname='cholera_covariates' host=localhost user='{thisuser}' port=5432 schema='covariates' table='{cov_meta$covariate[i]}' mode=2")
-  ras <- readGDAL(dsn) # Get your file as SpatialGridDataFrame
-  outrast <- brick(ras)
-  cov_rasters[[i]] <- outrast[[1]]
+  ras <- try(readGDAL(dsn)) # Get your file as SpatialGridDataFrame
+  if (inherits(ras, "try-error")) {
+    cat("Raster layer not found for '", cov_meta$covariate[i], "' in database")
+    cov_meta <- cov_meta[-i, ]
+  } else {
+    outrast <- brick(ras)
+    cov_rasters[[i]] <- outrast[[1]]
+  }
 }
 
 names(cov_rasters) <- cov_meta$covariate
