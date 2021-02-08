@@ -1,0 +1,158 @@
+---
+title: "Covariate extents"
+output: 
+  bookdown::html_document2:
+    toc: true
+    toc_float: true
+    number_sections: false
+params:
+  cholera_directory: "~/projects/cholera-mapping-pipeline"
+---
+```{r setup, include=FALSE, dev="CairoPNG"}
+knitr::opts_chunk$set(inlude = FALSE, dev="CairoPNG")
+knitr::opts_chunk$set(
+  echo = FALSE,
+  fig.align = "center",
+  message = FALSE,
+  warning = FALSE,
+  cache.lazy = F,
+  bitmapType = "cairo"
+)
+library(stringr)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(magrittr)
+library(purrr)
+library(readr)
+library(ggplot2)
+library(kableExtra)
+library(sf)
+library(raster)
+library(rgdal)
+```
+```{r dict}
+covar_dict <- yaml::read_yaml("Layers/covariate_dictionary.yml")
+
+cat("Available covariate in dictionnary:\n")
+map_df(covar_dict, ~ tibble(covariate = .$name, 
+                            abbrev = .$abbr,
+                            description = .$description)) %>% 
+  mutate(` ` = row_number()) %>% 
+  dplyr::select(` `, covariate, abbrev, description) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F,
+                            bootstrap_options = c("striped"))
+```
+
+```{r metadata}
+# load sql api credentials
+source(str_c(params$cholera_directory, "/Analysis/R/database_api_key.R"))
+thisuser <- Sys.getenv("USER")
+conn <- taxdat::connect_to_db(thisuser)
+cov_meta <- RPostgres::dbGetQuery(conn, "SELECT * FROM covariates.metadata;")
+
+cat("Covariates in database:\n")
+cov_meta %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F,
+                            bootstrap_options = c("striped"))
+```
+
+```{r plots, echo=FALSE, message=FALSE, warning=FALSE}
+# Rearrange order to make pretty
+cov_meta$cov <- map2_chr(cov_meta$covariate, cov_meta$res_time, ~ str_split(.x, ifelse(is.na(.y), "__", str_c("_", str_replace(.y, " ", "_"))))[[1]][1])
+
+cov_meta <- cov_meta %>% 
+  arrange(cov, res_x, res_time)
+
+# load first band of each covariate
+cov_rasters <- list()
+
+for (i in 1:nrow(cov_meta)) {
+  dsn <- glue::glue("PG:dbname='cholera_covariates' host=localhost user='{thisuser}' port=5432 schema='covariates' table='{cov_meta$covariate[i]}' mode=2")
+  ras <- readGDAL(dsn) # Get your file as SpatialGridDataFrame
+  outrast <- brick(ras)
+  cov_rasters[[i]] <- outrast[[1]]
+}
+
+names(cov_rasters) <- cov_meta$covariate
+
+# Plot by covariate
+rast_plots <- list()
+l <- 1
+for (cov in unique(cov_meta$cov)) {
+  # cat(cov, "\n")
+  # Get all rasters of given covariate
+  ind_cov <- which(cov_meta$cov == cov)
+  cov_plots <- cov_rasters[ind_cov]
+  cov_res_x <- cov_meta$res_x[ind_cov]
+  cov_res_t <- cov_meta$res_time[ind_cov]
+  
+  cov_title <- cowplot::ggdraw() + 
+    cowplot::draw_label(cov, fontface = 'bold', x = 0, hjust = 0) +
+    theme(plot.margin = margin(0, 0, 0, 0))
+  
+  # Plot raters by res_x
+  cov_plot_res_x <- list()
+  j <- 1
+  for (res_x in unique(cov_res_x)) {
+    # cat(res_x, "\n")
+    cov_title_res_x <- cowplot::ggdraw() + 
+      cowplot::draw_label(str_c("Spatial resolution: ", res_x, "x", res_x, " km"), x = 0, hjust = 0) +
+      theme(plot.margin = margin(0, 0, 0, 0))
+    
+    p_res_time <- list()
+    k <- 1
+    if (is.na(unique(cov_res_t[cov_res_x == res_x]))) {
+      p1 <- function() {
+        par(
+          mar = c(3, 3, 1, 1),
+          mgp = c(2, 1, 0)
+        )
+        plot(rast, main = "Static")
+      }
+      rast <- cov_plots[[cov_res_x == res_x]]
+      p_res_time[[k]] <- cowplot::ggdraw(p1) 
+      rm("p1")
+    } else {
+      for (res_time in unique(cov_res_t[cov_res_x == res_x])) {
+        # cat(res_time, "\n")
+        p1 <- function() {
+          par(
+            mar = c(3, 3, 1, 1),
+            mgp = c(2, 1, 0)
+          )
+          plot(rast, main = res_time)}
+        rast <- cov_plots[[cov_res_x == res_x & cov_res_t == res_time]]
+        p_res_time[[k]] <- cowplot::ggdraw(p1) 
+        rm("p1")
+        k <- k + 1
+      }
+    }
+    
+    cov_plot_res_x[[j]] <- cowplot::plot_grid(
+      plotlist = list(cov_title_res_x, 
+                      cowplot::plot_grid(plotlist = p_res_time, 
+                                         ncol = min(length(p_res_time), 3), 
+                                         align = "h")),
+      ncol = 1,
+      rel_heights = c(.1, 1))
+    
+    j <- j + 1
+  }
+  
+  print(cowplot::plot_grid(
+    plotlist = list(cov_title,
+                    cowplot::plot_grid(plotlist = cov_plot_res_x,
+                                       ncol = 1)),
+    ncol = 1,
+    rel_heights = c(.1, 1)))
+  l <- l + 1
+}
+
+# cowplot::plot_grid(plotlist = rast_plots, ncol = 2)
+
+```
+
+
