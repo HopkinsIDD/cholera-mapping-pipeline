@@ -68,7 +68,7 @@ cov_meta <- cov_meta %>%
 
 # load first band of each covariate
 cov_rasters <- list()
-
+j <- 1
 for (i in 1:nrow(cov_meta)) {
   dsn <- glue::glue("PG:dbname='cholera_covariates' host=localhost user='{thisuser}' port=5432 schema='covariates' table='{cov_meta$covariate[i]}' mode=2")
   ras <- try(readGDAL(dsn)) # Get your file as SpatialGridDataFrame
@@ -77,7 +77,8 @@ for (i in 1:nrow(cov_meta)) {
     cov_meta <- cov_meta[-i, ]
   } else {
     outrast <- brick(ras)
-    cov_rasters[[i]] <- outrast[[1]]
+    cov_rasters[[j]] <- outrast[[1]]
+    j <- j + 1
   }
 }
 
