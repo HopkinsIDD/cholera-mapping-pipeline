@@ -256,6 +256,7 @@ get_space_time_ind_speedup <- function(df,
   map_loc_grid_loc_all <- unlist(res$map_loc_grid_loc)
   map_loc_grid_grid_all <- unlist(res$map_loc_grid_grid)
   tfrac <- unlist(res$tfrac)
+  obs <- map(1:nrow(res), function(i) rep(res$obs[i], length(res$tfrac[[i]]))) %>% unlist()
   
   # Get unique location periods
   u_loctimes <- sort(unique(map_obs_loctime_loc))
@@ -281,7 +282,8 @@ get_space_time_ind_speedup <- function(df,
   # Adjust location period mapping ids to reindexed ids
   map_obs_loctime_loc <- u_loctimes_ind[as.character(map_obs_loctime_loc)]
   
-  return(list(map_obs_loctime_obs = map_obs_loctime_obs, 
+  return(list(obs = obs, 
+              map_obs_loctime_obs = map_obs_loctime_obs, 
               map_obs_loctime_loc = map_obs_loctime_loc,
               map_loc_grid_loc = map_loc_grid_loc,
               map_loc_grid_grid = map_loc_grid_grid,

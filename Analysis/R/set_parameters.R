@@ -151,6 +151,12 @@ suspected_or_confirmed <- taxdat::check_case_definition(config$case_definition)
 cases_column <- taxdat::case_definition_to_column_name(suspected_or_confirmed,
                                                        database = T)
 
+# Is there a threshold on tfrac?
+if (!is.null(config$tfrac_thresh)) {
+  cat("---- Running with tfrac threshold of", config$tfrac_thresh, "\n")
+} else {
+  cat("---- No tfrac thershold used\n")
+}
 
 # - - - -
 # What range of times should be considered?
@@ -270,6 +276,10 @@ for(t_idx in 1:length(all_test_idx)){
                       suspected_or_confirmed,
                       # str_replace(last(str_split(opt$config, "/")[[1]]), "\\.yml", ""),
                       sep = '_')
+    
+    if(!is.null(config$tfrac_thresh)) {
+      map_name <- str_c(map_name, "_tfracthresh", config$tfrac_thresh)
+    }
   }
   
   covariate_name_part <- paste(short_covariates, collapse = '-')

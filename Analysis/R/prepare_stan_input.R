@@ -306,6 +306,25 @@ prepare_stan_input <- function(
     ind_mapping_resized <- ind_mapping
   }
   
+  # If specified threshold of minimum tfrac filter out data
+  if (!is.null(config$tfrac_thresh)) {
+    # Which observations to remove
+    obs_remove_thresh <- unique(ind_mapping_resized$obs[ind_mapping_resized$tfrac < config$tfrac_thresh])
+    
+    cat("---- REMOVING", length(obs_remove_thresh), "of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", tfrac_thresh, "\n")
+    
+    # Remove observations
+    sf_cases_resized <- sf_cases_resized[-c(obs_remove_thresh), ]
+    
+    # Re-compute space-time indices based on aggretated data
+    ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+      df = sf_cases_resized, 
+      lp_dict = location_periods_dict,
+      model_time_slices = time_slices,
+      res_time = res_time,
+      n_cpus = ncore,
+      do_parallel = F)
+  }
   
   
   non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
