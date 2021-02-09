@@ -80,7 +80,7 @@ san_access:
   description: Access to improved sanitation as defined by IHME (Sewer, septic, improved latrines, etc.)
   alias: san_access
   abbr: as
-  dir: sanitation_acess/
+  dir: sanitation_access/
   type: temporal
   time_aggregator: mean
   res_time: 1 years
