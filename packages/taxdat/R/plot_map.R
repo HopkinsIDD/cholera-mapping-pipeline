@@ -12,6 +12,7 @@
 #' @param height height of saved figure in inches
 #' @param plot_border logical to include grid borders
 #' @param ... additional parameters passed to [`color_scale()`]
+#' @include color_scale.R map_theme.R
 #' @return ggplot object of cholera case or incidence maps on standard color scale
 plot_map <- function(
   sf_rates,
