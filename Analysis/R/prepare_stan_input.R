@@ -311,7 +311,7 @@ prepare_stan_input <- function(
     # Which observations to remove
     obs_remove_thresh <- unique(ind_mapping_resized$obs[ind_mapping_resized$tfrac < config$tfrac_thresh])
     
-    cat("---- REMOVING", length(obs_remove_thresh), "of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", tfrac_thresh, "\n")
+    cat("---- REMOVING", length(obs_remove_thresh), "of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", config$tfrac_thresh, "\n")
     
     # Remove observations
     sf_cases_resized <- sf_cases_resized[-c(obs_remove_thresh), ]
