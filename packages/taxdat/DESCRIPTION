@@ -18,6 +18,7 @@ Collate:
     'geo_lookup_helpers.R'
     'indexing_helpers.R'
     'linelist_helpers.R'
+    'load_orig_map_mean_as_sf.R'
     'map_theme.R'
     'setup_helpers.R'
     'read_data_helpers.R'
