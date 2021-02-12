@@ -2,7 +2,7 @@
 #' @name plot_map
 #' @title plot_map
 #' @description default function to plot cholera maps with ggplot
-#' @param sf_rates sf grid object containing data to plot
+#' @param sf_output sf object containing data to plot
 #' @param column string with column name to plot, typically `cases` or `rate` (default: `cases`)
 #' @param facet_column string with column name to facet
 #' @param colorscale_type string with type of default color scale to use (default: `cases`) (See [`color_scale()`] for more details)
@@ -15,7 +15,7 @@
 #' @include color_scale.R map_theme.R
 #' @return ggplot object of cholera case or incidence maps on standard color scale
 plot_map <- function(
-  sf_rates,
+  sf_output,
   column = 'cases', 
   facet_column = "type", 
   colorscale_type = 'cases', 
@@ -30,13 +30,13 @@ plot_map <- function(
   if(isTRUE(plot_border)){
     plt <- plt +
       ggplot2::geom_sf(
-        data = sf_rates,
+        data = sf_output,
         ggplot2::aes_string(fill = column)
       )
   } else {
     plt <- plt +
       ggplot2::geom_sf(
-        data = sf_rates,
+        data = sf_output,
         ggplot2::aes_string(fill = column),
         color=NA
       )
