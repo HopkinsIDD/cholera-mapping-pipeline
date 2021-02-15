@@ -121,19 +121,19 @@ single_sf_grid <- sf_grid %>% group_by(filename, id,type) %>% summarize(modeled 
 ```
 
 ```{r gridoutcase, fig.cap="Plot Grid Output Cases", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(single_sf_grid,type=='cases'),"modeled", facet_column='type', type = 'cases', render=TRUE, plot_border = afr_shp)
+plot_map(dplyr::filter(single_sf_grid,type=='cases'),"modeled", facet_column='type', colorscale_type = 'cases', render=TRUE, plot_border = afr_shp)
 ```
 
 ```{r gridoutrate, fig.cap="Plot Grid Output Rates", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(single_sf_grid,type=='rate'),"modeled", facet_column='type', type = 'rates', render=TRUE, plot_border = afr_shp)
+plot_map(dplyr::filter(single_sf_grid,type=='rate'),"modeled", facet_column='type', colorscale_type = 'rates', render=TRUE, plot_border = afr_shp)
 ```
 
 ```{r gridoutcaselog, fig.cap="Plot Grid Output Cases with log transform", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(single_sf_grid,type=='cases'),"modeled", facet_column='type', type = 'cases', render=TRUE, plot_border = afr_shp, use_log=TRUE)
+plot_map(dplyr::filter(single_sf_grid,type=='cases'),"modeled", facet_column='type', colorscale_type = 'cases', render=TRUE, plot_border = afr_shp, use_log=TRUE)
 ```
 
 ```{r gridoutratelog, fig.cap="Plot Grid Output Rates with log transform", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(single_sf_grid,type=='rate'),"modeled", facet_column='type', type = 'rates', render=TRUE, plot_border = afr_shp, use_log=TRUE)
+plot_map(dplyr::filter(single_sf_grid,type=='rate'),"modeled", facet_column='type', colorscale_type = 'rates', render=TRUE, plot_border = afr_shp, use_log=TRUE)
 ```
 
 ```{r makechainsplit, echo=FALSE, warning=FALSE,message=FALSE}
@@ -142,19 +142,19 @@ chain_sf_grid <- sf_grid %>% group_by(filename, id,chain,type) %>% summarize(mod
 ```
 
 ```{r chaingrdioutcase, fig.cap="Plot Grid Output Cases by chain", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(chain_sf_grid,type=='cases'), "modeled", "chain", type = 'cases', render=TRUE, plot_border = afr_shp)
+plot_map(dplyr::filter(chain_sf_grid,type=='cases'), "modeled", "chain", colorscale_type = 'cases', render=TRUE, plot_border = afr_shp)
 ```
 
 ```{r chaingridoutrate, fig.cap="Plot Grid Output Rates by chain", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(chain_sf_grid,type=='rate'), "modeled", "chain", type = 'rates', render=TRUE, plot_border = afr_shp)
+plot_map(dplyr::filter(chain_sf_grid,type=='rate'), "modeled", "chain", colorscale_type = 'rates', render=TRUE, plot_border = afr_shp)
 ```
 
 ```{r chaingridoutcaselog, fig.cap="Plot Grid Output Cases with log transform by chain", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(chain_sf_grid,type=='cases'), "modeled", "chain",type = 'cases', render=TRUE, plot_border = afr_shp, use_log = TRUE)
+plot_map(dplyr::filter(chain_sf_grid,type=='cases'), "modeled", "chain", colorscale_type = 'cases', render=TRUE, plot_border = afr_shp, use_log = TRUE)
 ```
 
 ```{r chaingridoutratelog, fig.caps = "Plot Grid Output Rates with log transform by chain", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(chain_sf_grid,type=='rate'), "modeled", "chain", type = 'rates', render=TRUE, plot_border = afr_shp, use_log = TRUE)
+plot_map(dplyr::filter(chain_sf_grid,type=='rate'), "modeled", "chain", colorscale_type = 'rates', render=TRUE, plot_border = afr_shp, use_log = TRUE)
 ```
 
 ```{r maketimesplit, echo=FALSE, warning=FALSE,message=FALSE}
@@ -163,19 +163,19 @@ time_sf_grid <- sf_grid %>% group_by(filename, id,t,type) %>% summarize(modeled 
 ```
 
 ```{r timegrdioutcase, fig.cap="Plot Grid Output Cases by time", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(time_sf_grid,type=='cases'), "modeled", "t", type = 'cases', render=TRUE, plot_border = afr_shp)
+plot_map(dplyr::filter(time_sf_grid,type=='cases'), "modeled", "t", colorscale_type = 'cases', render=TRUE, plot_border = afr_shp)
 ```
 
 ```{r timegridoutrate, fig.cap="Plot Grid Output Rates by time", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(time_sf_grid,type=='rate'), "modeled", "t", type = 'rates', render=TRUE, plot_border = afr_shp)
+plot_map(dplyr::filter(time_sf_grid,type=='rate'), "modeled", "t", colorscale_type = 'rates', render=TRUE, plot_border = afr_shp)
 ```
 
 ```{r timegridoutcaselog, fig.cap="Plot Grid Output Cases with log transform by time", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(time_sf_grid,type=='cases'), "modeled", "t",type = 'cases', render=TRUE, plot_border = afr_shp, use_log = TRUE)
+plot_map(dplyr::filter(time_sf_grid,type=='cases'), "modeled", "t", colorscale_type = 'cases', render=TRUE, plot_border = afr_shp, use_log = TRUE)
 ```
 
 ```{r timegridoutratelog, fig.caps = "Plot Grid Output Rates with log transform by time", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(time_sf_grid,type=='rate'), "modeled", "t", type = 'rates', render=TRUE, plot_border = afr_shp, use_log = TRUE)
+plot_map(dplyr::filter(time_sf_grid,type=='rate'), "modeled", "t", colorscale_type = 'rates', render=TRUE, plot_border = afr_shp, use_log = TRUE)
 ```
 
 ```{r cleantimesplit, echo=FALSE, warning=FALSE,message=FALSE}

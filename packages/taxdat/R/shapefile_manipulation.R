@@ -1,5 +1,6 @@
 #' @export
 #' @name is_shapefile_valid
+#' @title is_shapeilfe_valid
 #' @description Determine whether shapefiles are valid for use in our modeling
 #'   pipeline
 #' @param shapefiles_to_check An sf object
