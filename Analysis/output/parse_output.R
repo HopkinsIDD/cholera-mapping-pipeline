@@ -225,10 +225,12 @@ if (!file.exists(betas_filename) | opt$redo) {
 # Aggregation --------------------------------------------------
 if ("phi" %in% attr(model.rand, "model_pars") &(!file.exists(negbinom_filename) | opt$redo)) {
   
-  phi <- rstan::summary(model.rand, pars = "phi")$summary[, c(1, 4:10)] %>% 
-    as.data.frame()
+  phi <- rstan::summary(model.rand, pars = "phi")$summary[, c(1, 4:10)] 
   
   phi %>% 
+    as.list() %>% 
+    as.data.frame() %>% 
+    set_colnames(c("mean", "q025", "q25", "q50", "q75", "q975", "neff", "Rhat")) %>% 
     mutate(country = country) %>% 
     write_csv(path = negbinom_filename)
 }
