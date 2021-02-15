@@ -256,7 +256,7 @@ get_space_time_ind_speedup <- function(df,
   map_loc_grid_loc_all <- unlist(res$map_loc_grid_loc)
   map_loc_grid_grid_all <- unlist(res$map_loc_grid_grid)
   tfrac <- unlist(res$tfrac)
-  obs <- map(1:nrow(res), function(i) rep(res$obs[i], length(res$tfrac[[i]]))) %>% unlist()
+  obs <- unlist(purrr::map(1:nrow(res), function(i) rep(res$obs[i], length(res$tfrac[[i]])))) 
   
   # Get unique location periods
   u_loctimes <- sort(unique(map_obs_loctime_loc))
