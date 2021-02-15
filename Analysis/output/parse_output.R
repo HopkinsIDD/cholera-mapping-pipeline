@@ -42,6 +42,7 @@ covar_cube_output <- taxdat::read_file_of_type(file_names["covar"], "covar_cube_
 
 # Create ouput directory for config files
 out_dir <- str_c(opt$cholera_directory, "/Analysis/output/reports/", str_split(opt$config, "/")[[1]] %>% .[-length(.)] %>% last())
+cat(out_dir, "\n")
 readme_file <- str_c(out_dir, "/README.txt")
 dir.create(out_dir, recursive = T)
 
@@ -57,7 +58,8 @@ rhat_filename <- str_c(out_dir, "/", country, "_case_rhats.csv")
 who_filename <- str_c(out_dir, "/", country, "_who_comp.csv")
 spatial_coverage_filename <- str_c(out_dir, "/", country, "_spatial_coverage.rds")
 betas_filename <- str_c(out_dir, "/", country, "_betas.csv")
-
+# Aggregation parameter
+negbinom_filename <- str_c(out_dir, "/", country, "_negbinom_k.csv") 
 # Get observations --------------------------------------------------------
 sf_cases <- taxdat::read_file_of_type(preprocessed_data_filename, "sf_cases")
 sf_cases_resized <- taxdat::read_file_of_type(stan_input_filename, "stan_input")$sf_cases_resized
@@ -220,3 +222,13 @@ if (!file.exists(betas_filename) | opt$redo) {
     write_csv(path = betas_filename)
 }
 
+# Aggregation --------------------------------------------------
+if ("phi" %in% attr(model.rand, "model_pars") &(!file.exists(negbinom_filename) | opt$redo)) {
+  
+  phi <- rstan::summary(model.rand, pars = "phi")$summary[, c(1, 4:10)] %>% 
+    as.data.frame()
+  
+  phi %>% 
+    mutate(country = country) %>% 
+    write_csv(path = negbinom_filename)
+}
