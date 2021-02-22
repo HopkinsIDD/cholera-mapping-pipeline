@@ -4,7 +4,7 @@
 #' @description load original cholera data estimates (tif or grd) as raster
 #' @param filename object representing the imported YAML config file for the model
 #' @return raster of mean or samples of cholera data estimates
-load_orig_map <- function(filename, column){
+load_orig_map <- function(filename){
   
   if(grepl(".tif$", filename)){ ## tif files on website have no crs
     orig <- raster::stack(filename)
