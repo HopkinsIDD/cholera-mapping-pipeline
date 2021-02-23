@@ -7,10 +7,10 @@
 load_orig_map <- function(filename){
   
   if(grepl(".tif$", filename)){ ## tif files on website have no crs
-    orig <- raster::stack(filename)
+    orig <- raster::brick(filename)
   
   } else if(grepl(".grd$", filename)){
-    orig <- raster::stack(filename)
+    orig <- raster::brick(filename)
      
   } else{
     stop(paste("Loading a file type of", filename, "is not supported"))
@@ -19,9 +19,10 @@ load_orig_map <- function(filename){
   ## add missing CRS as needed
   if(is.na(raster::crs(orig))){
     ## this is the CRS for all of the old raster products
-    raster::crs(orig) <- "+proj=longlat +datum=WGS84 +no_defs"
+    raster::crs(orig) <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
   }
 
   return(orig)
 }
+
 
