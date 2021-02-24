@@ -57,7 +57,7 @@ plot_map <- function(
     ggplot2::facet_wrap(formula(paste("~", facet_column)))
   
   if (!is.null(plot_file)) {
-    ggplot2::ggsave(plt, plot_file, width = width , heigth = height)
+    ggplot2::ggsave(plot_file, plt, width = width , heigth = height)
   }
   if("sf" %in% class(plot_border)){
     plt <- plt + ggplot2::geom_sf(data = plot_border)
