@@ -53,8 +53,11 @@ plot_map <- function(
   }
   plt <- plt + 
     color_scale(type = colorscale_type, use_case = 'ggplot map', ...) +
-    map_theme() + 
-    ggplot2::facet_wrap(formula(paste("~", facet_column)))
+    map_theme() 
+  
+  if (!is.null(facet_column)) {
+    plt <- plt + ggplot2::facet_wrap(formula(paste("~", facet_column)))
+  }
   
   if (!is.null(plot_file)) {
     ggplot2::ggsave(plot_file, plt, width = width , heigth = height)

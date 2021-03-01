@@ -7,7 +7,7 @@ output:
     number_sections: false
 params:
   cholera_directory: "~/projects/cholera-mapping-pipeline"
-  config_directory: "Analysis/configs/2015_2019_country_negbinom"
+  config_directory: "Analysis/configs/2015_2019_country_tfrac"
   max_countries: Inf
 ---
 ```{r setup, include=FALSE, dev="CairoPNG"}
@@ -118,22 +118,22 @@ annual_stats <- data %>%
 #   facet_wrap(~country, scales = "free_y") +
 #   theme_bw()
 
-quantiel_data <- data %>% 
-  filter(tfrac < .1) %>% 
-  group_by(country, t, location_period_id) %>% 
-  group_map(.f = function(x, y) {
-    ecdf_dat <- ecdf(x$annual_cases)
-    x <- seq(0, 1, by = 0.01)
-    q_dat <- quantile(ecdf_dat, x)
-    tibble(x = x, quant = q_dat) %>% cbind(y)
-  }) %>% 
-  bind_rows()
+# quantiel_data <- data %>% 
+#   filter(tfrac < .1) %>% 
+#   group_by(country, t, location_period_id) %>% 
+#   group_map(.f = function(x, y) {
+#     ecdf_dat <- ecdf(x$annual_cases)
+#     x <- seq(0, 1, by = 0.01)
+#     q_dat <- quantile(ecdf_dat, x)
+#     tibble(x = x, quant = q_dat) %>% cbind(y)
+#   }) %>% 
+#   bind_rows()
 
-pcdf <- ggplot(quantiel_data, aes(x = log10(quant), y = x, group = location_period_id, color = t)) +
-  geom_step(alpha = .1) +
-  facet_wrap(~country) +
-  theme_bw() +
-  labs(x = "log10(annual cases)", y = "P(X <= x)")
+# pcdf <- ggplot(quantiel_data, aes(x = log10(quant), y = x, group = location_period_id, color = t)) +
+#   geom_step(alpha = .1) +
+#   facet_wrap(~country) +
+#   theme_bw() +
+#   labs(x = "log10(annual cases)", y = "P(X <= x)")
 
 # ggsave(pcdf, filename = "ecdf_annual_cases.png", width = 8, height = 6)
 # 
@@ -350,29 +350,20 @@ case_rast <- dir(out_dir,
 avail_times <- rhats %>%
   count(country, t)
 
-rate_rescaling <-  1e5  # rescale to have incidence per 10'000 people
-
 all_maps <- map(unique(case_rast$country), function(cntry) {
-  plt <- ggplot2::ggplot()
-  plt <- plt +
-    ggplot2::geom_sf(
-      data = case_rast %>%
-        filter(country == cntry) %>%
-        inner_join(avail_times) %>%     # filter out years with no observations
-        group_by(country, rid, x, y) %>%
-        summarise(`modeled rates` = mean(`modeled rates`, na.rm = T)),
-      ggplot2::aes(fill = `modeled rates` * rate_rescaling, color = `modeled rates` * rate_rescaling)) +
-    ggplot2::scale_fill_viridis_c(trans = "log",
-                                  breaks = 10^seq(-2, 4),
-                                  limits = c(1e-3, 1e5),
-                                  aesthetics = c("colour", "fill"),
-                                  guide = ggplot2::guide_colorbar(title = "Incidence rate\n [cases/100'000/year]"))  +
-    ggplot2::theme_bw() +
-    ggplot2::theme(legend.position = "none") +
-    # ggplot2::facet_wrap(~t,ncol = 5) +
-    ggplot2::theme(legend.text =  ggplot2::element_text(angle = 45, vjust = 1, hjust = 1)) +
-    ggtitle(cntry)
-  plt
+  taxdat::plot_map(case_rast %>%
+                     filter(country == cntry) %>%
+                     inner_join(avail_times) %>% 
+                     group_by(country, rid, x, y) %>%
+                     summarise(modeled_rates = mean(`modeled rates`, na.rm = T)),
+                   column = "modeled_rates",
+                   colorscale_type = "rates",
+                   facet_column = NULL,
+                   plot_border = F,  
+                   render = T,
+                   use_log = T) +
+    guides(fill = "none")
+  
 })
 
 cowplot::plot_grid(plotlist = all_maps,
@@ -385,25 +376,18 @@ cowplot::plot_grid(plotlist = all_maps,
 ```{r casemaps, fig.width=8, fig.height=10, fig.cap="Maximum modeled case incidence rate on the log10-scale, with limtis 1e-3 - 1e5 cases/year (values lower and larger than these are shown in gray)"}
 
 all_maps <- map(unique(case_rast$country), function(cntry) {
-  plt <- ggplot2::ggplot()
-  plt <- plt +
-    ggplot2::geom_sf(
-      data = case_rast %>%
-        filter(country == cntry) %>%
-        inner_join(avail_times) %>%     # filter out years with no observations
-        group_by(country, rid, x, y) %>%
-        summarise(`modeled cases` = max(`modeled cases`, na.rm = T)),
-      ggplot2::aes(fill = `modeled cases`, color = `modeled cases`)) +
-    ggplot2::scale_fill_viridis_c(trans = "log",
-                                  breaks = c(1, 10, 100, 1000, 1e4, 1e5),
-                                  limits = c(1e-3, 1e5),
-                                  aesthetics = c("colour", "fill"),
-                                  guide = ggplot2::guide_colorbar(title = "Incidence\n [cases/year]"))  +
-    ggplot2::theme_bw() +
-    ggplot2::theme(legend.position = "none") +
-    ggplot2::theme(legend.text =  ggplot2::element_text(angle = 45, vjust = 1, hjust = 1)) +
-    ggtitle(cntry)
-  plt
+  taxdat::plot_map(case_rast %>%
+                     filter(country == cntry) %>%
+                     inner_join(avail_times) %>% 
+                     group_by(country, rid, x, y) %>%
+                     summarise(modeled_cases = mean(`modeled cases`, na.rm = T)),
+                   column = "modeled_cases", 
+                   colorscale_type = "cases",
+                   facet_column = NULL,
+                   plot_border = F,
+                   render = T,
+                   use_log = T) +
+    guides(fill = "none")
 })
 
 cowplot::plot_grid(plotlist = all_maps,
@@ -434,11 +418,12 @@ if (str_detect(params$config_directory, "negbinom")) {
               pattern = "negbinom", full.names = T) %>% 
     map_df(function(x) {res <- read_csv(x); if(nrow(res) > 0) return(res)}) 
   
-  ggplot(phis, aes(x = mean, y = country)) +
+  ggplot(phis, aes(x = q50, y = country)) +
     geom_point() +
-    geom_errorbarh(aes(xmin = `2.5%`, xmax = `97.5%`), height = 0) +
-    geom_vline(aes(xintercept = 0), lty = 2, size = .3, col = "red") +
-    theme_bw()
+    geom_errorbarh(aes(xmin = q025, xmax = q975), height = 0) +
+    geom_vline(aes(xintercept = 0), lty = 2, size = .3, col = "red") + 
+    scale_x_continuous(trans = "log10") +
+    theme_bw() +
+    labs(x = "Aggregation parameter")
 }
 
-```
