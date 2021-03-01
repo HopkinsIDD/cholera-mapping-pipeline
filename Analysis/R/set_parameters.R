@@ -58,14 +58,14 @@ package_list <- c(
   "zoo"
 )
 
-for (package in package_list) {
-  if (!require(package = package, character.only = T)) {
-    install.packages(pkgs = package)
-    library(package = package, character.only = T)
-  }
-  detach(pos = which(grepl(package, search())), force = T)
-}
 
+# for (package in package_list) {
+#   if (!require(package = package, character.only = T)) {
+#     install.packages(pkgs = package)
+#     library(package = package, character.only = T)
+#   }
+#   detach(pos = which(grepl(package, search())), force = T)
+# }
 
 
 ### Run options
@@ -84,16 +84,10 @@ option_list <- list(
 
 opt <- optparse::OptionParser(option_list = option_list) %>% optparse::parse_args()
 
-
-
 ### Read config file
-
 config <- yaml::read_yaml(opt$config)
 
-
-
 ### Define relevent directories
-
 try({setwd(utils::getSrcDirectory())}, silent = TRUE)
 try({setwd(dirname(rstudioapi::getActiveDocumentContext()$path))}, silent = TRUE)
 # Where is the repository
@@ -278,7 +272,7 @@ for(t_idx in 1:length(all_test_idx)){
                       sep = '_')
     
     if(!is.null(config$tfrac_thresh)) {
-      map_name <- str_c(map_name, "_tfracthresh", config$tfrac_thresh)
+      map_name <- paste0(map_name, "_tfracthresh", config$tfrac_thresh)
     }
   }
   

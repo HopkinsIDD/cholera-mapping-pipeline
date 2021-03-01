@@ -116,7 +116,10 @@ if (stan_data$ncovar >= 1 & covar_warmup) {
   frml <- paste(c(frml, paste0("beta_", 1:stan_data$ncovar)), collapse = " + ")
 }
 
-if (config$time_effect) {
+# Is the model one with a time-specific random effect?
+timevary_model <- stringr::str_detect(config$stan$model, "timevary") & config$time_effect
+
+if (config$time_effect & timevary_model) {
   frml <- paste(c(frml, colnames(df %>% dplyr::select(dplyr::contains("year_")))), collapse = " + ")
 }
 
@@ -164,20 +167,39 @@ if (stan_data$ncovar >= 1 & covar_warmup) {
 stan_data$sigma_eta_scale <- taxdat::get_stan_parameters(config)$sigma_eta_scale
 
 # Initial parameter values
-if (config$time_effect) {
-  stan_data$mat_grid_time <- mat_grid_time %>% as.matrix()
+if (config$time_effect | config$smoothing_period != 1) {
   sd_w <- sd(w.init)
-  eta <- coef(gam_fit) %>% .[stringr::str_detect(names(.), "year")]
   
-  init.list <- lapply(1:nchain, 
-                      function(i) {
-                        list(
-                          # Perturbation of spatial random effects
-                          w = rnorm(length(w.init), w.init, .1),
-                          # Perturbation of fitted etas
-                          eta_tilde = rnorm(length(eta), eta/stan_data$sigma_eta_scale, .05),
-                          sigma_eta_tilde = as.array(1)
-                        )})
+  if (config$time_effect & config$smoothing_period != 1) {
+    stop("Current code does not allow smoothing_period != 1 and time_effect = true")
+  }
+  
+  if (config$smoothing_period != 1) {
+    init.list <- lapply(1:nchain, 
+                        function(i) {
+                          list(
+                            # Perturbation of spatial random effects
+                            w = rnorm(length(w.init) * config$smoothing_period, 
+                                      rep(w.init, config$smoothing_period), .1)
+                          )})
+  }
+  
+  if (config$time_effect) {
+    stan_data$mat_grid_time <- mat_grid_time %>% as.matrix()
+    eta <- coef(gam_fit) %>% .[stringr::str_detect(names(.), "year")]
+    init.list <- lapply(1:nchain, 
+                        function(i) {
+                          list(
+                            # Perturbation of spatial random effects
+                            w = rnorm(length(w.init), w.init, .1),
+                            # Perturbation of fitted etas
+                            eta_tilde = rnorm(length(eta), eta/stan_data$sigma_eta_scale, .05),
+                            sigma_eta_tilde = as.array(1)
+                          )})
+  }
+  
+  
+  
 } else {
   init.list <- lapply(1:nchain, function(i) list(w = rnorm(length(w.init), w.init, .1)))
 }
