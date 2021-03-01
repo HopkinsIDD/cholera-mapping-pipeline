@@ -47,6 +47,11 @@ get_filenames <- function (config, cholera_directory) {
                      paste(res_space, 'km', sep = ''),
                      suspected_or_confirmed,
                      sep = '_')
+  
+  if(!is.null(config$tfrac_thresh)) {
+    map_name <- paste0(map_name, "_tfracthresh", config$tfrac_thresh)
+  }
+  
   covariate_name_part <- paste(short_covariates, collapse = "-")
   preprocessed_data_fname <- make_observations_filename(cholera_directory, 
                                                         map_name)
