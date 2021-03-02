@@ -488,7 +488,8 @@ read_taxonomy_data_sql <- function(username,
     dplyr::rename(geojson = geometry)
   
   # Combine observations and geojsons
-  res <- dplyr::right_join(location_periods.sf, observations, by = "location_period_id")
+  res <- dplyr::left_join(observations, location_periods.sf, by = "location_period_id")
+  res <- sf::st_as_sf(res)
   
   return(res)
 }
