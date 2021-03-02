@@ -330,6 +330,11 @@ prepare_stan_input <- function(
     }
   }
   
+  # Overwrite tfrac with user-specified value
+  if (!is.null(set_tfrac)) {
+    cat("-- Overwriting tfrac with user-specified value of ", set_tfrac)
+    ind_mapping_resized$tfrac <- set_tfrac
+  }
   
   non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
   

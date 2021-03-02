@@ -127,6 +127,26 @@ check_stan_model <- function(stan_model_path,
   return(stan_model_path)
 }
 
+#' @title Check set tfrac
+#' @description Checks whether the user-specified value of tfrac is valid
+#'
+#' @param config the config
+#'
+#' @return if valid the stan model path
+#' @export
+check_set_tfrac <- function(set_tfrac) {
+  if (!is.null(set_tfrac)) {
+    if (set_tfrac < 0) {
+      stop("Cannot specifiy negative tfrac values")
+    }
+    if (set_tfrac > 1) {
+      warning("-- Running with a tfrac value larger than 1")
+    } else {
+      cat("---- Running with user-specified value of tfrac:", set_tfrac, "\n")
+    }
+  }
+  return(set_tfrac)
+}
 
 #' @title Modeling time slices
 #' @description Defines the modeling time slicez
@@ -252,4 +272,45 @@ make_map_output_filename <- function(cholera_directory,
                                      niter) {
   paste(cholera_directory, "/Analysis/", "output/", map_name, '.',
         covariate_name_part, '.', stan_model, '.', niter, '.pdf', sep = '')
+}
+
+#' @title Make map name
+#' @name make_map_name
+#' @description Make string for map name used for all filenames
+#'
+#' @param config the configuration file
+#' @param .f other functions to apply to the config to append to map name
+#' @export
+make_map_name <- function(config, .f = NULL) {
+  
+  # km by km resolution of analysis
+  res_space <- as.numeric(config$res_space)
+  # temporal resolution of analysis
+  res_time <- suppressMessages(check_time_res(config$res_time))
+  # Modeling start and end times
+  start_time <- lubridate::ymd(config$start_time)
+  end_time <- lubridate::ymd(config$end_time)
+  # Suspected or confirmed cases
+  suspected_or_confirmed <- suppressMessages(check_case_definition(config$case_definition))
+  
+  map_name <- paste(paste(config$countries_name, collapse = '-'),
+                    stringr::str_replace(res_time, " ", "_"),
+                    paste(start_time, end_time, sep = '-'),
+                    paste(res_space, 'km', sep = ''),
+                    suspected_or_confirmed,
+                    sep = '_')
+  
+  if(!is.null(config$tfrac_thresh)) {
+    map_name <- paste0(map_name, "_tfracthresh", config$tfrac_thresh)
+  }
+  
+  if(!is.null(config$set_tfrac)) {
+    map_name <- paste0(map_name, "_tfracset", config$set_tfrac)
+  }
+  
+  if (!is.null(.f)){
+    map_name <- paste(map_name, .f(config), sep = "_")
+    # str_replace(last(str_split(opt$config, "/")[[1]]), "\\.yml", "")
+  }
+  return(map_name)
 }

@@ -104,19 +104,19 @@ laydir <- ifelse(is.null(opt$layers_directory),
 ## Inputs --------------------------------------------------------------------------------------------------------------
 print("---- Reading Parameters ----\n")
 
+# - - - -
 ### Source for cholera data
 #### either the taxonomy website of an sql call
 data_source <- config$data_source
 
-
-
+# - - - -
 ### Countries over which to run the model
 #### For sql, use numeric ids
 #### For api, use scoped string names
 countries <- config$countries
 countries_name <- config$countries_name
 
-
+# - - - -
 ### Grid Size
 # km by km resolution of analysis
 res_space <- as.numeric(config$res_space)
@@ -125,8 +125,7 @@ res_time <- taxdat::check_time_res(config$res_time)
 # number of time slices in spatial random effect
 smooth_covariate_number_timesteps <- config$smoothing_period
 
-
-
+# - - - -
 ### Get various functions to convert between time units and dates
 # Function to convert from date to temporal grid
 time_change_func <- taxdat::time_unit_to_aggregate_function(res_time)
@@ -135,8 +134,6 @@ aggregate_to_start <- taxdat::time_unit_to_start_function(res_time)
 # Function to convert from temporal grid to end date
 aggregate_to_end <- taxdat::time_unit_to_end_function(res_time)
 
-
-
 # - - - -
 # What case definition should be used
 suspected_or_confirmed <- taxdat::check_case_definition(config$case_definition)
@@ -144,13 +141,17 @@ suspected_or_confirmed <- taxdat::check_case_definition(config$case_definition)
 # TODO check the flag for use_database
 cases_column <- taxdat::case_definition_to_column_name(suspected_or_confirmed,
                                                        database = T)
-
+# - - - -
 # Is there a threshold on tfrac?
 if (!is.null(config$tfrac_thresh)) {
   cat("---- Running with tfrac threshold of", config$tfrac_thresh, "\n")
 } else {
   cat("---- No tfrac thershold used\n")
 }
+
+# - - - -
+# User-specified value to set tfrac
+set_tfrac <- taxdat::check_set_tfrac(config$set_tfrac)
 
 # - - - -
 # What range of times should be considered?
@@ -263,21 +264,10 @@ for(t_idx in 1:length(all_test_idx)){
       }
     }
     warning("We should revisit the way we name maps")
-    map_name <- paste(paste(config$countries_name, collapse = '-'),
-                      stringr::str_replace(res_time, " ", "_"),
-                      paste(start_time, end_time, sep = '-'),
-                      paste(res_space, 'km', sep = ''),
-                      suspected_or_confirmed,
-                      # str_replace(last(str_split(opt$config, "/")[[1]]), "\\.yml", ""),
-                      sep = '_')
-    
-    if(!is.null(config$tfrac_thresh)) {
-      map_name <- paste0(map_name, "_tfracthresh", config$tfrac_thresh)
-    }
+    map_name <- taxdat::make_map_name(config)
   }
   
   covariate_name_part <- paste(short_covariates, collapse = '-')
-  
   setwd(cholera_directory)
   dir.create("Analysis/output", showWarnings = FALSE)
   
