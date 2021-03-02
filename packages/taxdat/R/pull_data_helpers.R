@@ -372,6 +372,8 @@ read_taxonomy_data_sql <- function(username,
                                    time_left = NULL,
                                    time_right = NULL,
                                    uids = NULL) {
+  library(tidyverse)
+  library(sf)
   
   if (missing(username) | missing(password))
     stop("Please provide username and password to connect to the taxonomy database.")
@@ -491,6 +493,8 @@ read_taxonomy_data_sql <- function(username,
   res <- dplyr::left_join(observations, as.data.frame(location_periods.sf), by = "location_period_id")
   res <- sf::st_as_sf(res)
   
+  detach("package:tidyverse", unload = T)
+  detach("package:sf", unload = T)
   return(res)
 }
 
