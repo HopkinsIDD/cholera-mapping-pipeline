@@ -96,7 +96,7 @@ parameters {
   vector[smooth_grid_N] w; // Spatial Random Effect
   
   vector[T*do_time_slice_effect] eta_tilde; // yearly random effects
-  real <lower=0> sigma_eta_tilde[do_time_slice_effect];
+  real <lower=0> sigma_eta_tilde[T*do_time_slice_effect];
   
   // Covariate stuff
   vector[ncovar] betas;
@@ -120,7 +120,7 @@ transformed parameters {
   if (do_time_slice_effect == 1) {
     for(i in 1:T) {
       // scale yearly random effects
-      eta[i] = sigma_eta_scale * sigma_eta_tilde[1] * eta_tilde[i];
+      eta[i] = sigma_eta_scale * sigma_eta_tilde[i] * eta_tilde[i];
     }
   }
   
