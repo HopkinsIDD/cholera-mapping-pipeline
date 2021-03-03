@@ -113,7 +113,7 @@ transformed parameters {
   vector<lower=0>[L] location_cases; //cases modeled in each (temporal) location.
   vector<lower=0>[N] grid_cases; //cases modeled in each gridcell and time point.
   vector[T*do_time_slice_effect] eta; // yearly random effects
-  real<lower=0> phi = 1/sqrt_reciprocal_phi^2; // aggregation parameter of the negative binomial
+  real<lower=0> phi = (1/sqrt_reciprocal_phi)^2; // aggregation parameter of the negative binomial
   
   // real w_sum;
   
@@ -243,7 +243,7 @@ model {
     for(i in 1:M){
       target += neg_binomial_2_lpmf(y[i] | modeled_cases[i], phi)/weights[i];
     }
-    sqrt_reciprocal_phi ~ normal(0, 1); // informative prior on phi
+    sqrt_reciprocal_phi ~ normal(1, 0.1); // informative prior on phi
   }
 }
 generated quantities {
