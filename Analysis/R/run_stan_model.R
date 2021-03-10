@@ -108,7 +108,6 @@ df <- purrr::map_dfr(
   )
 
 
-
 # Create gam frml
 frml <- "y ~ s(sx,sy) - 1"
 
@@ -220,6 +219,16 @@ if (stan_data$ncovar >= 1) {
 stan_data$do_censoring <- ifelse(config$censoring, 1, 0)
 stan_data$do_time_slice_effect <- ifelse(config$time_effect, 1, 0)
 stan_data$do_time_slice_effect_autocor <- ifelse(config$time_effect_autocor, 1, 0)
+
+if (config$time_effect) {
+  # Extract number of observations per year
+  obs_per_year <- df %>% count(obs_year) %>% 
+    mutate(obs_year = as.numeric(as.character(obs_year)))
+  # For each time slice check if there is data informing it
+  # If there is no data in a given year, the model will ignore the yearly random effect
+  has_data_year <- map_dbl(stan_data$map_grid_time, ~ . %in% obs_per_year$obs_year)
+  stan_data$has_data_year <- has_data_year
+}
 
 # Run model ---------------------------------------------------------------
 model.rand <- rstan::stan(
