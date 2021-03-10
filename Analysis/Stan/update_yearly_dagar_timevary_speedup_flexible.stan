@@ -52,6 +52,9 @@ data {
   int<lower=0, upper=1> do_censoring;
   int<lower=0, upper=1> do_time_slice_effect;
   int<lower=0, upper=1> do_time_slice_effect_autocor;
+  
+  // If time slice effect pass indicator function for years without data
+  vector<lower=0, upper=T>[N*do_time_slice_effect] has_data_year;
 }
 
 transformed data {
@@ -96,7 +99,7 @@ parameters {
   vector[smooth_grid_N] w; // Spatial Random Effect
   
   vector[T*do_time_slice_effect] eta_tilde; // yearly random effects
-  real <lower=0> sigma_eta_tilde[T*do_time_slice_effect];
+  real <lower=0> sigma_eta_tilde[do_time_slice_effect];
   
   // Covariate stuff
   vector[ncovar] betas;
@@ -120,7 +123,7 @@ transformed parameters {
   if (do_time_slice_effect == 1) {
     for(i in 1:T) {
       // scale yearly random effects
-      eta[i] = sigma_eta_scale * sigma_eta_tilde[i] * eta_tilde[i];
+      eta[i] = sigma_eta_scale * sigma_eta_tilde[1] * eta_tilde[i];
     }
   }
   
@@ -142,7 +145,7 @@ transformed parameters {
   
   // Add time slice effects
   if (do_time_slice_effect == 1) {
-    log_lambda += mat_grid_time * eta;
+    log_lambda += (mat_grid_time * eta) .* has_data_year;
   }
   
   grid_cases = exp(log_lambda + logpop);
