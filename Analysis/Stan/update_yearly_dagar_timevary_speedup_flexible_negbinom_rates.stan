@@ -245,7 +245,7 @@ model {
   } else {
     //data model for estimated rates
     for(i in 1:M){
-      target += poisson_lpmf(y[i] | modeled_cases[i])/weights[i];
+      target += poisson_lpmf(y[i] | modeled_cases[i]);
     }
   }
 }
