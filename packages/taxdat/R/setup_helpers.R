@@ -238,6 +238,10 @@ make_stan_input_filename <- function(cholera_directory,
     }
   }
   
+  to_add <- stringr::str_replace_all(to_add, "TRUE", "T")
+  to_add <- stringr::str_replace_all(to_add, "FALSE", "F")
+  to_add <- stringr::str_replace_all(to_add, "NULL", "N")
+  
   paste(cholera_directory, "/Analysis/", "data/", map_name, '.',
         covariate_name_part, '.', to_add, ".stan_input", '.rdata',sep='')
 }
@@ -274,7 +278,7 @@ make_stan_output_filename <- function(cholera_directory,
   # Modeling configs
   to_add <- "mc"
   for (par in names(stan_pars)) {
-    if(!is.null(config[[par]])) {
+    if(!is.null(stan_pars[[par]])) {
       to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, stan_pars[[par]])
     } else {
       to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, "NULL")
@@ -284,6 +288,10 @@ make_stan_output_filename <- function(cholera_directory,
   # Add stan filename and iterations
   to_add <- paste0(to_add, "-model:", stringr::str_remove(config$stan$model, "\\.stan"))
   to_add <- paste0(to_add, "-niter", config$stan$niter)
+  
+  to_add <- stringr::str_replace_all(to_add, "TRUE", "T")
+  to_add <- stringr::str_replace_all(to_add, "FALSE", "F")
+  to_add <- stringr::str_replace_all(to_add, "NULL", "N")
   
   paste0(base_filename, to_add, ".stan_output.rdata")
 }

@@ -225,16 +225,16 @@ stan_data$use_weights <- ifelse(taxdat::get_stan_parameters(config)$use_weights,
 
 if (taxdat::get_stan_parameters(config)$time_effect) {
   # Extract number of observations per year
-  obs_per_year <- df %>% count(obs_year) %>% 
-    mutate(obs_year = as.numeric(as.character(obs_year)))
+  obs_per_year <- df %>% dplyr::count(obs_year) %>% 
+    dplyr::mutate(obs_year = as.numeric(as.character(obs_year)))
   # For each time slice check if there is data informing it
   # If there is no data in a given year, the model will ignore the yearly random effect
-  has_data_year <- map_dbl(stan_data$map_grid_time, ~ . %in% obs_per_year$obs_year)
+  has_data_year <- purrr::map_dbl(stan_data$map_grid_time, ~ . %in% obs_per_year$obs_year)
   stan_data$has_data_year <- has_data_year
 }
 
 # Set value of negative binomial models with fixed overdispersion parameter
-if (str_detect(stan_model, "fixedphi")) {
+if (stringr::str_detect(stan_model, "fixedphi")) {
   if (is.null(config$overdispersion)) {
     stop("Please provid the value for negative binomial models with fixed overdispersion parameter")
   } else if (is.na(taxdat::get_stan_parameters(config)$overdispersion)) {

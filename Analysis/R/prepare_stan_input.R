@@ -33,6 +33,7 @@ prepare_stan_input <- function(
   covar_cube
 ) {
   
+  library(sf)
   
   # Get covariate choices from covar_cube slice names
   covariate_choices <- dimnames(covar_cube)[[3]][-1]

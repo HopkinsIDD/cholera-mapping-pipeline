@@ -269,7 +269,7 @@ for(t_idx in 1:length(all_test_idx)){
   dir.create("Analysis/output", showWarnings = FALSE)
   
   # Load dictionnary of configuration options
-  config_dict <- yaml::read_yaml(paste0(cholera_directory, "Analysis/configs/config_dictionnary.yml"))
+  config_dict <- yaml::read_yaml(paste0(cholera_directory, "/Analysis/configs/config_dictionnary.yml"))
   
   preprocessed_data_fname <- taxdat::make_observations_filename(cholera_directory = cholera_directory, 
                                                                 map_name = map_name)
