@@ -186,6 +186,7 @@ short_covariate_choices <- purrr::map_chr(covariate_dict, "abbr")
 covariate_choices <- taxdat::check_covariate_choices(covar_choices = config$covariate_choices,
                                                      available_choices = all_covariate_choices)
 short_covariates <- short_covariate_choices[covariate_choices]
+
 # Specifiy whether covariates are included in the warmup
 covar_warmup <- taxdat::get_stan_parameters(config)$covar_warmup
 
@@ -271,11 +272,27 @@ for(t_idx in 1:length(all_test_idx)){
   setwd(cholera_directory)
   dir.create("Analysis/output", showWarnings = FALSE)
   
-  preprocessed_data_fname <- taxdat::make_observations_filename(cholera_directory, map_name)
-  preprocessed_covar_fname <- taxdat::make_covar_filename(cholera_directory, map_name, covariate_name_part)
-  stan_input_fname <- taxdat::make_stan_input_filename(cholera_directory, map_name, covariate_name_part, stan_model, niter)
-  stan_output_fname <- taxdat::make_stan_output_filename(cholera_directory, map_name, covariate_name_part, stan_model, niter)
-  map_output_fname <- taxdat::make_map_output_filename(cholera_directory, map_name, covariate_name_part, stan_model, niter) ## ECL 10/22 I don't think this is used anywhere...
+  # Load dictionnary of configuration options
+  config_dict <- yaml::read_yaml(paste0(cholera_directory, "Analysis/configs/config_dictionnary.yml"))
+  
+  preprocessed_data_fname <- taxdat::make_observations_filename(cholera_directory = cholera_directory, 
+                                                                map_name = map_name)
+  
+  preprocessed_covar_fname <- taxdat::make_covar_filename(cholera_directory = cholera_directory, 
+                                                          map_name = map_name, 
+                                                          covariate_name_part = covariate_name_part)
+  
+  stan_input_fname <- taxdat::make_stan_input_filename(cholera_directory = cholera_directory, 
+                                                       map_name = map_name, 
+                                                       covariate_name_part = covariate_name_part, 
+                                                       config = config,
+                                                       config_dict = config_dict)
+  
+  stan_output_fname <- taxdat::make_stan_output_filename(cholera_directory = cholera_directory,
+                                                         map_name = map_name, 
+                                                         covariate_name_part = covariate_name_part,    
+                                                         config = config,
+                                                         config_dict = config_dict)
   
   # Preparation: Load auxillary functions
   # source(stringr::str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))

@@ -6,28 +6,28 @@
 #' @return res_time if valid
 #' @export
 check_time_res <- function(res_time) {
-
+  
   err_message <- "Time resolution should be specified as a string in the from '<n> <period>' where n is the number of time units of period <period>. Example: '1 year'."
-
+  
   parts <- stringr::str_split(res_time, " ")[[1]]
   if (length(parts) != 2)
     stop(err_message)
-
+  
   n_units <- as.numeric(parts[1])
   if (is.na(n_units))
     stop(paste(err_message, "[Units not valid]"))
-
+  
   allowed_time_periods <- c("month", "year")
   allowed_time_periods <- c(allowed_time_periods, paste0(allowed_time_periods, "s"))
   time_period <- parts[2]
   if (!(time_period %in% allowed_time_periods))
     stop(paste(err_message, "[Time period not valid]"))
-
+  
   # Standardize to always have an s at the end
   if (!stringr::str_detect(res_time, "s$")) {
     res_time <- stringr::str_c(res_time, "s")
   }
-
+  
   cat("-- Running with valid time resolution:", res_time, "\n")
   return(res_time)
 }
@@ -42,7 +42,7 @@ check_time_res <- function(res_time) {
 check_case_definition <- function(case_col) {
   if (!(case_col %in% c("suspected", "confirmed")))
     stop("Cholera case definition not in allowed options (suspected or confirmed).")
-
+  
   cat("-- Running with valid case defitinion: '", case_col, "'\n", sep = "")
   return(case_col)
 }
@@ -65,16 +65,16 @@ check_model_date_range <- function(start_time,
                                    time_change_func,
                                    aggregate_to_start,
                                    aggregate_to_end) {
-
+  
   if(any(c(!lubridate::is.Date(start_time), !lubridate::is.Date(end_time))))
     stop("Start and end times need to be in date format")
-
+  
   if (start_time > end_time)
     stop("Start time is after end time")
-
+  
   model_TL <- aggregate_to_start(time_change_func(start_time))
   model_TR <- aggregate_to_end(time_change_func(end_time))
-
+  
   if (start_time != model_TL | end_time != model_TR) {
     warning("--- User-defined modeling time range does not cover the whole range",
             "as defined with the time resoltion: \n user-defined range:\t",
@@ -97,13 +97,13 @@ check_model_date_range <- function(start_time,
 #' @export
 check_covariate_choices <- function(covar_choices,
                                     available_choices){
-
+  
   if (any(purrr::map_lgl(covar_choices, ~ !(. %in% available_choices))))
     stop("Covariate choices [", stringr::str_c(setdiff(covar_choices, available_choices), collapse = ", "), "] not available. \n",
          "Choose among: [", stringr::str_c(available_choices, collapse = ", "),"]")
-
+  
   cat("---- Running with covariates:", stringr::str_c(covar_choices, collapse = ", "), "\n")
-
+  
   return(covar_choices)
 }
 
@@ -118,12 +118,12 @@ check_covariate_choices <- function(covar_choices,
 #' @export
 check_stan_model <- function(stan_model_path,
                              stan_dir) {
-
+  
   if (!file.exists(stan_model_path))
     stop("Could not find stan model. Choose among:\n",
          stringr::str_c(dir(stan_dir), collapse = "\n"))
   cat("---- Running with stan model:", stringr::str_replace(stan_model_path, stan_dir, ""), "\n")
-
+  
   return(stan_model_path)
 }
 
@@ -165,14 +165,14 @@ modeling_time_slices <- function(start_time,
                                  time_change_func,
                                  aggregate_to_start,
                                  aggregate_to_end) {
-
+  
   left_bounds <- seq.Date(start_time, end_time, by = res_time)
   left_bounds <- aggregate_to_start(time_change_func(left_bounds))
   right_bounds <- aggregate_to_end(time_change_func(left_bounds))
-
+  
   time_slices <- tibble::tibble(TL = left_bounds[left_bounds <= end_time],
                                 TR = right_bounds[right_bounds <= end_time])
-
+  
   cat("-- Model consists of", nrow(time_slices), "time slices of duration", res_time,":\n")
   print(time_slices)
   cat("\n")
@@ -218,18 +218,28 @@ make_covar_filename <- function(cholera_directory,
 #' @param cholera_directory cholera mapping directory
 #' @param map_name map name
 #' @param covariate_name_part name of covariate
-#' @param stan_model name of stan model
-#' @param niter number of iterations
+#' @param config configuration file
+#' @param config_dict dictionnary with abbreviationas of config
 #' @return a string with the Stan input file name
 #' @export
 make_stan_input_filename <- function(cholera_directory,
                                      map_name,
                                      covariate_name_part,
-                                     stan_model,
-                                     niter) {
+                                     config,
+                                     config_dict) {
+  
+  # Processing configs
+  to_add <- "pc"
+  for (par in c("smoothing_period", "aggregate", "tfrac_thresh", "set_tfrac")) {
+    if(!is.null(config[[par]])) {
+      to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, config[[par]])
+    } else {
+      to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, "NULL")
+    }
+  }
+  
   paste(cholera_directory, "/Analysis/", "data/", map_name, '.',
-        covariate_name_part, '.', stan_model, '.', niter, '.stan_input',
-        '.rdata',sep='')
+        covariate_name_part, '.', to_add, ".stan_input", '.rdata',sep='')
 }
 
 #' @title Make Stan output filename
@@ -239,18 +249,43 @@ make_stan_input_filename <- function(cholera_directory,
 #' @param cholera_directory cholera mapping directory
 #' @param map_name map name
 #' @param covariate_name_part name of covariate
-#' @param stan_model name of stan model
-#' @param niter number of iterations
+#' @param config configuration file
+#' @param config_dict dictionary of configuration options
 #' @return a string with the Stan output file name
 #' @export
 make_stan_output_filename <- function(cholera_directory,
                                       map_name,
                                       covariate_name_part,
-                                      stan_model,
-                                      niter) {
-  paste(cholera_directory, "/Analysis/", "data/", map_name, '.',
-        covariate_name_part, '.', stan_model, '.', niter, '.stan_output',
-        '.rdata',sep='')
+                                      config,
+                                      config_dict) {
+  
+  # Get stan input filename
+  base_filename <- make_stan_input_filename(cholera_directory,
+                                            map_name,
+                                            covariate_name_part,
+                                            config,
+                                            config_dict)  
+  # Base part of output filename
+  base_filename <- stringr::str_remove(base_filename, "stan_input\\.rdata")
+    
+  # Get stan parameters
+  stan_pars <- get_stan_parameters(config)
+  
+  # Modeling configs
+  to_add <- "mc"
+  for (par in names(stan_pars)) {
+    if(!is.null(config[[par]])) {
+      to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, stan_pars[[par]])
+    } else {
+      to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, "NULL")
+    }
+  }
+  
+  # Add stan filename and iterations
+  to_add <- stringr::str_c(to_add, "-model:", stringr::str_remove(config$stan$model, "\\.stan"))
+  to_add <- stringr::str_c(to_add, "-niter", config$stan$niter)
+  
+  paste0(base_filename, to_add, ".stan_output.rdata")
 }
 
 
@@ -300,17 +335,5 @@ make_map_name <- function(config, .f = NULL) {
                     suspected_or_confirmed,
                     sep = '_')
   
-  if(!is.null(config$tfrac_thresh)) {
-    map_name <- paste0(map_name, "_tfracthresh", config$tfrac_thresh)
-  }
-  
-  if(!is.null(config$set_tfrac)) {
-    map_name <- paste0(map_name, "_tfracset", config$set_tfrac)
-  }
-  
-  if (!is.null(.f)){
-    map_name <- paste(map_name, .f(config), sep = "_")
-    # str_replace(last(str_split(opt$config, "/")[[1]]), "\\.yml", "")
-  }
   return(map_name)
 }

@@ -9,12 +9,18 @@
 get_stan_parameters <- function(config,
                                 sigma_eta_scale = 5,
                                 beta_sigma_scale = 10,
-                                covar_warmup = T
+                                covar_warmup = T,
+                                time_effect = F,
+                                time_effect_autocorr = F,
+                                censoring = F
 ) {
   
   default_params <- list(sigma_eta_scale = sigma_eta_scale,
                          beta_sigma_scale = beta_sigma_scale,
-                         covar_warmup = covar_warmup)
+                         covar_warmup = covar_warmup,
+                         time_effect = time_effect,
+                         time_effect_autocorr = time_effect_autocorr,
+                         censoring = censoring)
   
   # For each parameter check if specified in config, if not use default value
   params <- purrr::map(names(default_params), 
