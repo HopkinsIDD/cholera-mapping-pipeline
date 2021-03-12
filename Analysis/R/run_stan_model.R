@@ -90,10 +90,10 @@ df <- purrr::map_dfr(
                      meanrate = stan_data$meanrate,
                      ey = pop*stan_data$meanrate,
                      tfrac = tfrac_vec,
-                     censored = stan_data$censoring_inds[i])
-    ) %>% 
+                     censored = stan_data$censoring_inds[i]) %>%
       cbind(beta_mat) %>% 
       cbind(year_mat)
+    )
   }
 ) %>% 
   tibble::as_tibble() %>% 
