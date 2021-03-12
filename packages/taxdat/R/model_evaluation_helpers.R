@@ -9,58 +9,37 @@
 #' @param cholera_directory path to cholera directory
 #' @return
 get_filenames <- function (config, cholera_directory) {
-  data_source <- config$data_source
-  countries <- config$countries
-  countries_name <- config$countries_name
-  res_space <- as.numeric(config$res_space)
-  spatial_aggregate_iso_a2_level <- Inf
-  res_time <- check_time_res(config$res_time)
-  # temporal_aggregate_time_unit <- stringr::str_split(res_time, 
-  # " ")[[1]][2]
-  time_change_func <- time_unit_to_aggregate_function(res_time)
-  aggregate_to_start <- time_unit_to_start_function(res_time)
-  aggregate_to_end <- time_unit_to_end_function(res_time)
-  smooth_covariate_number_timesteps <- config$smoothing_period
-  suspected_or_confirmed <- check_case_definition(config$case_definition)
-  cases_column <- case_definition_to_column_name(suspected_or_confirmed, 
-                                                 database = T)
-  start_time <- lubridate::ymd(config$start_time)
-  end_time <- lubridate::ymd(config$end_time)
-  covariate_dict <- yaml::read_yaml(paste0(cholera_directory, 
-                                           "/Layers/covariate_dictionary.yml"))
+  # Covariate names
+  covariate_dict <- yaml::read_yaml(paste0(cholera_directory, "/Layers/covariate_dictionary.yml"))
   all_covariate_choices <- names(covariate_dict)
-  short_covariate_choices <- purrr::map_chr(covariate_dict, 
-                                            "abbr")
+  short_covariate_choices <- purrr::map_chr(covariate_dict, "abbr")
   covariate_choices <- check_covariate_choices(covar_choices = config$covariate_choices, 
                                                available_choices = all_covariate_choices)
   short_covariates <- short_covariate_choices[covariate_choices]
-  ncore <- config$stan$ncores
-  nchain <- ncore
-  niter <- config$stan$niter
-  stan_dir <- paste0(cholera_directory, "/Analysis/Stan/")
-  stan_model <- config$stan$model
-  stan_model_path <- check_stan_model(stan_model_path = paste(stan_dir, 
-                                                              stan_model, sep = ""), stan_dir = stan_dir)
-  map_name <-  paste(paste(config$countries_name, collapse = '-'),
-                     stringr::str_replace(res_time, " ", "_"),
-                     paste(start_time, end_time, sep = '-'),
-                     paste(res_space, 'km', sep = ''),
-                     suspected_or_confirmed,
-                     sep = '_')
-  
-  if(!is.null(config$tfrac_thresh)) {
-    map_name <- paste0(map_name, "_tfracthresh", config$tfrac_thresh)
-  }
-  
   covariate_name_part <- paste(short_covariates, collapse = "-")
-  preprocessed_data_fname <- make_observations_filename(cholera_directory, 
-                                                        map_name)
-  preprocessed_covar_fname <- make_covar_filename(cholera_directory, 
-                                                  map_name, covariate_name_part)
-  stan_input_fname <- make_stan_input_filename(cholera_directory, 
-                                               map_name, covariate_name_part, stan_model, niter)
-  stan_output_fname <- make_stan_output_filename(cholera_directory, 
-                                                 map_name, covariate_name_part, stan_model, niter)
+  
+  # Load dictionnary of configuration options
+  config_dict <- yaml::read_yaml(paste0(cholera_directory, "Analysis/configs/config_dictionnary.yml"))
+  
+  preprocessed_data_fname <- make_observations_filename(cholera_directory = cholera_directory, 
+                                                        map_name = map_name)
+  
+  preprocessed_covar_fname <- make_covar_filename(cholera_directory = cholera_directory, 
+                                                  map_name = map_name, 
+                                                  covariate_name_part = covariate_name_part)
+  
+  stan_input_fname <- make_stan_input_filename(cholera_directory = cholera_directory, 
+                                               map_name = map_name, 
+                                               covariate_name_part = covariate_name_part, 
+                                               config = config,
+                                               config_dict = config_dict)
+  
+  stan_output_fname <- make_stan_output_filename(cholera_directory = cholera_directory,
+                                                 map_name = map_name, 
+                                                 covariate_name_part = covariate_name_part,    
+                                                 config = config,
+                                                 config_dict = config_dict)
+  
   rc <- setNames(c(preprocessed_data_fname, preprocessed_covar_fname, 
                    stan_input_fname, stan_output_fname), c("data", "covar", 
                                                            "stan_input", "stan_output"))
@@ -95,7 +74,7 @@ read_file_of_type <- function(filename, variable){
 #' @param df sf_cases dataframe with observation data
 #' @return dataframe with summary statistics 
 get_obs_stats <- function(df) {
-
+  
   rc <- tibble::as_tibble(df)
   rc <- dplyr::mutate(rc, year = lubridate::year(TL))
   alldf <- tibble::as_tibble(df)
@@ -103,14 +82,14 @@ get_obs_stats <- function(df) {
   rc <- rbind(rc, alldf)
   rc <- dplyr::group_by(rc, year) 
   rc <- dplyr::summarize(rc,
-      n_obs = dplyr::n(),
-      n_cases = sum(attributes.fields.suspected_cases),
-      n_lp  = length(unique(locationPeriod_id)),
-      u_lps  = paste(sort(unique(locationPeriod_id)), collapse = ","),
-      n_OCs  = length(unique(OC_UID)),
-      u_OCs  = paste(sort(unique(OC_UID)), collapse = ","),
-    )
-
+                         n_obs = dplyr::n(),
+                         n_cases = sum(attributes.fields.suspected_cases),
+                         n_lp  = length(unique(locationPeriod_id)),
+                         u_lps  = paste(sort(unique(locationPeriod_id)), collapse = ","),
+                         n_OCs  = length(unique(OC_UID)),
+                         u_OCs  = paste(sort(unique(OC_UID)), collapse = ","),
+  )
+  
   return(rc)
 }
 
@@ -229,11 +208,11 @@ plot_raw_observed_cases <- function(disjoint_set_sf_cases,
 #' @param height plot height
 #' @return ggplot object with area-adjusted observed cases 
 plot_area_adjusted_observed_cases <- function(
-                        disjoint_set_sf_cases,
-                        render = F,
-                        plot_file = NULL,
-                        width = NULL,
-                        height = NULL){
+  disjoint_set_sf_cases,
+  render = F,
+  plot_file = NULL,
+  width = NULL,
+  height = NULL){
   plt <- ggplot2::ggplot()
   plt <- plt +
     ggplot2::geom_sf(
@@ -441,16 +420,16 @@ get_case_raster <- function(preprocessed_data_filename,
     modeled_rates_mean <- apply(modeled_rates, 3, mean)
     
     case_raster <- dplyr::mutate(case_raster, 
-                    modeled_cases_mean = NA,
-                    modeled_rates_mean = NA) 
+                                 modeled_cases_mean = NA,
+                                 modeled_rates_mean = NA) 
     case_raster[non_na_gridcells,]$modeled_cases_mean <- modeled_cases_mean
     names(case_raster)[which(names(case_raster)=="modeled_cases_mean")] <- paste("modeled cases\n",
-      paste(filename_to_stubs(filename)[2:3], collapse = " "), "\niterations: Chain", 
-      filename_to_stubs(filename)[5])
+                                                                                 paste(filename_to_stubs(filename)[2:3], collapse = " "), "\niterations: Chain", 
+                                                                                 filename_to_stubs(filename)[5])
     case_raster[non_na_gridcells,]$modeled_rates_mean <- modeled_rates_mean
     names(case_raster)[which(names(case_raster)=="modeled_rates_mean")] <- paste("modeled rates\n", 
-      paste(filename_to_stubs(filename)[2:3], collapse = " "), "\niterations: Chain", 
-      filename_to_stubs(filename)[5]) 
+                                                                                 paste(filename_to_stubs(filename)[2:3], collapse = " "), "\niterations: Chain", 
+                                                                                 filename_to_stubs(filename)[5]) 
   }
   case_raster
 }
@@ -692,13 +671,13 @@ pull_output_by_source <- function(sf_cases,
     warning("No source filter provided")
     return(sf_cases)
   }
-
+  
   if(any(grepl("source",names(sf_cases)))){
     source_match <- paste0("^",gsub('%','.*',source_match))
     matches <- grepl(source_match, sf_cases[["source"]])
     return(sf_cases[matches,])
   }
-
+  
   source(database_api_key_rfile)
   conn <- RPostgres::dbConnect(RPostgres::Postgres(),
                                host = "db.cholera-taxonomy.middle-distance.com",
