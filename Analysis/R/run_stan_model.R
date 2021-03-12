@@ -107,6 +107,8 @@ df <- purrr::map_dfr(
                   T ~ Inf)
   )
 
+# Specifiy whether covariates are included in the warmup
+covar_warmup <- taxdat::get_stan_parameters(config)$covar_warmup
 
 # Create gam frml
 frml <- "y ~ s(sx,sy) - 1"
@@ -216,11 +218,12 @@ if (stan_data$ncovar >= 1) {
 }
 
 # Set censoring and time effect and autocorrelation
-stan_data$do_censoring <- ifelse(config$censoring, 1, 0)
-stan_data$do_time_slice_effect <- ifelse(config$time_effect, 1, 0)
-stan_data$do_time_slice_effect_autocor <- ifelse(config$time_effect_autocor, 1, 0)
+stan_data$do_censoring <- ifelse(taxdat::get_stan_parameters(config)$censoring, 1, 0)
+stan_data$do_time_slice_effect <- ifelse(taxdat::get_stan_parameters(config)$time_effect, 1, 0)
+stan_data$do_time_slice_effect_autocor <- ifelse(taxdat::get_stan_parameters(config)$time_effect_autocor, 1, 0)
+stan_data$use_weights <- ifelse(taxdat::get_stan_parameters(config)$use_weights, 1, 0)
 
-if (config$time_effect) {
+if (taxdat::get_stan_parameters(config)$time_effect) {
   # Extract number of observations per year
   obs_per_year <- df %>% count(obs_year) %>% 
     mutate(obs_year = as.numeric(as.character(obs_year)))
@@ -228,6 +231,17 @@ if (config$time_effect) {
   # If there is no data in a given year, the model will ignore the yearly random effect
   has_data_year <- map_dbl(stan_data$map_grid_time, ~ . %in% obs_per_year$obs_year)
   stan_data$has_data_year <- has_data_year
+}
+
+# Set value of negative binomial models with fixed overdispersion parameter
+if (str_detect(stan_model, "fixedphi")) {
+  if (is.null(config$overdispersion)) {
+    stop("Please provid the value for negative binomial models with fixed overdispersion parameter")
+  } else if (is.na(taxdat::get_stan_parameters(config)$overdispersion)) {
+    stop("Please provid the value for negative binomial models with fixed overdispersion parameter")
+  } else {
+    stan_data$phi <- taxdat::get_stan_parameters(config)$overdispersion
+  }
 }
 
 # Run model ---------------------------------------------------------------
@@ -245,4 +259,4 @@ model.rand <- rstan::stan(
 )
 
 # Save output
-save(model.rand,file=stan_output_fname)
+save(model.rand, file = stan_output_fname)

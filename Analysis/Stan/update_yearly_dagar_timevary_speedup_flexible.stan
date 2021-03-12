@@ -49,18 +49,23 @@ data {
   real<lower=0> sigma_eta_scale; // the scale of inter-annual variability
   
   // Options
+  // Censoring of cases with tfracs bellow threshold
   int<lower=0, upper=1> do_censoring;
+  // Random effect for each time slice
   int<lower=0, upper=1> do_time_slice_effect;
+  // Autocorrelation between time slice random effects
   int<lower=0, upper=1> do_time_slice_effect_autocor;
+  // Weight likelihoods by expected number of cases
+  int<lower=0, upper=1> use_weights; 
   
   // If time slice effect pass indicator function for years without data
-  vector<lower=0, upper=T>[N*do_time_slice_effect] has_data_year;
+  vector<lower=0, upper=1>[N*do_time_slice_effect] has_data_year;
 }
 
 transformed data {
   vector<lower=0>[N] logpop;//populations by timestep
   real small_N = .001 * smooth_grid_N;
-  real<lower=0> weights[M*(1-do_censoring)]; //a function of the expected offset for each observation used to downwight the likelihood
+  real<lower=0> weights[M*(1-do_censoring)*use_weights]; //a function of the expected offset for each observation used to downwight the likelihood
   real log_meanrate = log(meanrate);
   real <lower=1> pop_loctimes[L]; // pre-computed population in each location period
   
@@ -77,7 +82,7 @@ transformed data {
   }
   
   // Compute observation likelihood weights 
-  if (do_censoring == 0) {
+  if (do_censoring == 0 && use_weights == 1) {
     for (i in 1:M) {
       weights[i] = 1;
     }
@@ -239,14 +244,20 @@ model {
       target += sum(lp_censored);
     }
   } else {
-    //data model for estimated rates
-    for(i in 1:M){
-      target += poisson_lpmf(y[i] | modeled_cases[i])/weights[i];
+    if (use_weights == 1) {
+      //data model for estimated rates
+      for(i in 1:M){
+        target += poisson_lpmf(y[i] | modeled_cases[i])/weights[i];
+      } 
+    } else {
+      target += poisson_lpmf(y | modeled_cases);
     }
   }
 }
 generated quantities {
   real<lower=0> tfrac_modeled_cases[M]; //expected number of cases for each observation
+  real log_lik[M]; // log-likelihood of observations
+  
   // first initialize to 0
   for (i in 1:M) {
     tfrac_modeled_cases[i] = 0;
@@ -254,5 +265,30 @@ generated quantities {
   //now accumulate
   for (i in 1:K1) {
     tfrac_modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
+  }
+  
+  if (do_censoring == 0) {
+    for (i in 1:M) {
+      log_lik[i] = poisson_lpmf(y[i] | modeled_cases[i]);
+    }
+  } else {
+    // full observations
+    for (i in 1:M_full) {
+      log_lik[ind_full[i]] = poisson_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]]);
+    }
+    // rigth-censored observations
+    for(i in 1:M_right){
+      real lpmf;
+      lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+      // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
+      if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
+        real lls[2];
+        lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+        lls[2] = lpmf;
+        log_lik[ind_right[i]] = log_sum_exp(lls);
+      } else {
+        log_lik[ind_right[i]] = lpmf;
+      }
+    }
   }
 }

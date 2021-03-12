@@ -60,6 +60,9 @@ data {
   
   // If time slice effect pass indicator function for years without data
   vector<lower=0, upper=1>[N*do_time_slice_effect] has_data_year;
+  
+  // Overdispersion parameter for the negative-binomial
+  real<lower=0> phi; 
 }
 
 transformed data {
@@ -109,9 +112,6 @@ parameters {
   // Covariate stuff
   vector[ncovar] betas;
   
-  // Overdispersion parameter for the negative-binomial
-  real<lower=0> sqrt_reciprocal_phi; 
-  
   //cases modeled in each gridcell and time point (becomes a Gamma-distributed parameter in the NegBinom model)
   vector<lower=0>[N] grid_cases; 
   
@@ -125,7 +125,6 @@ transformed parameters {
   vector[smooth_grid_N] std_dev; // Rescaled std_dev by std_dev_w
   vector<lower=0>[L] location_cases; //cases modeled in each (temporal) location.
   vector[T*do_time_slice_effect] eta; // yearly random effects
-  real<lower=0> phi = (1/sqrt_reciprocal_phi)^2; // aggregation parameter of the negative binomial
   
   // real w_sum;
   
@@ -189,7 +188,6 @@ model {
   
   // Poisson/Gamma formulation of negative binomial 
   target += gamma_lpdf(grid_cases | phi, phi*exp(- log_lambda - logpop));
-  target += normal_lpdf(sqrt_reciprocal_phi  | 1, 0.1); // informative prior on phi
   
   // NOTE:  no prior on phi_raw, it is used to construct phi
   // the following computes the prior on phi on the unit scale with std_dev = 1

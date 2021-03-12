@@ -187,9 +187,6 @@ covariate_choices <- taxdat::check_covariate_choices(covar_choices = config$cova
                                                      available_choices = all_covariate_choices)
 short_covariates <- short_covariate_choices[covariate_choices]
 
-# Specifiy whether covariates are included in the warmup
-covar_warmup <- taxdat::get_stan_parameters(config)$covar_warmup
-
 # - - - -
 # STAN parameters
 ncore <- config$stan$ncores
@@ -211,7 +208,6 @@ lower_triangular_adjacency <- grepl('dagar', stan_model)
 stan_params <- c('tau_theta','tau_phi','beta0','beta')
 # Should the Stan model be recompiled?
 recompile <- config$stan$recompile
-
 
 # - - - -
 # Construct some additional parameters based on the above

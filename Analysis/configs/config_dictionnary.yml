@@ -20,3 +20,7 @@ tfrac_thresh:
   abbreviation: tft
 set_tfrac:
   abbreviation: tfs
+use_weights:
+  abbreviation: we
+overdispersion:
+  abbreviation: od

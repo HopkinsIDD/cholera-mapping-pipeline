@@ -5,6 +5,7 @@
 //            Time-slice random effect can be specified as:
 //              - 0-centered prior, no reference and no sum-to-zero constraint
 //              - Autocorrelated (increments ~ N(0, sigma)) with sum-to-zero constraint 
+// 10/3/2021 Model with negative binomial observations
 data {
   int <lower=1> N; //length of non-NA grid cells (space and time)
   int <lower=1> N_edges;
@@ -49,15 +50,23 @@ data {
   real<lower=0> sigma_eta_scale; // the scale of inter-annual variability
   
   // Options
+  // Censoring of cases with tfracs bellow threshold
   int<lower=0, upper=1> do_censoring;
+  // Random effect for each time slice
   int<lower=0, upper=1> do_time_slice_effect;
+  // Autocorrelation between time slice random effects
   int<lower=0, upper=1> do_time_slice_effect_autocor;
+  // Weight likelihoods by expected number of cases
+  int<lower=0, upper=1> use_weights; 
+  
+  // If time slice effect pass indicator function for years without data
+  vector<lower=0, upper=1>[N*do_time_slice_effect] has_data_year;
 }
 
 transformed data {
   vector<lower=0>[N] logpop;//populations by timestep
   real small_N = .001 * smooth_grid_N;
-  real<lower=0> weights[M*(1-do_censoring)]; //a function of the expected offset for each observation used to downwight the likelihood
+  real<lower=0> weights[M*(1-do_censoring)*use_weights]; //a function of the expected offset for each observation used to downwight the likelihood
   real log_meanrate = log(meanrate);
   real <lower=1> pop_loctimes[L]; // pre-computed population in each location period
   
@@ -74,7 +83,7 @@ transformed data {
   }
   
   // Compute observation likelihood weights 
-  if (do_censoring == 0) {
+  if (do_censoring == 0 && use_weights == 1) {
     for (i in 1:M) {
       weights[i] = 1;
     }
@@ -145,7 +154,7 @@ transformed parameters {
   
   // Add time slice effects
   if (do_time_slice_effect == 1) {
-    log_lambda += mat_grid_time * eta;
+    log_lambda += (mat_grid_time * eta) .* has_data_year;
   }
   
   grid_cases = exp(log_lambda + logpop);
@@ -210,7 +219,7 @@ model {
     
     if (M_full > 0) {
       // data model for estimated rates for full time slice observations
-      target += poisson_lpmf(y[ind_full]| modeled_cases[ind_full]);
+      target += neg_binomial_2_lpmf(y[ind_full]| modeled_cases[ind_full], phi);
     }
     
     if (M_right > 0) {
@@ -225,11 +234,11 @@ model {
       
       for(i in 1:M_right){
         real lpmf;
-        lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+        lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], phi);
         // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
         if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
           real lls[2];
-          lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+          lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], phi);
           lls[2] = lpmf;
           lp_censored[i] = log_sum_exp(lls);
         } else {
@@ -239,15 +248,21 @@ model {
       target += sum(lp_censored);
     }
   } else {
-    //data model for estimated rates
-    for(i in 1:M){
-      target += neg_binomial_2_lpmf(y[i] | modeled_cases[i], phi)/weights[i];
+    if (use_weights == 1) {
+      //data model for estimated rates
+      for(i in 1:M){
+        target += neg_binomial_2_lpmf(y[i] | modeled_cases[i], phi)/weights[i];
+      } 
+    } else {
+      target += neg_binomial_2_lpmf(y | modeled_cases, phi);
     }
-    sqrt_reciprocal_phi ~ normal(1, 0.1); // informative prior on phi
   }
+  sqrt_reciprocal_phi ~ normal(1, 0.1); // informative prior on phi
 }
 generated quantities {
   real<lower=0> tfrac_modeled_cases[M]; //expected number of cases for each observation
+  real log_lik[M]; // log-likelihood of observations
+  
   // first initialize to 0
   for (i in 1:M) {
     tfrac_modeled_cases[i] = 0;
@@ -255,5 +270,30 @@ generated quantities {
   //now accumulate
   for (i in 1:K1) {
     tfrac_modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
+  }
+  
+  if (do_censoring == 0) {
+    for (i in 1:M) {
+      log_lik[i] = neg_binomial_2_lpmf(y[i] | modeled_cases[i], phi);
+    }
+  } else {
+    // full observations
+    for (i in 1:M_full) {
+      log_lik[ind_full[i]] = neg_binomial_2_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]], phi);
+    }
+    // rigth-censored observations
+    for(i in 1:M_right){
+      real lpmf;
+      lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], phi);
+      // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
+      if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
+        real lls[2];
+        lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], phi);
+        lls[2] = lpmf;
+        log_lik[ind_right[i]] = log_sum_exp(lls);
+      } else {
+        log_lik[ind_right[i]] = lpmf;
+      }
+    }
   }
 }

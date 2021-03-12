@@ -282,8 +282,8 @@ make_stan_output_filename <- function(cholera_directory,
   }
   
   # Add stan filename and iterations
-  to_add <- stringr::str_c(to_add, "-model:", stringr::str_remove(config$stan$model, "\\.stan"))
-  to_add <- stringr::str_c(to_add, "-niter", config$stan$niter)
+  to_add <- paste0(to_add, "-model:", stringr::str_remove(config$stan$model, "\\.stan"))
+  to_add <- paste0(to_add, "-niter", config$stan$niter)
   
   paste0(base_filename, to_add, ".stan_output.rdata")
 }

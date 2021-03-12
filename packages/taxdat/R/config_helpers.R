@@ -36,13 +36,15 @@ automate_mapping_config <- function(p, covariate_names, countries_names, countri
     "time_effect: ", p$time_effect, "\n",
     "time_effect_autocorr: ", p$time_effect_autocorr, "\n",
     "beta_sigma_scale: ", p$beta_sigma_scale, "\n",
+    "sigma_eta_scale: ", p$sigma_eta_scale, "\n",
+    "tfrac_thresh", p$tfrac_thresh, "\n",
+    "set_tfrac", p$set_tfrac, "\n",
     "stan:\n",
     "  ncores: ", p$ncores, "\n",
     "  model: '", p$model, ".stan'\n",
     "  niter: ", p$niter, "\n",
     "  recompile: ", p$recompile, "\n"
   ))
-
 }
 
 
