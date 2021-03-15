@@ -579,14 +579,19 @@ plot_modeled_rates <- function(case_raster,
 #' @description add
 #' @param model_output_filenames model_output_filenames
 #' @return 
-get_data_fidelity <- function(model_output_filenames){
+get_data_fidelity <- function(stan_input_filenames, model_output_filenames){
+  
+  if (length(stan_input_filenames) != length(model_output_filenames))
+    stop("Need to provide same number of stan_input and stan_output files")
+  
   rc <- list()
   layer_index <- 1
-  for (filename in model_output_filenames) {
-    corresponding_input_filename <- gsub('\\d+.csv','json',gsub("stan_output","stan_input", filename))
-    print(c(filename, corresponding_input_filename))
+  for (i in 1:length(model_output_filenames)) {
+    filename <- model_output_filenames[i]
+    # corresponding_input_filename <- gsub('\\d+.csv','json',gsub("stan_output","stan_input", filename))
+    # print(c(filename, corresponding_input_filename))
     model.rand <- read_file_of_type(filename, "model.rand")
-    stan_data <- read_file_of_type(corresponding_input_filename, "stan_input")$stan_data
+    stan_data <- read_file_of_type(stan_input_filenames[i], "stan_input")$stan_data
     modeled_cases <- as.array(model.rand)[, , grepl("modeled_cases", names(model.rand)), drop = FALSE]
     modeled_cases_chain_mean <- apply(modeled_cases, c(2, 3), mean)
     actual_cases <- matrix(stan_data$y, nrow(modeled_cases_chain_mean), ncol(modeled_cases_chain_mean), byrow=TRUE)

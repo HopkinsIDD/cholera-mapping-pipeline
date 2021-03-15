@@ -96,7 +96,8 @@ if (!file.exists(case_rast_filename) | opt$redo) {
 
 if (!file.exists(case_comp_filename) | opt$redo) {
   # Extract comparison between modeled an observed cases
-  data_fidelity <- taxdat::get_data_fidelity(stan_output_filename)[[1]] %>% 
+  data_fidelity <- taxdat::get_data_fidelity(stan_input_filename,
+                                             stan_output_filename)[[1]] %>% 
     as_tibble()  %>% 
     mutate(country = country) %>% 
     set_colnames(c("chain", "param", "modeled", "actual", "country"))
