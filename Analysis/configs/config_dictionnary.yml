@@ -2,6 +2,8 @@ smoothing_period:
   abbreviation: sp
   definition:
   allowed_values:
+warmup:
+  abbreviation: w
 covar_warmup: 
   abbreviation: cw
 censoring: 
