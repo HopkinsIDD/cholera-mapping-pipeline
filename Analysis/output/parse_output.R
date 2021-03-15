@@ -193,16 +193,53 @@ if (!file.exists(spatial_coverage_filename) | opt$redo) {
 # WHO cases ---------------------------------------------------------------
 if (!file.exists(who_filename) | opt$redo) {
   who_annual_cases <- sf_cases_resized
-  chains <- rstan::extract(model.rand)
+  chains <- rstan::extract(model.rand, pars = "modeled_cases")
   who_annual_cases$modeled <- apply(chains$modeled_cases, 2, mean)
   who_annual_cases$observed <- who_annual_cases$attributes.fields.suspected_cases # fix me
   who_annual_cases <- taxdat::pull_output_by_source(sf_cases = who_annual_cases, 
                                                     source_match = "%WHO Annual Cholera Reports%",
                                                     database_api_key_rfile = str_c(opt$cholera_directory,
                                                                                    "/Analysis/R/database_api_key.R"))
-  who_annual_cases %>%
+  # To tibble
+  who_annual_cases <- who_annual_cases %>%
     as.data.frame() %>%
-    dplyr::select(OC_UID, TL, TR, observed, modeled) %>% 
+    dplyr::select(OC_UID, TL, TR, observed, modeled) 
+  
+  # Get location-period ids of country-level observations
+  modeled_years <- seq(lubridate::year(config$start_time), lubridate::year(config$end_time))
+  u_who_years <- unique(lubridate::year(who_annual_cases$TL))
+  
+  # complete data if some years are not available in WHO estimates
+  missing_years <- setdiff(modeled_years, u_who_years)
+  if (length(missing_years) > 0) {
+    if (!exists("case_raster")) {
+      case_raster <- taxdat::get_case_raster(preprocessed_data_filename = file_names["data"],
+                                             covar_data_filename = file_names["covar"],
+                                             model_output_filenames = file_names["stan_output"])
+      
+      colnames(case_raster)[8:9] <- c("modeled cases", "modeled rates")
+    }
+    # Compute mean annual cases
+    mean_case_incid <- as_tibble(case_raster) %>% 
+      group_by(t) %>% 
+      summarise(tot_cases = sum(`modeled cases`)) %>% 
+      mutate(year = modeled_years[t]) 
+
+    # Add missing years to WHO data
+    missing_year_data <- mean_case_incid %>% 
+      filter(year %in% missing_years) %>% 
+      mutate(OC_UID = NA,
+             TL = as.Date(str_c(year, "01", "01", sep = "-")),
+             TR = as.Date(str_c(year, "12", "31", sep = "-")),
+             observed = NA,
+             modeled = tot_cases)
+    
+    who_annual_cases <- who_annual_cases %>% 
+      bind_rows(missing_year_data %>% 
+                  dplyr::select(OC_UID, TL, TR, observed, modeled))
+  }
+  
+  who_annual_cases %>% 
     dplyr::mutate(country = country) %>% 
     write_csv(path = who_filename)
 }
