@@ -11,6 +11,8 @@
 # Stan modeling section
 print("*** STARTING STAN MODEL ***")
 
+library(rstan)
+
 # GAM for warm start of spatial random effects ----------------------------
 
 # Create coordinates of cell centroids
@@ -107,123 +109,131 @@ df <- purrr::map_dfr(
                   T ~ Inf)
   )
 
+# Use warmup?
+warmup <- stan_params$warmup
+
 # Specifiy whether covariates are included in the warmup
-covar_warmup <- taxdat::get_stan_parameters(config)$covar_warmup
-
-# Create gam frml
-frml <- "y ~ s(sx,sy) - 1"
-
-if (stan_data$ncovar >= 1 & covar_warmup) {
-  frml <- paste(c(frml, paste0("beta_", 1:stan_data$ncovar)), collapse = " + ")
-}
-
-# Is the model one with a time-specific random effect?
-timevary_model <- stringr::str_detect(config$stan$model, "timevary") & config$time_effect
-
-if (config$time_effect & timevary_model) {
-  frml <- paste(c(frml, colnames(df %>% dplyr::select(dplyr::contains("year_")))), collapse = " + ")
-}
-
-# Formula for gam model
-gam_frml <- as.formula(frml)
-
-if (config$censoring) {
-  # Removed censored data for which cases are 0
-  df <- df %>% dplyr::filter(!(y == 0 & right_threshold == 0))
-}
-
-# Fit the GAM
-gam_fit <- mgcv::gam(gam_frml,
-                     offset = gam_offset,
-                     family = "poisson", 
-                     data = df)
-
-# GAM estimates
-indall <- sf_grid$upd_id[sf_grid$t == 1]
-
-# Predict to get new terms
-predict_df <- tibble::tibble(sx = coord_frame$x[indall],
-                             sy = coord_frame$y[indall]) %>% 
-  # Set all years to 0 to get the reference year
-  cbind(mat_grid_time[indall, ] %>% 
-          tibble::as_tibble() %>%
-          magrittr::set_colnames(paste0("year_", 1:ncol(mat_grid_time)))) %>% 
-  # Extract the covariates
-  cbind(stan_data$covar[indall, ] %>% 
-          matrix(ncol = stan_data$ncovar) %>% 
-          magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar)))
-
-# Predict log(lambda) for the reference year with covariates
-y_pred_mean <- mgcv::predict.gam(gam_fit, predict_df)
-
-if (stan_data$ncovar >= 1 & covar_warmup) {
-  # Remove the effect of the betas
-  beta_effect <- as.matrix(dplyr::select(predict_df, dplyr::contains("beta"))) %*% matrix(coef(gam_fit)[stringr::str_detect(names(coef(gam_fit)), "beta")], ncol = 1)
-  w.init <- y_pred_mean - as.vector(beta_effect)
-} else {
-  w.init <- y_pred_mean
-}
+covar_warmup <- stan_params$covar_warmup
 
 # Set sigma_eta_scale for all models (not used for models without time effect)
-stan_data$sigma_eta_scale <- taxdat::get_stan_parameters(config)$sigma_eta_scale
-
-# Initial parameter values
-if (config$time_effect | config$smoothing_period != 1) {
-  sd_w <- sd(w.init)
-  
-  if (config$time_effect & config$smoothing_period != 1) {
-    stop("Current code does not allow smoothing_period != 1 and time_effect = true")
-  }
-  
-  if (config$smoothing_period != 1) {
-    init.list <- lapply(1:nchain, 
-                        function(i) {
-                          list(
-                            # Perturbation of spatial random effects
-                            w = rnorm(length(w.init) * config$smoothing_period, 
-                                      rep(w.init, config$smoothing_period), .1)
-                          )})
-  }
-  
-  if (config$time_effect) {
-    stan_data$mat_grid_time <- mat_grid_time %>% as.matrix()
-    eta <- coef(gam_fit) %>% .[stringr::str_detect(names(.), "year")]
-    init.list <- lapply(1:nchain, 
-                        function(i) {
-                          list(
-                            # Perturbation of spatial random effects
-                            w = rnorm(length(w.init), w.init, .1),
-                            # Perturbation of fitted etas
-                            eta_tilde = rnorm(length(eta), eta/stan_data$sigma_eta_scale, .05),
-                            sigma_eta_tilde = as.array(1)
-                          )})
-  }
-  
-  
-  
-} else {
-  init.list <- lapply(1:nchain, function(i) list(w = rnorm(length(w.init), w.init, .1)))
-}
-
-if (covar_warmup) {
-  betas <- coef(gam_fit) %>% .[stringr::str_detect(names(.), "beta")]
-  init.list <- append(init.list,
-                      # Perturbation of fitted betas
-                      list(betas = rnorm(length(betas), betas, .1) %>% array()))
-}
+stan_data$sigma_eta_scale <- stan_params$sigma_eta_scale
 
 # Add scale of prior on the sd of regression coefficients
 if (stan_data$ncovar >= 1) {
-  stan_data$beta_sigma_scale <- taxdat::get_stan_parameters(config)$beta_sigma_scale
+  stan_data$beta_sigma_scale <- stan_params$beta_sigma_scale
 }
 
-# Set censoring and time effect and autocorrelation
-stan_data$do_censoring <- ifelse(taxdat::get_stan_parameters(config)$censoring, 1, 0)
-stan_data$do_time_slice_effect <- ifelse(taxdat::get_stan_parameters(config)$time_effect, 1, 0)
-stan_data$do_time_slice_effect_autocor <- ifelse(taxdat::get_stan_parameters(config)$time_effect_autocor, 1, 0)
-stan_data$use_weights <- ifelse(taxdat::get_stan_parameters(config)$use_weights, 1, 0)
+if (warmup) {
+  
+  # Create gam frml
+  frml <- "y ~ s(sx,sy) - 1"
+  
+  if (stan_data$ncovar >= 1 & covar_warmup) {
+    frml <- paste(c(frml, paste0("beta_", 1:stan_data$ncovar)), collapse = " + ")
+  }
+  
+  # Is the model one with a time-specific random effect?
+  timevary_model <- stringr::str_detect(config$stan$model, "timevary") & config$time_effect
+  
+  if (config$time_effect & timevary_model) {
+    frml <- paste(c(frml, colnames(df %>% dplyr::select(dplyr::contains("year_")))), collapse = " + ")
+  }
+  
+  # Formula for gam model
+  gam_frml <- as.formula(frml)
+  
+  if (config$censoring) {
+    # Removed censored data for which cases are 0
+    df <- df %>% dplyr::filter(!(y == 0 & right_threshold == 0))
+  }
+  
+  # Fit the GAM
+  gam_fit <- mgcv::gam(gam_frml,
+                       offset = gam_offset,
+                       family = "poisson", 
+                       data = df)
+  
+  # GAM estimates
+  indall <- sf_grid$upd_id[sf_grid$t == 1]
+  
+  # Predict to get new terms
+  predict_df <- tibble::tibble(sx = coord_frame$x[indall],
+                               sy = coord_frame$y[indall]) %>% 
+    # Set all years to 0 to get the reference year
+    cbind(mat_grid_time[indall, ] %>% 
+            tibble::as_tibble() %>%
+            magrittr::set_colnames(paste0("year_", 1:ncol(mat_grid_time)))) %>% 
+    # Extract the covariates
+    cbind(stan_data$covar[indall, ] %>% 
+            matrix(ncol = stan_data$ncovar) %>% 
+            magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar)))
+  
+  # Predict log(lambda) for the reference year with covariates
+  y_pred_mean <- mgcv::predict.gam(gam_fit, predict_df)
+  
+  if (stan_data$ncovar >= 1 & covar_warmup) {
+    # Remove the effect of the betas
+    beta_effect <- as.matrix(dplyr::select(predict_df, dplyr::contains("beta"))) %*% matrix(coef(gam_fit)[stringr::str_detect(names(coef(gam_fit)), "beta")], ncol = 1)
+    w.init <- y_pred_mean - as.vector(beta_effect)
+  } else {
+    w.init <- y_pred_mean
+  }
+  
+  # Initial parameter values
+  if (config$time_effect | config$smoothing_period != 1) {
+    sd_w <- sd(w.init)
+    
+    if (config$time_effect & config$smoothing_period != 1) {
+      stop("Current code does not allow smoothing_period != 1 and time_effect = true")
+    }
+    
+    if (config$smoothing_period != 1) {
+      init.list <- lapply(1:nchain, 
+                          function(i) {
+                            list(
+                              # Perturbation of spatial random effects
+                              w = rnorm(length(w.init) * config$smoothing_period, 
+                                        rep(w.init, config$smoothing_period), .1)
+                            )})
+    }
+    
+    if (config$time_effect) {
+      stan_data$mat_grid_time <- mat_grid_time %>% as.matrix()
+      eta <- coef(gam_fit) %>% .[stringr::str_detect(names(.), "year")]
+      init.list <- lapply(1:nchain, 
+                          function(i) {
+                            list(
+                              # Perturbation of spatial random effects
+                              w = rnorm(length(w.init), w.init, .1),
+                              # Perturbation of fitted etas
+                              eta_tilde = rnorm(length(eta), eta/stan_data$sigma_eta_scale, .05),
+                              sigma_eta_tilde = as.array(1)
+                            )})
+    }
+  } else {
+    init.list <- lapply(1:nchain, function(i) list(w = rnorm(length(w.init), w.init, .1)))
+  }
+  
+  if (stan_data$ncovar >= 1 & covar_warmup) {
+    betas <- coef(gam_fit) %>% .[stringr::str_detect(names(.), "beta")]
+    init.list <- append(init.list,
+                        # Perturbation of fitted betas
+                        list(betas = rnorm(length(betas), betas, .1) %>% array()))
+  }
+  
+} else {
+  # Set to random initial draws if no covar warmup
+  init.list <- "random"
+}
 
-if (taxdat::get_stan_parameters(config)$time_effect) {
+
+# Set censoring and time effect and autocorrelation
+stan_data$do_censoring <- ifelse(stan_params$censoring, 1, 0)
+stan_data$do_time_slice_effect <- ifelse(stan_params$time_effect, 1, 0)
+stan_data$do_time_slice_effect_autocor <- ifelse(stan_params$time_effect_autocor, 1, 0)
+stan_data$use_weights <- ifelse(stan_params$use_weights, 1, 0)
+
+if (stan_params$time_effect) {
   # Extract number of observations per year
   obs_per_year <- df %>% dplyr::count(obs_year) %>% 
     dplyr::mutate(obs_year = as.numeric(as.character(obs_year)))
@@ -237,10 +247,10 @@ if (taxdat::get_stan_parameters(config)$time_effect) {
 if (stringr::str_detect(stan_model, "fixedphi")) {
   if (is.null(config$overdispersion)) {
     stop("Please provid the value for negative binomial models with fixed overdispersion parameter")
-  } else if (is.na(taxdat::get_stan_parameters(config)$overdispersion)) {
+  } else if (is.na(stan_params$overdispersion)) {
     stop("Please provid the value for negative binomial models with fixed overdispersion parameter")
   } else {
-    stan_data$phi <- taxdat::get_stan_parameters(config)$overdispersion
+    stan_data$phi <- stan_params$overdispersion
   }
 }
 

@@ -204,8 +204,9 @@ stan_model_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, st
 # (this needs to be the case for the DAGAR model)
 lower_triangular_adjacency <- grepl('dagar', stan_model)
 
-# Initial Values for each stan parameter.
-stan_params <- c('tau_theta','tau_phi','beta0','beta')
+# Stan model options
+stan_params <- taxdat::get_stan_parameters(config)
+
 # Should the Stan model be recompiled?
 recompile <- config$stan$recompile
 
