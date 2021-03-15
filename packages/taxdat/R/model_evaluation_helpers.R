@@ -17,6 +17,7 @@ get_filenames <- function (config, cholera_directory) {
                                                available_choices = all_covariate_choices)
   short_covariates <- short_covariate_choices[covariate_choices]
   covariate_name_part <- paste(short_covariates, collapse = "-")
+  map_name <- make_map_name(config)
   
   # Load dictionnary of configuration options
   config_dict <- yaml::read_yaml(paste0(cholera_directory, "/Analysis/configs/config_dictionnary.yml"))
