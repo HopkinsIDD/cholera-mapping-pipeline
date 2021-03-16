@@ -58,6 +58,11 @@ rhat_filename <- str_c(out_dir, "/", country, "_case_rhats.csv")
 who_filename <- str_c(out_dir, "/", country, "_who_comp.csv")
 spatial_coverage_filename <- str_c(out_dir, "/", country, "_spatial_coverage.rds")
 betas_filename <- str_c(out_dir, "/", country, "_betas.csv")
+etas_filename <- str_c(out_dir, "/", country, "_etas.csv")
+raw_etas_filename <- str_c(out_dir, "/", country, "_raw_etas.csv")
+raw_mean_w_filename <- str_c(out_dir, "/", country, "_raw_mean_w.csv")
+mean_w_filename <- str_c(out_dir, "/", country, "_mean_w.csv")
+
 # Aggregation parameter
 negbinom_filename <- str_c(out_dir, "/", country, "_negbinom_k.csv") 
 # Get observations --------------------------------------------------------
@@ -225,7 +230,7 @@ if (!file.exists(who_filename) | opt$redo) {
       group_by(t) %>% 
       summarise(tot_cases = sum(`modeled cases`)) %>% 
       mutate(year = modeled_years[t]) 
-
+    
     # Add missing years to WHO data
     missing_year_data <- mean_case_incid %>% 
       filter(year %in% missing_years) %>% 
@@ -260,6 +265,57 @@ if (!file.exists(betas_filename) | opt$redo) {
     write_csv(path = betas_filename)
 }
 
+# Mean spatial effect --------------------------------------------------
+
+if (!file.exists(raw_mean_w_filename) | opt$redo) {
+  raw_mean_w <- rstan::extract(model.rand, pars = "w")$w %>% 
+    apply(2, mean) %>% 
+    data.frame(mean_w = .) %>% 
+    mutate(sim = row_number())
+  
+  raw_mean_w %>% 
+    mutate(country = country) %>% 
+    write_csv(path = raw_mean_w_filename)
+}
+
+
+if (!file.exists(mean_w_filename) | opt$redo) {
+  raw_mean_w <- rstan::extract(model.rand, pars = "w")$w %>% 
+    apply(2, mean) 
+  
+  
+  tibble(mean = mean(raw_mean_w),
+         q025 = quantile(raw_mean_w, 0.025),
+         q25 = quantile(raw_mean_w, 0.25),
+         q50 = quantile(raw_mean_w, 0.5),
+         q75 = quantile(raw_mean_w, 0.75),
+         q975 = quantile(raw_mean_w, 0.975)) %>% 
+    mutate(country = country) %>% 
+    write_csv(path = mean_w_filename)
+}
+
+# Yearly effects --------------------------------------------------
+if (!file.exists(etas_filename) | opt$redo) {
+  etas <- rstan::summary(model.rand, pars = "eta")$summary[, c(1, 4:10)] %>% 
+    as.data.frame() %>% 
+    mutate(param = rownames(.))
+  
+  etas %>% 
+    mutate(country = country) %>% 
+    write_csv(path = etas_filename)
+}
+
+
+if (!file.exists(raw_etas_filename) | opt$redo) {
+  raw_etas <- rstan::extract(model.rand, pars = "eta")$eta %>% 
+    as.data.frame() %>% 
+    set_colnames(str_c("eta", 1:ncol(.))) %>% 
+    mutate(sim = row_number())
+  
+  raw_etas %>% 
+    mutate(country = country) %>% 
+    write_csv(path = raw_etas_filename)
+}
 # Aggregation --------------------------------------------------
 if ("phi" %in% attr(model.rand, "model_pars") &(!file.exists(negbinom_filename) | opt$redo)) {
   
