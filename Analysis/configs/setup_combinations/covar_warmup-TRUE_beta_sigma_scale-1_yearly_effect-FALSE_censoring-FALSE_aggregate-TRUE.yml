@@ -1,0 +1,22 @@
+name: TCD_2015_2019_20km
+taxonomy: taxonomy-working/working-entry1
+countries: 145.0
+countries_name: TCD
+res_space: 20
+res_time: 1 years
+smoothing_period: 1
+case_definition: suspected
+start_time: '2015-01-01'
+end_time: '2019-12-31'
+covariate_choices:
+- dist_to_water
+- water_access
+data_source: sql
+covar_warmup: yes
+aggregate: yes
+beta_sigma_scale: 1.0
+stan:
+  ncores: 4
+  model: update_yearly_dagar_timevary_speedup.stan
+  niter: 2000
+  recompile: yes

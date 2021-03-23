@@ -1,0 +1,28 @@
+name: KEN_2015_2019_20km
+taxonomy: taxonomy-working/working-entry1
+countries: KEN
+countries_name: KEN
+aoi: raw
+res_space: 20
+res_time: 1 years
+smoothing_period: 1
+case_definition: suspected
+start_time: '2015-01-01'
+end_time: '2015-01-31'
+covariate_choices:
+- stunting
+data_source: sql
+ovrt_metadata_table: no
+ingest_covariates: yes
+ingest_new_covariates: yes
+covar_warmup: no
+censoring: yes
+aggregate: yes
+time_effect: yes
+time_effect_autocor: no
+beta_sigma_scale: 1.0
+stan:
+  ncores: 2
+  model: update_yearly_dagar_timevary_speedup_flexible.stan
+  niter: 5
+  recompile: yes

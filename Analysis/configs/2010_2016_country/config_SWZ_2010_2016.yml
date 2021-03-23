@@ -1,0 +1,33 @@
+name: SWZ_2010_2016_20km
+countries: '10642'
+countries_name: SWZ
+aoi: raw
+res_space: 20
+res_time: 1 years
+smoothing_period: 1
+case_definition: suspected
+start_time: '2010-01-01'
+end_time: '2016-12-31'
+covariate_choices:
+- dist_to_water
+- water_access
+- san_access
+- open_defe
+- stunting
+- wasting
+- access_cities
+data_source: sql
+ovrt_metadata_table: no
+ingest_covariates: yes
+ingest_new_covariates: no
+covar_warmup: yes
+censoring: no
+aggregate: yes
+time_effect: yes
+time_effect_autocorr: no
+beta_sigma_scale: 1
+stan:
+  ncores: 4
+  model: update_yearly_dagar_timevary_speedup_flexible.stan
+  niter: 2000
+  recompile: yes
