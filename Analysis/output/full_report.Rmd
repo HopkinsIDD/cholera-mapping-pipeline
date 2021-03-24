@@ -3,11 +3,11 @@ title: ""
 output: html_document
 params:
   cholera_directory: "../../"
-  config_directory: "../configs/2015_2019"
+  config_directory: "../configs/2015_2019_full_base/"
   max_countries: Inf
 ---
 ```{r setup, include=FALSE, dev="CairoPNG"}
-knitr::opts_chunk$set(inlude = FALSE, dev="CairoPNG")
+knitr::opts_chunk$set(include = FALSE, dev="CairoPNG")
 library(stringr)
 library(dplyr)
 library(magrittr)
@@ -19,15 +19,16 @@ library(RColorBrewer)
 library(MCMCvis)
 library(sf)
 library(abind)
+library(taxdat)
 
-source(str_c(params$cholera_directory, "/Analysis/output/model_run_report_helpers.R"))
-source(str_c(params$cholera_directory,"/packages/taxdat/R/readData.R"))
+# source(str_c(params$cholera_directory, "/Analysis/output/model_run_report_helpers.R"))
+# source(str_c(params$cholera_directory,"/packages/taxdat/R/readData.R"))
 ```
 
 ```{r datapull, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
 all_configs <- list.files(params$config_directory,full.names=TRUE)
-all_locations <- str_extract(all_configs, "(?<=g_)[A-Z]{3}(?=_)")
-all_times <- unique(str_extract(all_configs, "(?<=_)[0-9]{4}_[0-9]{4}(?=\\.)"))
+all_locations <- stringr::str_extract(all_configs, "(?<=g_)[A-Z]{3}(?=_)")
+all_times <- unique(stringr::str_extract(all_configs, "(?<=_)[0-9]{4}_[0-9]{4}(?=\\.)"))
 if(length(all_times) > 1){
   stop("This report was not intended to compile runs from different time ranges")
 }
@@ -39,10 +40,10 @@ for(config_filename in all_configs){
   print(config_filename)
   if(country_count >= params$max_countries){break}
   config <- yaml::read_yaml(config_filename)
-  file_names <- getFilenames(config, params$cholera_directory)
+  file_names <- taxdat::get_filenames(config, params$cholera_directory)
   if(all(file.exists(file_names))){
-    stan_input <- read_file_of_type(file_names[['stan_input']], "stan_input")
-    model.rand <- read_file_of_type(file_names[['stan_output']], "model.rand")
+    stan_input <- taxdat::read_file_of_type(file_names[['stan_input']], "stan_input")
+    model.rand <- taxdat::read_file_of_type(file_names[['stan_output']], "model.rand")
     niter_per_chain <- dim(MCMCvis::MCMCchains(model.rand,params='lp__',chain_num=1))[1]
     nchain <- dim(MCMCvis::MCMCchains(model.rand,params='lp__'))[1] / niter_per_chain
     stan_output <- lapply(rstan::extract(model.rand), function(x){array(x,c(niter_per_chain, nchain, dim(x)[-1]))})
@@ -117,65 +118,65 @@ afr_shp <- sf::st_boundary(sf::st_read(paste(params$cholera_directory,"Layers/af
 # Mapping results summary for `r paste(all_locations, collapse =', ')` and period `r all_times`
 
 ```{r makenosplit, echo=FALSE, warning=FALSE,message=FALSE}
-single_sf_grid <- sf_grid %>% group_by(filename, id,type) %>% summarize(modeled = mean(modeled), geometry = unique(geom)) %>% ungroup()
+single_sf_grid <- sf_grid %>% dplyr::group_by(filename, id,type) %>% dplyr::summarize(modeled = mean(modeled), geometry = unique(geom)) %>% dplyr::ungroup()
 ```
 
 ```{r gridoutcase, fig.cap="Plot Grid Output Cases", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(single_sf_grid,type=='cases'),"modeled", facet_column='type', colorscale_type = 'cases', render=TRUE, plot_border = afr_shp)
+taxdat::plot_map(dplyr::filter(single_sf_grid,type=='cases'),"modeled", facet_column='type', colorscale_type = 'cases', render=TRUE, plot_border = afr_shp)
 ```
 
 ```{r gridoutrate, fig.cap="Plot Grid Output Rates", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(single_sf_grid,type=='rate'),"modeled", facet_column='type', colorscale_type = 'rates', render=TRUE, plot_border = afr_shp)
+taxdat::plot_map(dplyr::filter(single_sf_grid,type=='rate'),"modeled", facet_column='type', colorscale_type = 'rates', render=TRUE, plot_border = afr_shp)
 ```
 
 ```{r gridoutcaselog, fig.cap="Plot Grid Output Cases with log transform", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(single_sf_grid,type=='cases'),"modeled", facet_column='type', colorscale_type = 'cases', render=TRUE, plot_border = afr_shp, use_log=TRUE)
+taxdat::plot_map(dplyr::filter(single_sf_grid,type=='cases'),"modeled", facet_column='type', colorscale_type = 'cases', render=TRUE, plot_border = afr_shp, use_log=TRUE)
 ```
 
 ```{r gridoutratelog, fig.cap="Plot Grid Output Rates with log transform", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(single_sf_grid,type=='rate'),"modeled", facet_column='type', colorscale_type = 'rates', render=TRUE, plot_border = afr_shp, use_log=TRUE)
+taxdat::plot_map(dplyr::filter(single_sf_grid,type=='rate'),"modeled", facet_column='type', colorscale_type = 'rates', render=TRUE, plot_border = afr_shp, use_log=TRUE)
 ```
 
 ```{r makechainsplit, echo=FALSE, warning=FALSE,message=FALSE}
 rm(single_sf_grid)
-chain_sf_grid <- sf_grid %>% group_by(filename, id,chain,type) %>% summarize(modeled = mean(modeled), geometry = unique(geom)) %>% ungroup()
+chain_sf_grid <- sf_grid %>% dplyr::group_by(filename, id,chain,type) %>% dplyr::summarize(modeled = mean(modeled), geometry = unique(geom)) %>% dplyr::ungroup()
 ```
 
 ```{r chaingrdioutcase, fig.cap="Plot Grid Output Cases by chain", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(chain_sf_grid,type=='cases'), "modeled", "chain", colorscale_type = 'cases', render=TRUE, plot_border = afr_shp)
+taxdat::plot_map(dplyr::filter(chain_sf_grid,type=='cases'), "modeled", "chain", colorscale_type = 'cases', render=TRUE, plot_border = afr_shp)
 ```
 
 ```{r chaingridoutrate, fig.cap="Plot Grid Output Rates by chain", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(chain_sf_grid,type=='rate'), "modeled", "chain", colorscale_type = 'rates', render=TRUE, plot_border = afr_shp)
+taxdat::plot_map(dplyr::filter(chain_sf_grid,type=='rate'), "modeled", "chain", colorscale_type = 'rates', render=TRUE, plot_border = afr_shp)
 ```
 
 ```{r chaingridoutcaselog, fig.cap="Plot Grid Output Cases with log transform by chain", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(chain_sf_grid,type=='cases'), "modeled", "chain", colorscale_type = 'cases', render=TRUE, plot_border = afr_shp, use_log = TRUE)
+taxdat::plot_map(dplyr::filter(chain_sf_grid,type=='cases'), "modeled", "chain", colorscale_type = 'cases', render=TRUE, plot_border = afr_shp, use_log = TRUE)
 ```
 
 ```{r chaingridoutratelog, fig.caps = "Plot Grid Output Rates with log transform by chain", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(chain_sf_grid,type=='rate'), "modeled", "chain", colorscale_type = 'rates', render=TRUE, plot_border = afr_shp, use_log = TRUE)
+taxdat::plot_map(dplyr::filter(chain_sf_grid,type=='rate'), "modeled", "chain", colorscale_type = 'rates', render=TRUE, plot_border = afr_shp, use_log = TRUE)
 ```
 
 ```{r maketimesplit, echo=FALSE, warning=FALSE,message=FALSE}
 rm(chain_sf_grid)
-time_sf_grid <- sf_grid %>% group_by(filename, id,t,type) %>% summarize(modeled = mean(modeled), geometry = unique(geom)) %>% ungroup()
+time_sf_grid <- sf_grid %>% dplyr::group_by(filename, id,t,type) %>% dplyr::summarize(modeled = mean(modeled), geometry = unique(geom)) %>% dplyr::ungroup()
 ```
 
 ```{r timegrdioutcase, fig.cap="Plot Grid Output Cases by time", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(time_sf_grid,type=='cases'), "modeled", "t", colorscale_type = 'cases', render=TRUE, plot_border = afr_shp)
+taxdat::plot_map(dplyr::filter(time_sf_grid,type=='cases'), "modeled", "t", colorscale_type = 'cases', render=TRUE, plot_border = afr_shp)
 ```
 
 ```{r timegridoutrate, fig.cap="Plot Grid Output Rates by time", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(time_sf_grid,type=='rate'), "modeled", "t", colorscale_type = 'rates', render=TRUE, plot_border = afr_shp)
+taxdat::plot_map(dplyr::filter(time_sf_grid,type=='rate'), "modeled", "t", colorscale_type = 'rates', render=TRUE, plot_border = afr_shp)
 ```
 
 ```{r timegridoutcaselog, fig.cap="Plot Grid Output Cases with log transform by time", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(time_sf_grid,type=='cases'), "modeled", "t", colorscale_type = 'cases', render=TRUE, plot_border = afr_shp, use_log = TRUE)
+taxdat::plot_map(dplyr::filter(time_sf_grid,type=='cases'), "modeled", "t", colorscale_type = 'cases', render=TRUE, plot_border = afr_shp, use_log = TRUE)
 ```
 
 ```{r timegridoutratelog, fig.caps = "Plot Grid Output Rates with log transform by time", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
-plot_map(dplyr::filter(time_sf_grid,type=='rate'), "modeled", "t", colorscale_type = 'rates', render=TRUE, plot_border = afr_shp, use_log = TRUE)
+taxdat::plot_map(dplyr::filter(time_sf_grid,type=='rate'), "modeled", "t", colorscale_type = 'rates', render=TRUE, plot_border = afr_shp, use_log = TRUE)
 ```
 
 ```{r cleantimesplit, echo=FALSE, warning=FALSE,message=FALSE}
@@ -196,8 +197,8 @@ rm(time_sf_grid)
 
 ```{r modelfit, fig.cap="Plot Observed vs Modeled", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
 sf_cases_resized %>%
-  ggplot() +
-  geom_point(aes(x=modeled+1,y=observed+1,color=as.character(chain))) +
-  scale_x_continuous(trans="log10") +
-  scale_y_continuous(trans="log10")
+  ggplot2::ggplot() +
+  ggplot2::geom_point(ggplot2::aes(x=modeled+1,y=observed+1,color=as.character(chain))) +
+  ggplot2::scale_x_continuous(trans="log10") +
+  ggplot2::scale_y_continuous(trans="log10")
 ```
