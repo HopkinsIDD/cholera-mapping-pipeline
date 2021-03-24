@@ -7,7 +7,7 @@ params:
   max_countries: Inf
 ---
 ```{r setup, include=FALSE, dev="CairoPNG"}
-knitr::opts_chunk$set(include = FALSE, dev="CairoPNG")
+knitr::opts_chunk$set(include = FALSE, error=TRUE, dev="CairoPNG")
 library(stringr)
 library(dplyr)
 library(magrittr)
@@ -41,6 +41,7 @@ for(config_filename in all_configs){
   if(country_count >= params$max_countries){break}
   config <- yaml::read_yaml(config_filename)
   file_names <- taxdat::get_filenames(config, params$cholera_directory)
+  print(file_names)
   if(all(file.exists(file_names))){
     stan_input <- taxdat::read_file_of_type(file_names[['stan_input']], "stan_input")
     model.rand <- taxdat::read_file_of_type(file_names[['stan_output']], "model.rand")
@@ -87,11 +88,15 @@ for(config_filename in all_configs){
     } else {
       sf_cases_resized <- rbind(sf_cases_resized, stan_input$sf_cases_resized)
     }
+    print(head(sf_grid))
+    print(dim(sf_grid))
+    print(head(sf_cases_resized))
+    print(dim(sf_cases_resized))
     country_count <- country_count + 1
   }
 }
 
-afr_shp <- sf::st_boundary(sf::st_read(paste(params$cholera_directory,"Layers/afr.shp",sep='/')))
+afr_shp <- sf::st_boundary(sf::st_read(paste(params$cholera_directory,"Layers/Africa.shp",sep='/')))
 
 # disjoint_set_sf_cases_observed <- get_disjoint_set_sf_cases(dplyr::mutate(sf_cases_resized,attributes.fields.suspected_cases = observed_cases))
 # disjoint_set_sf_cases_modeled <- get_disjoint_set_sf_cases(dplyr::mutate(sf_cases_resized,attributes.fields.suspected_cases = modeled_cases))
@@ -117,7 +122,7 @@ afr_shp <- sf::st_boundary(sf::st_read(paste(params$cholera_directory,"Layers/af
 
 # Mapping results summary for `r paste(all_locations, collapse =', ')` and period `r all_times`
 
-```{r makenosplit, echo=FALSE, warning=FALSE,message=FALSE}
+<!-- ```{r makenosplit, echo=FALSE, warning=FALSE,message=FALSE}
 single_sf_grid <- sf_grid %>% dplyr::group_by(filename, id,type) %>% dplyr::summarize(modeled = mean(modeled), geometry = unique(geom)) %>% dplyr::ungroup()
 ```
 
@@ -202,3 +207,4 @@ sf_cases_resized %>%
   ggplot2::scale_x_continuous(trans="log10") +
   ggplot2::scale_y_continuous(trans="log10")
 ```
+ -->
