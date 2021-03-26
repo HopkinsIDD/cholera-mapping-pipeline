@@ -27,8 +27,8 @@ library(taxdat)
 
 ```{r datapull, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
 all_configs <- list.files(params$config_directory,full.names=TRUE)
-all_locations <- stringr::str_extract(all_configs, "(?<=g_)[A-Z]{3}(?=_)")
-all_times <- unique(stringr::str_extract(all_configs, "(?<=_)[0-9]{4}_[0-9]{4}(?=\\.)"))
+all_locations <- stringr::str_extract(all_configs, "[A-Z]{3}")
+all_times <- unique(stringr::str_extract(all_configs, "[0-9]{4}_[0-9]{4}"))
 if(length(all_times) > 1){
   stop("This report was not intended to compile runs from different time ranges")
 }
@@ -66,8 +66,8 @@ for(config_filename in all_configs){
     stan_input$sf_grid <- tidyr::separate(col=scenario, into = c('type',NA,'chain'),stan_input$sf_grid)
   
     stan_input$sf_cases_resized <- dplyr::rename(
-      dplyr::select(sf::st_as_sf(dplyr::ungroup(stan_input$sf_cases_resized)), location_name, OC_UID,TL,TR,suspected_cases),
-      observed = suspected_cases
+      dplyr::select(sf::st_as_sf(dplyr::ungroup(stan_input$sf_cases_resized)), locationPeriod_id, OC_UID,TL,TR,attributes.fields.suspected_cases),
+      observed = attributes.fields.suspected_cases
     )
     # stan_input$sf_cases_resized$modeled_cases <- apply(stan_output$modeled_cases,3,mean)
     stan_input$sf_cases_resized[paste('cases','chain',seq_len(nchain),sep='_')] <- apply(stan_output$modeled_cases, c(3,2), mean)
@@ -88,10 +88,7 @@ for(config_filename in all_configs){
     } else {
       sf_cases_resized <- rbind(sf_cases_resized, stan_input$sf_cases_resized)
     }
-    print(head(sf_grid))
-    print(dim(sf_grid))
-    print(head(sf_cases_resized))
-    print(dim(sf_cases_resized))
+
     country_count <- country_count + 1
   }
 }
@@ -122,8 +119,8 @@ afr_shp <- sf::st_boundary(sf::st_read(paste(params$cholera_directory,"Layers/Af
 
 # Mapping results summary for `r paste(all_locations, collapse =', ')` and period `r all_times`
 
-<!-- ```{r makenosplit, echo=FALSE, warning=FALSE,message=FALSE}
-single_sf_grid <- sf_grid %>% dplyr::group_by(filename, id,type) %>% dplyr::summarize(modeled = mean(modeled), geometry = unique(geom)) %>% dplyr::ungroup()
+```{r makenosplit, echo=FALSE, warning=FALSE,message=FALSE}
+single_sf_grid <- sf_grid %>% dplyr::group_by(id, type) %>% dplyr::summarize(modeled = mean(modeled), geometry = unique(geom)) %>% dplyr::ungroup()
 ```
 
 ```{r gridoutcase, fig.cap="Plot Grid Output Cases", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
@@ -144,7 +141,7 @@ taxdat::plot_map(dplyr::filter(single_sf_grid,type=='rate'),"modeled", facet_col
 
 ```{r makechainsplit, echo=FALSE, warning=FALSE,message=FALSE}
 rm(single_sf_grid)
-chain_sf_grid <- sf_grid %>% dplyr::group_by(filename, id,chain,type) %>% dplyr::summarize(modeled = mean(modeled), geometry = unique(geom)) %>% dplyr::ungroup()
+chain_sf_grid <- sf_grid %>% dplyr::group_by(id,chain,type) %>% dplyr::summarize(modeled = mean(modeled), geometry = unique(geom)) %>% dplyr::ungroup()
 ```
 
 ```{r chaingrdioutcase, fig.cap="Plot Grid Output Cases by chain", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
@@ -165,7 +162,7 @@ taxdat::plot_map(dplyr::filter(chain_sf_grid,type=='rate'), "modeled", "chain", 
 
 ```{r maketimesplit, echo=FALSE, warning=FALSE,message=FALSE}
 rm(chain_sf_grid)
-time_sf_grid <- sf_grid %>% dplyr::group_by(filename, id,t,type) %>% dplyr::summarize(modeled = mean(modeled), geometry = unique(geom)) %>% dplyr::ungroup()
+time_sf_grid <- sf_grid %>% dplyr::group_by(id,t,type) %>% dplyr::summarize(modeled = mean(modeled), geometry = unique(geom)) %>% dplyr::ungroup()
 ```
 
 ```{r timegrdioutcase, fig.cap="Plot Grid Output Cases by time", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
@@ -207,4 +204,3 @@ sf_cases_resized %>%
   ggplot2::scale_x_continuous(trans="log10") +
   ggplot2::scale_y_continuous(trans="log10")
 ```
- -->
