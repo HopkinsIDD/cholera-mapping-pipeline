@@ -7,7 +7,6 @@ params:
   max_countries: Inf
 ---
 ```{r setup, include=FALSE, dev="CairoPNG"}
-knitr::opts_chunk$set(include = FALSE, error=TRUE, dev="CairoPNG")
 library(stringr)
 library(dplyr)
 library(magrittr)
@@ -21,8 +20,17 @@ library(sf)
 library(abind)
 library(taxdat)
 
-# source(str_c(params$cholera_directory, "/Analysis/output/model_run_report_helpers.R"))
-# source(str_c(params$cholera_directory,"/packages/taxdat/R/readData.R"))
+knitr::opts_chunk$set(echo = FALSE,
+ # dev.args = list(png = list(type = "cairo")),
+  dev = "CairoPNG",
+  fig.align = "center",
+  message = FALSE,
+  warning = FALSE,
+  cache.lazy = F,
+  error = TRUE,
+  bitmapType = "cairo")
+
+
 ```
 
 ```{r datapull, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
