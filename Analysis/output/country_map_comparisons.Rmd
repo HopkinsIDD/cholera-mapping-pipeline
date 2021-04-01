@@ -64,10 +64,12 @@ all_configs <- orig_configs[-indexes]
 
 all_locations <- stringr::str_extract(all_configs, "[A-Z]{3}")
 print(all_locations)
-# all_times <- unique(stringr::str_extract(all_configs, "(?<=_)[0-9]{4}_[0-9]{4}(?=\\.)"))
-# if(length(all_times) > 1){
-#   stop("This report was not intended to compile runs from different time ranges")
-# }
+
+all_times <- unique(stringr::str_extract(params$config_directory, "[0-9]{4}_[0-9]{4}"))
+first_time <- as.numeric(unlist(strsplit(all_times, split = "_"))[1])
+second_time <- as.numeric(unlist(strsplit(all_times, split = "_"))[2])
+print(all_times)
+
 
 sf_cases_resized <- list()
 sf_grid <- list()
@@ -210,10 +212,13 @@ for (cntry in all_locations){
 
 Export a table of chain vs time for new estimates and mean annual value for old estimates
 ```{r prep_plot}
+labels_yrs <- seq(first_time, second_time, by = 1)
+levels_yrs <- seq.int(labels_yrs)
+
 plot_df <- dplyr::bind_rows(dplyr::select(country_summ, -pop), country_summ_old) %>%
   dplyr::mutate(type_lab = paste(type, chain, sep = "_")) %>%
   dplyr::arrange(country, type, t) %>%
-  dplyr::mutate(t = factor(t, levels = 1:5, labels = 2015:2019),
+  dplyr::mutate(t = factor(t, levels = levels_yrs, labels = labels_yrs),
                 modeled_trunc = ifelse(modeled > 1.5E4, 1.5E4, modeled))
 readr::write_csv(plot_df, paste0(params$cholera_directory, params$output_dir, "national_estimates_new_old.csv"))
 
