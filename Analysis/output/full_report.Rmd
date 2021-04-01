@@ -1,9 +1,9 @@
 ---
-title: ""
+title: "Full Report"
 output: html_document
 params:
-  cholera_directory: "../../"
-  config_directory: "../configs/2015_2019_full_base/"
+  cholera_directory: "~/gh/cholera-mapping-pipeline/"
+  config_directory: "Analysis/configs/2015_2019_full_base/"
   max_countries: Inf
 ---
 ```{r setup, include=FALSE, dev="CairoPNG"}
@@ -34,12 +34,17 @@ knitr::opts_chunk$set(echo = FALSE,
 ```
 
 ```{r datapull, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
-all_configs <- list.files(params$config_directory,full.names=TRUE)
+orig_configs <- list.files(stringr::str_c(params$cholera_directory, params$config_directory), full.names = TRUE)
+skip_cntry <- c("BWA", "COG", "DJI", "ERI", "GAB", "GMB", "GNQ", "LSO", "MDG", "NAM", "SEN", "SWZ")
+indexes <- unlist(lapply(skip_cntry, function(cntry){
+  which(stringr::str_detect(orig_configs, cntry))
+}))
+all_configs <- orig_configs[-indexes]
 all_locations <- stringr::str_extract(all_configs, "[A-Z]{3}")
-all_times <- unique(stringr::str_extract(all_configs, "[0-9]{4}_[0-9]{4}"))
-if(length(all_times) > 1){
-  stop("This report was not intended to compile runs from different time ranges")
-}
+# all_times <- unique(stringr::str_extract(all_configs, "[0-9]{4}_[0-9]{4}"))
+# if(length(all_times) > 1){
+#   stop("This report was not intended to compile runs from different time ranges")
+# }
 
 sf_cases_resized <- list()
 sf_grid <- list()
@@ -125,7 +130,7 @@ afr_shp <- sf::st_boundary(sf::st_read(paste(params$cholera_directory,"Layers/Af
 # disjoint_set_sf_cases$error_cases <- (disjoint_set_sf_cases$modeled_cases - disjoint_set_sf_cases$observed_cases)
 ```
 
-# Mapping results summary for `r paste(all_locations, collapse =', ')` and period `r all_times`
+# Mapping results summary for `r paste(all_locations, collapse =', ')`
 
 ```{r makenosplit, echo=FALSE, warning=FALSE,message=FALSE}
 single_sf_grid <- sf_grid %>% dplyr::group_by(id, type) %>% dplyr::summarize(modeled = mean(modeled), geometry = unique(geom)) %>% dplyr::ungroup()

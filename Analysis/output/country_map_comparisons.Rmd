@@ -63,19 +63,19 @@ out_dir <- stringr::str_c(params$cholera_directory, "/Analysis/output/reports/",
 Extract Stan model outputs
 
 ```{r data_pull}
-#orig_configs <- list.files(stringr::str_c(params$cholera_directory, params$config_directory), full.names = TRUE)
-#skip_cntry <- c("BWA", "COG", "DJI", "ERI", "GAB", "GMB", "GNQ", "LSO", "MDG", "NAM", "SEN", "SWZ")
-#indexes <- unlist(lapply(skip_cntry, function(cntry){
-#  which(stringr::str_detect(orig_configs, cntry))
-#}))
-#all_configs <- orig_configs[-indexes]
-all_configs <- list.files(stringr::str_c(params$cholera_directory, params$config_directory), full.names = TRUE)
+orig_configs <- list.files(stringr::str_c(params$cholera_directory, params$config_directory), full.names = TRUE)
+skip_cntry <- c("BWA", "COG", "DJI", "ERI", "GAB", "GMB", "GNQ", "LSO", "MDG", "NAM", "SEN", "SWZ")
+indexes <- unlist(lapply(skip_cntry, function(cntry){
+  which(stringr::str_detect(orig_configs, cntry))
+}))
+all_configs <- orig_configs[-indexes]
+# all_configs <- list.files(stringr::str_c(params$cholera_directory, params$config_directory), full.names = TRUE)
 all_locations <- stringr::str_extract(all_configs, "[A-Z]{3}")
 print(all_locations)
-all_times <- unique(stringr::str_extract(all_configs, "(?<=_)[0-9]{4}_[0-9]{4}(?=\\.)"))
-if(length(all_times) > 1){
-  stop("This report was not intended to compile runs from different time ranges")
-}
+# all_times <- unique(stringr::str_extract(all_configs, "(?<=_)[0-9]{4}_[0-9]{4}(?=\\.)"))
+# if(length(all_times) > 1){
+#   stop("This report was not intended to compile runs from different time ranges")
+# }
 
 sf_cases_resized <- list()
 sf_grid <- list()
