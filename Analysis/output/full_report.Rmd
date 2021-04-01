@@ -33,7 +33,7 @@ knitr::opts_chunk$set(echo = FALSE,
 
 ```
 
-```{r datapull, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+```{r datapull}
 orig_configs <- list.files(stringr::str_c(params$cholera_directory, params$config_directory), full.names = TRUE)
 skip_cntry <- c("BWA", "COG", "DJI", "ERI", "GAB", "GMB", "GNQ", "LSO", "MDG", "NAM", "SEN", "SWZ")
 indexes <- unlist(lapply(skip_cntry, function(cntry){
@@ -41,6 +41,8 @@ indexes <- unlist(lapply(skip_cntry, function(cntry){
 }))
 all_configs <- orig_configs[-indexes]
 all_locations <- stringr::str_extract(all_configs, "[A-Z]{3}")
+print(all_configs)
+print(all_locations)
 # all_times <- unique(stringr::str_extract(all_configs, "[0-9]{4}_[0-9]{4}"))
 # if(length(all_times) > 1){
 #   stop("This report was not intended to compile runs from different time ranges")
@@ -132,65 +134,65 @@ afr_shp <- sf::st_boundary(sf::st_read(paste(params$cholera_directory,"Layers/Af
 
 # Mapping results summary for `r paste(all_locations, collapse =', ')`
 
-```{r makenosplit, echo=FALSE, warning=FALSE,message=FALSE}
+```{r makenosplit}
 single_sf_grid <- sf_grid %>% dplyr::group_by(id, type) %>% dplyr::summarize(modeled = mean(modeled), geometry = unique(geom)) %>% dplyr::ungroup()
 ```
 
-```{r gridoutcase, fig.cap="Plot Grid Output Cases", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+```{r gridoutcase, fig.cap="Plot Grid Output Cases", fig.fullwidth=TRUE}
 taxdat::plot_map(dplyr::filter(single_sf_grid,type=='cases'),"modeled", facet_column='type', colorscale_type = 'cases', render=TRUE, plot_border = afr_shp)
 ```
 
-```{r gridoutrate, fig.cap="Plot Grid Output Rates", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+```{r gridoutrate, fig.cap="Plot Grid Output Rates", fig.fullwidth=TRUE}
 taxdat::plot_map(dplyr::filter(single_sf_grid,type=='rate'),"modeled", facet_column='type', colorscale_type = 'rates', render=TRUE, plot_border = afr_shp)
 ```
 
-```{r gridoutcaselog, fig.cap="Plot Grid Output Cases with log transform", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+```{r gridoutcaselog, fig.cap="Plot Grid Output Cases with log transform", fig.fullwidth=TRUE}
 taxdat::plot_map(dplyr::filter(single_sf_grid,type=='cases'),"modeled", facet_column='type', colorscale_type = 'cases', render=TRUE, plot_border = afr_shp, use_log=TRUE)
 ```
 
-```{r gridoutratelog, fig.cap="Plot Grid Output Rates with log transform", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+```{r gridoutratelog, fig.cap="Plot Grid Output Rates with log transform", fig.fullwidth=TRUE}
 taxdat::plot_map(dplyr::filter(single_sf_grid,type=='rate'),"modeled", facet_column='type', colorscale_type = 'rates', render=TRUE, plot_border = afr_shp, use_log=TRUE)
 ```
 
-```{r makechainsplit, echo=FALSE, warning=FALSE,message=FALSE}
+```{r makechainsplit}
 rm(single_sf_grid)
 chain_sf_grid <- sf_grid %>% dplyr::group_by(id,chain,type) %>% dplyr::summarize(modeled = mean(modeled), geometry = unique(geom)) %>% dplyr::ungroup()
 ```
 
-```{r chaingrdioutcase, fig.cap="Plot Grid Output Cases by chain", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+```{r chaingrdioutcase, fig.cap="Plot Grid Output Cases by chain", fig.fullwidth=TRUE}
 taxdat::plot_map(dplyr::filter(chain_sf_grid,type=='cases'), "modeled", "chain", colorscale_type = 'cases', render=TRUE, plot_border = afr_shp)
 ```
 
-```{r chaingridoutrate, fig.cap="Plot Grid Output Rates by chain", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+```{r chaingridoutrate, fig.cap="Plot Grid Output Rates by chain", fig.fullwidth=TRUE}
 taxdat::plot_map(dplyr::filter(chain_sf_grid,type=='rate'), "modeled", "chain", colorscale_type = 'rates', render=TRUE, plot_border = afr_shp)
 ```
 
-```{r chaingridoutcaselog, fig.cap="Plot Grid Output Cases with log transform by chain", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+```{r chaingridoutcaselog, fig.cap="Plot Grid Output Cases with log transform by chain", fig.fullwidth=TRUE}
 taxdat::plot_map(dplyr::filter(chain_sf_grid,type=='cases'), "modeled", "chain", colorscale_type = 'cases', render=TRUE, plot_border = afr_shp, use_log = TRUE)
 ```
 
-```{r chaingridoutratelog, fig.caps = "Plot Grid Output Rates with log transform by chain", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+```{r chaingridoutratelog, fig.caps = "Plot Grid Output Rates with log transform by chain", fig.fullwidth=TRUE}
 taxdat::plot_map(dplyr::filter(chain_sf_grid,type=='rate'), "modeled", "chain", colorscale_type = 'rates', render=TRUE, plot_border = afr_shp, use_log = TRUE)
 ```
 
-```{r maketimesplit, echo=FALSE, warning=FALSE,message=FALSE}
+```{r maketimesplit}
 rm(chain_sf_grid)
 time_sf_grid <- sf_grid %>% dplyr::group_by(id,t,type) %>% dplyr::summarize(modeled = mean(modeled), geometry = unique(geom)) %>% dplyr::ungroup()
 ```
 
-```{r timegrdioutcase, fig.cap="Plot Grid Output Cases by time", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+```{r timegrdioutcase, fig.cap="Plot Grid Output Cases by time", fig.fullwidth=TRUE}
 taxdat::plot_map(dplyr::filter(time_sf_grid,type=='cases'), "modeled", "t", colorscale_type = 'cases', render=TRUE, plot_border = afr_shp)
 ```
 
-```{r timegridoutrate, fig.cap="Plot Grid Output Rates by time", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+```{r timegridoutrate, fig.cap="Plot Grid Output Rates by time", fig.fullwidth=TRUE}
 taxdat::plot_map(dplyr::filter(time_sf_grid,type=='rate'), "modeled", "t", colorscale_type = 'rates', render=TRUE, plot_border = afr_shp)
 ```
 
-```{r timegridoutcaselog, fig.cap="Plot Grid Output Cases with log transform by time", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+```{r timegridoutcaselog, fig.cap="Plot Grid Output Cases with log transform by time", fig.fullwidth=TRUE}
 taxdat::plot_map(dplyr::filter(time_sf_grid,type=='cases'), "modeled", "t", colorscale_type = 'cases', render=TRUE, plot_border = afr_shp, use_log = TRUE)
 ```
 
-```{r timegridoutratelog, fig.caps = "Plot Grid Output Rates with log transform by time", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+```{r timegridoutratelog, fig.caps = "Plot Grid Output Rates with log transform by time", fig.fullwidth=TRUE}
 taxdat::plot_map(dplyr::filter(time_sf_grid,type=='rate'), "modeled", "t", colorscale_type = 'rates', render=TRUE, plot_border = afr_shp, use_log = TRUE)
 ```
 
@@ -210,7 +212,7 @@ rm(time_sf_grid)
 # plot_cases(disjoint_set_sf_cases,"error_cases","set", render=TRUE)
 ```
 
-```{r modelfit, fig.cap="Plot Observed vs Modeled", echo=FALSE, warning=FALSE,message=FALSE, fig.fullwidth=TRUE}
+```{r modelfit, fig.cap="Plot Observed vs Modeled", fig.fullwidth=TRUE}
 sf_cases_resized %>%
   ggplot2::ggplot() +
   ggplot2::geom_point(ggplot2::aes(x=modeled+1,y=observed+1,color=as.character(chain))) +
