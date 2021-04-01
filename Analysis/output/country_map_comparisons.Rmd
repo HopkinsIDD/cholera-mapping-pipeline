@@ -44,18 +44,9 @@ knitr::opts_chunk$set(
 
 ```{r dir_settings}
 
-# params <- list(
-#   cholera_directory = "C:/Users/eclee/Dropbox (Bansal Lab)/IDDynamicsJHU/gh/cholera-mapping-pipeline/",
-#   config_directory = "Analysis/configs/2015_2019_country_tfrac/",
-#   output_dir = "Analysis/output/national_comp/",
-#   old_map_rate = "old_products/rate.tif",
-#   old_map_case = "old_products/case.tif",
-#   shapefiles_dir = "shapefiles/",
-#   max_countries = Inf)
+
 dir.create(params$shapefiles_dir, showWarnings = FALSE)
 dir.create(stringr::str_c(params$cholera_directory, params$output_dir), showWarnings = FALSE)
-
-out_dir <- stringr::str_c(params$cholera_directory, "/Analysis/output/reports/", stringr::str_split(params$config_directory, "/")[[1]]  %>% dplyr::last())
 
 
 ```
@@ -70,6 +61,7 @@ indexes <- unlist(lapply(skip_cntry, function(cntry){
 }))
 all_configs <- orig_configs[-indexes]
 # all_configs <- list.files(stringr::str_c(params$cholera_directory, params$config_directory), full.names = TRUE)
+
 all_locations <- stringr::str_extract(all_configs, "[A-Z]{3}")
 print(all_locations)
 # all_times <- unique(stringr::str_extract(all_configs, "(?<=_)[0-9]{4}_[0-9]{4}(?=\\.)"))

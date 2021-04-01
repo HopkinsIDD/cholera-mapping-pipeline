@@ -4,6 +4,7 @@ output: html_document
 params:
   cholera_directory: "~/gh/cholera-mapping-pipeline/"
   config_directory: "Analysis/configs/2015_2019_full_base/"
+  output_dir: "Analysis/output/2015_2019_full_base/"
   max_countries: Inf
 ---
 ```{r setup, include=FALSE, dev="CairoPNG"}
@@ -20,7 +21,9 @@ library(sf)
 library(abind)
 library(taxdat)
 
-knitr::opts_chunk$set(echo = FALSE,
+options(bitmapType = 'cairo')
+knitr::opts_chunk$set(
+  echo = FALSE,
  # dev.args = list(png = list(type = "cairo")),
   dev = "CairoPNG",
   fig.align = "center",
@@ -29,6 +32,14 @@ knitr::opts_chunk$set(echo = FALSE,
   cache.lazy = F,
   error = TRUE,
   bitmapType = "cairo")
+
+
+```
+
+```{r dir_settings}
+
+dir.create(stringr::str_c(params$cholera_directory, params$output_dir), showWarnings = FALSE)
+
 
 
 ```
