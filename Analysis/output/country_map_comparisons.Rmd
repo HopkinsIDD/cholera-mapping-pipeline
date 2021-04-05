@@ -82,17 +82,24 @@ for(i in 1:length(all_configs)){
   if(country_count >= params$max_countries){break}
   config <- yaml::read_yaml(config_filename)
   file_names <- taxdat::get_filenames(config, params$cholera_directory)
-  if(all(file.exists(file_names))){
+  if(!all(file.exists(file_names))){
+    print("These files don't exist:")
+    print(file_names[which(!file.exists(file_names))])
+  }
+
+  try({
     stan_input <- taxdat::read_file_of_type(file_names[['stan_input']], "stan_input")
+    stan_input$sf_grid <- stan_input$sf_grid %>% 
+        dplyr::ungroup() %>% 
+        dplyr::select(t,id)
+  }, silent = TRUE)
+
+  try({
     model.rand <- taxdat::read_file_of_type(file_names[['stan_output']], "model.rand")
     niter_per_chain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__', chain_num=1))[1]
     nchain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__'))[1] / niter_per_chain
     stan_output <- lapply(rstan::extract(model.rand), function(x){array(x,c(niter_per_chain, nchain, dim(x)[-1]))})
 
-
-    stan_input$sf_grid <- stan_input$sf_grid %>% 
-      dplyr::ungroup() %>% 
-      dplyr::select(t,id)
     cases_chains <- apply(stan_output$grid_cases, c(3,2), mean)
     rates_chains <- apply(exp(stan_output$log_lambda), c(3,2), mean)
 
@@ -110,13 +117,16 @@ for(i in 1:length(all_configs)){
                       eta_q975 = quantile(eta_est, probs = c(.975))) %>%
       dplyr::mutate(country = all_locations[i])
 
-
     pop_est <- cases_chains[,1]/rates_chains[,1]
+  })
+
+  try({
     stan_input$sf_grid[paste('cases','chain',seq_len(nchain),sep='_')] <- cases_chains
     stan_input$sf_grid[paste('rate','chain',seq_len(nchain),sep='_')] <- rates_chains
     stan_input$sf_grid['pop'] <- pop_est
     stan_input$sf_grid$row_index <- seq_len(nrow(stan_input$sf_grid))
     sf_grid_wider <- sf::st_drop_geometry(stan_input$sf_grid)
+    
     # stan_input$sf_grid <- tidyr::pivot_longer(
     #   stan_input$sf_grid,
     #   cols=c(
@@ -150,6 +160,10 @@ for(i in 1:length(all_configs)){
               values_to="modeled") %>%
       tidyr::separate(col = scenario, into = c('type', NA, 'chain')) %>%
       dplyr::mutate(country = all_locations[i])
+  })
+
+
+  try({
 
     if("list" %in% class(country_summ)){
       country_summ <- calc_country_summ
@@ -163,7 +177,10 @@ for(i in 1:length(all_configs)){
     }
 
     country_count <- country_count + 1
-  }
+
+  })
+
+
 }
 
 ```
