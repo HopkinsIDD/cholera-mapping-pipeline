@@ -11,7 +11,7 @@ case_definition: suspected
 covariate_choices:
  - dist_to_water
 data_source: api
-ovrt_metadata_table: no
+ovrt_metadata_table: yes
 ingest_covariates: yes
 ingest_new_covariates: yes
 censoring: no
