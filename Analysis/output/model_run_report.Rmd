@@ -1,9 +1,9 @@
 ---
-title: ""
+title: "Data and Model Outputs Report"
 output: html_document
 params:
-  cholera_directory: "~/projects/cholera-mapping-pipeline/"
-  config: "Analysis/configs/2015_2019_country/config_SSD_2015_2019.yml"
+  cholera_directory: "~/gh/cholera-mapping-pipeline/"
+  config: "Analysis/configs/2015_2019_full_base/SSD.yml"
 ---
 ```{r setup, include=FALSE, dev="CairoPNG"}
 knitr::opts_chunk$set(inlude = FALSE, dev="CairoPNG")
@@ -18,7 +18,7 @@ library(taxdat)
 library(sf)
 ```
 
-# Mapping results summary for `r stringr::str_extract(params$config, "(?<=g_)[A-Z]{3}(?=_)")` and period `r stringr::str_extract(params$config, "(?<=_)[0-9]{4}_[0-9]{4}(?=\\.)")`
+# Mapping results summary for `r stringr::str_extract(params$config, "[A-Z]{3}")` and period `r stringr::str_extract(params$config, "[0-9]{4}_[0-9]{4}")`
 
 ## Cholera input data
 **Data input:**
