@@ -24,7 +24,7 @@ if (data_source == "api") {
     username <- database_username
     password <- database_api_key
   }
-  cat("cntry:", long_countries, "u:", username, "psswd:", password, "st:", start_time, "et:", end_time, "\n")
+  cat("cntry:", long_countries, "u:", ifelse(nchar(username) > 0, "****" ,"") , "psswd:", ifelse(nchar(password) > 0, "****" ,"") , "st:", start_time, "et:", end_time, "\n")
 } else if (data_source == "sql") {
   long_countries <- countries
   username <- Sys.getenv("CHOLERA_SQL_USERNAME", "NONE")
@@ -51,7 +51,7 @@ cases <- taxdat::pull_taxonomy_data(
   taxdat::rename_database_fields(source = data_source)
 
 # Get OC UIDs for all extracted data
-uids <- sort(unique(cases$OC_UID))
+uids <- sort(unique(as.numeric(cases$OC_UID)))
 
 # Filter out NA cases, which represent missing observations, and non-primary observations (primary observations are only space-time stratified and these are the ones we want to focus on in these maps)
 cases <- dplyr::filter(cases, !is.na(.data[[cases_column]])) %>%

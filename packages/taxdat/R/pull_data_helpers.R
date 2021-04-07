@@ -172,7 +172,7 @@ read_taxonomy_data_api <- function(username,
   if(!is.data.frame(results_data[['observations']])){
     results_data[['observations']] = as.data.frame(results_data[['observations']])
   }
-  results_data[['observations']] = purrr::flatten(results_data[['observations']])
+  results_data[['observations']] = jsonlite::flatten(results_data[['observations']])
   
   observation_collections_present <- FALSE
   if(
@@ -184,7 +184,7 @@ read_taxonomy_data_api <- function(username,
     if(!is.data.frame(results_data[['observation_collections']])){
       results_data[['observation_collections']] = as.data.frame(results_data[['observation_collections']])
     }
-    results_data[['observation_collections']] = purrr::flatten(results_data[['observation_collections']])
+    results_data[['observation_collections']] = jsonlite::flatten(results_data[['observation_collections']])
     observation_collections_present <- TRUE
   }
   
@@ -229,9 +229,10 @@ read_taxonomy_data_api <- function(username,
   if(!is.data.frame(results_data$location_periods$data)){
     results_data$location_periods$data <- as.data.frame(results_data$location_periods$data)
   }
-  results_data$location_periods = purrr::flatten(results_data$location_periods$data)
+  results_data$location_periods = jsonlite::flatten(results_data$location_periods$data)
+  results_data$location_periods$id <- as.numeric(results_data$location_periods$id)
   if(nrow(results_data$location_periods) > 0){
-    results_data$location_periods$sf_id = 1:nrow(results_data$location_periods)
+    results_data$location_periods$sf_id = seq_len(nrow(results_data$location_periods))
   }
   results_data$observations$attributes.location_period_id = as(results_data$observations$attributes.location_period_id,class(results_data$location_periods$id))
   
@@ -264,13 +265,28 @@ read_taxonomy_data_api <- function(username,
     )
   }
   
-  geoinput <- st_sf(geometry=sf::st_sfc(sf::st_point(1.*c(NA,NA))))$geometry
+  geoinput <- sf::st_sf(geometry=sf::st_sfc(sf::st_point(1.*c(NA,NA))))$geometry
   if(nrow(all_results) == 0){
     geoinput <- geoinput[0]
   }
   all_results$geojson = geoinput
   all_results$geojson[!is.na(all_results$sf_id)] = locations_sf$geometry[all_results[!is.na(all_results$sf_id),][['sf_id']] ]
-  return(sf::st_sf(all_results,sf_column_name = 'geojson'))
+
+  rc <- sf::st_sf(all_results,sf_column_name = 'geojson')
+
+  rc$id <- as.numeric(rc$id)
+  rc$attributes.primary <- as.logical(rc$attributes.primary)
+  tmp <- lapply(rc, unlist)
+  for(col in names(tmp)){
+    if(
+      isTRUE(all.equal(tmp[[col]][[1]], rc[[col]][[1]])) &
+      (length(tmp[[col]]) == length(rc[[col]]))
+    ) {
+      rc[[col]] <- tmp[[col]]
+    }
+  }
+  browser()
+  return(rc)
 }
 
 #' @title Pull taxonomy data
