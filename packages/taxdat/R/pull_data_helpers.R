@@ -285,7 +285,6 @@ read_taxonomy_data_api <- function(username,
       rc[[col]] <- tmp[[col]]
     }
   }
-  browser()
   return(rc)
 }
 
