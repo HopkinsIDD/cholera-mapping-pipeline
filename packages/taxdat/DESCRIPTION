@@ -12,15 +12,21 @@ Depends: R (>= 3.4),ISOcodes,magrittr, dplyr, tidyr
 Suggests: readxl, sf, sp, raster, rgdal, testthat, knitr, rmarkdown
 RoxygenNote: 7.1.1
 Collate:
+    'color_scale.R'
     'config_helpers.R'
     'covariate_helpers.R'
     'geo_lookup_helpers.R'
     'indexing_helpers.R'
     'linelist_helpers.R'
+    'load_orig_map.R'
+    'map_theme.R'
     'setup_helpers.R'
     'read_data_helpers.R'
     'model_evaluation_helpers.R'
+    'plot_map.R'
     'pull_data_helpers.R'
+    'run_stan_helpers.R'
+    'shapefile_manipulation.R'
     'simulation_framework_helpers.R'
     'stan_input_helpers.R'
 VignetteBuilder: knitr

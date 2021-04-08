@@ -1,6 +1,6 @@
 option_list <- list(
   optparse::make_option(c("-u", "--dbuser"), action = "store", default =  Sys.getenv("USER"), type="character", help = "Database user"),
-  optparse::make_option(c("-d", "--cholera_directory"), action = "store", default = "./", type="character", help = "Cholera directory"),
+  optparse::make_option(c("-d", "--cholera_covariates_directory"), action = "store", default = "./", type="character", help = "Cholera directory"),
   optparse::make_option(c("-r", "--res_space"), action = "store", default = 20, type="integer", help = "Spatial resolution"),
   optparse::make_option(c("-t", "--res_time"), action = "store", default = "1 year", type="character", help = "Temporal resolution"),
   optparse::make_option(c("-i", "--ingest"), action = "store", default = T, type="logical", help = "Flag to do ingestion, if false stops if covariates has not already been ingested"),
@@ -17,10 +17,10 @@ option_list <- list(
 parser <- optparse::OptionParser(option_list=option_list)
 opt <- optparse::parse_args(parser)
 
-source(paste(opt$cholera_directory, "Analysis/R/prepare_covariates.R", sep = "/"))
+source(paste(stringr::str_replace(opt$cholera_covariates_directory, "/Layers", ""), "Analysis/R/prepare_covariates.R", sep = "/"))
 prepare_covariates(
   dbuser =  opt$dbuser,
-  cholera_directory = opt$cholera_directory,
+  cholera_covariates_directory = opt$cholera_covariates_directory,
   res_space = opt$res_space,
   res_time = opt$res_time,
   ingest = opt$ingest,

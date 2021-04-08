@@ -3,7 +3,7 @@ pop:
   description: population in each gridcell
   alias: pop
   abbr: p
-  dir:  /home/big_cholera_data/Layers/pop/WORLD/ppp_2000_1km_Aggregated.tif
+  dir:  pop/2000_1km_Aggregated.tif
   type: static
   time_aggregator: ~
   space_aggregator: sum
@@ -25,7 +25,7 @@ logpop:
   description: Log of population
   alias: logpop
   abbr: lp
-  dir: /home/big_cholera_data/covariates/AFR_PPP_2000_adj_v2.tif
+  dir: pop/2000_1km_Aggregated.tif
   type: static
   time_aggregator: ~
   space_aggregator: sum
@@ -36,7 +36,7 @@ dist_to_water:
   description: Distance to closest water body (either lakes, coast or or rivers)
   alias: dist_water
   abbr: dw
-  dir: /home/big_cholera_data/covariates/water_dist_5km_raster.tif
+  dir: water_dist/water_dist_5km_raster.tif
   type: static
   time_aggregator: ~
   space_aggregator: average
@@ -47,7 +47,7 @@ dist_to_lakes:
   description: Distance to closest lake
   alias: dist_lakes
   abbr: dl
-  dir: /home/big_cholera_data/covariates/lake_dist_5km_raster.tif
+  dir: lake_dist/lake_dist_5km_raster.tif
   type: static
   time_aggregator: ~
   space_aggregator: average
@@ -58,7 +58,7 @@ dist_to_rivers:
   description: Distance to closest river
   alias: dist_rivers
   abbr: dr
-  dir: /home/big_cholera_data/covariates/river_dist_5km_raster.tif
+  dir: river_dist/river_dist_5km_raster.tif
   type: static
   time_aggregator: ~
   space_aggregator: average
@@ -69,7 +69,7 @@ dist_to_coast:
   description: Distance to closest coastline
   alias: dist_coast
   abbr: dc
-  dir: /home/big_cholera_data/covariates/coast_dist_5km_raster.tif
+  dir: coast_dist/coast_dist_5km_raster.tif
   type: static
   time_aggregator: ~
   space_aggregator: average
@@ -80,7 +80,7 @@ san_access:
   description: Access to improved sanitation as defined by IHME (Sewer, septic, improved latrines, etc.)
   alias: san_access
   abbr: as
-  dir: /home/perez/final_lbd_wash/rasters/netcdf/yearly/s_imp/
+  dir: sanitation_access/
   type: temporal
   time_aggregator: mean
   res_time: 1 years
@@ -92,7 +92,7 @@ water_access:
   description: Access to improved water source as defined by IHME (Piped, improved wells and springs, etc.)
   alias: water_access
   abbr: aw
-  dir: /home/perez/final_lbd_wash/rasters/netcdf/yearly/w_imp
+  dir: water_access/
   type: temporal
   time_aggregator: mean
   res_time: 1 years
@@ -104,11 +104,45 @@ open_defe:
   description: Open defecation
   alias: open_defecation
   abbr: ao
-  dir: /home/perez/final_lbd_wash/rasters/netcdf/yearly/s_od
+  dir: open_defecation/
   type: temporal
   time_aggregator: mean
   space_aggregator: average
   res_time: 1 years
   transform: ~
   unit: fraction
-
+stunting:
+  name: childhood_stunting
+  description: Childhood moderate and severe stunting as defined by IHME
+  alias: childhood_stunting
+  abbr: cs
+  dir: stunting/
+  type: temporal
+  time_aggregator: mean
+  res_time: 1 years
+  space_aggregator: average
+  transform: ~
+  unit: fraction
+wasting:
+  name: childhood_wasting
+  description: Childhood moderate and severe wasting as defined by IHME
+  alias: childhood_wasting
+  abbr: cw
+  dir: wasting/
+  type: temporal
+  time_aggregator: mean
+  res_time: 1 years
+  space_aggregator: average
+  transform: ~
+  unit: fraction
+access_cities:
+  name: access_to_cities
+  description: Travel time to nearest city
+  alias: access_to_cities
+  abbr: ac
+  dir: access_cities/2015_accessibility_to_cities_v1.0.tif
+  type: static
+  time_aggregator: ~
+  space_aggregator: average
+  transform: ~
+  unit: km

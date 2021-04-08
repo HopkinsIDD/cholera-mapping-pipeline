@@ -71,11 +71,14 @@ db_exists_table_multi <- function(conn,
 #' @description makes the table name for the requested location periods
 #'
 #' @param dbuser database username
+#' @param map_name A string representing a somewhat unique name for this run
 #'
 #' @return the table name
 #' @export
-make_locationperiods_table_name <- function(dbuser) {
-  glue::glue("location_periods_{dbuser}")
+make_locationperiods_table_name <- function(dbuser, map_name) {
+  md5hash <- digest::digest(stringr::str_c(dbuser, "_", map_name, algo = "md5"))
+  cat("-- MD5 hash for location periods table is:", md5hash, "\n")
+  glue::glue("location_periods_{md5hash}")
 }
 
 #' @title make grid centroids table name
@@ -84,11 +87,30 @@ make_locationperiods_table_name <- function(dbuser) {
 #' corresponding to the requested location periods
 #'
 #' @param dbuser database username
+#' @param map_name A string representing a somewhat unique name for this run
 #'
 #' @return the table name
 #' @export
-make_grid_centroids_table_name <- function(dbuser) {
-  glue::glue("grid_cntrds_{dbuser}")
+make_grid_centroids_table_name <- function(dbuser, map_name) {
+  md5hash <- digest::digest(stringr::str_c(dbuser, "_", map_name, algo = "md5"))
+  glue::glue("grid_cntrds_{md5hash}")
+}
+
+#' @title clean all tmp
+#' @name clean_all_tmp
+#' @description Delete all temporary tables in the database used to create this map
+#' @param dbuser database username
+#' @param map_name A string representing a somewhat unique name for this run
+#' @export
+clean_all_tmp <- function(dbuser, map_name) {
+  print("-- Cleaning temporary tables")
+  conn <- connect_to_db(dbuser)
+  lp_name <- make_locationperiods_table_name(dbuser, map_name)
+  DBI::dbSendStatement(conn, glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(lp_name)}`};", .con = conn))
+  DBI::dbSendStatement(conn, glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(paste0(lp_name, '_dict'))}`};", .con = conn)) 
+  cntrd_table <- make_grid_centroids_table_name(dbuser, map_name)
+  DBI::dbSendStatement(conn, glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(cntrd_table)}`};", .con = conn)) 
+  DBI::dbDisconnect(conn)
 }
 
 #' @title Build geometry
@@ -141,13 +163,13 @@ build_geoms_query <- function(conn,
     DBI::dbClearResult(DBI::dbSendStatement(conn,
                          glue::glue_sql("
                     CREATE INDEX {`{str_c(table_full_name, '_gidx')}`}
-    ON {`table`} USING GIST(geom);;",
+    ON {`table`} USING GIST(geom);",
                                         .con = conn))))
   suppressMessages(
     DBI::dbClearResult(DBI::dbSendStatement(conn,
                          glue::glue_sql("
                     CREATE INDEX {`{str_c(table_full_name, '_idx')}`}
-    ON {`table`} (rid, x, y);;", .con = conn))))
+    ON {`table`} (rid, x, y);", .con = conn))))
 
   DBI::dbClearResult(DBI::dbSendStatement(conn, glue::glue_sql("VACUUM ANALYZE {`table`};", .con = conn)))
 }
@@ -277,8 +299,8 @@ parse_time_res <- function(x) {
   res_time <- strsplit(x, " ")[[1]]
 
   # add an 's' to the end
-  if (!str_detect(res_time[2], "s$")) {
-    res_time[2] <- str_c(res_time[2], "s")
+  if (!stringr::str_detect(res_time[2], "s$")) {
+    res_time[2] <- stringr::str_c(res_time[2], "s")
   }
   return(
     list(
@@ -501,33 +523,43 @@ write_ncdf <- function(data,
   chunk_size <- 1e3
   nchunk_row <- ceiling(nrow(data) / chunk_size)
   nchunk_col <- ceiling(ncol(data) / chunk_size)
-
+  
+ 
   for (layer_idx in seq_len(raster::nlayers(data))) {
+    dataslice <- raster::getValues(data[[layer_idx]], format =  "matrix")
+    
     for (row_idx in seq_len(nchunk_row)) {
       chunk_row_start <- (row_idx - 1) * chunk_size + 1
       chunk_row_end <- min((row_idx) * chunk_size, nrow(data))
+      mat_row_start <- nrow(data) - chunk_row_end + 1
+      # mat_row_end <- nrow(data) - chunk_row_start + 1
       for (col_idx in seq_len(nchunk_col)) {
         cat("Processing layer ", layer_idx, " of ", raster::nlayers(data), "\n")
         cat("Processing row", row_idx, " of ", nchunk_row, "\n")
         cat("Processing col", col_idx, " of ", nchunk_col, "\n")
         chunk_col_start <- (col_idx - 1) * chunk_size + 1
         chunk_col_end <- min((col_idx) * chunk_size, ncol(data))
+        mat_col_start <- ncol(data) - chunk_col_end + 1
+        
+        n_col <- chunk_col_end - chunk_col_start + 1
+        n_row <- chunk_row_end - chunk_row_start + 1
+        
         if (is.null(time_vals)) {
           ncdf4::ncvar_put(
             nc = ncout,
             varid = var_data,
-            vals = raster::values(data[chunk_row_start:chunk_row_end, chunk_col_start:chunk_col_end, drop = FALSE]),
-            start = c(chunk_col_start, chunk_row_start),
-            count = c(chunk_col_end - chunk_col_start + 1, chunk_row_end - chunk_row_start + 1),
+            vals = t(dataslice[chunk_row_start:chunk_row_end, chunk_col_start:chunk_col_end, drop = FALSE])[,n_row:1],
+            start = c(chunk_col_start, mat_row_start),
+            count = c(n_col, n_row),
             verbose = TRUE
           )
         } else {
           ncdf4::ncvar_put(
             nc = ncout,
             varid = var_data,
-            vals = raster::values(data[chunk_row_start:chunk_row_end, chunk_col_start:chunk_col_end, layer_idx, drop = FALSE]),
-            start = c(chunk_col_start, chunk_row_start,layer_idx),
-            count = c(chunk_col_end - chunk_col_start + 1, chunk_row_end - chunk_row_start + 1,1),
+            vals =  t(dataslice[chunk_row_start:chunk_row_end, chunk_col_start:chunk_col_end, drop = FALSE])[,n_row:1],
+            start = c(chunk_col_start, mat_row_start, layer_idx),
+            count = c(n_col, n_row, 1),
             verbose = TRUE
           )
         }
@@ -673,7 +705,7 @@ time_aggregate <- function(src_file,
                                       units = res_time_list$units)
 
     # Check whether the source's temporal resolution is coarser than the required resolution
-    if (res_time_source$dt_units >= res_time_list$k) {
+    if (res_time_source$dt_units > res_time_list$k) {
       cat("Temporal resolution of",
           covar_name, " (", res_time_source$dt_units , " ",  res_time_list$units, ")",
           " is coarser than required resolutionn (", res_time,
@@ -948,6 +980,11 @@ ingest_covariate <- function(conn,
 
   if (covar_type == "temporal") {
     raster_files <- dir(covar_dir, pattern = "\\.", full.names = T)
+    # Keep only raster files
+    raster_files <- stringr::str_subset(raster_files, "nc|tif")
+    if (length(raster_files) == 0) {
+      stop("No raster files found in", covar_dir)
+    }
   } else {
     if (!file.exists(covar_dir)) {
       stop("Couldn't find the file", covar_dir)
@@ -1164,6 +1201,11 @@ write_metadata <- function(conn,
 
   if (covar_type == "temporal") {
     raster_files <- dir(covar_dir, pattern = "\\.", full.names = T)
+    # Keep only raster files
+    raster_files <- stringr::str_subset(raster_files, "nc|tif")
+    if (length(raster_files) == 0) {
+      stop("No raster files found in", covar_dir)
+    }
   } else {
     if (!file.exists(covar_dir)) {
       stop("Couldn't find the file", covar_dir)
@@ -1210,7 +1252,7 @@ write_metadata <- function(conn,
                     row.names = F,
                     apppend = F,
                     overwrite = T)
-
+  
   try(DBI::dbClearResult(DBI::dbSendStatement(conn,
                            glue::glue_sql("INSERT INTO covariates.metadata
                                      SELECT * FROM {`DBI::SQL(tmp_name)`};",

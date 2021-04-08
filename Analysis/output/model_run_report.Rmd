@@ -2,8 +2,8 @@
 title: ""
 output: html_document
 params:
-  cholera_directory: "../../"
-  config: "../configs/config_BDI_2015_2019.yml"
+  cholera_directory: "~/projects/cholera-mapping-pipeline/"
+  config: "Analysis/configs/2015_2019_country/config_SSD_2015_2019.yml"
 ---
 ```{r setup, include=FALSE, dev="CairoPNG"}
 knitr::opts_chunk$set(inlude = FALSE, dev="CairoPNG")
@@ -15,7 +15,7 @@ library(readr)
 library(ggplot2)
 library(kableExtra)
 library(taxdat)
-
+library(sf)
 ```
 
 # Mapping results summary for `r stringr::str_extract(params$config, "(?<=g_)[A-Z]{3}(?=_)")` and period `r stringr::str_extract(params$config, "(?<=_)[0-9]{4}_[0-9]{4}(?=\\.)")`
@@ -28,7 +28,6 @@ library(taxdat)
 config <- yaml::read_yaml(params$config)
 
 file_names <- taxdat::get_filenames(config, params$cholera_directory)
-# file_names <- gsub("data/", "data_marcc/", file_names)
 preprocessed_data_filename = file_names["data"]
 stan_input_filename = file_names["stan_input"]
 stan_output_filename = file_names["stan_output"]
@@ -86,7 +85,7 @@ taxdat::plot_area_adjusted_observed_cases(
 ```{r obsmap, echo=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=10, fig.cap="Number of observations by unique observed location periods."}
 disjoint_set_sf_cases <- taxdat::get_disjoint_set_sf_cases(file_names["data"])
 taxdat::plot_raw_observations(disjoint_set_sf_cases, 
-                      render = T)
+                              render = T)
 ```
 
 
@@ -95,31 +94,31 @@ taxdat::plot_raw_observations(disjoint_set_sf_cases,
 ### Population
 ```{r pop, echo=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=10, fig.cap="Population density"}
 taxdat::plot_raster_population(covar_data_filename = file_names["covar"], 
-                       render = T)
+                               render = T)
 ```
 
 ### Other covariates
 
 ```{r covars, echo=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.cap="Covariate rasters"}
 taxdat::plot_raster_covariates(covar_data_filename = file_names["covar"], 
-                       render = T)
+                               render = T)
 ```
 
 ## Output maps
 
 ```{r caserast, echo=FALSE, fig.cap="Modeled cases", fig.height=5, fig.width=10, message=FALSE, warning=FALSE}
 case_raster <- taxdat::get_case_raster(preprocessed_data_filename = file_names["data"],
-                               covar_data_filename = file_names["covar"],
-                               model_output_filenames = file_names["stan_output"])
+                                       covar_data_filename = file_names["covar"],
+                                       model_output_filenames = file_names["stan_output"])
 
 taxdat::plot_modeled_cases(case_raster, 
-                   render = T)
+                           render = T)
 
 ```
 
 ```{r raterast, echo=FALSE, fig.cap="Modeled rates", fig.height=5, fig.width=10, message=FALSE, warning=FALSE}
 taxdat::plot_modeled_rates(case_raster, 
-                   render = T)
+                           render = T)
 ```
 
 ## Validation
@@ -127,15 +126,15 @@ taxdat::plot_modeled_rates(case_raster,
 data_fidelity <- taxdat::get_data_fidelity(stan_output_filename)
 
 taxdat::plot_model_fidelity(data_fidelity = data_fidelity,
-                    case_raster = case_raster, 
-                    render = T)
+                            case_raster = case_raster, 
+                            render = T)
 ```
 
 ```{r traceplots, echo=FALSE, message=FALSE, warning=FALSE, fig.height=8, fig.width=10, fig.cap="Stan trace plots"}
 
 taxdat::plot_chain_convergence(stan_output_filename,
-          pars =  c("rho", "betas", "log_std_dev_w"),
-          render = T)
+                               pars =  c("rho", "betas", "log_std_dev_w"),
+                               render = T)
 
 ```
 
@@ -155,11 +154,12 @@ who_annual_cases <- sf_cases_resized
 chains <- rstan::extract(model.rand)
 who_annual_cases$modeled <- apply(chains$modeled_cases,2,mean)
 who_annual_cases$observed <- who_annual_cases$attributes.fields.suspected_cases # fix me
-who_annual_cases <- taxdat::pull_output_by_source(who_annual_cases, "%WHO Annual Cholera Reports%")
-who_annual_cases %>% 
+who_annual_cases <- taxdat::pull_output_by_source(who_annual_cases, "%WHO Annual Cholera Reports%",
+                                                  database_api_key_rfile = str_c(params$cholera_directory, "Analysis/R/database_api_key.R"))
+who_annual_cases %>%
   as.data.frame() %>%
-  dplyr::select(OC_UID, TL, TR, observed, modeled) %>% 
-  dplyr::mutate_if(is.numeric, function(x) {format(round(x) , big.mark=",")}) %>% 
+  dplyr::select(OC_UID, TL, TR, observed, modeled) %>%
+  dplyr::mutate_if(is.numeric, function(x) {format(round(x) , big.mark=",")}) %>%
   kableExtra::kable(col.names = c("OC id", "start time", "end time", "# Observed cases", "# Modeled Cases")) %>%
   kableExtra::kable_styling(bootstrap_options = c("striped"))
 ```

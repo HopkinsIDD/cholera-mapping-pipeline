@@ -8,68 +8,42 @@
 #' @param config object representing the imported YAML config file for the model
 #' @param cholera_directory path to cholera directory
 #' @return
-get_filenames <- function(config, cholera_directory) {
-  
-  taxonomy <- config$taxonomy
-  # taxonomy-working/working-entry1'
-  # cholera_directory <- rprojroot::find_root(rprojroot::has_file('.choldir')) # The location of the repository
-  # taxdir <- rprojroot::find_root_file(taxonomy, criterion=rprojroot::has_file('.choldir')) # Relative to the repository, where is the taxonomy
-  # laydir <- rprojroot::find_root_file('Layers',criterion=rprojroot::has_file('.choldir')) # Relative to the repository, where is the layers directory
-  
-  # - - - - Data source
-  data_source <- config$data_source
-  # Countries over which to run the model
-  countries <- config$countries
-  countries_name <- config$countries_name
-  res_space <- as.numeric(config$res_space) # km by km resolution of analysis
-  spatial_aggregate_iso_a2_level <- Inf # Aggregate data to ISO_A2_L? use 0 for ISO_A1 level
-  res_time <- check_time_res(config$res_time)
-  temporal_aggregate_time_unit <- stringr::str_split(res_time, " ")[[1]][2]
-  time_change_func <- time_unit_to_aggregate_function(temporal_aggregate_time_unit)
-  aggregate_to_start <- time_unit_to_start_function(temporal_aggregate_time_unit)
-  aggregate_to_end <- time_unit_to_end_function(temporal_aggregate_time_unit)
-  smooth_covariate_number_timesteps <- config$smoothing_period
-  suspected_or_confirmed <- check_case_definition(config$case_definition)
-  cases_column <- case_definition_to_column_name(suspected_or_confirmed,
-                                                 database = T)
-  start_time <- lubridate::ymd(config$start_time)
-  end_time <- lubridate::ymd(config$end_time)
-  # Get the dictionary of covariates
+get_filenames <- function (config, cholera_directory) {
+  # Covariate names
   covariate_dict <- yaml::read_yaml(paste0(cholera_directory, "/Layers/covariate_dictionary.yml"))
   all_covariate_choices <- names(covariate_dict)
   short_covariate_choices <- purrr::map_chr(covariate_dict, "abbr")
-  
-  # User-defined covariates names and abbreviations
-  covariate_choices <- check_covariate_choices(covar_choices = config$covariate_choices,
-                                             available_choices = all_covariate_choices)
+  covariate_choices <- check_covariate_choices(covar_choices = config$covariate_choices, 
+                                               available_choices = all_covariate_choices)
   short_covariates <- short_covariate_choices[covariate_choices]
+  covariate_name_part <- paste(short_covariates, collapse = "-")
+  map_name <- make_map_name(config)
   
+  # Load dictionnary of configuration options
+  config_dict <- yaml::read_yaml(paste0(cholera_directory, "/Analysis/configs/config_dictionnary.yml"))
   
-  # - - - -
-  # STAN parameters
-  ncore <- config$stan$ncores
-  nchain <- ncore
-  niter <- config$stan$niter
-  stan_dir <- paste0(cholera_directory, '/Analysis/Stan/')
-  stan_model <- config$stan$model
-  stan_model_path <- check_stan_model(stan_model_path = paste(stan_dir, stan_model, sep=''),
-                                    stan_dir = stan_dir)
+  preprocessed_data_fname <- make_observations_filename(cholera_directory = cholera_directory, 
+                                                        map_name = map_name)
   
-  map_name <- paste(paste(config$countries_name, collapse = '-'),
-                    temporal_aggregate_time_unit,
-                    paste(start_time, end_time, sep = '-'),
-                    spatial_aggregate_iso_a2_level,
-                    paste(res_space, 'km', sep = ''),
-                    suspected_or_confirmed, sep = '_')
+  preprocessed_covar_fname <- make_covar_filename(cholera_directory = cholera_directory, 
+                                                  map_name = map_name, 
+                                                  covariate_name_part = covariate_name_part)
   
-  covariate_name_part <- paste(short_covariates, collapse = '-')
-  preprocessed_data_fname <- make_observations_filename(cholera_directory, map_name) 
-  preprocessed_covar_fname <- make_covar_filename(cholera_directory, map_name, covariate_name_part)
-  stan_input_fname <- make_stan_input_filename(cholera_directory, map_name, covariate_name_part, stan_model, niter)
-  stan_output_fname <- make_stan_output_filename(cholera_directory, map_name, covariate_name_part, stan_model, niter)
-
-  rc <- setNames(c(preprocessed_data_fname,       preprocessed_covar_fname, stan_input_fname, stan_output_fname), c("data", "covar", "stan_input", "stan_output"))
+  stan_input_fname <- make_stan_input_filename(cholera_directory = cholera_directory, 
+                                               map_name = map_name, 
+                                               covariate_name_part = covariate_name_part, 
+                                               config = config,
+                                               config_dict = config_dict)
   
+  stan_output_fname <- make_stan_output_filename(cholera_directory = cholera_directory,
+                                                 map_name = map_name, 
+                                                 covariate_name_part = covariate_name_part,    
+                                                 config = config,
+                                                 config_dict = config_dict)
+  
+  rc <- setNames(c(preprocessed_data_fname, preprocessed_covar_fname, 
+                   stan_input_fname, stan_output_fname), c("data", "covar", 
+                                                           "stan_input", "stan_output"))
   return(rc)
 }
 
@@ -101,7 +75,7 @@ read_file_of_type <- function(filename, variable){
 #' @param df sf_cases dataframe with observation data
 #' @return dataframe with summary statistics 
 get_obs_stats <- function(df) {
-
+  
   rc <- tibble::as_tibble(df)
   rc <- dplyr::mutate(rc, year = lubridate::year(TL))
   alldf <- tibble::as_tibble(df)
@@ -109,14 +83,14 @@ get_obs_stats <- function(df) {
   rc <- rbind(rc, alldf)
   rc <- dplyr::group_by(rc, year) 
   rc <- dplyr::summarize(rc,
-      n_obs = dplyr::n(),
-      n_cases = sum(attributes.fields.suspected_cases),
-      n_lp  = length(unique(locationPeriod_id)),
-      u_lps  = paste(sort(unique(locationPeriod_id)), collapse = ","),
-      n_OCs  = length(unique(OC_UID)),
-      u_OCs  = paste(sort(unique(OC_UID)), collapse = ","),
-    )
-
+                         n_obs = dplyr::n(),
+                         n_cases = sum(attributes.fields.suspected_cases),
+                         n_lp  = length(unique(locationPeriod_id)),
+                         u_lps  = paste(sort(unique(locationPeriod_id)), collapse = ","),
+                         n_OCs  = length(unique(OC_UID)),
+                         u_OCs  = paste(sort(unique(OC_UID)), collapse = ","),
+  )
+  
   return(rc)
 }
 
@@ -235,11 +209,11 @@ plot_raw_observed_cases <- function(disjoint_set_sf_cases,
 #' @param height plot height
 #' @return ggplot object with area-adjusted observed cases 
 plot_area_adjusted_observed_cases <- function(
-                        disjoint_set_sf_cases,
-                        render = F,
-                        plot_file = NULL,
-                        width = NULL,
-                        height = NULL){
+  disjoint_set_sf_cases,
+  render = F,
+  plot_file = NULL,
+  width = NULL,
+  height = NULL){
   plt <- ggplot2::ggplot()
   plt <- plt +
     ggplot2::geom_sf(
@@ -447,16 +421,16 @@ get_case_raster <- function(preprocessed_data_filename,
     modeled_rates_mean <- apply(modeled_rates, 3, mean)
     
     case_raster <- dplyr::mutate(case_raster, 
-                    modeled_cases_mean = NA,
-                    modeled_rates_mean = NA) 
+                                 modeled_cases_mean = NA,
+                                 modeled_rates_mean = NA) 
     case_raster[non_na_gridcells,]$modeled_cases_mean <- modeled_cases_mean
     names(case_raster)[which(names(case_raster)=="modeled_cases_mean")] <- paste("modeled cases\n",
-      paste(filename_to_stubs(filename)[2:3], collapse = " "), "\niterations: Chain", 
-      filename_to_stubs(filename)[5])
+                                                                                 paste(filename_to_stubs(filename)[2:3], collapse = " "), "\niterations: Chain", 
+                                                                                 filename_to_stubs(filename)[5])
     case_raster[non_na_gridcells,]$modeled_rates_mean <- modeled_rates_mean
     names(case_raster)[which(names(case_raster)=="modeled_rates_mean")] <- paste("modeled rates\n", 
-      paste(filename_to_stubs(filename)[2:3], collapse = " "), "\niterations: Chain", 
-      filename_to_stubs(filename)[5]) 
+                                                                                 paste(filename_to_stubs(filename)[2:3], collapse = " "), "\niterations: Chain", 
+                                                                                 filename_to_stubs(filename)[5]) 
   }
   case_raster
 }
@@ -605,14 +579,19 @@ plot_modeled_rates <- function(case_raster,
 #' @description add
 #' @param model_output_filenames model_output_filenames
 #' @return 
-get_data_fidelity <- function(model_output_filenames){
+get_data_fidelity <- function(stan_input_filenames, model_output_filenames){
+  
+  if (length(stan_input_filenames) != length(model_output_filenames))
+    stop("Need to provide same number of stan_input and stan_output files")
+  
   rc <- list()
   layer_index <- 1
-  for (filename in model_output_filenames) {
-    corresponding_input_filename <- gsub('\\d+.csv','json',gsub("stan_output","stan_input", filename))
-    print(c(filename, corresponding_input_filename))
+  for (i in 1:length(model_output_filenames)) {
+    filename <- model_output_filenames[i]
+    # corresponding_input_filename <- gsub('\\d+.csv','json',gsub("stan_output","stan_input", filename))
+    # print(c(filename, corresponding_input_filename))
     model.rand <- read_file_of_type(filename, "model.rand")
-    stan_data <- read_file_of_type(corresponding_input_filename, "stan_input")$stan_data
+    stan_data <- read_file_of_type(stan_input_filenames[i], "stan_input")$stan_data
     modeled_cases <- as.array(model.rand)[, , grepl("modeled_cases", names(model.rand)), drop = FALSE]
     modeled_cases_chain_mean <- apply(modeled_cases, c(2, 3), mean)
     actual_cases <- matrix(stan_data$y, nrow(modeled_cases_chain_mean), ncol(modeled_cases_chain_mean), byrow=TRUE)
@@ -665,6 +644,7 @@ plot_model_fidelity <- function(data_fidelity,
 plot_rhat <- function(model.rand,
                       render = T) {
   
+  
   fit_summary <- rstan::summary(model.rand)
   rhats <- tibble::tibble(Rhat = round(fit_summary$summary[which(str_detect(row.names(fit_summary$summary), "modeled_cases")), "Rhat"], 2)) %>% 
     dplyr::mutate(x=dplyr::row_number())
@@ -690,19 +670,21 @@ plot_rhat <- function(model.rand,
 #' @param sf_cases sf_cases output 
 #' @param source_match string of reference source (e.g., WHO Annual Cholera Reports)
 #' @return 
-pull_output_by_source <- function(sf_cases, source_match){
+pull_output_by_source <- function(sf_cases, 
+                                  source_match,
+                                  database_api_key_rfile = "../R/database_api_key.R"){
   if(missing(source_match)){
     warning("No source filter provided")
     return(sf_cases)
   }
-
+  
   if(any(grepl("source",names(sf_cases)))){
     source_match <- paste0("^",gsub('%','.*',source_match))
     matches <- grepl(source_match, sf_cases[["source"]])
     return(sf_cases[matches,])
   }
-
-  source("../R/database_api_key.R")
+  
+  source(database_api_key_rfile)
   conn <- RPostgres::dbConnect(RPostgres::Postgres(),
                                host = "db.cholera-taxonomy.middle-distance.com",
                                dbname = "CholeraTaxonomy_production",
@@ -712,6 +694,10 @@ pull_output_by_source <- function(sf_cases, source_match){
   
   query <- glue::glue_sql(.con=conn,"select id,source from observation_collections where source like {source_match};")
   source_ids <- DBI::dbGetQuery(conn=conn, query)
+  if (is.character(sf_cases$OC_UID[1])) {
+    source_ids$id <- as.character(source_ids$id)
+  } 
+  
   matches <- sf_cases$OC_UID %in% source_ids$id
   return(sf_cases[matches,])
 }

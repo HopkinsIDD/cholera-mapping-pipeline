@@ -24,6 +24,7 @@ if (data_source == "api") {
     username <- database_username
     password <- database_api_key
   }
+  cat("cntry:", long_countries, "u:", ifelse(nchar(username) > 0, "****" ,"") , "psswd:", ifelse(nchar(password) > 0, "****" ,"") , "st:", start_time, "et:", end_time, "\n")
 } else if (data_source == "sql") {
   long_countries <- countries
   username <- Sys.getenv("CHOLERA_SQL_USERNAME", "NONE")
@@ -50,7 +51,7 @@ cases <- taxdat::pull_taxonomy_data(
   taxdat::rename_database_fields(source = data_source)
 
 # Get OC UIDs for all extracted data
-uids <- sort(unique(cases$OC_UID))
+uids <- sort(unique(as.numeric(cases$OC_UID)))
 
 # Filter out NA cases, which represent missing observations, and non-primary observations (primary observations are only space-time stratified and these are the ones we want to focus on in these maps)
 cases <- dplyr::filter(cases, !is.na(.data[[cases_column]])) %>%
@@ -122,7 +123,7 @@ if (any(grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles)))) {
 conn_pg <- taxdat::connect_to_db(dbuser)
 
 # Set user-specific name for location_periods table to use
-lp_name <- taxdat::make_locationperiods_table_name(dbuser = dbuser)
+lp_name <- taxdat::make_locationperiods_table_name(dbuser = dbuser, map_name = map_name)
 
 # Make sf object to multiploygons to be consistent
 shapefiles <- sf::st_cast(shapefiles, "MULTIPOLYGON") %>%
@@ -140,7 +141,7 @@ DBI::dbClearResult(DBI::dbSendStatement(conn_pg, glue::glue_sql("CREATE INDEX  {
 DBI::dbClearResult(DBI::dbSendStatement(conn_pg, glue::glue_sql("VACUUM ANALYZE {`{DBI::SQL(lp_name)}`};", .con = conn_pg)))
 
 # Table of correspondence between location periods and grid cells
-location_periods_table <- paste0("location_periods_", res_space, "_", res_space, "_dict_", dbuser)
+location_periods_table <- paste0(lp_name, "_dict")
 
 DBI::dbClearResult(DBI::dbSendStatement(
   conn_pg,
@@ -160,7 +161,7 @@ DBI::dbClearResult(DBI::dbSendStatement(
 ))
 
 # Get the dictionary of location periods to pixel ids
-cntrd_table <- taxdat::make_grid_centroids_table_name(dbuser = dbuser)
+cntrd_table <- taxdat::make_grid_centroids_table_name(dbuser = dbuser, map_name = map_name)
 
 # Create table of grid centroids included in the model
 DBI::dbClearResult(DBI::dbSendStatement(
@@ -181,8 +182,9 @@ DBI::dbClearResult(DBI::dbSendStatement(
 DBI::dbClearResult(DBI::dbSendStatement(
   conn_pg,
   glue::glue_sql(
-    "CREATE INDEX cntrds_{`DBI::SQL(dbuser)`}_gidx on {`{DBI::SQL(cntrd_table)}`} USING GIST(geom);",
-    .con = conn_pg)))
+    "CREATE INDEX {`{DBI::SQL(paste0(cntrd_table, '_gidx'))}`} on {`{DBI::SQL(cntrd_table)}`} USING GIST(geom);",
+    .con = conn_pg))) 
+DBI::dbSendStatement(conn_pg, glue::glue_sql("VACUUM ANALYZE {`{DBI::SQL(cntrd_table)}`};", .con = conn_pg))
 
 # Create sf_chol ---------------------------------------------------------------
 

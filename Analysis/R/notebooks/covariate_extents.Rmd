@@ -1,0 +1,158 @@
+---
+title: "Covariate extents"
+output: 
+  bookdown::html_document2:
+    toc: true
+    toc_float: true
+    number_sections: false
+params:
+  cholera_directory: "~/projects/cholera-mapping-pipeline"
+---
+```{r setup, include=FALSE, dev="CairoPNG"}
+knitr::opts_chunk$set(inlude = FALSE, dev="CairoPNG")
+knitr::opts_chunk$set(
+  echo = FALSE,
+  fig.align = "center",
+  message = FALSE,
+  warning = FALSE,
+  cache.lazy = F,
+  bitmapType = "cairo"
+)
+library(stringr)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(magrittr)
+library(purrr)
+library(readr)
+library(ggplot2)
+library(kableExtra)
+library(sf)
+library(raster)
+library(rgdal)
+library(cowplot)
+```
+```{r dict}
+covar_dict <- yaml::read_yaml(str_c(params$cholera_directory, "/Layers/covariate_dictionary.yml"))
+
+cat("Available covariate in dictionnary:\n")
+map_df(covar_dict, ~ tibble(covariate = .$name, 
+                            abbrev = .$abbr,
+                            description = .$description)) %>% 
+  mutate(` ` = row_number()) %>% 
+  dplyr::select(` `, covariate, abbrev, description) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F,
+                            bootstrap_options = c("striped"))
+```
+
+```{r metadata}
+# load sql api credentials
+source(str_c(params$cholera_directory, "/Analysis/R/database_api_key.R"))
+thisuser <- Sys.getenv("USER")
+conn <- taxdat::connect_to_db(thisuser)
+cov_meta <- RPostgres::dbGetQuery(conn, "SELECT * FROM covariates.metadata;")
+cov_meta <- filter(cov_meta, res_x == 20 & (res_time != "1 months"  | is.na(res_time)))
+cat("Covariates in database:\n")
+cov_meta %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F,
+                            bootstrap_options = c("striped"))
+```
+
+```{r plots, echo=FALSE, message=FALSE, warning=FALSE}
+# Rearrange order to make pretty
+cov_meta$cov <- map2_chr(cov_meta$covariate, cov_meta$res_time, ~ str_split(.x, ifelse(is.na(.y), "__", str_c("_", str_replace(.y, " ", "_"))))[[1]][1])
+
+cov_meta <- cov_meta %>% 
+  arrange(cov, res_x, res_time)
+
+# load first band of each covariate
+cov_rasters <- list()
+j <- 1
+cov_meta2 <- cov_meta
+for (i in 1:nrow(cov_meta)) {
+  dsn <- glue::glue("PG:dbname='cholera_covariates' host=localhost user='{thisuser}' port=5432 schema='covariates' table='{cov_meta2$covariate[i]}' mode=2")
+  ras <- try(readGDAL(dsn, band = 1)) # Get your file as SpatialGridDataFrame
+  if (inherits(ras, "try-error")) {
+    cat("Raster layer not found for '", cov_meta2$covariate[i], "' in database")
+    cov_meta <- cov_meta[-i, ]
+  } else {
+    outrast <- brick(ras)
+    cov_rasters[[j]] <- outrast[[1]]
+    j <- j + 1
+  }
+}
+
+names(cov_rasters) <- cov_meta$covariate
+
+# Plot by covariate
+rast_plots <- list()
+l <- 1
+for (cov in unique(cov_meta$cov)) {
+  cat(cov, "\n")
+  # Get all rasters of given covariate
+  ind_cov <- which(cov_meta$cov == cov)
+  cov_plots <- cov_rasters[ind_cov]
+  cov_res_x <- cov_meta$res_x[ind_cov]
+  cov_res_t <- cov_meta$res_time[ind_cov]
+  
+  # cov_title <- cowplot::ggdraw() +
+  #   cowplot::draw_label(cov, fontface = 'bold', x = 0, hjust = 0) +
+  #   theme(plot.margin = margin(0, 0, 0, 0))
+
+  # Plot raters by res_x
+  cov_plot_res_x <- lapply(
+    unique(cov_res_x), 
+    function(res_x) 
+    {
+      # cat(res_x, "\n")
+      # cov_title_res_x <- cowplot::ggdraw() + 
+      #   cowplot::draw_label(str_c("Spatial resolution: ", res_x, "x", res_x, " km"), x = 0, hjust = 0) +
+      #   theme(plot.margin = margin(0, 0, 0, 0))
+      
+      if (is.na(unique(cov_res_t[cov_res_x == res_x]))) {
+        rast <- cov_plots[[cov_res_x == res_x]]
+        plot(cov_plots[[cov_res_x == res_x]], main = str_c("Spatial resolution: ", res_x, "x", res_x, " km; static"))
+      } else {
+        p_res_time <- lapply(
+          unique(cov_res_t[cov_res_x == res_x]), 
+          function(res_time)
+          {
+            if (sum(cov_res_x == res_x & cov_res_t == res_time) > 0) {
+              rast <- try(cov_plots[[cov_res_x == res_x & cov_res_t == res_time]])
+              if (inherits(rast, "try-error")) {
+                break()
+              }
+            } else {
+              break()
+            }
+           plot(cov_plots[[cov_res_x == res_x & cov_res_t == res_time]], main = str_c("Spatial resolution: ", res_x, "x", res_x, " km; temporal: ", res_time))
+          })
+      }
+      
+      # gridExtra::arrangeGrob(p_res_time)
+      # cowplot::plot_grid(
+      #   plotlist = list(cov_title_res_x,
+      #                   cowplot::plot_grid(p_res_time,
+      #                                      ncol = min(length(p_res_time), 3),
+      #                                      align = "h")),
+      #   ncol = 1,
+      #   rel_heights = c(.1, 1))
+    })
+  # plot(cov_plot_res_x)
+  # print(cowplot::plot_grid(
+  #   plotlist = list(cov_title,
+  #                   cowplot::plot_grid(cov_plot_res_x,
+  #                                      ncol = 1)),
+  #   ncol = 1,
+  #   rel_heights = c(.1, 1)))
+  # 
+  l <- l + 1
+}
+
+# cowplot::plot_grid(plotlist = rast_plots, ncol = 2)
+
+```
+
+
