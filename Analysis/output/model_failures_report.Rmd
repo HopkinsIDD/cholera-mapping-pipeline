@@ -1,0 +1,120 @@
+---
+title: "Model Failures Report"
+output: html_document
+params:
+  cholera_directory: "~/gh/cholera-mapping-pipeline/"
+  config_directory: "Analysis/configs/2015_2019_full_base/"
+---
+```{r setup, include=FALSE, dev="CairoPNG"}
+knitr::opts_chunk$set(
+  echo = FALSE, 
+  dev="CairoPNG", 
+  error = TRUE,
+  fig.align = "center",
+  message = FALSE,
+  warning = FALSE
+  )
+library(stringr)
+library(dplyr)
+library(magrittr)
+library(tidyr)
+library(readr)
+library(ggplot2)
+library(taxdat)
+```
+
+
+```{r tab_progress}
+
+# create_mapping_progress_table(
+#   config_path = params$config_directory,
+#   pipeline_path = params$cholera_directory
+# ) %>%
+#   dplyr::group_by(config_path) %>%
+#   dplyr::summarize(stages_complete = ifelse(
+#     data,
+#     ifelse(covar,
+#       ifelse(stan_input,
+#         ifelse(stan_output,
+#           "Output Produced",
+#           "Input Produced"
+#         ), "Covariates constructed"
+#       ),
+#       "Data pulled"
+#     ),
+#     "None"
+#   )) %>%
+#   tidyr::separate(config_path,
+#     c(NA, NA, "start_year","end_year", NA, NA, "country", NA) # This is file path specific
+#   ) %>%
+#   ggplot2::ggplot() +
+#     ggplot2::geom_tile(ggplot2::aes(x=paste(start_year, end_year, sep = '-'), y=country, fill=stages_complete))]
+  ```
+
+```{r cases_check}
+
+all_configs <- list.files(stringr::str_c(params$cholera_directory, params$config_directory), full.names = TRUE)[2]
+
+cases_check <- list()
+
+for (i in 1:length(all_configs)){
+  config_filename <- all_configs[i]
+  config <- yaml::read_yaml(config_filename)
+  file_names <- taxdat::get_filenames(config, params$cholera_directory)
+  cntry_code <- stringr::str_remove(unlist(strsplit(config_filename, "/"))[length(unlist(strsplit(config_filename, "/")))], ".yml")
+  print(paste("Reading files associated with", config_filename))
+
+  ## get cases
+  try({
+    model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
+    niter_per_chain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__', chain_num=1))[1]
+    nchain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__'))[1] / niter_per_chain
+    stan_output <- lapply(rstan::extract(model.rand), function(x){array(x,c(niter_per_chain, nchain, dim(x)[-1]))})
+
+    cases_chains <- apply(stan_output$grid_cases, c(3,2), mean)
+    # rates_chains <- apply(exp(stan_output$log_lambda), c(3,2), mean)
+    # pop_est <- cases_chains[,1]/rates_chains[,1]
+    total_cases_chains <- apply(cases_chains, 2, sum)
+
+  })
+
+  try({
+    covar_cube_output <- taxdat::read_file_of_type(file_names[["covar"]], "covar_cube_output")
+    pop_layer <- covar_cube_output$covar_cube[,,1]
+
+    cases_summ <- data.frame(cntry = cntry_code, config = config_filename, pop = sum(pop_layer[,1]), chain = 1:length(total_cases_chains), cases_mean = total_cases_chains) 
+  })
+
+  try({
+    if("list" %in% class(cases_check)){
+      cases_check <- cases_summ
+    } else {
+      cases_check <- rbind(cases_check, cases_summ)
+    }
+  })
+
+}
+
+pop_failures <- dplyr::mutate(cases_check, 
+  failure_pop = ifelse(cases_mean > pop, TRUE, FALSE)) %>%
+  dplyr::mutate(cp_label = paste(cases_mean, pop, sep = "/"))
+
+```
+
+```{r plot_pop_failures}
+ggplot2::ggplot(pop_failures, ggplot2::aes(x = chain, y = cntry)) +
+  ggplot2::geom_tile(ggplot2::aes(fill = failure_pop)) +
+  ggplot2::geom_label(ggplot2::aes(label = cp_label)) +
+  ggplot2::ggtitle(params$config_directory)
+
+```
+
+```{r plot_pop}
+pop_df <- dplyr::distinct(pop_failures, cntry, pop)
+
+ggplot2::ggplot(pop_failures, ggplot2::aes(x = cntry, y = pop)) +
+  ggplot2::geom_col() +
+  ggplot2::geom_label(ggplot2::aes(label = pop)) +
+  ggplot2::coord_flip()
+
+```
