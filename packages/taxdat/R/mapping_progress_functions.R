@@ -42,3 +42,5 @@ create_mapping_progress_table_single_config <- function(config_path, pipeline_pa
     mutate(config_path = config_path) %>%
     return()
 }
+
+# status %>% tidyr::separate(config_path, c(NA, NA, "start_year","end_year", NA, NA, "country", NA)) %>% ggplot() + geom_tile(aes(x=paste(start_year, end_year, sep = '-'), y=country, fill=stages_complete))
