@@ -130,7 +130,7 @@ taxdat::plot_model_fidelity(data_fidelity = data_fidelity,
 ```{r traceplots, echo=FALSE, message=FALSE, warning=FALSE, fig.height=8, fig.width=10, fig.cap="Stan trace plots"}
 
 taxdat::plot_chain_convergence(stan_output_filename,
-                               pars =  c("rho", "betas", "log_std_dev_w"),
+                               pars =  c("rho", "betas", "log_std_dev_w", "eta"),
                                render = T)
 
 ```
