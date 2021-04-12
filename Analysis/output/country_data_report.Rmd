@@ -2,11 +2,11 @@
 title: "Data and Model Outputs Report"
 output: html_document
 params:
-  cholera_directory: "C:/Users/eclee/Dropbox (Bansal Lab)/IDDynamicsJHU/gh/cholera-mapping-pipeline/"
+  cholera_directory: "~/gh/cholera-mapping-pipeline/"
   config: "Analysis/configs/2015_2019_full_base/BDI.yml"
 ---
 ```{r setup, include=FALSE, dev="CairoPNG"}
-knitr::opts_chunk$set(inlude = FALSE, dev="CairoPNG")
+knitr::opts_chunk$set(include = FALSE, dev="CairoPNG", error = TRUE)
 library(stringr)
 library(dplyr)
 library(magrittr)
@@ -120,7 +120,7 @@ taxdat::plot_modeled_rates(case_raster, render = T)
 
 ## Validation
 ```{r datafidelity, echo=FALSE, fig.cap="Observations vs. modeled cases", fig.height=6, fig.width=6, message=FALSE, warning=FALSE}
-data_fidelity <- taxdat::get_data_fidelity(stan_output_filename)
+data_fidelity <- taxdat::get_data_fidelity(file_names["stan_output"])
 
 taxdat::plot_model_fidelity(data_fidelity = data_fidelity,
                             case_raster = case_raster, 
@@ -129,7 +129,7 @@ taxdat::plot_model_fidelity(data_fidelity = data_fidelity,
 
 ```{r traceplots, echo=FALSE, message=FALSE, warning=FALSE, fig.height=8, fig.width=10, fig.cap="Stan trace plots"}
 
-taxdat::plot_chain_convergence(stan_output_filename,
+taxdat::plot_chain_convergence(file_names["stan_output"],
                                pars =  c("rho", "betas", "log_std_dev_w", "eta"),
                                render = T)
 
@@ -138,10 +138,10 @@ taxdat::plot_chain_convergence(stan_output_filename,
 
 
 ```{r params, echo=FALSE, message=FALSE, warning=FALSE, fig.height=6, fig.width=6, fig.cap="Parameter posteriors"}
-# rstan::plot(model.rand, pars =  c("rho", "betas", "log_std_dev_w"))
+rstan::plot(model.rand, pars =  c("rho", "betas", "log_std_dev_w", "eta"))
 ```
 ```{r rhat, echo=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=10, fig.cap="Gelman-Rubin Rhat"}
-# taxdat::plot_rhat(model.rand, render = T)
+taxdat::plot_rhat(model.rand, render = T)
 ```
 
 
