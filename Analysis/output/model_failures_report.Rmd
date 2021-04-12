@@ -12,7 +12,9 @@ knitr::opts_chunk$set(
   error = TRUE,
   fig.align = "center",
   message = FALSE,
-  warning = FALSE
+  warning = FALSE,
+  fig.width = 5,
+  fig.height = 5
   )
 library(stringr)
 library(dplyr)
@@ -23,39 +25,50 @@ library(ggplot2)
 library(taxdat)
 ```
 
+# Check progress along mapping pipeline
 
-```{r tab_progress}
+```{r tab_progress, fig.cap = "Model progress report"}
 
-# create_mapping_progress_table(
-#   config_path = params$config_directory,
-#   pipeline_path = params$cholera_directory
-# ) %>%
-#   dplyr::group_by(config_path) %>%
-#   dplyr::summarize(stages_complete = ifelse(
-#     data,
-#     ifelse(covar,
-#       ifelse(stan_input,
-#         ifelse(stan_output,
-#           "Output Produced",
-#           "Input Produced"
-#         ), "Covariates constructed"
-#       ),
-#       "Data pulled"
-#     ),
-#     "None"
-#   )) %>%
-#   tidyr::separate(config_path,
-#     c(NA, NA, "start_year","end_year", NA, NA, "country", NA) # This is file path specific
-#   ) %>%
-#   ggplot2::ggplot() +
-#     ggplot2::geom_tile(ggplot2::aes(x=paste(start_year, end_year, sep = '-'), y=country, fill=stages_complete))]
+print(params$config_directory)
+
+try{(
+
+  taxdat::create_mapping_progress_table(
+    config_path = params$config_directory,
+    pipeline_path = params$cholera_directory
+  ) %>%
+    dplyr::group_by(config_path) %>%
+    dplyr::summarize(stages_complete = ifelse(
+      data,
+      ifelse(covar,
+        ifelse(stan_input,
+          ifelse(stan_output,
+            "Output Produced",
+            "Input Produced"
+          ), "Covariates constructed"
+        ),
+        "Data pulled"
+      ),
+      "None"
+    )) %>%
+    tidyr::separate(config_path,
+      c(NA, NA, "start_year","end_year", NA, NA, "country", NA) # This is file path specific
+    ) %>%
+    ggplot2::ggplot() +
+      ggplot2::geom_tile(ggplot2::aes(x=paste(start_year, end_year, sep = '-'), y=country, fill=stages_complete))]
+
+  )}
+
   ```
 
-```{r cases_check}
+# Extract Stan outputs
 
-all_configs <- list.files(stringr::str_c(params$cholera_directory, params$config_directory), full.names = TRUE)[2]
+```{r extract_stan_output}
+
+all_configs <- list.files(stringr::str_c(params$cholera_directory, params$config_directory), full.names = TRUE)
 
 cases_check <- list()
+rhat_check <- list()
 
 for (i in 1:length(all_configs)){
   config_filename <- all_configs[i]
@@ -86,6 +99,16 @@ for (i in 1:length(all_configs)){
   })
 
   try({
+    fit_summary <- rstan::summary(model.rand)
+    rhats <- tibble::tibble(Rhat = round(fit_summary$summary[which(stringr::str_detect(row.names(fit_summary$summary), 
+        "modeled_cases")), "Rhat"], 2)) %>% dplyr::mutate(x = dplyr::row_number())
+    rhat_thresh <- 1.05
+    frac_above <- sum(rhats$Rhat > rhat_thresh)/nrow(rhats)
+
+    rhat_summ <- data.frame(cntry = cntry_code, config = config_filename, frac_above = frac_above)
+  })
+
+  try({
     if("list" %in% class(cases_check)){
       cases_check <- cases_summ
     } else {
@@ -93,7 +116,21 @@ for (i in 1:length(all_configs)){
     }
   })
 
+  try({
+    if("list" %in% class(rhat_check)){
+      rhat_check <- rhat_summ
+    } else {
+      rhat_check <- rbind(rhat_check, rhat_summ)
+    }
+  })
+
 }
+
+```
+
+# Check if cases exceed population
+
+```{r cases_check}
 
 pop_failures <- dplyr::mutate(cases_check, 
   failure_pop = ifelse(cases_mean > pop, TRUE, FALSE)) %>%
@@ -101,20 +138,38 @@ pop_failures <- dplyr::mutate(cases_check,
 
 ```
 
-```{r plot_pop_failures}
+```{r plot_pop_failures, fig.cap = "Failures for population check"}
 ggplot2::ggplot(pop_failures, ggplot2::aes(x = chain, y = cntry)) +
   ggplot2::geom_tile(ggplot2::aes(fill = failure_pop)) +
-  ggplot2::geom_label(ggplot2::aes(label = cp_label)) +
-  ggplot2::ggtitle(params$config_directory)
+  ggplot2::geom_label(ggplot2::aes(label = cp_label))
 
 ```
 
-```{r plot_pop}
+```{r plot_pop, fig.cap = "Population estimates"}
 pop_df <- dplyr::distinct(pop_failures, cntry, pop)
 
 ggplot2::ggplot(pop_failures, ggplot2::aes(x = cntry, y = pop)) +
   ggplot2::geom_col() +
   ggplot2::geom_label(ggplot2::aes(label = pop)) +
   ggplot2::coord_flip()
+
+```
+
+# Check model convergence by observation Rhat
+
+
+```{r rhat_check}
+rhat_fail_perc <- 0.05
+rhat_failures <- dplyr::mutate(rhat_check, 
+  failure_rhat = ifelse(frac_above > rhat_fail_perc, TRUE, FALSE)) 
+
+```
+
+Examine the fraction of observations that exceed Rhat of `r rhat_thresh`. If greater than `r rhat_fail_perc*100`% of observations exceed this threshold, then the run is marked as a failure.
+
+```{r plot_rhat_failures, fig.cap = "Failures for Rhat check"}
+ggplot2::ggplot(rhat_failures, ggplot2::aes(y = cntry)) +
+  ggplot2::geom_tile(ggplot2::aes(fill = failure_rhat)) +
+  ggplot2::geom_label(ggplot2::aes(label = frac_above)) 
 
 ```
