@@ -120,7 +120,8 @@ taxdat::plot_modeled_rates(case_raster, render = T)
 
 ## Validation
 ```{r datafidelity, echo=FALSE, fig.cap="Observations vs. modeled cases", fig.height=6, fig.width=6, message=FALSE, warning=FALSE}
-data_fidelity <- taxdat::get_data_fidelity(file_names["stan_output"])
+data_fidelity <- taxdat::get_data_fidelity(stan_input_filenames = file_names["stan_output"],
+                                          model_output_filenames = file_names["stan_output"])
 
 taxdat::plot_model_fidelity(data_fidelity = data_fidelity,
                             case_raster = case_raster, 
