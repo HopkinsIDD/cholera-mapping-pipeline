@@ -55,7 +55,7 @@ try({
       c(NA, NA, "start_year","end_year", NA, NA, "country", NA) # This is file path specific
     ) %>%
     ggplot2::ggplot() +
-      ggplot2::geom_tile(ggplot2::aes(x=paste(start_year, end_year, sep = '-'), y=country, fill=stages_complete))]
+      ggplot2::geom_tile(ggplot2::aes(x=paste(start_year, end_year, sep = '-'), y=country, fill=stages_complete))
 
   })
 
@@ -134,24 +134,24 @@ for (i in 1:length(all_configs)){
 
 pop_failures <- dplyr::mutate(cases_check, 
   failure_pop = ifelse(cases_mean > pop, TRUE, FALSE)) %>%
-  dplyr::mutate(cp_label = paste(cases_mean, pop, sep = "/"))
+  dplyr::mutate(cp_label = paste(round(cases_mean,0), sep = "/"))
 
 ```
 
-```{r plot_pop_failures, fig.cap = "Failures for population check"}
+```{r plot_pop_failures, fig.cap = "Failures for population check (cases/population)"}
 ggplot2::ggplot(pop_failures, ggplot2::aes(x = chain, y = cntry)) +
-  ggplot2::geom_tile(ggplot2::aes(fill = failure_pop)) #+
-  # ggplot2::geom_label(ggplot2::aes(label = cp_label))
+  ggplot2::geom_tile(ggplot2::aes(fill = failure_pop)) +
+  ggplot2::geom_label(ggplot2::aes(label = cp_label))
 
 ```
 
 ```{r plot_pop, fig.cap = "Population estimates"}
 pop_df <- dplyr::distinct(pop_failures, cntry, pop)
 
-ggplot2::ggplot(pop_failures, ggplot2::aes(x = cntry, y = pop)) +
+ggplot2::ggplot(pop_failures, ggplot2::aes(x = pop, y = cntry)) +
   ggplot2::geom_col() +
-  # ggplot2::geom_label(ggplot2::aes(label = pop)) +
-  ggplot2::coord_flip()
+  ggplot2::scale_x_continuous(labels = comma)
+  # ggplot2::geom_label(ggplot2::aes(label = pop)
 
 ```
 
@@ -170,7 +170,7 @@ Examine the fraction of observations that exceed Rhat of `r rhat_thresh`. If gre
 ```{r plot_rhat_failures, fig.cap = "Failures for Rhat check"}
 ggplot2::ggplot(rhat_failures, ggplot2::aes(x = config_filename, y = cntry)) +
   ggplot2::geom_tile(ggplot2::aes(fill = failure_rhat)) +
-  ggplot2::geom_label(ggplot2::aes(label = frac_above)) +
+  ggplot2::geom_label(ggplot2::aes(label = round(frac_above*100,1))) +
   ggplot2::theme(axis.title.x = element_blank(), axis.ticks.x = element_blank())
 
 ```
