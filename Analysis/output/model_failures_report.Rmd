@@ -2,7 +2,7 @@
 title: "Model Failures Report"
 output: html_document
 params:
-  cholera_directory: "~/gh/cholera-mapping-pipeline/"
+  cholera_directory: "."
   config_directory: "Analysis/configs/2015_2019_full_base/"
 ---
 ```{r setup, include=FALSE, dev="CairoPNG"}
