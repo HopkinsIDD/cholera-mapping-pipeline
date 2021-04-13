@@ -39,7 +39,7 @@ create_mapping_progress_table_single_config <- function(config_path, pipeline_pa
     dplyr::mutate(finished = file.exists(filename)) %>%
     dplyr::select(-filename) %>%
     tidyr::pivot_wider(names_from = stage, values_from = finished) %>%
-    mutate(config_path = config_path) %>%
+    dplyr::mutate(config_path = config_path) %>%
     return()
 }
 
