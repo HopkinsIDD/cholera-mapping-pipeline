@@ -146,12 +146,13 @@ ggplot2::ggplot(pop_failures, ggplot2::aes(x = chain, y = cntry)) +
 ```
 
 ```{r plot_pop, fig.cap = "Population estimates"}
-pop_df <- dplyr::distinct(pop_failures, cntry, pop)
+pop_df <- dplyr::distinct(pop_failures, cntry, pop) %>%
+  dplyr::mutate(x_tick = 3E8)
 
-ggplot2::ggplot(pop_failures, ggplot2::aes(x = pop, y = cntry)) +
-  ggplot2::geom_col() +
-  ggplot2::scale_x_continuous(labels = comma)
-  # ggplot2::geom_label(ggplot2::aes(label = pop)
+ggplot2::ggplot(pop_failures, ggplot2::aes(y = cntry)) +
+  ggplot2::geom_col(ggplot2::aes(x = pop)) +
+  ggplot2::scale_x_continuous(labels = comma) +
+  ggplot2::geom_label(ggplot2::aes(x = x_tick, label = pop))
 
 ```
 
