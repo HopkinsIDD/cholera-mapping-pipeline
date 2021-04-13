@@ -13,8 +13,8 @@ knitr::opts_chunk$set(
   fig.align = "center",
   message = FALSE,
   warning = FALSE,
-  fig.width = 5,
-  fig.height = 5
+  fig.width = 10,
+  fig.height = 10
   )
 library(stringr)
 library(dplyr)
@@ -31,7 +31,7 @@ library(taxdat)
 
 print(params$config_directory)
 
-try{(
+try({
 
   taxdat::create_mapping_progress_table(
     config_path = params$config_directory,
@@ -57,7 +57,7 @@ try{(
     ggplot2::ggplot() +
       ggplot2::geom_tile(ggplot2::aes(x=paste(start_year, end_year, sep = '-'), y=country, fill=stages_complete))]
 
-  )}
+  })
 
   ```
 
@@ -140,8 +140,8 @@ pop_failures <- dplyr::mutate(cases_check,
 
 ```{r plot_pop_failures, fig.cap = "Failures for population check"}
 ggplot2::ggplot(pop_failures, ggplot2::aes(x = chain, y = cntry)) +
-  ggplot2::geom_tile(ggplot2::aes(fill = failure_pop)) +
-  ggplot2::geom_label(ggplot2::aes(label = cp_label))
+  ggplot2::geom_tile(ggplot2::aes(fill = failure_pop)) #+
+  # ggplot2::geom_label(ggplot2::aes(label = cp_label))
 
 ```
 
@@ -150,7 +150,7 @@ pop_df <- dplyr::distinct(pop_failures, cntry, pop)
 
 ggplot2::ggplot(pop_failures, ggplot2::aes(x = cntry, y = pop)) +
   ggplot2::geom_col() +
-  ggplot2::geom_label(ggplot2::aes(label = pop)) +
+  # ggplot2::geom_label(ggplot2::aes(label = pop)) +
   ggplot2::coord_flip()
 
 ```
@@ -168,8 +168,9 @@ rhat_failures <- dplyr::mutate(rhat_check,
 Examine the fraction of observations that exceed Rhat of `r rhat_thresh`. If greater than `r rhat_fail_perc*100`% of observations exceed this threshold, then the run is marked as a failure.
 
 ```{r plot_rhat_failures, fig.cap = "Failures for Rhat check"}
-ggplot2::ggplot(rhat_failures, ggplot2::aes(y = cntry)) +
+ggplot2::ggplot(rhat_failures, ggplot2::aes(x = config_filename, y = cntry)) +
   ggplot2::geom_tile(ggplot2::aes(fill = failure_rhat)) +
-  ggplot2::geom_label(ggplot2::aes(label = frac_above)) 
+  ggplot2::geom_label(ggplot2::aes(label = frac_above)) +
+  ggplot2::theme(axis.title.x = element_blank(), axis.ticks.x = element_blank())
 
 ```
