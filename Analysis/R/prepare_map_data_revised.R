@@ -58,6 +58,19 @@ cases <- dplyr::filter(cases, !is.na(.data[[cases_column]])) %>%
   dplyr::filter(is_primary) %>%
   dplyr::mutate(shapefile.exists = !is.na(sf::st_dimension(geojson)) & (sf::st_dimension(geojson) > 0))
 
+if ("truncate" %in% names(config)) {
+  if (!all(c("method", "smallest_spatial_scale") %in% names(config$truncate))) {
+    stop("In order to truncate, we require both an aggregation `method` and `smallest_spatial_scale` to truncate to.")
+  }
+  if (config$truncate$method == "truncate") {
+    cases$depth <- stringr::str_count(pattern = ":", cases$location_name) / 2
+    cases <- cases %>% dplyr::filter(depth <= config$truncate$smallest_spatial_scale)
+
+  } else {
+    stop(paste("method", method, "is not implemented"))
+  }
+}
+
 # Sanity check (There should be at least one report)
 if (nrow(cases) == 0) {
   stop("No primary, non-NA observations were found.")
@@ -183,7 +196,7 @@ DBI::dbClearResult(DBI::dbSendStatement(
   conn_pg,
   glue::glue_sql(
     "CREATE INDEX {`{DBI::SQL(paste0(cntrd_table, '_gidx'))}`} on {`{DBI::SQL(cntrd_table)}`} USING GIST(geom);",
-    .con = conn_pg))) 
+    .con = conn_pg)))
 DBI::dbSendStatement(conn_pg, glue::glue_sql("VACUUM ANALYZE {`{DBI::SQL(cntrd_table)}`};", .con = conn_pg))
 
 # Create sf_chol ---------------------------------------------------------------
