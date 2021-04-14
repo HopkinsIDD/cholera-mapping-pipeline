@@ -168,7 +168,7 @@ chains <- rstan::extract(model.rand)
 who_annual_cases$modeled <- apply(chains$modeled_cases,2,mean)
 who_annual_cases$observed <- who_annual_cases$attributes.fields.suspected_cases # fix me
 who_annual_cases <- taxdat::pull_output_by_source(who_annual_cases, "%WHO Annual Cholera Reports%",
-                                                  database_api_key_file = stringr::str_c(params$cholera_directory, "Analysis/R/database_api_key.R"))
+                                                  database_api_key_rfile = stringr::str_c(params$cholera_directory, "Analysis/R/database_api_key.R"))
 who_annual_cases %>%
   as.data.frame() %>%
   dplyr::select(OC_UID, TL, TR, observed, modeled) %>%
@@ -177,7 +177,7 @@ who_annual_cases %>%
   kableExtra::kable_styling(bootstrap_options = c("striped"))
 ```
 
-```{r cases_chain_table, fig.cap = "Sum of grid cases by chain and year"}
+```{r cases_chain_table, fig.width=10, fig.cap = "Sum of grid cases by chain and year"}
 try({
   stan_input <- taxdat::read_file_of_type(file_names[['stan_input']], "stan_input")
   stan_input$sf_grid <- stan_input$sf_grid %>% 
@@ -191,7 +191,8 @@ try({
 sf_grid_wider %>%
   dplyr::group_by(t) %>% 
   dplyr::summarise(dplyr::across(dplyr::contains("cases_chain"), sum)) %>%
-  kableExtra::kable(col.names = c("time slice", paste("chain", 1:nchain)))
+  kableExtra::kable(col.names = c("time slice", paste("chain", 1:nchain))) %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped"))
 
 ```
 
