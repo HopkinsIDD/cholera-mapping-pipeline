@@ -206,7 +206,7 @@ if (warmup) {
                               # Perturbation of spatial random effects
                               w = rnorm(length(w.init), w.init, .1),
                               # Perturbation of fitted etas
-                              eta_tilde = rnorm(length(eta), eta/stan_data$sigma_eta_scale, .05),
+                              eta_tilde = as.array(rnorm(length(eta), eta/stan_data$sigma_eta_scale, .05)),
                               sigma_eta_tilde = as.array(1)
                             )})
     }
