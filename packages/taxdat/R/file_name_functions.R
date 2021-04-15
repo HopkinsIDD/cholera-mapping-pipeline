@@ -1,0 +1,251 @@
+#' @title Make observations filename
+#' @name make_observations_filename
+#' @description Make string for observations Rdata file name
+#'
+#' @param cholera_directory cholera mapping directory
+#' @param map_name map name
+#' @return a string with the observation file name
+#' @export
+
+make_observations_filename <- function(cholera_directory,
+                                       map_name) {
+  paste(cholera_directory, "/Analysis/", "data/",
+        map_name, '.preprocess', '.rdata', sep = '')
+}
+
+
+#' @title Make covariate filename
+#' @name make_covar_filename
+#' @description Make string for covariate Rdata file name
+#'
+#' @param cholera_directory cholera mapping directory
+#' @param map_name map name
+#' @param covariate_name_part name of covariate
+#' @return a string with the covariate file name
+#' @export
+
+make_covar_filename <- function(cholera_directory,
+                                map_name,
+                                covariate_name_part) {
+  paste(cholera_directory, "/Analysis/", "data/", map_name, ".",
+        covariate_name_part, '.covar', '.rdata', sep = '')
+}
+
+#' @title Make Stan input filename
+#' @name make_stan_input_filename
+#' @description Make string for Stan input Rdata file name
+#'
+#' @param cholera_directory cholera mapping directory
+#' @param map_name map name
+#' @param covariate_name_part name of covariate
+#' @param config configuration file
+#' @param config_dict dictionnary with abbreviationas of config
+#' @return a string with the Stan input file name
+#' @export
+
+make_stan_input_filename <- function(cholera_directory,
+                                     map_name,
+                                     covariate_name_part,
+                                     config,
+                                     config_dict) {
+
+  # Processing configs
+  to_add <- "pc"
+  for (par in c("smoothing_period", "aggregate", "tfrac_thresh", "set_tfrac")) {
+    if(!is.null(config[[par]])) {
+      to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, config[[par]])
+    } else {
+      to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, "NULL")
+    }
+  }
+
+  to_add <- stringr::str_replace_all(to_add, "TRUE", "T")
+  to_add <- stringr::str_replace_all(to_add, "FALSE", "F")
+  to_add <- stringr::str_replace_all(to_add, "NULL", "N")
+
+  paste(cholera_directory, "/Analysis/", "data/", map_name, '.',
+        covariate_name_part, '.', to_add, ".stan_input", '.rdata',sep='')
+}
+
+#' @title Make Stan output filename
+#' @name make_stan_output_filename
+#' @description Make string for Stan output Rdata file name
+#'
+#' @param cholera_directory cholera mapping directory
+#' @param map_name map name
+#' @param covariate_name_part name of covariate
+#' @param config configuration file
+#' @param config_dict dictionary of configuration options
+#' @return a string with the Stan output file name
+#' @export
+
+make_stan_output_filename <- function(cholera_directory,
+                                      map_name,
+                                      covariate_name_part,
+                                      config,
+                                      config_dict) {
+
+  # Get stan input filename
+  base_filename <- make_stan_input_filename(cholera_directory,
+                                            map_name,
+                                            covariate_name_part,
+                                            config,
+                                            config_dict)
+  # Base part of output filename
+  base_filename <- stringr::str_remove(base_filename, "stan_input\\.rdata")
+
+  # Get stan parameters
+  stan_pars <- get_stan_parameters(config)
+
+  # Modeling configs
+  to_add <- "mc"
+  for (par in names(stan_pars)) {
+    if(!is.null(stan_pars[[par]])) {
+      to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, stan_pars[[par]])
+    } else {
+      to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, "NULL")
+    }
+  }
+
+  # Add stan filename and iterations
+  to_add <- paste0(to_add, "-model:", stringr::str_remove(config$stan$model, "\\.stan"))
+  to_add <- paste0(to_add, "-niter", config$stan$niter)
+
+  to_add <- stringr::str_replace_all(to_add, "TRUE", "T")
+  to_add <- stringr::str_replace_all(to_add, "FALSE", "F")
+  to_add <- stringr::str_replace_all(to_add, "NULL", "N")
+
+  paste0(base_filename, to_add, ".stan_output.rdata")
+}
+
+
+#' @title Make map output filename
+#' @name make_map_output_filename
+#' @description Make string for map pdf file name
+#'
+#' @param cholera_directory cholera mapping directory
+#' @param map_name map name
+#' @param covariate_name_part name of covariate
+#' @param stan_model name of stan model
+#' @param niter number of iterations
+#' @return a string with the map output file name
+#' @export
+
+make_map_output_filename <- function(cholera_directory,
+                                     map_name,
+                                     covariate_name_part,
+                                     stan_model,
+                                     niter) {
+  paste(cholera_directory, "/Analysis/", "output/", map_name, '.',
+        covariate_name_part, '.', stan_model, '.', niter, '.pdf', sep = '')
+}
+
+#' @title Make map name
+#' @name make_map_name
+#' @description Make string for map name used for all filenames
+#'
+#' @param config the configuration file
+#' @param .f other functions to apply to the config to append to map name
+#' @export
+
+make_map_name <- function(config, .f = NULL) {
+
+  # km by km resolution of analysis
+  res_space <- as.numeric(config$res_space)
+  # temporal resolution of analysis
+  res_time <- suppressMessages(check_time_res(config$res_time))
+  # Modeling start and end times
+  start_time <- lubridate::ymd(config$start_time)
+  end_time <- lubridate::ymd(config$end_time)
+  # Suspected or confirmed cases
+  suspected_or_confirmed <- suppressMessages(check_case_definition(config$case_definition))
+
+  map_name <- paste(paste(config$countries_name, collapse = '-'),
+                    stringr::str_replace(res_time, " ", "_"),
+                    paste(start_time, end_time, sep = '-'),
+                    paste(res_space, 'km', sep = ''),
+                    suspected_or_confirmed,
+                    sep = '_')
+
+  return(map_name)
+}
+
+#' @title get_filenames
+#' @name get_filenames
+#' @description add
+#' @param config object representing the imported YAML config file for the model
+#' @param cholera_directory path to cholera directory
+#' @return
+#' @export
+
+get_filenames <- function (config, cholera_directory) {
+  # Covariate names
+  covariate_dict <- yaml::read_yaml(paste0(cholera_directory, "/Layers/covariate_dictionary.yml"))
+  all_covariate_choices <- names(covariate_dict)
+  short_covariate_choices <- purrr::map_chr(covariate_dict, "abbr")
+  covariate_choices <- check_covariate_choices(covar_choices = config$covariate_choices,
+                                               available_choices = all_covariate_choices)
+  short_covariates <- short_covariate_choices[covariate_choices]
+  covariate_name_part <- paste(short_covariates, collapse = "-")
+  map_name <- make_map_name(config)
+
+  # Load dictionnary of configuration options
+  config_dict <- yaml::read_yaml(paste0(cholera_directory, "/Analysis/configs/config_dictionnary.yml"))
+
+  preprocessed_data_fname <- make_observations_filename(cholera_directory = cholera_directory,
+                                                        map_name = map_name)
+
+  preprocessed_covar_fname <- make_covar_filename(cholera_directory = cholera_directory,
+                                                  map_name = map_name,
+                                                  covariate_name_part = covariate_name_part)
+
+  stan_input_fname <- make_stan_input_filename(cholera_directory = cholera_directory,
+                                               map_name = map_name,
+                                               covariate_name_part = covariate_name_part,
+                                               config = config,
+                                               config_dict = config_dict)
+
+  stan_output_fname <- make_stan_output_filename(cholera_directory = cholera_directory,
+                                                 map_name = map_name,
+                                                 covariate_name_part = covariate_name_part,
+                                                 config = config,
+                                                 config_dict = config_dict)
+
+  rc <- setNames(c(preprocessed_data_fname, preprocessed_covar_fname,
+                   stan_input_fname, stan_output_fname), c("data", "covar",
+                                                           "stan_input", "stan_output"))
+  return(rc)
+}
+
+#' @title filename_to_stubs
+#' @name filename_to_stubs
+#' @description Parse filename string to get model run information
+#' @param x filename string or vector of strings
+#' @return
+#' @export
+
+filename_to_stubs <- function(x){
+  if(length(x)==0){return(x)}
+  print(x)
+  x <- strsplit(x, "/")
+  x <- sapply(
+    x,
+    function(y) {
+      y[[length(y)]]
+    }
+  )
+  x <- strsplit(x, ".", fixed = TRUE)
+  x <- sapply(
+    x,
+    function(y) {
+      if (y[[1]] == "testing") {
+        y[[1]] <- paste(y[1:2], collapse = ".")
+        y <- y[-2]
+      }
+      y <- y[-4]
+      y <- y[-2]
+      if(length(y) > 3){y <- y[-length(y)]}
+      return(y)
+    })
+  return(x)
+}
