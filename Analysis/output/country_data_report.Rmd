@@ -25,9 +25,6 @@ library(kableExtra)
 library(taxdat)
 library(sf)
 
-params <- list(cholera_directory = "~/gh/cholera-mapping-pipeline", 
-              config = "/Analysis/configs/2015_2019_full_base/CIV.yml",
-              drop_nodata_years = TRUE)
 ```
 
 # Mapping results summary for `r stringr::str_extract(params$config, "[A-Z]{3}")` and period `r stringr::str_extract(params$config, "[0-9]{4}_[0-9]{4}")`
