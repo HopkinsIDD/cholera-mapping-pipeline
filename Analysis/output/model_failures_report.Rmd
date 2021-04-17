@@ -98,11 +98,11 @@ for (i in 1:length(all_configs)){
     cases_summ <- data.frame(cntry = cntry_code, config = config_filename, pop = sum(pop_layer[,1]), chain = 1:length(total_cases_chains), cases_mean = total_cases_chains) 
   })
 
+  rhat_thresh <- 1.05
   try({
     fit_summary <- rstan::summary(model.rand)
     rhats <- tibble::tibble(Rhat = round(fit_summary$summary[which(stringr::str_detect(row.names(fit_summary$summary), 
         "modeled_cases")), "Rhat"], 2)) %>% dplyr::mutate(x = dplyr::row_number())
-    rhat_thresh <- 1.05
     frac_above <- sum(rhats$Rhat > rhat_thresh)/nrow(rhats)
 
     rhat_summ <- data.frame(cntry = cntry_code, config = config_filename, frac_above = frac_above)
