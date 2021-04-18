@@ -25,9 +25,6 @@ library(kableExtra)
 library(taxdat)
 library(sf)
 
-# params <- list(cholera_directory = "~/gh/cholera-mapping-pipeline", 
-#               config = "/Analysis/configs/2015_2019_full_base/CIV.yml",
-#               drop_nodata_years = TRUE)
 ```
 
 # Mapping results summary for `r stringr::str_extract(params$config, "[A-Z]{3}")` and period `r stringr::str_extract(params$config, "[0-9]{4}_[0-9]{4}")`
@@ -307,7 +304,8 @@ if(!is.null(stan_input)){
 
   by_years <- sf_grid_wider %>%
     dplyr::group_by(t) %>% 
-    dplyr::summarise(dplyr::across(dplyr::contains("cases_chain"), sum)) 
+    dplyr::summarise(dplyr::across(dplyr::contains("cases_chain"), sum)) %>%
+    dplyr::mutate(time_slice = as.character(time_slice)) 
   mai <- sf_grid_wider %>%
     dplyr::summarise(dplyr::across(dplyr::contains("cases_chain"), mean)) %>%
     dplyr::mutate(time_slice = "mean annual cases")
