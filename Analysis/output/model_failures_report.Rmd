@@ -23,6 +23,7 @@ library(tidyr)
 library(readr)
 library(ggplot2)
 library(taxdat)
+
 ```
 
 # Check progress along mapping pipeline
@@ -31,33 +32,30 @@ library(taxdat)
 
 print(params$config_directory)
 
-try({
-
-  taxdat::create_mapping_progress_table(
-    config_path = params$config_directory,
-    pipeline_path = params$cholera_directory
-  ) %>%
-    dplyr::group_by(config_path) %>%
-    dplyr::summarize(stages_complete = ifelse(
-      data,
-      ifelse(covar,
-        ifelse(stan_input,
-          ifelse(stan_output,
-            "Output Produced",
-            "Input Produced"
-          ), "Covariates constructed"
-        ),
-        "Data pulled"
+taxdat::create_mapping_progress_table(
+  config_path = paste0(params$cholera_directory, params$config_directory),
+  pipeline_path = params$cholera_directory
+) %>%
+  dplyr::group_by(config_path) %>%
+  dplyr::summarize(stages_complete = ifelse(
+    data,
+    ifelse(covar,
+      ifelse(stan_input,
+        ifelse(stan_output,
+          "Output Produced",
+          "Input Produced"
+        ), "Covariates constructed"
       ),
-      "None"
-    )) %>%
-    tidyr::separate(config_path,
-      c(NA, NA, "start_year","end_year", NA, NA, "country", NA) # This is file path specific
-    ) %>%
-    ggplot2::ggplot() +
-      ggplot2::geom_tile(ggplot2::aes(x=paste(start_year, end_year, sep = '-'), y=country, fill=stages_complete))
+      "Data pulled"
+    ),
+    "None"
+  )) %>%
+  tidyr::separate(config_path,
+    c(NA, NA, "start_year","end_year", NA, NA, "country", NA) # This is file path specific
+  ) %>%
+  ggplot2::ggplot() +
+    ggplot2::geom_tile(ggplot2::aes(x=paste(start_year, end_year, sep = '-'), y=country, fill=stages_complete))
 
-  })
 
   ```
 
@@ -66,6 +64,7 @@ try({
 ```{r extract_stan_output}
 
 all_configs <- list.files(stringr::str_c(params$cholera_directory, params$config_directory), full.names = TRUE)
+print(all_configs)
 
 cases_check <- list()
 rhat_check <- list()
@@ -78,35 +77,32 @@ for (i in 1:length(all_configs)){
   print(paste("Reading files associated with", config_filename))
 
   ## get cases
-  try({
-    model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
-    niter_per_chain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__', chain_num=1))[1]
-    nchain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__'))[1] / niter_per_chain
-    stan_output <- lapply(rstan::extract(model.rand), function(x){array(x,c(niter_per_chain, nchain, dim(x)[-1]))})
 
-    cases_chains <- apply(stan_output$grid_cases, c(3,2), mean)
-    # rates_chains <- apply(exp(stan_output$log_lambda), c(3,2), mean)
-    # pop_est <- cases_chains[,1]/rates_chains[,1]
-    total_cases_chains <- apply(cases_chains, 2, sum)
+  model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
+  niter_per_chain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__', chain_num=1))[1]
+  nchain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__'))[1] / niter_per_chain
+  stan_output <- lapply(rstan::extract(model.rand), function(x){array(x,c(niter_per_chain, nchain, dim(x)[-1]))})
 
-  })
+  cases_chains <- apply(stan_output$grid_cases, c(3,2), mean)
+  # rates_chains <- apply(exp(stan_output$log_lambda), c(3,2), mean)
+  # pop_est <- cases_chains[,1]/rates_chains[,1]
+  total_cases_chains <- apply(cases_chains, 2, sum)
 
-  try({
-    covar_cube_output <- taxdat::read_file_of_type(file_names[["covar"]], "covar_cube_output")
-    pop_layer <- covar_cube_output$covar_cube[,,1]
 
-    cases_summ <- data.frame(cntry = cntry_code, config = config_filename, pop = sum(pop_layer[,1]), chain = 1:length(total_cases_chains), cases_mean = total_cases_chains) 
-  })
+  covar_cube_output <- taxdat::read_file_of_type(file_names[["covar"]], "covar_cube_output")
+  pop_layer <- covar_cube_output$covar_cube[,,1]
+
+  cases_summ <- data.frame(cntry = cntry_code, config = config_filename, pop = sum(pop_layer[,1]), chain = 1:length(total_cases_chains), cases_mean = total_cases_chains) 
 
   rhat_thresh <- 1.05
-  try({
-    fit_summary <- rstan::summary(model.rand)
-    rhats <- tibble::tibble(Rhat = round(fit_summary$summary[which(stringr::str_detect(row.names(fit_summary$summary), 
-        "modeled_cases")), "Rhat"], 2)) %>% dplyr::mutate(x = dplyr::row_number())
-    frac_above <- sum(rhats$Rhat > rhat_thresh)/nrow(rhats)
 
-    rhat_summ <- data.frame(cntry = cntry_code, config = config_filename, frac_above = frac_above)
-  })
+  fit_summary <- rstan::summary(model.rand)
+  rhats <- tibble::tibble(Rhat = round(fit_summary$summary[which(stringr::str_detect(row.names(fit_summary$summary), 
+      "modeled_cases")), "Rhat"], 2)) %>% dplyr::mutate(x = dplyr::row_number())
+  frac_above <- sum(rhats$Rhat > rhat_thresh)/nrow(rhats)
+
+  rhat_summ <- data.frame(cntry = cntry_code, config = config_filename, frac_above = frac_above)
+
 
   if("list" %in% class(cases_check)){
     cases_check <- cases_summ
