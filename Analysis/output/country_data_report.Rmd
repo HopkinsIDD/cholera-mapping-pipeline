@@ -308,7 +308,7 @@ if(!is.null(stan_input)){
     dplyr::group_by(t) %>% 
     dplyr::summarise(dplyr::across(dplyr::contains("cases_chain"), sum)) %>%
     dplyr::mutate(t = as.character(t)) 
-  mai <- sf_grid_wider %>%
+  mai <- by_years %>%
     dplyr::summarise(dplyr::across(dplyr::contains("cases_chain"), mean)) %>%
     dplyr::mutate(t = "mean annual cases")
 
