@@ -26,7 +26,6 @@ library(taxdat)
 library(sf)
 
 
-
 ```
 
 # Mapping results summary for `r stringr::str_extract(params$config, "[A-Z]{3}")` and period `r stringr::str_extract(params$config, "[0-9]{4}_[0-9]{4}")`
@@ -180,7 +179,7 @@ try({
                                        model_output_filenames = file_names["stan_output"])
 
   if(all(analysis_years %in% obs_years)){
-  message("All analysis years are represented by OCs.")
+    message("All analysis years are represented by OCs.")
   } else{
     drop_year_ix <- which(!analysis_years %in% obs_years)
     message(paste(paste(analysis_years[drop_year_ix], collapse = ", "), "are not represented in OCs"))
@@ -297,7 +296,8 @@ if(!is.null(stan_input)){
     dplyr::select(t,id)
   stan_input$sf_grid[paste('cases','chain',seq_len(nchain),sep='_')] <- cases_chains
 
-  if(params$drop_nodata_years){
+  if(params$drop_nodata_years & !all(analysis_years %in% obs_years)){
+      drop_year_ix <- which(!analysis_years %in% obs_years)
       message(paste("Dropping", paste(analysis_years[drop_year_ix], collapse = ", "), "from cases_chains"))
       stan_input$sf_grid <- dplyr::filter(stan_input$sf_grid, !(t %in% drop_year_ix))
     }
