@@ -25,6 +25,8 @@ library(kableExtra)
 library(taxdat)
 library(sf)
 
+
+
 ```
 
 # Mapping results summary for `r stringr::str_extract(params$config, "[A-Z]{3}")` and period `r stringr::str_extract(params$config, "[0-9]{4}_[0-9]{4}")`
@@ -305,13 +307,12 @@ if(!is.null(stan_input)){
   by_years <- sf_grid_wider %>%
     dplyr::group_by(t) %>% 
     dplyr::summarise(dplyr::across(dplyr::contains("cases_chain"), sum)) %>%
-    dplyr::mutate(time_slice = as.character(time_slice)) 
+    dplyr::mutate(t = as.character(t)) 
   mai <- sf_grid_wider %>%
     dplyr::summarise(dplyr::across(dplyr::contains("cases_chain"), mean)) %>%
-    dplyr::mutate(time_slice = "mean annual cases")
+    dplyr::mutate(t = "mean annual cases")
 
-  dplyr::bind_rows(by_years, mai)
-    %>%
+  dplyr::bind_rows(by_years, mai) %>%
     kableExtra::kable(col.names = c("time slice", paste("chain", 1:nchain))) %>%
     kableExtra::kable_styling(bootstrap_options = c("striped"))
 
