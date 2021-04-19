@@ -68,6 +68,8 @@ print(all_configs)
 
 cases_check <- list()
 rhat_check <- list()
+rhat_thresh <- 1.05
+
 
 for (i in 1:length(all_configs)){
   config_filename <- all_configs[i]
@@ -93,8 +95,6 @@ for (i in 1:length(all_configs)){
   pop_layer <- covar_cube_output$covar_cube[,,1]
 
   cases_summ <- data.frame(cntry = cntry_code, config = config_filename, pop = sum(pop_layer[,1]), chain = 1:length(total_cases_chains), cases_mean = total_cases_chains) 
-
-  rhat_thresh <- 1.05
 
   fit_summary <- rstan::summary(model.rand)
   rhats <- tibble::tibble(Rhat = round(fit_summary$summary[which(stringr::str_detect(row.names(fit_summary$summary), 
