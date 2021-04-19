@@ -24,6 +24,7 @@ library(readr)
 library(ggplot2)
 library(taxdat)
 
+
 ```
 
 # Check progress along mapping pipeline
@@ -51,7 +52,7 @@ taxdat::create_mapping_progress_table(
     "None"
   )) %>%
   tidyr::separate(config_path,
-    c(NA, NA, "start_year","end_year", NA, NA, "country", NA) # This is file path specific
+    c(NA, NA, NA, NA, NA, NA, NA, NA, NA, "start_year","end_year", NA, NA, "country", NA) # This is file path specific
   ) %>%
   ggplot2::ggplot() +
     ggplot2::geom_tile(ggplot2::aes(x=paste(start_year, end_year, sep = '-'), y=country, fill=stages_complete))
