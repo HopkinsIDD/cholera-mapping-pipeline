@@ -81,6 +81,8 @@ for (i in 1:length(all_configs)){
   ## get cases
   total_cases_chains <- NULL
   pop_layer <- NULL
+  cases_summ <- NULL
+  rhat_summ <- NULL
 
   try({
 
@@ -101,6 +103,12 @@ for (i in 1:length(all_configs)){
 
     rhat_summ <- data.frame(cntry = cntry_code, config = config_filename, frac_above = frac_above)    
 
+    if("list" %in% class(rhat_check)){
+      rhat_check <- rhat_summ
+    } else {
+      rhat_check <- rbind(rhat_check, rhat_summ)
+    }
+
   })
 
   try({
@@ -112,22 +120,13 @@ for (i in 1:length(all_configs)){
 
   if (!is.null(pop_layer) & !is.null(total_cases_chains)){
       cases_summ <- data.frame(cntry = cntry_code, config = config_filename, pop = sum(pop_layer[,1]), chain = 1:length(total_cases_chains), cases_mean = total_cases_chains) 
-  }
-  
 
-
-  if("list" %in% class(cases_check)){
-    cases_check <- cases_summ
-  } else {
-    cases_check <- rbind(cases_check, cases_summ)
-  }
-
-  if("list" %in% class(rhat_check)){
-    rhat_check <- rhat_summ
-  } else {
-    rhat_check <- rbind(rhat_check, rhat_summ)
-  }
-
+    if("list" %in% class(cases_check)){
+      cases_check <- cases_summ
+    } else {
+      cases_check <- rbind(cases_check, cases_summ)
+    }
+  } 
 
 }
 
