@@ -238,12 +238,14 @@ prepare_stan_input <- function(
   if (config$aggregate) {
     print("---- AGGREGATING CHOLERA DATA TO MODELING TIME RES ----")
     ## aggregate observations:
-    sf_cases_resized$loctime <- ""
-    for(i in seq_len(length(ind_mapping$map_obs_loctime_obs))) {
-      sf_cases_resized$loctime[which(non_na_obs == ind_mapping$map_obs_loctime_obs[i])] <- paste(sf_cases_resized$loctime[which(non_na_obs == ind_mapping$map_obs_loctime_obs[i])] , 
-                                                                                                 ind_mapping$map_obs_loctime_loc[i])
+    sf_cases_resized$loctime <- NA
+    for(i in seq_len(length(non_na_obs))){
+      sf_cases_resized$loctime[i] <- paste(ind_mapping$map_obs_loctime_loc[
+          ind_mapping$map_obs_loctime_obs == non_na_obs[[i]]
+        ], 
+        collapse = ', '
+      )
     }
-    sf_cases_resized$loctime <- gsub("^ ","",sf_cases_resized$loctime)
     ocrs <- sf::st_crs(sf_cases_resized)
     sf_cases_resized <- sf_cases_resized %>%
       dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
@@ -287,7 +289,7 @@ prepare_stan_input <- function(
         .ox <- .x
         .x$duration <- .x$TR - .x$TL + 1
         .x <- .x %>% group_by(set) %>% summarize(TL = min(TL), TR = min(TL) + sum(duration) - 1 , !!cases_column := sum(!!rlang::sym(cases_column),na.rm=TRUE)) %>% ungroup() %>% dplyr::select(-set)
-        return(.x)
+        return(.x[!duplicated(.x),])
       }) %>% 
       ungroup() 
     # sf_cases_resized$geom <- sf::st_as_sfc(sf_cases_resized$geom)
@@ -332,19 +334,19 @@ prepare_stan_input <- function(
   }
   
   # Overwrite tfrac with user-specified value
-  if (!is.null(set_tfrac)) {
+  if (!is.null(set_tfrac) && (set_tfrac)) {
     cat("-- Overwriting tfrac with user-specified value of ", set_tfrac)
-    ind_mapping_resized$tfrac <- rep(set_tfrac, length(ind_mapping_resized$tfrac))
+    ind_mapping_resized$tfrac <- rep(1.0, length(ind_mapping_resized$tfrac))
   }
   
   non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
   
   obs_changer <- setNames(seq_len(length(non_na_obs_resized)),non_na_obs_resized)
-  stan_data$map_obs_loctime_obs <- obs_changer[as.character(ind_mapping_resized$map_obs_loctime_obs)]
-  stan_data$map_obs_loctime_loc <- ind_mapping_resized$map_obs_loctime_loc
-  stan_data$tfrac <- ind_mapping_resized$tfrac
-  stan_data$map_loc_grid_loc <- ind_mapping_resized$map_loc_grid_loc
-  stan_data$map_loc_grid_grid <- ind_mapping_resized$map_loc_grid_grid
+  stan_data$map_obs_loctime_obs <- as.array(obs_changer[as.character(ind_mapping_resized$map_obs_loctime_obs)])
+  stan_data$map_obs_loctime_loc <- as.array(ind_mapping_resized$map_obs_loctime_loc)
+  stan_data$tfrac <- as.array(ind_mapping_resized$tfrac)
+  stan_data$map_loc_grid_loc <- as.array(ind_mapping_resized$map_loc_grid_loc)
+  stan_data$map_loc_grid_grid <- as.array(ind_mapping_resized$map_loc_grid_grid)
   stan_data$u_loctime <- ind_mapping_resized$u_loctimes
   
   y_tfrac <- tibble::tibble(tfrac = stan_data$tfrac, 
@@ -354,7 +356,7 @@ prepare_stan_input <- function(
     .[["tfrac"]]
   
   stan_data$M <- nrow(sf_cases_resized)
-  stan_data$y <- sf_cases_resized[[cases_column]]
+  stan_data$y <- as.array(sf_cases_resized[[cases_column]])
   
   # Extract censoring information
   censoring_inds <- purrr::map_chr(
@@ -377,7 +379,7 @@ prepare_stan_input <- function(
   stan_data$censoring_inds <- censoring_inds
   
   bad_data <- as.data.frame(sf_cases)[
-    !(seq_len(nrow(sf_cases)) %in% non_na_obs),
+    !(seq_len(nrow(sf_cases)) %in% non_na_obs_resized),
     c('id','TL','TR',cases_column,'valid','attributes.location_period_id')
   ]
   if (nrow(bad_data) > 0) {
