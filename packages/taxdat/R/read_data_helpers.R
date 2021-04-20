@@ -185,6 +185,25 @@ reduce_sf_vector <- function(vec){
 }
 
 
+#' @description Flatten the result of a json query into an unnested data frame.  Similar to jsonlite::flatten, but with some tweaks to make it work better for our use case.
+#' @param json_results A listlike object convertible to a data frame coming from an api query
+#' @result a data frame that matches an unrolled version of json_results
+flatten_json_result <- function(json_results) {
+  if (!is.data.frame(json_results)) {
+    json_results <- as.data.frame(json_results)
+  }
+  json_results <- jsonlite::flatten(json_results)
+  for (colname in names(json_results)) {
+    if (mode(json_results[[colname]]) == "list") {
+      if (
+        (max(sapply(json_results[[colname]], length)) == 1)
+      ) {
+        json_results[[colname]] <- sapply(json_results[[colname]], function(x){return(ifelse(length(x) == 1, x, NA))})
+      }
+    }
+  }
+  return(json_results)
+}
 
 #' @name read_taxonomy_data_api
 #' @title read_taxonomy_data_api
@@ -298,11 +317,7 @@ read_taxonomy_data_api <- function(username,
   ){
     stop("Could not parse results properly.  Contact package maintainer")
   }
-  results_data[['observations']] = results_data[['observations']][['data']]
-  if(!is.data.frame(results_data[['observations']])){
-    results_data[['observations']] = as.data.frame(results_data[['observations']])
-  }
-  results_data[['observations']] = jsonlite::flatten(results_data[['observations']])
+  results_data[["observations"]] = flatten_json_result(results_data[["observations"]][["data"]])
 
   observation_collections_present <- FALSE
   if(
@@ -310,11 +325,7 @@ read_taxonomy_data_api <- function(username,
     ("data" %in% names(results_data[['observation_collections']])) && # The observations should have data
     (length(results_data[['observation_collections']]) == 1)          # The data should be the only thing in observations
   ){
-    results_data[['observation_collections']] = results_data[['observation_collections']][['data']]
-    if(!is.data.frame(results_data[['observation_collections']])){
-      results_data[['observation_collections']] = as.data.frame(results_data[['observation_collections']])
-    }
-    results_data[['observation_collections']] = jsonlite::flatten(results_data[['observation_collections']])
+    results_data[["observation_collections"]] <- flatten_json_result(results_data[["observation_collections"]][["data"]])
     observation_collections_present <- TRUE
   }
 
@@ -354,14 +365,12 @@ read_taxonomy_data_api <- function(username,
   locations_sf = taxdat::reduce_sf_vector(all_locations)
   ## We are going to take our properly formatted geojson files and
   ## replace the badly formatted ones
-  results_data$location_periods$data$geojson = NULL
-  results_data$location_periods$data$attributes$geojson = NULL
-  if(!is.data.frame(results_data$location_periods$data)){
-    results_data$location_periods$data <- as.data.frame(results_data$location_periods$data)
-  }
-  results_data$location_periods = jsonlite::flatten(results_data$location_periods$data)
+  results_data$location_periods$data$geojson <- NULL
+  results_data$location_periods$data$attributes$geojson <- NULL
+  
+  results_data$location_periods <- flatten_json_result(results_data$location_periods$data)
   if(nrow(results_data$location_periods) > 0){
-    results_data$location_periods$sf_id = 1:nrow(results_data$location_periods)
+    results_data$location_periods$sf_id = seq_len(nrow(results_data$location_periods))
   }
   results_data$observations$attributes.location_period_id = as(results_data$observations$attributes.location_period_id,class(results_data$location_periods$id))
 
