@@ -2,8 +2,8 @@
 title: "Model Failures Report"
 output: html_document
 params:
-  cholera_directory: "."
-  config_directory: "Analysis/configs/2015_2019_full_base/"
+  cholera_directory: "../../"
+  config_directory: "/Analysis/configs/2015_2019_full_base/"
 ---
 ```{r setup, include=FALSE, dev="CairoPNG"}
 knitr::opts_chunk$set(

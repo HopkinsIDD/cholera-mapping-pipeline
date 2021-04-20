@@ -2,8 +2,8 @@
 title: "Data and Model Outputs Report"
 output: html_document
 params:
-  cholera_directory: "."
-  config: "./Analysis/configs/2015_2019_full_base/BDI.yml"
+  cholera_directory: "../../"
+  config: "/Analysis/configs/2015_2019_full_base/BDI.yml"
   drop_nodata_years: TRUE
 ---
 ```{r setup, include=FALSE, dev="CairoPNG"}
