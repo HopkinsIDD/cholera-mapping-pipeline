@@ -293,3 +293,30 @@ filename_to_stubs <- function(x){
     })
   return(x)
 }
+
+
+#' @title Add File Names to Existing Config
+#' @name add_explicit_file_names_to_config
+#' @export
+#' @description Take a config, read it, determine it's default filenames, and add them explicitly to it's config.  WARNING : This function will overwrite the config in question
+#' @param config_path File name of config
+#' @param cholera_directory Path to cholera-mapping-pipeline checkout
+
+add_explicit_file_names_to_config <- function(config_path, cholera_directory) {
+
+  in_config <- yaml::read_yaml(config_path)
+  default_file_names <- taxdat::get_filenames(config=in_config, cholera_directory = cholera_directory)
+  out_config <- in_config
+
+  default_file_dir <- unique(dirname(default_file_names))
+  if(length(default_file_dir) != 1){ stop("All output files expected in a single directory") }
+  default_file_names <- setNames(basename(default_file_names), names(default_file_names))
+
+  out_config$file_names <- default_file_names
+  out_config$file_names$output_path <- default_file_dir
+
+  yaml::write_yaml(out_config, config_path)
+
+  return
+}
+
