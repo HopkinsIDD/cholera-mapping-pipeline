@@ -56,8 +56,18 @@ get_obs_stats <- function(df) {
 #' @description add
 #' @param preprocessed_data_filename Rdata filename with the preprocess suffix
 #' @return
-get_disjoint_set_sf_cases <- function(preprocessed_data_filename) {
-  sf_cases <- read_file_of_type(preprocessed_data_filename,"sf_cases")
+get_disjoint_set_sf_cases <- function(.x = NULL, preprocessed_data_filename = NULL, stan_input_filename = NULL) {
+  if (!is.null(.x)) {
+    stop("This function only allows named arguments")
+  }
+  
+  if(!is.null(preprocessed_data_filename)){
+    sf_cases <- read_file_of_type(preprocessed_data_filename,"sf_cases")
+  } 
+  if(!is.null(stan_input_filename)){
+    sf_cases <- read_file_of_type(stan_input_filename,"stan_input")$sf_cases_resized
+  } 
+  
   my_names <- names(sf_cases)[
     c(grep("location", names(sf_cases)), grep("name_", names(sf_cases)))
   ]
