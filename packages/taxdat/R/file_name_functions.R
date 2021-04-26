@@ -33,6 +33,7 @@ make_observations_filename <- function(cholera_directory,
 #' @param cholera_directory cholera mapping directory
 #' @param map_name map name
 #' @param covariate_name_part name of covariate
+#' @param config A config object (not path), used to obtain filenames from
 #' @return a string with the covariate file name
 #' @export
 
@@ -62,8 +63,8 @@ make_covar_filename <- function(cholera_directory,
 #' @param cholera_directory cholera mapping directory
 #' @param map_name map name
 #' @param covariate_name_part name of covariate
-#' @param config configuration file
-#' @param config_dict dictionary with abbreviationas of config
+#' @param config config object (not path)
+#' @param config_dict dictionary object (not path) with abbreviationas of config
 #' @return a string with the Stan input file name
 #' @export
 
@@ -108,7 +109,7 @@ make_stan_input_filename <- function(cholera_directory,
 #' @param cholera_directory cholera mapping directory
 #' @param map_name map name
 #' @param covariate_name_part name of covariate
-#' @param config configuration file
+#' @param config config object (not path)
 #' @param config_dict dictionary of configuration options
 #' @return a string with the Stan output file name
 #' @export
@@ -129,12 +130,22 @@ make_initial_values_filename <- function(cholera_directory,
     }
   }
 
+  if ("file_names" %in% names(config)) {
+    filename <- paste(cholera_directory, "Analysis", "data", sep = "/")
+    if ("output_directory" %in% names(config[["file_names"]])) {
+      filename <- config[["file_names"]][["output_directory"]]
+    }
+    if ("stan_output_filename" %in% names(config[["file_names"]])) {
+      return(paste(filename, config[["file_names"]][["stan_output_filename"]], sep = "/"))
+    }
+  }
+
   # Get stan input filename
   base_filename <- make_stan_input_filename(cholera_directory,
-                                            map_name,
-                                            covariate_name_part,
-                                            config,
-                                            config_dict)
+                                                map_name,
+                                                covariate_name_part,
+                                                config,
+                                                config_dict)
   # Base part of output filename
   base_filename <- stringr::str_remove(base_filename, "stan_input\\.rdata")
 
@@ -364,3 +375,30 @@ filename_to_stubs <- function(x){
     })
   return(x)
 }
+
+
+#' @title Add File Names to Existing Config
+#' @name add_explicit_file_names_to_config
+#' @export
+#' @description Take a config, read it, determine it's default filenames, and add them explicitly to it's config.  WARNING : This function will overwrite the config in question
+#' @param config_path File name of config
+#' @param cholera_directory Path to cholera-mapping-pipeline checkout
+
+add_explicit_file_names_to_config <- function(config_path, cholera_directory) {
+
+  in_config <- yaml::read_yaml(config_path)
+  default_file_names <- taxdat::get_filenames(config=in_config, cholera_directory = cholera_directory)
+  out_config <- in_config
+
+  default_file_dir <- unique(dirname(default_file_names))
+  if(length(default_file_dir) != 1){ stop("All output files expected in a single directory") }
+  default_file_names <- setNames(basename(default_file_names), names(default_file_names))
+
+  out_config$file_names <- default_file_names
+  out_config$file_names$output_path <- default_file_dir
+
+  yaml::write_yaml(out_config, config_path)
+
+  return
+}
+
