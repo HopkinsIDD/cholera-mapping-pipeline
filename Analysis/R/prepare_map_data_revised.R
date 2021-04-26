@@ -7,7 +7,7 @@ setwd(cholera_directory)
 # Shapefile check ------------------------------------------------------------
 print("Starting Data Preparation Process")
 
-print(paste("Saving output data to ", preprocessed_data_fname))
+print(paste("Saving output data to ", file_names[["data"]]))
 
 
 # Define credentials for data pull
@@ -220,7 +220,7 @@ if (any(sf::st_is_empty(sf_cases))) {
 sf_cases$TL <- lubridate::ymd(sf_cases$TL)
 sf_cases$TR <- lubridate::ymd(sf_cases$TR)
 
-save(sf_cases, full_grid_name, file = preprocessed_data_fname)
+save(sf_cases, full_grid_name, file = file_names[["data"]])
 
 # close database
 DBI::dbDisconnect(conn_pg)
