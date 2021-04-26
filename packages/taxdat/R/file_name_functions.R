@@ -33,6 +33,7 @@ make_observations_filename <- function(cholera_directory,
 #' @param cholera_directory cholera mapping directory
 #' @param map_name map name
 #' @param covariate_name_part name of covariate
+#' @param config A config object (not path), used to obtain filenames from
 #' @return a string with the covariate file name
 #' @export
 
@@ -62,8 +63,8 @@ make_covar_filename <- function(cholera_directory,
 #' @param cholera_directory cholera mapping directory
 #' @param map_name map name
 #' @param covariate_name_part name of covariate
-#' @param config configuration file
-#' @param config_dict dictionary with abbreviationas of config
+#' @param config config object (not path)
+#' @param config_dict dictionary object (not path) with abbreviationas of config
 #' @return a string with the Stan input file name
 #' @export
 
@@ -108,7 +109,7 @@ make_stan_input_filename <- function(cholera_directory,
 #' @param cholera_directory cholera mapping directory
 #' @param map_name map name
 #' @param covariate_name_part name of covariate
-#' @param config configuration file
+#' @param config config object (not path)
 #' @param config_dict dictionary of configuration options
 #' @return a string with the Stan output file name
 #' @export
