@@ -406,6 +406,9 @@ for(t_idx in 1:length(all_test_idx)){
     print("Data already modeled, skipping")
     warning("Data already modeled, skipping")
     load(file_names[["stan_output"]])
+  } else if (Sys.getenv("CHOLERA_SKIP_STAN","FALSE") == "TRUE") {
+    print("Skipping stan model in accordance with the environment variable CHOLERA_SKIP_STAN.")
+    warning("Skipping stan model in accordance with the environment variable CHOLERA_SKIP_STAN.")
   } else {
     source(paste(cholera_directory,'Analysis','R','run_stan_model.R',sep='/'))
     recompile <- FALSE
