@@ -30,7 +30,7 @@ read_file_of_type <- function(filename, variable){
 #' @param df sf_cases dataframe with observation data
 #' @return dataframe with summary statistics
 get_obs_stats <- function(df) {
-
+  
   rc <- tibble::as_tibble(df)
   rc <- dplyr::mutate(rc, year = lubridate::year(TL))
   alldf <- tibble::as_tibble(df)
@@ -45,7 +45,7 @@ get_obs_stats <- function(df) {
                          n_OCs  = length(unique(OC_UID)),
                          u_OCs  = paste(sort(unique(OC_UID)), collapse = ","),
   )
-
+  
   return(rc)
 }
 
@@ -78,7 +78,7 @@ get_disjoint_set_sf_cases <- function(.x = NULL, preprocessed_data_filename = NU
       sf_cases[[my_names[i]]]
     )
   }
-
+  
   aggregate_sf_cases <- dplyr::summarize(
     dplyr::group_by(
       sf_cases,
@@ -89,17 +89,17 @@ get_disjoint_set_sf_cases <- function(.x = NULL, preprocessed_data_filename = NU
     observations = length(attributes.fields.suspected_cases)
   )
   aggregate_sf_cases <- sf::st_as_sf(aggregate_sf_cases)
-
+  
   aggregate_sf_cases$area <-
     as.numeric(sf::st_area(aggregate_sf_cases)) / 1000 / 1000
   aggregate_sf_cases$area_adjusted_cases <-
     aggregate_sf_cases$cases / aggregate_sf_cases$area
-
+  
   aggregate_sf_cases <- dplyr::arrange(aggregate_sf_cases, -area)
   overlaps <-
     sf::st_relate(aggregate_sf_cases, aggregate_sf_cases, "2********")
   non_overlapping_sets <- list()
-
+  
   aggregate_sf_cases$not_included <- TRUE
   index <- 0
   while (any(aggregate_sf_cases$not_included)) {
@@ -118,9 +118,9 @@ get_disjoint_set_sf_cases <- function(.x = NULL, preprocessed_data_filename = NU
     non_overlapping_sets[[index]] <-
       non_overlapping_sets[[index]][!is.na(non_overlapping_sets[[index]])]
   }
-
+  
   aggregate_sf_cases$set <- as.integer(NA)
-
+  
   for (set in seq_len(length(non_overlapping_sets))) {
     aggregate_sf_cases$set[non_overlapping_sets[[set]]] <- set
   }
@@ -153,7 +153,7 @@ plot_raw_observed_cases <- function(disjoint_set_sf_cases,
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::facet_wrap(~set)
-
+  
   if (!is.null(plot_file)) {
     ggplot2::ggsave(plt, plot_file, width = width , heigth = height)
   }
@@ -189,7 +189,7 @@ plot_area_adjusted_observed_cases <- function(
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::facet_wrap(~set)
-
+  
   if (!is.null(plot_file)) {
     ggplot2::ggsave(plt, plot_file, width = width , heigth = height)
   }
@@ -224,11 +224,11 @@ plot_raw_observations <- function(disjoint_set_sf_cases,
     ggplot2::facet_wrap(~set, ncol = 5) +
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom")
-
+  
   if (!is.null(plot_file)) {
     ggplot2::ggsave(plt, plot_file, width = width , heigth = height)
   }
-
+  
   if (render) {
     plt
   }
@@ -245,18 +245,18 @@ plot_raw_observations <- function(disjoint_set_sf_cases,
 plot_raster_population <- function(covar_data_filename,
                                    render = T) {
   plt <- ggplot2::ggplot()
-
+  
   covar_cube_output <- read_file_of_type(covar_data_filename, "covar_cube_output")
   covar_cube <- covar_cube_output$covar_cube
   sf_grid <- covar_cube_output$sf_grid
   pop_layer <- covar_cube[,,1] ## population is always the first layer
-
+  
   if(nrow(sf_grid) == prod(dim(pop_layer))){
     covar <- data.frame(covar = unlist(lapply(1:ncol(pop_layer), function(x){
       pop_layer[,x]
     })))
     pltdata <- dplyr::bind_cols(sf_grid, covar)
-
+    
     ## plots population for all time points
     plt <- plt +
       ggplot2::geom_sf(
@@ -275,11 +275,11 @@ plot_raster_population <- function(covar_data_filename,
       ggplot2::theme(legend.position = "bottom",
                      legend.text = ggplot2::element_text(angle = 45, hjust = 1, vjust = 1)) +
       ggplot2::facet_wrap(~t, ncol = 5)
-
+    
   } else{
     warning("sf_grid has a different number of cells or timepoints than covar_cube")
   }
-
+  
   if (render) {
     plt
   }
@@ -302,9 +302,9 @@ plot_raster_covariates <- function(covar_data_filename,
   sf_grid <- covar_cube_output$sf_grid
   covar_layers <- covar_cube[,,-1]
   ncovar <- ifelse(length(dim(covar_layers))==2, 1, dim(covar_layers)[3])
-
+  
   if(nrow(sf_grid) == prod(dim(covar_cube[,,1]))){
-
+    
     covar_df <- purrr::map_dfc(seq_len(ncovar), function(x){
       if(ncovar>1){
         covar_layer <- covar_layers[,,x]
@@ -316,9 +316,9 @@ plot_raster_covariates <- function(covar_data_filename,
       }))
     })
     covar_df <- purrr::set_names(covar_df, dimnames(covar_cube_output$covar_cube)[[3]][-1])
-
+    
     pltdata <- dplyr::bind_cols(sf_grid, covar_df)
-
+    
     ## plot first time point of all covariates for now
     pltdata_dummy <-
       tidyr::gather(
@@ -328,7 +328,7 @@ plot_raster_covariates <- function(covar_data_filename,
         ),
         one_of(dimnames(covar_cube_output$covar_cube)[[3]]), key = "covars", value = "value"
       )
-
+    
     plt <- plt +
       ggplot2::geom_sf(
         data = pltdata_dummy,
@@ -342,11 +342,11 @@ plot_raster_covariates <- function(covar_data_filename,
       # ggplot2::scale_fill_continuous("Covariate at time 1") +
       ggplot2::theme(legend.position = "bottom") +
       ggplot2::facet_wrap(~covars)
-
+    
   } else{
     warning("sf_grid has a different number of cells or timepoints than covar_cube")
   }
-
+  
   if (render) {
     plt
   }
@@ -371,10 +371,10 @@ get_case_raster <- function(preprocessed_data_filename,
   sf_grid <- covar_cube_output$sf_grid
   case_raster <- sf_grid
   test_data <- NULL
-
+  
   nchains <- 0
   non_na_gridcells <- get_non_na_gridcells(covar_data_filename)
-
+  
   for (filename in model_output_filenames) {
     nchains <- nchains + 1
     model.rand <- read_file_of_type(filename,"model.rand")
@@ -384,7 +384,7 @@ get_case_raster <- function(preprocessed_data_filename,
     modeled_cases_mean <- apply(modeled_cases, 3, mean)
     modeled_rates <- exp(as.array(model.rand)[, , grepl("log_lambda", names(model.rand)), drop = FALSE])
     modeled_rates_mean <- apply(modeled_rates, 3, mean)
-
+    
     case_raster <- dplyr::mutate(case_raster,
                                  modeled_cases_mean = NA,
                                  modeled_rates_mean = NA)
@@ -433,7 +433,7 @@ plot_modeled_cases <- function(case_raster,
     tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
     # tidyr::pivot_longer(contains("iterations: Chain"), names_to = "chain", values_to = "value") %>%
     dplyr::mutate(chain = stringr::str_replace(chain, "modeled cases", ""))
-
+  
   plt <- ggplot2::ggplot()
   plt <- plt +
     ggplot2::geom_sf(
@@ -448,7 +448,7 @@ plot_modeled_cases <- function(case_raster,
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::facet_wrap(~t,ncol = 5) +
     ggplot2::theme(legend.text =  ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))
-
+  
   if (!is.null(plot_file)) {
     ggplot2::ggsave(plt, plot_file, width = width , heigth = height)
   }
@@ -473,12 +473,12 @@ plot_modeled_rates <- function(case_raster,
                                plot_file = NULL,
                                width = NULL,
                                height = NULL){
-
+  
   case_raster <- case_raster %>%
     dplyr::select(dplyr::contains("modeled rates"),id,t) %>%
     tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
     dplyr::mutate(chain = stringr::str_replace(chain, "modeled rates", ""))
-
+  
   rate_rescaling <-  1e4  # rescale to have incidence per 10'000 people
   plt <- ggplot2::ggplot()
   plt <- plt +
@@ -494,7 +494,7 @@ plot_modeled_rates <- function(case_raster,
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::facet_wrap(~t,ncol = 5) +
     ggplot2::theme(legend.text =  ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))
-
+  
   if (!is.null(plot_file)) {
     ggplot2::ggsave(plt, plot_file, width = width , heigth = height)
   }
@@ -511,10 +511,10 @@ plot_modeled_rates <- function(case_raster,
 #' @param model_output_filenames model_output_filenames
 #' @return
 get_data_fidelity <- function(stan_input_filenames, model_output_filenames){
-
+  
   if (length(stan_input_filenames) != length(model_output_filenames))
     stop("Need to provide same number of stan_input and stan_output files")
-
+  
   rc <- list()
   layer_index <- 1
   for (i in 1:length(model_output_filenames)) {
@@ -559,7 +559,7 @@ plot_model_fidelity <- function(data_fidelity,
     ggplot2::geom_abline(intercept = 0, slope = 1) +
     ggplot2::coord_fixed(ratio = 1, xlim = c(1, max(comparison[[1]][,3:4])), ylim = c(1, max(comparison[[1]][,3:4]))) +
     ggplot2::theme_bw()
-
+  
   if (render) {
     plt
   }
@@ -574,8 +574,8 @@ plot_model_fidelity <- function(data_fidelity,
 #' @return ggplot object with Rhat by observation id
 plot_rhat <- function(model.rand,
                       render = T) {
-
-
+  
+  
   fit_summary <- rstan::summary(model.rand)
   rhats <- tibble::tibble(Rhat = round(fit_summary$summary[which(str_detect(row.names(fit_summary$summary), "modeled_cases")), "Rhat"], 2)) %>%
     dplyr::mutate(x=dplyr::row_number())
@@ -587,7 +587,7 @@ plot_rhat <- function(model.rand,
     ggplot2::geom_hline(yintercept = rhat_thresh, col = "red") +
     ggplot2::theme_bw() +
     ggplot2::ggtitle(glue::glue("Fraction above threshold: {format(round(frac_above*100, 2))}%"))
-
+  
   if (render) {
     p_rhat
   }
@@ -608,13 +608,13 @@ pull_output_by_source <- function(sf_cases,
     warning("No source filter provided")
     return(sf_cases)
   }
-
+  
   if(any(grepl("source",names(sf_cases)))){
     source_match <- paste0("^",gsub('%','.*',source_match))
     matches <- grepl(source_match, sf_cases[["source"]])
     return(sf_cases[matches,])
   }
-
+  
   source(database_api_key_rfile)
   conn <- RPostgres::dbConnect(RPostgres::Postgres(),
                                host = "db.cholera-taxonomy.middle-distance.com",
@@ -622,13 +622,13 @@ pull_output_by_source <- function(sf_cases,
                                user = taxonomy_username,
                                password = taxonomy_password,
                                port = "5432")
-
+  
   query <- glue::glue_sql(.con=conn,"select id,source from observation_collections where source like {source_match};")
   source_ids <- DBI::dbGetQuery(conn=conn, query)
   if (is.character(sf_cases$OC_UID[1])) {
     source_ids$id <- as.character(source_ids$id)
   }
-
+  
   matches <- sf_cases$OC_UID %in% source_ids$id
   return(sf_cases[matches,])
 }
@@ -645,7 +645,7 @@ plot_chain_convergence <- function(model_output_filenames,
                                    pars = c("rho", "betas", "log_std_dev_w"),
                                    render = T){
   model.rand <- read_file_of_type(model_output_filenames,"model.rand")
-
+  
   if (render) {
     rstan::traceplot(model.rand, pars = pars)
   }
@@ -657,26 +657,50 @@ plot_chain_convergence <- function(model_output_filenames,
 #' @description Gets the percentage of pixels covered by location-periods at a given spatial scale
 #' @param config the configuration file
 #' @param cholera_directory the cholera directory where the data is stored
+#' @param area_cuts area cut points for spatial scales when all location names are not available (in sqkm)
 #' @return a dataframe with the percentage of pixels covered for each modeling
 #' time band and each spatial scale
 get_spatial_coverage <- function(config,
-                                 cholera_directory) {
+                                 cholera_directory,
+                                 area_cuts = c(0, 1e2, 1e3, 1e4, Inf)) {
   # Get stan input and covar cube
   file_names <- get_filenames(config, cholera_directory)
+  sf_cases <- read_file_of_type(file_names["data"], "sf_cases")
   stan_input <- read_file_of_type(file_names["stan_input"], "stan_input")
   covar_cube_output <- read_file_of_type(file_names["covar"], "covar_cube_output")
   
   # Get unique location periods
-  u_lps <- stan_input$sf_cases_resized %>% 
+  u_lps <- sf_cases %>% 
     group_by(locationPeriod_id) %>% 
     slice(1) %>% 
-    select(locationPeriod_id)
+    select(locationPeriod_id, location_name)
   
-  # Classify areas by spatial scale (this could be replace with something with LP names)
-  u_lps <- u_lps %>% 
-    ungroup() %>% 
-    mutate(area = sf::st_area(geom),
-           area_class = cut(as.numeric(area), 3))
+  if (!any(is.na(sf_cases$location_name))) {
+
+    # Classify areas by spatial scale based on the LP name (area_class = 0 indicates country-level observations)
+    u_lps <- u_lps %>% 
+      ungroup() %>% 
+      mutate(area = sf::st_area(geom),
+             area_class = str_count(location_name, "::") - 1,
+             area_class = as.character(area_class),
+             area_class = case_when(area_class == "0" ~ "country",
+                                    T ~ area_class))
+    
+  } else {
+    
+    # Country location name
+    country <- unique(sf_cases$location_name) %>% 
+      str_subset("^[A-Z]{3}::[A-Z]{3}$")
+    
+    u_lps <- u_lps %>% 
+      ungroup() %>% 
+      mutate(area = sf::st_area(geom),
+             area_class = cut(as.numeric(area) * 1e-6, area_cuts),
+             area_class2 = case_when(location_name == country ~ "country",
+                                    T ~ as.character(area_class)),
+             area_class = factor(area_class2, levels = c(levels(area_class), "country"))) %>% 
+      select(-area_class2)
+  }
   
   # The number of pixels for a given time band
   tot_n_pix <- stan_input$stan_data$smooth_grid_N
