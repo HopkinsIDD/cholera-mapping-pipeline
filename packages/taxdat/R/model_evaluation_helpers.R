@@ -650,3 +650,107 @@ plot_chain_convergence <- function(model_output_filenames,
     rstan::traceplot(model.rand, pars = pars)
   }
 }
+
+
+#' @export
+#' @name get_spatial_coverage
+#' @description Gets the percentage of pixels covered by location-periods at a given spatial scale
+#' @param config the configuration file
+#' @param cholera_directory the cholera directory where the data is stored
+#' @return a dataframe with the percentage of pixels covered for each modeling
+#' time band and each spatial scale
+get_spatial_coverage <- function(config,
+                                 cholera_directory) {
+  # Get stan input and covar cube
+  file_names <- get_filenames(config, cholera_directory)
+  stan_input <- read_file_of_type(file_names["stan_input"], "stan_input")
+  covar_cube_output <- read_file_of_type(file_names["covar"], "covar_cube_output")
+  
+  # Get unique location periods
+  u_lps <- stan_input$sf_cases_resized %>% 
+    group_by(locationPeriod_id) %>% 
+    slice(1) %>% 
+    select(locationPeriod_id)
+  
+  # Classify areas by spatial scale (this could be replace with something with LP names)
+  u_lps <- u_lps %>% 
+    ungroup() %>% 
+    mutate(area = sf::st_area(geom),
+           area_class = cut(as.numeric(area), 3))
+  
+  # The number of pixels for a given time band
+  tot_n_pix <- stan_input$stan_data$smooth_grid_N
+  
+  lp_input <- tibble(
+    obs = stan_input$stan_data$map_obs_loctime_obs,
+    lp = stan_input$stan_data$u_loctime[stan_input$stan_data$map_obs_loctime_loc]
+  ) %>% 
+    inner_join(covar_cube_output$location_periods_dict, by = c("lp" = "loctime_id")) %>% 
+    inner_join(u_lps, by = c("location_period_id" = "locationPeriod_id")) %>% 
+    distinct(t, lp, upd_long_id, area_class) %>% 
+    group_by(t, area_class) %>% 
+    summarise(n_pix = length(unique(upd_long_id)))
+  
+  lp_input <- lp_input %>% 
+    mutate(coverage = n_pix/tot_n_pix)
+  
+  return(lp_input)
+}
+
+#' @export
+#' @name get_gam_values
+#' @description gets the predicted GAM rate and case incidence values that are used 
+#' for initializing the model
+#' @param config the configuration file
+#' @param cholera_directory the cholera directory where the data is stored
+#' @return a dataframe based on sf_grid with a column for the log predictions of
+#' cases (log_y) and of rates (log_lambda)
+get_gam_values <- function(config,
+                           cholera_directory) {
+  
+  # Get stan input and covar cube
+  file_names <- get_filenames(config, cholera_directory)
+  stan_input <- read_file_of_type(file_names["stan_input"], "stan_input")
+  initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_values_data")
+  
+  coord_frame <- tibble::as_tibble(sf::st_coordinates(stan_input$sf_grid)) %>% 
+    dplyr::group_by(L2) %>% 
+    dplyr::summarise(x = mean(X), 
+                     y = mean(Y))
+  
+  # Create matrix of time
+  year_df <- tibble::tibble(year = stan_input$stan_data$map_grid_time)
+  year_df$year <- factor(year_df$year)
+  
+  ## one random effect per year
+  if (length(unique(year_df$year)) == 1) {
+    mat_grid_time <- matrix(1, nrow(year_df))
+  } else {
+    mat_grid_time <- model.matrix(as.formula("~ year - 1"), data = year_df)
+  }
+  
+  predict_df <- tibble::tibble(sx = coord_frame$x,
+                               sy = coord_frame$y) %>% 
+    # Set all years to 0 to get the reference year
+    cbind(mat_grid_time %>% 
+            tibble::as_tibble() %>%
+            magrittr::set_colnames(paste0("year_", 1:ncol(mat_grid_time)))) %>% 
+    # Extract the covariates
+    cbind(stan_input$stan_data$covar %>% 
+            matrix(ncol = stan_input$stan_data$ncovar) %>% 
+            magrittr::set_colnames(paste0("beta_", 1:stan_input$stan_data$ncovar))) %>% 
+    as_tibble() %>% 
+    mutate(logpop = log(stan_input$stan_data$pop),
+           logoffset = logpop + log(stan_input$stan_data$meanrate))
+  
+  # Predict log(lambda) for the reference year with covariates
+  log_y_pred_mean <- mgcv::predict.gam(initial_values_data$gam_fit_output, predict_df)
+  
+  y_pred_df <- stan_input$sf_grid %>% 
+    mutate(log_y = log_y_pred_mean + predict_df$logoffset,
+           y = exp(y),
+           log_lambda = log_y_pred_mean + log(stan_input$stan_data$meanrate),
+           lambda = exp(log_lambda))
+  
+  return(y_pred_df)
+}
