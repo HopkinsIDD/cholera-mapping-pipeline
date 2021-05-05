@@ -78,13 +78,13 @@ flatten_json_result <- function(json_results) {
 #' @param website Which website to pull from (default is cholera-taxonomy.middle-distance.com)
 #' @return An sf object containing data pulled from the database
 read_taxonomy_data_api <- function(username, 
-                                        api_key, 
-                                        locations = NULL, 
-                                        time_left = NULL, 
-                                        time_right = NULL, 
-                                        uids = NULL, 
-                                        website = "https://api.cholera-taxonomy.middle-distance.com/"){
-   
+                                   api_key, 
+                                   locations = NULL, 
+                                   time_left = NULL, 
+                                   time_right = NULL, 
+                                   uids = NULL, 
+                                   website = "https://api.cholera-taxonomy.middle-distance.com/"){
+  
   ## First, we want to set up the https POST request.
   ## We make a list containing the arguments for the request:
   ## If the API changes, we will just need to change this list
@@ -142,7 +142,7 @@ read_taxonomy_data_api <- function(username,
     body=json,
     encode='form'
   )
-
+  
   ## Now we process the status code to make sure that things are working correctly
   code = httr::status_code(results)
   ## Right now, anything that isn't correct is an error
@@ -308,12 +308,12 @@ pull_taxonomy_data <- function(username,
     
     # Return API data pull
     rc <- read_taxonomy_data_api(username = username,
-                                      api_key = password,
-                                      locations = locations,
-                                      time_left = as.character(time_left),
-                                      time_right = as.character(time_right),
-                                      uids = uids,
-                                      website = website)
+                                 api_key = password,
+                                 locations = locations,
+                                 time_left = as.character(time_left),
+                                 time_right = as.character(time_right),
+                                 uids = uids,
+                                 website = website)
     
   } else if (source == 'sql') {
     if (missing(username) | missing(password) | is.null(username) | is.null(password))
@@ -451,8 +451,12 @@ read_taxonomy_data_sql <- function(username,
   } else {
     stop("Location period id exceeds max integer in R, and glue doesn't work on int64s")
   }
-  lp_query <- glue::glue_sql("SELECT id::text as location_period_id, geojson FROM location_periods
-                             WHERE id IN ({u_lps*});", .con = conn)
+  
+  lp_query <- glue::glue_sql("SELECT a.id::text as location_period_id, b.qualified_name as location_name, a.geojson 
+  FROM location_periods a
+  JOIN locations b
+  ON a.location_id = b.id
+  WHERE a.id IN ({u_lps*});", .con = conn)
   location_periods <- DBI::dbGetQuery(conn = conn, lp_query)
   
   # Get missing geometries
@@ -480,10 +484,8 @@ read_taxonomy_data_sql <- function(username,
   # extract geometries and metadata
   location_periods.sf <- do.call(rbind, location_periods.sf) %>% 
     dplyr::mutate(location_period_id = location_periods$location_period_id,
-           location_name = purrr::map_chr(location_periods$geojson, ~ jsonlite::parse_json(.)[["name"]] %>% 
-                                            ifelse(is.null(.), NA, .)),
-           times = ifelse(is.na(location_name), NA, stringr::str_extract(location_name, "([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}-[0-9]{2}-[0-9]{2})")),
-           location_name = ifelse(is.na(location_name), NA, stringr::str_replace_all(stringr::str_replace(location_name, stringr::str_c("_", times, "_SHP"), ""), "_", "::"))
+                  location_name = location_periods$location_name,
+                  times = ifelse(is.na(location_name), NA, stringr::str_extract(location_name, "([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}-[0-9]{2}-[0-9]{2})"))
     ) %>% 
     dplyr::select(-times) %>% 
     dplyr::rename(geojson = geometry)
