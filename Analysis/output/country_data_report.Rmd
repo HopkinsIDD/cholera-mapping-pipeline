@@ -73,7 +73,7 @@ try({
 
 ```{r gam input}
 try({
-  initial_values <- read_file_of_type(file_names["initial_values"], "initial_values")
+  initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_values_data")
   ## initial_values_gam_input <- taxdat::get_initial_values_gam_input(initial_values_filename = file_names["initial_values"])
 
   initial_values_data$gam_fit_input %>%
