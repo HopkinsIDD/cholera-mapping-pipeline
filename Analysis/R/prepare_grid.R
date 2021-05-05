@@ -54,7 +54,8 @@ prepare_grid <- function(
       "_1km_Aggregated.tif"
     )
 
-    master_grid_filename <- paste0("Layers/pop/ppp_", 2020, "_1km_Aggregated.tif")
+    # master_grid_filename <- paste0("Layers/pop/population_", 2017, "_yearly.nc")
+    master_grid_filename <- paste0("Layers/pop_old/ppp_", 2020, "_1km_Aggregated.tif")
 
     cat("---- Couldn't find master grid, importing it from", master_grid_filename, "\n")
 

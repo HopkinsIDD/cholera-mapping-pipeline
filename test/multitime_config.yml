@@ -1,20 +1,29 @@
-name: 'KEN_2015_2019_20km'
-taxonomy: 'taxonomy-working/working-entry1'
-countries: "Cote D'Ivoire"
-countries_name: 'KEN'
-res_space: 20
-res_time: '1 years'
+name: 'KEN_2010_2010_20km'
+countries: ['405']
+countries_name: ['KEN']
+aoi: 'raw'
+res_space: 5
+res_time: '1 months'
 smoothing_period: 1
 case_definition: 'suspected'
-start_time: '2000-01-01'
-end_time: '2000-12-31'
-covariate_choices: ['dist_to_water','water_access']
-ingest_covariates: TRUE
-ingest_new_covariates: TRUE
+start_time: '2010-01-01'
+end_time: '2010-12-31'
+covariate_choices: ['dist_to_water','water_access','san_access','open_defe','stunting','wasting','access_cities']
 data_source: 'api'
-aoi: "KEN"
+ovrt_metadata_table: yes
+ingest_covariates: yes
+ingest_new_covariates: yes
+covar_warmup: yes
+censoring: no
+aggregate: yes
+time_effect: yes
+time_effect_autocorr: no
+beta_sigma_scale: 1
+sigma_eta_scale: 0.1
+tfrac_thresh: 0
+set_tfrac: no
 stan:
   ncores: 4
-  model: 'dagar_seasonal_nocovariates.stan'
-  niter: 100
+  model: 'update_yearly_dagar_timevary_speedup_flexible.stan'
+  niter: 2000
   recompile: TRUE
