@@ -1511,6 +1511,8 @@ time_overlap <- function(tl, tr, res_time, tl_vec, tr_vec) {
 #' @param schema The name of the schema to create
 #' @export
 create_schema_if_not_exists <- function(conn_pg, schema) {
-    query <- glue::glue_sql(.con = conn_pg, "create schema if not exists {`schema`}")
-    DBI::dbClearResult(DBI::dbSendStatement(conn_pg, query))
+    try({
+        query <- glue::glue_sql(.con = conn_pg, "create schema if not exists {`schema`}")
+        DBI::dbClearResult(DBI::dbSendStatement(conn_pg, query))
+    }, silent = TRUE)
 }
