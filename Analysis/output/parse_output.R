@@ -159,41 +159,45 @@ if (!file.exists(rhat_filename) | opt$redo) {
 
 # Spatial coverage --------------------------------------------------------
 if (!file.exists(spatial_coverage_filename) | opt$redo) {
-  sf_lp_unique <- sf_cases_resized %>%
-    mutate(obs = row_number()) %>% 
-    inner_join(rhat_obs %>% select(obs, t)) %>% 
-    group_by(t, locationPeriod_id) %>% 
-    mutate(i = row_number(),
-           n = n()) %>% 
-    filter(i == 1) %>% 
-    select(locationPeriod_id, n, t)
   
-  sf_cases_grids <- foreach(i = 1:nrow(sf_lp_unique),
-                            .combine = rbind) %do%
-    {
-      sf_lp_unique[i,] %>% 
-        st_make_grid(cellsize = 0.1, what = "centers") %>% 
-        st_as_sf() %>% 
-        mutate(t = sf_lp_unique$t[i],
-               n =  sf_lp_unique$n[i],
-               lp_id = sf_lp_unique$locationPeriod_id[i],
-               cell_id = str_c(lp_id, "-", row_number()))
-      
-    }
+  spatial_coverage <- taxdat::get_spatial_coverage(config = config,
+                                                   cholera_directory = opt$cholera_directory)
   
-  u_coords <- st_coordinates(sf_cases_grids)
-  sf_cases_grids <- sf_cases_grids %>% 
-    mutate(long = u_coords[,1],
-           lat = u_coords[,2])
-  
-  sf_cases_grids <- sf_cases_grids %>% 
-    as_tibble() %>% 
-    select(-x) %>% 
-    group_by(t, lp_id) %>% 
-    group_map(function(x, y) do.call(rbind, map(1:x$n, ~ x)) %>% cbind(y)) %>% 
-    bind_rows()
-  
-  saveRDS(sf_cases_grids %>% mutate(country = country), file = spatial_coverage_filename)
+  # sf_lp_unique <- sf_cases_resized %>%
+  #   mutate(obs = row_number()) %>% 
+  #   inner_join(rhat_obs %>% select(obs, t)) %>% 
+  #   group_by(t, locationPeriod_id) %>% 
+  #   mutate(i = row_number(),
+  #          n = n()) %>% 
+  #   filter(i == 1) %>% 
+  #   select(locationPeriod_id, n, t)
+  # 
+  # sf_cases_grids <- foreach(i = 1:nrow(sf_lp_unique),
+  #                           .combine = rbind) %do%
+  #   {
+  #     sf_lp_unique[i,] %>% 
+  #       st_make_grid(cellsize = 0.1, what = "centers") %>% 
+  #       st_as_sf() %>% 
+  #       mutate(t = sf_lp_unique$t[i],
+  #              n =  sf_lp_unique$n[i],
+  #              lp_id = sf_lp_unique$locationPeriod_id[i],
+  #              cell_id = str_c(lp_id, "-", row_number()))
+  #     
+  #   }
+  # 
+  # u_coords <- st_coordinates(sf_cases_grids)
+  # sf_cases_grids <- sf_cases_grids %>% 
+  #   mutate(long = u_coords[,1],
+  #          lat = u_coords[,2])
+  # 
+  # sf_cases_grids <- sf_cases_grids %>% 
+  #   as_tibble() %>% 
+  #   select(-x) %>% 
+  #   group_by(t, lp_id) %>% 
+  #   group_map(function(x, y) do.call(rbind, map(1:x$n, ~ x)) %>% cbind(y)) %>% 
+  #   bind_rows()
+  # 
+  saveRDS(spatial_coverage %>% mutate(country = country), file = spatial_coverage_filename)
 }
 
 # WHO cases ---------------------------------------------------------------

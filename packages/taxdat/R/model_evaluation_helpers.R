@@ -744,9 +744,8 @@ get_spatial_coverage <- function(config,
   ) %>% 
     dplyr::inner_join(covar_cube_output$location_periods_dict, by = c("lp" = "loctime_id")) %>% 
     dplyr::inner_join(u_lps, by = c("location_period_id" = "locationPeriod_id")) %>% 
-    dplyr::distinct(t, lp, upd_long_id, area_class) %>% 
     dplyr::group_by(t, area_class) %>% 
-    dplyr::summarise(n_pix = length(unique(upd_long_id)))
+    summarise(n_pix = length(unique(upd_long_id)))
   
   lp_input <- lp_input %>% 
     dplyr::mutate(coverage = n_pix/tot_n_pix)
