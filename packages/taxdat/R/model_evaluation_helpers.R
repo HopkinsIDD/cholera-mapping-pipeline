@@ -707,7 +707,7 @@ get_spatial_coverage <- function(config,
       
       u_lps <- u_lps %>% 
         dplyr::select(-location_name) %>% 
-        dplyr::inner_join(locations)
+        dplyr::left_join(locations)
     }
     
     # Classify areas by spatial scale based on the LP name (area_class = 0 indicates country-level observations)
