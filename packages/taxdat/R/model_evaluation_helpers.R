@@ -676,7 +676,7 @@ get_spatial_coverage <- function(config,
     dplyr::select(locationPeriod_id, location_name)
   
   # Get taxonomy database credentials
-  source(paste0(cholera_directory, "Analysis/R/database_api_key.R"))
+  source(paste0(cholera_directory, "/Analysis/R/database_api_key.R"))
   
   if (!exists("taxonomy_username")) {
     taxonomy_username <- NULL
