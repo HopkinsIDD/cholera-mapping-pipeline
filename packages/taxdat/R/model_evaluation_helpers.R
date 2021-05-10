@@ -665,8 +665,10 @@ get_spatial_coverage <- function(config,
                                  area_cuts = c(0, 1e2, 1e3, 1e4, Inf)) {
   # Get stan input and covar cube
   file_names <- get_filenames(config, cholera_directory)
-  sf_cases <- read_file_of_type(file_names["data"], "sf_cases")
   stan_input <- read_file_of_type(file_names["stan_input"], "stan_input")
+  sf_cases <- stan_input$sf_cases_resized #read_file_of_type(file_names["data"], "sf_cases")
+  sf_cases$location_name <- NA
+  
   covar_cube_output <- read_file_of_type(file_names["covar"], "covar_cube_output")
   
   # Get unique location periods
