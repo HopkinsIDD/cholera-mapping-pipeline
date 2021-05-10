@@ -671,52 +671,85 @@ get_spatial_coverage <- function(config,
   
   # Get unique location periods
   u_lps <- sf_cases %>% 
-    group_by(locationPeriod_id) %>% 
-    slice(1) %>% 
-    select(locationPeriod_id, location_name)
+    dplyr::group_by(locationPeriod_id) %>% 
+    dplyr::slice(1) %>% 
+    dplyr::select(locationPeriod_id, location_name)
   
-  if (!any(is.na(sf_cases$location_name))) {
-
+  # Get taxonomy database credentials
+  source(paste0(cholera_directory, "Analysis/R/database_api_key.R"))
+  
+  if (!exists("taxonomy_username")) {
+    taxonomy_username <- NULL
+    taxonomy_password <- NULL
+  }
+  
+  if (!any(is.na(sf_cases$location_name)) | !is.null(taxonomy_username)) {
+    
+    # Get location names if some are NAs
+    if (any(is.na(sf_cases$location_name))) {
+      
+      # Connect to database
+      conn <- RPostgres::dbConnect(RPostgres::Postgres(),
+                                   host = "db.cholera-taxonomy.middle-distance.com",
+                                   dbname = "CholeraTaxonomy_production",
+                                   user = taxonomy_username,
+                                   password = taxonomy_password,
+                                   port = "5432")
+      
+      locations <- DBI::dbGetQuery(
+        conn = conn,  
+        glue::glue_sql(
+          "SELECT a.id::text as \"locationPeriod_id\", b.qualified_name as location_name
+          FROM location_periods a
+          JOIN locations b
+          ON a.location_id = b.id
+          WHERE a.id IN ({u_lps$locationPeriod_id*});", .con = conn))
+      
+      u_lps <- u_lps %>% 
+        dplyr::select(-location_name) %>% 
+        dplyr::inner_join(locations)
+    }
+    
     # Classify areas by spatial scale based on the LP name (area_class = 0 indicates country-level observations)
     u_lps <- u_lps %>% 
-      ungroup() %>% 
-      mutate(area = sf::st_area(geom),
-             area_class = str_count(location_name, "::") - 1,
-             area_class = as.character(area_class),
-             area_class = case_when(area_class == "0" ~ "country",
-                                    T ~ area_class))
+      dplyr::ungroup() %>% 
+      dplyr::mutate(area = sf::st_area(geom),
+                    area_class = stringr::str_count(location_name, "::") - 1,
+                    area_class = as.character(area_class),
+                    area_class = dplyr::case_when(area_class == "0" ~ "country",
+                                                  T ~ area_class))
     
   } else {
     
     # Country location name
     country <- unique(sf_cases$location_name) %>% 
-      str_subset("^[A-Z]{3}::[A-Z]{3}$")
+      stringr::str_subset("^[A-Z]{3}::[A-Z]{3}$")
     
     u_lps <- u_lps %>% 
-      ungroup() %>% 
-      mutate(area = sf::st_area(geom),
-             area_class = cut(as.numeric(area) * 1e-6, area_cuts),
-             area_class2 = case_when(location_name == country ~ "country",
-                                    T ~ as.character(area_class)),
-             area_class = factor(area_class2, levels = c(levels(area_class), "country"))) %>% 
-      select(-area_class2)
+      dplyr::ungroup() %>% 
+      dplyr::mutate(area = sf::st_area(geom),
+                    area_class = cut(as.numeric(area) * 1e-6, area_cuts),
+                    area_class2 = dplyr::case_when(location_name == country ~ "country",
+                                                   T ~ as.character(area_class)),
+                    area_class = factor(area_class2, levels = c(levels(area_class), "country"))) %>% 
+      dplyr::select(-area_class2)
   }
   
   # The number of pixels for a given time band
   tot_n_pix <- stan_input$stan_data$smooth_grid_N
   
-  lp_input <- tibble(
+  lp_input <- tibble::tibble(
     obs = stan_input$stan_data$map_obs_loctime_obs,
     lp = stan_input$stan_data$u_loctime[stan_input$stan_data$map_obs_loctime_loc]
   ) %>% 
-    inner_join(covar_cube_output$location_periods_dict, by = c("lp" = "loctime_id")) %>% 
-    inner_join(u_lps, by = c("location_period_id" = "locationPeriod_id")) %>% 
-    distinct(t, lp, upd_long_id, area_class) %>% 
-    group_by(t, area_class) %>% 
-    summarise(n_pix = length(unique(upd_long_id)))
+    dplyr::inner_join(covar_cube_output$location_periods_dict, by = c("lp" = "loctime_id")) %>% 
+    dplyr::inner_join(u_lps, by = c("location_period_id" = "locationPeriod_id")) %>% 
+    dplyr::distinct(t, lp, upd_long_id, area_class) %>% 
+    dplyr::group_by(t, area_class) %>% 
+    dplyr::summarise(n_pix = length(unique(upd_long_id)))
   
   lp_input <- lp_input %>% 
-    mutate(coverage = n_pix/tot_n_pix)
+    dplyr::mutate(coverage = n_pix/tot_n_pix)
   
   return(lp_input)
 }
@@ -763,7 +796,7 @@ get_gam_values <- function(config,
     cbind(stan_input$stan_data$covar %>% 
             matrix(ncol = stan_input$stan_data$ncovar) %>% 
             magrittr::set_colnames(paste0("beta_", 1:stan_input$stan_data$ncovar))) %>% 
-    as_tibble() %>% 
+    tibble::as_tibble() %>% 
     mutate(logpop = log(stan_input$stan_data$pop),
            logoffset = logpop + log(stan_input$stan_data$meanrate))
   
@@ -771,10 +804,10 @@ get_gam_values <- function(config,
   log_y_pred_mean <- mgcv::predict.gam(initial_values_data$gam_fit_output, predict_df)
   
   y_pred_df <- stan_input$sf_grid %>% 
-    mutate(log_y = log_y_pred_mean + predict_df$logoffset,
-           y = exp(y),
-           log_lambda = log_y_pred_mean + log(stan_input$stan_data$meanrate),
-           lambda = exp(log_lambda))
+    dplyr::mutate(log_y = log_y_pred_mean + predict_df$logoffset,
+                  y = exp(y),
+                  log_lambda = log_y_pred_mean + log(stan_input$stan_data$meanrate),
+                  lambda = exp(log_lambda))
   
   return(y_pred_df)
 }
