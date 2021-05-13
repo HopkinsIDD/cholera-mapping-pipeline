@@ -257,8 +257,8 @@ if (!file.exists(who_filename) | opt$redo) {
 
 # Covariate coefficients --------------------------------------------------
 if (!file.exists(betas_filename) | opt$redo) {
-  betas <- rstan::summary(model.rand, pars = "betas")$summary[, c(1, 4:10)] %>% 
-    as.data.frame() %>% 
+  betas <- rstan::summary(model.rand, pars = "betas")$summary[, c(1, 4:10), drop = F] %>% 
+    as.data.frame()  %>% 
     mutate(param = rownames(.),
            covar = str_extract(param, "[0-9]+") %>% as.numeric(),
            covar = dimnames(covar_cube_output$covar_cube)[[3]][-1][covar],
