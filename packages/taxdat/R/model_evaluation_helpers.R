@@ -249,11 +249,11 @@ plot_raster_population <- function(covar_data_filename,
   covar_cube_output <- read_file_of_type(covar_data_filename, "covar_cube_output")
   covar_cube <- covar_cube_output$covar_cube
   sf_grid <- covar_cube_output$sf_grid
-  pop_layer <- covar_cube[,,1] ## population is always the first layer
+  pop_layer <- covar_cube[,,1, drop = F] ## population is always the first layer
   
   if(nrow(sf_grid) == prod(dim(pop_layer))){
     covar <- data.frame(covar = unlist(lapply(1:ncol(pop_layer), function(x){
-      pop_layer[,x]
+      pop_layer[, x, 1]
     })))
     pltdata <- dplyr::bind_cols(sf_grid, covar)
     
@@ -300,16 +300,16 @@ plot_raster_covariates <- function(covar_data_filename,
   covar_cube_output <- read_file_of_type(covar_data_filename, "covar_cube_output")
   covar_cube <- covar_cube_output$covar_cube
   sf_grid <- covar_cube_output$sf_grid
-  covar_layers <- covar_cube[,,-1]
+  covar_layers <- covar_cube[,,-1, drop = F]
   ncovar <- ifelse(length(dim(covar_layers))==2, 1, dim(covar_layers)[3])
   
-  if(nrow(sf_grid) == prod(dim(covar_cube[,,1]))){
+  if(nrow(sf_grid) == prod(dim(covar_cube[,,1, drop = F]))){
     
     covar_df <- purrr::map_dfc(seq_len(ncovar), function(x){
       if(ncovar>1){
         covar_layer <- covar_layers[,,x]
-      } else{
-        covar_layer <- covar_layers
+      } else {
+        covar_layer <- abind::adrop(covar_layers, 3)
       }
       unlist(lapply(1:ncol(covar_layers), function(x){
         covar_layer[,x]
