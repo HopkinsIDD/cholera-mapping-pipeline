@@ -220,17 +220,27 @@ for (t_idx in 1:length(all_test_idx)) {
     # '/Analysis/R/covariate_helpers.R'))
 
     ## Step 1: process observation shapefiles and prepare data ##
+    print(file_names[["grid"]])
+    if (file.exists(file_names[["grid"]])) {
+        print("Gride already created, skipping")
+        warning("Gride already created, skipping")
+        load(file_names[["grid"]])
+    } else {
+        source(paste(cholera_directory, "Analysis", "R", "prepare_grid.R", sep = "/"))
+
+        # First prepare the computation grid and get the grid name
+        full_grid_name <- prepare_grid(dbuser = dbuser, cholera_directory = cholera_directory, 
+            res_space = res_space, ingest = config$ingest_covariates, dbname = dbname)
+
+    }
+
+    ## Step 1: process observation shapefiles and prepare data ##
     print(file_names[["data"]])
     if (file.exists(file_names[["data"]])) {
         print("Data already preprocessed, skipping")
         warning("Data already preprocessed, skipping")
         load(file_names[["data"]])
     } else if (!testing) {
-        source(paste(cholera_directory, "Analysis", "R", "prepare_grid.R", sep = "/"))
-
-        # First prepare the computation grid and get the grid name
-        full_grid_name <- prepare_grid(dbuser = dbuser, cholera_directory = cholera_directory, 
-            res_space = res_space, ingest = config$ingest_covariates, dbname = dbname)
 
         # Pull data from taxonomy database (either using the API or SQL)
         source(paste(cholera_directory, "Analysis", "R", "prepare_map_data_revised.R", 
