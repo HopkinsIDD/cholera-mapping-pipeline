@@ -21,7 +21,7 @@ library(sf)
 library(taxdat)
 ```
 
-```{r setup, run = FALSE}
+```{r testing block, run = FALSE}
 params <- list(
   config = "~/git/cholera-configs/summary_parameters.csv",
   cholera_configs_directory = "~/git/cholera-configs",
@@ -134,14 +134,23 @@ for (country in config[["Country.Name"]]) {
 
     cropped_cases <- raster::crop(lancet_cases, shapefile)
     raster_shp <- fasterize::fasterize(shapefile, subset(cropped_cases, 1))
-    aggregated_layers <- apply(values(cropped_cases * raster_shp), 2, sum, na.rm = TRUE)
+    aggregated_layers <- values(raster::aggregate(
+      cropped_cases * raster_shp,
+      c(ncol(raster_shp), nrow(raster_shp), 1),
+      fun = sum
+    ))
+
     all_data[["Lancet"]][["Mean.Cases"]][[country]] <- mean(aggregated_layers)
     all_data[["Lancet"]][["975.Cases"]][[country]] <- quantile(aggregated_layers, .975)
     all_data[["Lancet"]][["025.Cases"]][[country]] <- quantile(aggregated_layers, .025)
 
     cropped_rates <- raster::crop(lancet_rates, shapefile)
-    raster_shp <- fasterize::fasterize(shapefile, cropped_rates)
-    aggregated_layers <- apply(values(cropped_rates * raster_shp), 2, sum, na.rm = TRUE)
+    raster_shp <- fasterize::fasterize(shapefile, subset(cropped_cases, 1))
+    aggregated_layers <- values(raster::aggregate(
+      cropped_rates * raster_shp,
+      c(ncol(raster_shp), nrow(raster_shp), 1),
+      fun = sum
+    ))
     all_data[["Lancet"]][["Mean.Rates"]][[country]] <- mean(aggregated_layers)
     all_data[["Lancet"]][["975.Rates"]][[country]] <- quantile(aggregated_layers, .975)
     all_data[["Lancet"]][["025.Rates"]][[country]] <- quantile(aggregated_layers, .025)
@@ -211,13 +220,6 @@ for (country in config[["Country.Name"]]) {
     })
   } else if (local_config[["Include"]] == "Lancet") {
 
-    lancet_cases <- raster::raster(paste(
-      params$cholera_mapping_output_directory,
-      "lancet_results",
-      "lancet_cases_raster.tif",
-      sep = "/"
-    ))
-
     country_config <- yaml::read_yaml(
       paste0(params$cholera_configs_directory, "/2015_2019_full_base/", country, ".yml")
     )
@@ -225,15 +227,25 @@ for (country in config[["Country.Name"]]) {
     current_observations <- taxdat::read_file_of_type(filenames[["data"]], "sf_cases")
     current_observations <- current_observations[grepl(paste0(country, "$"), current_observations$location_name), ]
     if (nrow(current_observations) == 0) {
-      current_observations <- GADMTools::gadm_sf_loadCountries(c(country), level = 0, basefile = params$shapefiles_dir)$sf
+      current_observations <- GADMTools::gadm_sf_loadCountries(
+        c(country),
+        level = 0,
+        basefile = params$shapefiles_dir
+      )$sf
       warning(paste("No observations found in 2015_2019 pull for country", country, ": using gadm shapefile", country))
     }
     shapefile <- current_observations[1, ]
 
-    cropped_cases <- raster::crop(lancet_cases, shapefile)
-    raster_shp <- fasterize::fasterize(shapefile, cropped_cases)
-    all_data[["Current"]][["Mean.Cases"]][[country]] <- sum(values(cropped_cases * raster_shp), na.rm = TRUE)
-    all_data[["Current"]][["Mean.Cases"]][[country]] <- sum(values(cropped_cases * raster_shp), na.rm = TRUE)
+    cropped_rates <- raster::crop(lancet_rates, shapefile)
+    raster_shp <- fasterize::fasterize(shapefile, subset(cropped_cases, 1))
+    aggregated_layers <- values(raster::aggregate(
+      cropped_rates * raster_shp,
+      c(ncol(raster_shp), nrow(raster_shp), 1),
+      fun = sum
+    )) * pop_by_country[[country]]
+    all_data[["Current"]][["Mean.Cases"]][[country]] <- mean(aggregated_layers)
+    all_data[["Current"]][["975.Cases"]][[country]] <- quantile(aggregated_layers, .975)
+    all_data[["Current"]][["025.Cases"]][[country]] <- quantile(aggregated_layers, .025)
 
   } else if (local_config[["Include"]] == "None") {
   } else {
