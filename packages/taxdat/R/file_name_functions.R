@@ -125,16 +125,6 @@ make_initial_values_filename <- function(cholera_directory,
     if ("output_directory" %in% names(config[["file_names"]])) {
       filename <- config[["file_names"]][["output_directory"]]
     }
-    if ("initial_values_filename" %in% names(config[["file_names"]])) {
-      return(paste(filename, config[["file_names"]][["initial_values_filename"]], sep = "/"))
-    }
-  }
-
-  if ("file_names" %in% names(config)) {
-    filename <- paste(cholera_directory, "Analysis", "data", sep = "/")
-    if ("output_directory" %in% names(config[["file_names"]])) {
-      filename <- config[["file_names"]][["output_directory"]]
-    }
     if ("stan_output_filename" %in% names(config[["file_names"]])) {
       return(paste(filename, config[["file_names"]][["stan_output_filename"]], sep = "/"))
     }
@@ -150,12 +140,22 @@ make_initial_values_filename <- function(cholera_directory,
   base_filename <- stringr::str_remove(base_filename, "stan_input\\.rdata")
 
   # Get stan parameters
+  stan_pars <- get_stan_parameters(config)
 
   # Modeling configs
   to_add <- "iv"
   for (par in c("warmup", "covar_warmup")) {
     if (!is.null(config[[par]])) {
       to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, config[[par]])
+    } else {
+      to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, "NULL")
+    }
+  }
+  
+  # Modeling configs
+  for (par in c("censoring", "time_effect", "time_effect_autocorr", "use_weights")) {
+    if(!is.null(stan_pars[[par]])) {
+      to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, stan_pars[[par]])
     } else {
       to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, "NULL")
     }
