@@ -93,8 +93,8 @@ df <- purrr::map_dfr(
                      ey = pop*stan_data$meanrate,
                      tfrac = tfrac_vec,
                      censored = stan_data$censoring_inds[i]) %>%
-      cbind(beta_mat) %>% 
-      cbind(year_mat)
+        cbind(beta_mat) %>% 
+        cbind(year_mat)
     )
   }
 ) %>% 
@@ -227,12 +227,20 @@ if (warmup) {
   init.list <- "random"
 }
 
-
 # Set censoring and time effect and autocorrelation
 stan_data$do_censoring <- ifelse(stan_params$censoring, 1, 0)
 stan_data$do_time_slice_effect <- ifelse(stan_params$time_effect, 1, 0)
 stan_data$do_time_slice_effect_autocor <- ifelse(stan_params$time_effect_autocor, 1, 0)
 stan_data$use_weights <- ifelse(stan_params$use_weights, 1, 0)
+stan_data$use_rho_prior<- ifelse(stan_params$use_rho_prior, 1, 0)
+
+if (stan_params$use_rho_prior) {
+  if (init.list != "random") {
+    init.list <- append(init.list, list(rho = runif(nchain, .6, 1)))
+  } else {
+    init.list <- list(rho = runif(nchain, .6, 1))
+  }
+}
 
 if (stan_params$time_effect) {
   # Extract number of observations per year
