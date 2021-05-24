@@ -254,7 +254,8 @@ try({
 if(!is.null(data_fidelity)){
   taxdat::plot_model_fidelity(data_fidelity = data_fidelity,
                             case_raster = case_raster,
-                            render = T)
+                            render = T,
+                            by_censoring = config$censoring)
 } else{
   warning("data_fidelity is NULL")
 }
