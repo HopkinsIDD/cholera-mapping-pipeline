@@ -522,6 +522,8 @@ get_data_fidelity <- function(stan_input_filenames, model_output_filenames){
     # corresponding_input_filename <- gsub('\\d+.csv','json',gsub("stan_output","stan_input", filename))
     # print(c(filename, corresponding_input_filename))
     model.rand <- read_file_of_type(filename, "model.rand")
+    nchain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__'))[1] / niter_per_chain
+    
     stan_data <- read_file_of_type(stan_input_filenames[i], "stan_input")$stan_data
     modeled_cases <- as.array(model.rand)[, , grepl("modeled_cases", names(model.rand)), drop = FALSE]
     modeled_cases_chain_mean <- apply(modeled_cases, c(2, 3), mean)
@@ -529,7 +531,7 @@ get_data_fidelity <- function(stan_input_filenames, model_output_filenames){
     dimnames(actual_cases) <- dimnames(modeled_cases_chain_mean)
     modeled_cases_chain_mean <- reshape2::melt(modeled_cases_chain_mean)
     actual_cases <- reshape2::melt(actual_cases)
-    actual_cases$censoring <- rep(stan_data$censoring_inds, each = 4)
+    actual_cases$censoring <- rep(stan_data$censoring_inds, each = nchain)
     comparison <- dplyr::left_join(modeled_cases_chain_mean, actual_cases, by = c(chains = "chains", parameters = "parameters"))
     names(comparison)[3:4] <- c("modeled cases", "actual cases")
     rc[[filename]] <- comparison
