@@ -217,9 +217,11 @@ if (warmup) {
   
   if (stan_data$ncovar >= 1 & covar_warmup) {
     betas <- coef(gam_fit) %>% .[stringr::str_detect(names(.), "beta")]
-    init.list <- append(init.list,
-                        # Perturbation of fitted betas
-                        list(betas = rnorm(length(betas), betas, .1) %>% array()))
+    for (i in 1:length(init.list)) {
+      init.list[[i]] <- append(init.list[[i]],
+                               # Perturbation of fitted betas
+                               list(betas = rnorm(length(betas), betas, .1) %>% array()))
+    }
   }
   
 } else {
@@ -236,9 +238,11 @@ stan_data$use_rho_prior<- ifelse(stan_params$use_rho_prior, 1, 0)
 
 if (stan_params$use_rho_prior) {
   if (init.list != "random") {
-    init.list <- append(init.list, list(rho = runif(nchain, .6, 1)))
+    for (i in 1:length(init.list)) {
+      init.list[[i]] <- append(init.list[[i]], list(rho = runif(1, .6, 1)))
+    }
   } else {
-    init.list <- list(rho = runif(nchain, .6, 1))
+    init.list <- list(rho = runif(nchain, 0, 1))
   }
 }
 
