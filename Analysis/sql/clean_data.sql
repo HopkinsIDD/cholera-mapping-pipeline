@@ -105,3 +105,70 @@ AS $$
     get_spatial_scale(location_id) = guess_spatial_scale(oc_id) AND
     classify_date(time_right - time_left) = guess_date_type(oc_id)
 $$ LANGUAGE SQL;
+
+CREATE OR REPLACE FUNCTION clean_observation_collection(
+  oc_id bigint,
+  spatial_scale int
+) RETURNS
+  TABLE(location_id bigint, time_left date, time_right date, is_primary boolean, is_phantom boolean, suspected_cases int, deaths int)
+AS $$
+  SELECT
+    observations.location_id,
+    observations.time_left,
+    observations.time_right,
+    observations.primary,
+    observations.phantom,
+    observations.suspected_cases,
+    observations.deaths
+  FROM observations
+  WHERE
+    observation_collection_id = oc_id AND
+    observations.primary AND
+    get_spatial_scale(location_id) = spatial_scale AND
+    classify_date(time_right - time_left) = guess_date_type(oc_id)
+$$ LANGUAGE SQL;
+
+CREATE OR REPLACE FUNCTION clean_observation_collection(
+  oc_id bigint,
+  date_type text
+) RETURNS
+  TABLE(location_id bigint, time_left date, time_right date, is_primary boolean, is_phantom boolean, suspected_cases int, deaths int)
+AS $$
+  SELECT
+    observations.location_id,
+    observations.time_left,
+    observations.time_right,
+    observations.primary,
+    observations.phantom,
+    observations.suspected_cases,
+    observations.deaths
+  FROM observations
+  WHERE
+    observation_collection_id = oc_id AND
+    observations.primary AND
+    get_spatial_scale(location_id) = guess_spatial_scale(oc_id) AND
+    classify_date(time_right - time_left) = date_type
+$$ LANGUAGE SQL;
+
+CREATE OR REPLACE FUNCTION clean_observation_collection(
+  oc_id bigint,
+  date_type text,
+  spatial_scale int
+) RETURNS
+  TABLE(location_id bigint, time_left date, time_right date, is_primary boolean, is_phantom boolean, suspected_cases int, deaths int)
+AS $$
+  SELECT
+    observations.location_id,
+    observations.time_left,
+    observations.time_right,
+    observations.primary,
+    observations.phantom,
+    observations.suspected_cases,
+    observations.deaths
+  FROM observations
+  WHERE
+    observation_collection_id = oc_id AND
+    observations.primary AND
+    get_spatial_scale(location_id) = spatial_scale AND
+    classify_date(time_right - time_left) = date_type 
+$$ LANGUAGE SQL;
