@@ -177,14 +177,21 @@ for (country in config[["Country.Name"]]) {
     full_output <- taxdat::read_file_of_type(fix_stan_output_fname(filenames[["stan_output"]]), "model.rand")
     stan_input <- taxdat::read_file_of_type(fix_stan_output_fname(filenames[["stan_input"]]), "stan_input")
     mean_output <-  MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = mean)
+    high_output <-  MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = quantile, probs = .975)
+    low_output <-  MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = quantile, probs = .025)
     if (local_config[["Data"]] == "full") {
+
       all_data[["Current"]][["Mean.Cases"]][[country]] <- sum(mean_output[["mean"]]) / (2019 - 2015 + 1)
+      all_data[["Current"]][["975.Cases"]][[country]] <- sum(high_output[["quantile"]]) / (2019 - 2015 + 1)
+      all_data[["Current"]][["025.Cases"]][[country]] <- sum(low_output[["quantile"]]) / (2019 - 2015 + 1)
       cat(paste("Cases for country,", country, "are", sum(mean_output[["mean"]], na.rm = TRUE)))
     } else if (local_config[["Data"]] == "non-empty") {
       all_years <- 2015:2019
       used_years <- 2015 +
         sort(unique(stan_input$stan_data$map_grid_time[stan_input$stan_data$map_loc_grid_grid])) - 1
       all_data[["Current"]][["Mean.Cases"]][[country]] <- sum(mean_output[["mean"]][unique(stan_input$stan_data$map_loc_grid_grid)]) / (length(used_years))
+      all_data[["Current"]][["025.Quantile"]][[country]] <- sum(low_output[["quantile"]][unique(stan_input$stan_data$map_loc_grid_grid)]) / (length(used_years))
+      all_data[["Current"]][["975.Quantile"]][[country]] <- sum(high_output[["quantile"]][unique(stan_input$stan_data$map_loc_grid_grid)]) / (length(used_years))
     }
   } else if (local_config[["Include"]] == "SingleYearModels") {
     tryCatch({
@@ -211,9 +218,15 @@ for (country in config[["Country.Name"]]) {
         )
         full_output <- taxdat::read_file_of_type(fix_stan_output_fname(filenames[["stan_output"]]), "model.rand")
         mean_output <-  MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = mean)
+        high_output <-  MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = quantile, probs = .975)
+        low_output <-  MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = quantile, probs = .025)
         all_data[["Current"]][["Mean.Cases"]][[country]][as.character(year)] <- sum(mean_output[["mean"]], na.rm = TRUE)
+        all_data[["Current"]][["975.Cases"]][[country]][as.character(year)] <- sum(high_output[["quantile"]], na.rm = TRUE)
+        all_data[["Current"]][["025.Cases"]][[country]][as.character(year)] <- sum(low_output[["quantile"]], na.rm = TRUE)
       }
       all_data[["Current"]][["Mean.Cases"]][[country]] <- mean(all_data[["Current"]][["Mean.Cases"]][[country]])
+      all_data[["Current"]][["975.Cases"]][[country]] <- mean(all_data[["Current"]][["975.Cases"]][[country]])
+      all_data[["Current"]][["025.Cases"]][[country]] <- mean(all_data[["Current"]][["025.Cases"]][[country]])
       cat(paste("Cases for country,", country, "are", mean(all_data[["Current"]][["Mean.Cases"]][[country]])))
     }, error = function(e) {
       message(paste("Could not produce data for coutry", country, "Failed with error message", e$message))
