@@ -263,6 +263,15 @@ make_map_output_filename <- function(cholera_directory,
 
 make_map_name <- function(config, .f = NULL) {
 
+  # Subset of OCs
+  OCs <- config$OCs
+  if (is.null(OCs)) {
+    OCs <- "allOCs"
+  } else {
+    OCs <- rlang::hash(paste(OCs, collapse = "-")) %>% 
+      stringr::str_sub(1, 6)
+  }
+  
   # km by km resolution of analysis
   res_space <- as.numeric(config$res_space)
   # temporal resolution of analysis
@@ -274,6 +283,7 @@ make_map_name <- function(config, .f = NULL) {
   suspected_or_confirmed <- suppressMessages(check_case_definition(config$case_definition))
 
   map_name <- paste(paste(config$countries_name, collapse = '-'),
+                    OCs,
                     stringr::str_replace(res_time, " ", "_"),
                     paste(start_time, end_time, sep = '-'),
                     paste(res_space, 'km', sep = ''),
