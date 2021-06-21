@@ -15,6 +15,14 @@ library(sf)
 library(taxdat)
 ```
 
+params = list(
+  config = "~/git/cholera-configs/summary_parameters.csv",
+  cholera_configs_directory = "~/git/cholera-configs",
+  cholera_mapping_pipeline_directory = "~/git/cholera-mapping-pipeline",
+  cholera_mapping_output_directory = "~/git/cholera-mapping-output",
+  shapefiles_dir = "~/gadm_shapefiles/"
+)
+
 # Loading Config
 
 ```{r Load config}
@@ -167,16 +175,16 @@ for (country in config[["Country.Name"]]) {
     high_output <-  MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = quantile, probs = 0.975)
     if (local_config[["Data"]] == "full") {
       all_data[["Current"]][["Mean.Cases"]][[country]] <- sum(mean_output[["mean"]]) / (2019 - 2015 + 1)
-      all_data[["Current"]][["025.Cases"]][[country]] <- sum(low_output[["quantile"]]) / (2019 - 2015 + 1)
-      all_data[["Current"]][["975.Cases"]][[country]] <- sum(high_output[["quantile"]]) / (2019 - 2015 + 1)
+      all_data[["Current"]][["025.Cases"]][[country]] <- sum(low_output[["2.5%"]]) / (2019 - 2015 + 1)
+      all_data[["Current"]][["975.Cases"]][[country]] <- sum(high_output[["97.5%"]]) / (2019 - 2015 + 1)
       cat(paste("Cases for country,", country, "are", sum(mean_output[["mean"]], na.rm = TRUE)))
     } else if (local_config[["Data"]] == "non-empty") {
       all_years <- 2015:2019
       used_years <- 2015 +
         sort(unique(stan_input$stan_data$map_grid_time[stan_input$stan_data$map_loc_grid_grid])) - 1
       all_data[["Current"]][["Mean.Cases"]][[country]] <- sum(mean_output[["mean"]][unique(stan_input$stan_data$map_loc_grid_grid)]) / (length(used_years))
-      all_data[["Current"]][["025.Cases"]][[country]] <- sum(low_output[["quantile"]][unique(stan_input$stan_data$map_loc_grid_grid)]) / (length(used_years))
-      all_data[["Current"]][["975.Cases"]][[country]] <- sum(high_output[["quantile"]][unique(stan_input$stan_data$map_loc_grid_grid)]) / (length(used_years))
+      all_data[["Current"]][["025.Cases"]][[country]] <- sum(low_output[["2.5%"]][unique(stan_input$stan_data$map_loc_grid_grid)]) / (length(used_years))
+      all_data[["Current"]][["975.Cases"]][[country]] <- sum(high_output[["97.5%"]][unique(stan_input$stan_data$map_loc_grid_grid)]) / (length(used_years))
     }
   } else if (local_config[["Include"]] == "SingleYearModels") {
     tryCatch({
@@ -208,8 +216,8 @@ for (country in config[["Country.Name"]]) {
         low_output <-  MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = quantile, probs = 0.025)
         high_output <-  MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = quantile, probs = 0.975)
         all_data[["Current"]][["Mean.Cases"]][[country]][as.character(year)] <- sum(mean_output[["mean"]], na.rm = TRUE)
-        all_data[["Current"]][["025.Cases"]][[country]][as.character(year)] <- sum(low_output[["quantile"]], na.rm = TRUE)
-        all_data[["Current"]][["975.Cases"]][[country]][as.character(year)] <- sum(high_output[["quantile"]], na.rm = TRUE)
+        all_data[["Current"]][["025.Cases"]][[country]][as.character(year)] <- sum(low_output[["2.5%"]], na.rm = TRUE)
+        all_data[["Current"]][["975.Cases"]][[country]][as.character(year)] <- sum(high_output[["97.5%"]], na.rm = TRUE)
       }
       all_data[["Current"]][["Mean.Cases"]][[country]] <- mean(all_data[["Current"]][["Mean.Cases"]][[country]])
       all_data[["Current"]][["025.Cases"]][[country]] <- mean(all_data[["Current"]][["025.Cases"]][[country]])
@@ -220,6 +228,7 @@ for (country in config[["Country.Name"]]) {
     })
   } else if (local_config[["Include"]] == "Lancet") {
 
+try({
     country_config <- yaml::read_yaml(
       paste0(params$cholera_configs_directory, "/2015_2019_full_base/", country, ".yml")
     )
@@ -253,6 +262,7 @@ for (country in config[["Country.Name"]]) {
     all_data[["Current"]][["975.Cases"]][[country]] <- quantile(aggregated_layers, .975)
     all_data[["Current"]][["025.Cases"]][[country]] <- quantile(aggregated_layers, .025)
 
+})
   } else if (local_config[["Include"]] == "None") {
   } else {
     stop(paste(
