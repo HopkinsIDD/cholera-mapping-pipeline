@@ -422,7 +422,8 @@ read_taxonomy_data_sql <- function(username,
       stop("SQL access by location name is not yet implemented")
     }
   } else {
-    locations_filter <- NULL
+    #locations_filter <- NULL
+    stop("Please use a containing location as the location. Locations can't be NULL.")
   }
   
   if (!is.null(uids)) {
