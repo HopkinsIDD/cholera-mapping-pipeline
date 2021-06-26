@@ -31,4 +31,5 @@ Collate:
     'shapefile_manipulation.R'
     'simulation_framework_helpers.R'
     'stan_input_helpers.R'
+    'testing_database.R'
 VignetteBuilder: knitr
