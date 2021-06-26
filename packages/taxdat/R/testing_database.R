@@ -319,12 +319,31 @@ create or replace function resize_spatial_grid(width_in_km int, height_in_km int
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
 }
 
+create_lookup_location_period <- function(psql_connection) {
+    function_query <- "
+create or replace function lookup_location_period(location_id bigint, start_date date, end_date date)
+  returns bigint
+  as $$
+  SELECT
+    location_periods.id
+  FROM
+    location_periods
+  WHERE
+    location_periods.location_id = location_id AND
+    location_periods.start_date <= start_date AND
+    location_periods.end_date >= end_date
+  $$ LANGUAGE SQL;"
+
+    DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
+}
+
 #' @description Create the functions we will use as part of the testing database
 #' @name create_testing_database_functions
 #' @title create_testing_database_functions
 #' @param psql_connection a connection to a database made with dbConnect
 create_testing_database_functions <- function(psql_connection) {
     create_resize_spatial_grid_function(psql_connection)
+    create_lookup_location_period(psql_connection)
     warning("This function is not complete")
 }
 
@@ -444,14 +463,14 @@ insert_testing_observations <- function(psql_connection, observation_df) {
     observation_df$location_id <- DBI::dbGetQuery(conn = psql_connection, glue::glue_sql(.con = psql_connection, 
         "SELECT id FROM locations where qualified_name in ({observation_df[[\"qualified_name\"]]*})"))[["id"]]
 
-    location_period_query <- paste("SELECT id FROM location_periods WHERE (\"location_id\", \"start_date\", \"end_date\") IN (", 
-        paste("(", glue::glue_sql(.con = psql_connection, "{observation_df[['location_id']]}"), 
-            ",", glue::glue_sql(.con = psql_connection, "{observation_df[['start_date']]}"), 
-            ",", glue::glue_sql(.con = psql_connection, "{observation_df[['end_date']]}"), 
-            ")", collapse = ", "), ")")
+    location_period_query <- paste("SELECT (", paste("lookup_location_period(", glue::glue_sql(.con = psql_connection, 
+        "{observation_df[['location_id']]}"), ",", glue::glue_sql(.con = psql_connection, 
+        "{observation_df[['time_left']]}"), ",", glue::glue_sql(.con = psql_connection, 
+        "{observation_df[['time_right']]}"), ")", collapse = ", "), ")")
+    warning(location_period_query)
 
     observation_df$location_period_id <- DBI::dbGetQuery(conn = psql_connection, 
-        location_period_query)[["id"]]
+        location_period_query)[["lookup_location_period"]]
     # observation_df$location_period_id <- c(1,2,1,2)
 
     insert_query <- paste("INSERT INTO observations(\"observation_collection_id\", \"time_left\", \"time_right\", \"location_period_id\", \"location_id\", \"primary\", \"phantom\", \"suspected_cases\", \"confirmed_cases\", \"deaths\") VALUES", 
