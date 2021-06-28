@@ -509,7 +509,9 @@ test_that("We can add observations to testing database", {
     setup_testing_database(conn_pg, FALSE)
     insert_testing_locations(conn_pg, location_df)
     insert_testing_location_periods(conn_pg, location_period_df)
-    insert_testing_observations(conn_pg, observations_df)
+    expect_error({
+        insert_testing_observations(conn_pg, observations_df)
+    }, NA)
     expect_equal({
         DBI::dbGetQuery(conn = conn_pg, "SELECT * FROM observations")[["time_left"]]
     }, observations_df[["time_left"]])
@@ -531,4 +533,37 @@ test_that("We can add observations to testing database", {
     expect_equal({
         DBI::dbGetQuery(conn = conn_pg, "SELECT * FROM observations")[["deaths"]]
     }, observations_df[["deaths"]])
+})
+
+test_that("We can ingest spatial grids", {
+    dbuser <- Sys.getenv("USER", "app")
+    dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
+    skip_if_not(dbuser == "app")  ## Check for on docker
+    tryCatch({
+        conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
+        database_working <- TRUE
+    }, error = function(e) {
+        skip(paste("Could not connect to database", dbname, "as user", dbuser))
+    })
+    destroy_testing_database(conn_pg)
+    setup_testing_database(conn_pg, FALSE)
+    insert_testing_locations(conn_pg, location_df)
+    insert_testing_location_periods(conn_pg, location_period_df)
+    insert_testing_observations(conn_pg, observations_df)
+    expect_error({
+        ingest_spatial_grid(conn_pg, 1, 1)
+    }, NA)
+    expect_equal({
+        DBI::dbGetQuery(conn = conn_pg, "SELECT COUNT(*) FROM grids.master_spatial_grid")
+    }, {
+        DBI::dbGetQuery(conn = conn_pg, "SELECT COUNT(*) FROM grids.resized_spatial_grids WHERE width = 1 AND height = 1")
+    }, )
+    expect_error({
+        ingest_spatial_grid(conn_pg, 5, 5)
+    }, NA)
+    expect_equal({
+        DBI::dbGetQuery(conn = conn_pg, "SELECT COUNT(*)/5/5 FROM grids.master_spatial_grid")
+    }, {
+        DBI::dbGetQuery(conn = conn_pg, "SELECT COUNT(*) FROM grids.resized_spatial_grids WHERE width = 5 AND height = 5")
+    }, )
 })
