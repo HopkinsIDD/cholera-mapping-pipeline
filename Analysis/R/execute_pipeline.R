@@ -348,7 +348,7 @@ stan_data <- list(
   node2 = as.integer(grid_adjacency$updated_id_2),
   diag = nneighbors$nneighbors,
   pop = covar_cube$population,
-  meanrate = 1, ## FIX ME
+  meanrate = 1,
   M = nrow(observation_data),
   y = as.array(observation_data[[cases_column]]),
   L = length(unique(observation_location_period_mapping$location_period_id)),
