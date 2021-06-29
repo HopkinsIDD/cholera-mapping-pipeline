@@ -1,0 +1,21 @@
+general:
+  location_name: "testlocation"
+  start_date: "2000-01-01"
+  end_date: "2001-12-31"
+  width_in_km: 1
+  height_in_km: 1
+  time_scale: "year"
+stan:
+  directory: "../../Analysis/Stan"
+  ncores: 4
+  model: 'dagar_seasonal.stan'
+  niter: 2000
+  recompile: TRUE
+file_names:
+  stan_output: "../../test_run.Rdata"
+name: 'test_basic'
+taxonomy: 'taxonomy-working/working-entry1'
+smoothing_period: 1
+case_definition: 'suspected'
+covariate_choices: ['dist_to_water','water_access']
+data_source: 'sql'

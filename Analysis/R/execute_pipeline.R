@@ -217,9 +217,7 @@ observation_data <- DBI::dbGetQuery(
      FROM pull_observation_data(
        {config[[\"general\"]][[\"location_name\"]]},
        {config[[\"general\"]][[\"start_date\"]]},
-       {config[[\"general\"]][[\"end_date\"]]},
-       {config[[\"general\"]][[\"width_in_km\"]]},
-       {config[[\"general\"]][[\"height_in_km\"]]}
+       {config[[\"general\"]][[\"end_date\"]]}
     )"
   )
 ) %>%
@@ -273,9 +271,7 @@ observation_location_period_mapping <- DBI::dbGetQuery(
     "SELECT * FROM pull_observation_location_period_map(
       {config[[\"general\"]][[\"location_name\"]]},
        {config[[\"general\"]][[\"start_date\"]]},
-       {config[[\"general\"]][[\"end_date\"]]},
-       {config[[\"general\"]][[\"width_in_km\"]]},
-       {config[[\"general\"]][[\"height_in_km\"]]}
+       {config[[\"general\"]][[\"end_date\"]]}
     )"
   )
 )

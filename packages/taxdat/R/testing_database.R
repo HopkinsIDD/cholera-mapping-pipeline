@@ -58,7 +58,7 @@ CREATE TABLE observations(
 #' @param drop Whether to drop an existing table
 create_locations_table <- function(psql_connection, drop = FALSE) {
     drop_query <- "DROP TABLE IF EXISTS locations CASCADE;"
-    add_query <- "CREATE TABLE locations(id BIGSERIAL PRIMARY KEY, qualified_name text);"
+    add_query <- "CREATE TABLE locations(id BIGSERIAL PRIMARY KEY, qualified_name text UNIQUE);"
 
     add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
@@ -91,7 +91,7 @@ create_shapes_table <- function(psql_connection, drop = FALSE) {
     add_query <- "
 CREATE TABLE shapes(
   id BIGSERIAL PRIMARY KEY,
-  location_period_id bigint REFERENCES location_periods(id),
+  location_period_id bigint REFERENCES location_periods(id) UNIQUE,
   shape GEOMETRY,
   box GEOMETRY
 );"
@@ -145,11 +145,12 @@ create_resized_spatial_grids_table <- function(psql_connection, drop = FALSE) {
 #' @param psql_connection a connection to a database made with dbConnect
 #' @param drop Whether to drop an existing table
 create_all_covariates_table <- function(psql_connection, drop = FALSE) {
+  schema_query <- "CREATE SCHEMA IF NOT EXISTS covariates;"
     drop_query <- "DROP TABLE IF EXISTS covariates.all_covariates CASCADE;"
     add_query <- c("CREATE TABLE covariates.all_covariates(covariate_name text, time_left date, time_right date, rid integer, rast raster);",
         "CREATE INDEX covariate_name_size_idx ON covariates.all_covariates(covariate_name, time_left, time_right, rid);")
 
-    add_and_or_drop(psql_connection, add_query, drop_query, drop)
+    add_and_or_drop(psql_connection, c(schema_query, add_query), drop_query, drop)
 }
 
 #' @description Create a time_bounds table for use in testing
@@ -160,8 +161,9 @@ create_all_covariates_table <- function(psql_connection, drop = FALSE) {
 create_time_bounds_table <- function(psql_connection, drop = FALSE) {
     drop_query <- "DROP TABLE IF EXISTS grids.time_bounds CASCADE;"
     add_query <- "CREATE TABLE grids.time_bounds(time_left date, time_right date);"
+    add_data_query <- "INSERT INTO grids.time_bounds VALUES('2000-01-01', '2020-12-31');"
 
-    add_and_or_drop(psql_connection, add_query, drop_query, drop)
+    add_and_or_drop(psql_connection, c(add_query, add_data_query), drop_query, drop)
 }
 
 #' @description Create a master_temporal_grid view for use in testing
@@ -381,6 +383,25 @@ create or replace function ingest_resized_spatial_grid(width_in_km int, height_i
   $$ SECURITY DEFINER;"
 
   DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
+  invisible(NULL)
+}
+
+create_ingest_covariate_function <- function(psql_connection) {
+  function_query <- "
+create or replace function ingest_covariate(name text, table_name text, ingest_time_left date, ingest_time_right date)
+  returns void
+  LANGUAGE plpgsql
+  as $$
+  begin
+  PERFORM * FROM covariates.all_covariates where all_covariates.covariate_name = name AND all_covariates.time_left = ingest_time_left and all_covariates.time_right = ingest_time_right;
+  if not found then
+  EXECUTE FORMAT ('INSERT INTO covariates.all_covariates SELECT %L as name, %L as time_left, %L as time_right, rid, rast FROM covariates.%I', name, ingest_time_left, ingest_time_right, table_name);
+  end if;
+  end;
+  $$ SECURITY DEFINER;"
+
+  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
+  invisible(NULL)
 }
 
 create_pull_grid_adjacency_function <- function(psql_connection) {
@@ -591,6 +612,140 @@ create or replace function pull_observation_data(location_name text, start_date 
   invisible(NULL)
 }
 
+create_pull_location_period_grid_map_function <- function(psql_connection) {
+  function_query <- "
+create or replace function pull_location_period_grid_map(location_name text, width_in_km int, height_in_km int)
+RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint, shape_id bigint, spatial_grid_id bigint, rid int, x int, y int)AS $$
+  SELECT
+    location_periods.qualified_name as qualified_name,
+    location_periods.location_id as location_id,
+    location_periods.location_period_id as location_period_id,
+    shapes.id as shape_id,
+    spatial_grid.id as spatial_grid_id,
+    spatial_grid.rid,
+    spatial_grid.x,
+    spatial_grid.y
+  FROM
+    filter_location_periods(location_name) as location_periods
+      LEFT JOIN
+    shapes
+      on
+        location_periods.location_period_id = shapes.location_period_id
+      LEFT JOIN
+    filter_resized_spatial_grid_centroids_to_location(location_name, width_in_km, height_in_km) as spatial_grid
+      on
+        ST_CONTAINS(shapes.shape, spatial_grid.geom);
+  $$ LANGUAGE SQL;"
+
+  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
+  invisible(NULL)
+}
+
+create_resize_temporal_grid_function <- function(psql_connection) {
+  function_query <- "
+create or replace function resize_temporal_grid(time_unit text)
+RETURNS table(id bigint, time_midpoint date, time_min date, time_max date) AS
+$$
+  BEGIN
+  IF time_unit = 'year'
+  THEN
+  RETURN QUERY
+  SELECT
+    ROW_NUMBER() OVER (ORDER BY EXTRACT(year from tbl.time_midpoint)),
+    (timestamp without time zone '1970-01-01' + cast(avg(EXTRACT(epoch from tbl.time_midpoint))::text as interval))::date,
+    (timestamp without time zone '1970-01-01' + cast(min(EXTRACT(epoch from tbl.time_midpoint))::text as interval))::date,
+    (timestamp without time zone '1970-01-01' + cast(max(EXTRACT(epoch from tbl.time_midpoint))::text as interval))::date
+  FROM
+    grids.master_temporal_grid as tbl
+  GROUP BY
+    extract(year from tbl.time_midpoint);
+  END IF;
+  IF time_unit = 'month'
+  THEN
+  RETURN QUERY
+  SELECT
+    ROW_NUMBER() OVER (ORDER BY EXTRACT(year from tbl.time_midpoint), EXTRACT(month from tbl.time_midpoint)),
+    (timestamp without time zone '1970-01-01' + cast(avg(EXTRACT(epoch from tbl.time_midpoint))::text as interval))::date,
+    (timestamp without time zone '1970-01-01' + cast(min(EXTRACT(epoch from tbl.time_midpoint))::text as interval))::date,
+    (timestamp without time zone '1970-01-01' + cast(max(EXTRACT(epoch from tbl.time_midpoint))::text as interval))::date
+  FROM
+    grids.master_temporal_grid as tbl
+  GROUP BY
+    extract(year from tbl.time_midpoint),
+    extract(month from tbl.time_midpoint);
+  END IF;
+  END;
+$$ LANGUAGE plpgsql;"
+
+  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
+  invisible(NULL)
+}
+
+create_pull_covar_cube_function <- function(psql_connection) {
+  create_resize_temporal_grid_function(psql_connection)
+  function_query <- "
+create or replace function pull_covar_cube(location_name text, start_date date, end_date date, width_in_km int, height_in_km int, time_scale text)
+RETURNS TABLE(covariate_name text, t bigint, id bigint, rid int, x int, y int, value double precision)AS $$
+  SELECT
+    all_covariates.covariate_name,
+    temporal_grid.id as t,
+    grid_centroids.id,
+    grid_centroids.rid,
+    grid_centroids.x,
+    grid_centroids.y,
+    ST_VALUE(all_covariates.rast, grid_centroids.geom) as value
+  FROM filter_resized_spatial_grid_centroids_to_location(location_name, width_in_km, height_in_km) as grid_centroids
+    INNER JOIN
+      covariate_grid_map
+        ON
+          grid_centroids.rid = covariate_grid_map.grid_rid
+    FULL JOIN
+      resize_temporal_grid(time_scale) as temporal_grid
+        ON
+          1 = 1
+    INNER JOIN
+      covariates.all_covariates
+        ON
+          covariate_grid_map.covar_rid = all_covariates.rid AND
+          covariate_grid_map.time_left = all_covariates.time_left AND
+          covariate_grid_map.time_right = all_covariates.time_right AND
+          covariate_grid_map.width = width_in_km AND
+          covariate_grid_map.height = height_in_km AND
+          all_covariates.time_left <= temporal_grid.time_midpoint AND
+            all_covariates.time_right >= temporal_grid.time_midpoint AND
+          covariate_grid_map.covariate_name = all_covariates.covariate_name AND
+          st_intersects(all_covariates.rast, grid_centroids.geom)
+  WHERE
+    temporal_grid.time_midpoint >= start_date AND
+    temporal_grid.time_midpoint <= end_date
+  $$ LANGUAGE SQL;"
+
+  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
+  invisible(NULL)
+}
+
+create_pull_observation_location_period_map <- function(psql_connection) {
+  function_query <- "
+create or replace function pull_observation_location_period_map(location_name text, start_date date, end_date date)
+  returns table(
+    observation_id bigint,
+    location_period_id bigint
+  ) AS $$
+  SELECT
+    observation_data.id as observation_id,
+    location_periods.location_period_id
+  FROM
+    pull_observation_data(location_name, start_date, end_date) as observation_data
+      LEFT JOIN
+    filter_location_periods(location_name) as location_periods
+      ON
+        observation_data.location_period_id = location_periods.location_period_id;
+  $$ LANGUAGE SQL;"
+
+  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
+  invisible(NULL)
+}
+
 #' @description Create the functions we will use as part of the testing database
 #' @name create_testing_database_functions
 #' @title create_testing_database_functions
@@ -599,9 +754,13 @@ create_testing_database_functions <- function(psql_connection) {
     create_resize_spatial_grid_function(psql_connection)
     create_lookup_location_period_function(psql_connection)
     create_ingest_resized_spatial_grid_function(psql_connection)
+    create_ingest_covariate_function(psql_connection)
     create_pull_grid_adjacency_function(psql_connection)
     create_pull_symmetric_grid_adjacency_function(psql_connection)
     create_pull_observation_data_function(psql_connection)
+    create_pull_covar_cube_function(psql_connection)
+    create_pull_observation_location_period_map(psql_connection)
+    create_pull_location_period_grid_map_function(psql_connection)
     warning("This function is not complete")
 }
 
@@ -612,10 +771,11 @@ create_testing_database_functions <- function(psql_connection) {
 #' @export
 refresh_materialized_views <- function(psql_connection) {
   queries <- paste("REFRESH MATERIALIZED VIEW", c(
+    "grids.master_spatial_grid",
     "grids.resized_spatial_grid_polygons",
     "grids.resized_spatial_grid_centroids",
     "location_period_raster_map",
-    "grids.master_spatial_grid"
+    "covariate_grid_map"
   ))
     for (query in queries) {
         DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, query))
@@ -642,16 +802,21 @@ drop_testing_database_functions <- function(psql_connection) {
     "DROP FUNCTION resize_spatial_grid",
     "DROP FUNCTION lookup_location_period",
     "DROP FUNCTION ingest_resized_spatial_grid",
+    "DROP FUNCTION ingest_covariate",
     "DROP FUNCTION filter_resized_spatial_grid",
     "DROP FUNCTION filter_resized_spatial_grid_centroids_to_location",
     "DROP FUNCTION pull_symmetric_grid_adjacency",
     "DROP FUNCTION pull_observation_data",
-    "DROP FUNCTION filter_location_periods"
+    "DROP FUNCTION filter_location_periods",
+    "DROP FUNCTION resize_temporal_grid",
+    "DROP FUNCTION pull_observation_location_period_map",
+    "DROP FUNCTION pull_location_period_grid_map"
   )
 
   sapply(drop_queries, function(query){DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, query))})
   invisible(NULL)
 }
+
 #' @description delete a testing database
 #' @name destory_testing_database
 #' @title destroy_testing_database
@@ -674,7 +839,9 @@ destroy_testing_database <- function(psql_connection) {
     "DROP MATERIALIZED VIEW IF EXISTS grids.resized_spatial_grid_centroids",
 
     "DROP MATERIALIZED VIEW IF EXISTS location_period_raster_map",
-    "DROP MATERIALIZED VIEW IF EXISTS covariate_grid_map CASCADE")
+    "DROP MATERIALIZED VIEW IF EXISTS covariate_grid_map CASCADE",
+    "DROP SCHEMA IF EXISTS covariates CASCADE"
+  )
     sapply(drop_query, function(query) {
         DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, query))
     })
@@ -692,7 +859,47 @@ insert_testing_locations <- function(psql_connection, location_df) {
     insert_query <- paste("INSERT INTO locations(\"qualified_name\") VALUES", paste("(",
         glue::glue_sql(.con = psql_connection, "{location_df[['qualified_name']]}"),
         ")", collapse = ", "))
-    DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, insert_query))
+
+      DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, insert_query))
+
+    warning("Working on this")
+    location_parts <- stringr::str_split(pattern = "::", string = location_df$qualified_name)
+    for (location_part_set in location_parts) {
+      full_location <- paste(location_part_set, collapse = "::")
+      full_location_id_query <- glue::glue_sql(
+        .con = psql_connection,
+        "SELECT id FROM LOCATIONS WHERE qualified_name = {full_location}"
+      )
+      full_location_id <- DBI::dbGetQuery(conn = psql_connection, full_location_id_query)[["id"]]
+      partial_locations <- lapply(
+        seq_len(length(location_part_set)),
+        function(x) {
+          return(paste(location_part_set[seq_len(x)], collapse = "::"))
+        }
+      )
+      for (partial_location_idx in seq_len(length(partial_locations))) {
+        location <- partial_locations[[partial_location_idx]]
+        location_id_query <- glue::glue_sql(
+          .con = psql_connection,
+          "SELECT id FROM LOCATIONS WHERE qualified_name = {location}"
+        )
+        ## check if exists
+        location_id <- DBI::dbGetQuery(conn = psql_connection, location_id_query)[["id"]]
+        ## create if not exists
+        if (length(location_id) == 0) {
+          insert_testing_locations(psql_connection, data.frame(qualified_name = location))
+          location_id <- DBI::dbGetQuery(conn = psql_connection, location_id_query);
+        }
+        assert(length(location_id) > 0, paste("Failed to create the location", location))
+        ## add to location hierarchy
+        hierarchy_query <- glue::glue_sql(
+          .con = psql_connection,
+          "INSERT INTO location_hierarchies VALUES ({location_id}, {full_location_id}, {length(partial_locations) - partial_location_idx})"
+        )
+        DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, hierarchy_query))
+      }
+    }
+
     invisible(NULL)
 }
 
@@ -805,10 +1012,29 @@ insert_testing_observations <- function(psql_connection, observation_df) {
 #' @param width width of the grid cells in km
 #' @param heigh height of the grid cells in km
 #' @export
-ingest_spatial_grid <- function(psql_connection, width = 1, height = 1) {
+ingest_spatial_grid <- function(psql_connection, width = 1, height = 1, do_refresh = TRUE) {
+  if (do_refresh) {
+    refresh_materialized_views(psql_connection)
+  }
   ingest_query <- "SELECT ingest_resized_spatial_grid({width}, {height});"
   ingest_query <- glue::glue_sql(.con = psql_connection, ingest_query)
   DBI::dbClearResult(DBI::dbSendQuery(conn= psql_connection, ingest_query))
+  invisible(NULL)
+}
+
+#' @description Tell the postgres database to create a resampled grid with appropriate grid size
+#' @param psql_connection a connection to a database made with dbConnect
+#' @param width width of the grid cells in km
+#' @param heigh height of the grid cells in km
+#' @export
+ingest_covariate <- function(psql_connection, covariate_name, covariate_raster, time_left, time_right) {
+  table_name <- paste(covariate_name, time_left, time_right, sep = "_")
+  table_name <- gsub("-", "_", table_name)
+  table_name <- gsub("[.]", "_", table_name)
+  rpostgis::pgWriteRast(raster = covariate_raster, conn = psql_connection, name = c("covariates", table_name))
+  ingest_query <- "SELECT ingest_covariate({covariate_name}, {table_name}, {time_left}, {time_right});"
+  ingest_query <- glue::glue_sql(.con = psql_connection, ingest_query)
+  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, ingest_query))
   invisible(NULL)
 }
 
