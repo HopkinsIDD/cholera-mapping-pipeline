@@ -883,7 +883,7 @@ insert_testing_locations <- function(psql_connection, location_df) {
           .con = psql_connection,
           "SELECT id FROM LOCATIONS WHERE qualified_name = {location}"
         )
-        ## check if exists
+         ## check if exists
         location_id <- DBI::dbGetQuery(conn = psql_connection, location_id_query)[["id"]]
         ## create if not exists
         if (length(location_id) == 0) {
