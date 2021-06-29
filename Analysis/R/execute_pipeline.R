@@ -333,8 +333,7 @@ start_time <- Sys.time()
 #     chains = nchain, iter = niter, pars = c("b", "t_rowsum", "vec_var"), include = FALSE,
 #     control = list(max_treedepth = 15), init = initial_values_data$init.list)
 stan_dir <- config[["stan"]][["directory"]]
-stan_model_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, config[["stan"]][["model"]],
-    sep = "/"), stan_dir = stan_dir)
+stan_model_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, config[["stan"]][["model"]], sep = "/"), stan_dir = stan_dir)
 
 if (is.null(config[["stan"]][["nchain"]])) {
   config[["stan"]][["nchain"]] <- pmax(config[["stan"]][["ncores"]], 2)
