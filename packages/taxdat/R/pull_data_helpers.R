@@ -1,3 +1,184 @@
+#' @export
+#' @name time_unit_to_start_function
+#' @title time_unit_to_start_function
+#' @description Make a function that returns a date at the start of the appropriate time unit
+#' @param unit Human readable string for unit of time aggregation
+#' @return a function that returns a date at the start of the appropriate time unit
+time_unit_to_start_function <- function(unit) {
+  
+  unit <- strsplit(unit, split = " ")[[1]]
+  # Remove the 's' at the end of the unit
+  unit <- gsub("s$", "", unit)
+  unit_type <- unit[[2]]
+  unit_count <- as.numeric(unit[[1]])
+  
+  
+  changer <- list(
+    "year" = function(x) {
+      x <- x * unit_count
+      return(as.Date(paste(x, "01", "01", sep = "-"), format = "%Y-%m-%d"))
+    },
+    "month" = function(x) {
+      x <- x * unit_count
+      month <- ((x - 1) %% 12) + 1
+      year <- (x - month) / 12
+      return(as.Date(paste(year, month, "01", sep = "-"), format = "%Y-%m-%d"))
+    },
+    "isoweek" = function(x) {
+      x <- x * unit_count
+      return(stop("Not yet written"))
+    }
+  )
+  return(changer[[unit_type]])
+}
+
+#' @export
+#' @name time_unit_to_end_function
+#' @title time_unit_to_end_function
+#' @description Make a function that returns a date at the end of the appropriate time unit
+#' @param unit Human readable string for unit of time aggregation
+#' @return a function that returns a date at the end of the appropriate time unit
+time_unit_to_end_function <- function(unit) {
+  
+  unit <- strsplit(unit, split = " ")[[1]]
+  # Remove the 's' at the end of the unit
+  unit <- gsub("s$", "", unit)
+  unit_type <- unit[[2]]
+  unit_count <- as.numeric(unit[[1]])
+  
+  
+  changer <- list(
+    "year" = function(x) {
+      x <- x * unit_count
+      return(as.Date(paste(x, "12", "31", sep = "-"), format = "%Y-%m-%d"))
+    },
+    "month" = function(x) {
+      x <- x * unit_count
+      month <- ((x - 1) %% 12) + 1
+      year <- (x - month) / 12
+      return(as.Date(paste(year, month, lubridate::days_in_month(month), sep = "-"), format = "%Y-%m-%d"))
+    },
+    "isoweek" = function(x) {
+      x <- x * unit_count
+      return(stop("Not yet written"))
+    }
+  )
+  return(changer[[unit_type]])
+}
+
+#' @export
+#' @name time_unit_to_aggregate_function
+#' @title time_unit_to_aggregate_function
+#' @description Returns a function that converts dates into the correct time unit
+#' @param unit Human readable string for unit of time aggregation
+#' @return a function that converts dates into the correct time unit
+time_unit_to_aggregate_function <- function(unit) {
+  
+  unit <- strsplit(unit, split = " ")[[1]]
+  # Remove the 's' at the end of the unit
+  unit <- gsub("s$", "", unit)
+  unit_type <- unit[[2]]
+  unit_count <- as.numeric(unit[[1]])
+  
+  changer <- list(
+    "year" = function(x) {
+      return(floor(lubridate::year(x) / unit_count))
+    },
+    "month" = function(x) {
+      return(floor((12 * lubridate::year(x) + lubridate::month(x)) / unit_count))
+    },
+    "isoweek" = function(x) {
+      return(stop("Not yet written"))
+    }
+  )
+  return(changer[[unit_type]])
+}
+
+#' @export
+#' @name case_definition_to_column_name
+#' @title case_definition_to_column_name
+#' @description Turns human readable types of cholera case definitions into taxdat codes
+#' @param type string of type
+#' @param database Whether or not we're using the database
+#' @param sql logical for whether data is pulled from sql
+#' @return string of column names in the data taxonomy data frame.
+case_definition_to_column_name = function(type,database=FALSE,sql=FALSE){
+  if((!database) & (!sql)){
+    warning("The svn column names are deprecated, please use database column names.")
+    changer <- c(
+      'suspected' = 'sCh',
+      'confirmed' = 'cCh',
+      "presence"=c("sCh","sCh_R","sCh_L","cCh","cCh_L","cCh_R","deaths","deaths_L","deaths_R")
+    )
+  } else if((database) & (!sql)){
+    changer <- c(
+      'suspected' = 'attributes.fields.suspected_cases',
+      'confirmed' = 'attributes.fields.confirmed_cases',
+      "presence"=c(
+        "attributes.fields.suspected_cases",
+        "attributes.fields.suspected_cases_R",
+        "attributes.fields.suspected_cases_L",
+        "attributes.fields.confirmed_cases",
+        "attributes.fields.confirmed_cases_L",
+        "attributes.fields.confirmed_cases_R",
+        "attributes.fields.deaths",
+        "attributes.fields.deaths_L",
+        "attributes.fields.deaths_R"
+      )
+    )
+  } else if((!database) & (sql)){
+    changer <- c(
+      "suspected" = "suspected_cases",
+      "confirmed" = "confirmed_cases",
+      "presence"=c(
+        "suspected_cases",
+        "suspected_cases_R",
+        "suspected_cases_L",
+        "confirmed_cases",
+        "confirmed_cases_L",
+        "confirmed_cases_R",
+        "deaths",
+        "deaths_L",
+        "deaths_R"
+      )
+    )
+  }
+  return(changer[type])
+}
+
+#' @export
+#' @name reduce_sf_vector
+#' @title reduce_sf_vector
+#' @description recursively rbind a list of sf objects
+#' @param vec a vector/list of sf objects
+#' @return a single sf object which contains all the rows bound together
+reduce_sf_vector <- function(vec){
+  
+  if(length(vec) == 0){
+    return(sf::st_sf(sf::st_sfc()))
+  }
+  if(is.null(names(vec))){
+    names(vec) = 1:length(vec)
+  }
+  if(length(names(vec)) != length(vec)){
+    names(vec) = 1:length(vec)
+  }
+  k = 1
+  all_columns = unlist(vec,recursive=FALSE)
+  split_names = strsplit(names(all_columns),'.',fixed=TRUE)
+  column_names = sapply(split_names,function(x){x[[2]]})
+  geom_columns = which(column_names == 'geometry')
+  geometry = sf::st_as_sfc(unlist(all_columns[geom_columns],recursive=FALSE))
+  rc = sf::st_sf(geometry)
+  frame_only = dplyr::bind_rows(lapply(vec,function(x){
+    x = as.data.frame(x)
+    x = x[-grep('geometry',names(x))]
+    return(x)
+  }))
+  rc = dplyr::bind_cols(rc,frame_only)
+  return(rc)
+}
+
 #' @title Rename cholera data columns
 #' @description Renames the columns of the data pulled either from the the 
 #' API staging database or by SQL from taxdat 
@@ -6,7 +187,7 @@
 #' @param source Whether the source is the staging database (sing the API) or taxdat (using SQL).
 #' @details source is one of 'api' or 'sql'
 #' @return the renamed dataframe
-#' @export
+#' @export 
 rename_database_fields <- function(database_df,
                                    source = "api") {
   
@@ -394,8 +575,7 @@ read_taxonomy_data_sql <- function(username,
   cat("-- Pulling data from taxonomy database with SQL \n")
   
   # Add filters
-  if (any(c(!is.null(locations), 
-            !is.null(time_left),
+  if (any(c(!is.null(time_left),
             !is.null(time_right), 
             !is.null(uids)))) {
     obs_query <- paste(obs_query, "\n WHERE ")
