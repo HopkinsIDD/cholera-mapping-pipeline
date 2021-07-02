@@ -1,7 +1,7 @@
 general:
-  location_name: "testlocation"
+  location_name: "AFR::KEN"
   start_date: "2000-01-01"
-  end_date: "2001-12-31"
+  end_date: "2000-12-31"
   width_in_km: 1
   height_in_km: 1
   time_scale: "year"
