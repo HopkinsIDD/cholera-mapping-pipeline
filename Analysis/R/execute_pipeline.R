@@ -1,5 +1,9 @@
-## Preamble
-## ------------------------------------------------------------------------------------------------------------
+#!/usr/bin/Rscript
+# This scripts purpose is to collect all data required to model cholera
+# incidence, and store it in a form usable by stan.  This script mainly uses
+# functions from the package taxdat, stored in trunk/packages/taxdat. Libraries
+# Control Variables: Preamble
+# ------------------------------------------------------------------------------------------------------------
 
 
 
@@ -11,8 +15,6 @@ if (Sys.getenv("INTERACTIVE_RUN", FALSE)) {
         quit(..., status = 2)
     })
 }
-
-
 
 ### Libraries
 if (Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE)) {
@@ -31,17 +33,27 @@ if (Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE)) {
 }
 
 # Set working directory to access taxdat properly
-try({
-    setwd(utils::getSrcDirectory())
-}, silent = TRUE)
-try({
-    setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-}, silent = TRUE)
 
 if (Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE)) {
     if (!require(taxdat)) {
+        previous_wd <- getwd()
+        try({
+            setwd(utils::getSrcDirectory())
+        }, silent = TRUE)
+        try({
+            setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+        }, silent = TRUE)
+
         install.packages("packages/taxdat", type = "source", repos = NULL)
         library(taxdat)
+
+        try({
+            setwd(utils::getSrcDirectory())
+        }, silent = TRUE)
+        try({
+            setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+        }, silent = TRUE)
+        setwd(previous_wd)
     }
 
     for (x in rev(sort(which(!(search() %in% base_search))))) {
@@ -164,6 +176,7 @@ config <- yaml::read_yaml(opt$config)
 ### Setup postgres
 conn_pg <- taxdat::connect_to_db(dbname = opt$postgres_database_name, dbuser = opt$postgres_database_user)
 
+cases_column <- "suspected_cases"
 ## Observations
 observation_data <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg, 
     "SELECT *
@@ -173,6 +186,7 @@ observation_data <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.
        {config[[\"general\"]][[\"end_date\"]]}
     )")) %>%
     dplyr::mutate(shape = sf::st_as_sfc(shape)) %>%
+    dplyr::filter(!is.na(!!rlang::sym(cases_column))) %>%
     sf::st_as_sf()
 
 ## Covariates
@@ -185,14 +199,8 @@ covar_cube <- DBI::dbGetQuery(conn = conn_pg, glue::glue_sql(.con = conn_pg, "SE
        {config[[\"general\"]][[\"height_in_km\"]]},
        {config[[\"general\"]][[\"time_scale\"]]}
     )")) %>%
-    tidyr::pivot_wider(names_from = covariate_name, values_from = value) %>%
-    dplyr::filter(population > 0) %>%
-    reindex("id", "updated_id")
+    tidyr::pivot_wider(names_from = covariate_name, values_from = value)
 
-grid_changer <- setNames(sort(unique(covar_cube$updated_id)), sort(unique(covar_cube$id)))
-if (!all(grid_changer[as.character(covar_cube$id)] == covar_cube$updated_id)) {
-    stop("There is a problem with computing the updated grid indices")
-}
 
 
 grid_adjacency <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg, 
@@ -200,9 +208,7 @@ grid_adjacency <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.co
       {config[[\"general\"]][[\"location_name\"]]},
        {config[[\"general\"]][[\"width_in_km\"]]},
        {config[[\"general\"]][[\"height_in_km\"]]}
-    )")) %>%
-    dplyr::mutate(updated_id_1 = grid_changer[as.character(id_1)], updated_id_2 = grid_changer[as.character(id_2)]) %>%
-    dplyr::filter(!is.na(updated_id_1), !is.na(updated_id_2))
+    )"))
 
 observation_location_period_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg, 
     "SELECT * FROM pull_observation_location_period_map(
@@ -219,18 +225,65 @@ location_period_grid_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = glue
       {config[[\"general\"]][[\"location_name\"]]},
        {config[[\"general\"]][[\"width_in_km\"]]},
        {config[[\"general\"]][[\"height_in_km\"]]}
-    )")) %>%
-    dplyr::filter(location_id %in% unique_location_ids)
+    )"))
+# location_period_grid_mapping <- location_period_grid_mapping %>%
+# dplyr::filter(location_id %in% unique_location_ids)
 
-unique_locations <- location_period_grid_mapping %>%
-    dplyr::group_by(location_id, location_period_id) %>%
-    dplyr::filter(!is.na(spatial_grid_id)) %>%
-    dplyr::summarize(.groups = "drop")
+## Compute Missingness and remove partial observations
 
-sort(unique(location_period_grid_mapping$shape_id))
+covariate_covered_grid_ids <- covar_cube %>%
+    dplyr::filter(!is.na(id), !is.na(t), population > 0) %>%
+    dplyr::group_by(id) %>%
+    dplyr::summarize(count = length(t)) %>%
+    dplyr::filter(count == max(count)) %>%
+    .$id
 
-location_period_grid_mapping <- location_period_grid_mapping %>%
-    dplyr::mutate(updated_spatial_grid_id = grid_changer[as.character(spatial_grid_id)])
+non_na_location_period_grid_mapping <- dplyr::filter(location_period_grid_mapping, 
+    !is.na(location_period_id), !is.na(spatial_grid_id))
+
+shapefile_covered_grid_ids <- unique(non_na_location_period_grid_mapping$spatial_grid_id)
+shapefile_covered_grid_ids <- shapefile_covered_grid_ids[!is.na(shapefile_covered_grid_ids)]
+fully_covered_grid_ids <- covariate_covered_grid_ids[covariate_covered_grid_ids %in% 
+    shapefile_covered_grid_ids]
+
+grid_covered_location_period_grid_mapping <- non_na_location_period_grid_mapping %>%
+    dplyr::filter(spatial_grid_id %in% fully_covered_grid_ids)
+
+grid_covered_location_period_ids <- unique(grid_covered_location_period_grid_mapping$location_period_id)
+fully_covered_location_period_ids <- grid_covered_location_period_ids
+
+location_period_covered_observation_ids <- observation_location_period_mapping %>%
+    dplyr::filter(!is.na(observation_id), !is.na(location_period_id), location_period_id %in% 
+        grid_covered_location_period_ids) %>%
+    .$observation_id
+fully_covered_observation_ids <- location_period_covered_observation_ids
+
+## Actually doing filtering here
+
+covar_cube <- covar_cube %>%
+    dplyr::filter(id %in% fully_covered_grid_ids) %>%
+    reindex("id", "updated_id")
+
+grid_changer <- setNames(sort(unique(covar_cube$updated_id)), sort(unique(covar_cube$id)))
+if (!all(grid_changer[as.character(covar_cube$id)] == covar_cube$updated_id)) {
+    stop("There is a problem with computing the updated grid indices")
+}
+
+grid_adjacency <- grid_adjacency %>%
+    dplyr::mutate(updated_id_1 = grid_changer[as.character(id_1)], updated_id_2 = grid_changer[as.character(id_2)]) %>%
+    dplyr::filter(!is.na(updated_id_1), !is.na(updated_id_2))
+
+location_period_changer <- grid_covered_location_period_grid_mapping %>%
+    dplyr::group_by(location_period_id) %>%
+    dplyr::summarize(.groups = "drop") %>%
+    reindex("location_period_id", "updated_location_period_id") %>%
+    (function(x) {
+        setNames(x$updated_location_period_id, x$location_period_id)
+    })
+
+# location_period_grid_mapping <- location_period_grid_mapping %>%
+# dplyr::mutate(updated_spatial_grid_id =
+# grid_changer[as.character(spatial_grid_id)])
 
 nneighbors <- grid_adjacency %>%
     dplyr::group_by(id_1) %>%
@@ -240,13 +293,27 @@ nneighbors <- grid_adjacency %>%
     dplyr::select(nneighbors)
 nneighbors[is.na(nneighbors)] <- 0
 
-cases_column <- "suspected_cases"
+observation_data <- observation_data %>%
+    dplyr::filter(observation_id %in% fully_covered_observation_ids) %>%
+    reindex("observation_id", "updated_observation_id") %>%
+    dplyr::mutate(updated_location_period_id = location_period_changer[as.character(location_period_id)])
 
+observation_changer <- setNames(sort(unique(observation_data$updated_observation_id)), 
+    sort(unique(observation_data$observation_id)))
+if (!all(observation_changer[as.character(observation_data$observation_id)] == observation_data$updated_observation_id)) {
+    stop("There is a problem with computing the updated observation indices")
+}
 
-# !/usr/bin/Rscript This scripts purpose is to collect all data required to model
-# cholera incidence, and store it in a form usable by stan.  This script mainly
-# uses functions from the package taxdat, stored in trunk/packages/taxdat.
-# Libraries Control Variables:
+observation_location_period_mapping <- observation_location_period_mapping %>%
+    dplyr::mutate(updated_observation_id = observation_changer[as.character(observation_id)], 
+        updated_location_period_id = location_period_changer[as.character(location_period_id)], 
+        ) %>%
+    dplyr::filter(!is.na(updated_observation_id), !is.na(updated_location_period_id))
+
+location_period_grid_mapping <- location_period_grid_mapping %>%
+    dplyr::mutate(updated_spatial_grid_id = grid_changer[as.character(spatial_grid_id)], 
+        updated_location_period_id = location_period_changer[as.character(location_period_id)]) %>%
+    dplyr::filter(!is.na(updated_spatial_grid_id), !is.na(updated_location_period_id))
 
 ### Construct some additional parameters based on the above Define relevent
 ### directories Name the output file
@@ -273,13 +340,13 @@ options(mc.cores = config[["stan"]][["ncores"]])
 stan_data <- list(N = nrow(covar_cube), N_edges = nrow(grid_adjacency), smooth_grid_N = length(unique(covar_cube$updated_id)), 
     node1 = as.integer(grid_adjacency$updated_id_1), node2 = as.integer(grid_adjacency$updated_id_2), 
     diag = nneighbors$nneighbors, pop = covar_cube$population, meanrate = 1, M = nrow(observation_data), 
-    y = as.array(observation_data[[cases_column]]), L = length(unique(observation_location_period_mapping$location_period_id)), 
+    y = as.array(observation_data[[cases_column]]), L = length(unique(observation_location_period_mapping$updated_location_period_id)), 
     K1 = nrow(observation_location_period_mapping), K2 = nrow(location_period_grid_mapping), 
-    map_obs_loctime_obs = as.array(cast_to_int32(observation_location_period_mapping$observation_id)), 
-    map_obs_loctime_loc = as.array(cast_to_int32(observation_location_period_mapping$location_period_id)), 
+    map_obs_loctime_obs = as.array(cast_to_int32(observation_location_period_mapping$updated_observation_id)), 
+    map_obs_loctime_loc = as.array(cast_to_int32(observation_location_period_mapping$updated_location_period_id)), 
     tfrac = as.array(rep(1, times = nrow(observation_location_period_mapping))), 
-    map_loc_grid_loc = as.array(cast_to_int32(location_period_grid_mapping$location_period_id)), 
-    map_loc_grid_grid = as.array(cast_to_int32(location_period_grid_mapping$spatial_grid_id)), 
+    map_loc_grid_loc = as.array(cast_to_int32(location_period_grid_mapping$updated_location_period_id)), 
+    map_loc_grid_grid = as.array(cast_to_int32(location_period_grid_mapping$updated_spatial_grid_id)), 
     map_smooth_grid = covar_cube$updated_id, rho = 0.999, covar = as.matrix(covar_cube[, 
         -c(1:5, ncol(covar_cube))]), ncovar = ncol(covar_cube[, -c(1:5, ncol(covar_cube))]))
 

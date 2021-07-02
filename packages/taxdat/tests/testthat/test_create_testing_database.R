@@ -1,29 +1,3 @@
-test_that("Create observation table works", {
-    dbuser <- Sys.getenv("USER", "app")
-    dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
-    skip_if_not(dbuser == "app")  ## Check for on docker
-    tryCatch({
-        conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
-        database_working <- TRUE
-    }, error = function(e) {
-        skip(paste("Could not connect to database", dbname, "as user", dbuser))
-    })
-
-    expect_error({
-        create_observations_table(conn_pg, TRUE)
-    }, NA)
-    expect_error({
-        create_observations_table(conn_pg, TRUE)
-    }, NA)
-    expect_error({
-        create_observations_table(conn_pg)
-    })
-    expect_error({
-        create_observations_table(conn_pg, FALSE)
-    })
-
-})
-
 test_that("Create locations table works", {
     dbuser <- Sys.getenv("USER", "app")
     dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
@@ -124,6 +98,32 @@ test_that("Create location_hierarchies table works", {
     })
     expect_error({
         create_location_hierarchies_table(conn_pg, FALSE)
+    })
+
+})
+
+test_that("Create observation table works", {
+    dbuser <- Sys.getenv("USER", "app")
+    dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
+    skip_if_not(dbuser == "app")  ## Check for on docker
+    tryCatch({
+        conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
+        database_working <- TRUE
+    }, error = function(e) {
+        skip(paste("Could not connect to database", dbname, "as user", dbuser))
+    })
+
+    expect_error({
+        create_observations_table(conn_pg, TRUE)
+    }, NA)
+    expect_error({
+        create_observations_table(conn_pg, TRUE)
+    }, NA)
+    expect_error({
+        create_observations_table(conn_pg)
+    })
+    expect_error({
+        create_observations_table(conn_pg, FALSE)
     })
 
 })

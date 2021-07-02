@@ -1,5 +1,5 @@
 ## Basic test to make sure that testing setup works
-context("Test 1 : GRID ADJACENCY")
+context("Test 2 : Grid Adjacency")
 test_that("testing works", {
     expect_error({
         1 + 1

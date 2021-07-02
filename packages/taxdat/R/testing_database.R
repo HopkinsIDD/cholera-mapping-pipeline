@@ -703,7 +703,7 @@ RETURNS TABLE(covariate_name text, t bigint, id bigint, rid int, x int, y int, v
       resize_temporal_grid(time_scale) as temporal_grid
         ON
           1 = 1
-    INNER JOIN
+    LEFT JOIN
       covariates.all_covariates
         ON
           covariate_grid_map.covar_rid = all_covariates.rid AND
@@ -761,7 +761,6 @@ create_testing_database_functions <- function(psql_connection) {
     create_pull_covar_cube_function(psql_connection)
     create_pull_observation_location_period_map(psql_connection)
     create_pull_location_period_grid_map_function(psql_connection)
-    warning("This function is not complete")
 }
 
 #' @description Refresh the materialized views in the database to account for new data
@@ -791,6 +790,24 @@ setup_testing_database <- function(psql_connection, drop = FALSE) {
     create_testing_base_database(psql_connection, drop)
     create_testing_additional_database(psql_connection, drop)
     create_testing_database_functions(psql_connection)
+}
+
+#' @export
+setup_testing_database_from_dataframes <- function(psql_connection, data_frame_list, 
+    covariate_creation_function_list) {
+    setup_testing_database(psql_connection, drop = TRUE)
+    insert_testing_locations(psql_connection, data_frame_list$location_df)
+    insert_testing_location_periods(psql_connection, data_frame_list$location_period_df)
+    insert_testing_shapefiles(psql_connection, data_frame_list$shapes_df)
+    refresh_materialized_views(psql_connection)
+    ingest_spatial_grid(psql_connection, width = 1, height = 1)
+    refresh_materialized_views(psql_connection)
+    insert_testing_observations(psql_connection, data_frame_list$observations_df)
+    for (fun in covariate_creation_function_list) {
+        ingest_covariate(psql_connection, fun$name, fun$fun(psql_connection), fun$start_date, 
+            fun$end_date)
+    }
+    refresh_materialized_views(psql_connection)
 }
 
 drop_testing_database_functions <- function(psql_connection) {
@@ -826,6 +843,60 @@ destroy_testing_database <- function(psql_connection) {
     invisible(NULL)
 }
 
+#' @description Pull data from the api, and parse it into the objects needed to create a testing database. This function returns those data frames, so they can be modified before a database is created with them.
+#' @name create_testing_dfs_from_api
+#' @title create_testing_dfs_from_api
+#' @param username api username
+#' @param api_key api_key
+#' @param locations vector of locations to pull data for
+#' @param time_left pull only data after this time
+#' @param time_right pull only data before this time
+#' @param uids pull only specific uids (default to all uids)
+#' @param website where to access the data, defaults to the api website
+#' @export
+create_testing_dfs_from_api <- function(username, api_key, locations = NULL, time_left = NULL, 
+    time_right = NULL, uids = NULL, website = "https://api.cholera-taxonomy.middle-distance.com/") {
+    api_results <- read_taxonomy_data_api(username, api_key, locations, time_left, 
+        time_right, uids, website)
+    location_df <- api_results %>%
+        sf::st_drop_geometry() %>%
+        dplyr::mutate(qualified_name = gsub("[.][^:]*$", "", attributes.location_name)) %>%
+        dplyr::select(qualified_name) %>%
+        dplyr::group_by(qualified_name) %>%
+        dplyr::summarize(.groups = "drop")
+
+    location_period_df <- api_results %>%
+        sf::st_drop_geometry() %>%
+        dplyr::mutate(qualified_name = gsub("[.][^:]*$", "", attributes.location_name), 
+            start_date = lubridate::ymd(attributes.time_left), end_date = lubridate::ymd(attributes.time_right)) %>%
+        dplyr::select(sf_id, qualified_name, start_date, end_date) %>%
+        dplyr::group_by(qualified_name, sf_id) %>%
+        dplyr::summarize(start_date = min(start_date), end_date = max(end_date), 
+            .groups = "drop") %>%
+        dplyr::select(qualified_name, start_date, end_date)
+
+    shapes_df <- api_results %>%
+        dplyr::mutate(qualified_name = gsub("[.][^:]*$", "", attributes.location_name), 
+            start_date = lubridate::ymd(attributes.time_left), end_date = lubridate::ymd(attributes.time_right)) %>%
+        dplyr::select(sf_id, qualified_name, start_date, end_date) %>%
+        dplyr::group_by(qualified_name, sf_id) %>%
+        dplyr::summarize(start_date = min(start_date), end_date = max(end_date), 
+            .groups = "drop") %>%
+        dplyr::select(qualified_name, start_date, end_date)
+    names(shapes_df)[[4]] <- "geom"
+    sf::st_geometry(shapes_df) <- "geom"
+
+    observations_df <- api_results %>%
+        dplyr::mutate(qualified_name = gsub("[.][^:]*$", "", attributes.location_name), 
+            time_left = lubridate::ymd(attributes.time_left), time_right = lubridate::ymd(attributes.time_right), 
+            observation_collection_id = relationships.observation_collection.data.id, 
+            primary = attributes.primary, phantom = attributes.phantom, suspected_cases = attributes.fields.suspected_cases, 
+            confirmed_cases = attributes.fields.confirmed_cases, deaths = attributes.fields.deaths)
+
+    return(list(location_df = location_df, location_period_df = location_period_df, 
+        shapes_df = shapes_df, observations_df = observations_df))
+}
+
 #' @description Insert locations into the testing database
 #' @name insert_testing_locations
 #' @title insert_testing_locations
@@ -840,7 +911,6 @@ insert_testing_locations <- function(psql_connection, location_df) {
 
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, insert_query))
 
-    warning("Working on this")
     location_parts <- stringr::str_split(pattern = "::", string = location_df$qualified_name)
     for (location_part_set in location_parts) {
         full_location <- paste(location_part_set, collapse = "::")
@@ -857,7 +927,7 @@ insert_testing_locations <- function(psql_connection, location_df) {
             ## create if not exists
             if (length(location_id) == 0) {
                 insert_testing_locations(psql_connection, data.frame(qualified_name = location))
-                location_id <- DBI::dbGetQuery(conn = psql_connection, location_id_query)
+                location_id <- DBI::dbGetQuery(conn = psql_connection, location_id_query)[["id"]]
             }
             assert(length(location_id) > 0, paste("Failed to create the location", 
                 location))
@@ -955,8 +1025,10 @@ insert_testing_observations <- function(psql_connection, observation_df) {
     assert(any(c("suspected_cases", "confirmed_cases", "deaths") %in% names(observation_df)), 
         "insert_testing_observations cannot insert a shape without at least one case column")
 
-    observation_df$location_id <- DBI::dbGetQuery(conn = psql_connection, glue::glue_sql(.con = psql_connection, 
-        "SELECT id FROM locations where qualified_name in ({observation_df[[\"qualified_name\"]]*})"))[["id"]]
+    location_id_query <- glue::glue_sql(.con = psql_connection, "SELECT id FROM LOCATIONS WHERE qualified_name = {observation_df[[\"qualified_name\"]]}")
+    observation_df$location_id <- sapply(location_id_query, function(query) {
+        as.character(DBI::dbGetQuery(conn = psql_connection, query)[["id"]])
+    })
 
 
     insert_query <- paste("INSERT INTO observations(\"observation_collection_id\", \"time_left\", \"time_right\", \"location_period_id\", \"location_id\", \"primary\", \"phantom\", \"suspected_cases\", \"confirmed_cases\", \"deaths\") VALUES", 
@@ -997,6 +1069,9 @@ ingest_spatial_grid <- function(psql_connection, width = 1, height = 1, do_refre
 #' @export
 ingest_covariate <- function(psql_connection, covariate_name, covariate_raster, time_left, 
     time_right) {
+    assert(!is.null(time_left), "ingest_covariate requires a time_left argument")
+    assert(!is.null(time_right), "ingest_covariate requires a time_right argument")
+    assert(!is.null(covariate_name), "ingest_covariate requires a covariate_name argument")
     table_name <- paste(covariate_name, time_left, time_right, sep = "_")
     table_name <- gsub("-", "_", table_name)
     table_name <- gsub("[.]", "_", table_name)

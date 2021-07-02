@@ -1,5 +1,5 @@
 ## Basic test to make sure that testing setup works
-context("Test 1 : Basic Pipeline Run")
+context("Test 3 : Simple Pipeline Run")
 
 dbuser <- Sys.getenv("USER", "app")
 dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
