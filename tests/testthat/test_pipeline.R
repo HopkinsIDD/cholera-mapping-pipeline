@@ -3,6 +3,7 @@ context("Test 3 : Simple Pipeline Run")
 
 dbuser <- Sys.getenv("USER", "app")
 dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
+Sys.setenv(CHOLERA_CONFIG = "config.yml")
 
 location_df <- data.frame(qualified_name = c("testlocation"))
 
