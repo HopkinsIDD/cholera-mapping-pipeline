@@ -9,7 +9,16 @@ Description: This package is designed to load and work with taxonomy files in a 
 Encoding: UTF-8
 License: GPL (>= 2)
 Depends: R (>= 3.4),ISOcodes,magrittr, dplyr, tidyr
-Suggests: readxl, sf, sp, raster, rgdal, testthat, knitr, rmarkdown
+Suggests: 
+    readxl,
+    sf,
+    sp,
+    raster,
+    rgdal,
+    testthat,
+    knitr,
+    rmarkdown,
+    covr
 RoxygenNote: 7.1.1
 Collate:
     'color_scale.R'

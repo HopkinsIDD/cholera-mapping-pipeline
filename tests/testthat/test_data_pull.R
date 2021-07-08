@@ -5,8 +5,8 @@ context("Test 1 : Real data from api")
 dbuser <- Sys.getenv("USER", "app")
 dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
 
-all_dfs <- taxdat::create_testing_dfs_from_api(username = Sys.getenv("API_USERNAME"), 
-    api_key = Sys.getenv("API_KEY"), locations = "AFR::KEN", time_left = lubridate::ymd("2000-01-01"), 
+all_dfs <- taxdat::create_testing_dfs_from_api(username = Sys.getenv("CHOLERA_API_USERNAME"), 
+    api_key = Sys.getenv("CHOLERA_API_KEY"), locations = "AFR::KEN", time_left = lubridate::ymd("2000-01-01"), 
     time_right = lubridate::ymd("2000-12-31"), uids = NULL, website = "https://api.cholera-taxonomy.middle-distance.com/")
 
 
