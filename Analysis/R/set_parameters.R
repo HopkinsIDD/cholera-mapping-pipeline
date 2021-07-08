@@ -181,6 +181,7 @@ if (testing) {
 # - - - - cholera_covariates database connection settings Get username of user
 # (docker doesn't provide username so default to app)
 dbuser <- Sys.getenv("USER", "app")
+dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
 
 # Pipeline steps ---------------------------------------------------------------
 
@@ -254,12 +255,13 @@ for (t_idx in 1:length(all_test_idx)) {
             sep = "/"))
 
         # Run covariate preparation. The function return the list of covariate names
-        # included in the model
+        # included in the model Always include pop in the covariate names
+        short_covars_string_with_pop <- paste(c("p", short_covariates), collapse = ",")
         covar_list <- prepare_covariates(dbuser = dbuser, cholera_covariates_directory = laydir, 
             res_space = res_space, res_time = res_time, ingest = config$ingest_covariates, 
             do_parallel = F, ovrt_covar = config$ingest_new_covariates, ovrt_metadata_table = config$ovrt_metadata_table, 
-            redo_metadata = config$ingest_new_covariates, covar = paste(c("p", short_covariates), 
-                collapse = ","), full_grid_name = full_grid_name, aoi_name = config$aoi)
+            redo_metadata = config$ingest_new_covariates, covar = short_covars_string_with_pop, 
+            full_grid_name = full_grid_name, aoi_name = config$aoi, dbname = dbname)
 
         ## Step 2b: create the covar cube
         source(paste(cholera_directory, "Analysis/R/prepare_covar_cube.R", sep = "/"))
@@ -267,7 +269,7 @@ for (t_idx in 1:length(all_test_idx)) {
         covar_cube_output <- prepare_covar_cube(covar_list = covar_list, dbuser = dbuser, 
             map_name = map_name, cholera_directory = cholera_directory, full_grid_name = full_grid_name, 
             start_time = start_time, end_time = end_time, res_space = res_space, 
-            res_time = res_time, username = dbuser)
+            res_time = res_time, username = dbuser, dbname = dbname)
 
         # Save results to file
         save(covar_cube_output, file = file_names[["covar"]])
@@ -328,6 +330,6 @@ for (t_idx in 1:length(all_test_idx)) {
         recompile <- FALSE
     }
 
-    taxdat::clean_all_tmp(dbuser = dbuser, map_name = map_name)
+    taxdat::clean_all_tmp(dbuser = dbuser, map_name = map_name, dbname = dbname)
 
 }
