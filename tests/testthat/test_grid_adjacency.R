@@ -13,6 +13,7 @@ test_that("establishing postgres connection works", {
 
     expect_error({
         conn_pg <- taxdat::connect_to_db(dbuser, dbname)
+        DBI::dbClearResult(DBI::dbSendQuery(conn = conn_pg, "SET client_min_messages TO WARNING;"))
     }, NA)
 
 })
@@ -20,6 +21,7 @@ test_that("establishing postgres connection works", {
 
 test_that("setup works", {
     conn_pg <- taxdat::connect_to_db(dbuser, dbname)
+    DBI::dbClearResult(DBI::dbSendQuery(conn = conn_pg, "SET client_min_messages TO WARNING;"))
     expect_error({
         taxdat::setup_testing_database(conn_pg, drop = TRUE)
     }, NA)

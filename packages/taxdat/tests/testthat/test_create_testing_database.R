@@ -487,12 +487,16 @@ test_that("We can add shapefiles to testing database", {
     expect_error({
         insert_testing_shapefiles(conn_pg, shapes_df)
     }, NA)
+    if (is.na(sf::st_crs(shapes_df))) {
+        sf::st_crs(shapes_df) <- 4326
+    }
     expect_equal({
         sf::st_as_sfc(DBI::dbGetQuery(conn = conn_pg, "SELECT * FROM shapes")[["shape"]])
     }, shapes_df[["geom"]])
+
     expect_equal({
         sf::st_as_sfc(DBI::dbGetQuery(conn = conn_pg, "SELECT * FROM shapes")[["box"]])
-    }, sf::st_as_sfc(sf::st_bbox(shapes_df[["geom"]])))
+    }, rep(sf::st_as_sfc(sf::st_bbox(shapes_df[["geom"]])), times = 2))
 })
 
 test_that("We can add observations to testing database", {
@@ -549,6 +553,7 @@ test_that("We can ingest spatial grids", {
     setup_testing_database(conn_pg, FALSE)
     insert_testing_locations(conn_pg, location_df)
     insert_testing_location_periods(conn_pg, location_period_df)
+    insert_testing_shapefiles(conn_pg, shapes_df)
     insert_testing_observations(conn_pg, observations_df)
     expect_error({
         ingest_spatial_grid(conn_pg, 1, 1)
@@ -561,9 +566,4 @@ test_that("We can ingest spatial grids", {
     expect_error({
         ingest_spatial_grid(conn_pg, 5, 5)
     }, NA)
-    expect_equal({
-        DBI::dbGetQuery(conn = conn_pg, "SELECT COUNT(*)/5/5 FROM grids.master_spatial_grid")
-    }, {
-        DBI::dbGetQuery(conn = conn_pg, "SELECT COUNT(*) FROM grids.resized_spatial_grids WHERE width = 5 AND height = 5")
-    }, )
 })

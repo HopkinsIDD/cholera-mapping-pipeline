@@ -828,6 +828,7 @@ drop_testing_database_functions <- function(psql_connection) {
 #' @name destory_testing_database
 #' @title destroy_testing_database
 #' @param psql_connection a connection to a database made with dbConnect
+#' @export
 destroy_testing_database <- function(psql_connection) {
     drop_query <- c("DROP TABLE IF EXISTS location_periods CASCADE", "DROP TABLE IF EXISTS locations CASCADE", 
         "DROP TABLE IF EXISTS shapes CASCADE", "DROP TABLE IF EXISTS observations CASCADE", 
@@ -1004,8 +1005,14 @@ SELECT lookup_location_period(
             ",", glue::glue_sql(.con = psql_connection, "{sf::st_as_text(shape_df[['geom']])}"), 
             ",", glue::glue_sql(.con = psql_connection, "{sf::st_as_text(shape_df[['box']])}"), 
             ")", collapse = ", "))
+    srid <- sf::st_crs(shape_df)$epsg
+    if (is.na(srid)) {
+        srid <- 4326
+    }
+    srid_query <- glue::glue_sql(.con = psql_connection, "UPDATE shapes set shape = st_setsrid(shape, {srid}), box = st_setsrid(box, {srid})")
 
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, insert_query))
+    DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, srid_query))
     invisible(NULL)
 }
 

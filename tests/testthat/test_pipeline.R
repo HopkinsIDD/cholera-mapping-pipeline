@@ -3,7 +3,6 @@ context("Test 3 : Simple Pipeline Run")
 
 dbuser <- Sys.getenv("USER", "app")
 dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
-Sys.setenv(CHOLERA_CONFIG = "config.yml")
 
 location_df <- data.frame(qualified_name = c("testlocation"))
 
@@ -19,6 +18,7 @@ test_that("establishing postgres connection works", {
 
     expect_error({
         conn_pg <- taxdat::connect_to_db(dbuser, dbname)
+        DBI::dbClearResult(DBI::dbSendQuery(conn = conn_pg, "SET client_min_messages TO WARNING;"))
     }, NA)
 
 })
@@ -31,6 +31,7 @@ observations_df <- data.frame(observation_collection_id = c(1, 1, 2, 2), time_le
     deaths = 1:4)
 
 conn_pg <- taxdat::connect_to_db(dbuser, dbname)
+DBI::dbClearResult(DBI::dbSendQuery(conn = conn_pg, "SET client_min_messages TO WARNING;"))
 pop_raster <- rpostgis::pgGetRast(conn_pg, c("grids", "master_spatial_grid"))
 
 
@@ -97,7 +98,10 @@ test_that("pull_observation_data has the right size", {
 })
 
 test_that("execute_pipeline.R runs successfully", {
+    Sys.setenv(CHOLERA_CONFIG = rprojroot::find_root_file(criterion = ".choldir", 
+        "tests", "testthat", "config.yml"))
     expect_error({
-        source("../../Analysis/R/execute_pipeline.R")
+        source(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "R", 
+            "execute_pipeline.R"))
     }, NA)
 })

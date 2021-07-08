@@ -353,7 +353,7 @@ stan_data <- list(N = nrow(covar_cube), N_edges = nrow(grid_adjacency), smooth_g
 start_time <- Sys.time()
 model.rand <- rstan::stan(file = stan_model_path, data = stan_data, chains = config[["stan"]][["nchain"]], 
     iter = config[["stan"]][["niter"]], pars = c("b", "t_rowsum", "vec_var"), include = FALSE, 
-    control = list(max_treedepth = 15))
+    control = list(max_treedepth = 15), refresh = 0)
 end_time <- Sys.time()
 
 elapsed_time <- end_time - start_time

@@ -45,8 +45,7 @@ create_test_raster <- function(
 ) {
   seed <- get_or_set_seed(seed)
   one_rc <- sf::st_sf(sf::st_make_grid(sf::st_as_sfc(test_extent),n = c(nrows,ncols)))
-  sf::st_crs(one_rc) <-
-    "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+  sf::st_crs(one_rc) <- 4326
   one_rc$id = seq_len(nrow(one_rc))
   one_rc$col <- ((one_rc$row = one_rc$id - 1 ) %% nrows) + 1
   one_rc$row <- ((one_rc$row = one_rc$id - 1 ) %/% nrows) + 1
@@ -890,11 +889,11 @@ observe_polygons <- function(
   explicit_layered_polygons  <- NULL
   if (n_polygon_layers > 1) {
     for (layer in seq_len(n_polygon_layers)) {
-      layer_name  <- rlang::sym(paste("name", layer, sep = "_"))
+      layer_names <- rlang::syms(paste("name", seq_len(layer), sep = "_"))
       tmp  <- dplyr::summarize(
         dplyr::group_by(
           test_polygons,
-          !!layer_name
+          !!!layer_names
         )
       )
       for (layer2 in seq_len(n_polygon_layers)) {
@@ -952,7 +951,7 @@ observe_polygons <- function(
     ) %>%
     do.call(what=rbind) %>%
     dplyr::left_join(explicit_layered_polygons) %>%
-    tidyr::unite('location',!!!layer_name,sep='_')
+    tidyr::unite("location", !!!layer_name, sep = "::", na.rm = TRUE)
 
   time_censored_observations$weight <- 1
   if (polygon_size_bias) {
