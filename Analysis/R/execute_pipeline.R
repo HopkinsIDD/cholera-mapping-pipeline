@@ -8,9 +8,10 @@
 
 
 ### Set Error Handling
-if (Sys.getenv("INTERACTIVE_RUN", FALSE)) {
+interactive_run <- Sys.getenv("INTERACTIVE_RUN", "FALSE")
+if (interactive_run == "TRUE") {
     options(warn = 1, error = recover)
-} else {
+} else if (interactive_run == "FALSE") {
     options(warn = 1, error = function(...) {
         quit(..., status = 2)
     })
