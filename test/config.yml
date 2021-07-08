@@ -2,13 +2,14 @@ name: 'KEN_2015_2019_20km'
 aoi: "KEN"
 countries: "Kenya"
 countries_name: KEN
-start_time: '2000-01-01'
+start_time: '2001-01-01'
 end_time: '2001-12-31'
 res_time: 1 years
 res_space: 20
 smoothing_period: 1
 case_definition: suspected
 covariate_choices:
+ - pop
  - dist_to_water
 data_source: api
 ovrt_metadata_table: yes

@@ -480,10 +480,12 @@ write_ncdf <- function(data,
                        long_var_name,
                        var_unit,
                        time_units,
-                       time_vals) {
+                       time_vals, 
+                       chunk_size = 1e3) {
+
   # Longitude and Latitude data
-  xvals <- raster::unique(init(data, "x"))
-  yvals <- raster::unique(init(data, "y"))
+  xvals <- raster::unique(raster::init(data, "x"))
+  yvals <- raster::unique(raster::init(data, "y"))
   nx <- length(xvals)
   ny <- length(yvals)
   lon <- ncdf4::ncdim_def("longitude", "degrees_east", xvals)
@@ -520,13 +522,12 @@ write_ncdf <- function(data,
   # need to loop through the layers to get them
   # to match to correct time index
   # Make me configurable
-  chunk_size <- 1e3
   nchunk_row <- ceiling(nrow(data) / chunk_size)
   nchunk_col <- ceiling(ncol(data) / chunk_size)
   
  
   for (layer_idx in seq_len(raster::nlayers(data))) {
-    dataslice <- raster::getValues(data[[layer_idx]], format =  "matrix")
+    # dataslice <- raster::getValues(data[[layer_idx]], format =  "matrix")
     
     for (row_idx in seq_len(nchunk_row)) {
       chunk_row_start <- (row_idx - 1) * chunk_size + 1
@@ -534,6 +535,7 @@ write_ncdf <- function(data,
       mat_row_start <- nrow(data) - chunk_row_end + 1
       # mat_row_end <- nrow(data) - chunk_row_start + 1
       for (col_idx in seq_len(nchunk_col)) {
+
         cat("Processing layer ", layer_idx, " of ", raster::nlayers(data), "\n")
         cat("Processing row", row_idx, " of ", nchunk_row, "\n")
         cat("Processing col", col_idx, " of ", nchunk_col, "\n")
@@ -545,19 +547,21 @@ write_ncdf <- function(data,
         n_row <- chunk_row_end - chunk_row_start + 1
         
         if (is.null(time_vals)) {
+          dataslice <- raster::getValues(data[chunk_row_start:chunk_row_end, chunk_col_start:chunk_col_end, layer_idx,drop=FALSE], format="matrix")
           ncdf4::ncvar_put(
             nc = ncout,
             varid = var_data,
-            vals = t(dataslice[chunk_row_start:chunk_row_end, chunk_col_start:chunk_col_end, drop = FALSE])[,n_row:1],
+            vals = t(dataslice)[,rev(seq_len(n_row))],
             start = c(chunk_col_start, mat_row_start),
             count = c(n_col, n_row),
             verbose = TRUE
           )
         } else {
+          dataslice <- raster::getValues(data[chunk_row_start:chunk_row_end, chunk_col_start:chunk_col_end, layer_idx,drop=FALSE], format="matrix")
           ncdf4::ncvar_put(
             nc = ncout,
             varid = var_data,
-            vals =  t(dataslice[chunk_row_start:chunk_row_end, chunk_col_start:chunk_col_end, drop = FALSE])[,n_row:1],
+            vals =  t(dataslice)[,rev(seq_len(n_row))],
             start = c(chunk_col_start, mat_row_start, layer_idx),
             count = c(n_col, n_row, 1),
             verbose = TRUE
