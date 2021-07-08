@@ -41,6 +41,18 @@ jobs:
           setwd("packages/taxdat")
           devtools::test(stop_on_failure=TRUE)
         shell: Rscript {0}
+      - name: Run integration tests (old)
+        env:
+          CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
+          CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
+        run: |
+          service postgresql start
+          bash grant_cholera_database.sh root
+          Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
+          export USER=root
+          cd test
+          Rscript run_tests.R
+        shell: bash
       - name: Run integration tests (new)
         env:
           CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
@@ -53,16 +65,4 @@ jobs:
           export USER=root
           cd tests
           Rscript testthat.R
-        shell: bash
-      - name: Run integration tests (old)
-        env:
-          CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
-          CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
-        run: |
-          service postgresql start
-          bash grant_cholera_database.sh root
-          Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
-          export USER=root
-          cd test
-          Rscript run_tests.R
         shell: bash
