@@ -81,7 +81,7 @@ RUN apt-get update && \
     # app user creation
     && useradd -m app \
     && mkdir -p /home/app \
-    && chown app:app /home/app \
+    && chown -R app:app /home/app \
     # set up sudo for app user
     && sudo echo "app ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/app \
     && sudo usermod -a -G staff app
@@ -98,7 +98,7 @@ COPY --chown=app:app grant_cholera_database.sh $HOME/grant_cholera_database.sh
 RUN sudo service postgresql start \
     && sudo -u postgres psql -c "CREATE DATABASE cholera_covariates;" \
     && sudo -u postgres psql -c "CREATE USER app WITH LOGIN;" \
-    && sudo -u postgres psql -c "GRANT CONNECT ON DATABASE cholera_covariates TO app;" \
+    && sudo -u postgres psql -c "GRANT ALL ON DATABASE cholera_covariates TO app;" \
     && sudo -u postgres psql -d cholera_covariates -c "CREATE EXTENSION postgis;" \
     && sudo -u postgres psql -d  cholera_covariates -c "CREATE EXTENSION postgis_raster;" \
     && sudo -u postgres psql -d  cholera_covariates -c "CREATE EXTENSION postgis_topology;" \
@@ -107,17 +107,17 @@ RUN sudo service postgresql start \
     && sudo -u postgres psql -d  cholera_covariates -c "CREATE EXTENSION address_standardizer;" \
     && sudo -u postgres psql -d  cholera_covariates -c "CREATE EXTENSION address_standardizer_data_us;" \
     && sudo -u postgres psql -d  cholera_covariates -c "CREATE EXTENSION postgis_tiger_geocoder;" \
-    && sudo -u postgres psql -d  cholera_covariates -c "CREATE SCHEMA covariates;" \
-    && sudo -u postgres psql -d  cholera_covariates -c "CREATE SCHEMA data;" \
-    && sudo -u postgres psql -d  cholera_covariates -c "CREATE SCHEMA grids;" \
-    && /bin/bash grant_cholera_database.sh app\
+    && sudo -u app psql -d  cholera_covariates -c "CREATE SCHEMA covariates;" \
+    && sudo -u app psql -d  cholera_covariates -c "CREATE SCHEMA data;" \
+    && sudo -u app psql -d  cholera_covariates -c "CREATE SCHEMA grids;" \
+    # && /bin/bash grant_cholera_database.sh app\
     && /bin/bash -c "/usr/bin/echo 'sudo service postgresql start' >> /home/app/.bashrc"
 
 #####
 # R
 #####
 
-RUN Rscript -e "install.packages('packrat',repos='https://cloud.r-project.org/')"
+RUN sudo Rscript -e "install.packages('packrat',repos='https://cloud.r-project.org/')"
 COPY --chown=app:app packrat $HOME/packrat
 COPY --chown=app:app Docker.Rprofile $HOME/.Rprofile
 COPY --chown=app:app packages $HOME/R/pkgs
