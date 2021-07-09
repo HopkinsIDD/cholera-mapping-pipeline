@@ -5,7 +5,7 @@ library(readr)
 #### Modify the following settings      ############## 
 #### to generate one config per country ##############
 
-scale <- "region" ## country or region maps
+scale <- "country" ## country or region maps
 config_path <- "Analysis/configs"
 covar_names <- c("dist_to_water", "water_access", "san_access", "open_defe", "stunting", "wasting", "access_cities")
 
@@ -16,14 +16,17 @@ locs <- dplyr::right_join(cw, ids, by = c("country" = "region")) ## region & cou
 ## rm later
 locs <- dplyr::filter(locs, !is.na(region))
 
+config_start_time <- Sys.getenv("CHOLERA_START_TIME","2015-01-01")
+config_end_time <- Sys.getenv("CHOLERA_END_TIME","2019-12-31")
+
 params_df <- data.frame(
     aoi = "raw",
     res_space = 20,
     res_time = '1 years',
     smoothing_period = 1,
     case_definition = 'suspected',
-    start_time = '2015-01-01',
-    end_time = '2019-12-31',
+    start_time = config_start_time,
+    end_time = config_end_time,
     data_source = 'sql',
     ingest_covariates = 'yes',
     covar_warmup = 'yes',
@@ -34,9 +37,14 @@ params_df <- data.frame(
     beta_sigma_scale = 1.0,
     ncores = 4,
     model = 'update_yearly_dagar_timevary_speedup_flexible',
+    tfrac_thresh = 0,
+    set_tfrac = 'no',
+    sigma_eta_scale = .1,
     niter = 2000,
     recompile = TRUE
               )
+
+rm(config_start_time, config_end_time)
 ##############################################
 par <- params_df[1,]
 start_year <- lubridate::year(as.Date(par$start_time))

@@ -41,6 +41,25 @@ rename_database_fields <- function(database_df,
 }
 
 
+#' @description Flatten the result of a json query into an unnested data frame.  Similar to jsonlite::flatten, but with some tweaks to make it work better for our use case.
+#' @param json_results A listlike object convertible to a data frame coming from an api query
+#' @result a data frame that matches an unrolled version of json_results
+flatten_json_result <- function(json_results) {
+  if (!is.data.frame(json_results)) {
+    json_results <- as.data.frame(json_results)
+  }
+  json_results <- jsonlite::flatten(json_results)
+  for (colname in names(json_results)) {
+    if (mode(json_results[[colname]]) == "list") {
+      if (
+        (max(sapply(json_results[[colname]], length)) == 1)
+      ) {
+        json_results[[colname]] <- sapply(json_results[[colname]], function(x){return(ifelse(length(x) == 1, x, NA))})
+      }
+    }
+  }
+  return(json_results)
+}
 
 ## JSON API interface to database
 #' @name read_taxonomy_data_api
@@ -59,13 +78,13 @@ rename_database_fields <- function(database_df,
 #' @param website Which website to pull from (default is cholera-taxonomy.middle-distance.com)
 #' @return An sf object containing data pulled from the database
 read_taxonomy_data_api <- function(username, 
-                                        api_key, 
-                                        locations = NULL, 
-                                        time_left = NULL, 
-                                        time_right = NULL, 
-                                        uids = NULL, 
-                                        website = "https://api.cholera-taxonomy.middle-distance.com/"){
-   
+                                   api_key, 
+                                   locations = NULL, 
+                                   time_left = NULL, 
+                                   time_right = NULL, 
+                                   uids = NULL, 
+                                   website = "https://api.cholera-taxonomy.middle-distance.com/"){
+  
   ## First, we want to set up the https POST request.
   ## We make a list containing the arguments for the request:
   ## If the API changes, we will just need to change this list
@@ -80,7 +99,6 @@ read_taxonomy_data_api <- function(username,
     if(any(!grepl('::',locations))){
       stop("Trying to pull data for a continent is not allowed")
     }
-    #' @importFrom stringr str_count
     if((sum(stringr::str_count(string = unique(locations),pattern='::') == 1) > 2)){
       stop("Trying to pull data for more than 2 countries at a time is not allowed")
     }
@@ -92,7 +110,6 @@ read_taxonomy_data_api <- function(username,
       time_left=time_left,
       time_right=time_right
     )
-    
   } else if(is.null(locations) && is.null(time_left) && is.null(time_right)){
     api_type = "by_observation_collections"
     https_post_argument_list = list(
@@ -106,13 +123,10 @@ read_taxonomy_data_api <- function(username,
   
   website = paste0(website,"/api/v1/observations/",api_type)
   
-  #' @importFrom jsonlite toJSON
   ## Every object in R is a vector, even the primitives.  For example, c(1,5,6) is of type
   ## integer.  Because of this, we need to explicitly tell the JSON parser to treat vectors
   ## of length 1 differently.  The option for this is auto_unbox = T
   json = jsonlite::toJSON(https_post_argument_list,  auto_unbox = T)
-  #' @importFrom httr POST
-  #' @importFrom httr add_headers
   ## Message prints a message to the user.  It's somewhere between a warning and a normal print.
   ## In this case, this function might take a while to run, so we let the user know up front.
   message("Fetching results from JSON API")
@@ -128,8 +142,8 @@ read_taxonomy_data_api <- function(username,
     body=json,
     encode='form'
   )
+  
   ## Now we process the status code to make sure that things are working correctly
-  #' @importFrom httr status_code
   code = httr::status_code(results)
   ## Right now, anything that isn't correct is an error
   if(code != 200){
@@ -137,18 +151,15 @@ read_taxonomy_data_api <- function(username,
   }
   
   ## Next we extract just the content of the results
-  #' @importFrom httr content
   original_results_data = httr::content(results)
   ## This returns something correct, but the formatting is really
   ## odd.  It is a little messy, but instead of debugging the
   ## formatting, for now I'm converting to json and back, which
   ## fixes the problems.
-  jsondata = jsonlite::toJSON(original_results_data)
-  #' @importFrom jsonlite validate
+  jsondata = rjson::toJSON(original_results_data)
   if(!jsonlite::validate(jsondata)){
     stop("Could not validate json response")
   }
-  #' @importFrom jsonlite fromJSON
   results_data = jsonlite::fromJSON(jsondata)
   
   ## Now we have the results of the api data as a nested list.
@@ -166,13 +177,7 @@ read_taxonomy_data_api <- function(username,
   ){
     stop("Could not parse results properly.  Contact package maintainer")
   }
-  results_data[['observations']] = results_data[['observations']][['data']]
-  ## jsonlite's flatten
-  #' @importFrom jsonlite flatten
-  if(!is.data.frame(results_data[['observations']])){
-    results_data[['observations']] = as.data.frame(results_data[['observations']])
-  }
-  results_data[['observations']] = jsonlite::flatten(results_data[['observations']])
+  results_data[["observations"]] = flatten_json_result(results_data[["observations"]][["data"]])
   
   observation_collections_present <- FALSE
   if(
@@ -180,11 +185,7 @@ read_taxonomy_data_api <- function(username,
     ("data" %in% names(results_data[['observation_collections']])) && # The observations should have data
     (length(results_data[['observation_collections']]) == 1)          # The data should be the only thing in observations
   ){
-    results_data[['observation_collections']] = results_data[['observation_collections']][['data']]
-    if(!is.data.frame(results_data[['observation_collections']])){
-      results_data[['observation_collections']] = as.data.frame(results_data[['observation_collections']])
-    }
-    results_data[['observation_collections']] = jsonlite::flatten(results_data[['observation_collections']])
+    results_data[["observation_collections"]] <- flatten_json_result(results_data[["observation_collections"]][["data"]])
     observation_collections_present <- TRUE
   }
   
@@ -224,13 +225,10 @@ read_taxonomy_data_api <- function(username,
   locations_sf = taxdat::reduce_sf_vector(all_locations)
   ## We are going to take our properly formatted geojson files and
   ## replace the badly formatted ones
-  results_data$location_periods$data$geojson = NULL
-  results_data$location_periods$data$attributes$geojson = NULL
-  if(!is.data.frame(results_data$location_periods$data)){
-    results_data$location_periods$data <- as.data.frame(results_data$location_periods$data)
-  }
-  results_data$location_periods = jsonlite::flatten(results_data$location_periods$data)
-  results_data$location_periods$id <- as.numeric(results_data$location_periods$id)
+  results_data$location_periods$data$geojson <- NULL
+  results_data$location_periods$data$attributes$geojson <- NULL
+  
+  results_data$location_periods <- flatten_json_result(results_data$location_periods$data)
   if(nrow(results_data$location_periods) > 0){
     results_data$location_periods$sf_id = seq_len(nrow(results_data$location_periods))
   }
@@ -271,21 +269,7 @@ read_taxonomy_data_api <- function(username,
   }
   all_results$geojson = geoinput
   all_results$geojson[!is.na(all_results$sf_id)] = locations_sf$geometry[all_results[!is.na(all_results$sf_id),][['sf_id']] ]
-
-  rc <- sf::st_sf(all_results,sf_column_name = 'geojson')
-
-  rc$id <- as.numeric(rc$id)
-  rc$attributes.primary <- as.logical(rc$attributes.primary)
-  tmp <- lapply(rc, unlist)
-  for(col in names(tmp)){
-    if(
-      isTRUE(all.equal(tmp[[col]][[1]], rc[[col]][[1]])) &
-      (length(tmp[[col]]) == length(rc[[col]]))
-    ) {
-      rc[[col]] <- tmp[[col]]
-    }
-  }
-  return(rc)
+  return(sf::st_sf(all_results,sf_column_name = 'geojson'))
 }
 
 #' @title Pull taxonomy data
@@ -324,12 +308,12 @@ pull_taxonomy_data <- function(username,
     
     # Return API data pull
     rc <- read_taxonomy_data_api(username = username,
-                                      api_key = password,
-                                      locations = locations,
-                                      time_left = as.character(time_left),
-                                      time_right = as.character(time_right),
-                                      uids = uids,
-                                      website = website)
+                                 api_key = password,
+                                 locations = locations,
+                                 time_left = as.character(time_left),
+                                 time_right = as.character(time_right),
+                                 uids = uids,
+                                 website = website)
     
   } else if (source == 'sql') {
     if (missing(username) | missing(password) | is.null(username) | is.null(password))
@@ -467,8 +451,12 @@ read_taxonomy_data_sql <- function(username,
   } else {
     stop("Location period id exceeds max integer in R, and glue doesn't work on int64s")
   }
-  lp_query <- glue::glue_sql("SELECT id::text as location_period_id, geojson FROM location_periods
-                             WHERE id IN ({u_lps*});", .con = conn)
+  
+  lp_query <- glue::glue_sql("SELECT a.id::text as location_period_id, b.qualified_name as location_name, a.geojson 
+  FROM location_periods a
+  JOIN locations b
+  ON a.location_id = b.id
+  WHERE a.id IN ({u_lps*});", .con = conn)
   location_periods <- DBI::dbGetQuery(conn = conn, lp_query)
   
   # Get missing geometries
@@ -496,10 +484,8 @@ read_taxonomy_data_sql <- function(username,
   # extract geometries and metadata
   location_periods.sf <- do.call(rbind, location_periods.sf) %>% 
     dplyr::mutate(location_period_id = location_periods$location_period_id,
-           location_name = purrr::map_chr(location_periods$geojson, ~ jsonlite::parse_json(.)[["name"]] %>% 
-                                            ifelse(is.null(.), NA, .)),
-           times = ifelse(is.na(location_name), NA, stringr::str_extract(location_name, "([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}-[0-9]{2}-[0-9]{2})")),
-           location_name = ifelse(is.na(location_name), NA, stringr::str_replace_all(stringr::str_replace(location_name, stringr::str_c("_", times, "_SHP"), ""), "_", "::"))
+                  location_name = location_periods$location_name,
+                  times = ifelse(is.na(location_name), NA, stringr::str_extract(location_name, "([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}-[0-9]{2}-[0-9]{2})"))
     ) %>% 
     dplyr::select(-times) %>% 
     dplyr::rename(geojson = geometry)
@@ -512,6 +498,3 @@ read_taxonomy_data_sql <- function(username,
   detach("package:sf", unload = T)
   return(res)
 }
-
-
-

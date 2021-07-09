@@ -269,37 +269,20 @@ for(t_idx in 1:length(all_test_idx)){
   setwd(cholera_directory)
   dir.create("Analysis/output", showWarnings = FALSE)
   
-  # Load dictionnary of configuration options
-  config_dict <- yaml::read_yaml(paste0(cholera_directory, "/Analysis/configs/config_dictionnary.yml"))
+  # Load dictionary of configuration options
+  config_dict <- yaml::read_yaml(paste0(cholera_directory, "/Analysis/configs/config_dictionary.yml"))
   
-  preprocessed_data_fname <- taxdat::make_observations_filename(cholera_directory = cholera_directory, 
-                                                                map_name = map_name)
-  
-  preprocessed_covar_fname <- taxdat::make_covar_filename(cholera_directory = cholera_directory, 
-                                                          map_name = map_name, 
-                                                          covariate_name_part = covariate_name_part)
-  
-  stan_input_fname <- taxdat::make_stan_input_filename(cholera_directory = cholera_directory, 
-                                                       map_name = map_name, 
-                                                       covariate_name_part = covariate_name_part, 
-                                                       config = config,
-                                                       config_dict = config_dict)
-  
-  stan_output_fname <- taxdat::make_stan_output_filename(cholera_directory = cholera_directory,
-                                                         map_name = map_name, 
-                                                         covariate_name_part = covariate_name_part,    
-                                                         config = config,
-                                                         config_dict = config_dict)
+  file_names <- taxdat::get_filenames(config=config, cholera_directory = cholera_directory)
   
   # Preparation: Load auxillary functions
   # source(stringr::str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
   
   ## Step 1: process observation shapefiles and prepare data ##
-  print(preprocessed_data_fname)
-  if(file.exists(preprocessed_data_fname)){
+  print(file_names[["data"]])
+  if(file.exists(file_names[["data"]])){
     print("Data already preprocessed, skipping")
     warning("Data already preprocessed, skipping")
-    load(preprocessed_data_fname)
+    load(file_names[["data"]])
   } else if(!testing){
     source(paste(cholera_directory, 'Analysis', 'R', 'prepare_grid.R', sep='/'))
     
@@ -319,11 +302,11 @@ for(t_idx in 1:length(all_test_idx)){
   }
   
   ## Step 2: Extract the covariate cube and grid ##
-  print(preprocessed_covar_fname)
-  if (file.exists(preprocessed_covar_fname)) {
+  print(file_names[["covar"]])
+  if (file.exists(file_names[["covar"]])) {
     print("Covariate cube already preprocessed, skipping")
     warning("Covariate cube already preprocessed, skipping")
-    load(preprocessed_covar_fname)
+    load(file_names[["covar"]])
   } else if(!testing){
     
     # Note: the first covariate is always the population raster
@@ -365,15 +348,15 @@ for(t_idx in 1:length(all_test_idx)){
     )
     
     # Save results to file
-    save(covar_cube_output, file = preprocessed_covar_fname)
+    save(covar_cube_output, file = file_names[["covar"]])
   }
   print("NCOVAR")
   print(length(covariate_choices))
   print("NCOVAR")
   
   ## Step 3: Prepare the stan input ##
-  print(stan_input_fname)
-  if(!file.exists(stan_input_fname)){
+  print(file_names[["stan_input"]])
+  if(!file.exists(file_names[["stan_input"]])){
     source(paste(cholera_directory, "Analysis/R/prepare_stan_input.R", sep = "/"))
     
     stan_input <-  prepare_stan_input(
@@ -392,8 +375,8 @@ for(t_idx in 1:length(all_test_idx)){
     )
     
     # Save data
-    save(stan_input, file = stan_input_fname)
-    sink(gsub('rdata','json', stan_input_fname))
+    save(stan_input, file = file_names[["stan_input"]])
+    sink(gsub('rdata','json', file_names[["stan_input"]]))
     cat(jsonlite::toJSON(stan_input$stan_data, auto_unbox=TRUE,matrix='rowmajor'))
     sink(NULL)
     
@@ -401,18 +384,31 @@ for(t_idx in 1:length(all_test_idx)){
     print("Stan input already created, skipping")
     warning("Stan input already created, skipping")
   }
-  load(stan_input_fname)
+  load(file_names[["stan_input"]])
   
   stan_data <- stan_input$stan_data
   sf_cases_resized <- stan_input$sf_cases_resized
   sf_grid <- stan_input$sf_grid
   
-  ## Step 4: Run the model
-  print(stan_output_fname)
-  if(file.exists(stan_output_fname)){
+  ## Step 4: Prepare the initial conditions
+  if(file.exists(file_names[["initial_values"]])){
+    print("Initial_values already found, skipping")
+    warning("Initial_values already found, skipping")
+  } else {
+    source(paste(cholera_directory,'Analysis','R','prepare_initial_values.R',sep='/'))
+    recompile <- FALSE
+  }
+  load(file_names[["initial_values"]])
+  
+  ## Step 5: Run the model
+  print(file_names[["stan_output"]])
+  if(file.exists(file_names[["stan_output"]])){
     print("Data already modeled, skipping")
     warning("Data already modeled, skipping")
-    load(stan_output_fname)
+    load(file_names[["stan_output"]])
+  } else if (Sys.getenv("CHOLERA_SKIP_STAN","FALSE") == "TRUE") {
+    print("Skipping stan model in accordance with the environment variable CHOLERA_SKIP_STAN.")
+    warning("Skipping stan model in accordance with the environment variable CHOLERA_SKIP_STAN.")
   } else {
     source(paste(cholera_directory,'Analysis','R','run_stan_model.R',sep='/'))
     recompile <- FALSE
