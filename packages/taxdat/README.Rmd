@@ -1,0 +1,9 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+<!-- badges: start -->
+[![Codecov test coverage](https://codecov.io/gh/HopkinsIDD/cholera-mapping-pipeline/branch/main/graph/badge.svg)](https://codecov.io/gh/HopkinsIDD/cholera-mapping-pipeline?branch=main)
+<!-- badges: end -->
