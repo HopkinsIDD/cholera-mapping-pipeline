@@ -204,6 +204,7 @@ create_test_points <- function(
   return(test_points)
 }
 
+
 #' @export
 #' @name create_test_polygons
 #' @title create_test_polygons
@@ -252,6 +253,44 @@ create_test_polygons <- function(
     ))
   }
 }
+
+
+make_layered_polygons_explicit <- function(test_polygons) {
+  n_polygon_layers  <- length(names(test_polygons)[grepl("name", names(test_polygons))])
+  explicit_layered_polygons  <- NULL
+  all_layer_names <- rlang::syms(paste("name", seq_len(n_polygon_layers), sep = "_"))
+  if (n_polygon_layers > 1) {
+    for (layer in seq_len(n_polygon_layers)) {
+      layer_names <- rlang::syms(paste("name", seq_len(layer), sep = "_"))
+      tmp  <- dplyr::summarize(
+        dplyr::group_by(
+          test_polygons,
+          !!!layer_names
+        )
+      )
+      for (layer2 in seq_len(n_polygon_layers)) {
+        layer2_name  <- rlang::sym(paste("name", layer2, sep = "_"))
+        if (!any(grepl(layer2_name, names(tmp)))) {
+          tmp <- dplyr::mutate(tmp,!!layer2_name := NA)
+        }
+      }
+      if (!is.null(explicit_layered_polygons)) {
+        explicit_layered_polygons  <- rbind(
+          explicit_layered_polygons,
+          tmp[, c(paste("name", seq_len(n_polygon_layers), sep = "_"), "geometry")]
+        )
+      } else {
+        explicit_layered_polygons <-
+          tmp[, c(paste("name", seq_len(n_polygon_layers), sep = "_"), "geometry")]
+      }
+    }
+  } else {
+    explicit_layered_polygons <- test_polygons
+  }
+  explicit_layered_polygons <- tidyr::unite(explicit_layered_polygons, "location", !!!all_layer_names, sep = "::", na.rm = TRUE)
+  return(explicit_layered_polygons)
+}
+
 
 #' @export
 #' @name create_test_layered_polygons
@@ -337,7 +376,7 @@ create_test_layered_polygons <- function(
 
   }
   attr(smallest_layer, "seed") <- seed
-  return(smallest_layer)
+  return(make_layered_polygons_explicit(smallest_layer))
 }
 
 
@@ -885,61 +924,31 @@ observe_polygons <- function(
     value_observation_bias = grid_value_observation_bias,
     noise = noise
   )
-  n_polygon_layers  <- length(names(test_polygons)[grepl("name", names(test_polygons))])
-  explicit_layered_polygons  <- NULL
-  if (n_polygon_layers > 1) {
-    for (layer in seq_len(n_polygon_layers)) {
-      layer_names <- rlang::syms(paste("name", seq_len(layer), sep = "_"))
-      tmp  <- dplyr::summarize(
-        dplyr::group_by(
-          test_polygons,
-          !!!layer_names
-        )
-      )
-      for (layer2 in seq_len(n_polygon_layers)) {
-        layer2_name  <- rlang::sym(paste("name", layer2, sep = "_"))
-        if (!any(grepl(layer2_name, names(tmp)))) {
-          tmp <- dplyr::mutate(tmp,!!layer2_name := NA)
-        }
-      }
-      if (!is.null(explicit_layered_polygons)) {
-        explicit_layered_polygons  <- rbind(
-          explicit_layered_polygons,
-          tmp[, c(paste("name", seq_len(n_polygon_layers), sep = "_"), "geometry")]
-        )
-      } else {
-        explicit_layered_polygons <-
-          tmp[, c(paste("name", seq_len(n_polygon_layers), sep = "_"), "geometry")]
-      }
-    }
-  }
 
   all_draws  <- NULL
   nlayers <- max(observed_grid$t)
   minmax <- as.integer(c(NA, NA))
   intersections  <- sf::st_drop_geometry(sf::st_intersection(
-    explicit_layered_polygons,
+    test_polygons,
     sf::st_centroid(observed_grid)
   ))
 
-  layer_name  <- rlang::syms(paste("name", seq_len(n_polygon_layers), sep = "_"))
-
   time_censored_observations <- intersections %>%
-    dplyr::group_by(!!!layer_name,draw) %>%
+    dplyr::group_by(location, draw) %>%
     dplyr::group_map(
-      function(.x,.y){
-        minmax <- sort(sample(nlayers, 2, replace=TRUE))
+      function(.x, .y) {
+        minmax <- sort(sample(nlayers, 2, replace = TRUE))
         time_bounds <- (max_time_right - min_time_left) * (minmax - c(1,0)) / nlayers  + lubridate::as_datetime(min_time_left)
         time_bounds <- as.Date(time_bounds)
         tfrac <- (minmax[2] - minmax[1] + 1) / (nlayers )
         .y$tmin <- minmax[1]
         .y$tmax <- minmax[2]
-        .x <- cbind(.x,.y)
+        .x <- cbind(.x, .y)
         .x <- .x[(.x$t >= .x$tmin) & (.x$t <= .x$tmax),]
         .x <- .x %>%
-          dplyr::group_by(!!!layer_name,draw) %>%
+          dplyr::group_by(location, draw) %>%
           dplyr::summarize(
-            cases = sum(cases),
+            cases = sum(cases, na.rm = TRUE),
             tmin = unique(tmin),
             tmax = unique(tmax),
           )
@@ -950,8 +959,7 @@ observe_polygons <- function(
       }
     ) %>%
     do.call(what=rbind) %>%
-    dplyr::left_join(explicit_layered_polygons) %>%
-    tidyr::unite("location", !!!layer_name, sep = "::", na.rm = TRUE)
+    dplyr::left_join(test_polygons)
 
   time_censored_observations$weight <- 1
   if (polygon_size_bias) {
@@ -966,7 +974,10 @@ observe_polygons <- function(
       prob = time_censored_observations$weight
     )
   }
-  observed_observations <- sf::st_as_sf(time_censored_observations[polygon_observation_idx, ] %>% dplyr::select(location, draw, cases, tmin, tmax, time_left, time_right, tfrac, geometry))
+  observed_observations <- sf::st_as_sf(
+    time_censored_observations[polygon_observation_idx, ] %>%
+      dplyr::select(location, draw, cases, tmin, tmax, time_left, time_right, tfrac, geometry)
+  )
   attr(observed_observations, "seed") <- seed
   return(observed_observations)
 }

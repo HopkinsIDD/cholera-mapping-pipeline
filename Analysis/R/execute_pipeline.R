@@ -251,7 +251,8 @@ grid_covered_location_period_grid_mapping <- non_na_location_period_grid_mapping
     dplyr::filter(spatial_grid_id %in% fully_covered_grid_ids)
 
 grid_covered_location_period_ids <- unique(grid_covered_location_period_grid_mapping$location_period_id)
-fully_covered_location_period_ids <- grid_covered_location_period_ids
+fully_covered_location_period_ids <- grid_covered_location_period_ids[grid_covered_location_period_ids %in% 
+    observation_data$location_period_id]
 
 location_period_covered_observation_ids <- observation_location_period_mapping %>%
     dplyr::filter(!is.na(observation_id), !is.na(location_period_id), location_period_id %in% 
@@ -274,13 +275,8 @@ grid_adjacency <- grid_adjacency %>%
     dplyr::mutate(updated_id_1 = grid_changer[as.character(id_1)], updated_id_2 = grid_changer[as.character(id_2)]) %>%
     dplyr::filter(!is.na(updated_id_1), !is.na(updated_id_2))
 
-location_period_changer <- grid_covered_location_period_grid_mapping %>%
-    dplyr::group_by(location_period_id) %>%
-    dplyr::summarize(.groups = "drop") %>%
-    reindex("location_period_id", "updated_location_period_id") %>%
-    (function(x) {
-        setNames(x$updated_location_period_id, x$location_period_id)
-    })
+location_period_changer <- setNames(seq_len(length(fully_covered_location_period_ids)), 
+    fully_covered_location_period_ids)
 
 # location_period_grid_mapping <- location_period_grid_mapping %>%
 # dplyr::mutate(updated_spatial_grid_id =

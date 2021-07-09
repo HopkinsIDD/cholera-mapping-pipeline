@@ -804,8 +804,8 @@ setup_testing_database_from_dataframes <- function(psql_connection, data_frame_l
     refresh_materialized_views(psql_connection)
     insert_testing_observations(psql_connection, data_frame_list$observations_df)
     for (fun in covariate_creation_function_list) {
-        ingest_covariate(psql_connection, fun$name, fun$fun(psql_connection), fun$start_date, 
-            fun$end_date)
+        ingest_covariate_from_raster(psql_connection, fun$name, fun$fun(psql_connection), 
+            fun$start_date, fun$end_date)
     }
     refresh_materialized_views(psql_connection)
 }
@@ -1074,8 +1074,8 @@ ingest_spatial_grid <- function(psql_connection, width = 1, height = 1, do_refre
 #' @param width width of the grid cells in km
 #' @param heigh height of the grid cells in km
 #' @export
-ingest_covariate <- function(psql_connection, covariate_name, covariate_raster, time_left, 
-    time_right) {
+ingest_covariate_from_raster <- function(psql_connection, covariate_name, covariate_raster, 
+    time_left, time_right) {
     assert(!is.null(time_left), "ingest_covariate requires a time_left argument")
     assert(!is.null(time_right), "ingest_covariate requires a time_right argument")
     assert(!is.null(covariate_name), "ingest_covariate requires a covariate_name argument")

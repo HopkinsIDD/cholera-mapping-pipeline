@@ -44,7 +44,7 @@ test_that("setup works", {
     taxdat::ingest_spatial_grid(conn_pg, width = 1, height = 1)
     taxdat::refresh_materialized_views(conn_pg)
     taxdat::insert_testing_observations(conn_pg, observations_df)
-    taxdat::ingest_covariate(conn_pg, "population", pop_raster, lubridate::ymd("2000-01-01"), 
+    taxdat::ingest_covariate_from_raster(conn_pg, "population", pop_raster, lubridate::ymd("2000-01-01"), 
         lubridate::ymd("2001-12-31"))
     taxdat::refresh_materialized_views(conn_pg)
 })
