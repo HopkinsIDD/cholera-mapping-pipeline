@@ -115,6 +115,8 @@ data_source <- config$data_source
 #### For api, use scoped string names
 countries <- config$countries
 countries_name <- config$countries_name
+# Specific OCs to use (string vector)
+filter_OCs <- config$OCs
 
 # - - - -
 ### Grid Size
