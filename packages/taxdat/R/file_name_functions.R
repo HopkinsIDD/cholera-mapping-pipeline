@@ -268,7 +268,7 @@ make_map_name <- function(config, .f = NULL) {
   if (is.null(OCs)) {
     OCs <- "allOCs"
   } else {
-    OCs <- hashids::encode_hex(paste(OCs, collapse = "-"),
+    OCs <- hashids::encode_hex(paste(OCs, collapse = ""),
                                settings = hashids::hashid_settings(
                                  salt = ifelse(is.null(config$name), "chol", config$name)
                                )
