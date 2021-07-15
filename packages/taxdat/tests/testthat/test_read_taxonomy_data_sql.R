@@ -27,7 +27,8 @@ test_that("read_taxonomy_data_sql works",{
     )
   
   #expect extract the correct data
-  skip("Skip the following tests which requires to pull data from the server until testing database is ready,")
+  skip("Skip the following tests which require pulling data from the server until testing database is ready.")
+  
   expect_warning(
     taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=2,time_left=NULL,time_right=NULL,uids=NULL),
     "No filters specified on data pull, pulling all data."
