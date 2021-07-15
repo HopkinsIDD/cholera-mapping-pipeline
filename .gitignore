@@ -4,6 +4,7 @@ Analysis/output/logs/*
 Analysis/output/reports/*
 Analysis/R/database_api_key.R
 Analysis/slurm*.out
+*~
 slurm*.out
 .Rproj.user
 packages/taxdat/tests/testthat/psql_credential.txt
