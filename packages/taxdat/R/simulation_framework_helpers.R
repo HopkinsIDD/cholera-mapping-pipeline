@@ -959,11 +959,12 @@ observe_polygons <- function(
       }
     ) %>%
     do.call(what=rbind) %>%
-    dplyr::left_join(test_polygons)
+    dplyr::left_join(test_polygons) %>%
+    sf::st_as_sf()
 
   time_censored_observations$weight <- 1
   if (polygon_size_bias) {
-    time_censored_observations$weight <- time_censored_observations$weight * sf::st_area(time_censored_observations)
+    time_censored_observations$weight <- time_censored_observations$weight * as.numeric(sf::st_area(time_censored_observations))
   }
   if (all(is.na(polygon_observation_idx))) {
     n_observed_observations <-
@@ -976,7 +977,7 @@ observe_polygons <- function(
   }
   observed_observations <- sf::st_as_sf(
     time_censored_observations[polygon_observation_idx, ] %>%
-      dplyr::select(location, draw, cases, tmin, tmax, time_left, time_right, tfrac, geometry)
+      dplyr::select(location, draw, cases, tmin, tmax, time_left, time_right, tfrac, geom)
   )
   attr(observed_observations, "seed") <- seed
   return(observed_observations)
