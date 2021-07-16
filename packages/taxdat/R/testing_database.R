@@ -717,7 +717,9 @@ RETURNS TABLE(covariate_name text, t bigint, id bigint, rid int, x int, y int, v
           st_intersects(all_covariates.rast, grid_centroids.geom)
   WHERE
     temporal_grid.time_midpoint >= start_date AND
-    temporal_grid.time_midpoint <= end_date
+    temporal_grid.time_midpoint <= end_date AND
+    covariate_grid_map.time_left <= temporal_grid.time_midpoint AND
+    covariate_grid_map.time_right >= temporal_grid.time_midpoint
   $$ LANGUAGE SQL;"
 
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
