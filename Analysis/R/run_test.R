@@ -25,14 +25,13 @@ test_polygons <- create_test_layered_polygons(
   n_layers = 3,
   factor = 4,
   snap = FALSE,
-  randomize = FALSE,
+  randomize = FALSE
 )
 all_dfs$shapes_df <- test_polygons %>% dplyr::mutate(
   qualified_name = location,
   start_date = min(all_dfs$shapes_df$start_date),
   end_date = max(all_dfs$shapes_df$end_date)
 )
-
 names(all_dfs$shapes_df)[names(all_dfs$shapes_df) == "geometry"] <- "geom"
 sf::st_geometry(all_dfs$shapes_df) <- "geom"
 
@@ -56,21 +55,26 @@ covariate_raster_funs <- lapply(seq_len(length(test_covariates)), function(covar
     min_time_index <- min(covariate$t)
     max_time_index <- max(covariate$t)
     lapply(unique(covariate$t), function(time_index) {
-        return(list(name = ifelse(covariate_idx == 1, "population", paste("covariate",
-            covariate_idx, sep = "")), start_date = min_time_left + ((time_index -
-            1) - min_time_index)/(max_time_index - min_time_index) * (max_time_right -
-            min_time_left), end_date = min_time_left + (time_index - min_time_index)/(max_time_index -
-            min_time_index) * (max_time_right - min_time_left), fun = function(psql_connection) {
-            covariate %>%
-                dplyr::filter(t == time_index) %>%
-                dplyr::select(covariate) %>%
-                stars::st_rasterize(nx = max(test_raster$row), ny = max(test_raster$col)) %>%
-                stars:::st_as_raster() %>%
-                return()
+      return(list(
+        name = ifelse(covariate_idx == 1, "population", paste("covariate",
+            covariate_idx, sep = "")),
+        start_date = min_time_left + ((time_index - 1) - min_time_index) /
+          (max_time_index - min_time_index) * (max_time_right - min_time_left),
+        end_date = min_time_left + (time_index - min_time_index) /
+          (max_time_index - min_time_index) *
+          (max_time_right - min_time_left),
+        fun = function(psql_connection) {
+          covariate %>%
+            dplyr::filter(t == time_index) %>%
+            dplyr::select(covariate) %>%
+            stars::st_rasterize(nx = max(test_raster$row), ny = max(test_raster$col)) %>%
+            stars:::st_as_raster() %>%
+            return()
         }))
     })
 }) %>%
     unlist(recursive = FALSE)
+
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change observations
@@ -103,6 +107,7 @@ raster_df <- lapply(
   dplyr::arrange(as.numeric(gsub("covariate", "", gsub("population", "0", name))))
 
 test_underlying_distribution <- create_underlying_distribution(covariates = raster_df$covar)
+
 test_observations <- observe_polygons(
   test_polygons = dplyr::mutate(all_dfs$shapes_df, location = qualified_name),
   test_covariates = raster_df$covar,
@@ -115,11 +120,13 @@ all_dfs$observations_df <- test_observations %>%
         qualified_name = location, primary = TRUE, phantom = FALSE, suspected_cases = cases,
         deaths = NA, confirmed_cases = NA)
 
+
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
-taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, pop_raster_funs)
+taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raster_funs)
 
 config_filename <- paste(tempfile(), "yml", sep = ".")
+
 config <- list(
   ## Put your config stuff in here
   general = list(
@@ -147,6 +154,11 @@ config <- list(
     stan_output = "stan_output.Rdata"
   )
 )
+
 yaml::write_yaml(x=config, file = config_filename)
+
 Sys.setenv(CHOLERA_CONFIG = config_filename)
 source(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "R", "execute_pipeline.R"))
+
+
+## Actually do something with the groundtruth and output
