@@ -41,6 +41,7 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
 test_raster <- create_test_raster(nrows = 20, ncols = 20, nlayers = 12, test_extent)
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster)
+test_covariates[[1]]$covariate <- 1 + 10^test_covariates[[1]][["covariate"]]
 min_time_left <- min(all_dfs$observations_df$time_left)
 max_time_right <- max(all_dfs$observations_df$time_right)
 covariate_raster_funs <- lapply(seq_len(length(test_covariates)), function(covariate_idx) {
@@ -85,6 +86,7 @@ raster_df <- lapply(covariate_raster_funs, function(x) {
             return(sf::st_as_sf(tmp[, c("id", "row", "col", "t", "covariate", "geometry")]))
         }))), .groups = "drop") %>%
     dplyr::arrange(as.numeric(gsub("covariate", "", gsub("population", "0", name))))
+raster_df$covar[[1]]$covariate <- log(raster_df$covar[[1]]$covariate - 1)/log(10)
 
 test_underlying_distribution <- create_underlying_distribution(covariates = raster_df$covar)
 
@@ -100,6 +102,7 @@ all_dfs$observations_df <- test_observations %>%
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
+setup_testing_database(conn_pg, drop = TRUE)
 taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raster_funs)
 
 config_filename <- paste(tempfile(), "yml", sep = ".")
