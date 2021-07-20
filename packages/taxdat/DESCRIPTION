@@ -10,7 +10,7 @@ Encoding: UTF-8
 License: GPL (>= 2)
 Depends: R (>= 3.4),ISOcodes,magrittr, dplyr, tidyr
 Suggests: readxl, sf, sp, raster, rgdal, testthat, knitr, rmarkdown
-RoxygenNote: 7.1.1
+RoxygenNote: 7.1.1.9001
 Collate:
     'color_scale.R'
     'config_helpers.R'
@@ -23,10 +23,9 @@ Collate:
     'map_theme.R'
     'mapping_progress_functions.R'
     'setup_helpers.R'
-    'read_data_helpers.R'
+    'pull_data_helpers.R'
     'model_evaluation_helpers.R'
     'plot_map.R'
-    'pull_data_helpers.R'
     'run_stan_helpers.R'
     'shapefile_manipulation.R'
     'simulation_framework_helpers.R'
