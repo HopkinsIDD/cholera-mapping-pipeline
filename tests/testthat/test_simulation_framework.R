@@ -40,17 +40,20 @@ full_data <- data_fun()
 
 all_dfs <- list()
 all_dfs$location_df <- data.frame(qualified_name = sort(unique(full_data$observed_polygons$location)))
+
 all_dfs$location_period_df <- full_data$observed_polygons %>%
     sf::st_drop_geometry() %>%
     dplyr::mutate(qualified_name = location) %>%
     dplyr::group_by(qualified_name) %>%
     dplyr::summarize(start_date = min(time_left), end_date = max(time_right), .groups = "drop")
+
 all_dfs$shapes_df <- full_data$observed_polygons %>%
     dplyr::mutate(qualified_name = location) %>%
     dplyr::group_by(qualified_name) %>%
     dplyr::summarize(start_date = min(time_left), end_date = max(time_right), .groups = "drop")
 names(all_dfs$shapes_df)[4] <- "geom"
 sf::st_geometry(all_dfs$shapes_df) <- "geom"
+
 all_dfs$observations_df <- full_data$observed_polygons %>%
     dplyr::mutate(observation_collection_id = draw, time_left = time_left, time_right = time_right, 
         qualified_name = location, primary = TRUE, phantom = FALSE, suspected_cases = cases, 

@@ -697,7 +697,7 @@ observe_polygons <- function(test_polygons = create_test_layered_polygons(), tes
     observed_observations <- sf::st_as_sf(time_censored_observations[polygon_observation_idx, 
         ] %>%
         dplyr::select(location, draw, cases, tmin, tmax, time_left, time_right, tfrac, 
-            geom))
+            geometry))
     attr(observed_observations, "seed") <- seed
     return(observed_observations)
 }

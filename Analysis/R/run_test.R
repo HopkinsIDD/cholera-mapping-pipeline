@@ -17,11 +17,11 @@ all_dfs <- taxdat::create_testing_dfs_from_api(username = Sys.getenv("CHOLERA_AP
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change polygons
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 20, ncols = 20, nlayers = 12, test_extent)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent)
 # Create 3 layers of testing polygons starting with a single country, and
 # splitting each polygon into 4 sub-polygons
 test_polygons <- create_test_layered_polygons(test_raster = test_raster, base_number = 1, 
-    n_layers = 3, factor = 4, snap = FALSE, randomize = FALSE)
+    n_layers = 2, factor = 4, snap = FALSE, randomize = FALSE)
 all_dfs$shapes_df <- test_polygons %>%
     dplyr::mutate(qualified_name = location, start_date = min(all_dfs$shapes_df$start_date), 
         end_date = max(all_dfs$shapes_df$end_date))
@@ -39,7 +39,7 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 20, ncols = 20, nlayers = 12, test_extent)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent)
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster)
 test_covariates[[1]]$covariate <- 1 + 10^test_covariates[[1]][["covariate"]]
 min_time_left <- min(all_dfs$observations_df$time_left)
