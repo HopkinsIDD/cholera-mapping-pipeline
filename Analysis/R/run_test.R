@@ -91,8 +91,8 @@ raster_df$covar[[1]]$covariate <- log(raster_df$covar[[1]]$covariate - 1)/log(10
 test_underlying_distribution <- create_underlying_distribution(covariates = raster_df$covar)
 
 test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df, 
-    location = qualified_name), test_covariates = raster_df$covar, underlying_distribution = test_underlying_distribution, 
-    noise = FALSE)
+    location = qualified_name, geometry = geom), test_covariates = raster_df$covar, 
+    underlying_distribution = test_underlying_distribution, noise = FALSE)
 
 all_dfs$observations_df <- test_observations %>%
     dplyr::mutate(observation_collection_id = draw, time_left = time_left, time_right = time_right, 
