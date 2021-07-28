@@ -1,5 +1,6 @@
 ## Basic test setup starting from real data
 library(taxdat)
+
 dbuser <- Sys.getenv("USER", "app")
 dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
 
@@ -7,13 +8,11 @@ conn_pg <- taxdat::connect_to_db(dbuser, dbname)
 DBI::dbClearResult(DBI::dbSendQuery(conn = conn_pg, "SET client_min_messages TO WARNING;"))
 
 ## Pull data frames needed to create testing database from the api This doesn't
-## pull covariates, but does pull everything else all_dfs <-
-## taxdat::create_testing_dfs_from_api(username =
-## Sys.getenv('CHOLERA_API_USERNAME'), api_key = Sys.getenv('CHOLERA_API_KEY'),
-## locations = 'AFR::KEN', time_left = lubridate::ymd('2000-01-01'), time_right =
-## lubridate::ymd('2000-12-31'), uids = NULL, website =
-## 'https://api.cholera-taxonomy.middle-distance.com/')
-load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_object.rdata"))
+## pull covariates, but does pull everything else
+all_dfs <- taxdat::create_testing_dfs_from_api(username = Sys.getenv("CHOLERA_API_USERNAME"), 
+                                               api_key = Sys.getenv("CHOLERA_API_KEY"), locations = "AFR::KEN", time_left = lubridate::ymd("2000-01-01"), 
+                                               time_right = lubridate::ymd("2000-12-31"), uids = NULL, website = "https://api.cholera-taxonomy.middle-distance.com/")
+
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change polygons
