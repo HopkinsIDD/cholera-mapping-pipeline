@@ -34,7 +34,8 @@ test_that("read_taxonomy_data_sql works",{
     "No filters specified on data pull, pulling all data."
   )
   
-  taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=2,time_left=NULL,time_right=NULL,uids=301)
+  taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=2,time_left=NULL,time_right=NULL,uids=301) #location 2 is Burund.
+  
   expect_false(
     any(duplicated(taxonomy_data))
   )
@@ -64,5 +65,21 @@ test_that("read_taxonomy_data_sql works",{
   )
   expect_true(
     unique(taxonomy_data$location_id)==2
+  )
+  
+  #expect the time format is correct and falls in the correct time range
+  taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=405,time_left=NULL,time_right=NULL,uids=c(20378))#location 405 is Kenya
+  expect_true(
+    min(as.Date(taxonomy_data$TL))==as.Date("2012-01-26")
+  )
+  expect_true(
+    max(as.Date(taxonomy_data$TR))==as.Date("2012-12-09")
+  )
+  expect_true(
+    all(taxonomy_data$TR>=axonomy_data$TL)
+  )
+  #expect all locations are correct under Kenya
+  expect_true(
+    all(stringr::str_detect(taxonomy_data$location_name,"AFR::KEN"))
   )
 })
