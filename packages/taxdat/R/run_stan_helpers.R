@@ -15,7 +15,8 @@ get_stan_parameters <- function(config,
                                 time_effect_autocorr = F,
                                 censoring = F,
                                 use_weights = T,
-                                overdispersion = NA
+                                overdispersion = NA,
+                                use_rho_prior = F
 ) {
   
   default_params <- list(sigma_eta_scale = sigma_eta_scale,
@@ -26,7 +27,8 @@ get_stan_parameters <- function(config,
                          time_effect_autocorr = time_effect_autocorr,
                          censoring = censoring,
                          use_weights = use_weights,
-                         overdispersion = overdispersion)
+                         overdispersion = overdispersion,
+                         use_rho_prior = use_rho_prior)
   
   # For each parameter check if specified in config, if not use default value
   params <- purrr::map(names(default_params), 
