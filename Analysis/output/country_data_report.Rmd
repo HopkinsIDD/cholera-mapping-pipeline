@@ -47,8 +47,6 @@ if (is.null(stan_input)) {
   stop("Stan input not found")
 }
 
-
-
 sf_cases <- NULL
 sf_cases_resized <- NULL
 model.rand <- NULL
@@ -64,8 +62,6 @@ try({
   stan_output <- lapply(rstan::extract(model.rand), function(x){array(x,c(niter_per_chain, nchain, dim(x)[-1]))})
   cases_chains <- apply(stan_output$grid_cases, c(3,2), mean)
 })
-
-
 
 ```
 
@@ -196,6 +192,8 @@ taxdat::plot_raster_covariates(covar_data_filename = file_names["covar"], render
 analysis_years <- lubridate::year(config$start_time):lubridate::year(config$end_time)
 obs_years <- min(lubridate::year(stan_input$sf_cases_resized$TL)):max(lubridate::year(stan_input$sf_cases_resized$TR))
 
+# Runtimes by chain
+rstan::get_elapsed_time(model.rand)
 ```
 
 
@@ -254,7 +252,8 @@ try({
 if(!is.null(data_fidelity)){
   taxdat::plot_model_fidelity(data_fidelity = data_fidelity,
                             case_raster = case_raster,
-                            render = T)
+                            render = T,
+                            by_censoring = config$censoring)
 } else{
   warning("data_fidelity is NULL")
 }
