@@ -53,7 +53,7 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
 # ## Change covariates
  test_extent <- sf::st_bbox(all_dfs$shapes_df)
  test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent)
- test_covariates <- create_multiple_test_covariates(test_raster = test_raster,ncovariates = 0)
+ test_covariates <- create_multiple_test_covariates(test_raster = test_raster)
  
  writeLines(as.character(test_covariates),"/home/app/cmp/test_covariates.txt")
  
@@ -110,7 +110,7 @@ test_underlying_distribution <- create_underlying_distribution(covariates = rast
 
 test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df,
                                                                     location = qualified_name, geometry = geom), test_covariates = raster_df$covar,
-                                      underlying_distribution = test_underlying_distribution, noise = FALSE)
+                                      underlying_distribution = test_underlying_distribution, noise = FALSE,polygon_proportion_observed = 1)
 #
  pdf("/home/app/cmp/test_observations.pdf")
  plot(sf::st_geometry(test_observations))
@@ -152,3 +152,5 @@ dev.off()
 # # 
 # # 
 # ## Actually do something with the groundtruth and output
+?create_underlying_distribution()
+library(taxdat)
