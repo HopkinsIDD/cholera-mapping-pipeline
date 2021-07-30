@@ -73,7 +73,7 @@ make_stan_input_filename <- function(cholera_directory,
                                      covariate_name_part,
                                      config,
                                      config_dict) {
-
+  
   if ("file_names" %in% names(config)) {
     filename <- paste(cholera_directory, "Analysis", "data", sep = "/")
     if ("output_directory" %in% names(config[["file_names"]])) {
@@ -83,7 +83,7 @@ make_stan_input_filename <- function(cholera_directory,
       return(paste(filename, config[["file_names"]][["stan_input_filename"]], sep = "/"))
     }
   }
-
+  
   # Processing configs
   to_add <- "pc"
   for (par in c("smoothing_period", "aggregate", "tfrac_thresh", "set_tfrac")) {
@@ -93,11 +93,11 @@ make_stan_input_filename <- function(cholera_directory,
       to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, "NULL")
     }
   }
-
+  
   to_add <- stringr::str_replace_all(to_add, "TRUE", "T")
   to_add <- stringr::str_replace_all(to_add, "FALSE", "F")
   to_add <- stringr::str_replace_all(to_add, "NULL", "N")
-
+  
   paste(cholera_directory, "/Analysis/", "data/", map_name, '.',
         covariate_name_part, '.', to_add, ".stan_input", '.rdata',sep='')
 }
@@ -119,17 +119,7 @@ make_initial_values_filename <- function(cholera_directory,
                                          covariate_name_part,
                                          config,
                                          config_dict) {
-
-  if ("file_names" %in% names(config)) {
-    filename <- paste(cholera_directory, "Analysis", "data", sep = "/")
-    if ("output_directory" %in% names(config[["file_names"]])) {
-      filename <- config[["file_names"]][["output_directory"]]
-    }
-    if ("initial_values_filename" %in% names(config[["file_names"]])) {
-      return(paste(filename, config[["file_names"]][["initial_values_filename"]], sep = "/"))
-    }
-  }
-
+  
   if ("file_names" %in% names(config)) {
     filename <- paste(cholera_directory, "Analysis", "data", sep = "/")
     if ("output_directory" %in% names(config[["file_names"]])) {
@@ -139,18 +129,19 @@ make_initial_values_filename <- function(cholera_directory,
       return(paste(filename, config[["file_names"]][["stan_output_filename"]], sep = "/"))
     }
   }
-
+  
   # Get stan input filename
   base_filename <- make_stan_input_filename(cholera_directory,
-                                                map_name,
-                                                covariate_name_part,
-                                                config,
-                                                config_dict)
+                                            map_name,
+                                            covariate_name_part,
+                                            config,
+                                            config_dict)
   # Base part of output filename
   base_filename <- stringr::str_remove(base_filename, "stan_input\\.rdata")
-
+  
   # Get stan parameters
-
+  stan_pars <- get_stan_parameters(config)
+  
   # Modeling configs
   to_add <- "iv"
   for (par in c("warmup", "covar_warmup")) {
@@ -160,13 +151,22 @@ make_initial_values_filename <- function(cholera_directory,
       to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, "NULL")
     }
   }
-
+  
+  # Modeling configs
+  for (par in c("censoring", "time_effect", "time_effect_autocorr", "use_weights", "use_rho_prior")) {
+    if(!is.null(stan_pars[[par]])) {
+      to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, stan_pars[[par]])
+    } else {
+      to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, "NULL")
+    }
+  }
+  
   # Add stan filename and iterations
-
+  
   to_add <- stringr::str_replace_all(to_add, "TRUE", "T")
   to_add <- stringr::str_replace_all(to_add, "FALSE", "F")
   to_add <- stringr::str_replace_all(to_add, "NULL", "N")
-
+  
   paste0(base_filename, to_add, ".initial_values.rdata")
 }
 
@@ -187,7 +187,7 @@ make_stan_output_filename <- function(cholera_directory,
                                       covariate_name_part,
                                       config,
                                       config_dict) {
-
+  
   if ("file_names" %in% names(config)) {
     filename <- paste(cholera_directory, "Analysis", "data", sep = "/")
     if ("output_directory" %in% names(config[["file_names"]])) {
@@ -197,7 +197,7 @@ make_stan_output_filename <- function(cholera_directory,
       return(paste(filename, config[["file_names"]][["stan_output_filename"]], sep = "/"))
     }
   }
-
+  
   # Get stan input filename
   base_filename <- make_initial_values_filename(cholera_directory,
                                                 map_name,
@@ -206,10 +206,10 @@ make_stan_output_filename <- function(cholera_directory,
                                                 config_dict)
   # Base part of output filename
   base_filename <- stringr::str_remove(base_filename, "initial_values\\.rdata")
-
+  
   # Get stan parameters
   stan_pars <- get_stan_parameters(config)
-
+  
   # Modeling configs
   to_add <- "mc"
   for (par in names(stan_pars)) {
@@ -219,15 +219,15 @@ make_stan_output_filename <- function(cholera_directory,
       to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, "NULL")
     }
   }
-
+  
   # Add stan filename and iterations
   to_add <- paste0(to_add, "-model:", stringr::str_remove(config$stan$model, "\\.stan"))
   to_add <- paste0(to_add, "-niter", config$stan$niter)
-
+  
   to_add <- stringr::str_replace_all(to_add, "TRUE", "T")
   to_add <- stringr::str_replace_all(to_add, "FALSE", "F")
   to_add <- stringr::str_replace_all(to_add, "NULL", "N")
-
+  
   paste0(base_filename, to_add, ".stan_output.rdata")
 }
 
@@ -262,7 +262,19 @@ make_map_output_filename <- function(cholera_directory,
 #' @export
 
 make_map_name <- function(config, .f = NULL) {
-
+  
+  # Subset of OCs
+  OCs <- config$OCs
+  if (is.null(OCs)) {
+    OCs <- "allOCs"
+  } else {
+    OCs <- hashids::encode_hex(paste(OCs, collapse = ""),
+                               settings = hashids::hashid_settings(
+                                 salt = ifelse(is.null(config$name), "chol", config$name)
+                               )
+    ) 
+  }
+  
   # km by km resolution of analysis
   res_space <- as.numeric(config$res_space)
   # temporal resolution of analysis
@@ -272,14 +284,15 @@ make_map_name <- function(config, .f = NULL) {
   end_time <- lubridate::ymd(config$end_time)
   # Suspected or confirmed cases
   suspected_or_confirmed <- suppressMessages(check_case_definition(config$case_definition))
-
+  
   map_name <- paste(paste(config$countries_name, collapse = '-'),
+                    OCs,
                     stringr::str_replace(res_time, " ", "_"),
                     paste(start_time, end_time, sep = '-'),
                     paste(res_space, 'km', sep = ''),
                     suspected_or_confirmed,
                     sep = '_')
-
+  
   return(map_name)
 }
 
@@ -301,35 +314,35 @@ get_filenames <- function (config, cholera_directory) {
   short_covariates <- short_covariate_choices[covariate_choices]
   covariate_name_part <- paste(short_covariates, collapse = "-")
   map_name <- make_map_name(config)
-
+  
   # Load dictionary of configuration options
   config_dict <- yaml::read_yaml(paste0(cholera_directory, "/Analysis/configs/config_dictionary.yml"))
-
+  
   preprocessed_data_fname <- make_observations_filename(cholera_directory = cholera_directory,
                                                         map_name = map_name)
-
+  
   preprocessed_covar_fname <- make_covar_filename(cholera_directory = cholera_directory,
                                                   map_name = map_name,
                                                   covariate_name_part = covariate_name_part)
-
+  
   stan_input_fname <- make_stan_input_filename(cholera_directory = cholera_directory,
                                                map_name = map_name,
                                                covariate_name_part = covariate_name_part,
                                                config = config,
                                                config_dict = config_dict)
-
+  
   initial_values_fname <- make_initial_values_filename(cholera_directory = cholera_directory,
-                                                 map_name = map_name,
-                                                 covariate_name_part = covariate_name_part,
-                                                 config = config,
-                                                 config_dict = config_dict)
-
+                                                       map_name = map_name,
+                                                       covariate_name_part = covariate_name_part,
+                                                       config = config,
+                                                       config_dict = config_dict)
+  
   stan_output_fname <- make_stan_output_filename(cholera_directory = cholera_directory,
                                                  map_name = map_name,
                                                  covariate_name_part = covariate_name_part,
                                                  config = config,
                                                  config_dict = config_dict)
-
+  
   rc <- list(
     data = preprocessed_data_fname,
     covar = preprocessed_covar_fname,
@@ -339,7 +352,7 @@ get_filenames <- function (config, cholera_directory) {
   )
   rc <- setNames(c(preprocessed_data_fname, preprocessed_covar_fname,
                    stan_input_fname, initial_values_fname, stan_output_fname), c("data", "covar",
-                                                           "stan_input", "initial_values", "stan_output"))
+                                                                                 "stan_input", "initial_values", "stan_output"))
   return(rc)
 }
 
@@ -385,20 +398,20 @@ filename_to_stubs <- function(x){
 #' @param cholera_directory Path to cholera-mapping-pipeline checkout
 
 add_explicit_file_names_to_config <- function(config_path, cholera_directory) {
-
+  
   in_config <- yaml::read_yaml(config_path)
   default_file_names <- taxdat::get_filenames(config=in_config, cholera_directory = cholera_directory)
   out_config <- in_config
-
+  
   default_file_dir <- unique(dirname(default_file_names))
   if(length(default_file_dir) != 1){ stop("All output files expected in a single directory") }
   default_file_names <- setNames(basename(default_file_names), names(default_file_names))
-
+  
   out_config$file_names <- default_file_names
   out_config$file_names$output_path <- default_file_dir
-
+  
   yaml::write_yaml(out_config, config_path)
-
+  
   return
 }
 
