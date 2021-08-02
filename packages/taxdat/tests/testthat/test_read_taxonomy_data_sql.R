@@ -1,4 +1,4 @@
-dbuser <- Sys.getenv("USER", "app")
+username <- Sys.getenv("USER", "app")
 dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
 
 library(testthat)
