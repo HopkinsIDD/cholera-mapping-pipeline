@@ -1,5 +1,5 @@
 username <- Sys.getenv("USER", "app")
-dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
+password <- Sys.getenv("PASSWORD", "password")
 
 library(testthat)
 #test read_taxonomy_data_sql function
