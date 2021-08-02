@@ -552,7 +552,7 @@ read_taxonomy_data_sql <- function(username,
                                    time_left = NULL,
                                    time_right = NULL,
                                    uids = NULL) {
-  library(tidyverse)
+  #library(tidyverse)
   library(sf)
   
   if (missing(username) | missing(password))
