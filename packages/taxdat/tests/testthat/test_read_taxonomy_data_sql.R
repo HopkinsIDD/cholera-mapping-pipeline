@@ -36,7 +36,7 @@ test_that("read_taxonomy_data_sql works",{
   ## time_left is later than time_right
   expect_error(
     taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,time_left="2000-01-01",time_right="1999-01-01")
-  )  
+  )   
   ## uids <0
   expect_error(
     taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,uids=-314)
