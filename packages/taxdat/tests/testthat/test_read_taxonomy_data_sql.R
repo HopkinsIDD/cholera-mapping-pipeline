@@ -17,6 +17,7 @@ test_that("read_taxonomy_data_sql works",{
   expect_error(
     taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=NULL,uids=314)#This OC has data from WHO annual reports.
     )
+  
   #2. Arguments with invalid formats
   ## locations have to be numbers (unique location ids)
   expect_error(
@@ -30,6 +31,7 @@ test_that("read_taxonomy_data_sql works",{
   expect_error(
     taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,uids=31.4)
   )  
+  
   # 3. Arguments with values exceeding the valid ranges. 
   ## time_left is later than time_right
   expect_error(
@@ -43,27 +45,32 @@ test_that("read_taxonomy_data_sql works",{
   expect_error(
     taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=NULL,uids=314)
   )  
+  
   # 4. All locations are either the locations specified in the arguments or their child locations. 
   taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,time_left=NULL,time_right=NULL,uids=21136)
   #expect all locations are correct under Ethiopia
   expect_true(
     all(stringr::str_detect(taxonomy_data$location_name,"AFR::ETH"))
   )
+  
   # 5. All dates are within the range of time_left and time_right
   taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,time_left="2019-01-01",time_right="2020-08-02",uids=21136)
   expect_true(
     all(taxonomy_data$TL>=as.Date("2019-01-01")&(taxonomy_data$TR<=as.Date("2020-08-02")))
   )
+  
   # 6. All uids are within the uids 
   taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,uids=c(314,21041,21136))
   expect_true(
     any(taxonomy_data$observation_collection_id==314)&any(taxonomy_data$observation_collection_id==21041)&any(taxonomy_data$observation_collection_id==21136)
   ) 
+  
   # 7. No duplicate data
   taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,uids=c(314,21041,21136))
   expect_false(
     any(duplicated(taxonomy_data))
   )
+  
   # 8. Memory warnings: tell users that they are pulling all the data for a region/time period
   ## when time_right/time_left are null, they are pulling all the data for a region (including data linked to its child locations)
   expect_warning(
@@ -74,5 +81,10 @@ test_that("read_taxonomy_data_sql works",{
   expect_warning(
     taxonomy_data=read_taxonomy_data_sql(username=username,password=password,location=NULL,time_left="2000-01-01",time_right="2000-12-31"),
     "No location filters."
+  )
+  ## when locations and TL/TR are null, they are pulling all the data for all time periods (including data for its child locations)
+  expect_warning(
+    taxonomy_data=read_taxonomy_data_sql(username=username,password=password),
+    "No time and location filters."
   )
 })
