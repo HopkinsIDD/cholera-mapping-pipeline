@@ -291,6 +291,9 @@ make_map_name <- function(config, .f = NULL) {
 
 get_filenames <- function(config, cholera_directory) {
     # Covariate names
+    if ("file_names" %in% names(config)) {
+        return(setNames(paste(cholera_directory, config$file_names, sep = "/"), names(config$file_names)))
+    }
     covariate_dict <- yaml::read_yaml(paste0(cholera_directory, "/Layers/covariate_dictionary.yml"))
     all_covariate_choices <- names(covariate_dict)
     short_covariate_choices <- purrr::map_chr(covariate_dict, "abbr")
@@ -388,4 +391,3 @@ add_explicit_file_names_to_config <- function(config_path, cholera_directory) {
 
     return
 }
-

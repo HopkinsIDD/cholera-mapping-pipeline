@@ -21,9 +21,9 @@ if (interactive_run == "TRUE") {
 if (Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE)) {
     base_search <- search()
 
-    ## This is the list of packages required by this script:
+    ## This is the list of packages required by this script: libxt-dev
     package_list <- c("optparse", "DBI", "RPostgres", "sf", "magrittr", "dplyr", 
-        "rstan")
+        "rstan", "xfun", "kableExtra", "Cairo", "MCMCvis")
 
     for (package in package_list) {
         if (!require(package = package, character.only = T)) {
@@ -357,3 +357,8 @@ elapsed_time <- end_time - start_time
 
 # Save output
 save(model.rand, elapsed_time, file = config[["file_names"]][["stan_output"]])
+
+stan_input <- list(stan_data = stan_data, covar_cube = covar_cube, observation_data = observation_data, 
+    grid_adjacency = grid_adjacency, observation_location_period_mapping = observation_location_period_mapping, 
+    location_period_grid_mapping = location_period_grid_mapping)
+save(stan_input, file = config[["file_names"]][["stan_input"]])

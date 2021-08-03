@@ -1,3 +1,4 @@
+## All tests
 test_that("Create locations table works", {
     dbuser <- Sys.getenv("USER", "app")
     dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
@@ -406,7 +407,6 @@ test_that("refresh_materialized_views works", {
     }, NA)
 })
 
-
 test_that("destroy_testing_database works", {
 
     dbuser <- Sys.getenv("USER", "app")
@@ -567,3 +567,108 @@ test_that("We can ingest spatial grids", {
         ingest_spatial_grid(conn_pg, 5, 5)
     }, NA)
 })
+
+
+
+test_that("Conversion between simulation framework formats and testing framework formats works", 
+    {
+        dbuser <- Sys.getenv("USER", "app")
+        dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
+        skip_if_not(dbuser == "app")  ## Check for on docker
+        tryCatch({
+            conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
+            database_working <- TRUE
+        }, error = function(e) {
+            skip(paste("Could not connect to database", dbname, "as user", dbuser))
+        })
+        destroy_testing_database(conn_pg)
+        setup_testing_database(conn_pg, FALSE)
+        tryCatch({
+            full_simulation_data <- create_standardized_test_data(nrow = 4, ncol = 4, 
+                nlayers = 2, base_number = 1, n_layers = 2, factor = 4, seed = my_seed_1, 
+                polygon_proportion_observed = 1)
+        }, error = function(e) {
+            expect_error({
+                stop(paste("Could not setup initial data for simulation data"))
+            }, NA)
+            skip(paste("Could not setup initial data for simulation data"))
+        })
+        tryCatch({
+            full_dfs_and_covar_funs <- list(dataframes = list(location_df = location_df, 
+                location_period_df = location_period_df, shapes_df = shapes_df, observations_df = observations_df), 
+                covariate_function_list = list(list(name = "test covariate", start_date = lubridate::ymd("2000-01-01"), 
+                  end_date = lubridate::ymd("2001-12-31"), fun = function(psql_connection) {
+                    return(raster::raster(nrow = 3, ncol = 3, vals = 1))
+                  })))
+        }, error = function(e) {
+            expect_error(stop(paste("Could not setup initial data for testing data")), 
+                NA)
+            skip(paste("Could not setup initial data for testing data"))
+        })
+
+        expect_error({
+            all_dfs_and_covar_funs <- convert_simulated_data_to_test_dataframes(full_simulation_data)
+            setup_testing_database_from_dataframes(conn_pg, all_dfs_and_covar_funs$dataframes, 
+                all_dfs_and_covar_funs$covariate_function_list)
+        }, NA)
+
+        ## Direction 1
+        expect_error({
+            test_covar_fun_list <- convert_simulated_covariates_to_test_covariate_funs(full_simulation_data$covariates, 
+                min_time_left = min(full_simulation_data$observed_polygons$time_left), 
+                max_time_right = max(full_simulation_data$observed_polygons$time_right), 
+                nrow = max(full_simulation_data$covariates[[1]]$row), ncol = max(full_simulation_data$covariates[[1]]$col))
+            convert_test_covariate_funs_to_simulation_covariates(test_covar_fun_list)
+        }, NA)
+
+        expect_error({
+            all_dfs_and_covar_funs <- convert_simulated_data_to_test_dataframes(full_simulation_data)
+            convert_test_dfs_to_simulation_observed_polygons(all_dfs_and_covar_funs$dataframes$shapes_df, 
+                all_dfs_and_covar_funs$dataframes$observations_df)
+        }, NA)
+
+
+        ## Direction 2
+        expect_error({
+            simulation_covariates <- convert_test_covariate_funs_to_simulation_covariates(full_dfs_and_covar_funs$covariate_function_list)
+            convert_simulated_covariates_to_test_covariate_funs(simulation_covariates, 
+                min_time_left = min(full_dfs_and_covar_funs$dataframes$observations_df$time_left), 
+                max_time_right = max(full_dfs_and_covar_funs$dataframes$observations_df$time_right), 
+                nrow = max(full_simulation_data$covariates[[1]]$row), ncol = max(full_simulation_data$covariates[[1]]$col))
+        }, NA)
+
+        expect_error({
+            simulation_polygons <- convert_test_dfs_to_simulation_observed_polygons(full_dfs_and_covar_funs$dataframes$shapes_df, 
+                full_dfs_and_covar_funs$dataframes$observations_df)
+            convert_simulated_polygons_to_test_dataframes(simulation_polygons)
+        }, NA)
+
+        ## Direction 1
+        expect_equal({
+            all_dfs_and_covar_funs <- convert_simulated_data_to_test_dataframes(full_simulation_data)
+            convert_test_covariate_funs_to_simulation_covariates(all_dfs_and_covar_funs$covariate_function_list)
+        }, full_simulation_data$covariates)
+
+        expect_equal({
+            all_dfs_and_covar_funs <- convert_simulated_data_to_test_dataframes(full_simulation_data)
+            convert_test_dfs_to_simulation_observed_polygons(all_dfs_and_covar_funs$dataframes$shapes_df, 
+                all_dfs_and_covar_funs$dataframes$observations_df)
+        }, full_simulation_data$observed_polygons)
+
+
+        ## Direction 2
+        expect_equal({
+            simulation_covariates <- convert_test_covariate_funs_to_simulation_covariates(full_dfs_and_covar_funs$covariate_function_list)
+            convert_simulated_covariates_to_test_covariate_funs(simulation_covariates, 
+                min_time_left = min(full_dfs_and_covar_funs$dataframes$observations_df$time_left), 
+                max_time_right = max(full_dfs_and_covar_funs$dataframes$observations_df$time_right), 
+                nrow = max(full_simulation_data$covariates[[1]]$row), ncol = max(full_simulation_data$covariates[[1]]$col))
+        }, full_dfs_and_covar_funs$dataframes$covariate_function_list)
+
+        expect_equal({
+            simulation_polygons <- convert_test_dfs_to_simulation_observed_polygons(full_dfs_and_covar_funs$dataframes$shapes_df, 
+                full_dfs_and_covar_funs$dataframes$observations_df)
+            convert_simulated_polygons_to_test_dataframes(simulation_polygons)
+        }, full_dfs_and_covar_funs$dataframes[c("location_df", "location_period_df", 
+            "shapes_df")])
+    })

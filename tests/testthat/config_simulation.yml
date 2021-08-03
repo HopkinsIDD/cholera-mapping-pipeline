@@ -12,7 +12,8 @@ stan:
   niter: 20
   recompile: TRUE
 file_names:
-  stan_output: "../../test_simulation.Rdata"
+  stan_output: "../../test_simulation.stan_output.Rdata"
+  stan_input: "../../test_simulation.stan_input.Rdata"
 name: 'test_basic'
 taxonomy: 'taxonomy-working/working-entry1'
 smoothing_period: 1

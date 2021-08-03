@@ -794,10 +794,27 @@ setup_testing_database <- function(psql_connection, drop = FALSE) {
     create_testing_database_functions(psql_connection)
 }
 
+#' @description Create a testing database out of a list of data frames
+#' @param psql_connection A connection to the database to create the testing database in
+#' @param data_frame_list A list of data frames to create the data out of.  In particular, there should be the following dataframes with associated columns:
+#'  - location_df : see insert_testing_locations
+#'  - location_period_df : see insert_testin_location_periods
+#'  - shapes_df : see insert_testing_shapefiles
+#'  - observations_df : see insert_testing_observations
+#' @param covariate_creation_function_list A list of covariate descriptions with the following fields:
+#'  - name : A string name for the covariate
+#'  - time_left : The first time the covariate should be used
+#'  - time_right : The last time the covariate should be used
+#'  - fun : A function which takes a psql_connection as an argument and produces a covariate. It should return a raster whose extent is the same as the extent of the polygon associated with the first location in locations_df
+#' @seealso insert_testing_locations
+#' @seealso insert_testing_location_periods
+#' @seealso insert_testing_shapefiles
+#' @seealso insert_testing_observations
+#' @seealso ingest_covariate_from_raster
 #' @export
 setup_testing_database_from_dataframes <- function(psql_connection, data_frame_list, 
-    covariate_creation_function_list) {
-    setup_testing_database(psql_connection, drop = TRUE)
+    covariate_creation_function_list, drop = TRUE) {
+    setup_testing_database(psql_connection, drop = drop)
     insert_testing_locations(psql_connection, data_frame_list$location_df)
     insert_testing_location_periods(psql_connection, data_frame_list$location_period_df)
     insert_testing_shapefiles(psql_connection, data_frame_list$shapes_df)
@@ -1034,8 +1051,13 @@ insert_testing_observations <- function(psql_connection, observation_df) {
     assert(any(c("suspected_cases", "confirmed_cases", "deaths") %in% names(observation_df)), 
         "insert_testing_observations cannot insert a shape without at least one case column")
 
-    location_id_query <- glue::glue_sql(.con = psql_connection, "SELECT id FROM LOCATIONS WHERE qualified_name = {observation_df[[\"qualified_name\"]]}")
+    location_id_query <- glue::glue_sql(.con = psql_connection, "SELECT id FROM locations WHERE qualified_name = {observation_df[[\"qualified_name\"]]}")
     observation_df$location_id <- sapply(location_id_query, function(query) {
+        as.character(DBI::dbGetQuery(conn = psql_connection, query)[["id"]])
+    })
+
+    location_period_id_query <- glue::glue_sql(.con = psql_connection, "SELECT id FROM location_periods WHERE location_id = {observation_df$location_id}")
+    observation_df$location_period_id <- sapply(location_period_id_query, function(query) {
         as.character(DBI::dbGetQuery(conn = psql_connection, query)[["id"]])
     })
 
@@ -1133,4 +1155,140 @@ pull_observation_data <- function(psql_connection, location_name, start_date, en
     results_query <- "SELECT * FROM pull_observation_data({location_name}, {start_date}, {end_date})"
     results_query <- glue::glue_sql(.con = psql_connection, results_query)
     return(DBI::dbGetQuery(conn = psql_connection, results_query))
+}
+
+#' @description Convert covariates from the format used by the simulation framework to the format used by the testing framework
+#' @name simulation_covariate_to_test_covariate_funs
+#' @title simulation_covariate_to_test_covariate_funs
+#' @param simulated_covariates The covariates (created by create_multiple_test_covariates) you want to convert.
+#' @return A list of function + metadata, which can be used as a covariate function list by other test database function
+#' @seealso setup_testing_database_from_dataframes
+#' @export
+convert_simulated_covariates_to_test_covariate_funs <- function(simulated_covariates, 
+    min_time_left, max_time_right, nrow, ncol) {
+    simulated_covariates[[1]]$covariate <- 10^simulated_covariates[[1]][["covariate"]] + 
+        1
+    simulated_covariates[[1]][["covariate"]][simulated_covariates[[1]][["covariate"]] > 
+        2^32] <- 2^32
+    lapply(seq_len(length(simulated_covariates)), function(covariate_idx) {
+        covariate <- simulated_covariates[[covariate_idx]]
+        min_time_index <- min(covariate$t)
+        max_time_index <- max(covariate$t)
+        lapply(unique(covariate$t), function(time_index) {
+            return(list(name = ifelse(covariate_idx == 1, "population", paste("covariate", 
+                covariate_idx, sep = "")), start_date = min_time_left + ((time_index - 
+                1) - min_time_index)/(max_time_index - min_time_index + 1) * (max_time_right - 
+                min_time_left), end_date = min_time_left + (time_index - min_time_index)/(max_time_index - 
+                min_time_index + 1) * (max_time_right - min_time_left), fun = function(psql_connection) {
+                covariate %>%
+                  dplyr::filter(t == time_index) %>%
+                  dplyr::select(covariate) %>%
+                  stars::st_rasterize(nx = nrow, ny = ncol) %>%
+                  stars:::st_as_raster() %>%
+                  return()
+            }))
+        })
+    }) %>%
+        unlist(recursive = FALSE) %>%
+        return()
+}
+
+#' @description Convert from the testing covariate function list format to the simulation covariate format
+#' @name test_covariate_funs_to_simulation_covariates
+#' @title test_covariate_funs_to_simulation_covariates
+#' @param covariate_creation_function_list A list of covariate descriptions with the following fields:
+#'  - name : A string name for the covariate
+#'  - time_left : The first time the covariate should be used
+#'  - time_right : The last time the covariate should be used
+#'  - fun : A function which takes a psql_connection as an argument and produces a covariate. It should return a raster whose extent is the same as the extent of the polygon associated with the first location in locations_df
+#' @export
+convert_test_covariate_funs_to_simulation_covariates <- function(covariate_creation_function_list) {
+    rc <- lapply(covariate_creation_function_list, function(x) {
+        tibble::tibble(name = x$name, start_date = x$start_date, end_date = x$end_date, 
+            covar = list(x$fun()))
+    }) %>%
+        do.call(what = bind_rows) %>%
+        dplyr::group_by(name) %>%
+        summarize(covar = list(do.call(what = bind_rows, mapply(SIMPLIFY = FALSE, 
+            covar, start_date, FUN = function(covar, time_left) {
+                tmp <- reshape2::melt(array(raster::values(covar), dim(covar[[1]])))
+                tmp$geometry <- sf::st_geometry(sf::st_as_sf(raster::rasterToPolygons(covar)))
+                tmp$id <- seq_len(nrow(tmp))
+                tmp$row <- tmp$Var1
+                tmp$col <- tmp$Var2
+                tmp$t <- which(start_date == time_left)
+                tmp$covariate <- tmp$value
+                return(sf::st_as_sf(tmp[, c("id", "row", "col", "t", "covariate", 
+                  "geometry")]))
+            }))), .groups = "drop") %>%
+        dplyr::arrange(as.numeric(gsub("covariate", "", gsub("population", "0", name))))
+    rc$covar[[1]]$covariate[rc$covar[[1]]$covariate < 1 + 2^(-32)] <- 1 + 2^(-32)
+    rc$covar[[1]]$covariate <- log(rc$covar[[1]]$covariate - 1)/log(10)
+    return(rc$covar)
+}
+
+#' @export
+convert_test_dfs_to_simulation_observed_polygons <- function(shapes_df, observations_df) {
+    #' @importFrom magrittr `%>%`
+    if ("sf" %in% class(observations_df)) {
+        observations_df <- sf::st_drop_geometry(observations_df)
+    }
+    rc <- observations_df %>%
+        dplyr::left_join(shapes_df) %>%
+        dplyr::mutate(location = qualified_name, draw = observation_collection_id, 
+            geometry = geom, cases = suspected_cases) %>%
+        dplyr::select(-qualified_name, -observation_collection_id, -geom, -suspected_cases) %>%
+        dplyr::mutate(tmin = match(time_left, sort(unique(c(observations_df$time_left, 
+            observations_df$time_left)))), tmax = match(time_right, sort(unique(c(observations_df$time_right, 
+            observations_df$time_right))))) %>%
+        sf::st_as_sf()
+    return(rc)
+}
+
+#' @export
+convert_simulated_polygons_to_test_dataframes <- function(observed_polygons) {
+    rc <- list()
+    rc$location_df <- data.frame(qualified_name = sort(unique(observed_polygons$location)))
+
+    rc$location_period_df <- observed_polygons %>%
+        sf::st_drop_geometry() %>%
+        dplyr::mutate(qualified_name = location) %>%
+        dplyr::group_by(qualified_name) %>%
+        dplyr::summarize(start_date = min(time_left), end_date = max(time_right), 
+            .groups = "drop")
+
+    rc$shapes_df <- observed_polygons %>%
+        dplyr::mutate(qualified_name = location) %>%
+        dplyr::group_by(qualified_name) %>%
+        dplyr::summarize(start_date = min(time_left), end_date = max(time_right), 
+            .groups = "drop")
+    names(rc$shapes_df)[4] <- "geom"
+    sf::st_geometry(rc$shapes_df) <- "geom"
+    return(rc)
+}
+
+
+#' @export
+convert_simulated_data_to_test_dataframes <- function(simulated_data) {
+    all_dfs <- list()
+
+    min_time_left <- min(simulated_data$observed_polygons$time_left)
+    max_time_right <- max(simulated_data$observed_polygons$time_right)
+
+    nrow <- max(simulated_data$raster$row)
+    ncol <- max(simulated_data$raster$col)
+
+
+    all_dfs <- convert_simulated_polygons_to_test_dataframes(simulated_data$observed_polygons)
+
+    all_dfs$observations_df <- simulated_data$observed_polygons %>%
+        dplyr::mutate(observation_collection_id = draw, time_left = time_left, time_right = time_right, 
+            qualified_name = location, primary = TRUE, phantom = FALSE, suspected_cases = cases, 
+            deaths = NA, confirmed_cases = NA)
+
+    covariate_raster_funs <- convert_simulated_covariates_to_test_covariate_funs(simulated_data$covariates, 
+        min_time_left = min_time_left, max_time_right = max_time_right, nrow = nrow, 
+        ncol = ncol)
+
+    return(list(dataframes = all_dfs, covariate_function_list = covariate_raster_funs))
 }

@@ -531,13 +531,13 @@ create_underlying_distribution <- function(covariates = create_multiple_test_cov
         return(x)
     }, family = "Poisson", seed) {
     seed <- get_or_set_seed(seed)
+    offset <- 10^covariates[[1]][["covariate"]] + 1
+    offset[offset >= 2^(32)] <- 2^32 - 1
     if (length(covariates) > 1) {
         covariates <- covariates[-1]
     } else {
         covariates[[1]] <- covariates[[1]] * 0 + 1
     }
-    offset <- 1 + 10^covariates[[1]][["covariate"]]
-    offset[offset >= 2^(32)] <- 2^32 - 1
     if (length(covariates) <= 0) {
         stop("Covariates should be a list of sf objects representing spacetime grids")
     }
@@ -561,7 +561,7 @@ create_underlying_distribution <- function(covariates = create_multiple_test_cov
         for (i in seq_len(n)) {
             rc[[i]] <- covariates[[1]]
             rc[[i]][["cases"]] <- rpois(length(cases), cases[])
-            rc[[i]][["draw"]] = i
+            rc[[i]][["draw"]] <- i
         }
         return(do.call(sf:::rbind.sf, rc))
     }
@@ -646,7 +646,7 @@ observe_polygons <- function(test_polygons = create_test_layered_polygons(), tes
     grid_temporal_observation_bias = TRUE, grid_value_observation_bias = TRUE, noise = TRUE, 
     polygon_proportion_observed = 0.9, polygon_observation_rates = exp(rnorm(nrow(test_polygons), 
         -1)), polygon_observation_idx = NA, polygon_size_bias = TRUE, nonlinear_covariates = FALSE, 
-    min_time_left = lubridate::ymd("2000-01-01"), max_time_right = lubridate::ymd("2000-01-01"), 
+    min_time_left = lubridate::ymd("2000-01-01"), max_time_right = lubridate::ymd("2001-01-01"), 
     seed) {
     seed <- get_or_set_seed(seed)
     observed_grid <- observe_gridcells(underlying_distribution = underlying_distribution, 
@@ -778,7 +778,7 @@ create_standardized_test_data <- function(nrows = 20, ncols = 20, nlayers = 12, 
     grid_temporal_observation_bias = TRUE, grid_value_observation_bias = TRUE, noise = FALSE, 
     polygon_proportion_observed = 0.1, polygon_observation_rates = exp(rnorm(nrow(test_polygons), 
         -1)), polygon_observation_idx = NA, polygon_size_bias = TRUE, nonlinear_covariates = FALSE, 
-    min_time_left = lubridate::ymd("2000-01-01"), max_time_right = lubridate::ymd("2000-01-01"), 
+    min_time_left = lubridate::ymd("2000-01-01"), max_time_right = lubridate::ymd("2001-01-01"), 
     seed) {
     seed <- get_or_set_seed(seed)
 
