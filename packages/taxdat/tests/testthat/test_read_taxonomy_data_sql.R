@@ -55,49 +55,36 @@ test_that("read_taxonomy_data_sql works",{
   )
   )
   # 5. All dates are within the range of time_left and time_right
-  skip(
-  taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,time_left="2019-01-01",time_right="2020-08-02",uids=21136))
-  skip(
+  skip("Skip steps that require pulluing data from the server.")
+  taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,time_left="2019-01-01",time_right="2020-08-02",uids=21136)
   expect_true(
     all(taxonomy_data$TL>=as.Date("2019-01-01")&(taxonomy_data$TR<=as.Date("2020-08-02")))
   )
-  )
+  
   # 6. All uids are within the uids 
-  skip(
-  taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,uids=c(314,21041,21136)))
-  skip(
+  taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,uids=c(314,21041,21136))
   expect_true(
     any(taxonomy_data$observation_collection_id==314)&any(taxonomy_data$observation_collection_id==21041)&any(taxonomy_data$observation_collection_id==21136)
   ) 
-  )
   # 7. No duplicate data
-  skip(
-  taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,uids=c(314,21041,21136)))
-  skip(
+  taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,uids=c(314,21041,21136))
   expect_false(
     any(duplicated(taxonomy_data))
   )
-  )
   # 8. Memory warnings: tell users that they are pulling all the data for a region/time period
   ## when time_right/time_left are null, they are pulling all the data for a region (including data linked to its child locations)
-  skip(
   expect_warning(
     taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14),
     "No time filters."
   )
-  )
   ## when locations are null, they are pulling all the data for a time period (including data for its child locations)
-  skip(
   expect_warning(
     taxonomy_data=read_taxonomy_data_sql(username=username,password=password,location=NULL,time_left="2000-01-01",time_right="2000-12-31"),
     "No location filters."
   )
-  )
   ## when locations and TL/TR are null, they are pulling all the data for all time periods (including data for its child locations)
-  skip(
   expect_warning(
     taxonomy_data=read_taxonomy_data_sql(username=username,password=password),
     "No time and location filters."
-  )
   )
 })
