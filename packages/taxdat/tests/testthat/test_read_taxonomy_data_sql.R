@@ -1,7 +1,7 @@
 #source("database_api_key.R")
 #Sys.setenv("password"=taxonomy_password,"username"=taxonomy_username)
 password=Sys.getenv('password')
-password=Sys.getenv('username')
+username=Sys.getenv('username')
 
 library(testthat)
 #test read_taxonomy_data_sql function
