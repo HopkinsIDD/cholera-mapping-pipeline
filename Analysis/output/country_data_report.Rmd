@@ -44,7 +44,7 @@ if (!("params" %in% ls())) {
 # Load data directory
 config <- yaml::read_yaml(params$config_filename)
 
-if ("file_names" %in% names(config)) {
+if ("filenames" %in% names(config)) {
   file_names <- config$file_names
 } else {
   file_names <- taxdat::get_filenames(config, params$cholera_directory)
@@ -299,7 +299,7 @@ if(!is.null(model.rand)){
 }
 ```
 ```{r rhat, fig.height=5, fig.width=10, fig.cap="Gelman-Rubin Rhat"}
-if(!is.null(model.rand)){
+if (!is.null(model.rand)) {
   taxdat::plot_rhat(model.rand, render = T)
 } else{
   warning("model.rand is NULL")

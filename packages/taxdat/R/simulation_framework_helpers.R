@@ -507,6 +507,10 @@ create_multiple_test_covariates <- function(test_raster = create_test_raster(), 
         } else {
             tmp[["covariate"]] <- magnitude[idx]
         }
+
+        tmp$geometry <- sf::st_geometry(tmp)
+        tmp <- sf::st_as_sf(sf::st_drop_geometry(tmp))
+        tmp$covariate <- as.numeric(tmp$covariate)
         rc[[idx]] <- tmp
     }
     attr(rc, "seed") <- seed

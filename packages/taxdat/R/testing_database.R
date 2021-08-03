@@ -1164,28 +1164,42 @@ pull_observation_data <- function(psql_connection, location_name, start_date, en
 #' @return A list of function + metadata, which can be used as a covariate function list by other test database function
 #' @seealso setup_testing_database_from_dataframes
 #' @export
-convert_simulated_covariates_to_test_covariate_funs <- function(simulated_covariates, 
-    min_time_left, max_time_right, nrow, ncol) {
+convert_simulated_covariates_to_test_covariate_funs <- function(original_simulated_covariates, 
+    min_time_left, max_time_right) {
+    simulated_covariates <- original_simulated_covariates
     simulated_covariates[[1]]$covariate <- 10^simulated_covariates[[1]][["covariate"]] + 
         1
     simulated_covariates[[1]][["covariate"]][simulated_covariates[[1]][["covariate"]] > 
         2^32] <- 2^32
+    simulated_covariates[[1]][["covariate"]][simulated_covariates[[1]][["covariate"]] < 
+        1 + 2^(-31)] <- 1 + 2^(-31)
+    nrow <- max(simulated_covariates[[1]]$row)
+    ncol <- max(simulated_covariates[[1]]$col)
+    if (any(abs(log(simulated_covariates[[1]]$covariate - 1)/log(10) - original_simulated_covariates[[1]]$covariate) > 
+        1e-10)) {
+        warning("Some covariates were truncated during conversion")
+    }
     lapply(seq_len(length(simulated_covariates)), function(covariate_idx) {
         covariate <- simulated_covariates[[covariate_idx]]
         min_time_index <- min(covariate$t)
         max_time_index <- max(covariate$t)
         lapply(unique(covariate$t), function(time_index) {
             return(list(name = ifelse(covariate_idx == 1, "population", paste("covariate", 
-                covariate_idx, sep = "")), start_date = min_time_left + ((time_index - 
-                1) - min_time_index)/(max_time_index - min_time_index + 1) * (max_time_right - 
-                min_time_left), end_date = min_time_left + (time_index - min_time_index)/(max_time_index - 
-                min_time_index + 1) * (max_time_right - min_time_left), fun = function(psql_connection) {
-                covariate %>%
-                  dplyr::filter(t == time_index) %>%
-                  dplyr::select(covariate) %>%
-                  stars::st_rasterize(nx = nrow, ny = ncol) %>%
-                  stars:::st_as_raster() %>%
-                  return()
+                covariate_idx, sep = "")), start_date = min_time_left + (time_index - 
+                min_time_index)/(max_time_index + 1 - min_time_index) * (max_time_right - 
+                min_time_left), end_date = min_time_left + (time_index + 1 - min_time_index)/(max_time_index + 
+                1 - min_time_index) * (max_time_right - min_time_left), fun = function(psql_connection) {
+                rc <- raster::raster(sf::st_sf(sf::st_as_sfc(sf::st_bbox(covariate))), 
+                  nrow = nrow, ncol = ncol, vals = as.numeric(NA))
+                filtered_covariate <- sf::st_drop_geometry(dplyr::filter(covariate, 
+                  t == time_index))
+                for (idx in seq_len(nrow(filtered_covariate))) {
+                  row <- filtered_covariate[idx, "row"]
+                  col <- filtered_covariate[idx, "col"]
+                  val <- filtered_covariate[idx, "covariate"]
+                  rc[nrow - row + 1, col] <- val
+                }
+                return(rc)
             }))
         })
     }) %>%
@@ -1213,13 +1227,14 @@ convert_test_covariate_funs_to_simulation_covariates <- function(covariate_creat
             covar, start_date, FUN = function(covar, time_left) {
                 tmp <- reshape2::melt(array(raster::values(covar), dim(covar[[1]])))
                 tmp$geometry <- sf::st_geometry(sf::st_as_sf(raster::rasterToPolygons(covar)))
+                tmp$row <- rev(tmp$Var2)
+                tmp$col <- tmp$Var1
+                tmp <- dplyr::arrange(tmp, row, col)
                 tmp$id <- seq_len(nrow(tmp))
-                tmp$row <- tmp$Var1
-                tmp$col <- tmp$Var2
                 tmp$t <- which(start_date == time_left)
                 tmp$covariate <- tmp$value
-                return(sf::st_as_sf(tmp[, c("id", "row", "col", "t", "covariate", 
-                  "geometry")]))
+                return(sf::st_as_sf(tmp[, c("id", "row", "col", "t", "geometry", 
+                  "covariate")]))
             }))), .groups = "drop") %>%
         dplyr::arrange(as.numeric(gsub("covariate", "", gsub("population", "0", name))))
     rc$covar[[1]]$covariate[rc$covar[[1]]$covariate < 1 + 2^(-32)] <- 1 + 2^(-32)
@@ -1275,10 +1290,6 @@ convert_simulated_data_to_test_dataframes <- function(simulated_data) {
     min_time_left <- min(simulated_data$observed_polygons$time_left)
     max_time_right <- max(simulated_data$observed_polygons$time_right)
 
-    nrow <- max(simulated_data$raster$row)
-    ncol <- max(simulated_data$raster$col)
-
-
     all_dfs <- convert_simulated_polygons_to_test_dataframes(simulated_data$observed_polygons)
 
     all_dfs$observations_df <- simulated_data$observed_polygons %>%
@@ -1287,8 +1298,7 @@ convert_simulated_data_to_test_dataframes <- function(simulated_data) {
             deaths = NA, confirmed_cases = NA)
 
     covariate_raster_funs <- convert_simulated_covariates_to_test_covariate_funs(simulated_data$covariates, 
-        min_time_left = min_time_left, max_time_right = max_time_right, nrow = nrow, 
-        ncol = ncol)
+        min_time_left = min_time_left, max_time_right = max_time_right)
 
     return(list(dataframes = all_dfs, covariate_function_list = covariate_raster_funs))
 }

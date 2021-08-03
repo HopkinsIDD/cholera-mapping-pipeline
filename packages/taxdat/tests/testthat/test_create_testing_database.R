@@ -616,9 +616,8 @@ test_that("Conversion between simulation framework formats and testing framework
         expect_error({
             test_covar_fun_list <- convert_simulated_covariates_to_test_covariate_funs(full_simulation_data$covariates, 
                 min_time_left = min(full_simulation_data$observed_polygons$time_left), 
-                max_time_right = max(full_simulation_data$observed_polygons$time_right), 
-                nrow = max(full_simulation_data$covariates[[1]]$row), ncol = max(full_simulation_data$covariates[[1]]$col))
-            convert_test_covariate_funs_to_simulation_covariates(test_covar_fun_list)
+                max_time_right = max(full_simulation_data$observed_polygons$time_right))
+            lhs <- convert_test_covariate_funs_to_simulation_covariates(test_covar_fun_list)
         }, NA)
 
         expect_error({
@@ -633,8 +632,7 @@ test_that("Conversion between simulation framework formats and testing framework
             simulation_covariates <- convert_test_covariate_funs_to_simulation_covariates(full_dfs_and_covar_funs$covariate_function_list)
             convert_simulated_covariates_to_test_covariate_funs(simulation_covariates, 
                 min_time_left = min(full_dfs_and_covar_funs$dataframes$observations_df$time_left), 
-                max_time_right = max(full_dfs_and_covar_funs$dataframes$observations_df$time_right), 
-                nrow = max(full_simulation_data$covariates[[1]]$row), ncol = max(full_simulation_data$covariates[[1]]$col))
+                max_time_right = max(full_dfs_and_covar_funs$dataframes$observations_df$time_right))
         }, NA)
 
         expect_error({
@@ -644,10 +642,31 @@ test_that("Conversion between simulation framework formats and testing framework
         }, NA)
 
         ## Direction 1
-        expect_equal({
-            all_dfs_and_covar_funs <- convert_simulated_data_to_test_dataframes(full_simulation_data)
-            convert_test_covariate_funs_to_simulation_covariates(all_dfs_and_covar_funs$covariate_function_list)
-        }, full_simulation_data$covariates)
+        expect_true({
+            test_covar_fun_list <- convert_simulated_covariates_to_test_covariate_funs(full_simulation_data$covariates, 
+                min_time_left = min(full_simulation_data$observed_polygons$time_left), 
+                max_time_right = max(full_simulation_data$observed_polygons$time_right))
+            lhs <- convert_test_covariate_funs_to_simulation_covariates(test_covar_fun_list)
+            rhs <- full_simulation_data$covariates
+            first_covariate <- TRUE
+            all(mapply(x = lhs, y = rhs, function(x, y) {
+                ## Geometries are equal
+                rc <- all(sf::st_geometry(x) == sf::st_geometry(y))
+                x <- sf::st_drop_geometry(x)
+                if (first_covariate) {
+                  y$covariate[y$covariate > log(2^32 - 1)/log(10)] <- log(2^32 - 
+                    1)/log(10)
+                  y$covariate[y$covariate < log(2^(-31))/log(10)] <- log(2^(-31))/log(10)
+                  first_covariate <<- FALSE
+                }
+
+                y <- sf::st_drop_geometry(y)
+                rc <- all(x[, c("id", "row", "col", "t")] == x[, c("id", "row", "col", 
+                  "t")])
+                rc <- rc && all(abs(x[, "covariate"] - y[, "covariate"]) < 1e-06)
+                return(rc)
+            }))
+        })
 
         expect_equal({
             all_dfs_and_covar_funs <- convert_simulated_data_to_test_dataframes(full_simulation_data)
@@ -661,8 +680,7 @@ test_that("Conversion between simulation framework formats and testing framework
             simulation_covariates <- convert_test_covariate_funs_to_simulation_covariates(full_dfs_and_covar_funs$covariate_function_list)
             convert_simulated_covariates_to_test_covariate_funs(simulation_covariates, 
                 min_time_left = min(full_dfs_and_covar_funs$dataframes$observations_df$time_left), 
-                max_time_right = max(full_dfs_and_covar_funs$dataframes$observations_df$time_right), 
-                nrow = max(full_simulation_data$covariates[[1]]$row), ncol = max(full_simulation_data$covariates[[1]]$col))
+                max_time_right = max(full_dfs_and_covar_funs$dataframes$observations_df$time_right))
         }, full_dfs_and_covar_funs$dataframes$covariate_function_list)
 
         expect_equal({
