@@ -44,7 +44,7 @@ if (!("params" %in% ls())) {
 # Load data directory
 config <- yaml::read_yaml(params$config_filename)
 
-if ("filenames" %in% names(config)) {
+if ("file_names" %in% names(config)) {
   file_names <- config$file_names
 } else {
   file_names <- taxdat::get_filenames(config, params$cholera_directory)
