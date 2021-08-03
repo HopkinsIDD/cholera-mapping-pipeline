@@ -1,5 +1,3 @@
-#source("database_api_key.R")
-#Sys.setenv("password"=taxonomy_password,"username"=taxonomy_username)
 password=Sys.getenv('password')
 username=Sys.getenv('username')
 
@@ -50,29 +48,32 @@ test_that("read_taxonomy_data_sql works",{
   
   # 4. All locations are either the locations specified in the arguments or their child locations. 
   testthat::skip_on_ci(
-  taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,time_left=NULL,time_right=NULL,uids=21136),
+  taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,time_left=NULL,time_right=NULL,uids=21136))
   #expect all locations are correct under Ethiopia
-  expect_true(
+  testthat::skip_on_ci(expect_true(
     all(stringr::str_detect(taxonomy_data$location_name,"AFR::ETH"))
   )
   )
   # 5. All dates are within the range of time_left and time_right
   testthat::skip_on_ci(
-  taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,time_left="2019-01-01",time_right="2020-08-02",uids=21136),
+  taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,time_left="2019-01-01",time_right="2020-08-02",uids=21136))
+  testthat::skip_on_ci(
   expect_true(
     all(taxonomy_data$TL>=as.Date("2019-01-01")&(taxonomy_data$TR<=as.Date("2020-08-02")))
   )
   )
   # 6. All uids are within the uids 
   testthat::skip_on_ci(
-  taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,uids=c(314,21041,21136)),
+  taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,uids=c(314,21041,21136)))
+  testthat::skip_on_ci(
   expect_true(
     any(taxonomy_data$observation_collection_id==314)&any(taxonomy_data$observation_collection_id==21041)&any(taxonomy_data$observation_collection_id==21136)
   ) 
   )
   # 7. No duplicate data
   testthat::skip_on_ci(
-  taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,uids=c(314,21041,21136)),
+  taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,uids=c(314,21041,21136)))
+  testthat::skip_on_ci(
   expect_false(
     any(duplicated(taxonomy_data))
   )
