@@ -1,17 +1,20 @@
 ## Basic test setup starting from real data
 library(taxdat)
+
 dbuser <- Sys.getenv("USER", "app")
 dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
 
 conn_pg <- taxdat::connect_to_db(dbuser, dbname)
 DBI::dbClearResult(DBI::dbSendQuery(conn = conn_pg, "SET client_min_messages TO WARNING;"))
 
+query_time_left <- lubridate::ymd("2000-01-01")
+query_time_right <- lubridate::ymd("2000-12-31")
 ## Pull data frames needed to create testing database from the api This doesn't
 ## pull covariates, but does pull everything else all_dfs <-
 ## taxdat::create_testing_dfs_from_api(username =
 ## Sys.getenv('CHOLERA_API_USERNAME'), api_key = Sys.getenv('CHOLERA_API_KEY'),
-## locations = 'AFR::KEN', time_left = lubridate::ymd('2000-01-01'), time_right =
-## lubridate::ymd('2000-12-31'), uids = NULL, website =
+## locations = 'AFR::KEN', time_left = query_time_left, time_right =
+## query_time_right, uids = NULL, website =
 ## 'https://api.cholera-taxonomy.middle-distance.com/')
 load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_object.rdata"))
 
@@ -43,25 +46,34 @@ test_extent <- sf::st_bbox(all_dfs$shapes_df)
 test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent)
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster)
 test_covariates[[1]]$covariate <- 1 + 10^test_covariates[[1]][["covariate"]]
-min_time_left <- min(all_dfs$observations_df$time_left)
-max_time_right <- max(all_dfs$observations_df$time_right)
+min_time_left <- query_time_left
+max_time_right <- query_time_right
 covariate_raster_funs <- lapply(seq_len(length(test_covariates)), function(covariate_idx) {
     covariate <- test_covariates[[covariate_idx]]
     min_time_index <- min(covariate$t)
     max_time_index <- max(covariate$t)
     lapply(unique(covariate$t), function(time_index) {
-        return(list(name = ifelse(covariate_idx == 1, "population", paste("covariate", 
-            covariate_idx, sep = "")), start_date = min_time_left + ((time_index - 
-            1) - min_time_index)/(max_time_index - min_time_index) * (max_time_right - 
-            min_time_left), end_date = min_time_left + (time_index - min_time_index)/(max_time_index - 
-            min_time_index) * (max_time_right - min_time_left), fun = function(psql_connection) {
+        rc <- list(name = ifelse(covariate_idx == 1, "population", paste("covariate", 
+            covariate_idx, sep = "")), start_date = min_time_left + (time_index - 
+            min_time_index)/(max_time_index + 1 - min_time_index) * (max_time_right - 
+            min_time_left), end_date = min_time_left + (time_index + 1 - min_time_index)/(max_time_index + 
+            1 - min_time_index) * (max_time_right - min_time_left), fun = function(psql_connection) {
             covariate %>%
                 dplyr::filter(t == time_index) %>%
                 dplyr::select(covariate) %>%
                 stars::st_rasterize(nx = max(test_raster$row), ny = max(test_raster$col)) %>%
                 stars:::st_as_raster() %>%
                 return()
-        }))
+        })
+        if (rc$start_date < lubridate::ymd("2000-01-01")) {
+            print("A")
+            browser()
+        }
+        if (rc$end_date > lubridate::ymd("2000-12-31")) {
+            print("B")
+            browser()
+        }
+        return(rc)
     })
 }) %>%
     unlist(recursive = FALSE)
@@ -93,7 +105,8 @@ test_underlying_distribution <- create_underlying_distribution(covariates = rast
 
 test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df, 
     location = qualified_name, geometry = geom), test_covariates = raster_df$covar, 
-    underlying_distribution = test_underlying_distribution, noise = FALSE)
+    underlying_distribution = test_underlying_distribution, noise = FALSE, grid_proportion_observed = 1, 
+    polygon_proportion_observed = 1, min_time_left = query_time_left, max_time_right = query_time_right)
 
 all_dfs$observations_df <- test_observations %>%
     dplyr::mutate(observation_collection_id = draw, time_left = time_left, time_right = time_right, 
@@ -106,6 +119,7 @@ all_dfs$observations_df <- test_observations %>%
 setup_testing_database(conn_pg, drop = TRUE)
 taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raster_funs)
 
+## NOTE: Change me if you want to run the report locally
 config_filename <- paste(tempfile(), "yml", sep = ".")
 
 ## Put your config stuff in here
@@ -115,12 +129,17 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
     "Analysis", "Stan"), ncores = 1, model = "dagar_seasonal.stan", niter = 20, recompile = TRUE), 
     name = "test_???", taxonomy = "taxonomy-working/working-entry1", smoothing_period = 1, 
     case_definition = "suspected", covariate_choices = raster_df$name, data_source = "sql", 
-    file_names = list(stan_output = "stan_output.Rdata"))
+    file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir", 
+        "Analysis", "output", "test.stan_output.rdata"), stan_input = rprojroot::find_root_file(criterion = ".choldir", 
+        "Analysis", "output", "test.stan_input.rdata")))
 
 yaml::write_yaml(x = config, file = config_filename)
 
 Sys.setenv(CHOLERA_CONFIG = config_filename)
 source(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "R", "execute_pipeline.R"))
+rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", 
+    "country_data_report.Rmd"), params = list(config_filename = config_filename, 
+    cholera_directory = "~/cmp/", drop_nodata_years = TRUE))
 
 
 ## Actually do something with the groundtruth and output
