@@ -1,5 +1,4 @@
 username <- Sys.getenv("USER", "app")
-password <- Sys.getenv("PASSWORD", "password")
 
 library(testthat)
 #test read_taxonomy_data_sql function
