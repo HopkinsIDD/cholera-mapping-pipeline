@@ -1,3 +1,7 @@
+#getwd()
+#source("R/database_api_key.R")
+#taxonomy_password
+#Sys.setenv(password =taxonomy_password, username=taxonomy_username)
 password=Sys.getenv('password')
 username=Sys.getenv('username')
 
