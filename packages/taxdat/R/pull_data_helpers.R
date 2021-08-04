@@ -555,8 +555,8 @@ read_taxonomy_data_sql <- function(username,
   #library(tidyverse)
   library(sf)
   
-  if (missing(username) | missing(password))
-    stop("Please provide username and password to connect to the taxonomy database.")
+  if (missing(username) | missing(password)){
+    stop("Please provide username and password to connect to the taxonomy database.")}
   
   # Connect to database
   conn <- RPostgres::dbConnect(RPostgres::Postgres(),
