@@ -10,3 +10,7 @@ slurm*.out
 packages/taxdat/tests/testthat/psql_credential.txt
 packages/taxdat/tests/testthat/.Renviron
 Analysis/R/.Rhistory
+packages/taxdat/R/database_api_key.R
+packages/taxdat/.Rhistory
+packages/taxdat/.Rhistory
+packages/taxdat/.Rhistory
