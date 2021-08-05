@@ -46,7 +46,7 @@ test_covariates <- create_multiple_test_covariates(test_raster = test_raster)
 min_time_left <- query_time_left
 max_time_right <- query_time_right
 covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates, 
-    min_time_left, max_time_right, nrow = max(test_raster$row), ncol = max(test_raster$col))
+    min_time_left, max_time_right)
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change observations

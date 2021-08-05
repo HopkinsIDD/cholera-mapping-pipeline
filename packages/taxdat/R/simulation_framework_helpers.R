@@ -646,12 +646,12 @@ observe_gridcells <- function(underlying_distribution = create_underlying_distri
 #' @param seed A random seed
 observe_polygons <- function(test_polygons = create_test_layered_polygons(), test_covariates = create_multiple_test_covariates(polygons = test_polygons), 
     underlying_distribution = create_underlying_distribution(covariates = test_covariates), 
-    grid_proportion_observed = 0.9, number_draws = 1, grid_spatial_observation_bias = TRUE, 
+    grid_proportion_observed = 1, number_draws = 1, grid_spatial_observation_bias = TRUE, 
     grid_temporal_observation_bias = TRUE, grid_value_observation_bias = TRUE, noise = TRUE, 
-    polygon_proportion_observed = 0.9, polygon_observation_rates = exp(rnorm(nrow(test_polygons), 
+    polygon_proportion_observed = 1, polygon_observation_rates = exp(rnorm(nrow(test_polygons), 
         -1)), polygon_observation_idx = NA, polygon_size_bias = TRUE, nonlinear_covariates = FALSE, 
     min_time_left = lubridate::ymd("2000-01-01"), max_time_right = lubridate::ymd("2001-01-01"), 
-    seed) {
+    do_temporal_subset = FALSE, seed) {
     seed <- get_or_set_seed(seed)
     observed_grid <- observe_gridcells(underlying_distribution = underlying_distribution, 
         proportion_observed = grid_proportion_observed, number_draws = number_draws, 
@@ -666,7 +666,10 @@ observe_polygons <- function(test_polygons = create_test_layered_polygons(), tes
     time_censored_observations <- intersections %>%
         dplyr::group_by(location, draw) %>%
         dplyr::group_map(function(.x, .y) {
-            minmax <- sort(sample(nlayers, 2, replace = TRUE))
+            minmax <- c(1, nlayers)
+            if (do_temporal_subset) {
+                minmax <- sort(sample(nlayers, 2, replace = TRUE))
+            }
             time_bounds <- (max_time_right - min_time_left) * (minmax - c(1, 0))/nlayers + 
                 lubridate::as_datetime(min_time_left)
             time_bounds <- as.Date(time_bounds)

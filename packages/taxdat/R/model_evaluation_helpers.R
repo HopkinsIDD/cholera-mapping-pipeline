@@ -23,7 +23,7 @@ read_file_of_type <- function(filename, variable) {
         load(filename)
     }
     if (!exists(variable)) {
-        stop(paste0("The variable (", variable, ") isn't present in the file", filename, 
+        stop(paste0("The variable (", variable, ") isn't present in the file", filename,
             ")"))
     }
     return(eval(expr = parse(text = variable)))
@@ -43,9 +43,9 @@ get_obs_stats <- function(df) {
     alldf <- dplyr::mutate(alldf, year = "all")
     rc <- rbind(rc, alldf)
     rc <- dplyr::group_by(rc, year)
-    rc <- dplyr::summarize(rc, n_obs = dplyr::n(), n_cases = sum(suspected_cases), 
-        n_lp = length(unique(location_period_id)), u_lps = paste(sort(unique(location_period_id)), 
-            collapse = ","), n_OCs = length(unique(observation_collection_id)), u_OCs = paste(sort(unique(observation_collection_id)), 
+    rc <- dplyr::summarize(rc, n_obs = dplyr::n(), n_cases = sum(suspected_cases),
+        n_lp = length(unique(location_period_id)), u_lps = paste(sort(unique(location_period_id)),
+            collapse = ","), n_OCs = length(unique(observation_collection_id)), u_OCs = paste(sort(unique(observation_collection_id)),
             collapse = ","), )
 
     return(rc)
@@ -58,7 +58,7 @@ get_obs_stats <- function(df) {
 #' @description add
 #' @param preprocessed_data_filename Rdata filename with the preprocess suffix
 #' @return
-get_disjoint_set_sf_cases <- function(.x = NULL, preprocessed_data_filename = NULL, 
+get_disjoint_set_sf_cases <- function(.x = NULL, preprocessed_data_filename = NULL,
     stan_input_filename = NULL) {
     if (!is.null(.x)) {
         stop("This function only allows named arguments")
@@ -71,17 +71,17 @@ get_disjoint_set_sf_cases <- function(.x = NULL, preprocessed_data_filename = NU
         sf_cases <- read_file_of_type(stan_input_filename, "stan_input")$observation_data
     }
 
-    my_names <- names(sf_cases)[c(grep("location", names(sf_cases)), grep("name_", 
+    my_names <- names(sf_cases)[c(grep("location", names(sf_cases)), grep("name_",
         names(sf_cases)))]
     sf_cases$attributes.location_period_id <- sf_cases[[my_names[[1]]]]
     for (i in (1 + seq_len(length(my_names) - 1))) {
-        sf_cases$attributes.location_period_id <- paste(sf_cases$attributes.location_period_id, 
+        sf_cases$attributes.location_period_id <- paste(sf_cases$attributes.location_period_id,
             sf_cases[[my_names[i]]])
     }
 
-    aggregate_sf_cases <- dplyr::summarize(dplyr::group_by(sf_cases, attributes.location_period_id), 
-        cases = mean(suspected_cases/as.numeric(time_right - time_left + 1) * 365), 
-        variance = var(suspected_cases/as.numeric(time_right - time_left + 1) * 365), 
+    aggregate_sf_cases <- dplyr::summarize(dplyr::group_by(sf_cases, attributes.location_period_id),
+        cases = mean(suspected_cases/as.numeric(time_right - time_left + 1) * 365),
+        variance = var(suspected_cases/as.numeric(time_right - time_left + 1) * 365),
         observations = length(suspected_cases))
     aggregate_sf_cases <- sf::st_as_sf(aggregate_sf_cases)
 
@@ -103,7 +103,7 @@ get_disjoint_set_sf_cases <- function(.x = NULL, preprocessed_data_filename = NU
             if (idx %in% not_allowed) {
             } else {
                 aggregate_sf_cases$not_included[idx] <- FALSE
-                non_overlapping_sets[[index]] <- c(non_overlapping_sets[[index]], 
+                non_overlapping_sets[[index]] <- c(non_overlapping_sets[[index]],
                   idx)
                 not_allowed <- sort(unique(c(not_allowed, overlaps[[idx]])))
             }
@@ -130,12 +130,12 @@ get_disjoint_set_sf_cases <- function(.x = NULL, preprocessed_data_filename = NU
 #' @param width plot width
 #' @param height plot height
 #' @return ggplot object with raw observed cases
-plot_raw_observed_cases <- function(disjoint_set_sf_cases, render = F, plot_file = NULL, 
+plot_raw_observed_cases <- function(disjoint_set_sf_cases, render = F, plot_file = NULL,
     width = NULL, height = NULL) {
     plt <- ggplot2::ggplot()
-    plt <- plt + ggplot2::geom_sf(data = disjoint_set_sf_cases, ggplot2::aes(fill = cases)) + 
-        ggplot2::scale_fill_gradient2("Average cases by location period", low = "white", 
-            mid = "orange", high = "red", na.value = "blue") + ggplot2::theme_bw() + 
+    plt <- plt + ggplot2::geom_sf(data = disjoint_set_sf_cases, ggplot2::aes(fill = cases)) +
+        ggplot2::scale_fill_gradient2("Average cases by location period", low = "white",
+            mid = "orange", high = "red", na.value = "blue") + ggplot2::theme_bw() +
         ggplot2::theme(legend.position = "bottom") + ggplot2::facet_wrap(~set)
 
     if (!is.null(plot_file)) {
@@ -157,12 +157,12 @@ plot_raw_observed_cases <- function(disjoint_set_sf_cases, render = F, plot_file
 #' @param width plot width
 #' @param height plot height
 #' @return ggplot object with area-adjusted observed cases
-plot_area_adjusted_observed_cases <- function(disjoint_set_sf_cases, render = F, 
+plot_area_adjusted_observed_cases <- function(disjoint_set_sf_cases, render = F,
     plot_file = NULL, width = NULL, height = NULL) {
     plt <- ggplot2::ggplot()
-    plt <- plt + ggplot2::geom_sf(data = disjoint_set_sf_cases, ggplot2::aes(fill = area_adjusted_cases)) + 
-        ggplot2::scale_fill_gradient2("Area-adjusted cases", low = "white", mid = "orange", 
-            high = "red", na.value = "blue") + ggplot2::theme_bw() + ggplot2::theme(legend.position = "bottom") + 
+    plt <- plt + ggplot2::geom_sf(data = disjoint_set_sf_cases, ggplot2::aes(fill = area_adjusted_cases)) +
+        ggplot2::scale_fill_gradient2("Area-adjusted cases", low = "white", mid = "orange",
+            high = "red", na.value = "blue") + ggplot2::theme_bw() + ggplot2::theme(legend.position = "bottom") +
         ggplot2::facet_wrap(~set)
 
     if (!is.null(plot_file)) {
@@ -184,11 +184,11 @@ plot_area_adjusted_observed_cases <- function(disjoint_set_sf_cases, render = F,
 #' @param width plot width
 #' @param height plot height
 #' @return ggplot object with number of observations observed by unique location periods
-plot_raw_observations <- function(disjoint_set_sf_cases, render = F, plot_file = NULL, 
+plot_raw_observations <- function(disjoint_set_sf_cases, render = F, plot_file = NULL,
     width = NULL, height = NULL) {
     plt <- ggplot2::ggplot()
-    plt <- plt + ggplot2::geom_sf(data = disjoint_set_sf_cases, ggplot2::aes(fill = observations)) + 
-        ggplot2::scale_fill_viridis_c("Observation") + ggplot2::facet_wrap(~set, 
+    plt <- plt + ggplot2::geom_sf(data = disjoint_set_sf_cases, ggplot2::aes(fill = observations)) +
+        ggplot2::scale_fill_viridis_c("Observation") + ggplot2::facet_wrap(~set,
         ncol = 5) + ggplot2::theme_bw() + ggplot2::theme(legend.position = "bottom")
 
     if (!is.null(plot_file)) {
@@ -212,11 +212,11 @@ plot_raster_population <- function(covar_data_filename, render = T, n_wrap_col =
     plt <- ggplot2::ggplot()
     covar_cube <- read_file_of_type(covar_data_filename, "stan_input")$covar_cube
     covar_cube$t <- as.integer(covar_cube$t)
-    plt <- plt + ggplot2::geom_tile(data = covar_cube, ggplot2::aes(x = x, y = y, 
-        fill = population)) + ggplot2::scale_fill_viridis_c("Population", trans = "log", 
-        breaks = c(100, 1000, 10000, 1e+05), aesthetics = c("colour", "fill"), guide = ggplot2::guide_colorbar(title = "Population density [per grid cell]"), 
-        option = "E", na.value = "white") + ggplot2::theme_bw() + ggplot2::theme(legend.position = "bottom", 
-        legend.text = ggplot2::element_text(angle = 45, hjust = 1, vjust = 1)) + 
+    plt <- plt + ggplot2::geom_tile(data = covar_cube, ggplot2::aes(x = x, y = y,
+        fill = population)) + ggplot2::scale_fill_viridis_c("Population", trans = "log",
+        breaks = c(100, 1000, 10000, 1e+05), aesthetics = c("colour", "fill"), guide = ggplot2::guide_colorbar(title = "Population density [per grid cell]"),
+        option = "E", na.value = "white") + ggplot2::theme_bw() + ggplot2::theme(legend.position = "bottom",
+        legend.text = ggplot2::element_text(angle = 45, hjust = 1, vjust = 1)) +
         ggplot2::facet_wrap(~t, ncol = 5)
 
     if (render) {
@@ -241,11 +241,11 @@ plot_raster_covariates <- function(covar_data_filename, render = T, n_wrap_col =
         dplyr::filter(t == min(t)) %>%
         pivot_longer(covariate_names)
     plt <- ggplot2::ggplot()
-    plt <- plt + ggplot2::geom_tile(data = covar_cube, ggplot2::aes(x = x, y = y, 
-        fill = value)) + ggplot2::scale_fill_viridis_c(aesthetics = c("colour", "fill"), 
-        guide = ggplot2::guide_colorbar(title = "Covariate at time 1"), option = "B", 
-        na.value = "white") + ggplot2::theme_bw() + ggplot2::theme(legend.position = "bottom", 
-        legend.text = ggplot2::element_text(angle = 45, hjust = 1, vjust = 1)) + 
+    plt <- plt + ggplot2::geom_tile(data = covar_cube, ggplot2::aes(x = x, y = y,
+        fill = value)) + ggplot2::scale_fill_viridis_c(aesthetics = c("colour", "fill"),
+        guide = ggplot2::guide_colorbar(title = "Covariate at time 1"), option = "B",
+        na.value = "white") + ggplot2::theme_bw() + ggplot2::theme(legend.position = "bottom",
+        legend.text = ggplot2::element_text(angle = 45, hjust = 1, vjust = 1)) +
         ggplot2::facet_wrap(~name, ncol = 5)
 
     if (render) {
@@ -264,7 +264,7 @@ plot_raster_covariates <- function(covar_data_filename, render = T, n_wrap_col =
 #' @return
 get_case_raster <- function(stan_input_filename, model_output_filenames) {
     # layer_index <- 1
-    covar_cube <- read_file_of_type(covar_data_filename, "stan_input")$covar_cube
+    covar_cube <- read_file_of_type(stan_input_filename, "stan_input")$covar_cube
 
     nchains <- 0
 
@@ -274,25 +274,26 @@ get_case_raster <- function(stan_input_filename, model_output_filenames) {
         model.rand <- read_file_of_type(filename, "model.rand")
         # Check if stan ran
         stan_divergence <- rstan::check_divergences(model.rand)
-        modeled_cases <- as.array(model.rand)[, , grepl("grid_case", names(model.rand)), 
+        modeled_cases <- as.array(model.rand)[, , grepl("grid_case", names(model.rand)),
             drop = FALSE]
         modeled_cases_mean <- apply(modeled_cases, 3, mean)
-        modeled_rates <- exp(as.array(model.rand)[, , grepl("log_lambda", names(model.rand)), 
+        modeled_rates <- exp(as.array(model.rand)[, , grepl("log_lambda", names(model.rand)),
             drop = FALSE])
         modeled_rates_mean <- apply(modeled_rates, 3, mean)
 
         case_raster$modeled_cases_mean <- modeled_cases_mean
         case_raster$modeled_rates_mean <- modeled_rates_mean
 
-        names(case_raster)[which(names(case_raster) == "modeled_cases_mean")] <- paste("modeled cases\n", 
-            paste(filename_to_stubs(filename)[2:3], collapse = " "), "\niterations: Chain", 
+        names(case_raster)[which(names(case_raster) == "modeled_cases_mean")] <- paste("modeled cases\n",
+            paste(filename_to_stubs(filename)[2:3], collapse = " "), "\niterations: Chain",
             filename_to_stubs(filename)[5])
         case_raster$modeled_rates_mean <- modeled_rates_mean
-        names(case_raster)[which(names(case_raster) == "modeled_rates_mean")] <- paste("modeled rates\n", 
-            paste(filename_to_stubs(filename)[2:3], collapse = " "), "\niterations: Chain", 
+        names(case_raster)[which(names(case_raster) == "modeled_rates_mean")] <- paste("modeled rates\n",
+            paste(filename_to_stubs(filename)[2:3], collapse = " "), "\niterations: Chain",
             filename_to_stubs(filename)[5])
     }
-    case_raster
+  case_raster$t <- as.numeric(case_raster$t)
+  return(case_raster)
 }
 
 
@@ -318,7 +319,7 @@ get_non_na_gridcells <- function(covar_data_filename) {
 #' @param width plot width
 #' @param height plot height
 #' @return ggplot object with modeled cases map
-plot_modeled_cases <- function(case_raster, render = T, plot_file = NULL, width = NULL, 
+plot_modeled_cases <- function(case_raster, render = T, plot_file = NULL, width = NULL,
     height = NULL) {
     case_raster <- case_raster %>%
         dplyr::select(x, y, dplyr::contains("modeled cases"), id, t) %>%
@@ -328,13 +329,15 @@ plot_modeled_cases <- function(case_raster, render = T, plot_file = NULL, width 
     dplyr::mutate(chain = stringr::str_replace(chain, "modeled cases", ""), t = as.integer(t))
 
     plt <- ggplot2::ggplot()
-    plt <- plt + ggplot2::geom_tile(data = case_raster, ggplot2::aes(x = x, y = y, 
-        fill = value, color = value)) + # ggplot2::scale_fill_vidris_c('modeled cases', limits = uniform_scale_fun()) +
-    ggplot2::scale_fill_viridis_c(trans = "log", breaks = c(1, 10, 100, 1000), aesthetics = c("colour", 
-        "fill"), guide = ggplot2::guide_colorbar(title = "Incidence\n [cases/year]")) + 
-        ggplot2::theme_bw() + ggplot2::theme(legend.position = "bottom") + ggplot2::facet_wrap(~t, 
-        ncol = 5) + ggplot2::theme(legend.text = ggplot2::element_text(angle = 45, 
-        vjust = 1, hjust = 1))
+    plt <- plt + ggplot2::geom_tile(
+      data = case_raster,
+      ggplot2::aes(x = x, y = y, fill = value, color = value)
+    ) +
+      color_scale(type = 'cases', use_case = 'ggplot map') +
+      ggplot2::theme_bw() +
+      ggplot2::theme(legend.position = "bottom") +
+      ggplot2::facet_wrap(~t, ncol = 5) +
+      ggplot2::theme(legend.text = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))
 
     if (!is.null(plot_file)) {
         ggplot2::ggsave(plt, plot_file, width = width, heigth = height)
@@ -355,7 +358,7 @@ plot_modeled_cases <- function(case_raster, render = T, plot_file = NULL, width 
 #' @param width plot width
 #' @param height plot height
 #' @return ggplot object with modeled rates map
-plot_modeled_rates <- function(rate_raster, render = T, plot_file = NULL, width = NULL, 
+plot_modeled_rates <- function(rate_raster, render = T, plot_file = NULL, width = NULL,
     height = NULL) {
     rate_raster <- rate_raster %>%
         dplyr::select(x, y, dplyr::contains("modeled rates"), id, t) %>%
@@ -365,12 +368,11 @@ plot_modeled_rates <- function(rate_raster, render = T, plot_file = NULL, width 
     dplyr::mutate(chain = stringr::str_replace(chain, "modeled rates", ""), t = as.integer(t))
 
     plt <- ggplot2::ggplot()
-    plt <- plt + ggplot2::geom_tile(data = rate_raster, ggplot2::aes(x = x, y = y, 
+    plt <- plt + ggplot2::geom_tile(data = rate_raster, ggplot2::aes(x = x, y = y,
         fill = value, color = value)) + # ggplot2::scale_fill_vidris_c('modeled rates', limits = uniform_scale_fun()) +
-    ggplot2::scale_fill_viridis_c(trans = "log", breaks = c(1, 10, 100, 1000), aesthetics = c("colour", 
-        "fill"), guide = ggplot2::guide_colorbar(title = "Incidence\n [rates/year]")) + 
-        ggplot2::theme_bw() + ggplot2::theme(legend.position = "bottom") + ggplot2::facet_wrap(~t, 
-        ncol = 5) + ggplot2::theme(legend.text = ggplot2::element_text(angle = 45, 
+      color_scale(type = 'rates', use_case = 'ggplot map') +
+        ggplot2::theme_bw() + ggplot2::theme(legend.position = "bottom") + ggplot2::facet_wrap(~t,
+        ncol = 5) + ggplot2::theme(legend.text = ggplot2::element_text(angle = 45,
         vjust = 1, hjust = 1))
 
     if (!is.null(plot_file)) {
@@ -390,7 +392,7 @@ plot_modeled_rates <- function(rate_raster, render = T, plot_file = NULL, width 
 #' @return
 get_data_fidelity <- function(stan_input_filenames, model_output_filenames) {
 
-    if (length(stan_input_filenames) != length(model_output_filenames)) 
+    if (length(stan_input_filenames) != length(model_output_filenames))
         stop("Need to provide same number of stan_input and stan_output files")
 
     rc <- list()
@@ -402,19 +404,19 @@ get_data_fidelity <- function(stan_input_filenames, model_output_filenames) {
         # print(c(filename, corresponding_input_filename))
         model.rand <- read_file_of_type(filename, "model.rand")
         stan_data <- read_file_of_type(stan_input_filenames[i], "stan_input")$stan_data
-        modeled_cases <- as.array(model.rand)[, , grepl("modeled_cases", names(model.rand)), 
+        modeled_cases <- as.array(model.rand)[, , grepl("modeled_cases", names(model.rand)),
             drop = FALSE]
         modeled_cases_chain_mean <- apply(modeled_cases, c(2, 3), mean)
-        actual_cases <- matrix(stan_data$y, nrow(modeled_cases_chain_mean), ncol(modeled_cases_chain_mean), 
+        actual_cases <- matrix(stan_data$y, nrow(modeled_cases_chain_mean), ncol(modeled_cases_chain_mean),
             byrow = TRUE)
         dimnames(actual_cases) <- dimnames(modeled_cases_chain_mean)
         modeled_cases_chain_mean <- reshape2::melt(modeled_cases_chain_mean)
         actual_cases <- reshape2::melt(actual_cases)
-        comparison <- dplyr::left_join(modeled_cases_chain_mean, actual_cases, by = c(chains = "chains", 
+        comparison <- dplyr::left_join(modeled_cases_chain_mean, actual_cases, by = c(chains = "chains",
             parameters = "parameters"))
         names(comparison)[3:4] <- c("modeled cases", "actual cases")
         rc[[filename]] <- comparison
-        names(rc)[[layer_index]] <- paste(paste(filename_to_stubs(filename)[2:3], 
+        names(rc)[[layer_index]] <- paste(paste(filename_to_stubs(filename)[2:3],
             collapse = " "), "\niterations: Chain", filename_to_stubs(filename)[5])
         layer_index <- layer_index + 1
     }
@@ -430,13 +432,12 @@ get_data_fidelity <- function(stan_input_filenames, model_output_filenames) {
 #' @param case_raster case_raster object
 #' @param render default is TRUE
 #' @return ggplot object with modeled vs actual cases by observation
-plot_model_fidelity <- function(data_fidelity, case_raster, render = T) {
-    comparison <- data_fidelity
-    rate_raster <- case_raster
-    plt <- ggplot2::ggplot(comparison[[1]]) + ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, 
-        x = `actual cases`, col = chains)) + ggplot2::geom_abline(intercept = 0, 
-        slope = 1) + ggplot2::coord_fixed(ratio = 1, xlim = c(1, max(comparison[[1]][, 
-        3:4])), ylim = c(1, max(comparison[[1]][, 3:4]))) + ggplot2::theme_bw()
+plot_model_fidelity <- function(data_fidelity, render = T) {
+    plt <- ggplot2::ggplot(data_fidelity[[1]]) +
+      ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = chains)) +
+      ggplot2::geom_abline(intercept = 0, slope = 1) +
+      ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(data_fidelity[[1]][,3:4])), ylim = c(0, max(data_fidelity[[1]][, 3:4]))) +
+      ggplot2::theme_bw()
 
     if (render) {
         plt
@@ -454,13 +455,13 @@ plot_rhat <- function(model.rand, render = T) {
 
 
     fit_summary <- rstan::summary(model.rand)
-    rhats <- tibble::tibble(Rhat = round(fit_summary$summary[which(str_detect(row.names(fit_summary$summary), 
+    rhats <- tibble::tibble(Rhat = round(fit_summary$summary[which(str_detect(row.names(fit_summary$summary),
         "modeled_cases")), "Rhat"], 2)) %>%
         dplyr::mutate(x = dplyr::row_number())
     rhat_thresh <- 1.05
     frac_above <- sum(rhats$Rhat > rhat_thresh)/nrow(rhats)
-    p_rhat <- ggplot2::ggplot(rhats, ggplot2::aes(x = x, y = Rhat)) + ggplot2::xlab("Obs. ID") + 
-        ggplot2::geom_point() + ggplot2::geom_hline(yintercept = rhat_thresh, col = "red") + 
+    p_rhat <- ggplot2::ggplot(rhats, ggplot2::aes(x = x, y = Rhat)) + ggplot2::xlab("Obs. ID") +
+        ggplot2::geom_point() + ggplot2::geom_hline(yintercept = rhat_thresh, col = "red") +
         ggplot2::theme_bw() + ggplot2::ggtitle(glue::glue("Fraction above threshold: {format(round(frac_above*100, 2))}%"))
 
     if (render) {
@@ -489,8 +490,8 @@ pull_output_by_source <- function(sf_cases, source_match, database_api_key_rfile
     }
 
     source(database_api_key_rfile)
-    conn <- RPostgres::dbConnect(RPostgres::Postgres(), host = "db.cholera-taxonomy.middle-distance.com", 
-        dbname = "CholeraTaxonomy_production", user = taxonomy_username, password = taxonomy_password, 
+    conn <- RPostgres::dbConnect(RPostgres::Postgres(), host = "db.cholera-taxonomy.middle-distance.com",
+        dbname = "CholeraTaxonomy_production", user = taxonomy_username, password = taxonomy_password,
         port = "5432")
 
     query <- glue::glue_sql(.con = conn, "select id,source from observation_collections where source like {source_match};")
@@ -511,7 +512,7 @@ pull_output_by_source <- function(sf_cases, source_match, database_api_key_rfile
 #' @param pars parameters for which to display traceplots
 #' @param render default is TRUE
 #' @return ggplot object with traceplots by parameter
-plot_chain_convergence <- function(model_output_filenames, pars = c("rho", "betas", 
+plot_chain_convergence <- function(model_output_filenames, pars = c("rho", "betas",
     "log_std_dev_w"), render = T) {
     model.rand <- read_file_of_type(model_output_filenames, "model.rand")
 
@@ -529,7 +530,7 @@ plot_chain_convergence <- function(model_output_filenames, pars = c("rho", "beta
 #' @param area_cuts area cut points for spatial scales when all location names are not available (in sqkm)
 #' @return a dataframe with the percentage of pixels covered for each modeling
 #' time band and each spatial scale
-get_spatial_coverage <- function(config, cholera_directory, area_cuts = c(0, 100, 
+get_spatial_coverage <- function(config, cholera_directory, area_cuts = c(0, 100,
     1000, 10000, Inf)) {
     # Get stan input and covar cube
     file_names <- get_filenames(config, cholera_directory)
@@ -559,15 +560,15 @@ get_spatial_coverage <- function(config, cholera_directory, area_cuts = c(0, 100
         if (any(is.na(sf_cases$location_name))) {
 
             # Connect to database
-            conn <- RPostgres::dbConnect(RPostgres::Postgres(), host = "db.cholera-taxonomy.middle-distance.com", 
-                dbname = "CholeraTaxonomy_production", user = taxonomy_username, 
+            conn <- RPostgres::dbConnect(RPostgres::Postgres(), host = "db.cholera-taxonomy.middle-distance.com",
+                dbname = "CholeraTaxonomy_production", user = taxonomy_username,
                 password = taxonomy_password, port = "5432")
 
             locations <- DBI::dbGetQuery(conn = conn, glue::glue_sql("SELECT a.id::text as \"location_period_id\", b.qualified_name as location_name
           FROM location_periods a
           JOIN locations b
           ON a.location_id = b.id
-          WHERE a.id IN ({u_lps$location_period_id*});", 
+          WHERE a.id IN ({u_lps$location_period_id*});",
                 .con = conn))
 
             u_lps <- u_lps %>%
@@ -579,8 +580,8 @@ get_spatial_coverage <- function(config, cholera_directory, area_cuts = c(0, 100
         # country-level observations)
         u_lps <- u_lps %>%
             dplyr::ungroup() %>%
-            dplyr::mutate(area = sf::st_area(geom), area_class = stringr::str_count(location_name, 
-                "::") - 1, area_class = as.character(area_class), area_class = dplyr::case_when(area_class == 
+            dplyr::mutate(area = sf::st_area(geom), area_class = stringr::str_count(location_name,
+                "::") - 1, area_class = as.character(area_class), area_class = dplyr::case_when(area_class ==
                 "0" ~ "country", T ~ area_class))
 
     } else {
@@ -591,9 +592,9 @@ get_spatial_coverage <- function(config, cholera_directory, area_cuts = c(0, 100
 
         u_lps <- u_lps %>%
             dplyr::ungroup() %>%
-            dplyr::mutate(area = sf::st_area(geom), area_class = cut(as.numeric(area) * 
-                1e-06, area_cuts), area_class2 = dplyr::case_when(location_name == 
-                country ~ "country", T ~ as.character(area_class)), area_class = factor(area_class2, 
+            dplyr::mutate(area = sf::st_area(geom), area_class = cut(as.numeric(area) *
+                1e-06, area_cuts), area_class2 = dplyr::case_when(location_name ==
+                country ~ "country", T ~ as.character(area_class)), area_class = factor(area_class2,
                 levels = c(levels(area_class), "country"))) %>%
             dplyr::select(-area_class2)
     }
@@ -659,7 +660,7 @@ get_gam_values <- function(config, cholera_directory) {
     log_y_pred_mean <- mgcv::predict.gam(initial_values_data$gam_fit_output, predict_df)
 
     y_pred_df <- stan_input$sf_grid %>%
-        dplyr::mutate(log_y = log_y_pred_mean + predict_df$logoffset, y = exp(y), 
+        dplyr::mutate(log_y = log_y_pred_mean + predict_df$logoffset, y = exp(y),
             log_lambda = log_y_pred_mean + log(stan_input$stan_data$meanrate), lambda = exp(log_lambda))
 
     return(y_pred_df)
