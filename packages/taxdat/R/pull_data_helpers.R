@@ -633,7 +633,7 @@ read_taxonomy_data_sql <- function(username,
     stop("Location period id exceeds max integer in R, and glue doesn't work on int64s")
   }
   
-  lp_query <- glue::glue_sql("SELECT locations.id::text as location_id, locations.qualified_name::text as location_name, location_periods.id::text as location_period_id,shapes.shape::text as geometry
+  lp_query <- glue::glue_sql("SELECT locations.id::text as location_id, locations.qualified_name::text as location_name, location_periods.id::text as location_period_id,shapes.shape
          FROM locations 
          JOIN location_periods 
          ON locations.id=location_periods.location_id 
@@ -676,7 +676,7 @@ read_taxonomy_data_sql <- function(username,
     #               times = ifelse(is.na(location_name), NA, stringr::str_extract(location_name, "([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}-[0-9]{2}-[0-9]{2})"))
     # ) %>% 
     # dplyr::select(-times) %>% 
-    dplyr::rename(geojson = geometry)
+    dplyr::rename(geojson = shape)
   
   # Combine observations and geojsons
   res <- dplyr::left_join(observations, as.data.frame(location_periods.sf), by = "location_period_id")
