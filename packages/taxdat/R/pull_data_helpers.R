@@ -690,7 +690,6 @@ read_taxonomy_data_sql <- function(username,
  
   #res <- sf::st_as_sf(res)
   
-  detach("package:tidyverse", unload = T)
   detach("package:sf", unload = T)
   return(res)
 }
