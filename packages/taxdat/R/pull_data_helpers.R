@@ -633,26 +633,27 @@ read_taxonomy_data_sql <- function(username,
     stop("Location period id exceeds max integer in R, and glue doesn't work on int64s")
   }
   
-  lp_query <- glue::glue_sql("SELECT a.id::text as location_period_id, b.qualified_name as location_name, a.geojson 
-  FROM location_periods a
+  lp_query <- glue::glue_sql("SELECT a.location_period_id::text as location_period_id, b.qualified_name as location_name, shape 
+  FROM shapes a
   JOIN locations b
-  ON a.location_id = b.id
-  WHERE a.id IN ({u_lps*});", .con = conn)
+  ON a.location_period_id = b.id
+  WHERE a.location_period_id IN ({u_lps*});", .con = conn)
   location_periods <- DBI::dbGetQuery(conn = conn, lp_query)
   
   # Get missing geometries
   location_period_issues <- location_periods %>%   
-    dplyr::filter(is.na(geojson) | geojson == "{}")
+    dplyr::filter(is.na(shape) | shape == "{}")
   
   # Get unique valid geojsons
   location_periods <- location_periods  %>%   
-    dplyr::filter(!is.na(geojson), geojson != "{}") %>% 
+    dplyr::filter(!is.na(shape), shape != "{}") %>% 
     dplyr::group_by(location_period_id) %>% 
     dplyr::slice(1)
   
+   
   # Convert to sf object
-  location_periods.sf <- purrr::map(location_periods$geojson, ~try(geojsonsf::geojson_sf(.), silent = F))
-  
+  # location_periods.sf <- purrr::map(location_periods$geojson, ~try(geojsonsf::geojson_sf(.), silent = F))
+
   # Get errors
   errors <- purrr::map2(location_periods.sf, seq_along(location_periods.sf), ~ if (inherits(.x, "try-error")) .y) %>% 
     unlist()
@@ -663,13 +664,14 @@ read_taxonomy_data_sql <- function(username,
   }
   
   # extract geometries and metadata
-  location_periods.sf <- do.call(rbind, location_periods.sf) %>% 
-    dplyr::mutate(location_period_id = location_periods$location_period_id,
-                  location_name = location_periods$location_name,
-                  times = ifelse(is.na(location_name), NA, stringr::str_extract(location_name, "([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}-[0-9]{2}-[0-9]{2})"))
-    ) %>% 
-    dplyr::select(-times) %>% 
-    dplyr::rename(geojson = geometry)
+  location_periods.sf <- location_periods.sf %>% 
+  #location_periods.sf <- do.call(rbind, location_periods.sf) %>% 
+    # dplyr::mutate(location_period_id = location_periods$location_period_id,
+    #               location_name = location_periods$location_name,
+    #               times = ifelse(is.na(location_name), NA, stringr::str_extract(location_name, "([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}-[0-9]{2}-[0-9]{2})"))
+    # ) %>% 
+    # dplyr::select(-times) %>% 
+    dplyr::rename(shape = geometry)
   
   # Combine observations and geojsons
   res <- dplyr::left_join(observations, as.data.frame(location_periods.sf), by = "location_period_id")
