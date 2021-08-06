@@ -1,7 +1,6 @@
 testthat::skip_on_ci()
 source("~/cholera-mapping-pipeline/packages/taxdat/R/database_api_key.R")
-
-source("database_api_key.R")
+testthat::skip_on_ci()
 Sys.setenv(password =taxonomy_password, username=taxonomy_username)
 password=Sys.getenv('password')
 username=Sys.getenv('username')
