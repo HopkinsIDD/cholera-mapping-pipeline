@@ -587,12 +587,14 @@ read_taxonomy_data_sql <- function(username,
     time_left_filter <- paste0("time_left >= '", format(time_left, "%Y-%m-%d"), "'")
   } else {
     time_left_filter <- NULL
+    warning("No left time filters.")
   }
   
   if (!is.null(time_right)) {
     time_right_filter <- paste0("time_right <= '", format(time_right, "%Y-%m-%d"), "'")
   } else {
     time_right_filter <- NULL
+    warning("No right time filters.")
   }
   
   if (!is.null(locations)) {
@@ -603,6 +605,7 @@ read_taxonomy_data_sql <- function(username,
     }
   } else {
     #locations_filter <- NULL
+    warning("No location filters")
     stop("Please use a containing location as the location. Locations can't be NULL.")
   }
   
