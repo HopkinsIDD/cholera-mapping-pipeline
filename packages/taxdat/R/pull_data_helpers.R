@@ -677,7 +677,7 @@ read_taxonomy_data_sql <- function(username,
   res <- dplyr::left_join(observations, as.data.frame(location_periods.sf), by = "location_period_id")
   #res <- sf::st_as_sf(res)
   
-  detach("package:tidyverse", unload = T)
+  #detach("package:tidyverse", unload = T)
   detach("package:sf", unload = T)
   return(res)
 }
