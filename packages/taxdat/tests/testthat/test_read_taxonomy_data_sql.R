@@ -89,7 +89,7 @@ test_that("read_taxonomy_data_sql works",{
   ## when locations are null, they are pulling all the data for a time period (including data for its child locations)
   #testthat::skip_on_ci()
   expect_warning(
-    taxonomy_data=read_taxonomy_data_sql(username=username,password=password,location=NULL,time_left="2000-01-01",time_right="2000-12-31"),
+    taxonomy_data=read_taxonomy_data_sql(username=username,password=password,time_left="2000-01-01",time_right="2000-12-31"),
     "No filters."
   )
   ## when locations and TL/TR are null, they are pulling all the data for all time periods (including data for its child locations)
