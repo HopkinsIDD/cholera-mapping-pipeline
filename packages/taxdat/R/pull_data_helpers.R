@@ -664,7 +664,7 @@ read_taxonomy_data_sql <- function(username,
   }
   
   # extract geometries and metadata
-  location_periods.sf <- location_periods.sf %>% 
+  location_periods.sf <- location_periods %>% 
   #location_periods.sf <- do.call(rbind, location_periods.sf) %>% 
     # dplyr::mutate(location_period_id = location_periods$location_period_id,
     #               location_name = location_periods$location_name,
