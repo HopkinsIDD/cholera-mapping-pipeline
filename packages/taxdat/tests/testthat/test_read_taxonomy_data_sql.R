@@ -82,7 +82,7 @@ test_that("read_taxonomy_data_sql works",{
   # 8. Memory warnings: tell users that they are pulling all the data for a region/time period
   ## when time_right/time_left are null, they are pulling all the data for a region (including data linked to its child locations)
   #testthat::skip_on_ci()
-  expect_warning(taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14))
+  expect_warning(taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,uids=c(314,21041,21136)))
   ## when locations are null, they are pulling all the data for a time period (including data for its child locations)
   #testthat::skip_on_ci()
   expect_warning(taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=NULL,time_left=as.Date("2000-01-01"),time_right=as.Date("2000-01-31")))
