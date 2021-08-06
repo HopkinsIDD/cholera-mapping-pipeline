@@ -83,13 +83,13 @@ test_that("read_taxonomy_data_sql works",{
   ## when time_right/time_left are null, they are pulling all the data for a region (including data linked to its child locations)
   #testthat::skip_on_ci()
   
-  expect_warning(taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,uids=c(314,21041,21136)),"No time filters")
+  expect_warning(read_taxonomy_data_sql(username=username,password=password,locations=14,uids=c(314,21041,21136)),"No time filters")
   
   ## when locations are null, they are pulling all the data for a time period (including data for its child locations)
   #testthat::skip_on_ci()
-  expect_warning(taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=NULL,time_left=as.Date("2000-01-01"),time_right=as.Date("2000-01-31")),"No location filters")
+  expect_warning(read_taxonomy_data_sql(username=username,password=password,locations=NULL,time_left=as.Date("2000-01-01"),time_right=as.Date("2000-01-31")),"No location filters")
   
   ## when locations and TL/TR are null, they are pulling all the data for all time periods (including data for its child locations)
   #testthat::skip_on_ci()
-  expect_warning(taxonomy_data=read_taxonomy_data_sql(username=username,password=password),"No filters")
+  expect_warning(read_taxonomy_data_sql(username=username,password=password),"No filters")
 })
