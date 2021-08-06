@@ -635,16 +635,14 @@ read_taxonomy_data_sql <- function(username,
   
   lp_query <- glue::glue_sql("SELECT locations.id::text as location_id, locations.qualified_name::text as location_name, location_periods.id::text as location_period_id,shapes.shape
          FROM locations 
-         JOIN location_periods 
+         LEFT JOIN location_periods 
          ON locations.id=location_periods.location_id 
          LEFT JOIN shapes 
          ON shapes.location_period_id=location_periods.id 
          WHERE location_periods.id IN ({u_lps*});", .con = conn)
   
-  
   location_periods <- DBI::dbGetQuery(conn = conn, lp_query)
-  # locations.id is the location id NOT location period id. 
-  
+
   # Get missing geometries
   location_period_issues <- location_periods %>%   
     dplyr::filter(is.na(shape) | shape == "{}")
@@ -655,7 +653,6 @@ read_taxonomy_data_sql <- function(username,
     dplyr::group_by(location_period_id) %>% 
     dplyr::slice(1)
   
-
   # Convert to sf object
   # location_periods.sf <- purrr::map(location_periods$geojson, ~try(geojsonsf::geojson_sf(.), silent = F))
 
@@ -670,19 +667,30 @@ read_taxonomy_data_sql <- function(username,
   
   # extract geometries and metadata
   location_periods.sf <- location_periods %>% 
-  #location_periods.sf <- do.call(rbind, location_periods.sf) %>% 
-    # dplyr::mutate(location_period_id = location_periods$location_period_id,
-    #               location_name = location_periods$location_name,
-    #               times = ifelse(is.na(location_name), NA, stringr::str_extract(location_name, "([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}-[0-9]{2}-[0-9]{2})"))
-    # ) %>% 
-    # dplyr::select(-times) %>% 
     dplyr::rename(geojson = shape)
   
   # Combine observations and geojsons
-  res <- dplyr::left_join(observations, as.data.frame(location_periods.sf), by = "location_period_id")
+  res <- dplyr::left_join(observations, as.data.frame(location_periods.sf), by = "location_period_id")%>%
+    rename(location_id=location_id.x)%>%
+    select(-location_id.y,-location_name)
+  
+  # Replace NA with location names for those locations without location periods
+  u_loc=unique(observations$location_id) #unique location ids
+  loc_query <- glue::glue_sql("SELECT locations.id::text as location_id, locations.qualified_name::text as location_name, location_periods.id::text as location_period_id,shapes.shape
+         FROM locations 
+         LEFT JOIN location_periods 
+         ON locations.id=location_periods.location_id 
+         LEFT JOIN shapes 
+         ON shapes.location_period_id=location_periods.id 
+         WHERE locations.id IN ({u_loc*});", .con = conn)
+  
+  locations <- DBI::dbGetQuery(conn = conn, loc_query)  
+  
+  res=dplyr::left_join(res,loc_id_name,by="location_id")
+ 
   #res <- sf::st_as_sf(res)
   
-  #detach("package:tidyverse", unload = T)
+  detach("package:tidyverse", unload = T)
   detach("package:sf", unload = T)
   return(res)
 }
