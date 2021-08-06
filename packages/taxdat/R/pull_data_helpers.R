@@ -686,7 +686,7 @@ read_taxonomy_data_sql <- function(username,
   
   locations <- DBI::dbGetQuery(conn = conn, loc_query)  
   
-  res=dplyr::left_join(res,loc_id_name,by="location_id")
+  res=dplyr::left_join(res,locations,by="location_id")
  
   #res <- sf::st_as_sf(res)
   
