@@ -612,6 +612,7 @@ read_taxonomy_data_sql <- function(username,
     uids_filter <- paste0("observation_collection_id IN ({uids*})")
   } else {
     uids_filter <- NULL
+    warning("No uid filters.")
   }
   
   # Combine filters
