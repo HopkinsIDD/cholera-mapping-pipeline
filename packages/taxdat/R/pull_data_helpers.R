@@ -587,14 +587,14 @@ read_taxonomy_data_sql <- function(username,
     time_left_filter <- paste0("time_left >= '", format(time_left, "%Y-%m-%d"), "'")
   } else {
     time_left_filter <- NULL
-    warning("No left time filters.")
+    warning("No time filters.")
   }
   
   if (!is.null(time_right)) {
     time_right_filter <- paste0("time_right <= '", format(time_right, "%Y-%m-%d"), "'")
   } else {
     time_right_filter <- NULL
-    warning("No right time filters.")
+    warning("No time filters.")
   }
   
   if (!is.null(locations)) {
