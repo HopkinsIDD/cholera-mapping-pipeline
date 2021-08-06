@@ -50,42 +50,42 @@ test_that("read_taxonomy_data_sql works",{
   )  
   
   # 4. All locations are either the locations specified in the arguments or their child locations. 
-  #testthat::skip_on_ci()
+  testthat::skip_on_ci()
   taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,time_left=NULL,time_right=NULL,uids=21136)
   #expect all locations are correct under Ethiopia
-  #testthat::skip_on_ci()
+  testthat::skip_on_ci()
   expect_true(
     all(stringr::str_detect(taxonomy_data$location_name,"AFR::ETH"))
   )
   # 5. All dates are within the range of time_left and time_right
-  #testthat::skip_on_ci()
+  testthat::skip_on_ci()
   taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,time_left=as.Date("2019-01-01"),time_right=as.Date("2020-08-02"),uids=21136)
-  #testthat::skip_on_ci()
+  testthat::skip_on_ci()
   expect_true(
     all(taxonomy_data$TL>=as.Date("2019-01-01")&(taxonomy_data$TR<=as.Date("2020-08-02")))
   )
   
   # 6. All uids are within the uids 
-  #testthat::skip_on_ci()
+  testthat::skip_on_ci()
   taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,uids=c(314,21041,21136))
-  #testthat::skip_on_ci()
+  testthat::skip_on_ci()
   expect_true(
     any(taxonomy_data$observation_collection_id==314)&any(taxonomy_data$observation_collection_id==21041)&any(taxonomy_data$observation_collection_id==21136)
   ) 
   # 7. No duplicate data
-  #testthat::skip_on_ci()
+  testthat::skip_on_ci()
   taxonomy_data=read_taxonomy_data_sql(username=username,password=password,locations=14,uids=c(314,21041,21136))
-  #testthat::skip_on_ci()
+  testthat::skip_on_ci()
   expect_false(
     any(duplicated(taxonomy_data))
   )
   # 8. Memory warnings: tell users that they are pulling all the data for a region/time period
   ## when time_right/time_left are null, they are pulling all the data for a region (including data linked to its child locations)
-  #testthat::skip_on_ci()
+  testthat::skip_on_ci()
   expect_warning(read_taxonomy_data_sql(username=username,password=password,locations=14,uids=c(314,21041,21136)),"No time filters")
   
   ## when uids are null, they are pulling all the data for a region (including data linked to its child locations)
-  #testthat::skip_on_ci() 
+  testthat::skip_on_ci() 
   expect_warning(read_taxonomy_data_sql(username=username,password=password,locations=14,time_left=as.Date("2019-01-01"),time_right=as.Date("2020-08-02")),"No uid filters")
   
 })
