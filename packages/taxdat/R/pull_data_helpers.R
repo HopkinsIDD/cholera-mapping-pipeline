@@ -671,7 +671,7 @@ read_taxonomy_data_sql <- function(username,
     #               times = ifelse(is.na(location_name), NA, stringr::str_extract(location_name, "([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}-[0-9]{2}-[0-9]{2})"))
     # ) %>% 
     # dplyr::select(-times) %>% 
-    dplyr::rename(shape = geometry)
+    dplyr::rename(geojson = shape)
   
   # Combine observations and geojsons
   res <- dplyr::left_join(observations, as.data.frame(location_periods.sf), by = "location_period_id")
