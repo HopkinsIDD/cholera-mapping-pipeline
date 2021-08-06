@@ -686,8 +686,7 @@ read_taxonomy_data_sql <- function(username,
          ON shapes.location_period_id=location_periods.id 
          WHERE locations.id IN ({u_loc*});", .con = conn)
   
-  location_names <- DBI::dbGetQuery(conn = conn, loc_query)  
-  
+  location_names <- DBI::dbGetQuery(conn = conn, loc_query)
   res=dplyr::left_join(res,location_names,by="location_id")
  
   #res <- sf::st_as_sf(res)
