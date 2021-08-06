@@ -655,13 +655,13 @@ read_taxonomy_data_sql <- function(username,
   # location_periods.sf <- purrr::map(location_periods$geojson, ~try(geojsonsf::geojson_sf(.), silent = F))
 
   # Get errors
-  errors <- purrr::map2(location_periods.sf, seq_along(location_periods.sf), ~ if (inherits(.x, "try-error")) .y) %>% 
-    unlist()
-  if (length(errors) > 0) {
-    cat("Found unreadable geojson for location periods:", str_c(errors, collapse = ", "))
-    location_periods.sf <- location_periods.sf[-errors]
-    location_periods <- location_periods[-errors, ]
-  }
+  # errors <- purrr::map2(location_periods.sf, seq_along(location_periods.sf), ~ if (inherits(.x, "try-error")) .y) %>% 
+  #   unlist()
+  # if (length(errors) > 0) {
+  #   cat("Found unreadable geojson for location periods:", str_c(errors, collapse = ", "))
+  #   location_periods.sf <- location_periods.sf[-errors]
+  #   location_periods <- location_periods[-errors, ]
+  # }
   
   # extract geometries and metadata
   location_periods.sf <- location_periods %>% 
