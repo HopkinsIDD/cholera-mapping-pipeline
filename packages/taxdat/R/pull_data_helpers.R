@@ -577,7 +577,8 @@ read_taxonomy_data_sql <- function(username,
   # Add filters
   if (any(c(!is.null(time_left),
             !is.null(time_right), 
-            !is.null(uids)))) {
+            !is.null(uids))),
+            !is.null(locations)) {
     obs_query <- paste(obs_query, "\n WHERE ")
   } else {
     warning("No filters specified on data pull, pulling all data.")
@@ -604,8 +605,6 @@ read_taxonomy_data_sql <- function(username,
       stop("SQL access by location name is not yet implemented")
     }
   } else {
-    #locations_filter <- NULL
-    warning("No location filters")
     stop("Please use a containing location as the location. Locations can't be NULL.")
   }
   
@@ -687,9 +686,9 @@ read_taxonomy_data_sql <- function(username,
          ON shapes.location_period_id=location_periods.id 
          WHERE locations.id IN ({u_loc*});", .con = conn)
   
-  locations <- DBI::dbGetQuery(conn = conn, loc_query)  
+  location_names <- DBI::dbGetQuery(conn = conn, loc_query)  
   
-  res=dplyr::left_join(res,locations,by="location_id")
+  res=dplyr::left_join(res,location_names,by="location_id")
  
   #res <- sf::st_as_sf(res)
   
