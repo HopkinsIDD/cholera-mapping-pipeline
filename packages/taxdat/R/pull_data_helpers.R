@@ -577,8 +577,8 @@ read_taxonomy_data_sql <- function(username,
   # Add filters
   if (any(c(!is.null(time_left),
             !is.null(time_right), 
-            !is.null(uids))),
-            !is.null(locations)) {
+            !is.null(uids)),
+            !is.null(locations))) {
     obs_query <- paste(obs_query, "\n WHERE ")
   } else {
     warning("No filters specified on data pull, pulling all data.")
