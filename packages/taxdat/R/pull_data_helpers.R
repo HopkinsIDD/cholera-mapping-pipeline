@@ -633,12 +633,17 @@ read_taxonomy_data_sql <- function(username,
     stop("Location period id exceeds max integer in R, and glue doesn't work on int64s")
   }
   
-  lp_query <- glue::glue_sql("SELECT a.location_period_id::text as location_period_id, b.qualified_name as location_name, shape 
-  FROM shapes a
-  JOIN locations b
-  ON a.location_period_id = b.id
-  WHERE a.location_period_id IN ({u_lps*});", .con = conn)
+  lp_query <- glue::glue_sql("SELECT locations.id::text as location_id, locations.qualified_name::text as location_name, location_periods.id::text as location_period_id,shapes.shape::text as geometry
+         FROM locations 
+         JOIN location_periods 
+         ON locations.id=location_periods.location_id 
+         LEFT JOIN shapes 
+         ON shapes.location_period_id=location_periods.id 
+         WHERE location_periods.id IN ({u_lps*});", .con = conn)
+  
+  
   location_periods <- DBI::dbGetQuery(conn = conn, lp_query)
+  # locations.id is the location id NOT location period id. 
   
   # Get missing geometries
   location_period_issues <- location_periods %>%   
@@ -650,7 +655,7 @@ read_taxonomy_data_sql <- function(username,
     dplyr::group_by(location_period_id) %>% 
     dplyr::slice(1)
   
-   
+
   # Convert to sf object
   # location_periods.sf <- purrr::map(location_periods$geojson, ~try(geojsonsf::geojson_sf(.), silent = F))
 
@@ -671,7 +676,7 @@ read_taxonomy_data_sql <- function(username,
     #               times = ifelse(is.na(location_name), NA, stringr::str_extract(location_name, "([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}-[0-9]{2}-[0-9]{2})"))
     # ) %>% 
     # dplyr::select(-times) %>% 
-    dplyr::rename(geojson = shape)
+    dplyr::rename(geojson = geometry)
   
   # Combine observations and geojsons
   res <- dplyr::left_join(observations, as.data.frame(location_periods.sf), by = "location_period_id")
