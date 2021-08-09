@@ -552,7 +552,6 @@ read_taxonomy_data_sql <- function(username,
                                    time_left = NULL,
                                    time_right = NULL,
                                    uids = NULL) {
-  library(sf)
   
   if (missing(username) | missing(password)){
     stop("Please provide username and password to connect to the taxonomy database.")}
@@ -566,10 +565,19 @@ read_taxonomy_data_sql <- function(username,
                                port = "5432")
   
   # Build query for observations
-  obs_query <- paste("SELECT observations.id::text, observations.observation_collection_id::text, observations.time_left, observations.time_right,", 
-                     "observations.suspected_cases, observations.confirmed_cases, observations.deaths, observations.location_period_id::text, observations.location_id::text,",
-                     "observations.phantom, observations.primary
-                     FROM observations left join location_hierarchies on observations.location_id = location_hierarchies.descendant_id")
+  obs_query <- paste(
+    "SELECT",
+    "observations.id::text, observations.observation_collection_id::text, observations.time_left, observations.time_right,observations.suspected_cases, observations.confirmed_cases, observations.deaths, observations.phantom, observations.primary",
+    ",locations.qualified_name, locations.id::text as location_id",
+    ",location_periods.id::text as location_period_id",
+   ",shapes.shape as geojson",
+    "FROM",
+    "observations",
+    "left join location_hierarchies on observations.location_id = location_hierarchies.descendant_id",
+    "left join locations on observations.location_id = locations.id",
+    "left join location_periods on observations.location_period_id = location_periods.id",
+    "left join shapes on shapes.location_period_id = location_periods.id",
+    " WHERE" )
   
   cat("-- Pulling data from taxonomy database with SQL \n")
   
@@ -578,7 +586,6 @@ read_taxonomy_data_sql <- function(username,
             !is.null(time_right), 
             !is.null(uids)),
             !is.null(locations))) {
-    obs_query <- paste(obs_query, "\n WHERE ")
   } else {
     warning("No filters specified on data pull, pulling all data.")
   }
@@ -604,6 +611,7 @@ read_taxonomy_data_sql <- function(username,
       stop("SQL access by location name is not yet implemented")
     }
   } else {
+    locations_filter <- paste0("ancestor_id = descendant_id")
     stop("Please use a containing location as the location. Locations can't be NULL.")
   }
   
@@ -621,76 +629,12 @@ read_taxonomy_data_sql <- function(username,
   
   # Run query for observations
   obs_query <- glue::glue_sql(paste(obs_query, filters, ";"), .con = conn)
-  observations <- DBI::dbGetQuery(conn = conn, obs_query)
+  observations <- sf::st_as_sf(sf::st_read(conn, query = obs_query))
   if(nrow(observations) == 0){
     stop(paste0("No observations found using query ||",obs_query,"||"))
   }
-  
-  # Pull location_periods
-  u_lps <- unique(observations$location_period_id)    # unique location period ids
-  u_lps <- u_lps[!is.na(u_lps)]
-  if(all(u_lps == as.numeric(u_lps))){
-    u_lps <- as.numeric(u_lps)
-  } else {
-    stop("Location period id exceeds max integer in R, and glue doesn't work on int64s")
-  }
-  
-  lp_query <- glue::glue_sql("SELECT locations.id::text as location_id, locations.qualified_name::text as location_name, location_periods.id::text as location_period_id,shapes.shape
-         FROM locations 
-         LEFT JOIN location_periods 
-         ON locations.id=location_periods.location_id 
-         LEFT JOIN shapes 
-         ON shapes.location_period_id=location_periods.id 
-         WHERE location_periods.id IN ({u_lps*});", .con = conn)
-  
-  location_periods <- DBI::dbGetQuery(conn = conn, lp_query)
 
-  # Get missing geometries
-  location_period_issues <- location_periods %>%   
-    dplyr::filter(is.na(shape) | shape == "{}")
+  # observations <- dplyr::filter(observations, !is.na(nchar(geojson)))
+  return(observations)
   
-  # Get unique valid geojsons
-  location_periods <- location_periods  %>%   
-    dplyr::filter(!is.na(shape), shape != "{}") %>% 
-    dplyr::group_by(location_period_id) %>% 
-    dplyr::slice(1)
-  
-  # Convert to sf object
-  # location_periods.sf <- purrr::map(location_periods$geojson, ~try(geojsonsf::geojson_sf(.), silent = F))
-
-  # Get errors
-  # errors <- purrr::map2(location_periods.sf, seq_along(location_periods.sf), ~ if (inherits(.x, "try-error")) .y) %>% 
-  #   unlist()
-  # if (length(errors) > 0) {
-  #   cat("Found unreadable geojson for location periods:", str_c(errors, collapse = ", "))
-  #   location_periods.sf <- location_periods.sf[-errors]
-  #   location_periods <- location_periods[-errors, ]
-  # }
-  
-  # extract geometries and metadata
-  location_periods.sf <- location_periods %>% 
-    dplyr::rename(geojson = shape)
-  
-  # Combine observations and geojsons
-  res <- dplyr::left_join(observations, as.data.frame(location_periods.sf), by = "location_period_id")%>%
-    rename(location_id=location_id.x)%>%
-    select(-location_id.y,-location_name)
-  
-  # Replace NA with location names for those locations without location periods
-  u_loc=unique(observations$location_id) #unique location ids
-  loc_query <- glue::glue_sql("SELECT locations.id::text as location_id, locations.qualified_name::text as location_name, location_periods.id::text as location_period_id,shapes.shape
-         FROM locations 
-         LEFT JOIN location_periods 
-         ON locations.id=location_periods.location_id 
-         LEFT JOIN shapes 
-         ON shapes.location_period_id=location_periods.id 
-         WHERE locations.id IN ({u_loc*});", .con = conn)
-  
-  location_names <- DBI::dbGetQuery(conn = conn, loc_query)
-  res=dplyr::left_join(res,location_names,by="location_id")
- 
-  #res <- sf::st_as_sf(res)
-  
-  detach("package:sf", unload = T)
-  return(res)
 }
