@@ -101,4 +101,4 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                             "country_data_report.Rmd"), params = list(config_filename = config_filename,
                                                                                       cholera_directory = "~/cmp/", drop_nodata_years = TRUE))
 #Note
-# 1997-01-01 to 1997-12-31 only one OC
+# select the first OC extracted from the database
