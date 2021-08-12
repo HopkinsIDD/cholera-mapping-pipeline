@@ -47,7 +47,6 @@ max_time_right <- query_time_right
 covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates, 
                                                                                       min_time_left, max_time_right)
 
-#
 # ## ------------------------------------------------------------------------------------------------------------------------
 # ## Change observations
 ## the process is like this: a distribution for cases/values for each grid cell, based on the underlying distribution, draw cases for each grid cell and aggregate to the polygon level, if the draw is larger than 1, then, draw multiple times.
