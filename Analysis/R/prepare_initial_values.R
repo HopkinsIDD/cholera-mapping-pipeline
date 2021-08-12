@@ -241,8 +241,6 @@ if (stan_params$use_rho_prior) {
     for (i in 1:length(init.list)) {
       init.list[[i]] <- append(init.list[[i]], list(rho = runif(1, .6, 1)))
     }
-  } else {
-    init.list <- list(rho = runif(nchain, 0, 1))
   }
 }
 
