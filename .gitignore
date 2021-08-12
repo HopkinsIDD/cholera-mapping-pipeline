@@ -7,3 +7,5 @@ Analysis/slurm*.out
 *~
 slurm*.out
 .Rproj.user
+*.Rd
+*.rdata
