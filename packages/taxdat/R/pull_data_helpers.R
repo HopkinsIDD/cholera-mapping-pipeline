@@ -568,7 +568,7 @@ read_taxonomy_data_sql <- function(username,
   obs_query <- paste(
     "SELECT",
     "observations.id::text, observations.observation_collection_id::text, observations.time_left, observations.time_right,observations.suspected_cases, observations.confirmed_cases, observations.deaths, observations.phantom, observations.primary",
-    ",locations.qualified_name, locations.id::text as location_id",
+    ",locations.qualified_name as location_name, locations.id::text as location_id",
     ",location_periods.id::text as location_period_id",
    ",shapes.shape as geojson",
     "FROM",
