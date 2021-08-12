@@ -15,6 +15,7 @@ Collate:
     'color_scale.R'
     'config_helpers.R'
     'covariate_helpers.R'
+    'database_api_key.R'
     'file_name_functions.R'
     'geo_lookup_helpers.R'
     'indexing_helpers.R'
