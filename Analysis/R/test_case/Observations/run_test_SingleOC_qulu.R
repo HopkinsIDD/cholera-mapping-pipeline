@@ -7,22 +7,31 @@ dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
 conn_pg <- taxdat::connect_to_db(dbuser,dbname)
 DBI::dbClearResult(DBI::dbSendQuery(conn = conn_pg, "SET client_min_messages TO WARNING;"))
 
-query_time_left <- lubridate::ymd("1997-01-01")
-query_time_right <- lubridate::ymd("1997-12-31")
+query_time_left <- lubridate::ymd("2000-01-01")
+query_time_right <- lubridate::ymd("2000-12-31")
 
 ## Pull data frames needed to create testing database from the api This doesn't
 ## pull covariates, but does pull everything else
 all_dfs <- taxdat::create_testing_dfs_from_api(username = Sys.getenv("CHOLERA_API_USERNAME"), 
                                                api_key = Sys.getenv("CHOLERA_API_KEY"), locations = "AFR::KEN", time_left = query_time_left, 
                                                time_right = query_time_right, uids = NULL, website = "https://api.cholera-taxonomy.middle-distance.com/")
-# in 1970, there's only 1 OC.OC321
+
+##select a single Observation collection
+all_dfs$observations_df=all_dfs$observations_df%>%mutate(attributes.source_documents=as.character(attributes.source_documents))
+observations_df=all_dfs$observations_df%>%group_by(relationships.observation_collection.data.id)%>%summarise(number_observations=n())
+selected_OC=observations_df$number_observations[1]
+all_dfs=list(location_df=all_dfs$location_df[1:selected_OC,],
+             location_period_df=all_dfs$location_period_df[1:selected_OC,],
+             shapes_df=all_dfs$shapes_df[1:selected_OC,],
+             observations_df=all_dfs$observations_df[1:selected_OC,])
+
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change polygons
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
 test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent)
 
 # Create 3 layers of testing polygons starting with a single country, and
-test_polygons <- create_test_layered_polygons(test_raster = test_raster, base_number = 1, 
+test_polygons <- create_test_layered_polygons(test_raster = test_raster, base_number = 1,
                                               n_layers = 2, factor = 10, snap = FALSE, randomize = FALSE)
 
 all_dfs$shapes_df <- test_polygons %>%
@@ -45,7 +54,7 @@ test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_exte
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster)
 min_time_left <- query_time_left
 max_time_right <- query_time_right
-covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates, 
+covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates,
                                                                                       min_time_left, max_time_right)
 
 ## ------------------------------------------------------------------------------------------------------------------------
@@ -56,9 +65,9 @@ test_underlying_distribution <- create_underlying_distribution(covariates = rast
 
 test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df,
                                                                     location = qualified_name, geometry = geom), test_covariates = raster_df$covar,
-                                      underlying_distribution = test_underlying_distribution, 
-                                      noise = FALSE, 
-                                      min_time_left = query_time_left, 
+                                      underlying_distribution = test_underlying_distribution,
+                                      noise = FALSE,
+                                      min_time_left = query_time_left,
                                       max_time_right = query_time_right)
 
 #
@@ -74,22 +83,22 @@ taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raste
 config_filename <- paste(tempfile(), "yml", sep = ".")
 
 # ## Put your config stuff in here
-config <- list(general = list(location_name = all_dfs$location_df$qualified_name[[1]], 
-                              start_date = as.character(min_time_left), end_date = as.character(max_time_right), 
-                              width_in_km = 1, height_in_km = 1, time_scale = "month"), stan = list(directory = rprojroot::find_root_file(criterion = ".choldir", 
-                                                                                                                                          "Analysis", "Stan"), ncores = 1, model = "dagar_seasonal.stan", niter = 20, recompile = TRUE), 
-               name = "test_???", taxonomy = "taxonomy-working/working-entry1", smoothing_period = 1, 
-               case_definition = "suspected", covariate_choices = raster_df$name, data_source = "sql", 
-               file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir", 
-                                                                         "Analysis", "output", "test.stan_output.rdata"), stan_input = rprojroot::find_root_file(criterion = ".choldir", 
+config <- list(general = list(location_name = all_dfs$location_df$qualified_name[[1]],
+                              start_date = as.character(min_time_left), end_date = as.character(max_time_right),
+                              width_in_km = 1, height_in_km = 1, time_scale = "month"), stan = list(directory = rprojroot::find_root_file(criterion = ".choldir",
+                                                                                                                                          "Analysis", "Stan"), ncores = 1, model = "dagar_seasonal.stan", niter = 20, recompile = TRUE),
+               name = "test_???", taxonomy = "taxonomy-working/working-entry1", smoothing_period = 1,
+               case_definition = "suspected", covariate_choices = raster_df$name, data_source = "sql",
+               file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir",
+                                                                         "Analysis", "output", "test.stan_output.rdata"), stan_input = rprojroot::find_root_file(criterion = ".choldir",
                                                                                                                                                                  "Analysis", "output", "test.stan_input.rdata")))
 
 yaml::write_yaml(x = config, file = config_filename)
 
 Sys.setenv(CHOLERA_CONFIG = config_filename)
 source(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "R", "execute_pipeline.R"))
-rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", 
-                                            "country_data_report.Rmd"), params = list(config_filename = config_filename, 
+rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output",
+                                            "country_data_report.Rmd"), params = list(config_filename = config_filename,
                                                                                       cholera_directory = "~/cmp/", drop_nodata_years = TRUE))
 #Note
 # 1997-01-01 to 1997-12-31 only one OC
