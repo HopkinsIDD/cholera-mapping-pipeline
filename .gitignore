@@ -5,11 +5,13 @@ Analysis/output/reports/*
 Analysis/R/database_api_key.R
 Analysis/slurm*.out
 *~
+*.Rd
 slurm*.out
 .Rproj.user
 packages/taxdat/tests/testthat/psql_credential.txt
 packages/taxdat/tests/testthat/.Renviron
 Analysis/R/.Rhistory
 packages/taxdat/R/database_api_key.R
+Analysis/R/database_api_key.R
 packages/taxdat/.Rhistory
 Analysis/R/run_test_jk.R
