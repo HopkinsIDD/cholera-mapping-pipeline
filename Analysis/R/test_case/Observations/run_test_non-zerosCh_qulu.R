@@ -76,15 +76,15 @@ all_dfs$observations_df <- test_observations %>%
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
-setup_testing_database(conn_pg, drop = TRUE)
-taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raster_funs)
-config_filename <- paste(tempfile(), "yml", sep = ".")
-
-# ## Put your config stuff in here
-config <- list(general = list(location_name = all_dfs$location_df$qualified_name[[1]],
-                              start_date = as.character(min_time_left), end_date = as.character(max_time_right),
-                              width_in_km = 1, height_in_km = 1, time_scale = "month"), stan = list(directory = rprojroot::find_root_file(criterion = ".choldir",
-                                                                                                                                          "Analysis", "Stan"), ncores = 1, model = "dagar_seasonal.stan", niter = 20, recompile = TRUE),
+ setup_testing_database(conn_pg, drop = TRUE)
+ taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raster_funs)
+ config_filename <- paste(tempfile(), "yml", sep = ".")
+ 
+## Put your config stuff in here
+ config <- list(general = list(location_name = all_dfs$location_df$qualified_name[[1]],
+                               start_date = as.character(min_time_left), end_date = as.character(max_time_right),
+                               width_in_km = 1, height_in_km = 1, time_scale = "month"), stan = list(directory = rprojroot::find_root_file(criterion = ".choldir",
+                                                                                                                                           "Analysis", "Stan"), ncores = 1, model = "dagar_seasonal.stan", niter = 20, recompile = TRUE),
                name = "test_???", taxonomy = "taxonomy-working/working-entry1", smoothing_period = 1,
                case_definition = "suspected", covariate_choices = raster_df$name, data_source = "sql",
                file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir",
@@ -94,10 +94,12 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
 yaml::write_yaml(x = config, file = config_filename)
 
 Sys.setenv(CHOLERA_CONFIG = config_filename)
-source(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "R", "execute_pipeline.R"))
-rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output",
-                                            "country_data_report.Rmd"), params = list(config_filename = config_filename,
-                                                                                      cholera_directory = "~/cmp/", drop_nodata_years = TRUE))
+
+ source(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "R", "execute_pipeline.R"))
+ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output",
+                                             "country_data_report.Rmd"), params = list(config_filename = config_filename,
+                                                                                       cholera_directory = "~/cmp/", drop_nodata_years = TRUE))
+ 
 
 ##2021-08-12
 #select observations with at least 1 sCh
