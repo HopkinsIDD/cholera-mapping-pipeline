@@ -46,3 +46,7 @@ test_that("seed setting works for simulation functions", {
     test_if_seed_setting_works(observe_polygons)
     test_if_seed_setting_works(create_standardized_test_data)
 })
+
+test_that("Simulation framework works for nlayers = 1", {
+    expect_error(create_standardized_test_data(nlayers = 1), NA)
+})

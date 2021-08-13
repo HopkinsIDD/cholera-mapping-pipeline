@@ -161,9 +161,7 @@ plot_area_adjusted_observed_cases <- function(disjoint_set_sf_cases, render = F,
     plot_file = NULL, width = NULL, height = NULL) {
     plt <- ggplot2::ggplot()
     plt <- plt + ggplot2::geom_sf(data = disjoint_set_sf_cases, ggplot2::aes(fill = area_adjusted_cases)) + 
-        ggplot2::scale_fill_gradient2("Area-adjusted cases", low = "white", mid = "orange", 
-            high = "red", na.value = "blue") + ggplot2::theme_bw() + ggplot2::theme(legend.position = "bottom") + 
-        ggplot2::facet_wrap(~set)
+        color_scale(type = "cases", use_case = "ggplot map") + ggplot2::facet_wrap(~set)
 
     if (!is.null(plot_file)) {
         ggplot2::ggsave(plt, plot_file, width = width, heigth = height)
