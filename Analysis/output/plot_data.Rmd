@@ -69,7 +69,7 @@ raw_data %>%
   ggplot() +
   geom_rect(data = raw_data %>% filter(TR != TL),
             aes(xmin = TL, xmax = TR, ymin = 0, ymax = suspected_cases, color = OC_UID),
-            fill = "gray", alpha = .2,
+            fill = "gray", alpha = .2, size = .4,
             stat = "identity") +
   geom_line(aes(x = TL, y = cum_cases, color = OC_UID)) +
   facet_wrap(~locationPeriod_id, scales = "free") +
