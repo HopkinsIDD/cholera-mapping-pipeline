@@ -1,0 +1,76 @@
+---
+title: "Plot data"
+output: html_document
+---
+This is a short report to plot data of different observation lengths.
+
+```{r setup, include=FALSE, dev="CairoPNG"}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  dev="CairoPNG",
+  error = FALSE,
+  fig.align = "center",
+  message = TRUE,
+  warning = TRUE
+  )
+library(stringr)
+library(dplyr)
+library(magrittr)
+library(purrr)
+library(readr)
+library(ggplot2)
+library(kableExtra)
+library(taxdat)
+library(sf)
+Sys.setlocale("LC_ALL","English")
+```
+
+```{r warning=FALSE, include=FALSE}
+
+# Load config
+config <- "Analysis/configs/config_SSD_2017_2017_noweights_censoring_rhoprior_UNICEF_linelist.yml" %>% yaml::read_yaml()
+files <- get_filenames(config, "./")
+
+# Load data
+raw_data <- read_file_of_type(files["data"], "sf_cases")
+stan_input <- read_file_of_type(files["stan_input"], "stan_input")
+
+data <- stan_input$sf_cases_resized %>% 
+  rename(cases = `attributes.fields.suspected_cases`) %>% 
+  mutate(obs = row_number() %>% factor())
+
+```
+
+```{r raw, echo=FALSE, fig.height=12, fig.width=10, fig.cap="Raw data. Daily data is shown as lines and other observation lengths as rectangles."}
+raw_data %>% 
+  filter(TL == TR) %>% 
+  ggplot(aes(x = TL, y = suspected_cases, color = OC_UID)) +
+  geom_rect(data = raw_data %>% filter(TR != TL),
+            aes(xmin = TL, xmax = TR, ymin = 0, ymax = suspected_cases, color = OC_UID),
+            fill = "gray", alpha = .2,
+           stat = "identity") +
+  geom_line() +
+  facet_wrap(~locationPeriod_id, scales = "free_y") +
+  theme_bw()
+
+```
+
+
+```{r cum, fig.width=10, fig.height=12, fig.cap="Cumulative incidence. Daily data is shown as lines and other observation lengths as rectangles."}
+# Plot cumulative incidence
+raw_data %>% 
+  filter(TL == TR) %>%
+  group_by(OC_UID, locationPeriod_id) %>% 
+  arrange(TL, .by_group =  TRUE) %>% 
+  mutate(cum_cases = cumsum(suspected_cases)) %>% 
+  ggplot() +
+  geom_rect(data = raw_data %>% filter(TR != TL),
+            aes(xmin = TL, xmax = TR, ymin = 0, ymax = suspected_cases, color = OC_UID),
+            fill = "gray", alpha = .2,
+            stat = "identity") +
+  geom_line(aes(x = TL, y = cum_cases, color = OC_UID)) +
+  facet_wrap(~locationPeriod_id) +
+  theme_bw()
+```
+
+
