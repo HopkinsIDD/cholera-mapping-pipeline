@@ -31,7 +31,7 @@ Sys.setlocale("LC_ALL","English")
 ```{r warning=FALSE, include=FALSE}
 
 # Load config
-config <- params$config %>% yaml::read_yaml()
+config <- paste0(params$cholera_directory, "/", params$config) %>% yaml::read_yaml()
 files <- get_filenames(config, params$cholera_directory)
 
 # Load data

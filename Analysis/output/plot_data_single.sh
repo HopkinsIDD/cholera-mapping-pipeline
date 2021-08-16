@@ -1,6 +1,6 @@
 #!/bin/bash
-##SBATCH --job-name=render_reports_%j.job
-#SBATCH --output=logs/render_reports_%j.log
+##SBATCH --job-name=plot_data_%j.job
+#SBATCH --output=logs/plot_data_%j.log
 #SBATCH --mem=30G
 #SBATCH --time=02:00:00
 #SBATCH --ntasks=1
