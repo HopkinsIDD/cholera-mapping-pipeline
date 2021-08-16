@@ -2,3 +2,5 @@
 *.Rd
 *.rdata
 Analysis/R/.Rhistory
+Analysis/output/country_data_report.html
+.Rhistory
