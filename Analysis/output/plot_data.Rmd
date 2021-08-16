@@ -72,7 +72,7 @@ raw_data %>%
             fill = "gray", alpha = .2,
             stat = "identity") +
   geom_line(aes(x = TL, y = cum_cases, color = OC_UID)) +
-  facet_wrap(~locationPeriod_id) +
+  facet_wrap(~locationPeriod_id, scales = "free") +
   theme_bw()
 ```
 

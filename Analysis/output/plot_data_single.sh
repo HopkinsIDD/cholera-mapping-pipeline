@@ -17,7 +17,7 @@ CONFIGNAMES=($(ls $CONFIGDIR | tr ' ' '\n'))
 THISCONFIG=$2
 THISHTML="${THISCONFIG/yml/html}"
 THISHTML="${THISHTML/config/report}"
-OUTFILE="$TAXDIR/${OUTDIR}/reports/${THISHTML}"
+OUTFILE="$TAXDIR/${OUTDIR}/reports/plot_data_${THISHTML}"
 CALL="rmarkdown::render('$TAXDIR/${OUTDIR}/plot_data.Rmd', output_file = '$OUTFILE', params = list(cholera_directory='$TAXDIR', config = '$CONFIGDIR/${THISCONFIG}'))"
 # CONFIGNAMES=$(ls $TAXDIR/$CONFIGDIR)
 
