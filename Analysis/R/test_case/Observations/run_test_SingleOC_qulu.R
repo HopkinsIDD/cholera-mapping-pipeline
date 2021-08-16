@@ -1,6 +1,6 @@
 ## Basic test setup starting from real data
 library(taxdat)
-
+library(sf)
 dbuser <- Sys.getenv("USER", "app")
 dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
 
@@ -17,20 +17,22 @@ query_time_right <- lubridate::ymd("2000-12-31")
 ## query_time_right, uids = NULL, website =
 ## 'https://api.cholera-taxonomy.middle-distance.com/') }, error = function(e) {
 ## })
-#load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_object.rdata"))
-load("/home/app/cmp/Analysis/all_dfs_object.rdata")
-writeLines(as.character(all_dfs$shapes_df[1,]),"/home/app/cmp/try_shape.txt")
-##!!!!Error: Input must be a vector, not a <sfc_GEOMETRY/sfc> object.
+load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_object.rdata"))
 
 ##select a single Observation collection
-# all_dfs$observations_df=all_dfs$observations_df%>%mutate(attributes.source_documents=as.character(attributes.source_documents))
-# observations_df=all_dfs$observations_df[,colnames(all_dfs$observations_df)%in%c("id","relationships.observation_collection.data.id")]%>%group_by(relationships.observation_collection.data.id)%>%summarise(number_observations=n())
-# selected_OC=observations_df$number_observations[1]
-# selected_geom=all_dfs$shapes_df$geom[1:selected_OC]
-# all_dfs=list(location_df=all_dfs$location_df[1:selected_OC,],
-#              location_period_df=all_dfs$location_period_df[1:selected_OC,],
-#              shapes_df=all_dfs$shapes_df[1:selected_OC,],
-#              observations_df=all_dfs$observations_df[1:selected_OC,])
+all_dfs$observations_df=all_dfs$observations_df%>%mutate(attributes.source_documents=as.character(attributes.source_documents))
+# observations_df=all_dfs$observations_df[,colnames(all_dfs$observations_df)%in%c("id","relationships.observation_collection.data.id")]%>%
+#   group_by(relationships.observation_collection.data.id)%>%
+#   summarise(number_observations=n())
+observations_df=data.frame(OC=all_dfs$observations_df$relationships.observation_collection.data.id[1],
+                           number_observations=nrow(all_dfs$observations_df[all_dfs$observations_df$relationships.observation_collection.data.id==all_dfs$observations_df$relationships.observation_collection.data.id[1],]))
+selected_OC=observations_df$number_observations[1]
+selected_geom=all_dfs$shapes_df$geom[1:selected_OC]
+all_dfs=list(location_df=all_dfs$location_df[1:selected_OC,],
+             location_period_df=all_dfs$location_period_df[1:selected_OC,],
+             shapes_df=all_dfs$shapes_df[1:selected_OC,],
+             observations_df=all_dfs$observations_df[1:selected_OC,])
+sf::st_crs(all_dfs$shapes_df[,colnames(all_dfs$shapes_df)=="geom"])="+proj=longlat +datum=WGS84 +no_defs"#assign projection system to the geometry
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change polygons
@@ -57,34 +59,34 @@ writeLines(as.character(all_dfs$shapes_df[1,]),"/home/app/cmp/try_shape.txt")
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
-# test_extent <- sf::st_bbox(all_dfs$shapes_df)
-# test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent)
-# test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2,
-#                                                    nonspatial = c(FALSE, FALSE), nontemporal = c(FALSE, FALSE), spatially_smooth = c(TRUE,
-#                                                                                                                                      FALSE), temporally_smooth = c(FALSE, FALSE), polygonal = c(TRUE, TRUE), radiating = c(FALSE,
-#                                                                                                                                                                                                                            FALSE))
-# min_time_left <- query_time_left
-# max_time_right <- query_time_right
-# covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates,
-#                                                                                       min_time_left, max_time_right)
+test_extent <- sf::st_bbox(all_dfs$shapes_df)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent)
+test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2,
+                                                   nonspatial = c(FALSE, FALSE), nontemporal = c(FALSE, FALSE), spatially_smooth = c(TRUE,
+                                                                                                                                     FALSE), temporally_smooth = c(FALSE, FALSE), polygonal = c(TRUE, TRUE), radiating = c(FALSE,
+                                                                                                                                                                                                                           FALSE))
+min_time_left <- query_time_left
+max_time_right <- query_time_right
+covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates,
+                                                                                      min_time_left, max_time_right)
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change observations
-# raster_df <- taxdat::convert_test_covariate_funs_to_simulation_covariates(covariate_raster_funs)
-# 
-# test_underlying_distribution <- create_underlying_distribution(covariates = raster_df)
-# 
-# test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df,
-#                                                                     location = qualified_name, geometry = geom), test_covariates = raster_df$covar,
-#                                       underlying_distribution = test_underlying_distribution, noise = FALSE, number_draws = 1,
-#                                       grid_proportion_observed = 1, polygon_proportion_observed = 1, min_time_left = query_time_left,
-#                                       max_time_right = query_time_right)
+raster_df <- taxdat::convert_test_covariate_funs_to_simulation_covariates(covariate_raster_funs)
+
+test_underlying_distribution <- create_underlying_distribution(covariates = raster_df)
+
+test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df,
+                                                                    location = qualified_name, geometry = geom), test_covariates = raster_df$covar,
+                                      underlying_distribution = test_underlying_distribution, noise = FALSE, number_draws = 1,
+                                      grid_proportion_observed = 1, polygon_proportion_observed = 1, min_time_left = query_time_left,
+                                      max_time_right = query_time_right)
 # 
 # all_dfs$observations_df <- test_observations %>%
 #   dplyr::mutate(observation_collection_id = draw, time_left = time_left, time_right = time_right,
 #                 qualified_name = location, primary = TRUE, phantom = FALSE, suspected_cases = cases,
 #                 deaths = NA, confirmed_cases = NA)
-# 
+
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
