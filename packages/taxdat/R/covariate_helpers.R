@@ -684,6 +684,18 @@ time_aggregate <- function(src_file,
   if (f_format == "nc") {
     # Extract time metadata
     r_metadata <- get_ncdf_metadata(src_file)
+  } else {
+    if (covar_type == "temporal") {
+      print(src_file)
+      print(covar_name)
+      print(covar_unit)
+      print(covar_type)
+      print(covar_res_time)
+      print(res_file)
+      print(res_time)
+      print(aggregator)
+      stop("temporal covariates must be ncdf4 format")
+    }
   }
 
   # This should be removed at some point after testing
