@@ -1,6 +1,9 @@
 ---
 title: "Plot data"
 output: html_document
+params:
+  config: "Analysis/configs/config_SSD_2017_2017_noweights_censoring_rhoprior_UNICEF_linelist.yml"
+  cholera_directory: "./"
 ---
 This is a short report to plot data of different observation lengths.
 
@@ -28,8 +31,8 @@ Sys.setlocale("LC_ALL","English")
 ```{r warning=FALSE, include=FALSE}
 
 # Load config
-config <- "Analysis/configs/config_SSD_2017_2017_noweights_censoring_rhoprior_UNICEF_linelist.yml" %>% yaml::read_yaml()
-files <- get_filenames(config, "./")
+config <- params$config %>% yaml::read_yaml()
+files <- get_filenames(config, params$cholera_directory)
 
 # Load data
 raw_data <- read_file_of_type(files["data"], "sf_cases")
