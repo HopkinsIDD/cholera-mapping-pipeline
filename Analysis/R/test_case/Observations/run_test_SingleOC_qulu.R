@@ -35,29 +35,6 @@ all_dfs=list(location_df=all_dfs$location_df[1:selected_OC,],
 sf::st_crs(all_dfs$shapes_df[,colnames(all_dfs$shapes_df)=="geom"])="+proj=longlat +datum=WGS84 +no_defs"#assign projection system to the geometry
 
 ## ------------------------------------------------------------------------------------------------------------------------
-## Change polygons
-#test_extent <- sf::st_bbox(all_dfs$shapes_df)
-# test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent)
-# Create 3 layers of testing polygons starting with a single country, and
-# splitting each polygon into 4 sub-polygons
-# test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster,
-#                                                                 base_number = 1, n_layers = 2, factor = 10 * 10, snap = FALSE, randomize = FALSE))
-# 
-# all_dfs$shapes_df <- test_polygons %>%
-#   dplyr::mutate(qualified_name = location, start_date = min(all_dfs$shapes_df$start_date),
-#                 end_date = max(all_dfs$shapes_df$end_date))
-# names(all_dfs$shapes_df)[names(all_dfs$shapes_df) == "geometry"] <- "geom"
-# sf::st_geometry(all_dfs$shapes_df) <- "geom"
-# 
-# all_dfs$location_period_df <- all_dfs$shapes_df %>%
-#   sf::st_drop_geometry()
-# all_dfs$location_df <- all_dfs$shapes_df %>%
-#   sf::st_drop_geometry() %>%
-#   dplyr::group_by(qualified_name) %>%
-#   dplyr::summarize()
-# 
-
-## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
 test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent)
@@ -95,7 +72,7 @@ test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shap
 
 ## NOTE: Change me if you want to run the report locally config_filename <-
 ## paste(tempfile(), 'yml', sep = '.')
-# config_filename <- "/home/app/cmp/Analysis/R/test_config.yml"
+# config_filename <- "/home/app/cmp/Analysis/R/test_config_SingleOC.yml"
 
 ## Put your config stuff in here
 # config <- list(general = list(location_name = all_dfs$location_df$qualified_name[[1]],
