@@ -154,17 +154,17 @@ prepare_stan_input <- function(
     
     # Reorder nodes in directed graph to have a single source using the breadth-
     # first algorithm. for DAGAR
-    nn_mat_reordereding <- reorder_single_source(A = nn_mat, 
-                                                 coords = sf::st_coordinates(smooth_centroids))
+    nn_mat_reordereding <- taxdat::reorder_single_source(A = nn_mat, 
+                                                         coords = sf::st_coordinates(smooth_centroids))
     
     # nearest_neighbor_matrices <- append(nearest_neighbor_matrices, list(nn_mat))
     
     
     # Update adjacency list
     n_entries <- nrow(nn_mat_reordereding$A)
-    reodered_adj_list <- Matrix::which(nn_mat_reordereding$A > 0, arr.ind = T)
+    reorderered_adj_list <- Matrix::which(nn_mat_reordereding$A > 0, arr.ind = T)
     # Reorder using previous cell id
-    nonzero_ind <- apply(reodered_adj_list, 2, function(x) nn_mat_reordereding$reordering[x]) + cnt
+    nonzero_ind <- apply(reorderered_adj_list, 2, function(x) nn_mat_reordereding$reordering[x]) + cnt
     
     # Append to adjacency list
     adjacency_list <- rbind(adjacency_list, nonzero_ind)
