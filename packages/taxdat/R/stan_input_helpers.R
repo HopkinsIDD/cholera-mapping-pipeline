@@ -142,7 +142,7 @@ get_space_time_ind <- function(df,
 #' @param coords  
 #'
 #' @return the reodered adjacency matrix
-#' 
+#' @export
 reorder_single_source <- function(A, 
                                   coords) {
   
