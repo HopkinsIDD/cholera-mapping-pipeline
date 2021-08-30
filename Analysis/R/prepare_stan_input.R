@@ -154,8 +154,8 @@ prepare_stan_input <- function(
     
     # Reorder nodes in directed graph to have a single source using the breadth-
     # first algorithm. for DAGAR
-    nn_mat_reordereding <- reoder_single_source(A = nn_mat, 
-                                                coords = sf::st_coordinates(smooth_centroids))
+    nn_mat_reordereding <- reorder_single_source(A = nn_mat, 
+                                                 coords = sf::st_coordinates(smooth_centroids))
     
     # nearest_neighbor_matrices <- append(nearest_neighbor_matrices, list(nn_mat))
     

@@ -143,8 +143,8 @@ get_space_time_ind <- function(df,
 #'
 #' @return the reodered adjacency matrix
 #' 
-reoder_single_source <- function(A, 
-                                 coords) {
+reorder_single_source <- function(A, 
+                                  coords) {
   
   # Check if the matrix is symetric
   if (!Matrix::isSymmetric(A)) {
