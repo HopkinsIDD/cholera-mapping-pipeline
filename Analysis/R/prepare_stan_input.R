@@ -184,7 +184,7 @@ prepare_stan_input <- function(
   }
   
   # Bind all matrices
-  N <- sum(unlist(lapply(nearest_neighbor_matrices, nrow)))
+  N <- nrow(adjacency_list)
   # Initialize adjacency list (list of row, col indices for non-0 entries)
   # adjacency_list <- matrix(nrow = 0, ncol = 2)
   # cnt <- 0
