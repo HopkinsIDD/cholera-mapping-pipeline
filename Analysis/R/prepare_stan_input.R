@@ -62,18 +62,28 @@ prepare_stan_input <- function(
   sf_grid <- sf_grid %>% dplyr::filter(long_id %in% non_na_gridcells)
   sf_grid$upd_id <- grid_changer[as.character(sf_grid$long_id)]
   smooth_grid <- sf_grid %>% dplyr::group_by(id,s) %>% dplyr::summarize() %>% dplyr::ungroup() %>% dplyr::mutate(smooth_id = dplyr::row_number())
-  nearest_neighbor_matrices <- list()
+  # nearest_neighbor_matrices <- list()
+  
   # this is the mapping between the grid ids (from 1 to number of cells that intersect
   # location_periods) and the model ids in space (from 1 to the number of non-NA cells,
   # i.e. cells for which all covariates are non-NA). Note that model ids here do not
   # consider time slices, this is done when computing the adjacency list
   cell_id_mapping <- data.frame()
   
+  # Adjacency list
+  adjacency_list <- matrix(nrow = 0, ncol = 2)
+  
+  # Counter for nunber of cells
+  cnt <- 0
+  
+  # Iterate over time slices of space-time grid-level random effects
   for (it in model_time_slices) {
     
-    poly_adj <- smooth_grid %>%
+    smooth_grid_it <- smooth_grid %>%
       dplyr::filter(s == it) %>%
-      dplyr::select(id) %>%
+      dplyr::select(id) 
+    
+    poly_adj <- smooth_grid_it %>%
       spdep::poly2nb(.)
     
     adj_dat <- taxdat::nb2graph(poly_adj) #[non_na_gridcells, ]))
@@ -91,11 +101,12 @@ prepare_stan_input <- function(
       cat("Found", length(isolated_vertices), "isolated vertices in time slice", it ,", adding edges until only one remains.\n")
       
       for(vertex in isolated_vertices[-1]){
-        dist_to_main <- as.vector(sf::st_distance(smooth_grid[vertex, ], smooth_grid[seq_len(vertex-1), ] ))
+        dist_to_main <- as.vector(sf::st_distance(smooth_grid_it[vertex, ], smooth_grid_it[seq_len(vertex-1), ] ))
         new_neighbor <- which.min(dist_to_main)
         nn_mat[vertex,new_neighbor] <- 1
       }
     }
+    
     # Create graph to extract disconnected islands
     ng <- igraph::graph_from_adjacency_matrix(nn_mat)
     # Get the clusters
@@ -109,7 +120,7 @@ prepare_stan_input <- function(
       mainland_ids <- which(ng_cl$membership == mainland)
       
       # Loop over island
-      smooth_centroids <- sf::st_geometry(sf::st_centroid(smooth_grid))
+      smooth_centroids <- sf::st_geometry(sf::st_centroid(smooth_grid_it))
       for (i in cluster_ids[-mainland]) {
         island_ids <- which(ng_cl$membership == i)
         # find closest mainland pixels (n_pix_islands x n_pix_mainland matrix)
@@ -132,12 +143,37 @@ prepare_stan_input <- function(
         cat("Done island connection for time slice", it, "\n")
       }
     }
-    nn_mat <- Matrix::tril(nn_mat)
+    
+    # Extract lower trianglur matrix (to make directed graph)
+    # This is deprecated with the new re-ordering
+    # nn_mat <- Matrix::tril(nn_mat)
     
     # if (!Matrix::isSymmetric(nn_mat)) {
     #   stop("This should not happen")
     # }
-    nearest_neighbor_matrices <- append(nearest_neighbor_matrices, list(nn_mat))
+    
+    # Reorder nodes in directed graph to have a single source using the breadth-
+    # first algorithm. for DAGAR
+    nn_mat_reordereding <- reoder_single_source(A = nn_mat, 
+                                                coords = sf::st_coordinates(smooth_centroids))
+    
+    # nearest_neighbor_matrices <- append(nearest_neighbor_matrices, list(nn_mat))
+    
+    
+    # Update adjacency list
+    n_entries <- nrow(nn_mat_reordereding$A)
+    reodered_adj_list <- Matrix::which(nn_mat_reordereding$A > 0, arr.ind = T)
+    # Reorder using previous cell id
+    nonzero_ind <- apply(reodered_adj_list, 2, function(x) nn_mat_reordereding$reordering[x]) + cnt
+    
+    # Append to adjacency list
+    adjacency_list <- rbind(adjacency_list, nonzero_ind)
+    
+    # Update the counter to account for the time slices. Note that n_entries for now
+    # is the same for all time slices, since the non-NA cells are determined across
+    # time slices of covariates
+    cnt <- cnt + n_entries
+    
     ids <- smooth_grid %>%
       dplyr::filter(s == it, id %in% non_na_gridcells)
     
@@ -150,17 +186,17 @@ prepare_stan_input <- function(
   # Bind all matrices
   N <- sum(unlist(lapply(nearest_neighbor_matrices, nrow)))
   # Initialize adjacency list (list of row, col indices for non-0 entries)
-  adjacency_list <- matrix(nrow = 0, ncol = 2)
-  cnt <- 0
-  for (i in seq_along(nearest_neighbor_matrices)) {
-    n_entries <- nrow(nearest_neighbor_matrices[[i]])
-    nonzero_ind <- as.matrix(Matrix::which(nearest_neighbor_matrices[[i]]>0, arr.ind = T)) + cnt
-    adjacency_list <- rbind(adjacency_list, nonzero_ind)
-    # Update the counter to account for the time slices. Note that n_entries for now
-    # is the same for all time slices, since the non-NA cells are determined accross
-    # time slices of covariates
-    cnt <- cnt + n_entries
-  }
+  # adjacency_list <- matrix(nrow = 0, ncol = 2)
+  # cnt <- 0
+  # for (i in seq_along(nearest_neighbor_matrices)) {
+  #   n_entries <- nrow(nearest_neighbor_matrices[[i]])
+  #   nonzero_ind <- as.matrix(Matrix::which(nearest_neighbor_matrices[[i]]>0, arr.ind = T)) + cnt
+  #   adjacency_list <- rbind(adjacency_list, nonzero_ind)
+  #   # Update the counter to account for the time slices. Note that n_entries for now
+  #   # is the same for all time slices, since the non-NA cells are determined across
+  #   # time slices of covariates
+  #   cnt <- cnt + n_entries
+  # }
   # adjacency_list <- adjacency_list[!is.na(adjacency_list[, 1]), ]
   
   # flag for time adjacency
@@ -241,9 +277,9 @@ prepare_stan_input <- function(
     sf_cases_resized$loctime <- NA
     for(i in seq_len(length(non_na_obs))){
       sf_cases_resized$loctime[i] <- paste(ind_mapping$map_obs_loctime_loc[
-          ind_mapping$map_obs_loctime_obs == non_na_obs[[i]]
-        ], 
-        collapse = ', '
+        ind_mapping$map_obs_loctime_obs == non_na_obs[[i]]
+      ], 
+      collapse = ', '
       )
     }
     ocrs <- sf::st_crs(sf_cases_resized)
