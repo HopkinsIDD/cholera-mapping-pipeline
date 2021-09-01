@@ -20,6 +20,28 @@ query_time_right <- lubridate::ymd("2000-12-31")
 load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_object.rdata"))
 
 ## ------------------------------------------------------------------------------------------------------------------------
+## Change polygons
+test_extent <- sf::st_bbox(all_dfs$shapes_df)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent)
+# Create 3 layers of testing polygons starting with a single country, and
+# splitting each polygon into 4 sub-polygons
+test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
+                                                                base_number = 1, n_layers = 2, factor = 10 * 10, snap = FALSE, randomize = FALSE))
+
+all_dfs$shapes_df <- test_polygons %>%
+  dplyr::mutate(qualified_name = location, start_date = min(all_dfs$shapes_df$start_date), 
+                end_date = max(all_dfs$shapes_df$end_date))
+names(all_dfs$shapes_df)[names(all_dfs$shapes_df) == "geometry"] <- "geom"
+sf::st_geometry(all_dfs$shapes_df) <- "geom"
+
+all_dfs$location_period_df <- all_dfs$shapes_df %>%
+  sf::st_drop_geometry()
+all_dfs$location_df <- all_dfs$shapes_df %>%
+  sf::st_drop_geometry() %>%
+  dplyr::group_by(qualified_name) %>%
+  dplyr::summarize()
+
+## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
 test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent)
@@ -37,7 +59,7 @@ covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate
 raster_df <- taxdat::convert_test_covariate_funs_to_simulation_covariates(covariate_raster_funs)
 
 test_underlying_distribution <- create_underlying_distribution(covariates = raster_df)
-
+sf::st_crs(test_polygons)<-sf::st_crs(raster_df[[1]])
 test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df,
                                                                     location = qualified_name, 
                                                                     geometry = geom), 
@@ -48,7 +70,7 @@ test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shap
                                       grid_proportion_observed = 1, 
                                       min_time_left = query_time_left, 
                                       max_time_right = query_time_right)#Partial data coverage
-#
+
 all_dfs$observations_df <- test_observations %>%
   dplyr::mutate(observation_collection_id = draw, time_left = time_left, time_right = time_right,
                 qualified_name = location, primary = TRUE, phantom = FALSE, suspected_cases = cases,
@@ -81,6 +103,7 @@ source(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "R", "execu
 rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", 
                                             "country_data_report.Rmd"), params = list(config_filename = config_filename, 
                                                                                       cholera_directory = "~/cmp/", drop_nodata_years = TRUE))
+
 
 # Note 2021-08-01
 # grid report proportion is 1 and polygon report proportion is also 0.4. 
