@@ -42,7 +42,6 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
     dplyr::group_by(qualified_name) %>%
     dplyr::summarize()
 
-
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
@@ -62,17 +61,17 @@ raster_df <- taxdat::convert_test_covariate_funs_to_simulation_covariates(covari
 
 test_underlying_distribution <- create_underlying_distribution(covariates = raster_df)
 
-test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df, 
-    location = qualified_name, geometry = geom), test_covariates = raster_df$covar, 
-    underlying_distribution = test_underlying_distribution, noise = FALSE, number_draws = 1, 
-    grid_proportion_observed = 1, polygon_proportion_observed = 1, min_time_left = query_time_left, 
-    max_time_right = query_time_right)
+test_polygons <- dplyr::mutate(all_dfs$shapes_df, location = qualified_name, geometry = geom)
+sf::st_crs(test_polygons)<-sf::st_crs(raster_df[[1]])
+test_observations <- observe_polygons(test_polygons = test_polygons, test_covariates = raster_df$covar, 
+                                      underlying_distribution = test_underlying_distribution, noise = FALSE, number_draws = 1, 
+                                      grid_proportion_observed = 1, polygon_proportion_observed = 1, min_time_left = query_time_left, 
+                                      max_time_right = query_time_right)
 
 all_dfs$observations_df <- test_observations %>%
     dplyr::mutate(observation_collection_id = draw, time_left = time_left, time_right = time_right, 
-        qualified_name = location, primary = TRUE, phantom = FALSE, suspected_cases = cases, 
-        deaths = NA, confirmed_cases = NA)
-
+                  qualified_name = location, primary = TRUE, phantom = FALSE, suspected_cases = cases, 
+                  deaths = NA, confirmed_cases = NA)
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
