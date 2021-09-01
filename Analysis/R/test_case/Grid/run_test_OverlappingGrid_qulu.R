@@ -26,7 +26,7 @@ test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_exte
 # Create 3 layers of testing polygons starting with a single country, and
 # splitting each polygon into 4 sub-polygons
 test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
-                                                                base_number = 1, n_layers = 2, factor = 10 * 10, snap = FALSE, randomize = TRUE))
+                                                                base_number = 1, n_layers = 2, factor = 10*10, snap = FALSE, randomize = TRUE))
 
 all_dfs$shapes_df <- test_polygons %>%
   dplyr::mutate(qualified_name = location, start_date = min(all_dfs$shapes_df$start_date), 
@@ -98,6 +98,3 @@ source(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "R", "execu
 rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", 
                                             "country_data_report.Rmd"), params = list(config_filename = config_filename, 
                                                                                       cholera_directory = "~/cmp/", drop_nodata_years = TRUE))
-
-#Note
-# 2000-01-01 2000-12-31 have multiple OCs
