@@ -1,5 +1,6 @@
 ## Basic test setup starting from real data
 library(taxdat)
+library(sf)
 
 dbuser <- Sys.getenv("USER", "app")
 dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
@@ -18,8 +19,29 @@ query_time_right <- lubridate::ymd("2000-12-31")
 ## 'https://api.cholera-taxonomy.middle-distance.com/') }, error = function(e) {
 ## })
 load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_object.rdata"))
-
 #These data include OCs 10057, and 321
+
+## ------------------------------------------------------------------------------------------------------------------------
+## Change polygons
+test_extent <- sf::st_bbox(all_dfs$shapes_df)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent)
+# Create 3 layers of testing polygons starting with a single country, and
+# splitting each polygon into 4 sub-polygons
+test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
+                                                                base_number = 1, n_layers = 2, factor = 10 * 10, snap = FALSE, randomize = FALSE))
+
+all_dfs$shapes_df <- test_polygons %>%
+  dplyr::mutate(qualified_name = location, start_date = min(all_dfs$shapes_df$start_date), 
+                end_date = max(all_dfs$shapes_df$end_date))
+names(all_dfs$shapes_df)[names(all_dfs$shapes_df) == "geometry"] <- "geom"
+sf::st_geometry(all_dfs$shapes_df) <- "geom"
+
+all_dfs$location_period_df <- all_dfs$shapes_df %>%
+  sf::st_drop_geometry()
+all_dfs$location_df <- all_dfs$shapes_df %>%
+  sf::st_drop_geometry() %>%
+  dplyr::group_by(qualified_name) %>%
+  dplyr::summarize()
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
@@ -40,10 +62,11 @@ raster_df <- taxdat::convert_test_covariate_funs_to_simulation_covariates(covari
 
 test_underlying_distribution <- create_underlying_distribution(covariates = raster_df)
 
-test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df, 
-                                                                    location = qualified_name, geometry = geom), test_covariates = raster_df$covar, 
+test_polygons <- dplyr::mutate(all_dfs$shapes_df, location = qualified_name, geometry = geom)
+sf::st_crs(test_polygons)<-sf::st_crs(raster_df[[1]])
+test_observations <- observe_polygons(test_polygons = test_polygons, test_covariates = raster_df$covar, 
                                       underlying_distribution = test_underlying_distribution, noise = FALSE, number_draws = 1, 
-                                      min_time_left = query_time_left, 
+                                      grid_proportion_observed = 1, polygon_proportion_observed = 1, min_time_left = query_time_left, 
                                       max_time_right = query_time_right)
 
 all_dfs$observations_df <- test_observations %>%
@@ -58,8 +81,7 @@ taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raste
 
 ## NOTE: Change me if you want to run the report locally config_filename <-
 ## paste(tempfile(), 'yml', sep = '.')
-config_filename <- "/home/app/cmp/Analysis/R/test_config_multipleOCs.yml"
-#updated the filename based on Josh's code
+config_filename <- "/home/app/cmp/Analysis/R/test_config.yml"
 
 ## Put your config stuff in here
 config <- list(general = list(location_name = all_dfs$location_df$qualified_name[[1]], 
@@ -80,6 +102,9 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                             "country_data_report.Rmd"), params = list(config_filename = config_filename, 
                                                                                       cholera_directory = "~/cmp/", drop_nodata_years = TRUE))
 
+
 #Note
 # 2000-01-01 2000-12-31 have multiple OCs
 # not running on docker (waiting for josh fixing shapefiles)
+##2021-09-01
+#updated with run_test_gridded
