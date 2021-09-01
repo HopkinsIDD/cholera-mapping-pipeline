@@ -20,17 +20,8 @@ query_time_right <- lubridate::ymd("2000-12-31")
 load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_object.rdata"))
 
 ## ------------------------------------------------------------------------------------------------------------------------
-## Change polygons
-names(all_dfs$shapes_df)[names(all_dfs$shapes_df) == "geometry"] <- "geom"
-sf::st_geometry(all_dfs$shapes_df) <- "geom"
-
-all_dfs$location_period_df <- all_dfs$shapes_df %>%
-  sf::st_drop_geometry()
-all_dfs$location_df <- all_dfs$shapes_df %>%
-  sf::st_drop_geometry() %>%
-  dplyr::group_by(qualified_name) %>%
-  dplyr::summarize()
-
+## Change shapefiles
+sf::st_geometry(all_dfs$shapes_df) <- sf::st_make_valid(sf::st_geometry(all_dfs$shapes_df))
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
@@ -45,16 +36,16 @@ max_time_right <- query_time_right
 covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates, 
                                                                                       min_time_left, max_time_right)
 
-# ## ------------------------------------------------------------------------------------------------------------------------
-# ## Change observations
-## the process is like this: a distribution for cases/values for each grid cell, based on the underlying distribution, draw cases for each grid cell and aggregate to the polygon level, if the draw is larger than 1, then, draw multiple times.
-## the observation process can be biased, by specifying polygon_observation/temporal(more likely to be observed for termporally close observations)/spatial_bias (more likely to be observed for spatially close observations) arguments in the function.
+## ------------------------------------------------------------------------------------------------------------------------
+## Change observations
 raster_df <- taxdat::convert_test_covariate_funs_to_simulation_covariates(covariate_raster_funs)
 
 test_underlying_distribution <- create_underlying_distribution(covariates = raster_df)
 
-test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df, 
-                                                                    location = qualified_name, geometry = geom), test_covariates = raster_df$covar, 
+test_polygons <- dplyr::mutate(all_dfs$shapes_df, location = qualified_name, geometry = geom)
+sf::st_crs(test_polygons)<-sf::st_crs(raster_df[[1]])
+sf::st_geometry(test_polygons) <- sf::st_make_valid(sf::st_geometry(test_polygons))
+test_observations <- observe_polygons(test_polygons = test_polygons, test_covariates = raster_df$covar, 
                                       underlying_distribution = test_underlying_distribution, noise = FALSE, number_draws = 1, 
                                       grid_proportion_observed = 1, polygon_proportion_observed = 1, min_time_left = query_time_left, 
                                       max_time_right = query_time_right)
@@ -64,15 +55,15 @@ all_dfs$observations_df <- test_observations %>%
                 qualified_name = location, primary = TRUE, phantom = FALSE, suspected_cases = cases, 
                 deaths = NA, confirmed_cases = NA)
 
-#
-# ## ------------------------------------------------------------------------------------------------------------------------
-# ## Create Database
+
+## ------------------------------------------------------------------------------------------------------------------------
+## Create Database
 setup_testing_database(conn_pg, drop = TRUE)
 taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raster_funs)
 
 ## NOTE: Change me if you want to run the report locally config_filename <-
 ## paste(tempfile(), 'yml', sep = '.')
-config_filename <- "/home/app/cmp/Analysis/R/test_config_FullGrid.yml"
+config_filename <- "/home/app/cmp/Analysis/R/test_config.yml"
 
 ## Put your config stuff in here
 config <- list(general = list(location_name = all_dfs$location_df$qualified_name[[1]], 
@@ -93,4 +84,5 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                             "country_data_report.Rmd"), params = list(config_filename = config_filename, 
                                                                                       cholera_directory = "~/cmp/", drop_nodata_years = TRUE))
 
- 
+
+## Actually do something with the groundtruth and output
