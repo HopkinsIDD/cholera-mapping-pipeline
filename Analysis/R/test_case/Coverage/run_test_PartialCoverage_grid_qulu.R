@@ -20,6 +20,29 @@ query_time_right <- lubridate::ymd("2000-12-31")
 load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_object.rdata"))
 
 ## ------------------------------------------------------------------------------------------------------------------------
+## Change polygons
+test_extent <- sf::st_bbox(all_dfs$shapes_df)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent)
+# Create 3 layers of testing polygons starting with a single country, and
+# splitting each polygon into 4 sub-polygons
+test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
+                                                                base_number = 1, n_layers = 2, factor = 10 * 10, snap = FALSE, randomize = FALSE))
+
+all_dfs$shapes_df <- test_polygons %>%
+  dplyr::mutate(qualified_name = location, start_date = min(all_dfs$shapes_df$start_date), 
+                end_date = max(all_dfs$shapes_df$end_date))
+names(all_dfs$shapes_df)[names(all_dfs$shapes_df) == "geometry"] <- "geom"
+sf::st_geometry(all_dfs$shapes_df) <- "geom"
+
+all_dfs$location_period_df <- all_dfs$shapes_df %>%
+  sf::st_drop_geometry()
+all_dfs$location_df <- all_dfs$shapes_df %>%
+  sf::st_drop_geometry() %>%
+  dplyr::group_by(qualified_name) %>%
+  dplyr::summarize()
+
+
+## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
 test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent)
@@ -31,6 +54,7 @@ min_time_left <- query_time_left
 max_time_right <- query_time_right
 covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates, 
                                                                                       min_time_left, max_time_right)
+
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change observations
 raster_df <- taxdat::convert_test_covariate_funs_to_simulation_covariates(covariate_raster_funs)
