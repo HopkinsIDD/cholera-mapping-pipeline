@@ -19,15 +19,27 @@ query_time_right <- lubridate::ymd("2000-12-31")
 ## })
 load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_object.rdata"))
 
-names(all_dfs$shapes_df)[names(all_dfs$shapes_df) == "geometry"] <- "geom"
-sf::st_crs(all_dfs$shapes_df[,colnames(all_dfs$shapes_df)=="geom"])="+proj=longlat +datum=WGS84 +no_defs"#assign projection system to the geometry
+## ------------------------------------------------------------------------------------------------------------------------
+## Change polygons
+test_extent <- sf::st_bbox(all_dfs$shapes_df)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent)
+# Create 3 layers of testing polygons starting with a single country, and
+# splitting each polygon into 4 sub-polygons
+test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
+                                                                base_number = 1, n_layers = 2, factor = 10 * 10, snap = FALSE, randomize = FALSE))
 
-rownames_invalid=rownames(all_dfs$shapes_df[sf::st_is_valid(all_dfs$shapes_df$geom),])
-all_dfs=list(location_df=all_dfs$location_df[rownames_invalid,],
-             location_period_df=all_dfs$location_period_df[rownames_invalid,],
-             shapes_df=all_dfs$shapes_df[rownames_invalid,],
-             observations_df=all_dfs$observations_df[rownames_invalid,])
-all_dfs$shapes_df$geom=sf::st_make_valid(all_dfs$shapes_df$geom)
+all_dfs$shapes_df <- test_polygons %>%
+  dplyr::mutate(qualified_name = location, start_date = min(all_dfs$shapes_df$start_date), 
+                end_date = max(all_dfs$shapes_df$end_date))
+names(all_dfs$shapes_df)[names(all_dfs$shapes_df) == "geometry"] <- "geom"
+sf::st_geometry(all_dfs$shapes_df) <- "geom"
+
+all_dfs$location_period_df <- all_dfs$shapes_df %>%
+  sf::st_drop_geometry()
+all_dfs$location_df <- all_dfs$shapes_df %>%
+  sf::st_drop_geometry() %>%
+  dplyr::group_by(qualified_name) %>%
+  dplyr::summarize()
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
@@ -52,7 +64,7 @@ test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shap
                                                                     location = qualified_name, geometry = geom), test_covariates = raster_df$covar, 
                                       underlying_distribution = test_underlying_distribution, noise = FALSE, number_draws = 1, 
                                       grid_proportion_observed = 1, polygon_proportion_observed = 1, min_time_left = query_time_left, 
-                                      grid_temporal_observation_bias = FALSE, grid_value_observation_bias = FALSE,
+                                      grid_temporal_observation_bias = FALSE, grid_value_observation_bias = FALSE,grid_spatial_observation_bias = FALSE,
                                       max_time_right = query_time_right)
 
 all_dfs$observations_df <- test_observations %>%
@@ -89,4 +101,4 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                                                                       cholera_directory = "~/cmp/", drop_nodata_years = TRUE))
 
 # Note 2021-08-01
-# grid report proportion is 1 and polygon report proportion is also 1. 
+# grid report proportion is 1 and polygon report proportion is also 1. no bias in grid/polygon observations.
