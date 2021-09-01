@@ -21,9 +21,6 @@ load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_obje
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change polygons
-all_dfs$shapes_df <- test_polygons %>%
-  dplyr::mutate(qualified_name = location, start_date = min(all_dfs$shapes_df$start_date), 
-                end_date = max(all_dfs$shapes_df$end_date))
 names(all_dfs$shapes_df)[names(all_dfs$shapes_df) == "geometry"] <- "geom"
 sf::st_geometry(all_dfs$shapes_df) <- "geom"
 
