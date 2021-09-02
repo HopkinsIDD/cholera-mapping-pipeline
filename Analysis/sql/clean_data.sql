@@ -45,15 +45,6 @@ CREATE OR REPLACE FUNCTION get_spatial_scale(location_id bigint) returns int AS 
   SELECT MAX(generations) as spatial_scale FROM location_hierarchies WHERE descendant_id = location_id
 $$ LANGUAGE SQL;
 
-CREATE OR REPLACE FUNCTION base_data_clean(OC_id bigint)
-RETURNS TABLE() AS $$
-  SELECT location_id, time_left, time_right, observations.primary, phantom, suspected_cases, deaths, classify_date(time_right - time_left) as date_class, get_spatial_scale(location_id) as spatial_scale from observations
-
-  WHERE observation_collection_id = OC_id
-  ORDER BY location_id, time_left;
-
-$$ LANGUAGE SQL;
-
 CREATE OR REPLACE FUNCTION guess_date_type(oc_id bigint) RETURNS text AS $$
   SELECT classify_date(time_right - time_left) as date_class
   FROM observations

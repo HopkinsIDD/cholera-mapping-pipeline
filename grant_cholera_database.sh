@@ -25,6 +25,7 @@ BEGIN \
     END LOOP; \
 END; \
 \$do$;"
+run_psql "GRANT CREATE ON database cholera_covariates public TO $USERNAME;"
 run_psql "GRANT ALL PRIVILEGES ON SCHEMA public TO $USERNAME;"
 run_psql "GRANT ALL PRIVILEGES ON SCHEMA grids TO $USERNAME;"
 run_psql "GRANT ALL PRIVILEGES ON SCHEMA data TO $USERNAME;"

@@ -67,6 +67,29 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS location_period_raster_map AS
       on
         ST_INTERSECTS(shapes.box, resized_spatial_grids.rast);
 
+---CREATE MATERIALIZED VIEW IF NOT EXISTS location_period_raster_grid_map AS
+---  SELECT
+---    coarse_map.shape_id,
+---    coarse_map.location_period_id,
+---    spatial_grid.rid,
+---    spatial_grid.x,
+---    spatial_grid.y,
+---    spatial_grid.width,
+---    spatial_grid.height
+---  FROM
+---    shapes
+---      INNER JOIN
+---    location_period_raster_map as coarse_map
+---      ON
+---        coarse_map.shape_id = shapes.id
+---      INNER JOIN
+---    grids.resized_spatial_grid_centroids as spatial_grid
+---      ON
+---        ST_CONTAINS(shapes.shape, spatial_grid.geom) AND
+---	coarse_map.rid = spatial_grid.rid AND
+---	coarse_map.width = spatial_grid.width AND
+---	coarse_map.height = spatial_grid.height;
+
 CREATE MATERIALIZED VIEW IF NOT EXISTS covariate_grid_map AS
 SELECT
   all_covariates.covariate_name,
@@ -82,6 +105,7 @@ FROM
   covariates.all_covariates
     ON
       st_intersects(all_covariates.rast, resized_spatial_grids.rast);
+
 
 -- Create functions for extracting from the grid
 
@@ -122,6 +146,41 @@ create or replace function ingest_covariate(name text, table_name text, ingest_t
   end if;
   end;
   $$ SECURITY DEFINER;
+
+create or replace function filter_resized_spatial_grid_centroids_to_location(location_name text, width_in_km int, height_in_km int)
+  returns table(id bigint, rid int, x int, y int, geom geometry) AS $$
+  SELECT
+    ROW_NUMBER() OVER (ORDER BY 1) as id,
+    resized_spatial_grid_centroids.rid,
+    resized_spatial_grid_centroids.x,
+    resized_spatial_grid_centroids.y,
+    resized_spatial_grid_centroids.geom
+  FROM
+    locations
+  LEFT JOIN
+    location_periods
+      ON
+        locations.id = location_periods.location_id
+  LEFT JOIN
+    shapes
+      ON
+        location_periods.id = shapes.location_period_id
+  LEFT JOIN
+    location_period_raster_map
+      ON
+        location_period_raster_map.shape_id = shapes.id
+  LEFT JOIN
+    grids.resized_spatial_grid_centroids
+      ON
+        location_period_raster_map.rid = resized_spatial_grid_centroids.rid AND
+        resized_spatial_grid_centroids.width = location_period_raster_map.width AND
+        resized_spatial_grid_centroids.height = location_period_raster_map.height AND
+	st_contains(shapes.shape, resized_spatial_grid_centroids.geom)
+  WHERE
+    locations.qualified_name = location_name AND
+    resized_spatial_grid_centroids.width = width_in_km AND
+    resized_spatial_grid_centroids.height = height_in_km
+  $$ LANGUAGE SQL;
 
 create or replace function filter_location_periods(location_name text)
   returns table(id bigint, location_id bigint, qualified_name text, location_period_id bigint) AS $$
@@ -166,7 +225,7 @@ create or replace function location_period_raster_centroid_map(location_name tex
         grids.resized_spatial_grid_centroids
           ON
 	    location_period_raster_map.rid = grids.resized_spatial_grid_centroids.rid AND
-            st_within(resized_spatial_grid_centroids.geom, shapes.shape)
+            ST_CONTAINS(shapes.shape, resized_spatial_grid_centroids.geom)
   WHERE
     resized_spatial_grid_centroids.width = width_in_km AND
     resized_spatial_grid_centroids.height = height_in_km
@@ -206,9 +265,9 @@ $$
   END;
 $$ LANGUAGE plpgsql;
 
--- Pipeline Specific Functionality
+-- Pipeline Specific Functionality (full)
 
-create or replace function pull_observation_data(location_name text, start_date date, end_date date)
+create or replace function pull_full_observation_data(location_name text, start_date date, end_date date)
   returns table(
     id bigint,
     observation_collection_id bigint,
@@ -255,11 +314,12 @@ create or replace function pull_observation_data(location_name text, start_date 
     observations.time_right <= end_date;
   $$ LANGUAGE SQL;
 
-create or replace function pull_covar_cube(location_name text, start_date date, end_date date, width_in_km int, height_in_km int, time_scale text)
-RETURNS TABLE(covariate_name text, t bigint, rid int, x int, y int, value double precision)AS $$
+create or replace function pull_full_covar_cube(location_name text, start_date date, end_date date, width_in_km int, height_in_km int, time_scale text)
+RETURNS TABLE(covariate_name text, t bigint, id bigint, rid int, x int, y int, value double precision)AS $$
   SELECT
     all_covariates.covariate_name,
     temporal_grid.id as t,
+    grid_centroids.id,
     grid_centroids.rid,
     grid_centroids.x,
     grid_centroids.y,
@@ -279,6 +339,198 @@ RETURNS TABLE(covariate_name text, t bigint, rid int, x int, y int, value double
 	  covariate_grid_map.covar_rid = all_covariates.rid AND
 	  covariate_grid_map.time_left = all_covariates.time_left AND
 	  covariate_grid_map.time_right = all_covariates.time_right AND
+	  covariate_grid_map.width = width_in_km AND
+	  covariate_grid_map.height = height_in_km AND
+	  all_covariates.time_left <= temporal_grid.time_midpoint AND
+	  all_covariates.time_right >= temporal_grid.time_midpoint AND
+	  covariate_grid_map.covariate_name = all_covariates.covariate_name AND
+          st_intersects(all_covariates.rast, grid_centroids.geom)
+  WHERE
+    temporal_grid.time_midpoint >= start_date AND
+    temporal_grid.time_midpoint <= end_date
+  $$ LANGUAGE SQL;
+
+create or replace function pull_full_grid_adjacency(location_name text, width_in_km int, height_in_km int)
+RETURNS TABLE(id_1 bigint, rid_1 int, x_1 int, y_1 int, id_2 bigint, rid_2 int, x_2 int, y_2 int)AS $$
+  SELECT
+    lhs.id as id_1,
+    lhs.rid as rid_1,
+    lhs.x as x_1,
+    lhs.y as y_1,
+    rhs.id as id_2,
+    rhs.rid as rid_2,
+    rhs.x as x_2,
+    rhs.y as y_2
+  FROM filter_resized_spatial_grid_centroids_to_location(location_name, width_in_km, height_in_km) as lhs
+    LEFT JOIN
+      grids.resized_spatial_grid_polygons as lhs_poly
+        ON
+	  lhs.rid = lhs_poly.rid AND
+	  lhs.x = lhs_poly.x AND
+	  lhs.y = lhs_poly.y
+    INNER JOIN
+      grids.resized_spatial_grid_polygons as rhs_poly
+        ON
+	  st_intersects(lhs_poly.geom, rhs_poly.geom)
+    LEFT JOIN
+      filter_resized_spatial_grid_centroids_to_location(location_name, width_in_km, height_in_km) as rhs
+        ON
+	  rhs.rid = rhs_poly.rid AND
+	  rhs.x = rhs_poly.x AND
+	  rhs.y = rhs_poly.y
+
+  WHERE
+    lhs.id < rhs.id AND
+    lhs_poly.width = width_in_km AND
+    lhs_poly.height = height_in_km AND
+    rhs_poly.width = width_in_km AND
+    rhs_poly.height = height_in_km
+  $$ LANGUAGE SQL;
+
+-- This function is stupid and just a long way to do something easy
+create or replace function pull_full_observation_location_period_map(location_name text, start_date date, end_date date)
+  returns table(
+    observation_id bigint,
+    location_period_id bigint
+  ) AS $$
+  SELECT
+    observation_data.id as observation_id,
+    location_periods.location_period_id
+  FROM
+    pull_full_observation_data(location_name, start_date, end_date) as observation_data
+      LEFT JOIN
+    filter_location_periods(location_name) as location_periods
+      ON
+        observation_data.location_period_id = location_periods.location_period_id;
+  $$ LANGUAGE SQL;
+
+create or replace function pull_full_observation_temporal_grid_map(location_name text, start_date date, end_date date, time_scale text)
+  returns table(
+    observation_id bigint,
+    t bigint,
+    tfrac numeric
+  ) AS $$
+  SELECT
+    observation_data.id as observation_id,
+    temporal_grid.id as t,
+    (
+      least(observation_data.time_right,temporal_grid.time_max) -
+      greatest(observation_data.time_left, temporal_grid.time_min)
+    ) * 1.0 / (temporal_grid.time_max - temporal_grid.time_min)
+  FROM
+    pull_full_observation_data(location_name, start_date, end_date) as observation_data
+      LEFT JOIN
+    resize_temporal_grid(time_scale) as temporal_grid
+      ON
+        observation_data.time_left <= temporal_grid.time_midpoint AND
+        observation_data.time_right >= temporal_grid.time_midpoint
+  $$ LANGUAGE SQL;
+
+create or replace function pull_full_location_period_grid_map(location_name text, width_in_km int, height_in_km int)
+RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint, shape_id bigint, spatial_grid_id bigint, rid int, x int, y int)AS $$
+  SELECT
+    location_periods.qualified_name as qualified_name,
+    location_periods.location_id as location_id,
+    location_periods.location_period_id as location_period_id,
+    shapes.id as shape_id,
+    spatial_grid.id as spatial_grid_id,
+    spatial_grid.rid,
+    spatial_grid.x,
+    spatial_grid.y
+  FROM
+    filter_location_periods(location_name) as location_periods
+      LEFT JOIN
+    shapes
+      on
+        location_periods.location_period_id = shapes.location_period_id
+      LEFT JOIN
+    filter_resized_spatial_grid_centroids_to_location(location_name, width_in_km, height_in_km) as spatial_grid
+      on
+        ST_CONTAINS(shapes.shape, spatial_grid.geom);
+  $$ LANGUAGE SQL;
+
+-- Pipeline Specific Functionality (only useable)
+
+create or replace function pull_observation_data(location_name text, start_date date, end_date date, width_in_km int, height_in_km int)
+  returns table(
+    id bigint,
+    observation_collection_id bigint,
+    observation_id bigint,
+    location_name text,
+    location_id bigint,
+    location_period_id bigint,
+    suspected_cases int,
+    confirmed_cases int,
+    deaths int,
+    time_left date,
+    time_right date,
+    is_primary bool,
+    is_phantom bool,
+    shape geometry
+  ) AS $$
+  SELECT
+    ROW_NUMBER() OVER (ORDER BY observation_collection_id, observations.id),
+    observations.observation_collection_id,
+    observations.id as observation_id,
+    filtered_location_periods.qualified_name as location_name,
+    observations.location_id,
+    observations.location_period_id,
+    observations.suspected_cases,
+    observations.confirmed_cases,
+    observations.deaths,
+    observations.time_left,
+    observations.time_right,
+    observations.primary,
+    observations.phantom,
+    shapes.shape
+  FROM
+    observations
+      INNER JOIN
+        filter_location_periods('somelocation') as filtered_location_periods
+          ON
+	    observations.location_period_id = filtered_location_periods.location_period_id
+      INNER JOIN
+        shapes
+	  ON
+	    observations.location_period_id = shapes.location_period_id
+  WHERE
+    observations.time_left >= start_date AND
+    observations.time_right <= end_date AND
+    EXISTS (
+    SELECT FROM
+      location_period_raster_grid_map
+    WHERE
+      location_period_raster_grid_map.shape_id = shapes.id
+    )
+  $$ LANGUAGE SQL;
+
+create or replace function pull_covar_cube(location_name text, start_date date, end_date date, width_in_km int, height_in_km int, time_scale text)
+RETURNS TABLE(covariate_name text, t bigint, id bigint, rid int, x int, y int, value double precision)AS $$
+  SELECT
+    all_covariates.covariate_name,
+    temporal_grid.id as t,
+    grid_centroids.id,
+    grid_centroids.rid,
+    grid_centroids.x,
+    grid_centroids.y,
+    ST_VALUE(all_covariates.rast, grid_centroids.geom) as value
+  FROM filter_resized_spatial_grid_centroids_to_location(location_name, width_in_km, height_in_km) as grid_centroids
+    INNER JOIN
+      covariate_grid_map
+        ON
+          grid_centroids.rid = covariate_grid_map.grid_rid
+    FULL JOIN
+      resize_temporal_grid(time_scale) as temporal_grid
+        ON
+	  1 = 1
+    INNER JOIN
+      covariates.all_covariates
+        ON
+	  covariate_grid_map.covar_rid = all_covariates.rid AND
+	  covariate_grid_map.time_left = all_covariates.time_left AND
+	  covariate_grid_map.time_right = all_covariates.time_right AND
+	  covariate_grid_map.width = width_in_km AND
+	  covariate_grid_map.height = height_in_km AND
 	  all_covariates.time_left <= temporal_grid.time_midpoint AND
 	  all_covariates.time_right >= temporal_grid.time_midpoint AND
 	  covariate_grid_map.covariate_name = all_covariates.covariate_name AND
@@ -299,46 +551,50 @@ RETURNS TABLE(id_1 bigint, rid_1 int, x_1 int, y_1 int, id_2 bigint, rid_2 int, 
     rhs.rid as rid_2,
     rhs.x as x_2,
     rhs.y as y_2
-  FROM filter_resized_grid_centroids_to_location(location_name, width_in_km, height_in_km) as lhs
-    LEFT JOIN
-      grids.resized_grid_polygons as lhs_poly
+  FROM filter_resized_spatial_grid_centroids_to_location(location_name, width_in_km, height_in_km) as lhs
+    INNER JOIN
+      grids.resized_spatial_grid_polygons as lhs_poly
         ON
 	  lhs.rid = lhs_poly.rid AND
 	  lhs.x = lhs_poly.x AND
 	  lhs.y = lhs_poly.y
     INNER JOIN
-      grids.resized_grid_polygons as rhs_poly
+      grids.resized_spatial_grid_polygons as rhs_poly
         ON
 	  st_intersects(lhs_poly.geom, rhs_poly.geom)
-    LEFT JOIN
-      filter_resized_grid_centroids_to_location(location_name, width_in_km, height_in_km) as rhs
+    INNER JOIN
+      filter_resized_spatial_grid_centroids_to_location(location_name, width_in_km, height_in_km) as rhs
         ON
 	  rhs.rid = rhs_poly.rid AND
 	  rhs.x = rhs_poly.x AND
 	  rhs.y = rhs_poly.y
 
   WHERE
-    lhs.id < rhs.id
+    lhs.id < rhs.id AND
+    lhs_poly.width = width_in_km AND
+    lhs_poly.height = height_in_km AND
+    rhs_poly.width = width_in_km AND
+    rhs_poly.height = height_in_km
   $$ LANGUAGE SQL;
 
 -- This function is stupid and just a long way to do something easy
-create or replace function pull_observation_location_period_map(location_name text, start_date date, end_date date)
+create or replace function pull_observation_location_period_map(location_name text, start_date date, end_date date, width_in_km int, height_in_km int)
   returns table(
     observation_id bigint,
-    location_periods_id bigint
+    location_period_id bigint
   ) AS $$
   SELECT
     observation_data.id as observation_id,
     location_periods.location_period_id
   FROM
-    pull_observation_data(location_name, start_date, end_date) as observation_data
-      LEFT JOIN
+    pull_observation_data(location_name, start_date, end_date, width_in_km, height_in_km) as observation_data
+      INNER JOIN
     filter_location_periods(location_name) as location_periods
       ON
         observation_data.location_period_id = location_periods.location_period_id;
   $$ LANGUAGE SQL;
 
-create or replace function pull_observation_temporal_grid_map(location_name text, start_date date, end_date date, time_scale text)
+create or replace function pull_observation_temporal_grid_map(location_name text, start_date date, end_date date, width_in_km int, height_in_km int, time_scale text)
   returns table(
     observation_id bigint,
     t bigint,
@@ -352,8 +608,8 @@ create or replace function pull_observation_temporal_grid_map(location_name text
       greatest(observation_data.time_left, temporal_grid.time_min)
     ) * 1.0 / (temporal_grid.time_max - temporal_grid.time_min)
   FROM
-    pull_observation_data(location_name, start_date, end_date) as observation_data
-      LEFT JOIN
+    pull_observation_data(location_name, start_date, end_date, width_in_km, height_in_km) as observation_data
+      INNER JOIN
     resize_temporal_grid(time_scale) as temporal_grid
       ON
         observation_data.time_left <= temporal_grid.time_midpoint AND
@@ -361,21 +617,24 @@ create or replace function pull_observation_temporal_grid_map(location_name text
   $$ LANGUAGE SQL;
 
 create or replace function pull_location_period_grid_map(location_name text, width_in_km int, height_in_km int)
-RETURNS TABLE(location_period_id bigint, spatial_grid_id bigint, rid int, x int, y int)AS $$
+RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint, shape_id bigint, spatial_grid_id bigint, rid int, x int, y int)AS $$
   SELECT
-    shapes.location_period_id,
+    location_periods.qualified_name as qualified_name,
+    location_periods.location_id as location_id,
+    location_periods.location_period_id as location_period_id,
+    shapes.id as shape_id,
     spatial_grid.id as spatial_grid_id,
     spatial_grid.rid,
     spatial_grid.x,
     spatial_grid.y
   FROM
-    filter_location_periods('AFR::KEN') as location_periods
-      left join
+    filter_location_periods(location_name) as location_periods
+      INNER JOIN
     shapes
       on
         location_periods.location_period_id = shapes.location_period_id
-      left join
-    filter_resized_spatial_grid_centroids_to_location('AFR::KEN', 20, 20) as spatial_grid
+      INNER JOIN
+    filter_resized_spatial_grid_centroids_to_location(location_name, width_in_km, height_in_km) as spatial_grid
       on
         ST_CONTAINS(shapes.shape, spatial_grid.geom);
   $$ LANGUAGE SQL;

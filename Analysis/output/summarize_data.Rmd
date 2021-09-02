@@ -15,6 +15,14 @@ library(sf)
 library(taxdat)
 ```
 
+params = list(
+  config = "~/git/cholera-configs/summary_parameters.csv",
+  cholera_configs_directory = "~/git/cholera-configs",
+  cholera_mapping_pipeline_directory = "~/git/cholera-mapping-pipeline",
+  cholera_mapping_output_directory = "~/git/cholera-mapping-output",
+  shapefiles_dir = "~/gadm_shapefiles/"
+)
+
 # Loading Config
 
 ```{r Load config}
@@ -220,6 +228,7 @@ for (country in config[["Country.Name"]]) {
     })
   } else if (local_config[["Include"]] == "Lancet") {
 
+try({
     country_config <- yaml::read_yaml(
       paste0(params$cholera_configs_directory, "/2015_2019_full_base/", country, ".yml")
     )
@@ -253,6 +262,7 @@ for (country in config[["Country.Name"]]) {
     all_data[["Current"]][["975.Cases"]][[country]] <- quantile(aggregated_layers, .975)
     all_data[["Current"]][["025.Cases"]][[country]] <- quantile(aggregated_layers, .025)
 
+})
   } else if (local_config[["Include"]] == "None") {
   } else {
     stop(paste(

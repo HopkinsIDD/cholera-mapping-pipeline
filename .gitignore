@@ -4,5 +4,6 @@ Analysis/output/logs/*
 Analysis/output/reports/*
 Analysis/R/database_api_key.R
 Analysis/slurm*.out
+*~
 slurm*.out
 .Rproj.user
