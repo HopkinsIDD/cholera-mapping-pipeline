@@ -46,34 +46,43 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
 ## Change covariates
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
 test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent)
-test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2, 
-                                                   nonspatial = c(FALSE, FALSE), nontemporal = c(FALSE, FALSE), spatially_smooth = c(TRUE, 
-                                                                                                                                     FALSE), temporally_smooth = c(FALSE, FALSE), polygonal = c(TRUE, TRUE), radiating = c(FALSE, 
-                                                                                                                                                                                                                           FALSE))
 min_time_left <- query_time_left
 max_time_right <- query_time_right
-covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates, 
-                                                                                      min_time_left, max_time_right)
+
+test_covariates1 <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2, 
+                                                   nonspatial = c(FALSE, FALSE), 
+                                                   nontemporal = c(FALSE, FALSE), 
+                                                   spatially_smooth = c(TRUE,FALSE), 
+                                                   temporally_smooth = c(FALSE, FALSE), 
+                                                   polygonal = c(TRUE, TRUE), 
+                                                   radiating = c(FALSE,FALSE))
+covariate_raster_funs1 <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates1,min_time_left, max_time_right)
+
+test_covariates2 <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2, 
+                                                    nonspatial = c(TRUE, TRUE), 
+                                                    nontemporal = c(TRUE,TRUE), 
+                                                    spatially_smooth = c(FALSE,TRUE), 
+                                                    temporally_smooth = c(TRUE, TRUE), 
+                                                    polygonal = c(FALSE, FALSE), 
+                                                    radiating = c(FALSE,FALSE))
+covariate_raster_funs2 <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates2,min_time_left, max_time_right)
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change observations
-raster_df <- taxdat::convert_test_covariate_funs_to_simulation_covariates(covariate_raster_funs)
-
-test_underlying_distribution1 <- create_underlying_distribution(covariates = raster_df)
-
 test_polygons <- dplyr::mutate(all_dfs$shapes_df, location = qualified_name, geometry = geom)
-sf::st_crs(test_polygons)<-sf::st_crs(raster_df[[1]])
-test_observations1 <- observe_polygons(test_polygons = test_polygons, test_covariates = raster_df$covar, 
-                                      underlying_distribution = test_underlying_distribution1, noise = FALSE, number_draws = 1, 
+#first test observation
+raster_df1 <- taxdat::convert_test_covariate_funs_to_simulation_covariates(covariate_raster_funs1)
+sf::st_crs(test_polygons)<-sf::st_crs(raster_df1[[1]])
+test_underlying_distribution1 <- create_underlying_distribution(covariates = raster_df1)
+test_observations1 <- observe_polygons(test_polygons = test_polygons, test_covariates = raster_df1$covar, 
+                                      underlying_distribution = test_underlying_distribution1, noise = FALSE, number_draws = 100, 
                                       grid_proportion_observed = 1, polygon_proportion_observed = 1, min_time_left = query_time_left, 
                                       max_time_right = query_time_right)
-
-test_underlying_distribution2 <- create_underlying_distribution(covariates = raster_df)
-
-test_polygons <- dplyr::mutate(all_dfs$shapes_df, location = qualified_name, geometry = geom)
-sf::st_crs(test_polygons)<-sf::st_crs(raster_df[[1]])
-test_observations2 <- observe_polygons(test_polygons = test_polygons, test_covariates = raster_df$covar, 
-                                       underlying_distribution = test_underlying_distribution2, noise = FALSE, number_draws = 1, 
+#second test observation
+raster_df2 <- taxdat::convert_test_covariate_funs_to_simulation_covariates(covariate_raster_funs2)
+test_underlying_distribution2 <- create_underlying_distribution(covariates = raster_df2)
+test_observations2 <- observe_polygons(test_polygons = test_polygons, test_covariates = raster_df2$covar, 
+                                       underlying_distribution = test_underlying_distribution2, noise = FALSE, number_draws = 100, 
                                        grid_proportion_observed = 1, polygon_proportion_observed = 1, min_time_left = query_time_left, 
                                        max_time_right = query_time_right)
 
@@ -87,7 +96,7 @@ all_dfs$observations_df <- test_observations %>%
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
 setup_testing_database(conn_pg, drop = TRUE)
-taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raster_funs)
+taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raster_funs1)
 
 ## NOTE: Change me if you want to run the report locally config_filename <-
 ## paste(tempfile(), 'yml', sep = '.')
@@ -99,7 +108,7 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                               width_in_km = 1, height_in_km = 1, time_scale = "month"), stan = list(directory = rprojroot::find_root_file(criterion = ".choldir", 
                                                                                                                                           "Analysis", "Stan"), ncores = 1, model = "dagar_seasonal.stan", niter = 1000, 
                                                                                                     recompile = TRUE), name = "test_???", taxonomy = "taxonomy-working/working-entry1", 
-               smoothing_period = 1, case_definition = "suspected", covariate_choices = raster_df$name, 
+               smoothing_period = 1, case_definition = "suspected", covariate_choices = raster_df1$name, 
                data_source = "sql", file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir", 
                                                                                               "Analysis", "output", "test.stan_output.rdata"), stan_input = rprojroot::find_root_file(criterion = ".choldir", 
                                                                                                                                                                                       "Analysis", "output", "test.stan_input.rdata")))
