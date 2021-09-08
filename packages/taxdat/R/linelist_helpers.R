@@ -175,7 +175,8 @@ expand_all_locations = function(.x, .y, assumed_complete_location, all_locations
   }
   # Keep only locations that are either the assumed_complete_location or locations 
   # children of the latter 
-  all_location <- all_location[grepl(assumed_complete_location,all_location)]
+  # QZ: update the the code to identify over one assumed_complete_locations. 
+  all_location <- all_location[grepl(paste0(assumed_complete_location,collapse = "|"),all_location)]
   if(length(all_location) > 0){
     # Create full dataframe of the observations at all location levels
     .x <- dplyr::bind_rows(
