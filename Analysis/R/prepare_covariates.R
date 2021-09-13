@@ -82,7 +82,9 @@ prepare_covariates <- function(
     list(name = "raw", extent = NULL),
     list(name = "SSD", extent = raster::extent(23, 37, 3, 13)),   # SSD
     list(name = "KEN", extent = raster::extent(33, 42, -5.2, 5)),   # Kenya
-    list(name = "SSA", extent = raster::extent(-18.8, 52.6, -35.4, 28))   # SSA
+    list(name = "SSA", extent = raster::extent(-18.8, 52.6, -35.4, 28)),   # SSA
+    list(name = "BGD", extent = raster::extent(88, 92.7, 20.5, 26.7)) # Bangladesh
+
   )
   aoi_names <- purrr::map_chr(aois, "name")
 
