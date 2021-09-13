@@ -227,6 +227,10 @@ if (warmup) {
 } else {
   # Set to random initial draws if no covar warmup
   init.list <- "random"
+  
+  if (config$time_effect) {
+    stan_data$mat_grid_time <- mat_grid_time %>% as.matrix()
+  }
 }
 
 # Set censoring and time effect and autocorrelation
@@ -241,8 +245,6 @@ if (stan_params$use_rho_prior) {
     for (i in 1:length(init.list)) {
       init.list[[i]] <- append(init.list[[i]], list(rho = runif(1, .6, 1)))
     }
-  } else {
-    init.list <- list(rho = runif(nchain, 0, 1))
   }
 }
 

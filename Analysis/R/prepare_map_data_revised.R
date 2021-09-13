@@ -125,10 +125,11 @@ if (any(grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles)))) {
   warning("Geometry collections present in locations.  See output for details")
   print(paste("The following location periods are affected:", paste(shapefiles[grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles)), ][["location_period_id"]], collapse = ", ")))
   warning("Attempting to fix geometry collections, but not in a smart way.  Please fix the underlying data instead.")
-  tmp2 <- do.call(sf:::rbind.sf, lapply(shapefiles$geojson[grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles))], function(x) {
+  problem_indices <- which(grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles)))
+  tmp2 <- do.call(sf:::rbind.sf, lapply(shapefiles$geojson[problem_indices], function(x) {
     sf::st_sf(sf::st_sfc(x[[1]]))
   }))
-  shapefiles[sf::st_geometry_type(shapefiles) == "GEOMETRYCOLLECTION", ]$geojson <- sf::st_geometry(tmp2)
+  shapefiles[["geojson"]][problem_indices] <- sf::st_geometry(tmp2)
 }
 
 # Write location periods in data ---------------------------------------
