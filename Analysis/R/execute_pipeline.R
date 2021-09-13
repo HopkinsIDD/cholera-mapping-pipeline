@@ -320,6 +320,113 @@ print("*** STARTING STAN MODEL ***")
 
 library(rstan)
 
+# Initial Values ----------------------------------------------------------
+
+## INITIAL VALUES
+
+browser()
+
+if (config$initial_values$warmup) {
+    covariate_names <- colnames(covar_cube[, -c(1:5, ncol(covar_cube))])
+    initial_values_df <- observation_data %>%
+        inner_join(observation_location_period_mapping) %>%
+        inner_join(location_period_grid_mapping, by = c(location_period_id = "location_period_id")) %>%
+        inner_join(covar_cube, by = c(spatial_grid_id = "id", rid = "rid", x = "x", 
+            y = "y")) %>%
+        group_by(observation_id) %>%
+        group_modify(function(.x, .y) {
+            .x[[paste("raw", cases_column, sep = "_")]] <- .x[[cases_column]]
+            .x[[cases_column]] <- .x[[cases_column]] * .x$population/sum(.x$population)
+            return(.x)
+        }) %>%
+        dplyr::mutate(log_y = log(y), gam_offset = log_y)
+
+    gam_formula <- taxdat::get_gam_formula(cases_column_name = cases_column, covariate_names = covariate_names)
+
+    gam_fit <- mgcv::gam(gam_formula, family = "gaussian", data = initial_values_df)
+    gam_predict <- mgcv::predict.gam(gam_fit, covar_cube)
+
+    initial_betas <- coef(gam_fit)[covariate_names]
+    initial_eta <- coef(gam_fit)["obs_year"]
+}
+
+
+coord_frame <- covar_cube %>%
+    dplyr::group_by(id, updated_id) %>%
+    dplyr::summarise(x = mean(x), y = mean(y))
+
+year_df <- tibble::tibble(year = as.factor(covar_cube$t))
+
+## one random effect per year
+if (length(unique(year_df$year)) == 1) {
+    mat_grid_time <- matrix(1, nrow(year_df))
+} else {
+    mat_grid_time <- model.matrix(as.formula("~ year - 1"), data = year_df)
+}
+
+old_percent <- 0
+df <- purrr::map_dfr(seq_len(length(as.array(observation_data[[cases_column]]))), 
+    function(i) {
+        # Print progress
+        new_percent <- floor(100 * i/nrow(observation_data))
+        if (new_percent != old_percent) {
+            print(paste(i, "/", nrow(observation_data)))
+            old_percent <<- new_percent
+        }
+        # Get the location period covered by observation JK : Check int-ness
+        ind_obs <- which(observation_location_period_mapping$updated_observation_id == 
+            i)
+        ind_lp <- observation_location_period_mapping$updated_location_period_id[ind_obs]
+        ind <- location_period_grid_mapping$updated_location_period_id[which(location_period_grid_mapping$updated_spatial_grid_id %in% 
+            ind_lp)]
+        # Setup the data
+        pop <- covar_cube$population[ind]
+        # Cases are assumed to be proportional to population in the covered grid cells y
+        # <- round(rep(stan_data$y[stan_data$ind_full[i]], length(ind))*pop/sum(pop))
+        obs_year <- stan_data$map_grid_time[ind]
+        u_obs_years <- unique(obs_year)
+        tfrac <- stan_data$tfrac[ind_obs]
+        # Expand observations to account for multiple tfracs JK : This seems wrong, but
+        # maybe it makes sense later JK : proportional allocation of y to one observation
+        # per year split based on tfrac
+        y_new <- purrr::map(seq_along(ind_obs), function(x) rep(stan_data$y[i] * 
+            tfrac[x]/sum(tfrac), sum(obs_year == u_obs_years[x]))) %>%
+            unlist()
+
+        # JK : This is creating the tfrac for each year.  JK : This definitely seems
+        # wrong, since each element of map_obs_loctime should be a unique grid time.  JK
+        # : Maybe wrong is the wrong word, it should work, but just be redundant.
+        tfrac_vec <- purrr::map(seq_along(ind_obs), function(x) rep(tfrac[x], sum(obs_year == 
+            u_obs_years[x]))) %>%
+            unlist()
+
+        y <- y_new * pop/sum(pop)
+
+        sx <- coord_frame$x[ind]
+        sy <- coord_frame$y[ind]
+
+        beta_mat <- stan_data$covar[ind, ] %>%
+            matrix(ncol = stan_data$ncovar) %>%
+            magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar))
+
+        year_mat <- mat_grid_time[ind, ] %>%
+            matrix(ncol = ncol(mat_grid_time)) %>%
+            magrittr::set_colnames(paste0("year_", 1:ncol(mat_grid_time)))
+
+        return(tibble::tibble(obs = i, raw_y = stan_data$y[i], y = y, sx = sx, sy = sy, 
+            ind = ind, pop = pop, obs_year = obs_year, meanrate = stan_data$meanrate, 
+            ey = pop * stan_data$meanrate, tfrac = tfrac_vec, censored = stan_data$censoring_inds[i]) %>%
+            cbind(beta_mat) %>%
+            cbind(year_mat))
+    }) %>%
+    tibble::as_tibble() %>%
+    dplyr::mutate(obs_year = factor(obs_year), log_ey = log(ey), log_tfrac = log(tfrac), 
+        gam_offset = log_ey + log_tfrac, right_threshold = dplyr::case_when(censored == 
+            "right-censored" ~ y, T ~ Inf))
+
+
+## END INITIAL VALUES
+
 # Run model ---------------------------------------------------------------
 # model.rand <- rstan::stan(file = stan_model_path, data =
 # initial_values_data$stan_data, chains = nchain, iter = niter, pars = c('b',

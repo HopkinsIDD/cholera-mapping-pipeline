@@ -25,6 +25,7 @@ Collate:
     'config_helpers.R'
     'covariate_helpers.R'
     'file_name_functions.R'
+    'gam_formula.R'
     'geo_lookup_helpers.R'
     'indexing_helpers.R'
     'linelist_helpers.R'
