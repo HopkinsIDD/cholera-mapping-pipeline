@@ -154,6 +154,8 @@ prepare_stan_input <- function(
     
     # Reorder nodes in directed graph to have a single source using the breadth-
     # first algorithm. for DAGAR
+    smooth_centroids <- sf::st_geometry(sf::st_centroid(smooth_grid_it))
+    
     nn_mat_reordereding <- taxdat::reorder_single_source(A = nn_mat, 
                                                          coords = sf::st_coordinates(smooth_centroids))
     
