@@ -57,6 +57,8 @@ data {
   int<lower=0, upper=1> do_time_slice_effect_autocor;
   // Weight likelihoods by expected number of cases
   int<lower=0, upper=1> use_weights; 
+  // Prior for high values of rho
+  int<lower=0, upper=1> use_rho_prior;
   
   // If time slice effect pass indicator function for years without data
   vector<lower=0, upper=1>[N*do_time_slice_effect] has_data_year;
@@ -192,6 +194,11 @@ model {
   
   // prior on regression coefficients
   target += normal_lpdf(betas| 0, beta_sigma_scale);
+  
+  // prior on rho if provided
+  if (use_rho_prior == 1) {
+    target += beta_lpdf(rho | 5, 1.5);
+  }
   
   if (do_time_slice_effect == 1) {
     // prior on the time_slice random effects
