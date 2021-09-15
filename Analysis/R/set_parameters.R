@@ -75,6 +75,8 @@ data_source <- config$data_source
 # use scoped string names
 countries <- config$countries
 countries_name <- config$countries_name
+# Specific OCs to use (string vector)
+filter_OCs <- config$OCs
 
 # - - - - Grid Size km by km resolution of analysis
 res_space <- as.numeric(config$res_space)

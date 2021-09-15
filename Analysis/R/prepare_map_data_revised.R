@@ -43,7 +43,8 @@ if (data_source == "api") {
 # This pulls the data either from the mid-distance database or the postgresql
 # database on idmodeling2
 cases <- taxdat::pull_taxonomy_data(username = username, password = password, locations = long_countries, 
-    time_left = start_time, time_right = end_time, source = data_source) %>%
+    time_left = start_time, time_right = end_time, source = data_source, uids = filter_OCs, 
+    ) %>%
     taxdat::rename_database_fields(source = data_source)
 
 # Get OC UIDs for all extracted data
@@ -129,17 +130,17 @@ if (any(grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles)))) {
     print(paste("The following location periods are affected:", paste(shapefiles[grepl("GEOMETRYCOLLECTION", 
         sf::st_geometry_type(shapefiles)), ][["location_period_id"]], collapse = ", ")))
     warning("Attempting to fix geometry collections, but not in a smart way.  Please fix the underlying data instead.")
-    tmp2 <- do.call(sf:::rbind.sf, lapply(shapefiles$geojson[grepl("GEOMETRYCOLLECTION", 
-        sf::st_geometry_type(shapefiles))], function(x) {
+    problem_indices <- which(grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles)))
+    tmp2 <- do.call(sf:::rbind.sf, lapply(shapefiles$geojson[problem_indices], function(x) {
         sf::st_sf(sf::st_sfc(x[[1]]))
     }))
-    shapefiles[sf::st_geometry_type(shapefiles) == "GEOMETRYCOLLECTION", ]$geojson <- sf::st_geometry(tmp2)
+    shapefiles[["geojson"]][problem_indices] <- sf::st_geometry(tmp2)
 }
 
 # Write location periods in data ---------------------------------------
 
 # Database connection
-conn_pg <- taxdat::connect_to_db(dbuser, dbname)
+conn_pg <- taxdat::connect_to_db(dbuser)
 
 # Set user-specific name for location_periods table to use
 lp_name <- taxdat::make_locationperiods_table_name(dbuser = dbuser, map_name = map_name)

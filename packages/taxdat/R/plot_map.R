@@ -14,59 +14,42 @@
 #' @param ... additional parameters passed to [`color_scale()`]
 #' @include color_scale.R map_theme.R
 #' @return ggplot object of cholera case or incidence maps on standard color scale
-plot_map <- function(
-  map_output,
-  column = 'cases', 
-  facet_column = "type", 
-  colorscale_type = 'cases', 
-  render = FALSE, 
-  plot_file = NULL, 
-  width = NULL, 
-  height = NULL, 
-  plot_border = TRUE, 
-  ...){
+plot_map <- function(map_output, column = "cases", facet_column = "type", colorscale_type = "cases", 
+    render = FALSE, plot_file = NULL, width = NULL, height = NULL, plot_border = TRUE, 
+    ...) {
 
-  if (any(grepl("raster", class(map_output), ignore.case = TRUE))){
-    spdf_output <- raster::rasterToPolygons(map_output)
-    sf_output <- sf::st_as_sf(spdf_output)
-    column <- grep(stringr::str_remove(column, "s$"), names(sf_output), value=TRUE) ## ignore mis-specification of singular or plural in column argument
+    if (any(grepl("raster", class(map_output), ignore.case = TRUE))) {
+        spdf_output <- raster::rasterToPolygons(map_output)
+        sf_output <- sf::st_as_sf(spdf_output)
+        column <- grep(stringr::str_remove(column, "s$"), names(sf_output), value = TRUE)  ## ignore mis-specification of singular or plural in column argument
 
-  } else if(any(grepl("sf", class(map_output), ignore.case = TRUE))){
-    sf_output <- map_output
-    column <- grep(stringr::str_remove(column, "s$"), names(sf_output), value=TRUE) ## ignore mis-specification of singular or plural in column argument
-  }
+    } else if (any(grepl("sf", class(map_output), ignore.case = TRUE))) {
+        sf_output <- map_output
+        column <- grep(stringr::str_remove(column, "s$"), names(sf_output), value = TRUE)  ## ignore mis-specification of singular or plural in column argument
+    }
 
-  plt <- ggplot2::ggplot()
-  if(isTRUE(plot_border)){
-    plt <- plt +
-      ggplot2::geom_sf(
-        data = sf_output,
-        ggplot2::aes_string(fill = column)
-      )
-  } else {
-    plt <- plt +
-      ggplot2::geom_sf(
-        data = sf_output,
-        ggplot2::aes_string(fill = column),
-        color=NA
-      )
-  }
-  plt <- plt + 
-    color_scale(type = colorscale_type, use_case = 'ggplot map', ...) +
-    map_theme() 
-  
-  if (!is.null(facet_column)) {
-    plt <- plt + ggplot2::facet_wrap(formula(paste("~", facet_column)))
-  }
-  
-  if (!is.null(plot_file)) {
-    ggplot2::ggsave(plot_file, plt, width = width , heigth = height)
-  }
-  if("sf" %in% class(plot_border)){
-    plt <- plt + ggplot2::geom_sf(data = plot_border)
-  }
-  
-  if(render){
-    plt
-  }
+    plt <- ggplot2::ggplot()
+    if (isTRUE(plot_border)) {
+        plt <- plt + ggplot2::geom_sf(data = sf_output, ggplot2::aes_string(fill = column))
+    } else {
+        plt <- plt + ggplot2::geom_sf(data = sf_output, ggplot2::aes_string(fill = column), 
+            color = NA)
+    }
+    plt <- plt + color_scale(type = colorscale_type, use_case = "ggplot map", ...) + 
+        map_theme()
+
+    if (!is.null(facet_column)) {
+        plt <- plt + ggplot2::facet_wrap(formula(paste("~", facet_column)))
+    }
+
+    if (!is.null(plot_file)) {
+        ggplot2::ggsave(plot_file, plt, width = width, heigth = height)
+    }
+    if ("sf" %in% class(plot_border)) {
+        plt <- plt + ggplot2::geom_sf(data = plot_border)
+    }
+
+    if (render) {
+        plt
+    }
 }

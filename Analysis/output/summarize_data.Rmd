@@ -147,7 +147,7 @@ for (country in config[["Country.Name"]]) {
     all_data[["Lancet"]][["025.Rates"]][[country]] <- quantile(aggregated_layers, .025)
 
     all_data[["Lancet"]][["Mean.Cases"]][[country]] <- all_data[["Lancet"]][["Mean.Rates"]][[country]] * pop_by_country[[country]]
-    all_data[["Lancet"]][["975.Cases"]][[country]] <- all_data[["Lancet"]][["025.Rates"]][[country]] * pop_by_country[[country]]
+    all_data[["Lancet"]][["975.Cases"]][[country]] <- all_data[["Lancet"]][["975.Rates"]][[country]] * pop_by_country[[country]]
     all_data[["Lancet"]][["025.Cases"]][[country]] <- all_data[["Lancet"]][["025.Rates"]][[country]] * pop_by_country[[country]]
   }, error = function(e) {
     warning(paste("Could not load Lancet Estimates for country", country, "for reason", e$message))
