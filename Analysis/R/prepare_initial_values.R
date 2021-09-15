@@ -103,7 +103,6 @@ df <- purrr::map_dfr(
                 log_ey = log(ey),
                 log_tfrac = log(tfrac),
                 gam_offset = log_ey + log_tfrac,
-                # To apply censoring
                 right_threshold = dplyr::case_when(
                   censored == "right-censored" ~ y,
                   T ~ Inf)
