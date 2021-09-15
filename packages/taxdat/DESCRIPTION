@@ -1,0 +1,49 @@
+Package: taxdat
+Type: Package
+Title: Taxonomy Data Parser
+Version: 0.1
+Date: 2016-07-14
+Author: Joshua Kaminsky
+Maintainer: Joshua Kaminsky <jkaminsky@jhu.edu>
+Description: This package is designed to load and work with taxonomy files in a particular file structure.
+Encoding: UTF-8
+License: GPL (>= 2)
+Depends: R (>= 3.4),ISOcodes,magrittr, dplyr, tidyr
+<<<<<<< HEAD
+Suggests: 
+    readxl,
+    sf,
+    sp,
+    raster,
+    rgdal,
+    testthat,
+    knitr,
+    rmarkdown,
+    covr
+RoxygenNote: 7.1.1.9001
+Collate:
+=======
+Suggests: readxl, sf, sp, raster, rgdal, testthat, knitr, rmarkdown
+RoxygenNote: 7.1.2
+VignetteBuilder: knitr
+Collate: 
+>>>>>>> origin/dev_jk
+    'color_scale.R'
+    'config_helpers.R'
+    'covariate_helpers.R'
+    'file_name_functions.R'
+    'geo_lookup_helpers.R'
+    'indexing_helpers.R'
+    'linelist_helpers.R'
+    'load_orig_map.R'
+    'map_theme.R'
+    'mapping_progress_functions.R'
+    'setup_helpers.R'
+    'pull_data_helpers.R'
+    'model_evaluation_helpers.R'
+    'plot_map.R'
+    'run_stan_helpers.R'
+    'shapefile_manipulation.R'
+    'simulation_framework_helpers.R'
+    'stan_input_helpers.R'
+    'testing_database.R'
