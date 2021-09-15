@@ -200,12 +200,13 @@ if (warmup) {
     if (config$time_effect) {
       stan_data$mat_grid_time <- mat_grid_time %>% as.matrix()
       eta <- coef(gam_fit) %>% .[stringr::str_detect(names(.), "year")]
+
+      ## w is Perturbation of spatial random effects
+      ## eta_tilde is Perturbation of fitted etas
       init.list <- lapply(1:nchain, 
                           function(i) {
                             list(
-                              # Perturbation of spatial random effects
                               w = rnorm(length(w.init), w.init, .1),
-                              # Perturbation of fitted etas
                               eta_tilde = as.array(rnorm(length(eta), eta/stan_data$sigma_eta_scale, .05)),
                               sigma_eta_tilde = as.array(1)
                             )})
