@@ -33,7 +33,7 @@ if (length(unique(year_df$year)) == 1) {
 
 # Create dataframe for GAM model
 old_percent <- 0
-df <- purrr::map_dfr(seq_len(length(stan_data$y)), function(i) {
+df <- purrr::map_dfr(1:length(stan_data$y), function(i) {
     # Print progress
     new_percent <- floor(100 * i/stan_data$M)
     if (new_percent != old_percent) {
@@ -53,21 +53,16 @@ df <- purrr::map_dfr(seq_len(length(stan_data$y)), function(i) {
     obs_year <- stan_data$map_grid_time[ind]
     u_obs_years <- unique(obs_year)
     tfrac <- stan_data$tfrac[ind_obs]
-    # Expand observations to account for multiple tfracs JK : This seems wrong, but
-    # maybe it makes sense later JK : proportional allocation of y to one observation
-    # per year split based on tfrac
+    # Expand observations to account for multiple tfracs
     y_new <- purrr::map(seq_along(ind_obs), function(x) rep(stan_data$y[i] * tfrac[x]/sum(tfrac), 
         sum(obs_year == u_obs_years[x]))) %>%
         unlist()
 
-    # JK : This is creating the tfrac for each year.  JK : This definitely seems
-    # wrong, since each element of map_obs_loctime should be a unique grid time.  JK
-    # : Maybe wrong is the wrong word, it should work, but just be redundant.
     tfrac_vec <- purrr::map(seq_along(ind_obs), function(x) rep(tfrac[x], sum(obs_year == 
         u_obs_years[x]))) %>%
         unlist()
 
-    y <- y_new * pop/sum(pop)
+    y <- round(y_new * pop/sum(pop))
 
     sx <- coord_frame$x[ind]
     sy <- coord_frame$y[ind]
@@ -90,7 +85,6 @@ df <- purrr::map_dfr(seq_len(length(stan_data$y)), function(i) {
     dplyr::mutate(obs_year = factor(obs_year), log_ey = log(ey), log_tfrac = log(tfrac), 
         gam_offset = log_ey + log_tfrac, right_threshold = dplyr::case_when(censored == 
             "right-censored" ~ y, T ~ Inf))
-# right_threshold call above is to apply censoring
 
 # Use warmup?
 warmup <- stan_params$warmup
@@ -134,7 +128,7 @@ if (warmup) {
     }
 
     # Fit the GAM
-    gam_fit <- mgcv::gam(gam_frml, offset = gam_offset, family = "gaussian", data = df)
+    gam_fit <- mgcv::gam(gam_frml, offset = gam_offset, family = "poisson", data = df)
 
     # GAM estimates
     indall <- sf_grid$upd_id[sf_grid$t == 1]
@@ -172,8 +166,8 @@ if (warmup) {
         }
 
         if (config$smoothing_period != 1) {
+            # w is Perturbation of spatial random effects
             init.list <- lapply(1:nchain, function(i) {
-                # Perturbation of spatial random effects
                 list(w = rnorm(length(w.init) * config$smoothing_period, rep(w.init, 
                   config$smoothing_period), 0.1))
             })
@@ -184,8 +178,10 @@ if (warmup) {
                 as.matrix()
             eta <- coef(gam_fit) %>%
                 .[stringr::str_detect(names(.), "year")]
+
+            ## w is Perturbation of spatial random effects eta_tilde is Perturbation of fitted
+            ## etas
             init.list <- lapply(1:nchain, function(i) {
-                # Perturbation of spatial random effects, then fitted etas
                 list(w = rnorm(length(w.init), w.init, 0.1), eta_tilde = as.array(rnorm(length(eta), 
                   eta/stan_data$sigma_eta_scale, 0.05)), sigma_eta_tilde = as.array(1))
             })
@@ -198,16 +194,23 @@ if (warmup) {
     if (stan_data$ncovar >= 1 & covar_warmup) {
         betas <- coef(gam_fit) %>%
             .[stringr::str_detect(names(.), "beta")]
-        # Perturbation of fitted betas
-        init.list <- append(init.list, list(betas = rnorm(length(betas), betas, 0.1) %>%
-            array()))
+        for (i in 1:length(init.list)) {
+            ## Perturbation of fitted betas
+            init.list[[i]] <- append(init.list[[i]], list(betas = rnorm(length(betas), 
+                betas, 0.1) %>%
+                array()))
+        }
     }
 
 } else {
     # Set to random initial draws if no covar warmup
     init.list <- "random"
-}
 
+    if (config$time_effect) {
+        stan_data$mat_grid_time <- mat_grid_time %>%
+            as.matrix()
+    }
+}
 
 # Set censoring and time effect and autocorrelation
 stan_data$do_censoring <- ifelse(stan_params$censoring, 1, 0)
@@ -215,6 +218,15 @@ stan_data$do_time_slice_effect <- ifelse(stan_params$time_effect, 1, 0)
 stan_data$do_time_slice_effect_autocor <- ifelse(stan_params$time_effect_autocor, 
     1, 0)
 stan_data$use_weights <- ifelse(stan_params$use_weights, 1, 0)
+stan_data$use_rho_prior <- ifelse(stan_params$use_rho_prior, 1, 0)
+
+if (stan_params$use_rho_prior) {
+    if (init.list != "random") {
+        for (i in 1:length(init.list)) {
+            init.list[[i]] <- append(init.list[[i]], list(rho = runif(1, 0.6, 1)))
+        }
+    }
+}
 
 if (stan_params$time_effect) {
     # Extract number of observations per year

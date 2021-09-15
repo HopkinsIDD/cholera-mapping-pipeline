@@ -297,8 +297,8 @@ get_ncdf_metadata <- function(src_file) {
     # Extract time metadata
     r_nc <- ncdf4::nc_open(src_file)
     r_time_info <- try(ncdf4::ncatt_get(r_nc, "time"), silent = T)
-
     if (!inherits(r_time_info, "try-error")) {
+
         if (is.null(r_time_info$units)) {
             r_time_info$units <- "static"
         }
@@ -317,7 +317,6 @@ get_ncdf_metadata <- function(src_file) {
     if (is.null(var_att$long_name)) {
         var_att$long_name <- var_name
     }
-
     ncdf4::nc_close(r_nc)
 
     return(list(time_info = r_time_info, var_name = var_name, var_att = var_att, 
@@ -384,6 +383,7 @@ sum_nonNA <- function(conn, r_file, ref_grid_db, dbuser, dbname) {
     # temporary file to which to write the result
     tmp_file1 <- stringr::str_c(raster::tmpDir(), "resampled_zeros_1.tif")
     tmp_file <- stringr::str_c(raster::tmpDir(), "resampled_zeros.tif")
+
     src_file <- glue::glue("PG:\"dbname={dbname} schema=grids table=master_grid user={dbuser} mode=2\"")
 
     gdalwarp2(src_file, tmp_file1, srcnodata = "None", overwrite = T)
@@ -856,11 +856,9 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
     ref_grid_db <- glue::glue("PG:\"dbname={dbname} schema={ref_schema} table={ref_table} user={dbuser} mode=2\"")
 
     covar_table <- stringr::str_c(covar_schema, covar_alias, sep = ".")
-
     # Directory to which to write files
     proc_dir <- stringr::str_c(path_to_cholera_covariates, "/processed_covariates/", 
         covar_name, "/", aoi_name, "/")
-
     if (!dir.exists(proc_dir)) {
         cat("Couldn't find", proc_dir, ", creating it \n")
         # Create directory for processed data
@@ -1036,7 +1034,6 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
             space_aggregate(res_file_time, res_file = res_file_space, ref_grid_db = ref_grid_db, 
                 covar_type = covar_type, aggregator = space_aggregator, dbuser = dbuser, 
                 dbname = dbname)
-
             if (!is.null(transform)) {
                 cat("Transforming", f_name, "according to ||", deparse(transform), 
                   "|| \n")
