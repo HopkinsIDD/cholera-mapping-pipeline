@@ -28,7 +28,7 @@ run_test_case = function(
   if(type%in%"coarse_grid"){
     ncols=5
     nrows=5
-    pring("Only 5*5 gridcells are applied here.")
+    print("Only 5*5 gridcells are applied here.")
   }else{
     ncols=10
     nrows=10
