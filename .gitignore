@@ -4,3 +4,11 @@
 Analysis/R/.Rhistory
 Analysis/output/country_data_report.html
 .Rhistory
+*.html
+*.html
+*.html
+*.yml
+*.html
+Analysis/configs
+Layers
+Analysis/R/database_api_key.R
