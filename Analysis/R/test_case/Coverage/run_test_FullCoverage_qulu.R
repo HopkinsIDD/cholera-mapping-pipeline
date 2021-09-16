@@ -1,5 +1,6 @@
 ## Basic test setup starting from real data
 library(taxdat)
+library(sf)
 
 dbuser <- Sys.getenv("USER", "app")
 dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
@@ -27,6 +28,7 @@ test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_exte
 # splitting each polygon into 4 sub-polygons
 test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
                                                                 base_number = 1, n_layers = 2, factor = 10 * 10, snap = FALSE, randomize = FALSE))
+my_seed <- .GlobalEnv$.Random.seed
 
 all_dfs$shapes_df <- test_polygons %>%
   dplyr::mutate(qualified_name = location, start_date = min(all_dfs$shapes_df$start_date), 
@@ -48,7 +50,9 @@ test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_exte
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2, 
                                                    nonspatial = c(FALSE, FALSE), nontemporal = c(FALSE, FALSE), spatially_smooth = c(TRUE, 
                                                                                                                                      FALSE), temporally_smooth = c(FALSE, FALSE), polygonal = c(TRUE, TRUE), radiating = c(FALSE, 
-                                                                                                                                                                                                                           FALSE))
+                                                                                                                                                                                                                           FALSE),seed=my_seed)
+my_seed <- .GlobalEnv$.Random.seed
+
 min_time_left <- query_time_left
 max_time_right <- query_time_right
 covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates, 
@@ -58,14 +62,16 @@ covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate
 ## Change observations
 raster_df <- taxdat::convert_test_covariate_funs_to_simulation_covariates(covariate_raster_funs)
 
-test_underlying_distribution <- create_underlying_distribution(covariates = raster_df)
+test_underlying_distribution <- create_underlying_distribution(covariates = raster_df,seed=my_seed)
+my_seed <- .GlobalEnv$.Random.seed
 
 test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df, 
                                                                     location = qualified_name, geometry = geom), test_covariates = raster_df$covar, 
                                       underlying_distribution = test_underlying_distribution, noise = FALSE, number_draws = 1, 
                                       grid_proportion_observed = 1, polygon_proportion_observed = 1, min_time_left = query_time_left, 
                                       grid_temporal_observation_bias = FALSE, grid_value_observation_bias = FALSE,grid_spatial_observation_bias = FALSE,
-                                      max_time_right = query_time_right)
+                                      max_time_right = query_time_right,seed=my_seed)
+my_seed <- .GlobalEnv$.Random.seed
 
 all_dfs$observations_df <- test_observations %>%
   dplyr::mutate(observation_collection_id = draw, time_left = time_left, time_right = time_right, 
@@ -99,6 +105,3 @@ source(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "R", "execu
 rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", 
                                             "country_data_report.Rmd"), params = list(config_filename = config_filename, 
                                                                                       cholera_directory = "~/cmp/", drop_nodata_years = TRUE))
-
-# Note 2021-08-01
-# grid report proportion is 1 and polygon report proportion is also 1. no bias in grid/polygon observations.
