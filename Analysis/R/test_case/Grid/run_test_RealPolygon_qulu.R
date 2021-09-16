@@ -34,11 +34,11 @@ sf::st_crs(all_dfs$shapes_df[,colnames(all_dfs$shapes_df)=="geom"])="+proj=longl
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 1, test_extent)
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2, 
                                                    nonspatial = c(FALSE, FALSE), nontemporal = c(FALSE, FALSE), spatially_smooth = c(TRUE, 
                                                                                                                                      FALSE), temporally_smooth = c(FALSE, FALSE), polygonal = c(TRUE, TRUE), radiating = c(FALSE, 
-                                                                                                                                                                                                                           FALSE))
+                                                                                                                                                                                                                           FALSE), seed = my_seed)
 min_time_left <- query_time_left
 max_time_right <- query_time_right
 covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates, 
@@ -89,5 +89,3 @@ source(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "R", "execu
 rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", 
                                             "country_data_report.Rmd"), params = list(config_filename = config_filename, 
                                                                                       cholera_directory = "~/cmp/", drop_nodata_years = TRUE))
-##  Note for kenya example: 2021-08-12
-## real geometry wasn't loaded here
