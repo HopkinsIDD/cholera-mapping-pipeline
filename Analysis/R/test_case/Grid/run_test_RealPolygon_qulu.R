@@ -39,6 +39,7 @@ test_covariates <- create_multiple_test_covariates(test_raster = test_raster, nc
                                                    nonspatial = c(FALSE, FALSE), nontemporal = c(FALSE, FALSE), spatially_smooth = c(TRUE, 
                                                                                                                                      FALSE), temporally_smooth = c(FALSE, FALSE), polygonal = c(TRUE, TRUE), radiating = c(FALSE, 
                                                                                                                                                                                                                            FALSE), seed = my_seed)
+my_seed <- .GlobalEnv$.Random.seed
 min_time_left <- query_time_left
 max_time_right <- query_time_right
 covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates, 
