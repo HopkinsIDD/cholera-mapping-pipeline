@@ -27,7 +27,7 @@ test_raster <- create_test_raster(nrows = 5, ncols = 5, nlayers = 2, test_extent
 # Create 3 layers of testing polygons starting with a single country, and
 # splitting each polygon into 4 sub-polygons
 test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
-                                                                base_number = 1, n_layers = 2, factor = 5*5, snap = FALSE, randomize = FALSE))
+                                                                base_number = 1, n_layers = 2, factor = 5*5, snap = FALSE, randomize = TRUE))
 my_seed <- .GlobalEnv$.Random.seed
 
 all_dfs$shapes_df <- test_polygons %>%
