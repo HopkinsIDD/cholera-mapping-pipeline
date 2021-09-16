@@ -34,7 +34,6 @@ sf::st_crs(all_dfs$shapes_df[,colnames(all_dfs$shapes_df)=="geom"])="+proj=longl
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
 my_seed <- .GlobalEnv$.Random.seed
-
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
 test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 1, test_extent)
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2, 
@@ -51,13 +50,15 @@ covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate
 ## Change observations
 raster_df <- taxdat::convert_test_covariate_funs_to_simulation_covariates(covariate_raster_funs)
 
-test_underlying_distribution <- create_underlying_distribution(covariates = raster_df)
+test_underlying_distribution <- create_underlying_distribution(covariates = raster_df,seed=my_seed)
+my_seed <- .GlobalEnv$.Random.seed
 
 test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df, 
                                                                     location = qualified_name, geometry = geom), test_covariates = raster_df$covar, 
                                       underlying_distribution = test_underlying_distribution, noise = FALSE, number_draws = 1, 
                                       grid_proportion_observed = 1, polygon_proportion_observed = 1, min_time_left = query_time_left, 
-                                      max_time_right = query_time_right)
+                                      max_time_right = query_time_right,seed=my_seed)
+my_seed <- .GlobalEnv$.Random.seed
 
 all_dfs$observations_df <- test_observations %>%
   dplyr::mutate(observation_collection_id = draw, time_left = time_left, time_right = time_right, 
