@@ -33,13 +33,15 @@ sf::st_crs(all_dfs$shapes_df[,colnames(all_dfs$shapes_df)=="geom"])="+proj=longl
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
+my_seed <- .GlobalEnv$.Random.seed
+
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
 test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 1, test_extent)
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2, 
                                                    nonspatial = c(FALSE, FALSE), nontemporal = c(FALSE, FALSE), spatially_smooth = c(TRUE, 
                                                                                                                                      FALSE), temporally_smooth = c(FALSE, FALSE), polygonal = c(TRUE, TRUE), radiating = c(FALSE, 
                                                                                                                                                                                                                            FALSE), seed = my_seed)
-my_seed <- .GlobalEnv$.Random.seed
+#my_seed <- .GlobalEnv$.Random.seed
 min_time_left <- query_time_left
 max_time_right <- query_time_right
 covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates, 
