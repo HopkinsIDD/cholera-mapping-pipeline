@@ -28,7 +28,7 @@ run_test_case = function(
   if(type%in%"coarse_grid"){
     ncols=5
     nrows=5
-    print("Only 5*5 gridcells are applied here.")
+    print("Here, we're testing the scenario with coarse grids. Only 5*5 gridcells are applied here.")
   }else{
     ncols=10
     nrows=10
@@ -36,14 +36,14 @@ run_test_case = function(
   
   if(type%in%"overlapping_grid_like"){
     randomize=FALSE
-    print("Generating polygons uniformly for multiple layers.")
+    print("Here, we're testing hte scenario with overlapping grid. Generating polygons uniformly for multiple layers.")
   }else{
     randomize=TRUE
   }
   
   if(type%in%"partial_grid_coverage"){
     grid_proportion_observed=0.4
-    print("only 40% of the gridcells are observed.")
+    print("Here, we're testing the scenario with only a proportion of grids are observed. Only 40% of the gridcells are observed.")
   }else if(type%in%"full_grid_coverage"){
     grid_proportion_observed=1
   }else{
@@ -52,7 +52,7 @@ run_test_case = function(
   
   if(type%in%"partial_polygon_coverage"){
     polygon_proportion_observed=0.4
-    print("only 40% of the ploygons are observed for each draw.")
+    print("Here, we're testing the scenario with only a proportion of polygons are observed. Only 40% of the ploygons are observed for each draw.")
   }else if(type%in%"full_polygon_coverage"){
     polygon_proportion_observed=1
   }else{
@@ -62,11 +62,11 @@ run_test_case = function(
   ## ------------------------------------------------------------------------------------------------------------------------
   ## load test dataset
 
-  dbuser <- Sys.getenv("USER", "app")
-  dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
+  #dbuser <- Sys.getenv("USER", "app")
+  #dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
   
-  conn_pg <- taxdat::connect_to_db(dbuser, dbname)
-  DBI::dbClearResult(DBI::dbSendQuery(conn = conn_pg, "SET client_min_messages TO WARNING;"))
+  #conn_pg <- taxdat::connect_to_db(dbuser, dbname)
+  #DBI::dbClearResult(DBI::dbSendQuery(conn = conn_pg, "SET client_min_messages TO WARNING;"))
   
   query_time_left <- lubridate::ymd("2000-01-01")
   query_time_right <- lubridate::ymd("2000-12-31")
@@ -90,7 +90,7 @@ run_test_case = function(
                  location_period_df=all_dfs$location_period_df[1:selected_OC,],
                  shapes_df=all_dfs$shapes_df[1:selected_OC,],
                  observations_df=all_dfs$observations_df[1:selected_OC,])
-    print(paste("Test dataset only include OC",selected_OC))
+    print(paste("Here, we're testing the scenario with only one observation collection file. Test dataset only include OC",selected_OC))
   }else if(type%in%"positive_observation"){
     #select nonZero observations
     nonZero_rowname=rownames(all_dfs$observations_df[which(all_dfs$observations_df$attributes.fields.suspected_cases>0&is.na(all_dfs$observations_df$attributes.fields.suspected_cases)==F&is.na(all_dfs$observations_df$attributes.location_period_id)==F),])
@@ -98,7 +98,7 @@ run_test_case = function(
                  location_period_df=all_dfs$location_period_df[nonZero_rowname,],
                  shapes_df=all_dfs$shapes_df[nonZero_rowname,],
                  observations_df=all_dfs$observations_df[nonZero_rowname,])
-    print("Test dataset only include positive observations.")
+    print("Here, we're testing the scenario with only positive. Test dataset only include positive observations.")
   }
 
   ## ------------------------------------------------------------------------------------------------------------------------
@@ -206,3 +206,4 @@ run_test_case = function(
                                               "country_data_report.Rmd"), params = list(config_filename = config_filename, 
                                                                                         cholera_directory = "~/cmp/", drop_nodata_years = TRUE))
 }
+run_test_case(type="coase_grid")
