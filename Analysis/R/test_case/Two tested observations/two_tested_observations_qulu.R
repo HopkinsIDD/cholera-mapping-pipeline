@@ -109,7 +109,7 @@ my_seed <- .GlobalEnv$.Random.seed
 raster_df3 <- taxdat::convert_test_covariate_funs_to_simulation_covariates(covariate_raster_funs3)
 test_underlying_distribution3 <- create_underlying_distribution(covariates = raster_df3)
 test_observations3 <- observe_polygons(test_polygons = test_polygons, test_covariates = raster_df3$covar, 
-                                       underlying_distribution = test_underlying_distribution2, noise = FALSE, number_draws = 10, 
+                                       underlying_distribution = test_underlying_distribution3, noise = FALSE, number_draws = 10, 
                                        grid_proportion_observed = 1, polygon_proportion_observed = 1, min_time_left = query_time_left, 
                                        max_time_right = query_time_right,seed=my_seed)
 my_seed <- .GlobalEnv$.Random.seed
