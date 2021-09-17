@@ -28,6 +28,7 @@ test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_exte
 # splitting each polygon into 4 sub-polygons
 test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
                                                                 base_number = 1, n_layers = 2, factor = 10 * 10, snap = FALSE, randomize = FALSE))
+my_seed <- .GlobalEnv$.Random.seed
 
 all_dfs$shapes_df <- test_polygons %>%
   dplyr::mutate(qualified_name = location, start_date = min(all_dfs$shapes_df$start_date), 
@@ -55,7 +56,9 @@ test_covariates1 <- create_multiple_test_covariates(test_raster = test_raster, n
                                                    spatially_smooth = c(TRUE,FALSE), 
                                                    temporally_smooth = c(FALSE, FALSE), 
                                                    polygonal = c(TRUE, TRUE), 
-                                                   radiating = c(FALSE,FALSE))
+                                                   radiating = c(FALSE,FALSE),
+                                                   seed=my_seed)
+my_seed <- .GlobalEnv$.Random.seed
 covariate_raster_funs1 <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates1,min_time_left, max_time_right)
 
 test_covariates2 <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2, 
@@ -64,8 +67,21 @@ test_covariates2 <- create_multiple_test_covariates(test_raster = test_raster, n
                                                     spatially_smooth = c(FALSE,TRUE), 
                                                     temporally_smooth = c(TRUE, TRUE), 
                                                     polygonal = c(FALSE, FALSE), 
-                                                    radiating = c(FALSE,FALSE))
+                                                    radiating = c(TRUE,TRUE),
+                                                    seed=my_seed)
 covariate_raster_funs2 <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates2,min_time_left, max_time_right)
+my_seed <- .GlobalEnv$.Random.seed
+
+test_covariates3 <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2, 
+                                                    nonspatial = c(TRUE, TRUE), 
+                                                    nontemporal = c(TRUE,TRUE), 
+                                                    spatially_smooth = c(FALSE,TRUE), 
+                                                    temporally_smooth = c(TRUE, TRUE), 
+                                                    polygonal = c(TRUE, TRUE), 
+                                                    radiating = c(TRUE,TRUE),
+                                                    seed=my_seed)
+covariate_raster_funs3 <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates3,min_time_left, max_time_right)
+my_seed <- .GlobalEnv$.Random.seed
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change observations
@@ -75,18 +91,30 @@ raster_df1 <- taxdat::convert_test_covariate_funs_to_simulation_covariates(covar
 sf::st_crs(test_polygons)<-sf::st_crs(raster_df1[[1]])
 test_underlying_distribution1 <- create_underlying_distribution(covariates = raster_df1)
 test_observations1 <- observe_polygons(test_polygons = test_polygons, test_covariates = raster_df1$covar, 
-                                      underlying_distribution = test_underlying_distribution1, noise = FALSE, number_draws = 100, 
+                                      underlying_distribution = test_underlying_distribution1, noise = FALSE, number_draws = 10, 
                                       grid_proportion_observed = 1, polygon_proportion_observed = 1, min_time_left = query_time_left, 
-                                      max_time_right = query_time_right)
+                                      max_time_right = query_time_right,seed=my_seed)
+my_seed <- .GlobalEnv$.Random.seed
+
 #second test observation
 raster_df2 <- taxdat::convert_test_covariate_funs_to_simulation_covariates(covariate_raster_funs2)
 test_underlying_distribution2 <- create_underlying_distribution(covariates = raster_df2)
 test_observations2 <- observe_polygons(test_polygons = test_polygons, test_covariates = raster_df2$covar, 
-                                       underlying_distribution = test_underlying_distribution2, noise = FALSE, number_draws = 100, 
+                                       underlying_distribution = test_underlying_distribution2, noise = FALSE, number_draws = 10, 
                                        grid_proportion_observed = 1, polygon_proportion_observed = 1, min_time_left = query_time_left, 
-                                       max_time_right = query_time_right)
+                                       max_time_right = query_time_right,seed=my_seed)
+my_seed <- .GlobalEnv$.Random.seed
 
-test_observations=dplyr::bind_rows(test_observations1,test_observations2)
+#second test observation
+raster_df3 <- taxdat::convert_test_covariate_funs_to_simulation_covariates(covariate_raster_funs3)
+test_underlying_distribution3 <- create_underlying_distribution(covariates = raster_df3)
+test_observations3 <- observe_polygons(test_polygons = test_polygons, test_covariates = raster_df3$covar, 
+                                       underlying_distribution = test_underlying_distribution2, noise = FALSE, number_draws = 10, 
+                                       grid_proportion_observed = 1, polygon_proportion_observed = 1, min_time_left = query_time_left, 
+                                       max_time_right = query_time_right,seed=my_seed)
+my_seed <- .GlobalEnv$.Random.seed
+
+test_observations=dplyr::bind_rows(test_observations1,test_observations2,test_observations3)
 
 all_dfs$observations_df <- test_observations %>%
   dplyr::mutate(observation_collection_id = draw, time_left = time_left, time_right = time_right, 
