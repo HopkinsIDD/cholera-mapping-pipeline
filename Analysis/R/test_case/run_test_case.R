@@ -63,11 +63,11 @@ run_test_case = function(
   ## ------------------------------------------------------------------------------------------------------------------------
   ## load test dataset
 
-  #dbuser <- Sys.getenv("USER", "app")
-  #dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
+  dbuser <- Sys.getenv("USER", "app")
+  dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
   
-  #conn_pg <- taxdat::connect_to_db(dbuser, dbname)
-  #DBI::dbClearResult(DBI::dbSendQuery(conn = conn_pg, "SET client_min_messages TO WARNING;"))
+  conn_pg <- taxdat::connect_to_db(dbuser, dbname)
+  DBI::dbClearResult(DBI::dbSendQuery(conn = conn_pg, "SET client_min_messages TO WARNING;"))
   
   query_time_left <- lubridate::ymd("2000-01-01")
   query_time_right <- lubridate::ymd("2000-12-31")
