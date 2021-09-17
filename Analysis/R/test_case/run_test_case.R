@@ -18,6 +18,7 @@ run_test_case = function(
   ){
   library(sf)
   library(tidyverse)
+  library(taxdat)
 
   ## ------------------------------------------------------------------------------------------------------------------------
   ## based on the type of test case, update the arguments of functions
