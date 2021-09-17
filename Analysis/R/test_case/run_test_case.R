@@ -207,4 +207,4 @@ run_test_case = function(
                                               "country_data_report.Rmd"), params = list(config_filename = config_filename, 
                                                                                         cholera_directory = "~/cmp/", drop_nodata_years = TRUE))
 }
-run_test_case(type="coase_grid")
+run_test_case(type="coarse_grid")
