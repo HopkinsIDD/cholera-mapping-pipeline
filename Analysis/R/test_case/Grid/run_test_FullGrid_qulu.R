@@ -20,13 +20,36 @@ query_time_right <- lubridate::ymd("2000-12-31")
 load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_object.rdata"))
 
 ## ------------------------------------------------------------------------------------------------------------------------
-## Change shapefiles
-sf::st_geometry(all_dfs$shapes_df) <- sf::st_make_valid(sf::st_geometry(all_dfs$shapes_df))
+## Change polygons
+test_extent <- sf::st_bbox(all_dfs$shapes_df)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 1, test_extent)
+# Create 3 layers of testing polygons starting with a single country, and
+# splitting each polygon into 4 sub-polygons
+test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
+                                                                base_number = 1, 
+                                                                n_layers = 2, 
+                                                                factor = 10*10, 
+                                                                snap = FALSE, randomize = TRUE))
+
+my_seed <- .GlobalEnv$.Random.seed
+
+all_dfs$shapes_df <- test_polygons %>%
+  dplyr::mutate(qualified_name = location, start_date = min(all_dfs$shapes_df$start_date), 
+                end_date = max(all_dfs$shapes_df$end_date))
+names(all_dfs$shapes_df)[names(all_dfs$shapes_df) == "geometry"] <- "geom"
+sf::st_geometry(all_dfs$shapes_df) <- "geom"
+
+all_dfs$location_period_df <- all_dfs$shapes_df %>%
+  sf::st_drop_geometry()
+all_dfs$location_df <- all_dfs$shapes_df %>%
+  sf::st_drop_geometry() %>%
+  dplyr::group_by(qualified_name) %>%
+  dplyr::summarize()
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 1, test_extent)
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2, 
                                                    nonspatial = c(FALSE, FALSE), nontemporal = c(FALSE, FALSE), spatially_smooth = c(TRUE, 
                                                                                                                                      FALSE), temporally_smooth = c(FALSE, FALSE), polygonal = c(TRUE, TRUE), radiating = c(FALSE, 
@@ -46,15 +69,16 @@ test_polygons <- dplyr::mutate(all_dfs$shapes_df, location = qualified_name, geo
 sf::st_crs(test_polygons)<-sf::st_crs(raster_df[[1]])
 sf::st_geometry(test_polygons) <- sf::st_make_valid(sf::st_geometry(test_polygons))
 test_observations <- observe_polygons(test_polygons = test_polygons, test_covariates = raster_df$covar, 
-                                      underlying_distribution = test_underlying_distribution, noise = FALSE, number_draws = 1, 
-                                      grid_proportion_observed = 1, polygon_proportion_observed = 1, min_time_left = query_time_left, 
+                                      underlying_distribution = test_underlying_distribution, noise = FALSE, 
+                                      number_draws = 1, 
+                                      grid_proportion_observed = 1, 
+                                      min_time_left = query_time_left, 
                                       max_time_right = query_time_right)
 
 all_dfs$observations_df <- test_observations %>%
   dplyr::mutate(observation_collection_id = draw, time_left = time_left, time_right = time_right, 
                 qualified_name = location, primary = TRUE, phantom = FALSE, suspected_cases = cases, 
                 deaths = NA, confirmed_cases = NA)
-
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
@@ -68,7 +92,7 @@ config_filename <- "/home/app/cmp/Analysis/R/test_config.yml"
 ## Put your config stuff in here
 config <- list(general = list(location_name = all_dfs$location_df$qualified_name[[1]], 
                               start_date = as.character(min_time_left), end_date = as.character(max_time_right), 
-                              width_in_km = 1, height_in_km = 1, time_scale = "month"), stan = list(directory = rprojroot::find_root_file(criterion = ".choldir", 
+                              width_in_km = 1, height_in_km = 1, time_scale = "year"), stan = list(directory = rprojroot::find_root_file(criterion = ".choldir", 
                                                                                                                                           "Analysis", "Stan"), ncores = 1, model = "dagar_seasonal.stan", niter = 1000, 
                                                                                                     recompile = TRUE), name = "test_???", taxonomy = "taxonomy-working/working-entry1", 
                smoothing_period = 1, case_definition = "suspected", covariate_choices = raster_df$name, 
@@ -85,4 +109,5 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                                                                       cholera_directory = "~/cmp/", drop_nodata_years = TRUE))
 
 
-## Actually do something with the groundtruth and output
+#Note
+#grid_proportion_observed=1
