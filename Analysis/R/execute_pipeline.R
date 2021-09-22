@@ -27,6 +27,7 @@ if (Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE)) {
 
     for (package in package_list) {
         if (!require(package = package, character.only = T)) {
+            chooseCRANMirror(ind = 1)
             install.packages(pkgs = package)
             library(package = package, character.only = T)
         }
@@ -173,6 +174,14 @@ opt <- optparse::parse_args((optparse::OptionParser(option_list = option_list)))
 
 ### Config Options
 config <- yaml::read_yaml(opt$config)
+config <- taxdat::complete_config(config)
+if (!taxdat::check_config(config)) {
+    warning("Could not validate the config")
+}
+
+
+##### Config Defaults
+
 
 ### Setup postgres
 conn_pg <- taxdat::connect_to_db(dbname = opt$postgres_database_name, dbuser = opt$postgres_database_user)
@@ -324,8 +333,6 @@ library(rstan)
 
 ## INITIAL VALUES
 
-browser()
-
 if (config$initial_values$warmup) {
     covariate_names <- colnames(covar_cube[, -c(1:5, ncol(covar_cube))])
     initial_values_df <- observation_data %>%
@@ -345,85 +352,27 @@ if (config$initial_values$warmup) {
 
     gam_fit <- mgcv::gam(gam_formula, family = "gaussian", data = initial_values_df)
     gam_predict <- mgcv::predict.gam(gam_fit, covar_cube)
+    covariate_effect <- as.vector(as.matrix(covar_cube[covariate_names]) %*% coef(gam_fit)[covariate_names])
 
     initial_betas <- coef(gam_fit)[covariate_names]
     initial_eta <- coef(gam_fit)["obs_year"]
-}
 
+    initial_values_list <- lapply(seq_len(config[["stan"]][["nchain"]]), function(chain) {
+        return(list(betas = rnorm(length(coef(gam_fit)[covariate_names]), coef(gam_fit)[covariate_names]), 
+            eta = rnorm(length(coef(gam_fit)["obs_year"]), coef(gam_fit)["obs_year"]), 
+            w = rnorm(nrow(covar_cube), gam_predict - covariate_effect)))
+    })
 
-coord_frame <- covar_cube %>%
-    dplyr::group_by(id, updated_id) %>%
-    dplyr::summarise(x = mean(x), y = mean(y))
-
-year_df <- tibble::tibble(year = as.factor(covar_cube$t))
-
-## one random effect per year
-if (length(unique(year_df$year)) == 1) {
-    mat_grid_time <- matrix(1, nrow(year_df))
+    covar_cube[["covariate_contribution"]] <- covariate_effect
+    covar_cube[["spatial_smoothing_term"]] <- gam_predict - covariate_effect
+    covar_cube[["gam_output"]] <- gam_predict
 } else {
-    mat_grid_time <- model.matrix(as.formula("~ year - 1"), data = year_df)
+    initial_values_list <- "random"
+    initial_values_df <- "no warmup performed"
+    covar_cube[["covariate_contribution"]] <- NA
+    covar_cube[["spatial_smoothing_term"]] <- NA
+    covar_cube[["gam_output"]] <- NA
 }
-
-old_percent <- 0
-df <- purrr::map_dfr(seq_len(length(as.array(observation_data[[cases_column]]))), 
-    function(i) {
-        # Print progress
-        new_percent <- floor(100 * i/nrow(observation_data))
-        if (new_percent != old_percent) {
-            print(paste(i, "/", nrow(observation_data)))
-            old_percent <<- new_percent
-        }
-        # Get the location period covered by observation JK : Check int-ness
-        ind_obs <- which(observation_location_period_mapping$updated_observation_id == 
-            i)
-        ind_lp <- observation_location_period_mapping$updated_location_period_id[ind_obs]
-        ind <- location_period_grid_mapping$updated_location_period_id[which(location_period_grid_mapping$updated_spatial_grid_id %in% 
-            ind_lp)]
-        # Setup the data
-        pop <- covar_cube$population[ind]
-        # Cases are assumed to be proportional to population in the covered grid cells y
-        # <- round(rep(stan_data$y[stan_data$ind_full[i]], length(ind))*pop/sum(pop))
-        obs_year <- stan_data$map_grid_time[ind]
-        u_obs_years <- unique(obs_year)
-        tfrac <- stan_data$tfrac[ind_obs]
-        # Expand observations to account for multiple tfracs JK : This seems wrong, but
-        # maybe it makes sense later JK : proportional allocation of y to one observation
-        # per year split based on tfrac
-        y_new <- purrr::map(seq_along(ind_obs), function(x) rep(stan_data$y[i] * 
-            tfrac[x]/sum(tfrac), sum(obs_year == u_obs_years[x]))) %>%
-            unlist()
-
-        # JK : This is creating the tfrac for each year.  JK : This definitely seems
-        # wrong, since each element of map_obs_loctime should be a unique grid time.  JK
-        # : Maybe wrong is the wrong word, it should work, but just be redundant.
-        tfrac_vec <- purrr::map(seq_along(ind_obs), function(x) rep(tfrac[x], sum(obs_year == 
-            u_obs_years[x]))) %>%
-            unlist()
-
-        y <- y_new * pop/sum(pop)
-
-        sx <- coord_frame$x[ind]
-        sy <- coord_frame$y[ind]
-
-        beta_mat <- stan_data$covar[ind, ] %>%
-            matrix(ncol = stan_data$ncovar) %>%
-            magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar))
-
-        year_mat <- mat_grid_time[ind, ] %>%
-            matrix(ncol = ncol(mat_grid_time)) %>%
-            magrittr::set_colnames(paste0("year_", 1:ncol(mat_grid_time)))
-
-        return(tibble::tibble(obs = i, raw_y = stan_data$y[i], y = y, sx = sx, sy = sy, 
-            ind = ind, pop = pop, obs_year = obs_year, meanrate = stan_data$meanrate, 
-            ey = pop * stan_data$meanrate, tfrac = tfrac_vec, censored = stan_data$censoring_inds[i]) %>%
-            cbind(beta_mat) %>%
-            cbind(year_mat))
-    }) %>%
-    tibble::as_tibble() %>%
-    dplyr::mutate(obs_year = factor(obs_year), log_ey = log(ey), log_tfrac = log(tfrac), 
-        gam_offset = log_ey + log_tfrac, right_threshold = dplyr::case_when(censored == 
-            "right-censored" ~ y, T ~ Inf))
-
 
 ## END INITIAL VALUES
 
@@ -436,9 +385,6 @@ stan_dir <- config[["stan"]][["directory"]]
 stan_model_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, config[["stan"]][["model"]], 
     sep = "/"), stan_dir = stan_dir)
 
-if (is.null(config[["stan"]][["nchain"]])) {
-    config[["stan"]][["nchain"]] <- pmax(config[["stan"]][["ncores"]], 2)
-}
 options(mc.cores = config[["stan"]][["ncores"]])
 
 stan_data <- list(N = nrow(covar_cube), N_edges = nrow(grid_adjacency), smooth_grid_N = length(unique(covar_cube$updated_id)), 
@@ -452,12 +398,12 @@ stan_data <- list(N = nrow(covar_cube), N_edges = nrow(grid_adjacency), smooth_g
     map_loc_grid_loc = as.array(cast_to_int32(location_period_grid_mapping$updated_location_period_id)), 
     map_loc_grid_grid = as.array(cast_to_int32(location_period_grid_mapping$updated_spatial_grid_id)), 
     map_smooth_grid = covar_cube$updated_id, rho = 0.999, covar = as.matrix(covar_cube[, 
-        -c(1:5, ncol(covar_cube))]), ncovar = ncol(covar_cube[, -c(1:5, ncol(covar_cube))]))
+        covariate_names]), ncovar = length(covariate_names))
 
 start_time <- Sys.time()
 model.rand <- rstan::stan(file = stan_model_path, data = stan_data, chains = config[["stan"]][["nchain"]], 
     iter = config[["stan"]][["niter"]], pars = c("b", "t_rowsum", "vec_var"), include = FALSE, 
-    control = list(max_treedepth = 15), refresh = 0)
+    control = list(max_treedepth = 15), refresh = 0, init = initial_values_list)
 end_time <- Sys.time()
 
 elapsed_time <- end_time - start_time
@@ -467,5 +413,6 @@ save(model.rand, elapsed_time, file = config[["file_names"]][["stan_output"]])
 
 stan_input <- list(stan_data = stan_data, covar_cube = covar_cube, observation_data = observation_data, 
     grid_adjacency = grid_adjacency, observation_location_period_mapping = observation_location_period_mapping, 
-    location_period_grid_mapping = location_period_grid_mapping)
+    location_period_grid_mapping = location_period_grid_mapping, initial_values_list = initial_values_list, 
+    initial_values_df = initial_values_df)
 save(stan_input, file = config[["file_names"]][["stan_input"]])

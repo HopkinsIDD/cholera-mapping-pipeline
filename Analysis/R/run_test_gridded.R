@@ -96,7 +96,8 @@ my_seed <- c(10403, 624, 105045778, 1207077739, 2042172336, -219892751, -7680601
     671520922, -73267885, -1068074376, -470799847, -477234426, 1769427407, -712833596, 
     -1493528075, 33903154, 899767307, 2146321360, -821174895, 1609288222, -1825415161, 
     -834781028, -1849841427, -10400054, -1061791293, -296237016, 429740041, -804090826, 
-    472843583, -97884556, -509874459)
+    472843583, -97884556, -509874459) %>%
+    as.integer()
 
 
 query_time_left <- lubridate::ymd("2000-01-01")
@@ -115,7 +116,7 @@ load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_obje
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change polygons
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 1, test_extent)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 1, test_extent = test_extent)
 # Create 3 layers of testing polygons starting with a single country, and
 # splitting each polygon into 4 sub-polygons
 test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
@@ -140,7 +141,7 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 1, test_extent)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 1, test_extent = test_extent)
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2, 
     nonspatial = c(FALSE, FALSE), nontemporal = c(FALSE, FALSE), spatially_smooth = c(TRUE, 
         FALSE), temporally_smooth = c(FALSE, FALSE), polygonal = c(TRUE, TRUE), radiating = c(FALSE, 
@@ -160,10 +161,9 @@ test_underlying_distribution <- create_underlying_distribution(covariates = rast
 my_seed <- .GlobalEnv$.Random.seed
 
 test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df, 
-    location = qualified_name, geometry = geom), test_covariates = raster_df$covar, 
-    underlying_distribution = test_underlying_distribution, noise = FALSE, number_draws = 1, 
-    grid_proportion_observed = 1, polygon_proportion_observed = 1, min_time_left = query_time_left, 
-    max_time_right = query_time_right, seed = my_seed)
+    location = qualified_name, geometry = geom), test_covariates = raster_df, underlying_distribution = test_underlying_distribution, 
+    noise = FALSE, number_draws = 1, grid_proportion_observed = 1, polygon_proportion_observed = 1, 
+    min_time_left = query_time_left, max_time_right = query_time_right, seed = my_seed)
 my_seed <- .GlobalEnv$.Random.seed
 
 all_dfs$observations_df <- test_observations %>%
