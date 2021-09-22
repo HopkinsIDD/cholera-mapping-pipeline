@@ -23,11 +23,15 @@ load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_obje
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change polygons
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 5, ncols = 5, nlayers = 2, test_extent)
+test_raster <- create_test_raster(nrows = 5, ncols = 5, nlayers = 1, test_extent)
 # Create 3 layers of testing polygons starting with a single country, and
 # splitting each polygon into 4 sub-polygons
 test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
-                                                                base_number = 1, n_layers = 2, factor = 5*5, snap = FALSE, randomize = TRUE))
+                                                                base_number = 1, 
+                                                                n_layers = 2, 
+                                                                factor = 5*5, 
+                                                                snap = FALSE, randomize = TRUE))
+
 my_seed <- .GlobalEnv$.Random.seed
 
 all_dfs$shapes_df <- test_polygons %>%
@@ -46,18 +50,22 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 5, ncols = 5, nlayers = 2, test_extent)
+test_raster <- create_test_raster(nrows = 5, ncols = 5, nlayers = 1, test_extent)
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2, 
-                                                   nonspatial = c(FALSE, FALSE), nontemporal = c(FALSE, FALSE), spatially_smooth = c(TRUE, 
-                                                                                                                                     FALSE), temporally_smooth = c(FALSE, FALSE), polygonal = c(TRUE, TRUE), radiating = c(FALSE, 
-                                                                                                                                                                                                                           FALSE),seed=my_seed)
+                                                   nonspatial = c(FALSE, FALSE), 
+                                                   nontemporal = c(FALSE, FALSE), 
+                                                   spatially_smooth = c(TRUE,FALSE), 
+                                                   temporally_smooth = c(FALSE, FALSE), 
+                                                   polygonal = c(TRUE, TRUE), 
+                                                   radiating = c(FALSE, FALSE),
+                                                   seed = my_seed)
 my_seed <- .GlobalEnv$.Random.seed
 
 min_time_left <- query_time_left
 max_time_right <- query_time_right
 covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates, 
-                                                                                      min_time_left, max_time_right)
-
+                                                                                      min_time_left, 
+                                                                                      max_time_right)
 #
 # ## ------------------------------------------------------------------------------------------------------------------------
 # ## Change observations
@@ -69,15 +77,24 @@ test_underlying_distribution <- create_underlying_distribution(covariates = rast
 my_seed <- .GlobalEnv$.Random.seed
 
 test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df, 
-                                                                    location = qualified_name, geometry = geom), test_covariates = raster_df$covar, 
-                                      underlying_distribution = test_underlying_distribution, noise = FALSE, number_draws = 1, 
+                                                                    location = qualified_name, 
+                                                                    geometry = geom), 
+                                      test_covariates = raster_df$covar, 
+                                      underlying_distribution = test_underlying_distribution, 
+                                      noise = FALSE, number_draws = 1, 
                                       min_time_left = query_time_left, 
                                       max_time_right = query_time_right)
+
 my_seed <- .GlobalEnv$.Random.seed
 
 all_dfs$observations_df <- test_observations %>%
-  dplyr::mutate(observation_collection_id = draw, time_left = time_left, time_right = time_right, 
-                qualified_name = location, primary = TRUE, phantom = FALSE, suspected_cases = cases, 
+  dplyr::mutate(observation_collection_id = draw, 
+                time_left = time_left, 
+                time_right = time_right, 
+                qualified_name = location, 
+                primary = TRUE, 
+                phantom = FALSE, 
+                suspected_cases = cases, 
                 deaths = NA, confirmed_cases = NA)
 
 ## ------------------------------------------------------------------------------------------------------------------------
@@ -87,12 +104,12 @@ taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raste
 
 ## NOTE: Change me if you want to run the report locally config_filename <-
 ## paste(tempfile(), 'yml', sep = '.')
-config_filename <- "/home/app/cmp/Analysis/R/test_config_CoarseGrid.yml"
+config_filename <- "/home/app/cmp/Analysis/R/test_config.yml"
 
 ## Put your config stuff in here
 config <- list(general = list(location_name = all_dfs$location_df$qualified_name[[1]], 
                               start_date = as.character(min_time_left), end_date = as.character(max_time_right), 
-                              width_in_km = 1, height_in_km = 1, time_scale = "year"), stan = list(directory = rprojroot::find_root_file(criterion = ".choldir", 
+                              width_in_km = 1, height_in_km = 1, time_scale = "month"), stan = list(directory = rprojroot::find_root_file(criterion = ".choldir", 
                                                                                                                                           "Analysis", "Stan"), ncores = 1, model = "dagar_seasonal.stan", niter = 1000, 
                                                                                                     recompile = TRUE), name = "test_???", taxonomy = "taxonomy-working/working-entry1", 
                smoothing_period = 1, case_definition = "suspected", covariate_choices = raster_df$name, 
