@@ -40,6 +40,8 @@ create_test_raster <- function(nrows = 8, ncols = 8, nlayers = 2, seed, test_ext
     seed <- get_or_set_seed(seed)
     one_rc <- sf::st_sf(sf::st_make_grid(sf::st_as_sfc(test_extent), n = c(nrows, 
         ncols)))
+    # sf::st_crs(one_rc) <- ifelse( isTRUE(sf::st_crs(test_extent) != 0),
+    # sf::st_crs(test_extent), 4326)
     sf::st_crs(one_rc) <- 4326
     one_rc$id = seq_len(nrow(one_rc))
     one_rc$col <- ((one_rc$row = one_rc$id - 1)%%nrows) + 1
@@ -56,14 +58,12 @@ create_test_raster <- function(nrows = 8, ncols = 8, nlayers = 2, seed, test_ext
 
 ## @name create_test_2d_polygons See create_test_polygons for details
 ## (dimension=2)
-create_test_2d_polygons <- function(test_raster = create_test_raster(), number = 10, 
-    snap = FALSE, randomize = TRUE, seed) {
+create_test_2d_polygons <- function(test_raster, number, snap = FALSE, randomize = TRUE, 
+    seed) {
     seed <- get_or_set_seed(seed)
 
     dims <- c(max(test_raster$row), max(test_raster$col))
     test_points <- suppressWarnings(sf::st_centroid(test_raster))
-    original_crs <- sf::st_crs(test_points)
-    test_points <- sf::st_transform(test_points, crs = 32610)
     if (randomize) {
         sample_points <- sf::st_union(sample(sf::st_geometry(test_points[seq_len(prod(dims)), 
             ]), number))
@@ -75,15 +75,17 @@ create_test_2d_polygons <- function(test_raster = create_test_raster(), number =
         grid_points <- sf::st_as_sf(dplyr::left_join(grid_points, test_points))
         sample_points <- sf::st_union(sf::st_geometry(grid_points))
     }
-    test_voronoi <- sf::st_voronoi(sample_points)
-    test_voronoi <- sf::st_transform(test_voronoi, crs = original_crs)
+    test_voronoi <- suppressWarnings(sf::st_voronoi(sample_points))
     test_polygons <- sf::st_cast(x = test_voronoi, do_split = T)
+
     test_boundary <- sf::st_as_sfc(sf::st_bbox(test_raster))
     sf::st_crs(test_boundary) <- sf::st_crs(test_polygons)
     if (!snap) {
         valid_idx <- sf::st_is_valid(test_polygons)
         test_polygons[!valid_idx] <- sf::st_make_valid(test_polygons[!valid_idx])
         rc <- suppressWarnings(sf::st_intersection(test_boundary, test_polygons))
+        rc[sf::st_geometry_type(rc) != "POLYGON"] <- sf::st_collection_extract(rc[sf::st_geometry_type(rc) != 
+            "POLYGON"], "POLYGON")
         attr(rc, "seed") <- seed
         return(rc)
     } else {
@@ -247,26 +249,18 @@ create_test_layered_polygons <- function(test_raster = create_test_raster(), bas
         }
         ## While any are unclassified
         while (any(is.na(smallest_layer[[layer_name]]))) {
-            tmp <- dplyr::summarize(dplyr::group_by(smallest_layer, !!layer_name), 
-                size = length(!!layer_name))
-            tmp <- tmp[!is.na(tmp[[layer_name]]), ]
+            tmp <- smallest_layer[!is.na(smallest_layer[[layer_name]]), ]
+            tmp$size <- table(tmp[[layer_name]])[tmp[[layer_name]]]
             tmp_frame <- smallest_layer[is.na(smallest_layer[[layer_name]]), ]
             intersections <- sf::st_intersects(tmp, tmp_frame)
-            idx <- sample(length(intersections), 1, prob = 1/tmp$size)
-            if (length(intersections[[idx]]) > 0) {
-                polygon_idx <- intersections[[idx]][sample(length(intersections[[idx]]), 
-                  1)]
-                polygon_name <- tmp_frame[[parent_name]][[polygon_idx]]
-                if (!sf::st_intersects(tmp_frame[polygon_idx, ], tmp[idx, ], sparse = FALSE)) {
-                  stop("This code is not yet written")
-                }
-                idx2 <- smallest_layer[[parent_name]] == polygon_name
-                if (!sf::st_intersects(tmp_frame[polygon_idx, ], sf::st_union(smallest_layer[idx2, 
-                  ]), sparse = FALSE)) {
-                  stop("This code is not yet written")
-                }
-                smallest_layer[idx2, paste(layer_name)] <- tmp[[layer_name]][idx]
-            }
+            tmp <- do.call(what = rbind, lapply(seq_len(length(intersections)), function(i) {
+                tibble::tibble(`:=`(!!layer_name, tmp[[layer_name]][i]), size = tmp[["size"]][[i]], 
+                  intersections = intersections[[i]], parent_name = tmp_frame[[parent_name]][intersections])
+
+            }))
+            idx <- sample(seq_len(nrow(tmp)), 1, prob = 1/tmp$size)
+
+            smallest_layer[[layer_name]][smallest_layer[[parent_name]] == tmp[["parent_name"]][[idx]]] <- tmp[[layer_name]][[idx]]
         }
 
     }

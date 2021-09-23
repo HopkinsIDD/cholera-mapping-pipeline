@@ -894,9 +894,104 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
         "dbExistsTableMulti", "buildGeomsQuery", "showProgress", "getNCDFMetadata", 
         "timeAggregate", "spaceAggregate", "gdalinfo2", "gdal_cmd_builder2", "gdalwarp2", 
         "align_rasters2")
-    doFun(foreach::foreach(j = seq_along(raster_files), .combine = rbind, .inorder = T, 
-        .export = export_funs, .noexport = no_export, .packages = c("dplyr", "stringr", 
-            "raster", "gdalUtils")), {
+    if (do_parallel) {
+        doFun(foreach::foreach(j = seq_along(raster_files), .combine = rbind, .inorder = T, 
+            .export = export_funs, .noexport = no_export, .packages = c("dplyr", 
+                "stringr", "raster", "gdalUtils")), {
+            t_start <- Sys.time()  # timing file
+
+            full_path <- raster_files[j]  # full path to raster to process
+            f_name <- strsplit(full_path, "/")[[1]] %>%
+                .[length(.)]  # name of raster
+            f_format <- stringr::str_extract(f_name, "(?<=\\.)[a-z]+$")
+
+            # File of the temporal aggregation step
+            res_file_time <- stringr::str_c(proc_dir, stringr::str_replace(f_name, 
+                stringr::str_c(".", f_format), stringr::str_c("__", time_aggregator, 
+                  "_", stringr::str_replace(res_time, " ", "-"), ".nc")))
+
+            # Aggregate covariate in time
+            if (!file.exists(res_file_time)) {
+                cat("Aggregating", f_name, "in time at", res_time, "resolution \n")
+                res_file_time <- time_aggregate(src_file = full_path, covar_name = covar_name, 
+                  covar_unit = covar_unit, covar_type = covar_type, covar_res_time = covar_res_time, 
+                  res_file = res_file_time, res_time = res_time, aggregator = time_aggregator, 
+                  aoi_extent = aoi_extent)
+            }
+
+            # File of the spatial aggregation step
+            res_file_space <- stringr::str_replace(res_file_time, "\\.nc", stringr::str_c("__resampled_", 
+                res_x, "x", res_y, "km.nc")) %>%
+                {
+                  str <- .
+                  if (!is.null(transform)) {
+                    stringr::str_replace(str, "\\.nc", stringr::str_c("_", transform, 
+                      "_trans.nc"))
+                  } else {
+                    str
+                  }
+                }
+
+            # Aggregate covariate in space
+            if (!file.exists(res_file_space)) {
+
+                cat("Aggregating", f_name, "in space at", res_x, "x", res_y, "km resolution \n")
+
+                space_aggregate(res_file_time, res_file = res_file_space, ref_grid_db = ref_grid_db, 
+                  covar_type = covar_type, aggregator = space_aggregator, dbuser = dbuser, 
+                  dbname = dbname)
+
+                if (!is.null(transform)) {
+                  cat("Transforming", f_name, "according to ||", deparse(transform), 
+                    "|| \n")
+                  # if specified, apply transform
+                  transform_raster(res_file_space, transform)
+                }
+            }
+
+            # Progress
+            t_end <- Sys.time()
+
+            if (write_to_db) {
+                if (j == 1) {
+                  # Write to database
+                  r2psql_cmd <- stringr::str_c("raster2pgsql -s 4326:4326 -I -t auto -d ", 
+                    res_file_space, covar_table, "| psql -d ", dbname, sep = " ")
+                  err <- system(r2psql_cmd)
+                  if (err != 0) {
+                    stop(paste("System command", r2psql_cmd, "failed"))
+                  }
+                } else {
+                  # Write to database
+                  r2psql_cmd <- stringr::str_c("raster2pgsql -s 4326:4326 -I -t auto -d ", 
+                    res_file_space, " tmprast | psql -d", dbname, sep = " ")
+                  err <- system(r2psql_cmd)
+                  if (err != 0) {
+                    stop(paste("System command", r2psql_cmd, "failed"))
+                  }
+                  n_bands <- DBI::dbGetQuery(conn, "SELECT ST_NumBands(rast)
+                            FROM tmprast LIMIT 1;") %>%
+                    unlist()
+
+                  for (nb in 1:n_bands) {
+                    DBI::dbClearResult(DBI::dbSendStatement(conn, glue::glue_sql("UPDATE {`{DBI::SQL(covar_table)}`} a
+                              SET rast = ST_AddBand(a.rast, b.rast, {nb})
+                              FROM tmprast b
+                              WHERE a.rid = b.rid;", 
+                      .con = conn)))
+
+                    show_progress(nb, n_bands, prefix = f_name)
+                  }
+
+                  DBI::dbClearResult(DBI::dbSendStatement(conn, "DROP TABLE IF EXISTS tmprast;"))
+                }
+                cat("\n-- Done file ", j, "/", length(raster_files), " (took ", format(difftime(t_end, 
+                  t_start, units = "hours"), digits = 2), ")\n", sep = "")
+            }
+
+        })
+    } else {
+
         t_start <- Sys.time()  # timing file
 
         full_path <- raster_files[j]  # full path to raster to process
@@ -987,7 +1082,8 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
                 t_start, units = "hours"), digits = 2), ")\n", sep = "")
         }
 
-    })
+    }
+
 
     if (do_parallel) {
         parallel::clusterEvalQ(cl, {

@@ -27,6 +27,7 @@ if (Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE)) {
 
     for (package in package_list) {
         if (!require(package = package, character.only = T)) {
+            chooseCRANMirror(ind = 1)
             install.packages(pkgs = package)
             library(package = package, character.only = T)
         }
@@ -173,6 +174,14 @@ opt <- optparse::parse_args((optparse::OptionParser(option_list = option_list)))
 
 ### Config Options
 config <- yaml::read_yaml(opt$config)
+config <- taxdat::complete_config(config)
+if (!taxdat::check_config(config)) {
+    warning("Could not validate the config")
+}
+
+
+##### Config Defaults
+
 
 ### Setup postgres
 conn_pg <- taxdat::connect_to_db(dbname = opt$postgres_database_name, dbuser = opt$postgres_database_user)
@@ -320,6 +329,53 @@ print("*** STARTING STAN MODEL ***")
 
 library(rstan)
 
+# Initial Values ----------------------------------------------------------
+
+## INITIAL VALUES
+
+if (config$initial_values$warmup) {
+    covariate_names <- colnames(covar_cube[, -c(1:5, ncol(covar_cube))])
+    initial_values_df <- observation_data %>%
+        inner_join(observation_location_period_mapping) %>%
+        inner_join(location_period_grid_mapping, by = c(location_period_id = "location_period_id")) %>%
+        inner_join(covar_cube, by = c(spatial_grid_id = "id", rid = "rid", x = "x", 
+            y = "y")) %>%
+        group_by(observation_id) %>%
+        group_modify(function(.x, .y) {
+            .x[[paste("raw", cases_column, sep = "_")]] <- .x[[cases_column]]
+            .x[[cases_column]] <- .x[[cases_column]] * .x$population/sum(.x$population)
+            return(.x)
+        }) %>%
+        dplyr::mutate(log_y = log(y), gam_offset = log_y)
+
+    gam_formula <- taxdat::get_gam_formula(cases_column_name = cases_column, covariate_names = covariate_names)
+
+    gam_fit <- mgcv::gam(gam_formula, family = "gaussian", data = initial_values_df)
+    gam_predict <- mgcv::predict.gam(gam_fit, covar_cube)
+    covariate_effect <- as.vector(as.matrix(covar_cube[covariate_names]) %*% coef(gam_fit)[covariate_names])
+
+    initial_betas <- coef(gam_fit)[covariate_names]
+    initial_eta <- coef(gam_fit)["obs_year"]
+
+    initial_values_list <- lapply(seq_len(config[["stan"]][["nchain"]]), function(chain) {
+        return(list(betas = rnorm(length(coef(gam_fit)[covariate_names]), coef(gam_fit)[covariate_names]), 
+            eta = rnorm(length(coef(gam_fit)["obs_year"]), coef(gam_fit)["obs_year"]), 
+            w = rnorm(nrow(covar_cube), gam_predict - covariate_effect)))
+    })
+
+    covar_cube[["covariate_contribution"]] <- covariate_effect
+    covar_cube[["spatial_smoothing_term"]] <- gam_predict - covariate_effect
+    covar_cube[["gam_output"]] <- gam_predict
+} else {
+    initial_values_list <- "random"
+    initial_values_df <- "no warmup performed"
+    covar_cube[["covariate_contribution"]] <- NA
+    covar_cube[["spatial_smoothing_term"]] <- NA
+    covar_cube[["gam_output"]] <- NA
+}
+
+## END INITIAL VALUES
+
 # Run model ---------------------------------------------------------------
 # model.rand <- rstan::stan(file = stan_model_path, data =
 # initial_values_data$stan_data, chains = nchain, iter = niter, pars = c('b',
@@ -329,9 +385,6 @@ stan_dir <- config[["stan"]][["directory"]]
 stan_model_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, config[["stan"]][["model"]], 
     sep = "/"), stan_dir = stan_dir)
 
-if (is.null(config[["stan"]][["nchain"]])) {
-    config[["stan"]][["nchain"]] <- pmax(config[["stan"]][["ncores"]], 2)
-}
 options(mc.cores = config[["stan"]][["ncores"]])
 
 stan_data <- list(N = nrow(covar_cube), N_edges = nrow(grid_adjacency), smooth_grid_N = length(unique(covar_cube$updated_id)), 
@@ -345,12 +398,12 @@ stan_data <- list(N = nrow(covar_cube), N_edges = nrow(grid_adjacency), smooth_g
     map_loc_grid_loc = as.array(cast_to_int32(location_period_grid_mapping$updated_location_period_id)), 
     map_loc_grid_grid = as.array(cast_to_int32(location_period_grid_mapping$updated_spatial_grid_id)), 
     map_smooth_grid = covar_cube$updated_id, rho = 0.999, covar = as.matrix(covar_cube[, 
-        -c(1:5, ncol(covar_cube))]), ncovar = ncol(covar_cube[, -c(1:5, ncol(covar_cube))]))
+        covariate_names]), ncovar = length(covariate_names))
 
 start_time <- Sys.time()
 model.rand <- rstan::stan(file = stan_model_path, data = stan_data, chains = config[["stan"]][["nchain"]], 
     iter = config[["stan"]][["niter"]], pars = c("b", "t_rowsum", "vec_var"), include = FALSE, 
-    control = list(max_treedepth = 15), refresh = 0)
+    control = list(max_treedepth = 15), refresh = 0, init = initial_values_list)
 end_time <- Sys.time()
 
 elapsed_time <- end_time - start_time
@@ -360,5 +413,6 @@ save(model.rand, elapsed_time, file = config[["file_names"]][["stan_output"]])
 
 stan_input <- list(stan_data = stan_data, covar_cube = covar_cube, observation_data = observation_data, 
     grid_adjacency = grid_adjacency, observation_location_period_mapping = observation_location_period_mapping, 
-    location_period_grid_mapping = location_period_grid_mapping)
+    location_period_grid_mapping = location_period_grid_mapping, initial_values_list = initial_values_list, 
+    initial_values_df = initial_values_df)
 save(stan_input, file = config[["file_names"]][["stan_input"]])
