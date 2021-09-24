@@ -22,7 +22,7 @@ if (Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE)) {
     base_search <- search()
 
     ## This is the list of packages required by this script: libxt-dev
-    package_list <- c("optparse", "DBI", "RPostgres", "sf", "magrittr", "dplyr", 
+    package_list <- c("optparse", "DBI", "RPostgres", "sf", "magrittr", "dplyr",
         "rstan", "xfun", "kableExtra", "Cairo", "MCMCvis")
 
     for (package in package_list) {
@@ -188,7 +188,7 @@ conn_pg <- taxdat::connect_to_db(dbname = opt$postgres_database_name, dbuser = o
 
 cases_column <- "suspected_cases"
 ## Observations
-observation_data <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg, 
+observation_data <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
     "SELECT *
      FROM pull_observation_data(
        {config[[\"general\"]][[\"location_name\"]]},
@@ -213,28 +213,33 @@ covar_cube <- DBI::dbGetQuery(conn = conn_pg, glue::glue_sql(.con = conn_pg, "SE
 
 
 
-grid_adjacency <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg, 
+grid_adjacency <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
     "SELECT * FROM pull_grid_adjacency(
       {config[[\"general\"]][[\"location_name\"]]},
        {config[[\"general\"]][[\"width_in_km\"]]},
        {config[[\"general\"]][[\"height_in_km\"]]}
     )"))
 
-observation_location_period_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg, 
+observation_temporal_location_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
+  ## FIX ME:
     "SELECT * FROM pull_observation_location_period_map(
       {config[[\"general\"]][[\"location_name\"]]},
        {config[[\"general\"]][[\"start_date\"]]},
-       {config[[\"general\"]][[\"end_date\"]]}
+       {config[[\"general\"]][[\"end_date\"]]},
+       {config[[\"general\"]][[\"time_scale\"]]}
     )"))
 
-unique_location_period_ids <- sort(unique(observation_data[["location_period_id"]]))
+unique_temporal_location_ids <- sort(unique(observation_data[["temporal_location_id"]]))
 unique_location_ids <- sort(unique(observation_data[["location_id"]]))
 
-location_period_grid_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg, 
+temporal_location_grid_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
     "SELECT * FROM pull_location_period_grid_map(
       {config[[\"general\"]][[\"location_name\"]]},
+       {config[[\"general\"]][[\"start_date\"]]},
+       {config[[\"general\"]][[\"end_date\"]]},
        {config[[\"general\"]][[\"width_in_km\"]]},
-       {config[[\"general\"]][[\"height_in_km\"]]}
+       {config[[\"general\"]][[\"height_in_km\"]]},
+       {config[[\"general\"]][[\"time_scale\"]]}
     )"))
 # location_period_grid_mapping <- location_period_grid_mapping %>%
 # dplyr::filter(location_id %in% unique_location_ids)
@@ -248,32 +253,38 @@ covariate_covered_grid_ids <- covar_cube %>%
     dplyr::filter(count == max(count)) %>%
     .$id
 
-non_na_location_period_grid_mapping <- dplyr::filter(location_period_grid_mapping, 
-    !is.na(location_period_id), !is.na(spatial_grid_id))
+non_na_temporal_location_grid_mapping <- dplyr::filter(temporal_location_grid_mapping,
+    !is.na(temporal_location_id), !is.na(spatial_grid_id))
 
-shapefile_covered_grid_ids <- unique(non_na_location_period_grid_mapping$spatial_grid_id)
+shapefile_covered_grid_ids <- unique(non_na_temporal_location_grid_mapping$spatial_grid_id)
 shapefile_covered_grid_ids <- shapefile_covered_grid_ids[!is.na(shapefile_covered_grid_ids)]
-fully_covered_grid_ids <- covariate_covered_grid_ids[covariate_covered_grid_ids %in% 
+fully_covered_grid_ids <- covariate_covered_grid_ids[covariate_covered_grid_ids %in%
     shapefile_covered_grid_ids]
 
-grid_covered_location_period_grid_mapping <- non_na_location_period_grid_mapping %>%
-    dplyr::filter(spatial_grid_id %in% fully_covered_grid_ids)
+grid_covered_temporal_location_grid_mapping <- non_na_temporal_location_grid_mapping %>%
+  dplyr::filter(spatial_grid_id %in% fully_covered_grid_ids)
 
-grid_covered_location_period_ids <- unique(grid_covered_location_period_grid_mapping$location_period_id)
-fully_covered_location_period_ids <- grid_covered_location_period_ids[grid_covered_location_period_ids %in% 
-    observation_data$location_period_id]
+grid_covered_temporal_location_ids <- unique(grid_covered_temporal_location_grid_mapping$temporal_location_id)
 
-location_period_covered_observation_ids <- observation_location_period_mapping %>%
-    dplyr::filter(!is.na(observation_id), !is.na(location_period_id), location_period_id %in% 
-        grid_covered_location_period_ids) %>%
-    .$observation_id
-fully_covered_observation_ids <- location_period_covered_observation_ids
+temporal_location_covered_observation_temporal_location_mapping <- observation_temporal_location_mapping %>%
+  dplyr::filter(temporal_location_id %in% grid_covered_temporal_location_ids)
+fully_covered_temporal_location_ids <- grid_covered_temporal_location_ids
+
+fully_covered_observation_ids <- unique(temporal_location_covered_observation_temporal_location_mapping$observation_id)
 
 ## Actually doing filtering here
 
 covar_cube <- covar_cube %>%
     dplyr::filter(id %in% fully_covered_grid_ids) %>%
-    reindex("id", "updated_id")
+  reindex("id", "updated_id") %>%
+  dplyr::add_rownames() %>%
+  dplyr::mutate(spacetime_grid_id = as.numeric(rowname)) %>%
+  dplyr::select(-rowname)
+
+spatial_grid_and_time_to_spacetime_grid_changer <- setNames(
+  covar_cube$spacetime_grid_id,
+  paste(covar_cube$updated_id, covar_cube$t, sep = "_")
+)
 
 grid_changer <- setNames(sort(unique(covar_cube$updated_id)), sort(unique(covar_cube$id)))
 if (!all(grid_changer[as.character(covar_cube$id)] == covar_cube$updated_id)) {
@@ -284,8 +295,8 @@ grid_adjacency <- grid_adjacency %>%
     dplyr::mutate(updated_id_1 = grid_changer[as.character(id_1)], updated_id_2 = grid_changer[as.character(id_2)]) %>%
     dplyr::filter(!is.na(updated_id_1), !is.na(updated_id_2))
 
-location_period_changer <- setNames(seq_len(length(fully_covered_location_period_ids)), 
-    fully_covered_location_period_ids)
+temporal_location_changer <- setNames(seq_len(length(fully_covered_temporal_location_ids)),
+    fully_covered_temporal_location_ids)
 
 # location_period_grid_mapping <- location_period_grid_mapping %>%
 # dplyr::mutate(updated_spatial_grid_id =
@@ -301,25 +312,32 @@ nneighbors[is.na(nneighbors)] <- 0
 
 observation_data <- observation_data %>%
     dplyr::filter(observation_id %in% fully_covered_observation_ids) %>%
-    reindex("observation_id", "updated_observation_id") %>%
-    dplyr::mutate(updated_location_period_id = location_period_changer[as.character(location_period_id)])
+    reindex("observation_id", "updated_observation_id")
 
-observation_changer <- setNames(sort(unique(observation_data$updated_observation_id)), 
+observation_changer <- setNames(sort(unique(observation_data$updated_observation_id)),
     sort(unique(observation_data$observation_id)))
 if (!all(observation_changer[as.character(observation_data$observation_id)] == observation_data$updated_observation_id)) {
     stop("There is a problem with computing the updated observation indices")
 }
 
-observation_location_period_mapping <- observation_location_period_mapping %>%
-    dplyr::mutate(updated_observation_id = observation_changer[as.character(observation_id)], 
-        updated_location_period_id = location_period_changer[as.character(location_period_id)], 
-        ) %>%
-    dplyr::filter(!is.na(updated_observation_id), !is.na(updated_location_period_id))
+observation_temporal_location_mapping <- observation_temporal_location_mapping %>%
+  dplyr::mutate(
+    updated_observation_id = observation_changer[as.character(observation_id)],
+    updated_temporal_location_id = temporal_location_changer[as.character(temporal_location_id)],
+    ) %>%
+  dplyr::filter(!is.na(updated_observation_id), !is.na(updated_temporal_location_id))
 
-location_period_grid_mapping <- location_period_grid_mapping %>%
-    dplyr::mutate(updated_spatial_grid_id = grid_changer[as.character(spatial_grid_id)], 
-        updated_location_period_id = location_period_changer[as.character(location_period_id)]) %>%
-    dplyr::filter(!is.na(updated_spatial_grid_id), !is.na(updated_location_period_id))
+temporal_location_grid_mapping <- temporal_location_grid_mapping %>%
+  dplyr::mutate(
+    updated_spatial_grid_id = grid_changer[as.character(spatial_grid_id)],
+    updated_temporal_location_id = temporal_location_changer[as.character(temporal_location_id)],
+    spacetime_grid_id = spatial_grid_and_time_to_spacetime_grid_changer[paste(
+      updated_spatial_grid_id,
+      t,
+      sep = "_"
+    )]
+  ) %>%
+    dplyr::filter(!is.na(updated_spatial_grid_id), !is.na(updated_temporal_location_id), !is.na(spacetime_grid_id))
 
 ### Construct some additional parameters based on the above Define relevent
 ### directories Name the output file
@@ -336,10 +354,9 @@ library(rstan)
 if (config$initial_values$warmup) {
     covariate_names <- colnames(covar_cube[, -c(1:5, ncol(covar_cube))])
     initial_values_df <- observation_data %>%
-        inner_join(observation_location_period_mapping) %>%
-        inner_join(location_period_grid_mapping, by = c(location_period_id = "location_period_id")) %>%
-        inner_join(covar_cube, by = c(spatial_grid_id = "id", rid = "rid", x = "x", 
-            y = "y")) %>%
+        inner_join(observation_temporal_location_mapping) %>%
+        inner_join(temporal_location_grid_mapping, by = c(temporal_location_id = "temporal_location_id", "t")) %>%
+        inner_join(covar_cube, by = c("x", "y", "t", "spacetime_grid_id")) %>%
         group_by(observation_id) %>%
         group_modify(function(.x, .y) {
             .x[[paste("raw", cases_column, sep = "_")]] <- .x[[cases_column]]
@@ -358,9 +375,16 @@ if (config$initial_values$warmup) {
     initial_eta <- coef(gam_fit)["obs_year"]
 
     initial_values_list <- lapply(seq_len(config[["stan"]][["nchain"]]), function(chain) {
-        return(list(betas = rnorm(length(coef(gam_fit)[covariate_names]), coef(gam_fit)[covariate_names]), 
-            eta = rnorm(length(coef(gam_fit)["obs_year"]), coef(gam_fit)["obs_year"]), 
-            w = rnorm(nrow(covar_cube), gam_predict - covariate_effect)))
+      w_df <- dplyr::tibble(value = gam_predict - covariate_effect, spatial_id = covar_cube$updated_id) %>%
+        dplyr::group_by(spatial_id) %>%
+        dplyr::summarize(value = mean(value)) %>%
+        dplyr::arrange(spatial_id)
+
+      return(list(
+        betas = rnorm(length(coef(gam_fit)[covariate_names]), coef(gam_fit)[covariate_names]),
+        eta = rnorm(length(coef(gam_fit)["obs_year"]), coef(gam_fit)["obs_year"]),
+        w = rnorm(nrow(w_df), w_df$value)
+      ))
     })
 
     covar_cube[["covariate_contribution"]] <- covariate_effect
@@ -382,27 +406,36 @@ if (config$initial_values$warmup) {
 # 't_rowsum', 'vec_var'), include = FALSE, control = list(max_treedepth = 15),
 # init = initial_values_data$init.list)
 stan_dir <- config[["stan"]][["directory"]]
-stan_model_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, config[["stan"]][["model"]], 
+stan_model_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, config[["stan"]][["model"]],
     sep = "/"), stan_dir = stan_dir)
 
 options(mc.cores = config[["stan"]][["ncores"]])
 
-stan_data <- list(N = nrow(covar_cube), N_edges = nrow(grid_adjacency), smooth_grid_N = length(unique(covar_cube$updated_id)), 
-    node1 = as.integer(grid_adjacency$updated_id_1), node2 = as.integer(grid_adjacency$updated_id_2), 
-    diag = nneighbors$nneighbors, pop = covar_cube$population, meanrate = 1, M = nrow(observation_data), 
-    y = as.array(observation_data[[cases_column]]), L = length(unique(observation_location_period_mapping$updated_location_period_id)), 
-    K1 = nrow(observation_location_period_mapping), K2 = nrow(location_period_grid_mapping), 
-    map_obs_loctime_obs = as.array(cast_to_int32(observation_location_period_mapping$updated_observation_id)), 
-    map_obs_loctime_loc = as.array(cast_to_int32(observation_location_period_mapping$updated_location_period_id)), 
-    tfrac = as.array(rep(1, times = nrow(observation_location_period_mapping))), 
-    map_loc_grid_loc = as.array(cast_to_int32(location_period_grid_mapping$updated_location_period_id)), 
-    map_loc_grid_grid = as.array(cast_to_int32(location_period_grid_mapping$updated_spatial_grid_id)), 
-    map_smooth_grid = covar_cube$updated_id, rho = 0.999, covar = as.matrix(covar_cube[, 
+stan_data <- list(N = nrow(covar_cube), N_edges = nrow(grid_adjacency), smooth_grid_N = length(unique(covar_cube$updated_id)),
+    node1 = as.integer(grid_adjacency$updated_id_1), node2 = as.integer(grid_adjacency$updated_id_2),
+    diag = nneighbors$nneighbors, pop = covar_cube$population, meanrate = 1, M = nrow(observation_data),
+    y = as.array(observation_data[[cases_column]]), L = length(unique(observation_temporal_location_mapping$updated_temporal_location_id)),
+    K1 = nrow(observation_temporal_location_mapping), K2 = nrow(temporal_location_grid_mapping),
+    map_obs_loctime_obs = as.array(cast_to_int32(observation_temporal_location_mapping$updated_observation_id)),
+    map_obs_loctime_loc = as.array(cast_to_int32(observation_temporal_location_mapping$updated_temporal_location_id)),
+    tfrac = as.array(rep(1, times = nrow(observation_temporal_location_mapping))),
+    map_loc_grid_loc = as.array(cast_to_int32(temporal_location_grid_mapping$updated_temporal_location_id)),
+    map_loc_grid_grid = as.array(cast_to_int32(temporal_location_grid_mapping$spacetime_grid_id)),
+      as.array(cast_to_int32(temporal_location_grid_mapping$updated_spatial_grid_id)),
+    map_smooth_grid = as.array(cast_to_int32(covar_cube$updated_id)), rho = 0.999, covar = as.matrix(covar_cube[,
         covariate_names]), ncovar = length(covariate_names))
 
+
+# Save input
+stan_input <- list(stan_data = stan_data, covar_cube = covar_cube, observation_data = observation_data,
+    grid_adjacency = grid_adjacency, observation_temporal_location_mapping = observation_temporal_location_mapping,
+    temporal_location_grid_mapping = temporal_location_grid_mapping, initial_values_list = initial_values_list,
+    initial_values_df = initial_values_df)
+save(stan_input, file = config[["file_names"]][["stan_input"]])
+
 start_time <- Sys.time()
-model.rand <- rstan::stan(file = stan_model_path, data = stan_data, chains = config[["stan"]][["nchain"]], 
-    iter = config[["stan"]][["niter"]], pars = c("b", "t_rowsum", "vec_var"), include = FALSE, 
+model.rand <- rstan::stan(file = stan_model_path, data = stan_data, chains = config[["stan"]][["nchain"]],
+    iter = config[["stan"]][["niter"]], pars = c("b", "t_rowsum", "vec_var"), include = FALSE,
     control = list(max_treedepth = 15), refresh = 0, init = initial_values_list)
 end_time <- Sys.time()
 
@@ -410,9 +443,3 @@ elapsed_time <- end_time - start_time
 
 # Save output
 save(model.rand, elapsed_time, file = config[["file_names"]][["stan_output"]])
-
-stan_input <- list(stan_data = stan_data, covar_cube = covar_cube, observation_data = observation_data, 
-    grid_adjacency = grid_adjacency, observation_location_period_mapping = observation_location_period_mapping, 
-    location_period_grid_mapping = location_period_grid_mapping, initial_values_list = initial_values_list, 
-    initial_values_df = initial_values_df)
-save(stan_input, file = config[["file_names"]][["stan_input"]])

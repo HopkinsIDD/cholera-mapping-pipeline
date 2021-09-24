@@ -425,9 +425,6 @@ create_test_covariate <- function(test_raster = create_test_raster(), nonspatial
     nontemporal = TRUE, spatially_smooth = TRUE, temporally_smooth = TRUE, polygonal = TRUE, 
     radiating = TRUE, constant = FALSE, rho = 0.999999, smoothing_function = function(n, 
         mu, covariance, centers) {
-        if (n == 1) {
-            return(1)
-        }
         return(my_scale(MASS::mvrnorm(n = n, mu = mu, Matrix::solve(covariance))))
     }, polygons = create_test_layered_polygons(), radiation_function = function(x, 
         mu) {
@@ -496,9 +493,6 @@ create_multiple_test_covariates <- function(test_raster = create_test_raster(), 
     polygons = create_test_layered_polygons(), radiating_polygons = list(create_test_polygons(dimension = 0, 
         number = 2), sf::st_union(create_test_polygons(dimension = 1))), smoothing_function = rep(list(function(n, 
         mu, covariance, centers) {
-        if (n == 1) {
-            return(1)
-        }
         return(my_scale(MASS::mvrnorm(n = n, mu = mu, Matrix::solve(covariance))))
     }), ncovariates), radiation_function = rep(list(function(x, mu) {
         mu * exp(-(x/10000)^2)
@@ -787,9 +781,6 @@ create_standardized_test_data <- function(nrows = 8, ncols = 8, nlayers = 2, bas
         mu * exp(-(x/10000)^2)
     }), ncovariates), radiating_means = list(NA, rnorm(2), NA, NA, 1), smoothing_function = rep(list(function(n, 
         mu, covariance, centers) {
-        if (n == 1) {
-            return(1)
-        }
         return(my_scale(MASS::mvrnorm(n = n, mu = mu, Matrix::solve(covariance))))
     }), ncovariates), weights = rep(list(c(0.3, 1, 1, 1, 1)), ncovariates), magnitude = c(6, 
         rnorm(ncovariates - 1)), family = "Gaussian", normalization = function(x) {
