@@ -1,0 +1,76 @@
+#+begin_src plantuml :file high_level.png
+@startuml
+|Actions|
+  start
+  :Get Database;
+  split
+  :Pull Observation Data;
+  split again
+  :Pull Covariate Cube;
+  split again
+  :Pull Grid Adjacency;
+  split again
+  :Pull Observation Location Period Map;
+  split again
+  :Pull Location Period Grid Map;
+  endsplit
+  split
+  :Compute gridcells with full covariate coverage;
+  split again
+  :Compute gridcells with any location period coverage;
+  endsplit
+  split
+  :Compute gridcells with both coverages;
+  :Keep these gridcells only;
+  :Re-index;
+  split again
+  :Compute gridcells without both coverages;
+  :Log these;
+  kill
+  endsplit
+  split
+  :Compute location periods with any grid coverage;
+  :Keep these location periods only;
+  :Re-index;
+  split again
+  :Compute location periods without grid coverage;
+  :Log these;
+  kill
+  end split
+  split
+  :Compute observations with any location period coverage;
+  :Keep these observations only;
+  :Re-index;
+  split again
+  :Compute observations without location period coverage;
+  :Log these;
+  kill
+  end split
+  split
+  :Update Covariates;
+  split again
+  :Update Grid Adjacency;
+  :Compute number of neighbors for each gridcell;
+  split again
+  :Update Observation Location Period Mapping;
+  split again
+  :Update Location Period Grid Mapping;
+  endsplit
+  split
+  if (warmup?) then (warmup)
+    :Create Gam Input;
+    :Run Gam;
+    :Produce Initial Values;
+  else (no warmup)
+    :Set Initial Values to NULL;
+  endif
+  split again
+  :Produce Stan Input;
+  :Write Stan Input to File;
+  end split
+  :Run Stan;
+@enduml
+#+end_src
+
+#+RESULTS:
+[[file:high_level.png]]
