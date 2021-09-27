@@ -316,6 +316,7 @@ config_defaults[["initial_values"]] <- list()
 config_defaults[["initial_values"]][["warmup"]] <- function(config) {
     return(TRUE)
 }
+
 config_defaults[["stan"]] <- list()
 config_defaults[["stan"]][["nchain"]] <- function(config) {
     return(pmax(config[["stan"]][["ncores"]], 2))

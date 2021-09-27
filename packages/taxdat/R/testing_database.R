@@ -614,17 +614,19 @@ create or replace function pull_observation_data(location_name text, start_date 
 
 create_pull_location_period_grid_map_function <- function(psql_connection) {
     function_query <- "
-create or replace function pull_location_period_grid_map(location_name text, width_in_km int, height_in_km int)
-RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint, shape_id bigint, spatial_grid_id bigint, rid int, x int, y int)AS $$
+create or replace function pull_location_period_grid_map(location_name text, start_date date, end_date date, width_in_km int, height_in_km int, time_scale text)
+RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint, temporal_location_id bigint, shape_id bigint, spatial_grid_id bigint, rid int, x int, y int, t bigint) AS $$
   SELECT
     location_periods.qualified_name as qualified_name,
     location_periods.location_id as location_id,
     location_periods.location_period_id as location_period_id,
+    temporal_locations.temporal_location_id as temporal_location_id,
     shapes.id as shape_id,
     spatial_grid.id as spatial_grid_id,
     spatial_grid.rid,
     spatial_grid.x,
-    spatial_grid.y
+    spatial_grid.y,
+    temporal_locations.t
   FROM
     filter_location_periods(location_name) as location_periods
       LEFT JOIN
@@ -634,7 +636,10 @@ RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint
       LEFT JOIN
     filter_resized_spatial_grid_centroids_to_location(location_name, width_in_km, height_in_km) as spatial_grid
       on
-        ST_CONTAINS(shapes.shape, spatial_grid.geom);
+        ST_CONTAINS(shapes.shape, spatial_grid.geom)
+      LEFT JOIN
+    pull_observation_location_period_map(location_name, start_date, end_date, time_scale) as temporal_locations
+      on location_periods.location_period_id = temporal_locations.location_period_id;
   $$ LANGUAGE SQL;"
 
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
@@ -728,21 +733,31 @@ RETURNS TABLE(covariate_name text, t bigint, id bigint, rid int, x int, y int, v
 
 create_pull_observation_location_period_map <- function(psql_connection) {
     function_query <- "
-create or replace function pull_observation_location_period_map(location_name text, start_date date, end_date date)
+create or replace function pull_observation_location_period_map(location_name text, start_date date, end_date date, time_scale text)
   returns table(
     observation_id bigint,
-    location_period_id bigint
+    location_period_id bigint,
+    t bigint,
+    temporal_location_id bigint
   ) AS $$
   SELECT
     observation_data.id as observation_id,
-    location_periods.location_period_id
+    location_periods.location_period_id,
+    temporal_grid.id as t,
+    DENSE_RANK() OVER (ORDER BY location_periods.location_period_id, temporal_grid.id) as temporal_location_id
   FROM
     pull_observation_data(location_name, start_date, end_date) as observation_data
       LEFT JOIN
     filter_location_periods(location_name) as location_periods
       ON
-        observation_data.location_period_id = location_periods.location_period_id;
-  $$ LANGUAGE SQL;"
+        observation_data.location_period_id = location_periods.location_period_id
+      LEFT JOIN
+    resize_temporal_grid(time_scale) as temporal_grid
+      ON
+        observation_data.time_left < temporal_grid.time_midpoint AND
+        observation_data.time_right >= temporal_grid.time_midpoint;
+  $$ LANGUAGE SQL;
+"
 
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
     invisible(NULL)
@@ -1281,7 +1296,6 @@ convert_simulated_polygons_to_test_dataframes <- function(observed_polygons) {
     sf::st_geometry(rc$shapes_df) <- "geom"
     return(rc)
 }
-
 
 #' @export
 convert_simulated_data_to_test_dataframes <- function(simulated_data) {
