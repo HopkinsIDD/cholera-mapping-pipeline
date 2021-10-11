@@ -402,6 +402,9 @@ stan_model_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, co
 
 options(mc.cores = config[["stan"]][["ncores"]])
 
+standardize = function(x) (x - mean(x))/sd(x)
+standardize_covar = function(M) cbind(M[, 1], apply(M[, -1, drop = F], 2, standardize))
+
 stan_data <- list(N = nrow(covar_cube), N_edges = nrow(grid_adjacency), smooth_grid_N = length(unique(covar_cube$updated_id)), 
     node1 = as.integer(grid_adjacency$updated_id_1), node2 = as.integer(grid_adjacency$updated_id_2), 
     diag = nneighbors$nneighbors, pop = covar_cube$population, meanrate = 1, M = nrow(observation_data), 
@@ -414,7 +417,7 @@ stan_data <- list(N = nrow(covar_cube), N_edges = nrow(grid_adjacency), smooth_g
     map_loc_grid_grid = as.array(cast_to_int32(temporal_location_grid_mapping$spacetime_grid_id)), 
     as.array(cast_to_int32(temporal_location_grid_mapping$updated_spatial_grid_id)), 
     map_smooth_grid = as.array(cast_to_int32(covar_cube$updated_id)), rho = 0.999, 
-    covar = as.matrix(covar_cube[, covariate_names]), ncovar = length(covariate_names))
+    covar = standardize_covar(as.matrix(covar_cube[, covariate_names])), ncovar = length(covariate_names))
 
 
 # Save input
