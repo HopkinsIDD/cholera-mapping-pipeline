@@ -58,8 +58,8 @@ create_test_raster <- function(nrows = 8, ncols = 8, nlayers = 2, seed, test_ext
 
 ## @name create_test_2d_polygons See create_test_polygons for details
 ## (dimension=2)
-create_test_2d_polygons <- function(test_raster, number, snap = FALSE, randomize = TRUE, 
-    seed) {
+create_test_2d_polygons <- function(test_raster = create_test_raster(), number = 1, 
+    snap = FALSE, randomize = TRUE, seed) {
     seed <- get_or_set_seed(seed)
 
     dims <- c(max(test_raster$row), max(test_raster$col))
@@ -276,8 +276,18 @@ independent_covariate <- function(test_raster, spatially_variable, temporally_va
     seed <- get_or_set_seed(seed)
     n_grid <- nrow(test_raster)
     n_spatial <- max(test_raster$id)
+    default_val <- 0
+    if (n_spatial == 1) {
+        spatially_variable <- FALSE
+        # default_val <- 1
+    }
     n_temporal <- max(test_raster$t)
-    rc <- matrix(0, nrow = n_spatial, ncol = n_temporal)
+    if (n_temporal == 1) {
+        temporally_variable <- FALSE
+        # default_val <- 1
+    }
+    rc <- matrix(default_val, nrow = n_spatial, ncol = n_temporal)
+
     if (spatially_variable & temporally_variable) {
         rc <- matrix(my_scale(rnorm(n_grid)), nrow = n_spatial, ncol = n_temporal)
     } else if (spatially_variable) {
@@ -295,10 +305,21 @@ smoothed_covariate <- function(test_raster, spatially_variable, temporally_varia
     smoothing_function, rho, seed) {
     seed <- get_or_set_seed(seed)
     n_grid <- nrow(test_raster)
+
     n_spatial <- max(test_raster$id)
+    default_val <- 0
+    if (n_spatial == 1) {
+        spatially_variable <- FALSE
+        # default_val <- 1
+    }
     n_temporal <- max(test_raster$t)
+    if (n_temporal == 1) {
+        temporally_variable <- FALSE
+        # default_val <- 1
+    }
+
     dims <- c(max(test_raster$row), max(test_raster$col), max(test_raster$t))
-    rc <- matrix(0, nrow = n_spatial, ncol = n_temporal)
+    rc <- matrix(default_val, nrow = n_spatial, ncol = n_temporal)
     ## Construct adjacency matrix
     if (spatially_variable & temporally_variable) {
         arr <- array(NA, dims)
