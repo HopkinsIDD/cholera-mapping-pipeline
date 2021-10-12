@@ -704,10 +704,11 @@ RETURNS TABLE(covariate_name text, t bigint, id bigint, rid int, x int, y int, v
       covariate_grid_map
         ON
           grid_centroids.rid = covariate_grid_map.grid_rid
-    FULL JOIN
+    INNER JOIN
       resize_temporal_grid(time_scale) as temporal_grid
         ON
-          1 = 1
+          covariate_grid_map.time_left <= temporal_grid.time_midpoint AND
+          covariate_grid_map.time_right >= temporal_grid.time_midpoint
     LEFT JOIN
       covariates.all_covariates
         ON

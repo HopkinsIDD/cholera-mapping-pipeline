@@ -209,6 +209,7 @@ covar_cube <- DBI::dbGetQuery(conn = conn_pg, glue::glue_sql(.con = conn_pg, "SE
        {config[[\"general\"]][[\"height_in_km\"]]},
        {config[[\"general\"]][[\"time_scale\"]]}
     )")) %>%
+    dplyr::filter(!is.na(value)) %>%
     tidyr::pivot_wider(names_from = covariate_name, values_from = value)
 
 
@@ -346,12 +347,12 @@ library(rstan)
 if (config$initial_values$warmup) {
     covariate_names <- colnames(covar_cube[, -c(1:5, ncol(covar_cube))])
     initial_values_df <- observation_data %>%
-        inner_join(observation_temporal_location_mapping) %>%
-        inner_join(temporal_location_grid_mapping, by = c(temporal_location_id = "temporal_location_id", 
+        dplyr::inner_join(observation_temporal_location_mapping) %>%
+        dplyr::inner_join(temporal_location_grid_mapping, by = c(temporal_location_id = "temporal_location_id", 
             "t")) %>%
-        inner_join(covar_cube, by = c("x", "y", "t", "spacetime_grid_id")) %>%
-        group_by(observation_id) %>%
-        group_modify(function(.x, .y) {
+        dplyr::inner_join(covar_cube, by = c("x", "y", "t", "spacetime_grid_id")) %>%
+        dplyr::group_by(observation_id) %>%
+        dplyr::group_modify(function(.x, .y) {
             .x[[paste("raw", cases_column, sep = "_")]] <- .x[[cases_column]]
             .x[[cases_column]] <- .x[[cases_column]] * .x$population/sum(.x$population)
             return(.x)
