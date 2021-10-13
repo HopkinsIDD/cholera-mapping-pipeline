@@ -840,7 +840,7 @@ setup_testing_database_from_dataframes <- function(psql_connection, data_frame_l
     insert_testing_observations(psql_connection, data_frame_list$observations_df)
     for (fun in covariate_creation_function_list) {
         ingest_covariate_from_raster(psql_connection, fun$name, fun$fun(psql_connection), 
-            fun$start_date, fun$end_date)
+            fun$start_date, fun$end_date, overwrite = drop)
     }
     refresh_materialized_views(psql_connection)
 }
@@ -1109,21 +1109,41 @@ ingest_spatial_grid <- function(psql_connection, width = 1, height = 1, do_refre
     invisible(NULL)
 }
 
+#' @description Write a raster to postgres
+#' @param raster The raster to write to postgres
+#' @param psql_connection A connection to the postgres database
+#' @param table_name The name of the table (including schema) to put the raster in
+#' @param overwrite Whether to delete an existing table before writing this one
+write_raster_to_postgres <- function(psql_connection, raster_to_write, table_name, 
+    crs = sf::st_crs(raster_to_write), overwrite = FALSE) {
+    if (overwrite) {
+        DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, paste("DROP TABLE IF EXISTS", 
+            table_name)))
+    }
+    table_file_name <- paste0("/tmp/", table_name, ".tif")
+    raster::writeRaster(raster_to_write, table_file_name, overwrite = TRUE)
+    attach(DBI::dbGetInfo(psql_connection))
+    command <- "raster2pgsql -s '{crs$input}' -I -C -t auto {table_file_name} {table_name} | psql -d {dbname} -p {port} -U {username}"
+    system(glue::glue(command))
+}
+
 #' @description Tell the postgres database to create a resampled grid with appropriate grid size
 #' @param psql_connection a connection to a database made with dbConnect
 #' @param width width of the grid cells in km
 #' @param heigh height of the grid cells in km
 #' @export
 ingest_covariate_from_raster <- function(psql_connection, covariate_name, covariate_raster, 
-    time_left, time_right) {
+    time_left, time_right, overwrite = FALSE) {
     assert(!is.null(time_left), "ingest_covariate requires a time_left argument")
     assert(!is.null(time_right), "ingest_covariate requires a time_right argument")
     assert(!is.null(covariate_name), "ingest_covariate requires a covariate_name argument")
     table_name <- paste(covariate_name, time_left, time_right, sep = "_")
     table_name <- gsub("-", "_", table_name)
     table_name <- gsub("[.]", "_", table_name)
-    rpostgis::pgWriteRast(raster = covariate_raster, conn = psql_connection, name = c("covariates", 
-        table_name))
+    write_raster_to_postgres(raster = covariate_raster, psql_connection = psql_connection, 
+        table_name = paste0("covariates.", table_name), overwrite = overwrite)
+    # rpostgis::pgWriteRast(raster = covariate_raster, conn = psql_connection, name =
+    # c('covariates', table_name))
     ingest_query <- "SELECT ingest_covariate({covariate_name}, {table_name}, {time_left}, {time_right});"
     ingest_query <- glue::glue_sql(.con = psql_connection, ingest_query)
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, ingest_query))
