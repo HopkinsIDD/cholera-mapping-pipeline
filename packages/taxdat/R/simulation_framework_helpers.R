@@ -225,10 +225,10 @@ make_layered_polygons_explicit <- function(test_polygons) {
 #' @param snap boolean Whether to snap the edges of the polygon to the boundaries of raster cells
 #' @param randomize boolean Whether to randomly generate the polygons (as opposed to uniformly)
 #' @param seed integer A seed to use for the randomly constructed portions of this object
-create_test_layered_polygons <- function(test_raster = create_test_raster(), base_number = 4, 
-    n_layers = 3, factor = 3, snap = FALSE, randomize = TRUE, seed) {
+create_test_layered_polygons <- function(test_raster = create_test_raster(), base_number = 2, 
+    n_layers = 3, factor = 2, snap = FALSE, randomize = TRUE, seed) {
     seed <- get_or_set_seed(seed)
-    test_boundary <- sf::st_as_sfc(sf::st_bbox(create_test_extent()))
+    test_boundary <- sf::st_as_sfc(sf::st_bbox(test_raster), crs = sf::st_crs(test_raster))
     sf::st_crs(test_boundary) <- sf::st_crs(test_raster)
     layers <- list(`0` = sf::st_sf(geometry = test_boundary, name_0 = "0"))
     rc <- sf::st_sf(geometry = layers[[1]])
