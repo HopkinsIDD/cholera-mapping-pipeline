@@ -100,7 +100,6 @@ my_seed <- c(10403, 624, 105045778, 1207077739, 2042172336, -219892751, -7680601
              472843583, -97884556, -509874459) %>%
   as.integer()
 
-
 query_time_left <- lubridate::ymd("2000-01-01")
 query_time_right <- lubridate::ymd("2001-12-31")
 ## Pull data frames needed to create testing database from the api This doesn't
@@ -113,7 +112,6 @@ query_time_right <- lubridate::ymd("2001-12-31")
 ## })
 load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_object.rdata"))
 
-
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change polygons
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
@@ -121,7 +119,7 @@ test_raster <- create_test_raster(nrows = 5, ncols = 5, nlayers = 2, test_extent
 # Create 3 layers of testing polygons starting with a single country, and
 # splitting each polygon into 4 sub-polygons
 test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
-                                                                base_number = 1, n_layers = 2, factor = 5*5, snap = FALSE, randomize = FALSE, 
+                                                                base_number = 1, n_layers = 2, factor = 5*5, snap = FALSE, randomize = TRUE, 
                                                                 seed = my_seed))
 my_seed <- .GlobalEnv$.Random.seed
 
@@ -137,7 +135,6 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
   sf::st_drop_geometry() %>%
   dplyr::group_by(qualified_name) %>%
   dplyr::summarize()
-
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
@@ -166,16 +163,22 @@ test_underlying_distribution <- create_underlying_distribution(covariates = rast
 my_seed <- .GlobalEnv$.Random.seed
 
 test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df, 
-                                                                    location = qualified_name, geometry = geom), test_covariates = raster_df, underlying_distribution = test_underlying_distribution, 
-                                      noise = FALSE, number_draws = 1, grid_proportion_observed = 1, polygon_proportion_observed = 1, 
-                                      min_time_left = query_time_left, max_time_right = query_time_right, seed = my_seed)
+                                                                    location = qualified_name, geometry = geom), 
+                                      test_covariates = raster_df, 
+                                      underlying_distribution = test_underlying_distribution, 
+                                      noise = FALSE, 
+                                      number_draws = 1, 
+                                      grid_proportion_observed = 1, 
+                                      polygon_proportion_observed = 1, 
+                                      min_time_left = query_time_left, 
+                                      max_time_right = query_time_right, 
+                                      seed = my_seed)
 my_seed <- .GlobalEnv$.Random.seed
 
 all_dfs$observations_df <- test_observations %>%
   dplyr::mutate(observation_collection_id = draw, time_left = time_left, time_right = time_right, 
                 qualified_name = location, primary = TRUE, phantom = FALSE, suspected_cases = cases, 
                 deaths = NA, confirmed_cases = NA)
-
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
@@ -192,18 +195,52 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                               width_in_km = 1, height_in_km = 1, time_scale = "year"), stan = list(directory = rprojroot::find_root_file(criterion = ".choldir", 
                                                                                                                                          "Analysis", "Stan"), ncores = 1, model = "dagar_seasonal.stan", niter = 10000, 
                                                                                                    recompile = TRUE), name = "test_???", taxonomy = "taxonomy-working/working-entry1", 
-               smoothing_period = 1, case_definition = "suspected", covariate_choices = raster_df$name, 
-               data_source = "sql", file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir", 
-                                                                                              "Analysis", "output", "test.stan_output.rdata"), stan_input = rprojroot::find_root_file(criterion = ".choldir", 
-                                                                                                                                                                                      "Analysis", "output", "test.stan_input.rdata")))
+               smoothing_period = 1, 
+               case_definition = "suspected", 
+               covariate_choices = raster_df$name, 
+               data_source = "sql", 
+               file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir","Analysis", "output", "test.stan_output.rdata"), 
+                                 stan_input = rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", "test.stan_input.rdata")),
+               nrows=5,
+               ncols=5,
+               data_type="Grid data",
+               oc_type="-",
+               polygon_type="Fake polygons",
+               grid_coverage_type=1,
+               randomize=TRUE,
+               ncovariates=2, 
+               nonspatial = c(FALSE, FALSE), 
+               nontemporal = c(FALSE, FALSE), 
+               spatially_smooth = c(TRUE, FALSE), 
+               temporally_smooth = c(FALSE, FALSE), 
+               polygonal = c(TRUE, TRUE), 
+               radiating = c(FALSE,  FALSE),
+               iteration=10000
+               )
 
 yaml::write_yaml(x = config, file = config_filename)
 
 Sys.setenv(CHOLERA_CONFIG = config_filename)
 source(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "R", "execute_pipeline.R"))
-rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", 
-                                            "country_data_report.Rmd"), params = list(config_filename = config_filename, 
-                                                                                      cholera_directory = "~/cmp/", drop_nodata_years = TRUE))
+rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output","country_data_report_test_case.Rmd"), 
+                  params = list(config_filename = config_filename,
+                                cholera_directory = "~/cmp/", 
+                                drop_nodata_years = TRUE,
+                                nrows=5,
+                                ncols=5,
+                                data_type="Grid data",
+                                oc_type="-",
+                                polygon_type="Fake polygons",
+                                grid_coverage_type=1,
+                                randomize=TRUE,
+                                ncovariates=2, 
+                                nonspatial = c(FALSE, FALSE), 
+                                nontemporal = c(FALSE, FALSE), 
+                                spatially_smooth = c(TRUE, FALSE), 
+                                temporally_smooth = c(FALSE, FALSE), 
+                                polygonal = c(TRUE, TRUE), 
+                                radiating = c(FALSE,  FALSE),
+                                iteration=10000))
 
 
 ## Actually do something with the groundtruth and output
