@@ -1,6 +1,5 @@
 ## Basic test setup starting from real data
 library(taxdat)
-library(sf)
 
 dbuser <- Sys.getenv("USER", "app")
 dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
@@ -100,6 +99,7 @@ my_seed <- c(10403, 624, 105045778, 1207077739, 2042172336, -219892751, -7680601
              472843583, -97884556, -509874459) %>%
   as.integer()
 
+
 query_time_left <- lubridate::ymd("2000-01-01")
 query_time_right <- lubridate::ymd("2001-12-31")
 ## Pull data frames needed to create testing database from the api This doesn't
@@ -119,7 +119,7 @@ test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_exte
 # Create 3 layers of testing polygons starting with a single country, and
 # splitting each polygon into 4 sub-polygons
 test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
-                                                                base_number = 1, n_layers = 2, factor = 10*10, snap = FALSE, randomize = TRUE, 
+                                                                base_number = 1, n_layers = 2, factor = 10 * 10, snap = FALSE, randomize = FALSE, 
                                                                 seed = my_seed))
 my_seed <- .GlobalEnv$.Random.seed
 
@@ -136,18 +136,19 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
   dplyr::group_by(qualified_name) %>%
   dplyr::summarize()
 
+
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
 test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
-test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2,
-                                                   nonspatial = c(FALSE, FALSE),
-                                                   nontemporal = c(FALSE, FALSE),
-                                                   spatially_smooth = c(TRUE,  FALSE),
-                                                   temporally_smooth = c(FALSE, FALSE),
-                                                   polygonal = c(TRUE, TRUE),
-                                                   radiating = c(FALSE, FALSE), seed = my_seed)
-
+test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2, 
+                                                   nonspatial = c(FALSE, FALSE), 
+                                                   nontemporal = c(FALSE, FALSE), 
+                                                   spatially_smooth = c(TRUE,FALSE), 
+                                                   temporally_smooth = c(FALSE, FALSE), 
+                                                   polygonal = c(TRUE, TRUE), 
+                                                   radiating =c(FALSE,FALSE), 
+                                                   seed = my_seed)
 my_seed <- .GlobalEnv$.Random.seed
 min_time_left <- query_time_left
 max_time_right <- query_time_right
@@ -163,22 +164,64 @@ test_underlying_distribution <- create_underlying_distribution(covariates = rast
 my_seed <- .GlobalEnv$.Random.seed
 
 test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df, 
-                                                                    location = qualified_name, geometry = geom), 
-                                      test_covariates = raster_df, 
-                                      underlying_distribution = test_underlying_distribution, 
-                                      noise = FALSE, 
-                                      number_draws = 1, 
-                                      grid_proportion_observed = 0.2, 
-                                      polygon_proportion_observed = 1, 
-                                      min_time_left = query_time_left, 
-                                      max_time_right = query_time_right, 
-                                      seed = my_seed)
+                                                                    location = qualified_name, geometry = geom), test_covariates = raster_df, underlying_distribution = test_underlying_distribution, 
+                                      noise = FALSE, number_draws = 1, grid_proportion_observed = 1, polygon_proportion_observed = 1, 
+                                      min_time_left = query_time_left, max_time_right = query_time_right, seed = my_seed)
 my_seed <- .GlobalEnv$.Random.seed
 
+#extract real cases from the dataset
+real_cases=all_dfs$observations_df[stringr::str_detect(all_dfs$observations_df$qualified_name,"Nyanza"),]
+
 all_dfs$observations_df <- test_observations %>%
-  dplyr::mutate(observation_collection_id = draw, time_left = time_left, time_right = time_right, 
-                qualified_name = location, primary = TRUE, phantom = FALSE, suspected_cases = cases, 
+  dplyr::mutate(observation_collection_id = draw, time_left = time_left, time_right = time_right,
+                qualified_name = location, primary = TRUE, phantom = FALSE, suspected_cases = cases,
                 deaths = NA, confirmed_cases = NA)
+
+#assign real cases to the test observations, ordering the observations by number of cases,trying to match the order of reported cases
+
+all_dfs$observations_df[which(all_dfs$observations_df$location=="1"),]=all_dfs$observations_df[which(all_dfs$observations_df$location=="1"),]%>%
+  dplyr::mutate(time_left=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza"),]$time_left,
+                time_right=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza"),]$time_right,
+                suspected_cases=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza"),]$attributes.fields.suspected_cases)
+
+all_dfs$observations_df[which(all_dfs$observations_df$location=="1::2"),]=all_dfs$observations_df[which(all_dfs$observations_df$location=="1::2"),]%>%
+  dplyr::mutate(time_left=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Gucha"),]$time_left,
+                time_right=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Gucha"),]$time_right,
+                suspected_cases=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Gucha"),]$attributes.fields.suspected_cases)
+
+all_dfs$observations_df[which(all_dfs$observations_df$location=="1::3"),]=all_dfs$observations_df[which(all_dfs$observations_df$location=="1::3"),]%>%
+  dplyr::mutate(time_left=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Homa Bay"),]$time_left,
+                time_right=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Homa Bay"),]$time_right,
+                suspected_cases=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Homa Bay"),]$attributes.fields.suspected_cases)
+
+all_dfs$observations_df[which(all_dfs$observations_df$location=="1::4"),]=all_dfs$observations_df[which(all_dfs$observations_df$location=="1::4"),]%>%
+  dplyr::mutate(time_left=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Kisumu"),]$time_left,
+                time_right=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Kisumu"),]$time_right,
+                suspected_cases=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Kisumu"),]$attributes.fields.suspected_cases)
+
+all_dfs$observations_df[which(all_dfs$observations_df$location=="1::5"),]=all_dfs$observations_df[which(all_dfs$observations_df$location=="1::5"),]%>%
+  dplyr::mutate(time_left=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Migori"),]$time_left,
+                time_right=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Migori"),]$time_right,
+                suspected_cases=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Migori"),]$attributes.fields.suspected_cases)
+
+all_dfs$observations_df[which(all_dfs$observations_df$location=="1::6"),]=all_dfs$observations_df[which(all_dfs$observations_df$location=="1::6"),]%>%
+  dplyr::mutate(time_left=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Nyamira"),]$time_left,
+                time_right=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Nyamira"),]$time_right,
+                suspected_cases=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Nyamira"),]$attributes.fields.suspected_cases)
+
+all_dfs$observations_df[which(all_dfs$observations_df$location=="1::7"),]=all_dfs$observations_df[which(all_dfs$observations_df$location=="1::7"),]%>%
+  dplyr::mutate(time_left=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Rachuonyo"),]$time_left,
+                time_right=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Rachuonyo"),]$time_right,
+                suspected_cases=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Rachuonyo"),]$attributes.fields.suspected_cases)
+
+all_dfs$observations_df[which(all_dfs$observations_df$location=="1::8"),]=all_dfs$observations_df[which(all_dfs$observations_df$location=="1::8"),]%>%
+  dplyr::mutate(time_left=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Siaya"),]$time_left,
+                time_right=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Siaya"),]$time_right,
+                suspected_cases=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Siaya"),]$attributes.fields.suspected_cases)
+
+all_dfs$observations_df=all_dfs$observations_df[which(all_dfs$observations_df$location%in%c(
+  "1","1::2","1::3","1::4","1::5","1::6","1::7","1::8"
+)),]
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
@@ -187,30 +230,24 @@ taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raste
 
 ## NOTE: Change me if you want to run the report locally config_filename <-
 ## paste(tempfile(), 'yml', sep = '.')
-config_filename <- "/home/app/cmp/Analysis/R/test_config_CoarseGrid.yml"
+config_filename <- "/home/app/cmp/Analysis/R/test_config.yml"
 
 ## Put your config stuff in here
 config <- list(general = list(location_name = all_dfs$location_df$qualified_name[[1]], 
                               start_date = as.character(min_time_left), end_date = as.character(max_time_right), 
-                              width_in_km = 1, height_in_km = 1, time_scale = "year"), stan = list(directory = rprojroot::find_root_file(criterion = ".choldir", "Analysis", "Stan"), 
-                                                                                                   ncores = 1, 
-                                                                                                   model = "dagar_seasonal.stan", 
-                                                                                                   niter = 10000, 
-                                                                                                   recompile = TRUE), 
-               name = "test_???", 
-               taxonomy = "taxonomy-working/working-entry1", 
-               smoothing_period = 1, 
-               case_definition = "suspected", 
-               covariate_choices = raster_df$name, 
-               data_source = "sql", 
-               file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir","Analysis", "output", "test.stan_output.rdata"), 
-                                 stan_input = rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", "test.stan_input.rdata")),
+                              width_in_km = 1, height_in_km = 1, time_scale = "year"), stan = list(directory = rprojroot::find_root_file(criterion = ".choldir", 
+                                                                                                                                         "Analysis", "Stan"), ncores = 1, model = "dagar_seasonal.stan", niter = 10000, 
+                                                                                                   recompile = TRUE), name = "test_???", taxonomy = "taxonomy-working/working-entry1", 
+               smoothing_period = 1, case_definition = "suspected", covariate_choices = raster_df$name, 
+               data_source = "sql", file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir", 
+                                                                                              "Analysis", "output", "test.stan_output.rdata"), stan_input = rprojroot::find_root_file(criterion = ".choldir", 
+                                                                                                                                                                                      "Analysis", "output", "test.stan_input.rdata")),
                nrows=10,
                ncols=10,
-               data_type="Grid data",
-               oc_type="-",
+               data_type="Real data",
+               oc_type="Multiple OCs",
                polygon_type="Fake polygons",
-               grid_coverage_type="20%",
+               grid_coverage_type="100%",
                randomize=TRUE,
                ncovariates=2, 
                nonspatial = c(FALSE, FALSE), 
@@ -219,23 +256,23 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                temporally_smooth = c(FALSE, FALSE), 
                polygonal = c(TRUE, TRUE), 
                radiating = c(FALSE,  FALSE),
-               iteration=10000
-)
+               iteration=10000)
 
 yaml::write_yaml(x = config, file = config_filename)
 
 Sys.setenv(CHOLERA_CONFIG = config_filename)
 source(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "R", "execute_pipeline.R"))
-rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output","country_data_report_test_case.Rmd"), 
+rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", 
+                                            "country_data_report_test_case.Rmd"), 
                   params = list(config_filename = config_filename,
                                 cholera_directory = "~/cmp/", 
                                 drop_nodata_years = TRUE,
                                 nrows=10,
                                 ncols=10,
-                                data_type="Grid data",
-                                oc_type="-",
-                                polygon_type="Fake polygon",
-                                grid_coverage_type="20%",
+                                data_type="Real data",
+                                oc_type="Multiple OCs",
+                                polygon_type="Fake polygons",
+                                grid_coverage_type="100%",
                                 randomize=TRUE,
                                 ncovariates=2, 
                                 nonspatial = c(FALSE, FALSE), 
@@ -245,6 +282,5 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                 polygonal = c(TRUE, TRUE), 
                                 radiating = c(FALSE,  FALSE),
                                 iteration=10000))
-
 
 ## Actually do something with the groundtruth and output

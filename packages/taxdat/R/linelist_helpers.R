@@ -83,7 +83,7 @@ linelist2phantom <- function(
   }
   # last_time <- max(linelist$TR)
   # Get range of all observed times
-  time_range <- assumed_complete_TL + lubridate::days(0:as.numeric(lubridate::day(lubridate::days(assumed_complete_TR - assumed_complete_TL))))
+  #time_range <- assumed_complete_TL + lubridate::days(0:as.numeric(lubridate::day(lubridate::days(assumed_complete_TR - assumed_complete_TL))))
 
   # Compute sums by location TL and TR
   test <- dplyr::ungroup(
@@ -94,15 +94,35 @@ linelist2phantom <- function(
   )
   
   # Create combination of all locations and times
-  all_combinations <- tidyr::expand(
-    test, 
-    TL = time_range,
-    tidyr::nesting(Location,lowest_level)
+  # all_combinations <- tidyr::expand(
+  #   test, 
+  #   TL = time_range,
+  #   tidyr::nesting(Location,lowest_level)
+  #   )
+  # all_combinations <- dplyr::mutate(
+  #   all_combinations,
+  #   TR = TL
+  #   )
+  
+##QZ version: one location can be assumed to be complete for a specific time period.
+  # Create combination of all locations and times
+  time_range<-data.frame(Location=assumed_complete_location,assumed_complete_TL=assumed_complete_TL,assumed_complete_TR=assumed_complete_TR)
+  
+  all_combinations<-data.frame()
+  for (index in 1:nrow(time_range)) {
+    time_range_tmp=time_range$assumed_complete_TL[index]+lubridate::days(0:as.numeric(lubridate::day(lubridate::days(time_range$assumed_complete_TR[index] - time_range$assumed_complete_TL[index]))))
+    
+    all_combinations_tmp <- tidyr::expand(
+      test[which(test$Location==time_range$Location[index]),], 
+      TL = time_range_tmp,
+      tidyr::nesting(Location,lowest_level)
     )
-  all_combinations <- dplyr::mutate(
-    all_combinations,
-    TR = TL
+    all_combinations_tmp <- dplyr::mutate(
+      all_combinations_tmp,
+      TR = TL
     )
+    all_combinations=dplyr::bind_rows(all_combinations,all_combinations_tmp)
+  }
   
   # Expand to cover all times for all locations
   test <- dplyr::full_join(test,
@@ -175,7 +195,8 @@ expand_all_locations = function(.x, .y, assumed_complete_location, all_locations
   }
   # Keep only locations that are either the assumed_complete_location or locations 
   # children of the latter 
-  all_location <- all_location[grepl(assumed_complete_location,all_location)]
+  # QZ: update the the code to identify over one assumed_complete_locations. 
+  all_location <- all_location[grepl(paste0(assumed_complete_location,collapse = "|"),all_location)]
   if(length(all_location) > 0){
     # Create full dataframe of the observations at all location levels
     .x <- dplyr::bind_rows(

@@ -115,11 +115,11 @@ load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_obje
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change polygons
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
+test_raster <- create_test_raster(nrows = 5, ncols = 5, nlayers = 2, test_extent = test_extent)
 # Create 3 layers of testing polygons starting with a single country, and
 # splitting each polygon into 4 sub-polygons
 test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
-                                                                base_number = 1, n_layers = 2, factor = 10*10, snap = FALSE, randomize = TRUE, 
+                                                                base_number = 1, n_layers = 2, factor = 5*5, snap = FALSE, randomize = TRUE, 
                                                                 seed = my_seed))
 my_seed <- .GlobalEnv$.Random.seed
 
@@ -139,7 +139,7 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
+test_raster <- create_test_raster(nrows = 5, ncols = 5, nlayers = 2, test_extent = test_extent)
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2,
                                                    nonspatial = c(FALSE, FALSE),
                                                    nontemporal = c(FALSE, FALSE),
@@ -168,7 +168,7 @@ test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shap
                                       underlying_distribution = test_underlying_distribution, 
                                       noise = FALSE, 
                                       number_draws = 1, 
-                                      grid_proportion_observed = 0.2, 
+                                      grid_proportion_observed = 1, 
                                       polygon_proportion_observed = 1, 
                                       min_time_left = query_time_left, 
                                       max_time_right = query_time_right, 
@@ -205,12 +205,12 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                data_source = "sql", 
                file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir","Analysis", "output", "test.stan_output.rdata"), 
                                  stan_input = rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", "test.stan_input.rdata")),
-               nrows=10,
-               ncols=10,
+               nrows=5,
+               ncols=5,
                data_type="Grid data",
                oc_type="-",
-               polygon_type="Fake polygons",
-               grid_coverage_type="20%",
+               polygon_type="Coarse Grids",
+               grid_coverage_type="100%",
                randomize=TRUE,
                ncovariates=2, 
                nonspatial = c(FALSE, FALSE), 
@@ -220,7 +220,7 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                polygonal = c(TRUE, TRUE), 
                radiating = c(FALSE,  FALSE),
                iteration=10000
-)
+               )
 
 yaml::write_yaml(x = config, file = config_filename)
 
@@ -230,12 +230,12 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                   params = list(config_filename = config_filename,
                                 cholera_directory = "~/cmp/", 
                                 drop_nodata_years = TRUE,
-                                nrows=10,
-                                ncols=10,
+                                nrows=5,
+                                ncols=5,
                                 data_type="Grid data",
                                 oc_type="-",
-                                polygon_type="Fake polygon",
-                                grid_coverage_type="20%",
+                                polygon_type="Coarse Grids",
+                                grid_coverage_type="100%",
                                 randomize=TRUE,
                                 ncovariates=2, 
                                 nonspatial = c(FALSE, FALSE), 

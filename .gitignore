@@ -1,9 +1,7 @@
-packrat/lib*/
-Analysis/data/*
-Analysis/output/logs/*
-Analysis/output/reports/*
-Analysis/R/database_api_key.R
-Analysis/slurm*.out
+
+*.Rd
+*.rdata
+Analysis/R/.Rhistory
 *~
 *.Rd
 slurm*.out

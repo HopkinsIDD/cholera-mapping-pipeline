@@ -119,7 +119,7 @@ test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_exte
 # Create 3 layers of testing polygons starting with a single country, and
 # splitting each polygon into 4 sub-polygons
 test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
-                                                                base_number = 1, n_layers = 2, factor = 10*10, snap = FALSE, randomize = TRUE, 
+                                                                base_number = 1, n_layers = 2, factor = 10*10, snap = FALSE, randomize = FALSE, 
                                                                 seed = my_seed))
 my_seed <- .GlobalEnv$.Random.seed
 
@@ -146,7 +146,8 @@ test_covariates <- create_multiple_test_covariates(test_raster = test_raster, nc
                                                    spatially_smooth = c(TRUE,  FALSE),
                                                    temporally_smooth = c(FALSE, FALSE),
                                                    polygonal = c(TRUE, TRUE),
-                                                   radiating = c(FALSE, FALSE), seed = my_seed)
+                                                   radiating = c(FALSE, FALSE), 
+                                                   seed = my_seed)
 
 my_seed <- .GlobalEnv$.Random.seed
 min_time_left <- query_time_left
@@ -168,7 +169,7 @@ test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shap
                                       underlying_distribution = test_underlying_distribution, 
                                       noise = FALSE, 
                                       number_draws = 1, 
-                                      grid_proportion_observed = 0.2, 
+                                      grid_proportion_observed = 1, 
                                       polygon_proportion_observed = 1, 
                                       min_time_left = query_time_left, 
                                       max_time_right = query_time_right, 
@@ -187,16 +188,17 @@ taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raste
 
 ## NOTE: Change me if you want to run the report locally config_filename <-
 ## paste(tempfile(), 'yml', sep = '.')
-config_filename <- "/home/app/cmp/Analysis/R/test_config_CoarseGrid.yml"
+config_filename <- "/home/app/cmp/Analysis/R/test_config_OverlappingGrid.yml"
 
 ## Put your config stuff in here
 config <- list(general = list(location_name = all_dfs$location_df$qualified_name[[1]], 
                               start_date = as.character(min_time_left), end_date = as.character(max_time_right), 
-                              width_in_km = 1, height_in_km = 1, time_scale = "year"), stan = list(directory = rprojroot::find_root_file(criterion = ".choldir", "Analysis", "Stan"), 
-                                                                                                   ncores = 1, 
-                                                                                                   model = "dagar_seasonal.stan", 
-                                                                                                   niter = 10000, 
-                                                                                                   recompile = TRUE), 
+                              width_in_km = 1, height_in_km = 1, time_scale = "year"), 
+               stan = list(directory = rprojroot::find_root_file(criterion = ".choldir","Analysis", "Stan"), 
+                           ncores = 1, 
+                           model = "dagar_seasonal.stan", 
+                           niter = 10000, 
+                           recompile = TRUE), 
                name = "test_???", 
                taxonomy = "taxonomy-working/working-entry1", 
                smoothing_period = 1, 
@@ -209,9 +211,9 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                ncols=10,
                data_type="Grid data",
                oc_type="-",
-               polygon_type="Fake polygons",
-               grid_coverage_type="20%",
-               randomize=TRUE,
+               polygon_type="Overlapping Grid",
+               grid_coverage_type="100%",
+               randomize=FALSE,
                ncovariates=2, 
                nonspatial = c(FALSE, FALSE), 
                nontemporal = c(FALSE, FALSE), 
@@ -234,9 +236,9 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                 ncols=10,
                                 data_type="Grid data",
                                 oc_type="-",
-                                polygon_type="Fake polygon",
-                                grid_coverage_type="20%",
-                                randomize=TRUE,
+                                polygon_type="Overlapping Grid",
+                                grid_coverage_type="100%",
+                                randomize=FALSE,
                                 ncovariates=2, 
                                 nonspatial = c(FALSE, FALSE), 
                                 nontemporal = c(FALSE, FALSE), 
@@ -245,6 +247,5 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                 polygonal = c(TRUE, TRUE), 
                                 radiating = c(FALSE,  FALSE),
                                 iteration=10000))
-
 
 ## Actually do something with the groundtruth and output
