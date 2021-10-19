@@ -454,6 +454,7 @@ prepare_stan_input <- function(
     # stan_data$covar[1:10] = covar_cube[1:10, 1, 2]
     # TODO check if the index removing the first covarcub column which should correspond
     # to population is correct
+
     stan_data$covar <- matrix(apply(covar_cube, 3, function(x) x[non_na_gridcells])[, -1], nrow = length(non_na_gridcells))
     
     for (i in rev(seq_len(stan_data$ncovar:1))) {
@@ -469,10 +470,11 @@ prepare_stan_input <- function(
     }
     
     # normalize data
+    standardize=function(x) (x-mean(x))/sd(x)
+    standardize_covar=function(M) cbind(M[,1],apply(M[,-1,drop=F],2,standardize))
     for (i in seq_len(stan_data$ncovar)) {
       # standardize
-      stan_data$covar[, i] <- stan_data$covar[ , i] - mean(stan_data$covar[, i])
-      stan_data$covar[,  i] <- stan_data$covar[ , i] / max(abs(stan_data$covar[, i]))
+      standardize_covar(stan_data$covar)
     }
   }
   
