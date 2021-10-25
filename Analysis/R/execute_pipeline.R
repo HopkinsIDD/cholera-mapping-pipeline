@@ -227,7 +227,8 @@ observation_temporal_location_mapping <- DBI::dbGetQuery(conn = conn_pg, stateme
        {config[[\"general\"]][[\"start_date\"]]},
        {config[[\"general\"]][[\"end_date\"]]},
        {config[[\"general\"]][[\"time_scale\"]]}
-    )"))
+    )")) %>%
+    dplyr::filter(observation_id %in% observation_data$observation_id)
 
 unique_temporal_location_ids <- sort(unique(observation_data[["temporal_location_id"]]))
 unique_location_ids <- sort(unique(observation_data[["location_id"]]))
@@ -240,7 +241,8 @@ temporal_location_grid_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = gl
        {config[[\"general\"]][[\"width_in_km\"]]},
        {config[[\"general\"]][[\"height_in_km\"]]},
        {config[[\"general\"]][[\"time_scale\"]]}
-    )"))
+    )")) %>%
+    dplyr::filter(temporal_location_id %in% observation_temporal_location_mapping$temporal_location_id)
 # location_period_grid_mapping <- location_period_grid_mapping %>%
 # dplyr::filter(location_id %in% unique_location_ids)
 
