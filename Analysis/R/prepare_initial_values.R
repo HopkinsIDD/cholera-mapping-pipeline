@@ -256,6 +256,8 @@ if (stan_params$time_effect) {
   # If there is no data in a given year, the model will ignore the yearly random effect
   has_data_year <- purrr::map_dbl(stan_data$map_grid_time, ~ . %in% obs_per_year$obs_year)
   stan_data$has_data_year <- has_data_year
+} else {
+  stan_data$has_data_year <- array()
 }
 
 # Set value of negative binomial models with fixed overdispersion parameter
