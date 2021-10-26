@@ -629,7 +629,7 @@ RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint
     temporal_locations.t
   FROM
     filter_location_periods(location_name) as location_periods
-      LEFT JOIN
+      INNER JOIN
     shapes
       on
         location_periods.location_period_id = shapes.location_period_id
@@ -976,6 +976,36 @@ insert_testing_locations <- function(psql_connection, location_df) {
     invisible(NULL)
 }
 
+#' @description Lookup the location_id associated with a set of qualified names
+#' @name lookup_location_ids
+#' @param qualified_names a character vector of names to look up the location_ids for
+#' @return A bigint vector of location ids
+lookup_location_ids <- function(psql_connection, qualified_names) {
+
+    location_name_and_ids <- DBI::dbGetQuery(conn = psql_connection, glue::glue_sql(.con = psql_connection, 
+        "SELECT qualified_name, id FROM locations where qualified_name in ({qualified_names*})"))
+    location_name_changer <- setNames(location_name_and_ids[["id"]], location_name_and_ids[["qualified_name"]])
+    return(location_name_changer[qualified_names])
+}
+
+
+lookup_location_period_ids <- function(psql_connection, location_period_df) {
+    location_period_info <- DBI::dbGetQuery(conn = psql_connection, glue::glue_sql(.con = psql_connection, 
+        "SELECT location_id, start_date, end_date, id
+       FROM location_periods
+       WHERE location_id in ({location_period_df[['location_id']]*})
+       AND start_date in ({location_period_df[['start_date']]*})
+       AND end_date in ({location_period_df[['end_date']]*})"))
+    location_period_id_changer <- setNames(location_period_info$id, paste(location_period_info[["location_id"]], 
+        location_period_info[["start_date"]], location_period_info[["end_date"]], 
+        sep = "_"))
+    rc <- location_period_id_changer[paste(location_period_df[["location_id"]], location_period_df[["start_date"]], 
+        location_period_df[["end_date"]], sep = "_")]
+    if (any(is.na(rc))) {
+        stop("Could not find all location period ids")
+    }
+    return(rc)
+}
 
 #' @description Insert location_periods into the testing database
 #' @name insert_testing_location_periods
@@ -988,8 +1018,7 @@ insert_testing_location_periods <- function(psql_connection, location_period_df)
     assert("start_date" %in% names(location_period_df), "insert_testing_location_periods cannot insert a location_period without a start date")
     assert("end_date" %in% names(location_period_df), "insert_testing_location_periods cannot insert a location_period without a end date")
 
-    location_period_df$location_id <- DBI::dbGetQuery(conn = psql_connection, glue::glue_sql(.con = psql_connection, 
-        "SELECT id FROM locations where qualified_name in ({location_period_df[[\"qualified_name\"]]*})"))[["id"]]
+    location_period_df[["location_id"]] <- lookup_location_ids(psql_connection, location_period_df[["qualified_name"]])
 
     insert_query <- paste("INSERT INTO location_periods(\"location_id\", \"start_date\", \"end_date\") VALUES", 
         paste("(", glue::glue_sql(.con = psql_connection, "{location_period_df[['location_id']]}"), 
@@ -1006,7 +1035,8 @@ insert_testing_location_periods <- function(psql_connection, location_period_df)
 #' @param psql_connection a connection to a database made with dbConnect
 #' @param shape_df A data frame with one row per shape to insert with information about the shape
 #' @export
-insert_testing_shapefiles <- function(psql_connection, shape_df, create_location_periods = FALSE) {
+insert_testing_shapefiles <- function(psql_connection, shape_df, create_location_periods = FALSE, 
+    check = FALSE) {
     assert("qualified_name" %in% names(shape_df), "insert_testing_shapefiles cannot insert a shape without a qualified name")
     assert("start_date" %in% names(shape_df), "insert_testing_shapefiles cannot insert a shape without a start date")
     assert("end_date" %in% names(shape_df), "insert_testing_shapefiles cannot insert a shape without an end date")
@@ -1016,38 +1046,59 @@ insert_testing_shapefiles <- function(psql_connection, shape_df, create_location
         stop("This functionality is not yet written")
     }
 
-    shape_df$location_id <- DBI::dbGetQuery(conn = psql_connection, glue::glue_sql(.con = psql_connection, 
-        "SELECT id FROM locations where qualified_name in ({shape_df[[\"qualified_name\"]]*})"))[["id"]]
+    shape_df[["location_id"]] <- lookup_location_ids(psql_connection, shape_df[["qualified_name"]])
 
-    shape_df$location_period_id <- shape_df$location_id
-    for (row_idx in seq_len(nrow(shape_df))) {
-        location_period_query <- "
-SELECT lookup_location_period(
-  {shape_df$location_id[row_idx]},
-  {shape_df$start_date[row_idx]},
-  {shape_df$end_date[row_idx]}
-)"
-        location_period_query <- glue::glue_sql(.con = psql_connection, location_period_query)
-        shape_df$location_period_id[row_idx] <- DBI::dbGetQuery(conn = psql_connection, 
-            location_period_query)[["lookup_location_period"]]
-    }
-    # shape_df$location_period_id <- DBI::dbGetQuery(conn = psql_connection,
-    # location_period_query)[['id']]
-    shape_df$box <- sf::st_as_sfc(sf::st_bbox(shape_df[["geom"]]))
+    shape_df[["location_period_id"]] <- lookup_location_period_ids(psql_connection, 
+        shape_df[, c("location_id", "start_date", "end_date")])
+    shape_df[["box"]] <- sf::st_as_sfc(sf::st_bbox(shape_df[["geom"]]))
+    names(shape_df)[names(shape_df) == "geom"] <- "shape"
+    sf::st_geometry(shape_df) <- "shape"
 
-    insert_query <- paste("INSERT INTO shapes(\"location_period_id\", \"shape\", \"box\") VALUES", 
-        paste("(", glue::glue_sql(.con = psql_connection, "{shape_df[['location_period_id']]}"), 
-            ",", glue::glue_sql(.con = psql_connection, "{sf::st_as_text(shape_df[['geom']])}"), 
-            ",", glue::glue_sql(.con = psql_connection, "{sf::st_as_text(shape_df[['box']])}"), 
-            ")", collapse = ", "))
     srid <- sf::st_crs(shape_df)$epsg
     if (is.na(srid)) {
         srid <- 4326
+        sf::st_crs(shape_df) <- srid
     }
-    srid_query <- glue::glue_sql(.con = psql_connection, "UPDATE shapes set shape = st_setsrid(shape, {srid}), box = st_setsrid(box, {srid})")
 
-    DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, insert_query))
-    DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, srid_query))
+    # insert_query <- paste( 'INSERT INTO shapes(\'location_period_id\',
+    # \'shape\', \'box\') VALUES', paste( '(', glue::glue_sql(.con =
+    # psql_connection, '{shape_df[['location_period_id']]}'), ',',
+    # glue::glue_sql(.con = psql_connection,
+    # '{sf::st_as_binary(shape_df[['geom']])}', digits = 20, EWKT = TRUE), ',',
+    # glue::glue_sql(.con = psql_connection, '{sf::st_as_binary(shape_df[['box']])}',
+    # digits = 20, EWKT = TRUE), ')', collapse = ', ' ) )
+
+    # srid_query <- glue::glue_sql(.con = psql_connection, 'UPDATE shapes set shape =
+    # st_setsrid(shape, {srid}), box = st_setsrid(box, {srid})')
+
+    # DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, insert_query))
+    # DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, srid_query))
+
+    sf::st_write(obj = shape_df[, c("location_period_id", "shape", "box")], dsn = psql_connection, 
+        layer = "shapes", append = TRUE)
+    if (check) {
+        read_shapes <- DBI::dbGetQuery(conn = psql_connection, glue::glue_sql(.con = psql_connection, 
+            "SELECT * FROM shapes where location_period_id in ({shape_df[['location_period_id']]*})"))
+        read_shapes$shape <- sf::st_as_sfc(read_shapes$shape, crs = srid)
+        read_shapes$box <- sf::st_as_sfc(read_shapes$box, crs = srid)
+        read_shapes <- sf::st_as_sf(read_shapes)
+        read_shapes_2 <- sf::st_read(psql_connection, layer = "shapes")
+        assert(nrow(shape_df) == nrow(read_shapes), "insert_testing_shapefiles object changed number of polygons during writing")
+        shape_df <- dplyr::arrange(shape_df, as.character(location_period_id))
+        read_shapes <- dplyr::arrange(read_shapes, as.character(location_period_id))
+        for (row in seq_len(nrow(shape_df))) {
+            if (!(sf::st_is_empty(read_shapes[row, ]) && sf::st_is_empty(shape_df[row, 
+                ])) && !(sf::st_geometry(read_shapes[row, ]) == sf::st_geometry(shape_df[row, 
+                ]))) {
+                lhs <- sf::st_geometry(read_shapes[row, ])
+                rhs <- sf::st_geometry(shape_df[row, ])
+                if (as.numeric(sf::st_area(sf::st_intersection(lhs, rhs))/sf::st_area(sf::st_union(lhs, 
+                  rhs))) < 0.999) {
+                  stop("Bad things")
+                }
+            }
+        }
+    }
     invisible(NULL)
 }
 
@@ -1067,15 +1118,17 @@ insert_testing_observations <- function(psql_connection, observation_df) {
     assert(any(c("suspected_cases", "confirmed_cases", "deaths") %in% names(observation_df)), 
         "insert_testing_observations cannot insert a shape without at least one case column")
 
-    location_id_query <- glue::glue_sql(.con = psql_connection, "SELECT id FROM locations WHERE qualified_name = {observation_df[[\"qualified_name\"]]}")
-    observation_df$location_id <- sapply(location_id_query, function(query) {
-        as.character(DBI::dbGetQuery(conn = psql_connection, query)[["id"]])
-    })
+    observation_df$location_id <- lookup_location_ids(psql_connection, observation_df[["qualified_name"]])
 
-    location_period_id_query <- glue::glue_sql(.con = psql_connection, "SELECT id FROM location_periods WHERE location_id = {observation_df$location_id}")
-    observation_df$location_period_id <- sapply(location_period_id_query, function(query) {
-        as.character(DBI::dbGetQuery(conn = psql_connection, query)[["id"]])
-    })
+    location_period_id_query <- glue::glue_sql(.con = psql_connection, "SELECT id FROM location_periods WHERE location_id = {observation_df$location_id} AND {observation_df$time_left} >= start_date AND {observation_df$time_right} <= end_date")
+    observation_df$location_period_id <- unname(sapply(location_period_id_query, 
+        function(query) {
+            rc <- DBI::dbGetQuery(conn = psql_connection, query)[["id"]]
+            if (length(rc) == 0) {
+                rc <- bit64::integer64(1) * NA
+            }
+            return(as.character(rc))
+        }))
 
 
     insert_query <- paste("INSERT INTO observations(\"observation_collection_id\", \"time_left\", \"time_right\", \"location_period_id\", \"location_id\", \"primary\", \"phantom\", \"suspected_cases\", \"confirmed_cases\", \"deaths\") VALUES", 
