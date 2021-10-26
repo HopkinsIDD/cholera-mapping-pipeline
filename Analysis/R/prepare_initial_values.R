@@ -257,7 +257,7 @@ if (stan_params$time_effect) {
   has_data_year <- purrr::map_dbl(stan_data$map_grid_time, ~ . %in% obs_per_year$obs_year)
   stan_data$has_data_year <- has_data_year
 } else {
-  stan_data$has_data_year <- array(dims = c(0))
+  stan_data$has_data_year <- array(dim = c(0))
 }
 
 # Set value of negative binomial models with fixed overdispersion parameter
