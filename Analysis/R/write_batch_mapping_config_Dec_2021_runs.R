@@ -13,7 +13,7 @@ library(readr)
 #========================================================READ ME========================================================#  
 working_directory <- "/home/kaiyuezou/mapping_pipeline/9_23_dev/cholera-mapping-pipeline/" #<--------CHANGE THIS AND KEEP BOTH "//" ON BOTH SIDES
 setwd(working_directory)
-config_path <- "Analysis/configs/Dec_2021_runs_testing"
+config_path <- "Analysis/configs/Dec_2021_runs"
 dir.create(file.path(working_directory, config_path), FALSE)
 
 
