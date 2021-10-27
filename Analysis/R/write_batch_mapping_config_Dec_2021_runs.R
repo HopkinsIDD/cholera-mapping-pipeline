@@ -13,7 +13,7 @@ library(readr)
 #========================================================READ ME========================================================#  
 working_directory <- "/home/kaiyuezou/mapping_pipeline/9_23_dev/cholera-mapping-pipeline/" #<--------CHANGE THIS AND KEEP BOTH "//" ON BOTH SIDES
 setwd(working_directory)
-config_path <- "Analysis/configs/Dec_2021_runs"
+config_path <- "Analysis/configs/Dec_2021_runs_testing"
 dir.create(file.path(working_directory, config_path), FALSE)
 
 
@@ -51,7 +51,7 @@ params_df <- data.frame(
     censoring = 'no',
     aggregate = 'yes',
     use_weights = 'no', 
-    time_effect = 'no',
+    time_effect = 'yes',
     time_effect_autocorr = 'no',
     beta_sigma_scale = 1.0,
     sigma_eta_scale = 5.0,
