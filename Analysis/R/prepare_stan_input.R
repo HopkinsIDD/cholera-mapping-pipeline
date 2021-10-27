@@ -104,6 +104,7 @@ prepare_stan_input <- function(
         dist_to_main <- as.vector(sf::st_distance(smooth_grid_it[vertex, ], smooth_grid_it[seq_len(vertex-1), ] ))
         new_neighbor <- which.min(dist_to_main)
         nn_mat[vertex,new_neighbor] <- 1
+        nn_mat[new_neighbor, vertex] <- 1
       }
     }
     
