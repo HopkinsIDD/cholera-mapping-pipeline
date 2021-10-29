@@ -1,5 +1,4 @@
 ## Basic test setup starting from real data
-#install.packages('C:/IDD/Cholera/cholera-mapping-pipeline/packages/taxdat',type='source',repos=NULL)
 library(taxdat)
 library(sf)
 
@@ -101,7 +100,6 @@ my_seed <- c(10403, 624, 105045778, 1207077739, 2042172336, -219892751, -7680601
              472843583, -97884556, -509874459) %>%
   as.integer()
 
-
 query_time_left <- lubridate::ymd("2000-01-01")
 query_time_right <- lubridate::ymd("2001-12-31")
 ## Pull data frames needed to create testing database from the api This doesn't
@@ -114,17 +112,6 @@ query_time_right <- lubridate::ymd("2001-12-31")
 ## })
 load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_object.rdata"))
 
-##select a single Observation collection
-all_dfs$observations_df=all_dfs$observations_df%>%mutate(attributes.source_documents=as.character(attributes.source_documents))
-observations_df=data.frame(OC=all_dfs$observations_df$relationships.observation_collection.data.id[1],
-                           number_observations=nrow(all_dfs$observations_df[all_dfs$observations_df$relationships.observation_collection.data.id==all_dfs$observations_df$relationships.observation_collection.data.id[1],]))
-selected_OC=observations_df$number_observations[1]
-selected_geom=all_dfs$shapes_df$geom[1:selected_OC]
-all_dfs=list(location_df=all_dfs$location_df[1:selected_OC,],
-             location_period_df=all_dfs$location_period_df[1:selected_OC,],
-             shapes_df=all_dfs$shapes_df[1:selected_OC,],
-             observations_df=all_dfs$observations_df[1:selected_OC,])
-
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change polygons
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
@@ -132,7 +119,7 @@ test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_exte
 # Create 3 layers of testing polygons starting with a single country, and
 # splitting each polygon into 4 sub-polygons
 test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
-                                                                base_number = 1, n_layers = 2,factor=10*10,snap = FALSE, randomize = TRUE, 
+                                                                base_number = 2, n_layers = 2, factor = 50, snap = FALSE, randomize = TRUE, 
                                                                 seed = my_seed))
 my_seed <- .GlobalEnv$.Random.seed
 
@@ -153,52 +140,74 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
 ## Change covariates
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
 test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
-test_covariates <- create_multiple_test_covariates(test_raster = test_raster, 
-                                                   ncovariates = 2, 
-                                                   nonspatial = c(FALSE, FALSE), 
-                                                   nontemporal = c(FALSE, FALSE), 
-                                                   spatially_smooth = c(TRUE, FALSE), 
-                                                   temporally_smooth = c(FALSE, FALSE), 
-                                                   polygonal = c(TRUE, TRUE), 
-                                                   radiating = c(FALSE,  FALSE), 
-                                                   seed = my_seed)
-my_seed <- .GlobalEnv$.Random.seed
+test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2,
+                                                   nonspatial = c(FALSE, FALSE),
+                                                   nontemporal = c(FALSE, FALSE),
+                                                   spatially_smooth = c(TRUE,FALSE),
+                                                   temporally_smooth = c(FALSE,FALSE),
+                                                   polygonal = c(TRUE, TRUE),
+                                                   radiating = c(FALSE,FALSE), seed = my_seed)
 
+my_seed <- .GlobalEnv$.Random.seed
 min_time_left <- query_time_left
 max_time_right <- query_time_right
 covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates, 
                                                                                       min_time_left, max_time_right)
 
+test_raster_observation <- create_test_raster(nrows = 10, ncols = 10, nlayers = 3, test_extent = test_extent)
+test_covariates_observation <- create_multiple_test_covariates(test_raster = test_raster_observation, ncovariates = 3,
+                                                               nonspatial = c(FALSE, FALSE,FALSE),
+                                                               nontemporal = c(FALSE, FALSE,FALSE),
+                                                               spatially_smooth = c(TRUE,TRUE,FALSE),
+                                                               temporally_smooth = c(FALSE, FALSE,FALSE),
+                                                               polygonal = c(TRUE,TRUE,TRUE),
+                                                               radiating = c(FALSE,FALSE,FALSE), 
+                                                               constant = c(TRUE, FALSE,FALSE),
+                                                               seed = my_seed)
+
+my_seed <- .GlobalEnv$.Random.seed
+min_time_left <- query_time_left
+max_time_right <- query_time_right
+covariate_raster_funs_observation <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates_observation, 
+                                                                                                  min_time_left, max_time_right)
+
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change observations
-raster_df <- taxdat::convert_test_covariate_funs_to_simulation_covariates(covariate_raster_funs)
+raster_df <- taxdat::convert_test_covariate_funs_to_simulation_covariates(covariate_raster_funs_observation)
 
 test_underlying_distribution <- create_underlying_distribution(covariates = raster_df, 
                                                                seed = my_seed)
 my_seed <- .GlobalEnv$.Random.seed
 
-test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df,
-                                                                    location = qualified_name, geometry = geom), test_covariates = raster_df, underlying_distribution = test_underlying_distribution,
+test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df, 
+                                                                    location = qualified_name, geometry = geom), 
+                                      test_covariates = raster_df, 
+                                      underlying_distribution = test_underlying_distribution, 
                                       noise = FALSE, 
                                       number_draws = 1, 
                                       grid_proportion_observed = 1, 
-                                      polygon_proportion_observed = 1,
-                                      min_time_left = query_time_left, max_time_right = query_time_right, seed = my_seed)
+                                      polygon_proportion_observed = 1, 
+                                      min_time_left = query_time_left, 
+                                      max_time_right = query_time_right, 
+                                      seed = my_seed)
 my_seed <- .GlobalEnv$.Random.seed
 
-#extract real cases from the dataset
-real_cases=all_dfs$observations_df$attributes.fields.suspected_cases
-
 all_dfs$observations_df <- test_observations %>%
-  dplyr::mutate(observation_collection_id = draw, time_left = time_left, time_right = time_right,
-                qualified_name = location, primary = TRUE, phantom = FALSE, suspected_cases = cases,
+  dplyr::mutate(observation_collection_id = draw, time_left = time_left, time_right = time_right, 
+                qualified_name = location, primary = TRUE, phantom = FALSE, suspected_cases = cases, 
                 deaths = NA, confirmed_cases = NA)
 
-#assign real cases to the test observations, ordering the observations by number of cases,trying to match the order of reported cases
-all_dfs$observations_df=all_dfs$observations_df[with(all_dfs$observations_df,order(all_dfs$observations_df$cases,decreasing = T)),]
-all_dfs$observations_df$suspected_cases=0
-case_nrows=min(length(real_cases),nrow(all_dfs$observations_df))
-all_dfs$observations_df[1:case_nrows,]$suspected_cases=order(real_cases[1:case_nrows],decreasing = T)
+#overlapping observations with inconsistent case counts
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("1::",all_dfs$observations_df$qualified_name),]$suspected_cases)
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="2"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("2::",all_dfs$observations_df$qualified_name),]$suspected_cases)
+
+#partially covered for certain polygons
+all_dfs$observations_df=all_dfs$observations_df%>%subset(!qualified_name%in%c("1"))
+#all_dfs$observations_df=all_dfs$observations_df[grep("1::",all_dfs$observations_df$qualified_name),][-c(1:10),]
+observations_df1=all_dfs$observations_df[grep("1::",all_dfs$observations_df$qualified_name),][-c(1:10),]
+observations_df2=all_dfs$observations_df[grep("2::",all_dfs$observations_df$qualified_name),]
+observations_df3=all_dfs$observations_df%>%subset(qualified_name%in%c("2"))
+all_dfs$observations_df=rbind(observations_df1,observations_df2,observations_df3)
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
@@ -207,57 +216,64 @@ taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raste
 
 ## NOTE: Change me if you want to run the report locally config_filename <-
 ## paste(tempfile(), 'yml', sep = '.')
-config_filename <- "/home/app/cmp/Analysis/R/test_config.yml"
+config_filename <- "/home/app/cmp/Analysis/R/test6_config.yml"
 
 ## Put your config stuff in here
 config <- list(general = list(location_name = all_dfs$location_df$qualified_name[[1]], 
                               start_date = as.character(min_time_left), end_date = as.character(max_time_right), 
-                              width_in_km = 1, height_in_km = 1, time_scale = "year"), stan = list(directory = rprojroot::find_root_file(criterion = ".choldir", 
-                                                                                                                                         "Analysis", "Stan"), ncores = 1, model = "dagar_seasonal.stan", niter = 10000, 
-                                                                                                   recompile = TRUE), name = "test_???", taxonomy = "taxonomy-working/working-entry1", 
-               smoothing_period = 1, case_definition = "suspected", covariate_choices = raster_df$name, 
-               data_source = "sql", file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir", 
-                                                                                              "Analysis", "output", "test.stan_output.rdata"), stan_input = rprojroot::find_root_file(criterion = ".choldir", 
-                                                                                                                                                                                      "Analysis", "output", "test.stan_input.rdata")),
+                              width_in_km = 1, height_in_km = 1, time_scale = "year"), stan = list(directory = rprojroot::find_root_file(criterion = ".choldir", "Analysis", "Stan"), 
+                                                                                                   ncores = 1, 
+                                                                                                   model = "dagar_seasonal.stan", 
+                                                                                                   niter = 10000, 
+                                                                                                   recompile = TRUE), 
+               name = "test_???", 
+               taxonomy = "taxonomy-working/working-entry1", 
+               smoothing_period = 1, 
+               case_definition = "suspected", 
+               covariate_choices = raster_df$name, 
+               data_source = "sql", 
+               file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir","Analysis", "output", "test6.stan_output.rdata"), 
+                                 stan_input = rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", "test6.stan_input.rdata")),
                nrows=10,
                ncols=10,
-               data_type="Real data",
-               oc_type="Single OC",
-               polygon_type="Fake polygons",
-               grid_coverage_type=1,
+               data_type="Grid data",
+               oc_type="Inconsistent observations over spatial levels (2 times difference) and Partial coverage with missing data",
+               polygon_type="Fake polygon",
+               grid_coverage_type="90%",
                randomize=TRUE,
                ncovariates=2, 
                nonspatial = c(FALSE, FALSE), 
                nontemporal = c(FALSE, FALSE), 
                spatially_smooth = c(TRUE, FALSE), 
-               temporally_smooth = c(FALSE, FALSE), 
+               temporally_smooth = c(FALSE,FALSE), 
                polygonal = c(TRUE, TRUE), 
-               radiating = c(FALSE,  FALSE),
+               radiating = c(FALSE, FALSE),
                iteration=10000
-               )
+)
 
 yaml::write_yaml(x = config, file = config_filename)
 
 Sys.setenv(CHOLERA_CONFIG = config_filename)
 source(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "R", "execute_pipeline.R"))
-rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", 
-                                            "country_data_report_test_case.Rmd"), 
+
+rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output","country_data_report_test_case.Rmd"), 
                   params = list(config_filename = config_filename,
                                 cholera_directory = "~/cmp/", 
                                 drop_nodata_years = TRUE,
                                 nrows=10,
                                 ncols=10,
-                                data_type="Real data",
-                                oc_type="Single OC",
-                                polygon_type="Fake polygons",
-                                grid_coverage_type=1,
+                                data_type="Grid data",
+                                oc_type="Inconsistent observations over spatial levels (2 times difference) and Partial coverage with missing data",
+                                polygon_type="Fake polygon",
+                                grid_coverage_type="90%",
                                 randomize=TRUE,
                                 ncovariates=2, 
                                 nonspatial = c(FALSE, FALSE), 
                                 nontemporal = c(FALSE, FALSE), 
                                 spatially_smooth = c(TRUE, FALSE), 
-                                temporally_smooth = c(FALSE, FALSE), 
+                                temporally_smooth = c(FALSE,FALSE), 
                                 polygonal = c(TRUE, TRUE), 
-                                radiating = c(FALSE,  FALSE),
+                                radiating = c(FALSE, FALSE),
                                 iteration=10000))
+
 ## Actually do something with the groundtruth and output

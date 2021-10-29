@@ -99,7 +99,6 @@ my_seed <- c(10403, 624, 105045778, 1207077739, 2042172336, -219892751, -7680601
              472843583, -97884556, -509874459) %>%
   as.integer()
 
-
 query_time_left <- lubridate::ymd("2000-01-01")
 query_time_right <- lubridate::ymd("2001-12-31")
 ## Pull data frames needed to create testing database from the api This doesn't
@@ -115,11 +114,11 @@ load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_obje
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change polygons
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
+test_raster <- create_test_raster(nrows = 5, ncols = 5, nlayers = 2, test_extent = test_extent)
 # Create 3 layers of testing polygons starting with a single country, and
 # splitting each polygon into 4 sub-polygons
 test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
-                                                                base_number = 1, n_layers = 2, factor = 10 * 10, snap = FALSE, randomize = FALSE, 
+                                                                base_number = 1, n_layers = 2, factor = 5 * 5, snap = FALSE, randomize = FALSE, 
                                                                 seed = my_seed))
 my_seed <- .GlobalEnv$.Random.seed
 
@@ -140,7 +139,7 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
+test_raster <- create_test_raster(nrows = 5, ncols = 5, nlayers = 2, test_extent = test_extent)
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2, 
                                                    nonspatial = c(FALSE, FALSE), 
                                                    nontemporal = c(FALSE, FALSE), 
@@ -219,8 +218,14 @@ all_dfs$observations_df[which(all_dfs$observations_df$location=="1::8"),]=all_df
                 time_right=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Siaya"),]$time_right,
                 suspected_cases=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Siaya"),]$attributes.fields.suspected_cases)
 
+
+all_dfs$observations_df[which(all_dfs$observations_df$location=="1::9"),]=all_dfs$observations_df[which(all_dfs$observations_df$location=="1::9"),]%>%
+  dplyr::mutate(time_left=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Nyando"),]$time_left,
+                time_right=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Nyando"),]$time_right,
+                suspected_cases=real_cases[which(real_cases$qualified_name=="AFR::KEN::Nyanza::Nyando"),]$attributes.fields.suspected_cases)
+
 all_dfs$observations_df=all_dfs$observations_df[which(all_dfs$observations_df$location%in%c(
-  "1","1::2","1::3","1::4","1::5","1::6","1::7","1::8"
+  "1","1::2","1::3","1::4","1::5","1::6","1::7","1::8","1:9"
 )),]
 
 ## ------------------------------------------------------------------------------------------------------------------------
@@ -242,10 +247,10 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                data_source = "sql", file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir", 
                                                                                               "Analysis", "output", "test.stan_output.rdata"), stan_input = rprojroot::find_root_file(criterion = ".choldir", 
                                                                                                                                                                                       "Analysis", "output", "test.stan_input.rdata")),
-               nrows=10,
-               ncols=10,
+               nrows=5,
+               ncols=5,
                data_type="Real data",
-               oc_type="Multiple OCs",
+               oc_type="Multiple OCs (OC188 and OC11063)",
                polygon_type="Fake polygons",
                grid_coverage_type="100%",
                randomize=TRUE,
@@ -267,10 +272,10 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                   params = list(config_filename = config_filename,
                                 cholera_directory = "~/cmp/", 
                                 drop_nodata_years = TRUE,
-                                nrows=10,
-                                ncols=10,
+                                nrows=5,
+                                ncols=5,
                                 data_type="Real data",
-                                oc_type="Multiple OCs",
+                                oc_type="Multiple OCs (OC188 and OC11063)",
                                 polygon_type="Fake polygons",
                                 grid_coverage_type="100%",
                                 randomize=TRUE,
