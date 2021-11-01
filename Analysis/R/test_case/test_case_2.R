@@ -236,13 +236,17 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                grid_coverage_type="100%",
                randomize=TRUE,
                ncovariates=2, 
-               nonspatial = c(FALSE, FALSE), 
-               nontemporal = c(FALSE, FALSE), 
-               spatially_smooth = c(TRUE, FALSE), 
-               temporally_smooth = c(FALSE,FALSE), 
-               polygonal = c(TRUE, TRUE), 
-               radiating = c(FALSE, FALSE),
-               iteration=10000
+               single_year_run=FALSE,
+               iteration=10000,
+               nonspatial = c(FALSE, FALSE,FALSE), 
+               nontemporal = c(FALSE, FALSE,FALSE), 
+               spatially_smooth = c(TRUE, TRUE,FALSE), 
+               temporally_smooth = c(FALSE,FALSE,FALSE), 
+               polygonal = c(TRUE, TRUE,TRUE), 
+               radiating = c(FALSE, FALSE,TRUE),
+               constant=c(TRUE,FALSE,FALSE),
+               Data_simulation_covariates=c(TRUE,TRUE,TRUE),
+               Model_covariates=c(TRUE,TRUE,FALSE)
 )
 
 yaml::write_yaml(x = config, file = config_filename)
@@ -261,12 +265,16 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                 grid_coverage_type="100%",
                                 randomize=TRUE,
                                 ncovariates=2, 
-                                nonspatial = c(FALSE, FALSE), 
-                                nontemporal = c(FALSE, FALSE), 
-                                spatially_smooth = c(TRUE, FALSE), 
-                                temporally_smooth = c(FALSE,FALSE), 
-                                polygonal = c(TRUE, TRUE), 
-                                radiating = c(FALSE, FALSE),
-                                iteration=10000))
+                                single_year_run=FALSE,               
+                                iteration=10000,
+                                nonspatial = c(FALSE, FALSE,FALSE), 
+                                nontemporal = c(FALSE, FALSE,FALSE), 
+                                spatially_smooth = c(TRUE, TRUE,FALSE), 
+                                temporally_smooth = c(FALSE,FALSE,FALSE), 
+                                polygonal = c(TRUE, TRUE,TRUE), 
+                                radiating = c(FALSE, FALSE,TRUE),
+                                constant=c(TRUE,FALSE,FALSE),
+                                Data_simulation_covariates=c(TRUE,TRUE,TRUE),
+                                Model_covariates=c(TRUE,TRUE,FALSE)))
 
 ## Actually do something with the groundtruth and output
