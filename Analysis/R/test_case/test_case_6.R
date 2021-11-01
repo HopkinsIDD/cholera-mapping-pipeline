@@ -119,7 +119,7 @@ test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_exte
 # Create 3 layers of testing polygons starting with a single country, and
 # splitting each polygon into 4 sub-polygons
 test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
-                                                                base_number = 2, n_layers = 2, factor = 50, snap = FALSE, randomize = TRUE, 
+                                                                base_number = 2, n_layers = 2, factor = 50, snap = FALSE, randomize = FALSE, 
                                                                 seed = my_seed))
 my_seed <- .GlobalEnv$.Random.seed
 
@@ -240,7 +240,7 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                oc_type="Inconsistent observations over spatial levels (2 times difference) and Partial coverage with missing data",
                polygon_type="Fake polygon",
                grid_coverage_type="90%",
-               randomize=TRUE,
+               randomize=FALSE,
                ncovariates=2, 
                single_year_run=FALSE,
                iteration=10000,
@@ -270,7 +270,7 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                 oc_type="Inconsistent observations over spatial levels (2 times difference) and Partial coverage with missing data",
                                 polygon_type="Fake polygon",
                                 grid_coverage_type="90%",
-                                randomize=TRUE,
+                                randomize=FALSE,
                                 ncovariates=2,
                                 single_year_run=FALSE,
                                 iteration=10000,
