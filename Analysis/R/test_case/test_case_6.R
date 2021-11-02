@@ -115,11 +115,11 @@ load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_obje
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change polygons
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 3, test_extent = test_extent)
 # Create 3 layers of testing polygons starting with a single country, and
 # splitting each polygon into 4 sub-polygons
 test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
-                                                                base_number = 2, n_layers = 2, factor = 50, snap = FALSE, randomize = FALSE, 
+                                                                base_number = 1, n_layers = 3, factor = 10, snap = FALSE, randomize = FALSE, 
                                                                 seed = my_seed))
 my_seed <- .GlobalEnv$.Random.seed
 
@@ -202,12 +202,12 @@ all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1"),]$sus
 all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="2"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("2::",all_dfs$observations_df$qualified_name),]$suspected_cases)
 
 #partially covered for certain polygons
-all_dfs$observations_df=all_dfs$observations_df%>%subset(!qualified_name%in%c("1"))
+ all_dfs$observations_df=all_dfs$observations_df%>%subset(!qualified_name%in%c("1","1::5","1::5::100","1::5::68","1::5::71","1::5::76","1::5::81","1::5::82","1::5::83","1::5::84","1::5::85","1::5::88"))
 #all_dfs$observations_df=all_dfs$observations_df[grep("1::",all_dfs$observations_df$qualified_name),][-c(1:10),]
-observations_df1=all_dfs$observations_df[grep("1::",all_dfs$observations_df$qualified_name),][-c(1:10),]
-observations_df2=all_dfs$observations_df[grep("2::",all_dfs$observations_df$qualified_name),]
-observations_df3=all_dfs$observations_df%>%subset(qualified_name%in%c("2"))
-all_dfs$observations_df=rbind(observations_df1,observations_df2,observations_df3)
+# observations_df1=all_dfs$observations_df[grep("1::",all_dfs$observations_df$qualified_name),][-c(1:10),]
+# observations_df2=all_dfs$observations_df[grep("2::",all_dfs$observations_df$qualified_name),]
+# observations_df3=all_dfs$observations_df%>%subset(qualified_name%in%c("2"))
+# all_dfs$observations_df=rbind(observations_df1,observations_df2,observations_df3)
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
