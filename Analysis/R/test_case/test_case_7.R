@@ -100,8 +100,8 @@ my_seed <- c(10403, 624, 105045778, 1207077739, 2042172336, -219892751, -7680601
              472843583, -97884556, -509874459) %>%
   as.integer()
 
-query_time_left <- lubridate::ymd("2000-01-01")
-query_time_right <- lubridate::ymd("2000-12-31")
+query_time_left <- lubridate::ymd("2001-01-01")
+query_time_right <- lubridate::ymd("2001-12-31")
 ## Pull data frames needed to create testing database from the api This doesn't
 ## pull covariates, but does pull everything else tryCatch({ all_dfs <-
 ## taxdat::create_testing_dfs_from_api( username
@@ -139,7 +139,7 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 1, test_extent = test_extent)
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2,
                                                    nonspatial = c(FALSE, FALSE),
                                                    nontemporal = c(FALSE, FALSE),
@@ -154,7 +154,7 @@ max_time_right <- query_time_right
 covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates, 
                                                                                       min_time_left, max_time_right)
 
-test_raster_observation <- create_test_raster(nrows = 10, ncols = 10, nlayers = 3, test_extent = test_extent)
+test_raster_observation <- create_test_raster(nrows = 10, ncols = 10, nlayers = 1, test_extent = test_extent)
 test_covariates_observation <- create_multiple_test_covariates(test_raster = test_raster_observation, ncovariates = 3,
                                                                nonspatial = c(FALSE, FALSE,FALSE),
                                                                nontemporal = c(FALSE, FALSE,FALSE),
@@ -207,7 +207,7 @@ taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raste
 
 ## NOTE: Change me if you want to run the report locally config_filename <-
 ## paste(tempfile(), 'yml', sep = '.')
-config_filename <- "/home/app/cmp/Analysis/R/test7_config.yml"
+config_filename <- "/home/app/cmp/Analysis/R/test7_2_config.yml"
 
 ## Put your config stuff in here
 config <- list(general = list(location_name = all_dfs$location_df$qualified_name[[1]], 
@@ -223,8 +223,8 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                case_definition = "suspected", 
                covariate_choices = raster_df$name, 
                data_source = "sql", 
-               file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir","Analysis", "output", "test7.stan_output.rdata"), 
-                                 stan_input = rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", "test7.stan_input.rdata")),
+               file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir","Analysis", "output", "test7_2.stan_output.rdata"), 
+                                 stan_input = rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", "test7_2.stan_input.rdata")),
                nrows=10,
                ncols=10,
                data_type="Grid data",
@@ -233,7 +233,7 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                grid_coverage_type="100%",
                randomize=TRUE,
                ncovariates=2, 
-               single_year_run=TRUE,
+               single_year_run="TRUE (2001)",
                iteration=10000,
                nonspatial = c(FALSE, FALSE,FALSE), 
                nontemporal = c(FALSE, FALSE,FALSE), 
@@ -260,7 +260,7 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                 oc_type="-",
                                 polygon_type="Fake polygon",
                                 grid_coverage_type="100%",
-                                randomize=TRUE,
+                                randomize="TRUE (2001)",
                                 ncovariates=2,
                                 single_year_run=TRUE,
                                 iteration=10000,
