@@ -154,7 +154,7 @@ max_time_right <- query_time_right
 covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates, 
                                                                                       min_time_left, max_time_right)
 
-test_raster_observation <- create_test_raster(nrows = 10, ncols = 10, nlayers = 3, test_extent = test_extent)
+test_raster_observation <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
 test_covariates_observation <- create_multiple_test_covariates(test_raster = test_raster_observation, ncovariates = 3,
                                                                nonspatial = c(FALSE, FALSE,FALSE),
                                                                nontemporal = c(FALSE, FALSE,FALSE),
@@ -199,10 +199,11 @@ all_dfs$observations_df <- test_observations %>%
 
 #overlapping observations with inconsistent case counts
 all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("1::",all_dfs$observations_df$qualified_name),]$suspected_cases)
-all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="2"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("2::",all_dfs$observations_df$qualified_name),]$suspected_cases)
+#all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="2"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("2::",all_dfs$observations_df$qualified_name),]$suspected_cases)
 
 #partially covered for certain polygons
- all_dfs$observations_df=all_dfs$observations_df%>%subset(!qualified_name%in%c("1","1::5","1::5::100","1::5::68","1::5::71","1::5::76","1::5::81","1::5::82","1::5::83","1::5::84","1::5::85","1::5::88"))
+ all_dfs$observations_df=all_dfs$observations_df%>%subset(!qualified_name%in%c("1","1::2","1::2::1","1::2::10","1::2::12","1::2::15","1::2::19","1::2::2","1::2::21","1::2::25","1::2::34","1::2::35","1::2::37",
+                                                                               "1::2::38","1::2::42","1::2::43","1::2::52","1::2::53","1::2::57","1::2::58","1::2::60","1::2::61","1::2::62","1::2::9"))
 #all_dfs$observations_df=all_dfs$observations_df[grep("1::",all_dfs$observations_df$qualified_name),][-c(1:10),]
 # observations_df1=all_dfs$observations_df[grep("1::",all_dfs$observations_df$qualified_name),][-c(1:10),]
 # observations_df2=all_dfs$observations_df[grep("2::",all_dfs$observations_df$qualified_name),]
@@ -239,7 +240,7 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                data_type="Grid data",
                oc_type="Inconsistent observations over spatial levels (2 times difference) and Partial coverage with missing data",
                polygon_type="Fake polygon",
-               grid_coverage_type="90%",
+               grid_coverage_type="78%",
                randomize=FALSE,
                ncovariates=2, 
                single_year_run=FALSE,
@@ -269,7 +270,7 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                 data_type="Grid data",
                                 oc_type="Inconsistent observations over spatial levels (2 times difference) and Partial coverage with missing data",
                                 polygon_type="Fake polygon",
-                                grid_coverage_type="90%",
+                                grid_coverage_type="78%",
                                 randomize=FALSE,
                                 ncovariates=2,
                                 single_year_run=FALSE,
