@@ -100,8 +100,8 @@ my_seed <- c(10403, 624, 105045778, 1207077739, 2042172336, -219892751, -7680601
              472843583, -97884556, -509874459) %>%
   as.integer()
 
-query_time_left <- lubridate::ymd("2000-01-01")
-query_time_right <- lubridate::ymd("2000-12-31")
+query_time_left <- lubridate::ymd("2001-01-01")
+query_time_right <- lubridate::ymd("2001-12-31")
 ## Pull data frames needed to create testing database from the api This doesn't
 ## pull covariates, but does pull everything else tryCatch({ all_dfs <-
 ## taxdat::create_testing_dfs_from_api( username
@@ -139,7 +139,7 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 1, test_extent = test_extent)
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2,
                                                    nonspatial = c(FALSE, FALSE),
                                                    nontemporal = c(FALSE, FALSE),
@@ -154,7 +154,7 @@ max_time_right <- query_time_right
 covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates, 
                                                                                       min_time_left, max_time_right)
 
-test_raster_observation <- create_test_raster(nrows = 10, ncols = 10, nlayers = 3, test_extent = test_extent)
+test_raster_observation <- create_test_raster(nrows = 10, ncols = 10, nlayers = 1, test_extent = test_extent)
 test_covariates_observation <- create_multiple_test_covariates(test_raster = test_raster_observation, ncovariates = 3,
                                                                nonspatial = c(FALSE, FALSE,FALSE),
                                                                nontemporal = c(FALSE, FALSE,FALSE),
@@ -236,7 +236,7 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                grid_coverage_type="100%",
                randomize=TRUE,
                ncovariates=2,
-               single_year_run=TRUE,
+               single_year_run="TRUE (2001)",
                iteration=10000,
                nonspatial = c(FALSE, FALSE,FALSE), 
                nontemporal = c(FALSE, FALSE,FALSE), 
@@ -265,7 +265,7 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                 grid_coverage_type="100%",
                                 randomize=TRUE,
                                 ncovariates=2,
-                                single_year_run=TRUE,
+                                single_year_run="TRUE (2001)",
                                 iteration=10000,
                                 nonspatial = c(FALSE, FALSE,FALSE), 
                                 nontemporal = c(FALSE, FALSE,FALSE), 
