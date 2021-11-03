@@ -100,8 +100,8 @@ my_seed <- c(10403, 624, 105045778, 1207077739, 2042172336, -219892751, -7680601
              472843583, -97884556, -509874459) %>%
   as.integer()
 
-query_time_left <- lubridate::ymd("2000-01-01")
-query_time_right <- lubridate::ymd("2000-12-31")
+query_time_left <- lubridate::ymd("2001-01-01")
+query_time_right <- lubridate::ymd("2001-12-31")
 ## Pull data frames needed to create testing database from the api This doesn't
 ## pull covariates, but does pull everything else tryCatch({ all_dfs <-
 ## taxdat::create_testing_dfs_from_api( username
@@ -115,11 +115,11 @@ load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_obje
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change polygons
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 3, test_extent = test_extent)
 # Create 3 layers of testing polygons starting with a single country, and
 # splitting each polygon into 4 sub-polygons
 test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
-                                                                base_number = 1, n_layers = 2, factor = 10*10, snap = FALSE, randomize = TRUE, 
+                                                                base_number = 1, n_layers = 3, factor = 10, snap = FALSE, randomize = FALSE, 
                                                                 seed = my_seed))
 my_seed <- .GlobalEnv$.Random.seed
 
@@ -139,7 +139,7 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 1, test_extent = test_extent)
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2,
                                                    nonspatial = c(FALSE, FALSE),
                                                    nontemporal = c(FALSE, FALSE),
@@ -154,12 +154,12 @@ max_time_right <- query_time_right
 covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates, 
                                                                                       min_time_left, max_time_right)
 
-test_raster_observation <- create_test_raster(nrows = 10, ncols = 10, nlayers = 3, test_extent = test_extent)
+test_raster_observation <- create_test_raster(nrows = 10, ncols = 10, nlayers = 1, test_extent = test_extent)
 test_covariates_observation <- create_multiple_test_covariates(test_raster = test_raster_observation, ncovariates = 3,
                                                                nonspatial = c(FALSE, FALSE,FALSE),
                                                                nontemporal = c(FALSE, FALSE,FALSE),
                                                                spatially_smooth = c(TRUE,TRUE,FALSE),
-                                                               temporally_smooth = c(FALSE, FALSE,FALSE),##temporal smooth (second covariates)
+                                                               temporally_smooth = c(FALSE, FALSE,FALSE),
                                                                polygonal = c(TRUE,TRUE,TRUE),
                                                                radiating = c(FALSE,FALSE,FALSE), 
                                                                constant = c(TRUE, FALSE,FALSE),
@@ -199,9 +199,16 @@ all_dfs$observations_df <- test_observations %>%
 
 #overlapping observations with inconsistent case counts
 all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("1::",all_dfs$observations_df$qualified_name),]$suspected_cases)
+#all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="2"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("2::",all_dfs$observations_df$qualified_name),]$suspected_cases)
 
 #partially covered for certain polygons
-all_dfs$observations_df=all_dfs$observations_df%>%subset(!qualified_name%in%c("1::2","1::10","1::20"))
+all_dfs$observations_df=all_dfs$observations_df%>%subset(!qualified_name%in%c("1","1::2","1::2::1","1::2::10","1::2::12","1::2::15","1::2::19","1::2::2","1::2::21","1::2::25","1::2::34","1::2::35","1::2::37",
+                                                                              "1::2::38","1::2::42","1::2::43","1::2::52","1::2::53","1::2::57","1::2::58","1::2::60","1::2::61","1::2::62","1::2::9"))
+#all_dfs$observations_df=all_dfs$observations_df[grep("1::",all_dfs$observations_df$qualified_name),][-c(1:10),]
+# observations_df1=all_dfs$observations_df[grep("1::",all_dfs$observations_df$qualified_name),][-c(1:10),]
+# observations_df2=all_dfs$observations_df[grep("2::",all_dfs$observations_df$qualified_name),]
+# observations_df3=all_dfs$observations_df%>%subset(qualified_name%in%c("2"))
+# all_dfs$observations_df=rbind(observations_df1,observations_df2,observations_df3)
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
@@ -210,7 +217,7 @@ taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raste
 
 ## NOTE: Change me if you want to run the report locally config_filename <-
 ## paste(tempfile(), 'yml', sep = '.')
-config_filename <- "/home/app/cmp/Analysis/R/test12_config.yml"
+config_filename <- "/home/app/cmp/Analysis/R/test12_2_config.yml"
 
 ## Put your config stuff in here
 config <- list(general = list(location_name = all_dfs$location_df$qualified_name[[1]], 
@@ -226,17 +233,17 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                case_definition = "suspected", 
                covariate_choices = raster_df$name, 
                data_source = "sql", 
-               file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir","Analysis", "output", "test1.stan_output.rdata"), 
-                                 stan_input = rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", "test1.stan_input.rdata")),
+               file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir","Analysis", "output", "test12_2.stan_output.rdata"), 
+                                 stan_input = rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", "test12_2.stan_input.rdata")),
                nrows=10,
                ncols=10,
                data_type="Grid data",
-               oc_type="Inconsistent observations over spatial levels (2 times difference) and Partial coverage without missing data",
+               oc_type="Inconsistent observations over spatial levels (2 times difference) and Partial coverage with missing data",
                polygon_type="Fake polygon",
-               grid_coverage_type="100%",
-               randomize=TRUE,
-               ncovariates=2,
-               single_year_run=TRUE,
+               grid_coverage_type="78%",
+               randomize=FALSE,
+               ncovariates=2, 
+               single_year_run="TRUE (2001)",
                iteration=10000,
                nonspatial = c(FALSE, FALSE,FALSE), 
                nontemporal = c(FALSE, FALSE,FALSE), 
@@ -253,6 +260,7 @@ yaml::write_yaml(x = config, file = config_filename)
 
 Sys.setenv(CHOLERA_CONFIG = config_filename)
 source(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "R", "execute_pipeline.R"))
+
 rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output","country_data_report_test_case.Rmd"), 
                   params = list(config_filename = config_filename,
                                 cholera_directory = "~/cmp/", 
@@ -260,12 +268,12 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                 nrows=10,
                                 ncols=10,
                                 data_type="Grid data",
-                                oc_type="Inconsistent observations over spatial levels (2 times difference) and Partial coverage without missing data",
+                                oc_type="Inconsistent observations over spatial levels (2 times difference) and Partial coverage with missing data",
                                 polygon_type="Fake polygon",
-                                grid_coverage_type="100%",
-                                randomize=TRUE,
+                                grid_coverage_type="78%",
+                                randomize=FALSE,
                                 ncovariates=2,
-                                single_year_run=TRUE,
+                                single_year_run="TRUE (2001)",
                                 iteration=10000,
                                 nonspatial = c(FALSE, FALSE,FALSE), 
                                 nontemporal = c(FALSE, FALSE,FALSE), 
