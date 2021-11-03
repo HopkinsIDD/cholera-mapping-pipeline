@@ -207,7 +207,7 @@ taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raste
 
 ## NOTE: Change me if you want to run the report locally config_filename <-
 ## paste(tempfile(), 'yml', sep = '.')
-config_filename <- "/home/app/cmp/Analysis/R/test7_2_config.yml"
+config_filename <- "/home/app/cmp/Analysis/R/test7_3_config.yml"
 
 ## Put your config stuff in here
 config <- list(general = list(location_name = all_dfs$location_df$qualified_name[[1]], 
@@ -215,7 +215,7 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                               width_in_km = 1, height_in_km = 1, time_scale = "year"), stan = list(directory = rprojroot::find_root_file(criterion = ".choldir", "Analysis", "Stan"), 
                                                                                                    ncores = 1, 
                                                                                                    model = "dagar_seasonal.stan", 
-                                                                                                   niter = 10000, 
+                                                                                                   niter = 100, 
                                                                                                    recompile = TRUE), 
                name = "test_???", 
                taxonomy = "taxonomy-working/working-entry1", 
@@ -223,8 +223,8 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                case_definition = "suspected", 
                covariate_choices = raster_df$name, 
                data_source = "sql", 
-               file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir","Analysis", "output", "test7_2.stan_output.rdata"), 
-                                 stan_input = rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", "test7_2.stan_input.rdata")),
+               file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir","Analysis", "output", "test7_3.stan_output.rdata"), 
+                                 stan_input = rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", "test7_3.stan_input.rdata")),
                nrows=10,
                ncols=10,
                data_type="Grid data",
@@ -233,7 +233,7 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                grid_coverage_type="100%",
                randomize=TRUE,
                ncovariates=2, 
-               single_year_run="TRUE (2001)",
+               single_year_run="TRUE (2000)",
                iteration=10000,
                nonspatial = c(FALSE, FALSE,FALSE), 
                nontemporal = c(FALSE, FALSE,FALSE), 
@@ -260,7 +260,7 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                 oc_type="-",
                                 polygon_type="Fake polygon",
                                 grid_coverage_type="100%",
-                                randomize="TRUE (2001)",
+                                randomize="TRUE (2000)",
                                 ncovariates=2,
                                 single_year_run=TRUE,
                                 iteration=10000,
