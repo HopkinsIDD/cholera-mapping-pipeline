@@ -154,7 +154,7 @@ max_time_right <- query_time_right
 covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates, 
                                                                                       min_time_left, max_time_right)
 
-test_raster_observation <- create_test_raster(nrows = 10, ncols = 10, nlayers = 3, test_extent = test_extent)
+test_raster_observation <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
 test_covariates_observation <- create_multiple_test_covariates(test_raster = test_raster_observation, ncovariates = 3,
                                                                nonspatial = c(FALSE, FALSE,FALSE),
                                                                nontemporal = c(FALSE, FALSE,FALSE),
