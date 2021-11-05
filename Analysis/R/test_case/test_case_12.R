@@ -198,7 +198,17 @@ all_dfs$observations_df <- test_observations %>%
                 deaths = NA, confirmed_cases = NA)
 
 #overlapping observations with inconsistent case counts
-all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("1::",all_dfs$observations_df$qualified_name),]$suspected_cases)
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1"),]$suspected_cases=3*3*sum(all_dfs$observations_df[grep("1::1::|1::2::|1::3::|1::4::|1::5::|1::6::|1::7::|1::8::|1::9::",all_dfs$observations_df$qualified_name),]$suspected_cases)
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1::1"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("1::1::",all_dfs$observations_df$qualified_name),]$suspected_cases)
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1::2"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("1::2::",all_dfs$observations_df$qualified_name),]$suspected_cases)
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1::3"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("1::3::",all_dfs$observations_df$qualified_name),]$suspected_cases)
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1::4"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("1::4::",all_dfs$observations_df$qualified_name),]$suspected_cases)
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1::5"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("1::5::",all_dfs$observations_df$qualified_name),]$suspected_cases)
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1::6"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("1::6::",all_dfs$observations_df$qualified_name),]$suspected_cases)
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1::7"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("1::7::",all_dfs$observations_df$qualified_name),]$suspected_cases)
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1::8"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("1::8::",all_dfs$observations_df$qualified_name),]$suspected_cases)
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1::9"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("1::9::",all_dfs$observations_df$qualified_name),]$suspected_cases)
+
 #all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="2"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("2::",all_dfs$observations_df$qualified_name),]$suspected_cases)
 
 #partially covered for certain polygons
@@ -238,7 +248,7 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                nrows=10,
                ncols=10,
                data_type="Grid data",
-               oc_type="Inconsistent observations over spatial levels (2 times difference) and Partial coverage with missing data",
+               oc_type="Inconsistent observations over spatial levels (2 times difference between two continuous admin units) and Partial coverage with missing data",
                polygon_type="Fake polygon",
                grid_coverage_type="78%",
                randomize=FALSE,
@@ -268,7 +278,7 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                 nrows=10,
                                 ncols=10,
                                 data_type="Grid data",
-                                oc_type="Inconsistent observations over spatial levels (2 times difference) and Partial coverage with missing data",
+                                oc_type="Inconsistent observations over spatial levels (2 times difference between two continuous admin units) and Partial coverage with missing data",
                                 polygon_type="Fake polygon",
                                 grid_coverage_type="78%",
                                 randomize=FALSE,
