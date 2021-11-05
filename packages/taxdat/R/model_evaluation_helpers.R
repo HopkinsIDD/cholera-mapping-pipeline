@@ -559,14 +559,15 @@ plot_model_fidelity <- function(data_fidelity,
   comparison <- data_fidelity
   rate_raster <- case_raster
   if (!by_censoring) {
-    plt <- ggplot2::ggplot(comparison[[1]]) +
+    plt <- ggplot2::ggplot(comparison[[1]]  %>% 
+                             dplyr::filter(stringr::str_detect(parameters, 'tfrac'))) +
       ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = chains)) +
       ggplot2::geom_abline(intercept = 0, slope = 1) +
       ggplot2::coord_fixed(ratio = 1, xlim = c(1, max(comparison[[1]][,3:4])), ylim = c(1, max(comparison[[1]][,3:4]))) +
       ggplot2::theme_bw()
   } else {
     plt <- ggplot2::ggplot(comparison[[1]] %>% 
-                             dplyr::filter(stringr::str_detect(parameters, 'tfrac'))) +
+                             dplyr::filter(!stringr::str_detect(parameters, 'tfrac'))) +
       ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = chains)) +
       ggplot2::geom_abline(intercept = 0, slope = 1) +
       ggplot2::coord_fixed(ratio = 1, xlim = c(1, max(comparison[[1]][,3:4])), ylim = c(1, max(comparison[[1]][,3:4]))) +
