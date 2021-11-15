@@ -524,6 +524,11 @@ get_data_fidelity <- function(stan_input_filenames, model_output_filenames){
     model.rand <- read_file_of_type(filename, "model.rand")
     nchain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__'))[1] / niter_per_chain
     
+    # ####important added -- 11/12/2021
+    # taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$OC_UID
+    # taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$"attributes.fields.suspected_cases"
+    # taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$stan_data$y
+
     stan_data <- read_file_of_type(stan_input_filenames[i], "stan_input")$stan_data
     modeled_cases <- as.array(model.rand)[, , grepl("modeled_cases", names(model.rand)), drop = FALSE]
     modeled_cases_chain_mean <- apply(modeled_cases, c(2, 3), mean)
@@ -532,6 +537,10 @@ get_data_fidelity <- function(stan_input_filenames, model_output_filenames){
     modeled_cases_chain_mean <- reshape2::melt(modeled_cases_chain_mean)
     actual_cases <- reshape2::melt(actual_cases)
     actual_cases$censoring <- rep(stan_data$censoring_inds, each = nchain)
+    actual_cases$oc_uid <- rep(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$OC_UID, 
+                               each = nchain) #newly added
+    actual_cases$oc_year <- rep(format(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$TR, '%Y'), 
+                               each = nchain) #newly added
     comparison <- dplyr::left_join(modeled_cases_chain_mean, actual_cases, by = c(chains = "chains", parameters = "parameters"))
     names(comparison)[3:4] <- c("modeled cases", "actual cases")
     rc[[filename]] <- comparison
@@ -574,6 +583,92 @@ plot_model_fidelity <- function(data_fidelity,
       ggplot2::theme_bw() +
       ggplot2::facet_wrap(~censoring)
   }
+
+  
+  if (render) {
+    plt
+  }
+}
+
+#' @export
+#' @name plot_model_fidelity_tfrac_adjusted
+#' @title plot_model_fidelity_tfrac_adjusted
+#' @description add
+#' @param data_fidelity data_fidelity object
+#' @param case_raster case_raster object
+#' @param render default is TRUE
+#' @return ggplot object with modeled vs actual cases by observation
+plot_model_fidelity_tfrac_adjusted <- function(data_fidelity,
+                                case_raster,
+                                render = T){
+  comparison <- data_fidelity
+  rate_raster <- case_raster
+  
+  plt <- ggplot2::ggplot(comparison[[1]]  %>% 
+                            dplyr::filter(stringr::str_detect(parameters, 'tfrac'))) +
+    ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = oc_uid)) +
+    ggplot2::geom_abline(intercept = 0, slope = 1) +
+    ggplot2::coord_fixed(ratio = 1, xlim = c(1, max(comparison[[1]][,3:4])), ylim = c(1, max(comparison[[1]][,3:4]))) +
+    ggplot2::theme_bw()
+  
+
+  
+  if (render) {
+    plt
+  }
+}
+
+#' @export
+#' @name plot_model_fidelity_tfrac_adjusted_by_year
+#' @title plot_model_fidelity_tfrac_adjusted_by_year
+#' @description add
+#' @param data_fidelity data_fidelity object
+#' @param case_raster case_raster object
+#' @param render default is TRUE
+#' @return ggplot object with modeled vs actual cases by observation
+plot_model_fidelity_tfrac_adjusted_by_year <- function(data_fidelity,
+                                case_raster,
+                                render = T){
+  comparison <- data_fidelity
+  rate_raster <- case_raster
+  
+  plt <- ggplot2::ggplot(comparison[[1]]  %>% 
+                            dplyr::filter(stringr::str_detect(parameters, 'tfrac'))) +
+    ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = oc_uid)) +
+    ggplot2::geom_abline(intercept = 0, slope = 1) +
+    ggplot2::coord_fixed(ratio = 1, xlim = c(1, max(comparison[[1]][,3:4])), ylim = c(1, max(comparison[[1]][,3:4]))) +
+    ggplot2::theme_bw() +
+    ggplot2::facet_wrap(~oc_year, ncol = 2)
+  
+
+  
+  if (render) {
+    plt
+  }
+}
+
+#' @export
+#' @name plot_model_fidelity_tfrac_unadjusted
+#' @title plot_model_fidelity_tfrac_unadjusted
+#' @description add
+#' @param data_fidelity data_fidelity object
+#' @param case_raster case_raster object
+#' @param render default is TRUE
+#' @return ggplot object with modeled vs actual cases by observation
+plot_model_fidelity_tfrac_unadjusted <- function(data_fidelity,
+                                case_raster,
+                                render = T){
+  comparison <- data_fidelity
+  rate_raster <- case_raster
+
+  plt <- ggplot2::ggplot(comparison[[1]] %>% 
+                            dplyr::filter(!stringr::str_detect(parameters, 'tfrac'))) +
+    ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = oc_uid)) +
+    ggplot2::geom_abline(intercept = 0, slope = 1) +
+    ggplot2::coord_fixed(ratio = 1, xlim = c(1, max(comparison[[1]][,3:4])), ylim = c(1, max(comparison[[1]][,3:4]))) +
+    ggplot2::theme_bw() +
+    ggplot2::facet_wrap(~censoring, ncol = 2)
+  
 
   
   if (render) {
