@@ -225,7 +225,7 @@ make_stan_output_filename <- function(cholera_directory, map_name, covariate_nam
     }
 
     # Add stan filename and iterations
-    to_add <- paste0(to_add, "-model:", stringr::str_remove(config$stan$model, "\\.stan"))
+    to_add <- paste0(to_add, "-model_", stringr::str_remove(config$stan$model, "\\.stan"))
     to_add <- paste0(to_add, "-niter", config$stan$niter)
 
     to_add <- stringr::str_replace_all(to_add, "TRUE", "T")
