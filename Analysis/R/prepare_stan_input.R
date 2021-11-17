@@ -93,7 +93,7 @@ prepare_stan_input <- function(
     node2 <- adj_dat$node2    # "destination" node
     N_edges <- adj_dat$N_edges # number of edges
     
-    nn_mat <- Matrix::sparseMatrix(i = node1, j = node2, x = 1, symmetric = TRUE)
+    nn_mat <- Matrix::sparseMatrix(i = node1, j = node2, x = 1, symmetric = TRUE, dims = c(N,N))
     
     isolated_vertices <- which(Matrix::rowSums(nn_mat) == 0)
     
