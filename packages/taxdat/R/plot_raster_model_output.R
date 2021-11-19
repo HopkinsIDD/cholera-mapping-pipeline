@@ -153,7 +153,6 @@ get_grid_cases_no_cache <- function(config, cache) {
 get_grid_cases <- cache_fun_results("grid_cases", get_grid_cases_no_cache,overwrite = T,config=config)
 #get_grid_cases(config=config,cache)
 
-
 #pull non-cached grid rates (for modeled cases)
 #' @name get_modeled_rates_no_cache
 #' @title get_modeled_rates_no_cache
