@@ -149,7 +149,8 @@ plot_raw_observed_cases <- function(disjoint_set_sf_cases,
       data = disjoint_set_sf_cases,
       ggplot2::aes(fill = cases)
     ) +
-    ggplot2::scale_fill_gradient2("Average cases by location period", low="white",mid="orange",high="red",na.value='blue') +
+    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
+    ggplot2::labs(fill="Average cases by location period")
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::facet_wrap(~set)
@@ -185,7 +186,8 @@ plot_area_adjusted_observed_cases <- function(
       data = disjoint_set_sf_cases,
       ggplot2::aes(fill = area_adjusted_cases)
     ) +
-    ggplot2::scale_fill_gradient2("Area-adjusted cases", low="white",mid="orange",high="red",na.value='blue') +
+    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
+    ggplot2::labs(fill="Area-adjusted cases")+
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::facet_wrap(~set)
@@ -220,7 +222,8 @@ plot_raw_observations <- function(disjoint_set_sf_cases,
       data = disjoint_set_sf_cases,
       ggplot2::aes(fill = observations)
     ) +
-    ggplot2::scale_fill_viridis_c("Observation") +
+    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
+    ggplot2::labs(fill="Observations")+
     ggplot2::facet_wrap(~set, ncol = 5) +
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom")
@@ -440,10 +443,12 @@ plot_modeled_cases <- function(case_raster,
       data = case_raster,
       ggplot2::aes(fill = value, color =  value)) +
     # ggplot2::scale_fill_vidris_c("modeled cases", limits = uniform_scale_fun()) +
-    ggplot2::scale_fill_viridis_c(trans = "log",
-                                  breaks = c(1, 10, 100, 1000),
-                                  aesthetics = c("colour", "fill"),
-                                  guide = ggplot2::guide_colorbar(title = "Incidence\n [cases/year]"))  +
+    # ggplot2::scale_fill_viridis_c(trans = "log",
+    #                               breaks = c(1, 10, 100, 1000),
+    #                               aesthetics = c("colour", "fill"),
+    #                               guide = ggplot2::guide_colorbar(title = "Incidence\n [cases/year]"))  +
+    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = TRUE)+
+    ggplot2::labs(fill="Incidence\n [cases/year]")+
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::facet_wrap(~t,ncol = 5) +
@@ -486,10 +491,12 @@ plot_modeled_rates <- function(case_raster,
       data = case_raster,
       ggplot2::aes(fill = value * rate_rescaling, color = value * rate_rescaling)) +
     # ggplot2::scale_fill_continuous("modeled rates", limits = uniform_scale_fun()) +
-    ggplot2::scale_fill_viridis_c(trans = "log",
-                                  breaks = c(0.01, 0.1, 1, 10, 100, 1000),
-                                  aesthetics = c("colour", "fill"),
-                                  guide = ggplot2::guide_colorbar(title = "Incidence rate\n [cases/10'000/year]"))  +
+    # ggplot2::scale_fill_viridis_c(trans = "log",
+    #                               breaks = c(0.01, 0.1, 1, 10, 100, 1000),
+    #                               aesthetics = c("colour", "fill"),
+    #                               guide = ggplot2::guide_colorbar(title = "Incidence rate\n [cases/10'000/year]"))  +
+    taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
+    ggplot2::labs(fill="Incidence rate\n [cases/10'000/year]")+
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::facet_wrap(~t,ncol = 5) +
@@ -580,7 +587,7 @@ plot_model_fidelity <- function(data_fidelity,
       ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = chains)) +
       ggplot2::geom_abline(intercept = 0, slope = 1) +
       ggplot2::coord_fixed(ratio = 1, xlim = c(1, max(comparison[[1]][,3:4])), ylim = c(1, max(comparison[[1]][,3:4]))) +
-      ggplot2::theme_bw() +
+      ggplot2::themec_bw() +
       ggplot2::facet_wrap(~censoring)
   }
 
@@ -919,7 +926,9 @@ get_gam_values <- function(config,
     dplyr::mutate(log_y = log_y_pred_mean + predict_df$logoffset,
                   y = exp(y),
                   log_lambda = log_y_pred_mean + log(stan_input$stan_data$meanrate),
-                  lambda = exp(log_lambda))
+                  lambda = exp(log_lambda),
+                  sx=predict_df$sx,
+                  sy=predict_df$sy)
   
   return(y_pred_df)
 }
