@@ -106,7 +106,8 @@ try({
     dplyr::summarize(y = mean(y)) %>%
     ggplot() +
     geom_tile(aes(x = sx, y = sy, fill = y)) +
-    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)
+    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
+    ggplot2::labs(fill="Cases")
 
   initial_values_data$gam_fit_input %>%
     dplyr::group_by(sx, sy) %>%
@@ -116,10 +117,38 @@ try({
     ggplot() +
     geom_tile(aes(x = sx, y = sy, fill = y / pop)) +
     taxdat::map_theme() +
-    taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)
+    taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
+    ggplot2::labs(fill="Incidence rate")
   ## plot_gam_input(initial_values_gam_input)
 })
 ```
+
+
+# GAM Output
+**Fig 2. Observations input for the GAM model:**
+```{r gam input}
+try({
+initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_values_data")
+  ## initial_values_gam_input <- taxdat::get_initial_values_gam_input(initial_values_filename = file_names["initial_values"])
+  gam_output_df<-taxdat::get_gam_values(config,params$cholera_directory)
+  
+  gam_output_df %>%
+  ggplot() +
+  geom_tile(aes(x = sx, y = sy, fill =y)) +
+  taxdat::map_theme() +
+  taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
+  ggplot2::labs(fill="Cases")
+
+
+  gam_output_df %>%
+  ggplot() +
+  geom_tile(aes(x = sx, y = sy, fill =lambda)) +
+  taxdat::map_theme() +
+  taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
+  ggplot2::labs(fill="Incidence rate")
+})
+```
+
 
 **Table 1. Data used within the model:**
 
@@ -182,7 +211,7 @@ try({
 })
 ```
 
-**Fig 2. Cases by time:**
+**Fig 3. Cases by time:**
 ```{r rawobsmap, fig.height=5, fig.width=10, fig.cap="Observed case counts by time adjusted for time fraction cases/year"}
 if(!is.null(disjoint_set_sf_cases)){
   taxdat::plot_raw_observed_cases(
@@ -195,7 +224,7 @@ if(!is.null(disjoint_set_sf_cases)){
 
 ```
 
-**Fig 3. Area adjusted cases by time:**
+**Fig 4. Area adjusted cases by time:**
 ```{r areadjustedmap, fig.height=5, fig.width=10, fig.cap="Area adjusted average observed case counts by time adjusted for time fraction cases/(year * kilometer)"}
 if(!is.null(disjoint_set_sf_cases)){
   taxdat::plot_area_adjusted_observed_cases(
@@ -207,7 +236,7 @@ if(!is.null(disjoint_set_sf_cases)){
 }
 ```
 
-**Fig 4. Cases unique location periods:**
+**Fig 5. Cases unique location periods:**
 ```{r obsmap, fig.height=5, fig.width=10, fig.cap="Number of observations by unique observed location periods."}
 if(!is.null(disjoint_set_sf_cases)){
   taxdat::plot_raw_observations(disjoint_set_sf_cases,
@@ -221,7 +250,7 @@ if(!is.null(disjoint_set_sf_cases)){
 ## Covariates
 
 ### Population
-**Fig 5. Population raster by time slices:**
+**Fig 6. Population raster by time slices:**
 ```{r pop, fig.height=5, fig.width=10, fig.cap="Population density"}
 taxdat::plot_raster_population(covar_data_filename = file_names["covar"], render = T)
 ```
@@ -308,7 +337,7 @@ if(nrow(sf_grid) == prod(dim(pop_layer))){
 ```
 
 ### Other covariates
-**Fig 6. Distance to water raster:**
+**Fig 7. Distance to water raster:**
 ```{r covars, fig.height=5, fig.width=8, fig.cap="Covariate rasters"}
 taxdat::plot_raster_covariates(covar_data_filename = file_names["covar"], render = T)
 ```
@@ -345,7 +374,7 @@ try({
 ```
 
 ### Modeled cases
-**Fig 7. Modeled cases raster by time slices:**
+**Fig 8. Modeled cases raster by time slices:**
 ```{r caserast, fig.cap="Modeled cases", fig.height=5, fig.width=10}
 
 if(!is.null(case_raster)){
@@ -418,7 +447,7 @@ admin_case_table %>%
 
 
 ### Modeled incidence rates
-**Fig 8. Modeled incidence rates raster by time slices:**
+**Fig 9. Modeled incidence rates raster by time slices:**
 ```{r raterast, fig.cap="Modeled rates", fig.height=5, fig.width=10}
 if(!is.null(case_raster)){
   taxdat::plot_modeled_rates(case_raster, render = T)
@@ -523,7 +552,7 @@ try({
 ```
 
 
-**Fig 9. Actual observations versus modeled cases scatter plot:**
+**Fig 10. Actual observations versus modeled cases scatter plot:**
 ```{r datafidelity1, fig.cap="Observations vs. modeled cases (tfrac adjusted)", fig.height=10, fig.width=10}
 
 if(!is.null(data_fidelity)){
@@ -567,7 +596,7 @@ if(!is.null(data_fidelity)){
 ```
 
 
-**Fig 10. Stan trace plots:**
+**Fig 11. Stan trace plots:**
 ```{r traceplots, fig.height=8, fig.width=10, fig.cap="Stan trace plots"}
 
 if(!is.null(model.rand)){
@@ -579,7 +608,7 @@ taxdat::plot_chain_convergence(file_names[["stan_output"]],
 ```
 
 
-**Fig 11. Parameter posteriors:**
+**Fig 12. Parameter posteriors:**
 ```{r params, fig.height=6, fig.width=6, fig.cap="Parameter posteriors"}
 if(!is.null(model.rand)){
   rstan::plot(model.rand, pars =  c("rho", "betas", "log_std_dev_w", "eta"))
@@ -590,7 +619,7 @@ if(!is.null(model.rand)){
 ```
 
 
-**Fig 12. Gelman-Rubin Rhat:**
+**Fig 13. Gelman-Rubin Rhat:**
 ```{r rhat, fig.height=5, fig.width=10, fig.cap="Gelman-Rubin Rhat"}
 if(!is.null(model.rand)){
   taxdat::plot_rhat(model.rand, render = T)
