@@ -249,6 +249,10 @@ model {
         }
       }
       target += sum(lp_censored);
+      
+      // add a 0-centered prior on the censored cases
+      modeled_cases[ind_right] ~ cauchy(0, 2);
+      
     }
   } else {
     if (use_weights == 1) {
