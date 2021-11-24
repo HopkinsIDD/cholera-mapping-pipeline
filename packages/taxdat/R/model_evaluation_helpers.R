@@ -150,7 +150,7 @@ plot_raw_observed_cases <- function(disjoint_set_sf_cases,
       ggplot2::aes(fill = cases)
     ) +
     taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
-    ggplot2::labs(fill="Average cases by location period")
+    ggplot2::labs(fill="Average cases by location period")+
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::facet_wrap(~set)
@@ -222,8 +222,7 @@ plot_raw_observations <- function(disjoint_set_sf_cases,
       data = disjoint_set_sf_cases,
       ggplot2::aes(fill = observations)
     ) +
-    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
-    ggplot2::labs(fill="Observations")+
+    ggplot2::scale_fill_viridis_c("Observation") +
     ggplot2::facet_wrap(~set, ncol = 5) +
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom")
@@ -441,7 +440,8 @@ plot_modeled_cases <- function(case_raster,
   plt <- plt +
     ggplot2::geom_sf(
       data = case_raster,
-      ggplot2::aes(fill = value, color =  value)) +
+      ggplot2::aes(fill = value#, color =  value
+                   ),color="black",size=0.05) +
     # ggplot2::scale_fill_vidris_c("modeled cases", limits = uniform_scale_fun()) +
     # ggplot2::scale_fill_viridis_c(trans = "log",
     #                               breaks = c(1, 10, 100, 1000),
@@ -489,7 +489,8 @@ plot_modeled_rates <- function(case_raster,
   plt <- plt +
     ggplot2::geom_sf(
       data = case_raster,
-      ggplot2::aes(fill = value * rate_rescaling, color = value * rate_rescaling)) +
+      ggplot2::aes(fill = value * rate_rescaling#, color = value * rate_rescaling
+                   ),color="black",size=0.05) +
     # ggplot2::scale_fill_continuous("modeled rates", limits = uniform_scale_fun()) +
     # ggplot2::scale_fill_viridis_c(trans = "log",
     #                               breaks = c(0.01, 0.1, 1, 10, 100, 1000),
@@ -525,6 +526,7 @@ get_data_fidelity <- function(stan_input_filenames, model_output_filenames){
   rc <- list()
   layer_index <- 1
   for (i in 1:length(model_output_filenames)) {
+    i=1
     filename <- model_output_filenames[i]
     # corresponding_input_filename <- gsub('\\d+.csv','json',gsub("stan_output","stan_input", filename))
     # print(c(filename, corresponding_input_filename))
@@ -548,6 +550,16 @@ get_data_fidelity <- function(stan_input_filenames, model_output_filenames){
                                each = nchain) #newly added
     actual_cases$oc_year <- rep(format(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$TR, '%Y'), 
                                each = nchain) #newly added
+
+    obs_tfrac=data.frame(
+      obs = initial_values_data$stan_data$map_obs_loctime_obs,
+      tfrac = initial_values_data$stan_data$tfrac
+    ) %>%
+      dplyr::group_by(obs) %>%
+      dplyr::summarize(tfrac = sum(tfrac))
+    actual_cases$tfrac<-1
+    actual_cases[stringr::str_detect(actual_cases$parameters,"tfrac"),]$tfrac<-rep(obs_tfrac$tfrac,each=nchain)
+    
     comparison <- dplyr::left_join(modeled_cases_chain_mean, actual_cases, by = c(chains = "chains", parameters = "parameters"))
     names(comparison)[3:4] <- c("modeled cases", "actual cases")
     rc[[filename]] <- comparison
@@ -619,6 +631,36 @@ plot_model_fidelity_tfrac_adjusted <- function(data_fidelity,
     ggplot2::theme_bw()
   
 
+  
+  if (render) {
+    plt
+  }
+}
+
+
+#' @export
+#' @name plot_model_fidelity_tfrac_converted
+#' @title plot_model_fidelity_tfrac_converted
+#' @description add
+#' @param data_fidelity data_fidelity object
+#' @param case_raster case_raster object
+#' @param render default is TRUE
+#' @return ggplot object with modeled vs actual cases by observation
+plot_model_fidelity_tfrac_converted <- function(data_fidelity,
+                                               case_raster,
+                                               render = T){
+  comparison <- data_fidelity
+  rate_raster <- case_raster
+  
+  plt <- ggplot2::ggplot(comparison[[1]]  %>% 
+                           dplyr::filter(stringr::str_detect(parameters, 'tfrac'))) +
+    ggplot2::geom_point(ggplot2::aes(y = `modeled cases`/tfrac, x = `actual cases`/tfrac, col = oc_uid)) +
+    ggplot2::labs(x="Actual cases/tfrac",y="tfrac_adjusted_modeled_cases/tfrac")+
+    ggplot2::geom_abline(intercept = 0, slope = 1) +
+    ggplot2::coord_fixed(ratio = 1, xlim = c(1, max(comparison[[1]][,3:4])), ylim = c(1, max(comparison[[1]][,3:4]))) +
+    ggplot2::theme_bw()
+  
+  
   
   if (render) {
     plt
@@ -888,7 +930,7 @@ get_gam_values <- function(config,
   file_names <- get_filenames(config, cholera_directory)
   stan_input <- read_file_of_type(file_names["stan_input"], "stan_input")
   initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_values_data")
-  
+
   coord_frame <- tibble::as_tibble(sf::st_coordinates(stan_input$sf_grid)) %>% 
     dplyr::group_by(L2) %>% 
     dplyr::summarise(x = mean(X), 
