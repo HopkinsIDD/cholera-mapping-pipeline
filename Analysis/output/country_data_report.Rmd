@@ -2,8 +2,8 @@
 title: "Data and Model Outputs Report"
 output: html_document
 params:
-  cholera_directory: "/home/kaiyuezou/mapping_pipeline/9_23_dev/cholera-mapping-pipeline/"
-  config: "/Analysis/configs/Dec_2021_runs/GHA_2015_2019/config_GHA_2015_2019.yml"
+  cholera_directory: "C:/IDD/Cholera/cmp_report"
+  config: "/Analysis/configs/Dec_2021_runs/ZWE_2015_2019/config_ZWE_2015_2019.yml"
   drop_nodata_years: TRUE
   admin_level_for_summary_table: '1'
   args: 'myarg'
@@ -64,8 +64,19 @@ for (package in package_list) {
 
 # Load data directory
 config <- yaml::read_yaml(paste0(params$cholera_directory, params$config))
+# 
+ file_names <- taxdat::get_filenames(config, params$cholera_directory)
+# file_names[["stan_input"]]<-"C:/IDD/Cholera/cmp_report/Analysis/data/Ghana_stan_input.rdata"
+# file_names["stan_output"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/Ghana_stan_output.rdata"
+# file_names["covar"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/Ghana_suspected.dw.covar.rdata"
+# file_names["data"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/Ghana_suspected.preprocess.rdata"
+# file_names["initial_values"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/Ghana_initial_values.rdata"
 
-file_names <- taxdat::get_filenames(config, params$cholera_directory)
+# file_names[["stan_input"]]<-"C:/IDD/Cholera/cmp_report/Analysis/data/ZWE_stan_input.rdata"
+# file_names["stan_output"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/ZWE_stan_output.rdata"
+# file_names["covar"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/ZWE_suspected.dw.covar.rdata"
+# file_names["data"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/ZWE_suspected.preprocess.rdata"
+# file_names["initial_values"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/ZWE_initial_values.rdata"
 
 stan_input <- NULL
 try({
@@ -126,10 +137,11 @@ try({
 
 # GAM Output
 **Fig 2. Observations input for the GAM model:**
-```{r gam input}
+```{r gam output}
 try({
 initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_values_data")
   ## initial_values_gam_input <- taxdat::get_initial_values_gam_input(initial_values_filename = file_names["initial_values"])
+  #gam_output_df<-taxdat::get_gam_values(config,params$cholera_directory)
   gam_output_df<-taxdat::get_gam_values(config,params$cholera_directory)
   
   gam_output_df %>%
@@ -258,7 +270,6 @@ taxdat::plot_raster_population(covar_data_filename = file_names["covar"], render
 
 **Table 3. Population by admin level:**
 ```{r echo = FALSE}
-
 ## the rest of this section is added on 11/03/2021, and can be turned into a function in model_evaluation_helpers.R later
 ## ======================================================================================================================
 ### Get the pltdata
@@ -307,7 +318,7 @@ if(nrow(sf_grid) == prod(dim(pop_layer))){
 
     ## across different locations
     for (locs in admin_pop_table$adminlevel){
-      cropped <- raster::crop(raster_data, boundary_sf[boundary_sf$shapeName == locs, ], snap = "out")
+      cropped <- raster::crop(raster_data, boundary_sf[boundary_sf$shapeName == locs, ], snap = "near")#change from out to near (qz)
       masked <- raster::mask(cropped, boundary_sf[boundary_sf$shapeName == locs, ], updatevalue = NA)
       sum_pop <- sum(raster::getValues(masked), na.rm = TRUE)
       admin_pop_table[match(locs, admin_pop_table$adminlevel), (match(ts, unique(pltdata$t)) + 1)] <- sum_pop
@@ -414,7 +425,7 @@ for (ts in unique(case_raster_admin$t)){
 
   ## across different locations
   for (locs in admin_case_table$adminlevel){
-    cropped <- raster::crop(raster_data, boundary_sf[boundary_sf$shapeName == locs, ], snap = "out")
+    cropped <- raster::crop(raster_data, boundary_sf[boundary_sf$shapeName == locs, ], snap = "near")
     masked <- raster::mask(cropped, boundary_sf[boundary_sf$shapeName == locs, ], updatevalue = NA)
     sum_case <- sum(raster::getValues(masked), na.rm = TRUE)
     admin_case_table[match(locs, admin_case_table$adminlevel), (match(ts, unique(case_raster_admin$t)) + 1)] <- sum_case
@@ -493,11 +504,11 @@ for (ts in unique(rate_raster_admin$t)){
   ## across different locations
   for (locs in admin_rate_table$adminlevel){
     ## the calculated case raster
-    cropped <- raster::crop(raster_data_cal_case, boundary_sf[boundary_sf$shapeName == locs, ], snap = "out")
+    cropped <- raster::crop(raster_data_cal_case, boundary_sf[boundary_sf$shapeName == locs, ], snap = "near")
     masked <- raster::mask(cropped, boundary_sf[boundary_sf$shapeName == locs, ], updatevalue = NA)
     sum_cal_case <- sum(raster::getValues(masked), na.rm = TRUE)
     ## the pop raster
-    cropped <- raster::crop(raster_data_pop, boundary_sf[boundary_sf$shapeName == locs, ], snap = "out")
+    cropped <- raster::crop(raster_data_pop, boundary_sf[boundary_sf$shapeName == locs, ], snap = "near")
     masked <- raster::mask(cropped, boundary_sf[boundary_sf$shapeName == locs, ], updatevalue = NA)
     sum_pop <- sum(raster::getValues(masked), na.rm = TRUE)
     ## the table
@@ -567,7 +578,22 @@ if(!is.null(data_fidelity)){
 
 ```
 
-```{r datafidelity2, fig.cap="Observations vs. modeled cases (tfrac adjusted)", fig.height=15, fig.width=10}
+```{r datafidelity2, fig.cap="Observations/tfrac vs. modeled cases/tfrac ", fig.height=10, fig.width=10}
+
+if(!is.null(data_fidelity)){
+  
+  taxdat::plot_model_fidelity_tfrac_converted(data_fidelity = data_fidelity,
+                                              case_raster = case_raster,
+                                              render = T)
+  
+} else{
+  warning("data_fidelity is NULL")
+}
+
+```
+
+
+```{r datafidelity3, fig.cap="Observations vs. modeled cases (tfrac adjusted)", fig.height=15, fig.width=10}
 
 if(!is.null(data_fidelity)){
   
@@ -581,7 +607,7 @@ if(!is.null(data_fidelity)){
 
 ```
 
-```{r datafidelity3, fig.cap="Observations vs. modeled cases (tfrac unadjusted)", fig.height=8, fig.width=10}
+```{r datafidelity4, fig.cap="Observations vs. modeled cases (tfrac unadjusted)", fig.height=8, fig.width=10}
 
 if(!is.null(data_fidelity)){
   
