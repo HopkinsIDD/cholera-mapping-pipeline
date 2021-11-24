@@ -1,5 +1,5 @@
 ---
-title: "Plot Data -- TZA Mainland"
+title: "Data Comparison Report"
 date: "`r Sys.time()`"
 output: html_document
 params:
@@ -15,15 +15,15 @@ params:
   fake_OCs_daily: '1'
   
 ---
-### This is a short report to plot data of different observation lengths for GHA 2015 - 2019.
+# Data comparison summary for `r stringr::str_extract(params$config, "[A-Z]{3}")` and period `r stringr::str_extract(params$config, "[0-9]{4}_[0-9]{4}")`
 
 ```{r eval=FALSE, include=FALSE}
 ### 9/27/2021 Temporary plan: detect all the discrepancies and plot the figures if they appear in any of the location-times
-### If there are discrepancies, we think they're all imperfect descriptions of what the real data looks like
-### Describe simply how different sources agree and disagree, plot the only times when they apprear side by side
-### No need for the whole time axis, no need for the cumulative incidences. 
-### Rectangles should be divided by the length of period of time. 
-### By location, not by location period. 
+###   If there are discrepancies, we think they're all imperfect descriptions of what the real data looks like
+###   Describe simply how different sources agree and disagree, plot the only times when they apprear side by side
+###   No need for the whole time axis, no need for the cumulative incidences. 
+###   Rectangles should be divided by the length of period of time. 
+###   By location, not by location period. 
 ### 10/12/2021 New updates
 ### 10/20/2021 New updates -- added OC filter and discrepancy threshold
 ### 10/26/2021 New updates -- tailored it for TZA mainland and considered situation when OCs are not specified
@@ -31,6 +31,7 @@ params:
 ### 10/29/2021 New updates -- added more descriptive sentences
 ### 10/30/2021 New updates -- considered the situation where there is only one kind of OC_UID for daily OCs
 ### 10/31/2021 New updates -- considered zero row situation for the zeros filtering process 
+### 11/23/2021 New updates -- added figures for stan input
 ```
 
 
@@ -71,9 +72,9 @@ files <- taxdat::get_filenames(config, params$cholera_directory)
 raw_data <- taxdat::read_file_of_type(files["data"], "sf_cases") %>% 
   mutate(year = lubridate::year(TL))
 
-stan_input <- read_file_of_type(files["stan_input"], "stan_input")
+stan_input <- taxdat::read_file_of_type(files["stan_input"], "stan_input")
 
-data <- stan_input$sf_cases_resized %>% 
+stan_input_data <- stan_input$sf_cases_resized %>% 
   rename(cases = `attributes.fields.suspected_cases`) %>% 
   mutate(obs = row_number() %>% factor())
 
@@ -583,10 +584,12 @@ raw_data_filtered_dis_daily_stack <- raw_data_filtered_dis_daily_stack %>%
   mutate(lower_oc = min(oc1, oc2), 
          higher_oc = max(oc1, oc2))
 
-plot3_height_factor <- (3 * nrow(unique(raw_data_filtered_dis_daily_stack[c("location_name", 
-                                                                            "year",
-                                                                            "groups_compared")]))
+raw_data_filtered_dis_daily_stack_temp <- sf::st_drop_geometry(raw_data_filtered_dis_daily_stack)
+plot3_height_factor <- (3 * nrow(unique(raw_data_filtered_dis_daily_stack_temp[c("location_name", 
+                                                                                 "year",
+                                                                                 "groups_compared")]))
                           / plot3_ncol_factor)
+rm(raw_data_filtered_dis_daily_stack_temp)
 
 ###what if there is no row
 if (plot3_height_factor == 0){
@@ -760,5 +763,30 @@ raw_data_filtered_dis_period_stack %>%
                 size=0.5, alpha=1, linetype="dashed") + 
   facet_wrap( ~ location_name + dis_period + year, ncol = as.integer(plot4_ncol_factor), scales = "free") +
   theme_bw()
+
+```
+
+
+
+## Stan input data -- #cases by OC_UID over periods and locations
+### This figure illustrates the stan input cases data (stan_input$sf_cases_resized)
+
+```{r echo=FALSE}
+# Just to calculate the width and height
+stan_input_data_temp <- sf::st_drop_geometry(stan_input_data)
+num_plots <- nrow(unique(stan_input_data_temp[c("OC_UID", "TL", "TR")]))
+plot5_height_factor <- ceiling(num_plots / 5) * 5
+rm(stan_input_data_temp)
+
+```
+
+```{r echo=FALSE, fig.height=as.numeric(plot5_height_factor), fig.width=10}
+stan_input_data %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_sf(ggplot2::aes(fill = cases)) +
+  ggplot2::geom_sf_text(ggplot2::aes(label = cases), color = 'White', size = 2.0) + 
+  ggplot2::scale_fill_gradient2("Stan input cases", low="white",mid="orange",high="red",na.value='blue') +
+  ggplot2::theme(legend.position = "bottom") +
+  ggplot2::facet_wrap(~OC_UID + TL + TR)
 
 ```
