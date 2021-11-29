@@ -484,18 +484,11 @@ plot_modeled_rates <- function(case_raster,
     tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
     dplyr::mutate(chain = stringr::str_replace(chain, "modeled rates", ""))
   
-  rate_rescaling <-  1e4  # rescale to have incidence per 10'000 people
   plt <- ggplot2::ggplot()
   plt <- plt +
     ggplot2::geom_sf(
       data = case_raster,
-      ggplot2::aes(fill = value * rate_rescaling#, color = value * rate_rescaling
-                   ),color="black",size=0.05) +
-    # ggplot2::scale_fill_continuous("modeled rates", limits = uniform_scale_fun()) +
-    # ggplot2::scale_fill_viridis_c(trans = "log",
-    #                               breaks = c(0.01, 0.1, 1, 10, 100, 1000),
-    #                               aesthetics = c("colour", "fill"),
-    #                               guide = ggplot2::guide_colorbar(title = "Incidence rate\n [cases/10'000/year]"))  +
+      ggplot2::aes(fill = value ),color="black",size=0.05) +
     taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
     ggplot2::labs(fill="Incidence rate\n [cases/10'000/year]")+
     ggplot2::theme_bw() +
