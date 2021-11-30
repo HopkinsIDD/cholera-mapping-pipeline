@@ -32,6 +32,7 @@ params:
 ### 10/30/2021 New updates -- considered the situation where there is only one kind of OC_UID for daily OCs
 ### 10/31/2021 New updates -- considered zero row situation for the zeros filtering process 
 ### 11/23/2021 New updates -- added figures for stan input
+### 11/30/2021 New updates -- added a table that can summerize #observations 
 ```
 
 
@@ -99,6 +100,18 @@ paste0('This report is just used to test its functionality: ', report_testing)
 if (exists('OC_vector')) { paste0('The OCs selected for this report is/are: ', OC_vector) } else { paste0('No OC specified, all relevant OCs are used for this report. ') }
 paste0('The daily vs. daily observations disagree threshold (fig. 3): ', daily_daily_obs_disagree_threshold)
 paste0('The daily vs. period observations disagree threshold (fig. 4): ', daily_period_obs_disagree_threshold)
+
+sum_obs <- sf::st_drop_geometry(raw_data)
+sum_obs <- sum_obs %>%
+  group_by(year) %>%
+  mutate(num_obs = length(unique(OC_UID)), unique_obs = paste(unique(OC_UID), collapse = ', ')) %>%
+  group_by(year, unique_obs, num_obs) %>%
+  summarise()
+
+sum_obs %>%
+  kableExtra::kable(col.names = c("Year", "OC_UID", "Number")) %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+  kableExtra::kable_paper(full_width = F)
 
 ```
 
