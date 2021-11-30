@@ -16,7 +16,8 @@ ovrt_metadata_table: yes
 ingest_covariates: yes
 ingest_new_covariates: yes
 censoring: no
-aggregate: no
+aggregate: yes
+remove_redundant_observations: yes
 time_effect: yes
 time_effect_autocorr: no
 use_weights: no

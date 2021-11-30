@@ -12,6 +12,7 @@ Depends: R (>= 3.4),ISOcodes,magrittr, dplyr, tidyr, igraph
 Suggests: readxl, sf, sp, raster, rgdal, testthat, knitr, rmarkdown
 RoxygenNote: 7.1.2
 Collate:
+    'aggregation.R'
     'color_scale.R'
     'config_helpers.R'
     'covariate_helpers.R'
