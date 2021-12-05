@@ -3,7 +3,7 @@ title: "Data and Model Outputs Report"
 output: html_document
 params:
   cholera_directory: "C:/IDD/Cholera/cmp_report"
-  config: "/Analysis/configs/Dec_2021_runs/ZWE_2015_2019/config_ZWE_2015_2019.yml"
+  config: "/Analysis/configs/2015_2019_full_base/GHA.yml"
   drop_nodata_years: TRUE
   admin_level_for_summary_table: '1'
   args: 'myarg'
@@ -28,6 +28,7 @@ library(taxdat)
 library(sf)
 library(raster)
 library(stars)
+sf::sf_use_s2(FALSE)
 
 ### other new packages (mainly for "rgeoboundaries")
 chooseCRANmirror(ind = 77)
@@ -61,11 +62,10 @@ for (package in package_list) {
 **Data input:**
 
 ```{r load data}
-
 # Load data directory
 config <- yaml::read_yaml(paste0(params$cholera_directory, params$config))
 # 
- file_names <- taxdat::get_filenames(config, params$cholera_directory)
+file_names <- taxdat::get_filenames(config, params$cholera_directory)
 # file_names[["stan_input"]]<-"C:/IDD/Cholera/cmp_report/Analysis/data/Ghana_stan_input.rdata"
 # file_names["stan_output"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/Ghana_stan_output.rdata"
 # file_names["covar"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/Ghana_suspected.dw.covar.rdata"
@@ -77,6 +77,19 @@ config <- yaml::read_yaml(paste0(params$cholera_directory, params$config))
 # file_names["covar"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/ZWE_suspected.dw.covar.rdata"
 # file_names["data"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/ZWE_suspected.preprocess.rdata"
 # file_names["initial_values"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/ZWE_initial_values.rdata"
+
+# file_names[["stan_input"]]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GHA_stan_input.rdata"
+# file_names["stan_output"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GHA_stan_output.rdata"
+# file_names["covar"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GHA_suspected.dw.covar.rdata"
+# file_names["data"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GHA_suspected.preprocess.rdata"
+# file_names["initial_values"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GHA_initial_values.rdata"
+#old runs
+file_names[["stan_input"]]<-stringr::str_remove(file_names[["stan_input"]],"allOCs_")
+file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],"allOCs_")
+file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],".iv-wN-cwN-csF-teT-teaF-weF-F")
+file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],"-F")
+file_names[["covar"]]<-stringr::str_remove(file_names[["covar"]],"allOCs_")
+file_names[["data"]]<-stringr::str_remove(file_names[["data"]],"allOCs_")
 
 stan_input <- NULL
 try({
@@ -102,16 +115,15 @@ try({
   stan_output <- lapply(rstan::extract(model.rand), function(x){array(x,c(niter_per_chain, nchain, dim(x)[-1]))})
   cases_chains <- apply(stan_output$grid_cases, c(3,2), mean)
 })
-
 ```
 
 ## GAM Input
 **Fig 1. Observations input for the GAM model:**
 ```{r gam input}
 try({
-  initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_values_data")
-  ## initial_values_gam_input <- taxdat::get_initial_values_gam_input(initial_values_filename = file_names["initial_values"])
 
+  initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_values_data")
+  
   initial_values_data$gam_fit_input %>%
     dplyr::group_by(sx, sy) %>%
     dplyr::summarize(y = mean(y)) %>%
@@ -130,7 +142,7 @@ try({
     taxdat::map_theme() +
     taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
     ggplot2::labs(fill="Incidence rate")
-  ## plot_gam_input(initial_values_gam_input)
+  
 })
 ```
 
@@ -140,8 +152,6 @@ try({
 ```{r gam output}
 try({
 initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_values_data")
-  ## initial_values_gam_input <- taxdat::get_initial_values_gam_input(initial_values_filename = file_names["initial_values"])
-  #gam_output_df<-taxdat::get_gam_values(config,params$cholera_directory)
   gam_output_df<-taxdat::get_gam_values(config,params$cholera_directory)
   
   gam_output_df %>%
@@ -165,7 +175,6 @@ initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_
 **Table 1. Data used within the model:**
 
 ```{r cases}
-
 if(!is.null(sf_cases_resized)){
   # Get case data statistics
   obs_stats <- taxdat::get_obs_stats(sf_cases_resized)
@@ -301,37 +310,48 @@ if(nrow(sf_grid) == prod(dim(pop_layer))){
     please check and change the parameters for the country data report before running again. ')
   }
 
+  #import 1*1 KM pop raster and update the covar in the pltdata
+  #setwd(stringr::str_remove(getwd(),"/Analysis/output"))
+  #pop_raster_data <- raster("C:/IDD/Cholera/cmp_report/Layers/pop/2000_1km_Aggregated.tif")
+  pop_raster_data <- raster("/home/qulu/cmp_report/Analysis/2000_1km_Aggregated.tif")
+    
   ### For loops and make the table
   admin_pop_table <- data.frame(matrix(NA, length(boundary_sf$shapeName), length(unique(pltdata$t)) + 1))
   start_year <- as.numeric(stringr::str_extract(stringr::str_extract(params$config, "[A-Z]{3}_[0-9]{4}"), "[0-9]{4}"))
+  #for old runs
+  if(is.na(start_year)){
+    start_year=2015
+  }
   year_list <- unique(pltdata$t) + (start_year-1)
   colnames(admin_pop_table) <- c('adminlevel', year_list)
   admin_pop_table$adminlevel <- boundary_sf$shapeName
   
-  for (ts in unique(pltdata$t)){
-    ## filter and rasterize
-    pltdata_ts <- pltdata %>% filter(t == ts)
-    x_res <- (sf::st_bbox(pltdata_ts)$xmax - sf::st_bbox(pltdata_ts)$xmin) / (max(pltdata_ts$x) - min(pltdata_ts$x) + 1)
-    y_res <- (sf::st_bbox(pltdata_ts)$ymax - sf::st_bbox(pltdata_ts)$ymin) / (max(pltdata_ts$y) - min(pltdata_ts$y) + 1)
-    empty_raster <- raster::raster(pltdata_ts, res = max(x_res, y_res))
-    raster_data <- fasterize::fasterize(pltdata_ts, empty_raster, field = "covar")
+  # for (ts in unique(pltdata$t)){
+  #   ## filter and rasterize
+  #   pltdata_ts <- pltdata %>% filter(t == ts)
+  #   x_res <- (sf::st_bbox(pltdata_ts)$xmax - sf::st_bbox(pltdata_ts)$xmin) / (max(pltdata_ts$x) - min(pltdata_ts$x) + 1)
+  #   y_res <- (sf::st_bbox(pltdata_ts)$ymax - sf::st_bbox(pltdata_ts)$ymin) / (max(pltdata_ts$y) - min(pltdata_ts$y) + 1)
+  #   empty_raster <- raster::raster(pltdata_ts, res = max(x_res, y_res))
+  #   raster_data <- fasterize::fasterize(pltdata_ts, empty_raster, field = "covar")
 
     ## across different locations
     for (locs in admin_pop_table$adminlevel){
-      cropped <- raster::crop(raster_data, boundary_sf[boundary_sf$shapeName == locs, ], snap = "near")#change from out to near (qz)
+      cropped <- raster::crop(pop_raster_data, boundary_sf[boundary_sf$shapeName == locs, ], snap = "out")
       masked <- raster::mask(cropped, boundary_sf[boundary_sf$shapeName == locs, ], updatevalue = NA)
       sum_pop <- sum(raster::getValues(masked), na.rm = TRUE)
-      admin_pop_table[match(locs, admin_pop_table$adminlevel), (match(ts, unique(pltdata$t)) + 1)] <- sum_pop
+      #admin_pop_table[match(locs, admin_pop_table$adminlevel), (match(ts, unique(pltdata$t)) + 1)] <- sum_pop
+      admin_pop_table[match(locs, admin_pop_table$adminlevel), !colnames(admin_pop_table)%in%"adminlevel"]<-round(sum_pop,4) 
       rm(cropped, masked)
     } 
 
     ## optimize memory
-    rm(pltdata_ts, empty_raster, raster_data)
-  }
+    #rm(pltdata_ts, empty_raster, raster_data)
+  #}
 
   ### Add a total row, change colnames, and display the table
   total_row <- c('Total', apply(admin_pop_table[, -1], 2, sum))
   admin_pop_table <- rbind(admin_pop_table, total_row)
+  
   admin_pop_table %>%
     dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
     kableExtra::kable(col.names = c('Admin Level', year_list)) %>%
@@ -344,13 +364,13 @@ if(nrow(sf_grid) == prod(dim(pop_layer))){
 }
 ## ===============================================
 
-
 ```
 
 ### Other covariates
 **Fig 7. Distance to water raster:**
 ```{r covars, fig.height=5, fig.width=8, fig.cap="Covariate rasters"}
 taxdat::plot_raster_covariates(covar_data_filename = file_names["covar"], render = T)
+
 ```
 
 ## Output maps
@@ -370,6 +390,30 @@ try({
                                        covar_data_filename = file_names["covar"],
                                        model_output_filenames = file_names["stan_output"])
 
+  #disaggregate incidence raster to 1*1KM 
+  rate_raster <- case_raster %>%
+    dplyr::select(dplyr::contains("modeled rates"),id,t,x,y,geom) %>%
+    tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
+    dplyr::mutate(chain = stringr::str_replace(chain, "modeled rates", ""),value=value)
+  
+  empty_raster <- raster::raster(rate_raster, res = max(0.00833333, 0.00833333))
+  disaggregated_rate_raster <- fasterize::fasterize(rate_raster, empty_raster, field = c("value"),by="t")
+  disaggregated_rate_sf=disaggregated_rate_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)%>%dplyr::rename("1"=X1,"2"=X2,"3"=X3,"4"=X4,"5"=X5)%>%tidyr::pivot_longer(.,cols=c("1","2","3","4","5"),names_to="t")%>%as.data.frame(.)%>%sf::st_as_sf(.)
+colnames(disaggregated_rate_sf)[stringr::str_detect( colnames(disaggregated_rate_sf),"value")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled rate")]
+  disaggregated_rate_sf$id<-rep(1:(nrow(disaggregated_rate_sf)/length(unique(disaggregated_rate_sf$t))),each=5)
+
+  #disaggregate population raster to 1*1 KM
+  #newplydata is the 1*1 KM raster #crop the country boundary
+  #Crop the raster
+  pop_cropped <- raster::crop(pop_raster_data,disaggregated_rate_raster)
+  origin(pop_cropped)<-origin(disaggregated_rate_raster)
+  disaggregated_case_raster<-pop_cropped*disaggregated_rate_raster
+
+#   #aggregate 1*1 case raster to 20*20 raster
+  disaggregated_case_sf=disaggregated_case_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)%>%dplyr::rename("1"=layer.1,"2"=layer.2,"3"=layer.3,"4"=layer.4,"5"=layer.5)%>%tidyr::pivot_longer(.,cols=c("1","2","3","4","5"),names_to="t")%>%as.data.frame(.)%>%sf::st_as_sf(.)
+colnames(disaggregated_case_sf)[stringr::str_detect( colnames(disaggregated_case_sf),"value")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled case")]
+  disaggregated_case_sf$id<-rep(1:(nrow(disaggregated_case_sf)/length(unique(disaggregated_case_sf$t))),each=5)
+
   if(all(analysis_years %in% obs_years)){
     message("All analysis years are represented by OCs.")
   } else{
@@ -385,16 +429,42 @@ try({
 ```
 
 ### Modeled cases
-**Fig 8. Modeled cases raster by time slices:**
+**Fig 8. Modeled cases raster by time slices: time1**
 ```{r caserast, fig.cap="Modeled cases", fig.height=5, fig.width=10}
 
 if(!is.null(case_raster)){
-  case_raster_admin <- case_raster #for the following table
-  rate_raster_admin <- case_raster #for the next rate table
-  taxdat::plot_modeled_cases(case_raster, render = T)
+  # case_raster_admin <- case_raster #for the following table
+  # rate_raster_admin <- case_raster #for the next rate table
+ # case_raster_admin <- disaggregated_case_sf
+ # rate_raster_admin <- disaggregated_rate_sf
+  #taxdat::plot_modeled_cases(disaggregated_case_sf, render = T)
+  plt_case_raster <- disaggregated_case_sf %>%
+    dplyr::select(dplyr::contains("modeled cases"),id,t) %>%
+    tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
+    # tidyr::pivot_longer(contains("iterations: Chain"), names_to = "chain", values_to = "value") %>%
+    dplyr::mutate(chain = stringr::str_replace(chain, "modeled cases", ""))
+  plt_2020_case_raster <- case_raster %>%
+    dplyr::select(dplyr::contains("modeled cases"),id,t) %>%
+    tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
+    dplyr::mutate(chain = stringr::str_replace(chain, "modeled cases", ""))
+    
+    ggplot2::ggplot() +
+    ggplot2::geom_sf(
+      data = plt_case_raster,
+      ggplot2::aes(fill = value),color=NA,size=0.00001)+
+        ggplot2::geom_sf(
+      data=plt_2020_case_raster%>%mutate(value=NA),
+      fill=NA,color="black")+
+    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = TRUE)+
+    ggplot2::labs(fill="Incidence\n [cases/year]")+
+    ggplot2::theme_bw() +
+    ggplot2::theme(legend.position = "bottom") +
+    ggplot2::theme(legend.text =  ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))+
+    ggplot2::facet_wrap(~t,ncol = 5) 
 } else{
   warning("case_raster is NULL")
 }
+
 
 ```
 
@@ -403,24 +473,25 @@ if(!is.null(case_raster)){
 **Table 4. Modeled cases by admin level and time:**
 ```{r echo = FALSE}
 ### Clean up the sf dataset
-case_raster_admin <- case_raster_admin %>%
-    dplyr::select(dplyr::contains("modeled cases"),id,t,x,y,geom) %>%
-    tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
-    dplyr::mutate(chain = stringr::str_replace(chain, "modeled cases", ""))
+ try({
+case_raster_admin<-disaggregated_case_sf
+colnames(case_raster_admin)[stringr::str_detect(colnames(case_raster_admin),"modeled case")] <- "value"
 
 ### For loops and make the table
 admin_case_table <- data.frame(matrix(NA, length(boundary_sf$shapeName), length(unique(case_raster_admin$t)) + 1))
 start_year <- as.numeric(stringr::str_extract(stringr::str_extract(params$config, "[A-Z]{3}_[0-9]{4}"), "[0-9]{4}"))
-year_list <- unique(case_raster_admin$t) + (start_year-1)
+  #for old runs
+  if(is.na(start_year)){
+    start_year=2015
+  }
+year_list <- unique(as.numeric(case_raster_admin$t)) + (start_year-1)
 colnames(admin_case_table) <- c('adminlevel', year_list)
 admin_case_table$adminlevel <- boundary_sf$shapeName
 
 for (ts in unique(case_raster_admin$t)){
   ## filter and rasterize
   case_raster_admin_ts <- case_raster_admin %>% filter(t == ts)
-  x_res <- (sf::st_bbox(case_raster_admin_ts)$xmax - sf::st_bbox(case_raster_admin_ts)$xmin) / (max(case_raster_admin_ts$x) - min(case_raster_admin_ts$x) + 1)
-  y_res <- (sf::st_bbox(case_raster_admin_ts)$ymax - sf::st_bbox(case_raster_admin_ts)$ymin) / (max(case_raster_admin_ts$y) - min(case_raster_admin_ts$y) + 1)
-  empty_raster <- raster::raster(case_raster_admin_ts, res = max(x_res, y_res))
+    empty_raster <- raster::raster(case_raster_admin_ts, res = res(disaggregated_case_raster))
   raster_data <- fasterize::fasterize(case_raster_admin_ts, empty_raster, field = "value")
 
   ## across different locations
@@ -451,7 +522,7 @@ admin_case_table %>%
   kableExtra::kable(col.names = c('Admin Level', year_list, 'Mean across Years')) %>%
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
   kableExtra::kable_paper(full_width = F) %>%
-  kableExtra::row_spec(nrow(admin_case_table), bold = T)
+  kableExtra::row_spec(nrow(admin_case_table), bold = T)})
 
 ```
 
@@ -472,34 +543,29 @@ if(!is.null(case_raster)){
 **Table 5. Modeled population-weighted incidence rates by admin level and time:**
 ```{r echo = FALSE}
 ### Clean up the sf dataset
-rate_raster_admin <- rate_raster_admin %>%
-    dplyr::select(dplyr::contains("modeled rates"),id,t,x,y,geom) %>%
-    tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
-    dplyr::mutate(chain = stringr::str_replace(chain, "modeled rates", ""))
+try({
+rate_raster_admin<-disaggregated_rate_sf
+colnames(rate_raster_admin)[stringr::str_detect(colnames(rate_raster_admin),"modeled rate")] <- "value"
 
 ##### Multiply two rasters together
 ### For loops and make the table
 admin_rate_table <- data.frame(matrix(NA, length(boundary_sf$shapeName), length(unique(rate_raster_admin$t)) + 1))
 start_year <- as.numeric(stringr::str_extract(stringr::str_extract(params$config, "[A-Z]{3}_[0-9]{4}"), "[0-9]{4}"))
-year_list <- unique(rate_raster_admin$t) + (start_year-1)
+  #for old runs
+  if(is.na(start_year)){
+    start_year=2015
+  }
+year_list <- as.numeric(unique(rate_raster_admin$t)) + (start_year-1)
 colnames(admin_rate_table) <- c('adminlevel', year_list)
 admin_rate_table$adminlevel <- boundary_sf$shapeName
 
+total_w_rate<-c()
+
 for (ts in unique(rate_raster_admin$t)){
-  ## the population raster
-  pltdata_ts <- pltdata %>% filter(t == ts)
-  x_res <- (sf::st_bbox(pltdata_ts)$xmax - sf::st_bbox(pltdata_ts)$xmin) / (max(pltdata_ts$x) - min(pltdata_ts$x) + 1)
-  y_res <- (sf::st_bbox(pltdata_ts)$ymax - sf::st_bbox(pltdata_ts)$ymin) / (max(pltdata_ts$y) - min(pltdata_ts$y) + 1)
-  empty_raster <- raster::raster(pltdata_ts, res = max(x_res, y_res))
-  raster_data_pop <- fasterize::fasterize(pltdata_ts, empty_raster, field = "covar")
   ## the rates raster
   rate_raster_admin_ts <- rate_raster_admin %>% filter(t == ts)
-  x_res <- (sf::st_bbox(rate_raster_admin_ts)$xmax - sf::st_bbox(rate_raster_admin_ts)$xmin) / (max(rate_raster_admin_ts$x) - min(rate_raster_admin_ts$x) + 1)
-  y_res <- (sf::st_bbox(rate_raster_admin_ts)$ymax - sf::st_bbox(rate_raster_admin_ts)$ymin) / (max(rate_raster_admin_ts$y) - min(rate_raster_admin_ts$y) + 1)
-  empty_raster <- raster::raster(rate_raster_admin_ts, res = max(x_res, y_res))
-  raster_data_rate <- fasterize::fasterize(rate_raster_admin_ts, empty_raster, field = "value")
-  ## the calculated case raster
-  raster_data_cal_case <- raster_data_pop * raster_data_rate
+  raster_data_cal_case <- disaggregated_case_raster[[as.numeric(ts)]]
+  raster_data_pop <- pop_cropped
 
   ## across different locations
   for (locs in admin_rate_table$adminlevel){
@@ -526,7 +592,8 @@ for (ts in unique(rate_raster_admin$t)){
   }
   
   ## optimize memory
-  rm(rate_raster_admin_ts, empty_raster, raster_data_pop, raster_data_rate, raster_data_cal_case)
+  #rm(rate_raster_admin_ts, empty_raster, raster_data_pop, raster_data_rate, raster_data_cal_case)
+  rm(rate_raster_admin_ts, raster_data_cal_case,raster_data_pop)
   
 }
 
@@ -546,9 +613,9 @@ admin_rate_table %>%
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
   kableExtra::kable_paper(full_width = F) %>%
   kableExtra::row_spec(nrow(admin_rate_table), bold = T)
+})
 
 ```
-
 
 
 ## Validation
@@ -556,8 +623,59 @@ admin_rate_table %>%
 ```{r import_modelfidel}
 data_fidelity <- NULL
 try({
+  
+  if(file.exists(file_names["initial_values"])){
   data_fidelity <- taxdat::get_data_fidelity(stan_input_filenames = file_names["stan_input"],
                                           model_output_filenames = file_names["stan_output"])
+  
+  }else{
+    stan_input_filenames = file_names["stan_input"]
+    model_output_filenames = file_names["stan_output"]
+    if (length(stan_input_filenames) != length(model_output_filenames))
+    stop("Need to provide same number of stan_input and stan_output files")
+  
+  rc <- list()
+  layer_index <- 1
+  for (i in 1:length(model_output_filenames)) {
+    filename <- model_output_filenames[i]
+    model.rand <- read_file_of_type(filename, "model.rand")
+    nchain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__'))[1] / niter_per_chain
+    
+    stan_data <- read_file_of_type(stan_input_filenames[i], "stan_input")$stan_data
+    modeled_cases <- as.array(model.rand)[, , grepl("modeled_cases", names(model.rand)), drop = FALSE]
+    modeled_cases_chain_mean <- apply(modeled_cases, c(2, 3), mean)
+    actual_cases <- matrix(stan_data$y, nrow(modeled_cases_chain_mean), ncol(modeled_cases_chain_mean), byrow=TRUE)
+    dimnames(actual_cases) <- dimnames(modeled_cases_chain_mean)
+    modeled_cases_chain_mean <- reshape2::melt(modeled_cases_chain_mean)
+    actual_cases <- reshape2::melt(actual_cases)
+    actual_cases$censoring <- rep(stan_data$censoring_inds, each = nchain)
+    actual_cases$oc_uid <- rep(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$OC_UID, 
+                               each = nchain) #newly added
+    actual_cases$oc_year <- rep(format(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$TR, '%Y'), 
+                               each = nchain) #newly added
+    
+    stan_data<-read_file_of_type(file_names["data"],"stan_data")
+    obs_tfrac=data.frame(
+      obs = stan_data$map_obs_loctime_obs,
+      tfrac = stan_data$tfrac
+    ) %>%
+      dplyr::group_by(obs) %>%
+      dplyr::summarize(tfrac = sum(tfrac))
+    actual_cases$tfrac<-1
+    actual_cases[stringr::str_detect(actual_cases$parameters,"tfrac"),]$tfrac<-rep(obs_tfrac$tfrac,each=nchain)
+    
+    comparison <- dplyr::left_join(modeled_cases_chain_mean, actual_cases, by = c(chains = "chains", parameters = "parameters"))
+    names(comparison)[3:4] <- c("modeled cases", "actual cases")
+    rc[[filename]] <- comparison
+    names(rc)[[layer_index]] <- paste(
+      paste(filename_to_stubs(filename)[2:3], collapse = " "),
+      "\niterations: Chain", filename_to_stubs(filename)[5])
+    layer_index <- layer_index + 1
+  }
+  
+  data_fidelity<-rc
+}
+  
 })
 
 ```
