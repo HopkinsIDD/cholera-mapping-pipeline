@@ -298,7 +298,7 @@ plot_raster_population <- function(covar_data_filename,
 #' @return ggplot object with covariate raster
 plot_raster_covariates <- function(covar_data_filename,
                                    render = T) {
-  plt <- ggplot2::ggplot()
+  # plt <- ggplot2::ggplot()
   covar_cube_output <- read_file_of_type(covar_data_filename, "covar_cube_output")
   covar_cube <- covar_cube_output$covar_cube
   sf_grid <- covar_cube_output$sf_grid
@@ -331,19 +331,28 @@ plot_raster_covariates <- function(covar_data_filename,
         one_of(dimnames(covar_cube_output$covar_cube)[[3]]), key = "covars", value = "value"
       )
     
-    plt <- plt +
-      ggplot2::geom_sf(
-        data = pltdata_dummy,
-        ggplot2::aes(fill = value, color = value)
-      ) +
-      ggplot2::scale_fill_viridis_c(aesthetics = c("colour", "fill"),
-                                    guide = ggplot2::guide_colorbar(title = "Covariate at time 1"),
-                                    option = "B",
-                                    na.value = "white")  +
-      ggplot2::theme_bw() +
-      # ggplot2::scale_fill_continuous("Covariate at time 1") +
-      ggplot2::theme(legend.position = "bottom") +
-      ggplot2::facet_wrap(~covars)
+    # plt <- plt +
+    #   ggplot2::geom_sf(
+    #     data = pltdata_dummy,
+    #     ggplot2::aes(fill = value, color = value)
+    #   ) +
+    #   ggplot2::scale_fill_viridis_c(aesthetics = c("colour", "fill"),
+    #                                 guide = ggplot2::guide_colorbar(title = "Covariate at time 1"),
+    #                                 option = "B",
+    #                                 na.value = "white")  +
+    #   ggplot2::theme_bw() +
+    #   # ggplot2::scale_fill_continuous("Covariate at time 1") +
+    #   ggplot2::theme(legend.position = "bottom") +
+    #   ggplot2::facet_wrap(~covars)
+    plt<-pltdata_dummy%>%group_by(covars)%>%
+      do(gg={ggplot(.,ggplot2::aes(fill = value, color = value)) + ggplot2::geom_sf()+
+          ggplot2::facet_wrap(~covars)+ggplot2::scale_fill_viridis_c(aesthetics = c("colour", 
+                                                                                    "fill"), guide = ggplot2::guide_colorbar(title = "Covariate at time 1"), 
+                                                                     option = "B", na.value = "white") + ggplot2::theme_bw() + 
+          ggplot2::theme(legend.position = "bottom",
+                         legend.key.size = unit(0.5, 'cm'),
+                         legend.title =element_text(size=10))})%>%
+      .$gg%>%gridExtra::grid.arrange(grobs=.,nrow=2)
     
   } else{
     warning("sf_grid has a different number of cells or timepoints than covar_cube")
