@@ -6,10 +6,12 @@ params:
   config: "/Analysis/configs/Dec_2021_runs/GHA_2015_2019/config_GHA_2015_2019.yml"
   cholera_directory: "/home/kaiyuezou/mapping_pipeline/9_23_dev/cholera-mapping-pipeline"
   args: 'run-comparison'
+  filter_zeros: 'FALSE'
+  cut_across_year_observations: 'FALSE'
   period_OC_divided_by_timelength: 'TRUE'
   OC_filter: ''
-  daily_daily_obs_disagree_threshold: '5'
-  daily_period_obs_disagree_threshold: '10'
+  daily_daily_obs_disagree_threshold: '0'
+  daily_period_obs_disagree_threshold: '0'
   report_testing: 'FALSE'
   fake_OCs: '3'
   fake_OCs_daily: '1'
@@ -33,6 +35,8 @@ params:
 ### 10/31/2021 New updates -- considered zero row situation for the zeros filtering process 
 ### 11/23/2021 New updates -- added figures for stan input
 ### 11/30/2021 New updates -- added a table that can summerize #observations 
+### 12/6/2021 New updates -- added options to indicate whether filter zeros, whether seperate multi-year observations; 
+###                          also added seperate figures just to plot multi-year observations                          
 ```
 
 
@@ -80,6 +84,8 @@ stan_input_data <- stan_input$sf_cases_resized %>%
   mutate(obs = row_number() %>% factor())
 
 # Get the pre-defined parameters into the environment
+filter_zeros <- as.logical(params$filter_zeros)
+cut_across_year_observations <- as.logical(params$cut_across_year_observations)
 period_OC_divided_by_timelength = as.logical(params$period_OC_divided_by_timelength)
 report_testing = as.logical(params$report_testing)
 fake_OCs = as.numeric(params$fake_OCs)
@@ -95,6 +101,8 @@ daily_period_obs_disagree_threshold <- as.numeric(params$daily_period_obs_disagr
 
 ## Parameter settings for this report
 ```{r echo=FALSE, warning=FALSE}
+paste0('Whether filtered out zeros: ', filter_zeros)
+paste0('Whether cut observations that span across multiple years: ', cut_across_year_observations)
 paste0('Period observations are divided by their time length in the first figure: ', period_OC_divided_by_timelength)
 paste0('This report is just used to test its functionality: ', report_testing)
 if (exists('OC_vector')) { paste0('The OCs selected for this report is/are: ', OC_vector) } else { paste0('No OC specified, all relevant OCs are used for this report. ') }
@@ -121,65 +129,108 @@ sum_obs %>%
 ##filter out the unnecessary OCs
 if (exists('OC_vector')) {raw_data <- subset(raw_data, as.character(OC_UID) %in% OC_vector)}
 
-##get some warnings ready
-if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 | 
-      nrow(raw_data[raw_data$TL == raw_data$TR, ]) == 0) & !report_testing) {
-  warning('This country does not have any daily/period cases data from the OCs you specified, 
-  this diagnostic report will not generate all figures. ')
-}
+# ##get some warnings ready
+# if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 | 
+#       nrow(raw_data[raw_data$TL == raw_data$TR, ]) == 0) & !report_testing) {
+#   warning('This country does not have any daily/period cases data from the OCs you specified, 
+#   this diagnostic report will not generate all figures. ')
+# }
 
 ##prepare for all-zero situations
-raw_data[, "first_non0"] <- NA
-raw_data[, "last_non0"] <- NA
-for (locations in unique(raw_data$location_name)){
-  for (years in unique(raw_data$year)){
-    if (length(raw_data[raw_data$location_name == locations 
-                   & raw_data$year == years, ]$suspected_cases) == 0){}
-    else if (sum(raw_data[raw_data$location_name == locations 
-                   & raw_data$year == years, ]$suspected_cases) == 0){
-      # min_TL <- min(raw_data[raw_data$location_name == locations 
-      #             & raw_data$year == years, ]$TL)
-      # max_TR <- max(raw_data[raw_data$location_name == locations 
-      #             & raw_data$year == years, ]$TR)
-      # raw_data[raw_data$location_name == locations 
-      #        & raw_data$year == years
-      #        & raw_data$TL == min_TL, ]$first_non0 <- 1
-      # raw_data[raw_data$location_name == locations 
-      #        & raw_data$year == years
-      #        & raw_data$TR == max_TR, ]$last_non0 <- 1
-
-      ##decide to discard these rows and tailor the plot1_ncol_factor
-      raw_data <- raw_data[- which(raw_data$location_name == locations 
-                            & raw_data$year == years), ]
-      if (!exists('plot1_ncol_factor')) {plot1_ncol_factor <- 1}
-               }
+if(filter_zeros){
+  raw_data[, "first_non0"] <- NA
+  raw_data[, "last_non0"] <- NA
+  for (locations in unique(raw_data$location_name)){
+    for (years in unique(raw_data$year)){
+      if (length(raw_data[raw_data$location_name == locations 
+                    & raw_data$year == years, ]$suspected_cases) == 0){}
+      else if (sum(raw_data[raw_data$location_name == locations 
+                    & raw_data$year == years, ]$suspected_cases) == 0){
+        raw_data <- raw_data[- which(raw_data$location_name == locations 
+                              & raw_data$year == years), ]
+        if (!exists('plot1_ncol_factor')) {plot1_ncol_factor <- 1}
+                }
+    }
   }
 }
 
-##filter out the zeros for each location-year and discard geom
-raw_data_filtered <- raw_data %>% 
-  select(-geom) %>% 
-  group_by(location_name, year) %>% 
-  arrange(TL, OC_UID) %>% 
-  mutate( first_non0 = case_when(
-            id == id[ (match((suspected_cases[suspected_cases > 0])[1], suspected_cases))[1] ] ~ 1,
-            TRUE ~ 0)
-         ) %>% 
-  arrange(desc(TR, OC_UID)) %>% 
-  mutate( last_non0 = case_when(
-            id == id[ (match((suspected_cases[suspected_cases > 0])[1], suspected_cases))[1] ] ~ 1,
-            TRUE ~ 0)
-         ) %>%
-  arrange(TL, OC_UID) %>%  
-  mutate( between_non0s = case_when(
-            id %in% id[min(which(first_non0 == 1)) : max(which(last_non0 == 1))] ~ 1, 
-            TRUE ~ 0)
-         ) %>% 
-  filter(between_non0s == 1) %>% 
-  select(-first_non0, -last_non0, -between_non0s)
+
+
+##discard geom and look into multi-year observations
+raw_data <- sf::st_drop_geometry(raw_data)
+
+raw_across_year_data_temp <- raw_data %>% 
+  mutate(TL_year = as.numeric(format(as.Date(TL), format="%Y")), TR_year = as.numeric(format(as.Date(TR), format="%Y")))
+
+if(any(raw_across_year_data_temp$TL_year != raw_across_year_data_temp$TR_year)){
+  
+  rm(raw_across_year_data_temp)
+  across_year_indicator <- TRUE
+
+    #deal with observations spanning cross two or multiple year seperately 
+  raw_across_year_data_filtered <- raw_data %>% 
+    mutate(TL_year = as.numeric(format(as.Date(TL), format="%Y")), TR_year = as.numeric(format(as.Date(TR), format="%Y"))) %>% 
+    filter(TL_year != TR_year) %>% 
+    mutate(year = paste0(TL_year, '-', TR_year)) 
     
+    #cut the multi-year observations into seperate years and then reconnect
+  if(cut_across_year_observations){
+    raw_across_year_data_cut <- raw_data %>% 
+      mutate(TL_year = as.numeric(format(as.Date(TL), format="%Y")), TR_year = as.numeric(format(as.Date(TR), format="%Y"))) %>% 
+      filter(TL_year != TR_year) %>% 
+      mutate(year_num = TR_year - TL_year + 1) %>% 
+      group_by_all() %>% 
+      tidyr::expand(year_count = seq(1:year_num)) %>% 
+      mutate(year = TL_year - 1 + year_count) %>% #the updated year variable
+      mutate(period_length = abs(as.numeric(difftime(TL, TR, units = "days")))) %>% 
+      mutate(first_year = as.numeric(year == TL_year), 
+            last_year = as.numeric(year == TR_year), 
+            middle_year = as.numeric(year > TL_year & year < TR_year)) %>% 
+      mutate(year_length = 365 + as.numeric(year %% 4 == 0)) %>% 
+      mutate(time_fraction = case_when( first_year == 1 ~ ( year_length - abs(as.numeric(difftime(TL, paste0(year, '-01-01'), units = "days"))) ) / period_length,
+                                        middle_year == 1 ~ year_length / period_length,
+                                        last_year == 1 ~ ( abs(as.numeric(difftime(TL, paste0(year, '-01-01'), units = "days"))) + 1 ) / period_length, 
+                                        TRUE ~ 1                                                                                                                    )) %>% 
+      mutate(suspected_cases = suspected_cases * time_fraction) %>%
+      ungroup() %>% 
+      select(-TL_year, -TR_year, -year_num, -year_count, -period_length, -first_year, -last_year, -middle_year, -year_length, -time_fraction)
+
+    raw_data <- raw_data %>% 
+      mutate(TL_year = as.numeric(format(as.Date(TL), format="%Y")), TR_year = as.numeric(format(as.Date(TR), format="%Y"))) %>% 
+      filter(TL_year == TR_year) %>% 
+      select(-TL_year, -TR_year)
+    
+    raw_data <- rbind(raw_data, raw_across_year_data_cut)
+  }
+  
+}else{across_year_indicator <- FALSE}
 
 
+
+##filter out the zeros or not
+if(filter_zeros){
+  raw_data_filtered <- raw_data %>% 
+    group_by(location_name, year) %>% 
+    arrange(TL, OC_UID) %>% 
+    mutate( first_non0 = case_when(
+              id == id[ (match((suspected_cases[suspected_cases > 0])[1], suspected_cases))[1] ] ~ 1,
+              TRUE ~ 0)
+          ) %>% 
+    arrange(desc(TR, OC_UID)) %>% 
+    mutate( last_non0 = case_when(
+              id == id[ (match((suspected_cases[suspected_cases > 0])[1], suspected_cases))[1] ] ~ 1,
+              TRUE ~ 0)
+          ) %>%
+    arrange(TL, OC_UID) %>%  
+    mutate( between_non0s = case_when(
+              id %in% id[min(which(first_non0 == 1)) : max(which(last_non0 == 1))] ~ 1, 
+              TRUE ~ 0)
+          ) %>% 
+    filter(between_non0s == 1) %>% 
+    select(-first_non0, -last_non0, -between_non0s)
+}else{raw_data_filtered <- raw_data}
+
+    
 
 ##do we need to create the fake data? 
 if (report_testing & (length(unique(raw_data_filtered$OC_UID)) == 1)){
@@ -240,6 +291,7 @@ if (report_testing & (length(unique(raw_data_filtered$OC_UID)) == 1)){
 if (!exists('plot1_ncol_factor')) {plot1_ncol_factor <- 2} #for now
 # plot1_height_factor <- 3 * length(unique(raw_data_filtered$location_name)) * length(unique(raw_data_filtered$year)) / plot1_ncol_factor
 plot1_height_factor <- 3 * length( unique(cbind(raw_data_filtered$location_name, raw_data_filtered$year)) ) / plot1_ncol_factor
+if(across_year_indicator){ plot1_height_factor_2 = 5 * (nrow(raw_across_year_data_filtered) / 2) } 
 
 if (period_OC_divided_by_timelength) {
   print('The rectangles represent daily-averaged cases (total cases/length of period). ')
@@ -336,6 +388,41 @@ if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 |
       facet_wrap(~year + location_name, ncol = as.integer(plot1_ncol_factor), scales = "free") +
       theme_bw()
   }
+}
+
+```
+
+```{r echo=FALSE, eval=across_year_indicator, include=across_year_indicator, fig.height=as.numeric(plot1_height_factor_2), fig.width=10}
+if(across_year_indicator){
+  print('Now plotting the observations spanning across multiple years. ')
+  if (period_OC_divided_by_timelength){
+    raw_across_year_data_filtered %>% 
+      filter(TL != TR) %>% 
+      ggplot(aes(x = ymd(TL), y = suspected_cases/(time_length(interval(TL, TR), 'day') + 1), 
+                color = OC_UID)) +
+      geom_rect(aes(xmin = TL, xmax = TR, ymin = 0, 
+                    ymax = suspected_cases/(time_length(interval(TL, TR), 'day') + 1), 
+                    colour = OC_UID),
+                fill = NA, size = 0.35 * plot1_ncol_factor, alpha = 0.3, 
+                stat = "identity") +
+      ylab('Average Daily Cases') + 
+      facet_wrap(~year + location_name, ncol = as.integer(plot1_ncol_factor), scales = "free") +
+      theme_bw()
+  } else{
+    raw_across_year_data_filtered %>% 
+      filter(TL != TR) %>% 
+      ggplot(aes(x = ymd(TL), y = suspected_cases/1, 
+                color = OC_UID)) +
+      geom_rect(aes(xmin = TL, xmax = TR, ymin = 0, 
+                    ymax = suspected_cases/1, 
+                    colour = OC_UID),
+                fill = NA, size = 0.35 * plot1_ncol_factor, alpha = 0.3, 
+                stat = "identity") +
+      labs(y = 'Total Cases over Period') + 
+      facet_wrap(~year + location_name, ncol = as.integer(plot1_ncol_factor), scales = "free") +
+      theme_bw()
+  }  
+
 }
 
 ```
