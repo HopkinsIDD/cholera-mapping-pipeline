@@ -36,21 +36,14 @@ params:
 ### 11/23/2021 New updates -- added figures for stan input
 ### 11/30/2021 New updates -- added a table that can summerize #observations 
 ### 12/6/2021 New updates -- added options to indicate whether filter zeros, whether seperate multi-year observations; 
-###                          also added seperate figures just to plot multi-year observations                          
+###                          also added seperate figures just to plot multi-year observations            
+### 12/7/2021 New updates -- fixed more bugs
+
 ```
 
 
 
 ```{r setup, include=FALSE}
-# ```{r setup, include=FALSE, dev="CairoPNG"}
-# knitr::opts_chunk$set(
-#   echo = FALSE,
-#   dev="CairoPNG",
-#   error = FALSE,
-#   fig.align = "center",
-#   message = TRUE,
-#   warning = TRUE
-#   )
 library(lubridate)
 library(stringr)
 library(dplyr)
@@ -108,7 +101,10 @@ paste0('This report is just used to test its functionality: ', report_testing)
 if (exists('OC_vector')) { paste0('The OCs selected for this report is/are: ', OC_vector) } else { paste0('No OC specified, all relevant OCs are used for this report. ') }
 paste0('The daily vs. daily observations disagree threshold (fig. 3): ', daily_daily_obs_disagree_threshold)
 paste0('The daily vs. period observations disagree threshold (fig. 4): ', daily_period_obs_disagree_threshold)
+```
 
+## OC_UID summary table
+```{r echo=FALSE, warning=FALSE}
 sum_obs <- sf::st_drop_geometry(raw_data)
 sum_obs <- sum_obs %>%
   group_by(year) %>%
@@ -128,13 +124,6 @@ sum_obs %>%
 ```{r warning=FALSE, include=FALSE}
 ##filter out the unnecessary OCs
 if (exists('OC_vector')) {raw_data <- subset(raw_data, as.character(OC_UID) %in% OC_vector)}
-
-# ##get some warnings ready
-# if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 | 
-#       nrow(raw_data[raw_data$TL == raw_data$TR, ]) == 0) & !report_testing) {
-#   warning('This country does not have any daily/period cases data from the OCs you specified, 
-#   this diagnostic report will not generate all figures. ')
-# }
 
 ##prepare for all-zero situations
 if(filter_zeros){
@@ -228,6 +217,9 @@ if(filter_zeros){
           ) %>% 
     filter(between_non0s == 1) %>% 
     select(-first_non0, -last_non0, -between_non0s)
+
+  raw_data <- raw_data_filtered #this is important because in the code below these two datasets are used interchangably
+
 }else{raw_data_filtered <- raw_data}
 
     
@@ -284,14 +276,16 @@ if (report_testing & (length(unique(raw_data_filtered$OC_UID)) == 1)){
 
 
 ## Overall figure -- all observation collections by location and year
-### This comprehensive figure includes all (or specified) raw observation collections used in the model.
+### This comprehensive figure includes all (or specified) pre-processed observations. 
 #### The daily-based observations are represented in vertical lines 
 #### The period-based observations are represented in rectangles
 ```{r echo=FALSE}
 if (!exists('plot1_ncol_factor')) {plot1_ncol_factor <- 2} #for now
-# plot1_height_factor <- 3 * length(unique(raw_data_filtered$location_name)) * length(unique(raw_data_filtered$year)) / plot1_ncol_factor
+
 plot1_height_factor <- 3 * length( unique(cbind(raw_data_filtered$location_name, raw_data_filtered$year)) ) / plot1_ncol_factor
-if(across_year_indicator){ plot1_height_factor_2 = 5 * (nrow(raw_across_year_data_filtered) / 2) } 
+if(across_year_indicator){ 
+  plot1_height_factor_2 <- 3 * length( unique(cbind(raw_across_year_data_filtered$location_name, raw_across_year_data_filtered$year)) ) / plot1_ncol_factor
+} 
 
 if (period_OC_divided_by_timelength) {
   print('The rectangles represent daily-averaged cases (total cases/length of period). ')
@@ -392,9 +386,12 @@ if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 |
 
 ```
 
+
+
+### This comprehensive figure includes all pre-processed observations that span across years. 
 ```{r echo=FALSE, eval=across_year_indicator, include=across_year_indicator, fig.height=as.numeric(plot1_height_factor_2), fig.width=10}
 if(across_year_indicator){
-  print('Now plotting the observations spanning across multiple years. ')
+  
   if (period_OC_divided_by_timelength){
     raw_across_year_data_filtered %>% 
       filter(TL != TR) %>% 
@@ -439,8 +436,6 @@ if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 &
   include_value3 = FALSE
   eval_value4 = FALSE
   include_value4 = FALSE
-  plot3_height_factor <- 10 #just to make sure this variable exists, it won't be used
-  plot4_height_factor <- 10 #just to make sure this variable exists, it won't be used
   print('The rest of the figures will not be generated because the daily OCs are missing. ')
 } else if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 & 
              nrow(raw_data[raw_data$TL == raw_data$TR, ]) > 0  ){
@@ -452,8 +447,20 @@ if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 &
     include_value3 = TRUE
     eval_value4 = FALSE
     include_value4 = FALSE
-    plot3_height_factor <- 10 #just to make sure this variable exists, it won't be used
-    plot4_height_factor <- 10 #just to make sure this variable exists, it won't be used
+
+    ##what if different daily cases don't converge in same location on the same day
+    raw_data_temp <- raw_data %>%
+      filter(TL == TR) %>%
+      group_by(year, location_name, TL) %>%
+      mutate(num_diff_daily = length(unique(OC_UID))) %>%
+      ungroup() %>%
+      filter(!is.na(num_diff_daily))
+    if(all(raw_data_temp$num_diff_daily == 1)){
+      eval_value3 = FALSE
+      include_value3 = FALSE
+    }
+    rm(raw_data_temp)
+
   }else{
     eval_value2 = TRUE
     include_value2 = TRUE
@@ -461,8 +468,6 @@ if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 &
     include_value3 = FALSE
     eval_value4 = FALSE
     include_value4 = FALSE
-    plot3_height_factor <- 10 #just to make sure this variable exists, it won't be used
-    plot4_height_factor <- 10 #just to make sure this variable exists, it won't be used
   }
   
 } else if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 & 
@@ -479,6 +484,19 @@ if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 &
     include_value3 = TRUE
     eval_value4 = TRUE
     include_value4 = TRUE
+
+    ##what if different daily cases don't converge in same location on the same day
+    raw_data_temp <- raw_data %>%
+      filter(TL == TR) %>%
+      group_by(year, location_name, TL) %>%
+      mutate(num_diff_daily = length(unique(OC_UID))) %>%
+      ungroup() %>%
+      filter(!is.na(num_diff_daily))
+    if(all(raw_data_temp$num_diff_daily == 1)){
+      eval_value3 = FALSE
+      include_value3 = FALSE
+    }
+    rm(raw_data_temp)
     
   }else{
     eval_value2 = TRUE
@@ -487,8 +505,6 @@ if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 &
     include_value3 = FALSE
     eval_value4 = TRUE
     include_value4 = TRUE
-    plot3_height_factor <- 10 #just to make sure this variable exists, it won't be used
-    plot4_height_factor <- 10 #just to make sure this variable exists, it won't be used
   }
 
 }
@@ -503,10 +519,12 @@ if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 &
   include_value3 = FALSE
   eval_value4 = FALSE
   include_value4 = FALSE
-  plot3_height_factor <- 10 #just to make sure this variable exists, it won't be used
-  plot4_height_factor <- 10 #just to make sure this variable exists, it won't be used
   print('The rest of the figures will not be generated because the daily OCs are missing. ')
 }
+
+### Just to make sure this variable exists, it won't be used
+plot3_height_factor <- 10 
+plot4_height_factor <- 10 
 
 ```
 
@@ -597,18 +615,18 @@ if (sum(temp_df$n) > nrow(temp_df)){
 
 raw_data_filtered_dis_daily <- raw_data_filtered %>% 
   filter(TL == TR) %>% 
+  filter(!is.na(location_name) & !is.na(OC_UID)) %>% 
   mutate(groups_compared = NA, oc1 = NA, oc2 = NA, lower_oc = NA, higher_oc = NA)
 
 raw_data_filtered_dis_daily_stack <- raw_data_filtered_dis_daily[1, ]
 raw_data_filtered_dis_daily_stack <- raw_data_filtered_dis_daily_stack[-c(1),]
 
-all_combi <- combn(unique(raw_data_filtered_dis_daily$OC_UID), 2)
+if(length(unique(raw_data_filtered_dis_daily$OC_UID)) >= 2){
+  all_combi <- combn(unique(raw_data_filtered_dis_daily$OC_UID), 2)
+}else{eval_value3    <- FALSE
+      include_value3 <- FALSE}
 
 plot3_ncol_factor <- 2 #for now
-# plot3_height_factor <- (3 * length(unique(raw_data_filtered_dis_daily$location_name)) 
-#                           * length(unique(raw_data_filtered_dis_daily$year))
-#                           * dim(all_combi)[2] 
-#                           / plot3_ncol_factor)
 
 ```
 
@@ -616,7 +634,7 @@ plot3_ncol_factor <- 2 #for now
 ### tailor the dataset
 for (locations in unique(raw_data_filtered_dis_daily$location_name)){
   for (years in unique(raw_data_filtered_dis_daily$year)){
-    for (combi_num in 1:dim(all_combi)[2]) {
+    for (combi_num in 1:(dim(all_combi)[2])) {
       combi = all_combi[, combi_num]
       raw_data_filtered_dis_daily_temp1 <- raw_data_filtered_dis_daily[
         raw_data_filtered_dis_daily$location_name == locations
@@ -684,7 +702,7 @@ raw_data_filtered_dis_daily_stack <- raw_data_filtered_dis_daily_stack %>%
   mutate(lower_oc = min(oc1, oc2), 
          higher_oc = max(oc1, oc2))
 
-raw_data_filtered_dis_daily_stack_temp <- sf::st_drop_geometry(raw_data_filtered_dis_daily_stack)
+raw_data_filtered_dis_daily_stack_temp <- raw_data_filtered_dis_daily_stack
 plot3_height_factor <- (3 * nrow(unique(raw_data_filtered_dis_daily_stack_temp[c("location_name", 
                                                                                  "year",
                                                                                  "groups_compared")]))
@@ -693,8 +711,6 @@ rm(raw_data_filtered_dis_daily_stack_temp)
 
 ###what if there is no row
 if (plot3_height_factor == 0){
-  print(paste0('The third figure will not be generated because the daily-daily disagreement threshold, which is ', 
-                daily_daily_obs_disagree_threshold, ', is too high. '))
   eval_value3 <- FALSE
   include_value3 <- FALSE
 }
@@ -733,6 +749,7 @@ if (eval_value4 == FALSE){
 #### The horizontal dashed line represents the average of the daily-based observations over the compared period
 ```{r echo=FALSE, eval=eval_value4, include=include_value4}
 raw_data_filtered_dis_period <- raw_data_filtered %>% 
+  filter(!is.na(location_name) & !is.na(OC_UID)) %>% 
   mutate(period_token = case_when(TL != TR ~ 1,
                                   TRUE ~ 0),
          daily_token = case_when(TL == TR ~ 1,
@@ -748,10 +765,6 @@ raw_data_filtered_dis_period_stack <- raw_data_filtered_dis_period[1, ]
 raw_data_filtered_dis_period_stack <- raw_data_filtered_dis_period_stack[-c(1),]
 
 plot4_ncol_factor <- 2 #for now
-# plot4_height_factor <- (3 * length(unique(raw_data_filtered_dis_period$location_name)) 
-#                           * length(unique(raw_data_filtered_dis_period$year))
-#                           * as.integer(period_factor) * as.integer(daily_factor)
-#                           / plot4_ncol_factor)
 
 ```
 
@@ -827,20 +840,22 @@ for (locations in unique(raw_data_filtered_dis_period$location_name)){
   }
 }
 
+##diagnose this plot4_height_factor
+raw_data_filtered_dis_period_stack <- raw_data_filtered_dis_period_stack %>% 
+  filter( !is.na(dis_period) & !is.na(OC_UID) & !is.na(TL) & !is.na(TR) & !is.na(suspected_cases) & !is.na(x_left) & !is.na(x_right) & !is.na(mean_daily) )
+  
 plot4_height_factor <- (3 * nrow(raw_data_filtered_dis_period_stack[raw_data_filtered_dis_period_stack$period_token == 1, ])
                           / plot4_ncol_factor)
-# ##diagnose this plot4_height_factor
-# stop(paste0('The class of plot4_height_factor is ', class(plot4_height_factor), ' and its value is ', plot4_height_factor))
+
 if (nrow(raw_data_filtered_dis_period_stack[raw_data_filtered_dis_period_stack$period_token == 1, ]) == 0){
-  print(paste0('The last figure will not be generated because the daily-period disagreement threshold, which is ', 
-                daily_period_obs_disagree_threshold, ', is too high. '))
   eval_value4 <- FALSE
   include_value4 <- FALSE
+  plot4_height_factor <- 1 #not gonna be used
 }
 
 ```
 
-```{r echo=FALSE, eval=eval_value4, include=include_value4, fig.height=as.numeric(plot4_height_factor), fig.width=10}
+```{r echo=FALSE, eval=eval_value4, include=include_value4, fig.height=plot4_height_factor, fig.width=10}
 ### officially plot the figure 4
 raw_data_filtered_dis_period_stack %>% 
   filter(TL != TR) %>% 
@@ -882,6 +897,7 @@ rm(stan_input_data_temp)
 
 ```{r echo=FALSE, fig.height=as.numeric(plot5_height_factor), fig.width=10}
 stan_input_data %>% 
+  dplyr::arrange(dplyr::desc(cases)) %>% 
   ggplot2::ggplot() +
   ggplot2::geom_sf(ggplot2::aes(fill = cases)) +
   ggplot2::geom_sf_text(ggplot2::aes(label = cases), color = 'White', size = 2.0) + 
