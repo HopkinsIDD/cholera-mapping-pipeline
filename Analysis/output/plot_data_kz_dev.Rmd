@@ -285,7 +285,7 @@ if (!exists('plot1_ncol_factor')) {plot1_ncol_factor <- 2} #for now
 plot1_height_factor <- 3 * length( unique(cbind(raw_data_filtered$location_name, raw_data_filtered$year)) ) / plot1_ncol_factor
 if(across_year_indicator){ 
   plot1_height_factor_2 <- 3 * length( unique(cbind(raw_across_year_data_filtered$location_name, raw_across_year_data_filtered$year)) ) / plot1_ncol_factor
-} 
+} else {plot1_height_factor_2 <- 10} #10 won't be used
 
 if (period_OC_divided_by_timelength) {
   print('The rectangles represent daily-averaged cases (total cases/length of period). ')
