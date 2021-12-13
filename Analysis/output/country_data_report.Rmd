@@ -432,14 +432,16 @@ case_raster <- NULL
   empty_raster <- raster::raster(rate_raster, res = max(0.00833333, 0.00833333))
   disaggregated_rate_raster <- fasterize::fasterize(rate_raster, empty_raster, field = c("value"),by="t")
   
-  #disaggregated_rate_sf=disaggregated_rate_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)%>%dplyr::rename("1"=X1,"2"=X2,"3"=X3,"4"=X4,"5"=X5)%>%tidyr::pivot_longer(.,cols=c("1","2","3","4","5"),names_to="t")%>%as.data.frame(.)%>%sf::st_as_sf(.)
-  #colnames(disaggregated_rate_sf)[stringr::str_detect( colnames(disaggregated_rate_sf),"value")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled rate")]
-  #disaggregated_rate_sf$id<-rep(1:(nrow(disaggregated_rate_sf)/length(unique(disaggregated_rate_sf$t))),each=5)
-#single year runs
+if(length(unique(pltdata$t))>1){
+  disaggregated_rate_sf=disaggregated_rate_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)%>%dplyr::rename("1"=X1,"2"=X2,"3"=X3,"4"=X4,"5"=X5)%>%tidyr::pivot_longer(.,cols=c("1","2","3","4","5"),names_to="t")%>%as.data.frame(.)%>%sf::st_as_sf(.)
+  colnames(disaggregated_rate_sf)[stringr::str_detect(colnames(disaggregated_rate_sf),"value")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled rate")]
+  disaggregated_rate_sf$id<-rep(1:(nrow(disaggregated_rate_sf)/length(unique(disaggregated_rate_sf$t))),each=5)
+}  else{
+ #single year runs
   disaggregated_rate_sf=disaggregated_rate_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)%>%dplyr::rename("1"=X1)%>%tidyr::pivot_longer(.,cols=c("1"),names_to="t")%>%as.data.frame(.)%>%sf::st_as_sf(.)
   colnames(disaggregated_rate_sf)[stringr::str_detect( colnames(disaggregated_rate_sf),"value")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled rate")]
   disaggregated_rate_sf$id<-rep(1:(nrow(disaggregated_rate_sf)/length(unique(disaggregated_rate_sf$t))),each=1)
-
+}
 
 #disaggregate population raster to 1*1 KM
 #newplydata is the 1*1 KM raster #crop the country boundary
@@ -449,15 +451,17 @@ case_raster <- NULL
   disaggregated_case_raster<-pop_cropped*disaggregated_rate_raster
 
 ##aggregate 1*1 case raster to 20*20 raster
-  #disaggregated_case_sf=disaggregated_case_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)%>%dplyr::rename("1"=layer.1,"2"=layer.2,"3"=layer.3,"4"=layer.4,"5"=layer.5)%>%tidyr::pivot_longer(.,cols=c("1","2","3","4","5"),names_to="t")%>%as.data.frame(.)%>%sf::st_as_sf(.)
-  #colnames(disaggregated_case_sf)[stringr::str_detect( colnames(disaggregated_case_sf),"value")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled case")]
-  #disaggregated_case_sf$id<-rep(1:(nrow(disaggregated_case_sf)/length(unique(disaggregated_case_sf$t))),each=5)
-
-  disaggregated_case_sf=disaggregated_case_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)
+ if(length(unique(pltdata$t))>1){
+  disaggregated_case_sf=disaggregated_case_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)%>%dplyr::rename("1"=layer.1,"2"=layer.2,"3"=layer.3,"4"=layer.4,"5"=layer.5)%>%tidyr::pivot_longer(.,cols=c("1","2","3","4","5"),names_to="t")%>%as.data.frame(.)%>%sf::st_as_sf(.)
+  colnames(disaggregated_case_sf)[stringr::str_detect( colnames(disaggregated_case_sf),"value")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled case")]
+  disaggregated_case_sf$id<-rep(1:(nrow(disaggregated_case_sf)/length(unique(disaggregated_case_sf$t))),each=5)
+ 
+  }else{
+    disaggregated_case_sf=disaggregated_case_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)
   colnames(disaggregated_case_sf)[stringr::str_detect( colnames(disaggregated_case_sf),"layer")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled case")]
   disaggregated_case_sf$t=1
   disaggregated_case_sf$id<-rep(1:(nrow(disaggregated_case_sf)/length(unique(disaggregated_case_sf$t))),each=1)
-
+}
 
   if(all(analysis_years %in% obs_years)){
     message("All analysis years are represented by OCs.")
