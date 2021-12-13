@@ -1,9 +1,9 @@
 ---
-title: "Data and Model Outputs Report"
+title: "Data and Model Outputs Report SDN"
 output: html_document
 params:
   cholera_directory: "C:/IDD/Cholera/cmp_report"
-  config: "/Analysis/configs/2015_2019_full_base/GHA.yml"
+  config: "/Analysis/configs/Dec_2021_runs/SDN_2015_2019/config_SDN_2016_2016.yml"
   drop_nodata_years: TRUE
   admin_level_for_summary_table: '1'
   args: 'myarg'
@@ -83,13 +83,29 @@ file_names <- taxdat::get_filenames(config, params$cholera_directory)
 # file_names["covar"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GHA_suspected.dw.covar.rdata"
 # file_names["data"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GHA_suspected.preprocess.rdata"
 # file_names["initial_values"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GHA_initial_values.rdata"
+# 
+# file_names[["stan_input"]]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GIN_stan_input.rdata"
+# file_names["stan_output"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GIN_stan_output.rdata"
+# file_names["covar"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GIN_suspected.dw.covar.rdata"
+# file_names["data"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GIN_suspected.preprocess.rdata"
+# file_names["initial_values"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GIN_initial_values.rdata"
+# 
+# file_names[["stan_input"]]<-"C:/IDD/Cholera/cmp_report/Analysis/data/CIV_stan_input.rdata"
+# file_names["stan_output"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/CIV_stan_output.rdata"
+# file_names["covar"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/CIV_suspected.dw.covar.rdata"
+# file_names["data"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/CIV_suspected.preprocess.rdata"
+# file_names["initial_values"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/CIV_initial_values.rdata"
+
 #old runs
 file_names[["stan_input"]]<-stringr::str_remove(file_names[["stan_input"]],"allOCs_")
 file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],"allOCs_")
-file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],".iv-wN-cwN-csF-teT-teaF-weF-F")
+#file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],".iv-wN-cwN-csF-teT-teaF-weF-F")
+file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],"-csF-teT-teaF-weT-F")
 file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],"-F")
 file_names[["covar"]]<-stringr::str_remove(file_names[["covar"]],"allOCs_")
 file_names[["data"]]<-stringr::str_remove(file_names[["data"]],"allOCs_")
+
+#file_names[["stan_output"]]<-"C:/IDD/Cholera/cmp_report/Analysis/data/stan_output.rdata"
 
 stan_input <- NULL
 try({
@@ -108,7 +124,6 @@ cases_chains <- NULL
 try({
   sf_cases <- taxdat::read_file_of_type(file_names["data"], "sf_cases")
   sf_cases_resized <- stan_input$sf_cases_resized
-
   model.rand <- taxdat::read_file_of_type(file_names["stan_output"], "model.rand")
   niter_per_chain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__', chain_num=1))[1]
   nchain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__'))[1] / niter_per_chain
@@ -273,7 +288,24 @@ if(!is.null(disjoint_set_sf_cases)){
 ### Population
 **Fig 6. Population raster by time slices:**
 ```{r pop, fig.height=5, fig.width=10, fig.cap="Population density"}
-taxdat::plot_raster_population(covar_data_filename = file_names["covar"], render = T)
+#taxdat::plot_raster_population(covar_data_filename = file_names["covar"], render = T)
+#pop_raster_data <- raster("C:/IDD/Cholera/cmp_report/Layers/pop/2000_1km_Aggregated.tif")
+pop_raster_data <- raster("/home/qulu/cmp_report/Analysis/2000_1km_Aggregated.tif")
+country_shp <- rgeoboundaries::gb_adm0(as.character(stringr::str_extract(params$config, "[A-Z]{3}")))
+pop_raster_data_cropped <- crop(pop_raster_data,extent(country_shp))
+pop_raster_data_cropped_masked<-mask(pop_raster_data_cropped,country_shp)
+
+pop_raster_data_cropped_sf <- pop_raster_data_cropped_masked%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)
+
+plt<-ggplot2::ggplot()+ggplot2::geom_sf(data = pop_raster_data_cropped_sf, ggplot2::aes(fill = X2000_1km_Aggregated,
+            color = X2000_1km_Aggregated)) + ggplot2::scale_fill_viridis_c("Population",
+            trans = "log", breaks = c(100, 1000, 10000,
+                1e+05), aesthetics = c("colour", "fill"),
+            guide = ggplot2::guide_colorbar(title = "Population density [per grid cell]"),
+            option = "E", na.value = "white") + ggplot2::theme_bw() +
+            ggplot2::theme(legend.position = "bottom",
+                legend.text = ggplot2::element_text(angle = 45,hjust = 1, vjust = 1))
+plt
 ```
 
 
@@ -311,16 +343,15 @@ if(nrow(sf_grid) == prod(dim(pop_layer))){
   }
 
   #import 1*1 KM pop raster and update the covar in the pltdata
-  #setwd(stringr::str_remove(getwd(),"/Analysis/output"))
   #pop_raster_data <- raster("C:/IDD/Cholera/cmp_report/Layers/pop/2000_1km_Aggregated.tif")
-  pop_raster_data <- raster("/home/qulu/cmp_report/Analysis/2000_1km_Aggregated.tif")
+  #pop_raster_data <- raster("/home/qulu/cmp_report/Analysis/2000_1km_Aggregated.tif")
     
   ### For loops and make the table
   admin_pop_table <- data.frame(matrix(NA, length(boundary_sf$shapeName), length(unique(pltdata$t)) + 1))
-  start_year <- as.numeric(stringr::str_extract(stringr::str_extract(params$config, "[A-Z]{3}_[0-9]{4}"), "[0-9]{4}"))
-  #for old runs
-  if(is.na(start_year)){
-    start_year=2015
+  #start_year <- as.numeric(stringr::str_extract(stringr::str_extract(params$config, "[A-Z]{3}_[0-9]{4}"), "[0-9]{4}"))
+  start_year <- as.numeric(stringr::str_extract(params$config, "[0-9]{1,4}"))
+  if(!start_year%in%c(2015,2016,2017,2018,2019)){
+      start_year <- as.numeric(stringr::str_extract(params$config, "\\d+(?=.yml)"))
   }
   year_list <- unique(pltdata$t) + (start_year-1)
   colnames(admin_pop_table) <- c('adminlevel', year_list)
@@ -349,7 +380,7 @@ if(nrow(sf_grid) == prod(dim(pop_layer))){
   #}
 
   ### Add a total row, change colnames, and display the table
-  total_row <- c('Total', apply(admin_pop_table[, -1], 2, sum))
+  total_row <- c('Total', apply(data.frame(admin_pop_table[, -1]), 2, sum))
   admin_pop_table <- rbind(admin_pop_table, total_row)
   
   admin_pop_table %>%
@@ -370,7 +401,6 @@ if(nrow(sf_grid) == prod(dim(pop_layer))){
 **Fig 7. Distance to water raster:**
 ```{r covars, fig.height=5, fig.width=8, fig.cap="Covariate rasters"}
 taxdat::plot_raster_covariates(covar_data_filename = file_names["covar"], render = T)
-
 ```
 
 ## Output maps
@@ -385,7 +415,6 @@ rstan::get_elapsed_time(model.rand)
 
 ```{r importcase}
 case_raster <- NULL
-try({
   case_raster <- taxdat::get_case_raster(preprocessed_data_filename = file_names["data"],
                                        covar_data_filename = file_names["covar"],
                                        model_output_filenames = file_names["stan_output"])
@@ -398,21 +427,33 @@ try({
   
   empty_raster <- raster::raster(rate_raster, res = max(0.00833333, 0.00833333))
   disaggregated_rate_raster <- fasterize::fasterize(rate_raster, empty_raster, field = c("value"),by="t")
-  disaggregated_rate_sf=disaggregated_rate_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)%>%dplyr::rename("1"=X1,"2"=X2,"3"=X3,"4"=X4,"5"=X5)%>%tidyr::pivot_longer(.,cols=c("1","2","3","4","5"),names_to="t")%>%as.data.frame(.)%>%sf::st_as_sf(.)
-colnames(disaggregated_rate_sf)[stringr::str_detect( colnames(disaggregated_rate_sf),"value")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled rate")]
-  disaggregated_rate_sf$id<-rep(1:(nrow(disaggregated_rate_sf)/length(unique(disaggregated_rate_sf$t))),each=5)
+  
+  #disaggregated_rate_sf=disaggregated_rate_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)%>%dplyr::rename("1"=X1,"2"=X2,"3"=X3,"4"=X4,"5"=X5)%>%tidyr::pivot_longer(.,cols=c("1","2","3","4","5"),names_to="t")%>%as.data.frame(.)%>%sf::st_as_sf(.)
+  #colnames(disaggregated_rate_sf)[stringr::str_detect( colnames(disaggregated_rate_sf),"value")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled rate")]
+  #disaggregated_rate_sf$id<-rep(1:(nrow(disaggregated_rate_sf)/length(unique(disaggregated_rate_sf$t))),each=5)
+#single year runs
+  disaggregated_rate_sf=disaggregated_rate_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)%>%dplyr::rename("1"=X1)%>%tidyr::pivot_longer(.,cols=c("1"),names_to="t")%>%as.data.frame(.)%>%sf::st_as_sf(.)
+  colnames(disaggregated_rate_sf)[stringr::str_detect( colnames(disaggregated_rate_sf),"value")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled rate")]
+  disaggregated_rate_sf$id<-rep(1:(nrow(disaggregated_rate_sf)/length(unique(disaggregated_rate_sf$t))),each=1)
 
-  #disaggregate population raster to 1*1 KM
-  #newplydata is the 1*1 KM raster #crop the country boundary
-  #Crop the raster
+
+#disaggregate population raster to 1*1 KM
+#newplydata is the 1*1 KM raster #crop the country boundary
+#Crop the raster
   pop_cropped <- raster::crop(pop_raster_data,disaggregated_rate_raster)
   origin(pop_cropped)<-origin(disaggregated_rate_raster)
   disaggregated_case_raster<-pop_cropped*disaggregated_rate_raster
 
-#   #aggregate 1*1 case raster to 20*20 raster
-  disaggregated_case_sf=disaggregated_case_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)%>%dplyr::rename("1"=layer.1,"2"=layer.2,"3"=layer.3,"4"=layer.4,"5"=layer.5)%>%tidyr::pivot_longer(.,cols=c("1","2","3","4","5"),names_to="t")%>%as.data.frame(.)%>%sf::st_as_sf(.)
-colnames(disaggregated_case_sf)[stringr::str_detect( colnames(disaggregated_case_sf),"value")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled case")]
-  disaggregated_case_sf$id<-rep(1:(nrow(disaggregated_case_sf)/length(unique(disaggregated_case_sf$t))),each=5)
+##aggregate 1*1 case raster to 20*20 raster
+  #disaggregated_case_sf=disaggregated_case_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)%>%dplyr::rename("1"=layer.1,"2"=layer.2,"3"=layer.3,"4"=layer.4,"5"=layer.5)%>%tidyr::pivot_longer(.,cols=c("1","2","3","4","5"),names_to="t")%>%as.data.frame(.)%>%sf::st_as_sf(.)
+  #colnames(disaggregated_case_sf)[stringr::str_detect( colnames(disaggregated_case_sf),"value")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled case")]
+  #disaggregated_case_sf$id<-rep(1:(nrow(disaggregated_case_sf)/length(unique(disaggregated_case_sf$t))),each=5)
+
+  disaggregated_case_sf=disaggregated_case_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)
+  colnames(disaggregated_case_sf)[stringr::str_detect( colnames(disaggregated_case_sf),"layer")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled case")]
+  disaggregated_case_sf$t=1
+  disaggregated_case_sf$id<-rep(1:(nrow(disaggregated_case_sf)/length(unique(disaggregated_case_sf$t))),each=1)
+
 
   if(all(analysis_years %in% obs_years)){
     message("All analysis years are represented by OCs.")
@@ -424,43 +465,43 @@ colnames(disaggregated_case_sf)[stringr::str_detect( colnames(disaggregated_case
       case_raster <- dplyr::filter(case_raster, !(t %in% drop_year_ix))
     }
   }
-})
 
 ```
 
 ### Modeled cases
-**Fig 8. Modeled cases raster by time slices: time1**
+**Fig 8. Modeled cases raster by time slices: time**
 ```{r caserast, fig.cap="Modeled cases", fig.height=5, fig.width=10}
-
 if(!is.null(case_raster)){
   # case_raster_admin <- case_raster #for the following table
   # rate_raster_admin <- case_raster #for the next rate table
- # case_raster_admin <- disaggregated_case_sf
- # rate_raster_admin <- disaggregated_rate_sf
+  # case_raster_admin <- disaggregated_case_sf
+  # rate_raster_admin <- disaggregated_rate_sf
   #taxdat::plot_modeled_cases(disaggregated_case_sf, render = T)
   plt_case_raster <- disaggregated_case_sf %>%
     dplyr::select(dplyr::contains("modeled cases"),id,t) %>%
     tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
     # tidyr::pivot_longer(contains("iterations: Chain"), names_to = "chain", values_to = "value") %>%
     dplyr::mutate(chain = stringr::str_replace(chain, "modeled cases", ""))
-  plt_2020_case_raster <- case_raster %>%
+  
+ plt_2020_case_raster <- case_raster %>%
     dplyr::select(dplyr::contains("modeled cases"),id,t) %>%
     tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
     dplyr::mutate(chain = stringr::str_replace(chain, "modeled cases", ""))
-    
+
+ plt_case_raster <- plt_case_raster %>%subset(plt_case_raster$t%in%unique(plt_2020_case_raster$t))%>%mutate(value=ifelse(value<exp(-5),exp(-5),value))
+
     ggplot2::ggplot() +
     ggplot2::geom_sf(
       data = plt_case_raster,
       ggplot2::aes(fill = value),color=NA,size=0.00001)+
-        ggplot2::geom_sf(
-      data=plt_2020_case_raster%>%mutate(value=NA),
-      fill=NA,color="black")+
-    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = TRUE)+
+      taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = TRUE)+
+    ggplot2::geom_sf(data=plt_2020_case_raster%>%mutate(value=NA),fill=NA,color="black",size=0.05)+
     ggplot2::labs(fill="Incidence\n [cases/year]")+
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::theme(legend.text =  ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))+
-    ggplot2::facet_wrap(~t,ncol = 5) 
+    ggplot2::facet_wrap(~t,ncol = length(unique(plt_case_raster$t))) 
+    
 } else{
   warning("case_raster is NULL")
 }
@@ -479,11 +520,6 @@ colnames(case_raster_admin)[stringr::str_detect(colnames(case_raster_admin),"mod
 
 ### For loops and make the table
 admin_case_table <- data.frame(matrix(NA, length(boundary_sf$shapeName), length(unique(case_raster_admin$t)) + 1))
-start_year <- as.numeric(stringr::str_extract(stringr::str_extract(params$config, "[A-Z]{3}_[0-9]{4}"), "[0-9]{4}"))
-  #for old runs
-  if(is.na(start_year)){
-    start_year=2015
-  }
 year_list <- unique(as.numeric(case_raster_admin$t)) + (start_year-1)
 colnames(admin_case_table) <- c('adminlevel', year_list)
 admin_case_table$adminlevel <- boundary_sf$shapeName
@@ -508,7 +544,7 @@ for (ts in unique(case_raster_admin$t)){
 }
 
 ### Add a total row, change colnames, and display the table
-total_row <- c('Total', apply(admin_case_table[, -1], 2, sum))
+total_row <- c('Total', apply(data.frame(admin_case_table[, -1]), 2, sum))
 admin_case_table <- rbind(admin_case_table, total_row)
 admin_case_table[, -1] <- apply(as.matrix.noquote(admin_case_table[, -1]),  # Using apply function
                                   2,
@@ -538,8 +574,6 @@ if(!is.null(case_raster)){
 }
 ```
 
-
-
 **Table 5. Modeled population-weighted incidence rates by admin level and time:**
 ```{r echo = FALSE}
 ### Clean up the sf dataset
@@ -550,11 +584,6 @@ colnames(rate_raster_admin)[stringr::str_detect(colnames(rate_raster_admin),"mod
 ##### Multiply two rasters together
 ### For loops and make the table
 admin_rate_table <- data.frame(matrix(NA, length(boundary_sf$shapeName), length(unique(rate_raster_admin$t)) + 1))
-start_year <- as.numeric(stringr::str_extract(stringr::str_extract(params$config, "[A-Z]{3}_[0-9]{4}"), "[0-9]{4}"))
-  #for old runs
-  if(is.na(start_year)){
-    start_year=2015
-  }
 year_list <- as.numeric(unique(rate_raster_admin$t)) + (start_year-1)
 colnames(admin_rate_table) <- c('adminlevel', year_list)
 admin_rate_table$adminlevel <- boundary_sf$shapeName
@@ -799,8 +828,6 @@ if(!is.null(sf_cases_resized) & !is.null(model.rand)){
 } else{
   warning("sf_cases_resized or model.rand is NULL")
 }
-
-
 ```
 
 
@@ -836,8 +863,6 @@ if(!is.null(model.rand) && !is.null(stan_input)){
 } else{
   warning("stan_input is NULL")
 }
-
-
 ```
 
 ```{r full country modeled cases, fig.cap = "comparison with WHO Output"}
@@ -850,6 +875,4 @@ if(!is.null(sf_cases_resized) & !is.null(model.rand)){
 } else{
   warning("chains was not extracted from model.rand")
 }
-
-
 ```
