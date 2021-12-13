@@ -97,13 +97,13 @@ file_names <- taxdat::get_filenames(config, params$cholera_directory)
 # file_names["initial_values"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/CIV_initial_values.rdata"
 
 #old runs
-file_names[["stan_input"]]<-stringr::str_remove(file_names[["stan_input"]],"allOCs_")
-file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],"allOCs_")
-#file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],".iv-wN-cwN-csF-teT-teaF-weF-F")
-file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],"-csF-teT-teaF-weT-F")
-file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],"-F")
-file_names[["covar"]]<-stringr::str_remove(file_names[["covar"]],"allOCs_")
-file_names[["data"]]<-stringr::str_remove(file_names[["data"]],"allOCs_")
+#file_names[["stan_input"]]<-stringr::str_remove(file_names[["stan_input"]],"allOCs_")
+#file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],"allOCs_")
+##file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],".iv-wN-cwN-csF-teT-teaF-weF-F")
+#file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],"-csF-teT-teaF-weT-F")
+#file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],"-F")
+#file_names[["covar"]]<-stringr::str_remove(file_names[["covar"]],"allOCs_")
+#file_names[["data"]]<-stringr::str_remove(file_names[["data"]],"allOCs_")
 
 #file_names[["stan_output"]]<-"C:/IDD/Cholera/cmp_report/Analysis/data/stan_output.rdata"
 
@@ -348,11 +348,15 @@ if(nrow(sf_grid) == prod(dim(pop_layer))){
     
   ### For loops and make the table
   admin_pop_table <- data.frame(matrix(NA, length(boundary_sf$shapeName), length(unique(pltdata$t)) + 1))
-  #start_year <- as.numeric(stringr::str_extract(stringr::str_extract(params$config, "[A-Z]{3}_[0-9]{4}"), "[0-9]{4}"))
+  
+start_year <- as.numeric(stringr::str_extract(stringr::str_extract(params$config, "[A-Z]{3}_[0-9]{4}"), "[0-9]{4}"))
+  if(is.na(start_year)){
   start_year <- as.numeric(stringr::str_extract(params$config, "[0-9]{1,4}"))
   if(!start_year%in%c(2015,2016,2017,2018,2019)){
       start_year <- as.numeric(stringr::str_extract(params$config, "\\d+(?=.yml)"))
   }
+  }
+  
   year_list <- unique(pltdata$t) + (start_year-1)
   colnames(admin_pop_table) <- c('adminlevel', year_list)
   admin_pop_table$adminlevel <- boundary_sf$shapeName
