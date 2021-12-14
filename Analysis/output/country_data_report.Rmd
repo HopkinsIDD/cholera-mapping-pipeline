@@ -1,5 +1,5 @@
 ---
-title: "Data and Model Outputs Report SDN"
+title: "Data and Model Outputs Report"
 output: html_document
 params:
   cholera_directory: "C:/IDD/Cholera/cmp_report"
@@ -66,37 +66,8 @@ for (package in package_list) {
 config <- yaml::read_yaml(paste0(params$cholera_directory, params$config))
 # 
 file_names <- taxdat::get_filenames(config, params$cholera_directory)
-# file_names[["stan_input"]]<-"C:/IDD/Cholera/cmp_report/Analysis/data/Ghana_stan_input.rdata"
-# file_names["stan_output"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/Ghana_stan_output.rdata"
-# file_names["covar"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/Ghana_suspected.dw.covar.rdata"
-# file_names["data"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/Ghana_suspected.preprocess.rdata"
-# file_names["initial_values"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/Ghana_initial_values.rdata"
 
-# file_names[["stan_input"]]<-"C:/IDD/Cholera/cmp_report/Analysis/data/ZWE_stan_input.rdata"
-# file_names["stan_output"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/ZWE_stan_output.rdata"
-# file_names["covar"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/ZWE_suspected.dw.covar.rdata"
-# file_names["data"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/ZWE_suspected.preprocess.rdata"
-# file_names["initial_values"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/ZWE_initial_values.rdata"
-
-# file_names[["stan_input"]]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GHA_stan_input.rdata"
-# file_names["stan_output"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GHA_stan_output.rdata"
-# file_names["covar"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GHA_suspected.dw.covar.rdata"
-# file_names["data"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GHA_suspected.preprocess.rdata"
-# file_names["initial_values"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GHA_initial_values.rdata"
-# 
-# file_names[["stan_input"]]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GIN_stan_input.rdata"
-# file_names["stan_output"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GIN_stan_output.rdata"
-# file_names["covar"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GIN_suspected.dw.covar.rdata"
-# file_names["data"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GIN_suspected.preprocess.rdata"
-# file_names["initial_values"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/GIN_initial_values.rdata"
-# 
-# file_names[["stan_input"]]<-"C:/IDD/Cholera/cmp_report/Analysis/data/CIV_stan_input.rdata"
-# file_names["stan_output"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/CIV_stan_output.rdata"
-# file_names["covar"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/CIV_suspected.dw.covar.rdata"
-# file_names["data"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/CIV_suspected.preprocess.rdata"
-# file_names["initial_values"]<-"C:/IDD/Cholera/cmp_report/Analysis/data/CIV_initial_values.rdata"
-
-#old runs
+# for old runs
 #file_names[["stan_input"]]<-stringr::str_remove(file_names[["stan_input"]],"allOCs_")
 #file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],"allOCs_")
 ##file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],".iv-wN-cwN-csF-teT-teaF-weF-F")
@@ -104,8 +75,6 @@ file_names <- taxdat::get_filenames(config, params$cholera_directory)
 #file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],"-F")
 #file_names[["covar"]]<-stringr::str_remove(file_names[["covar"]],"allOCs_")
 #file_names[["data"]]<-stringr::str_remove(file_names[["data"]],"allOCs_")
-
-#file_names[["stan_output"]]<-"C:/IDD/Cholera/cmp_report/Analysis/data/stan_output.rdata"
 
 stan_input <- NULL
 try({
@@ -288,9 +257,7 @@ if(!is.null(disjoint_set_sf_cases)){
 ### Population
 **Fig 6. Population raster by time slices:**
 ```{r pop, fig.height=5, fig.width=10, fig.cap="Population density"}
-#taxdat::plot_raster_population(covar_data_filename = file_names["covar"], render = T)
-#pop_raster_data <- raster("C:/IDD/Cholera/cmp_report/Layers/pop/2000_1km_Aggregated.tif")
-pop_raster_data <- raster("/home/qulu/cmp_report/Analysis/2000_1km_Aggregated.tif")
+pop_raster_data <- raster(paste0(params$config,"/Analysis/2000_1km_Aggregated.tif"))
 country_shp <- rgeoboundaries::gb_adm0(as.character(stringr::str_extract(params$config, "[A-Z]{3}")))
 pop_raster_data_cropped <- crop(pop_raster_data,extent(country_shp))
 pop_raster_data_cropped_masked<-mask(pop_raster_data_cropped,country_shp)
@@ -305,7 +272,9 @@ plt<-ggplot2::ggplot()+ggplot2::geom_sf(data = pop_raster_data_cropped_sf, ggplo
             option = "E", na.value = "white") + ggplot2::theme_bw() +
             ggplot2::theme(legend.position = "bottom",
                 legend.text = ggplot2::element_text(angle = 45,hjust = 1, vjust = 1))
-plt
+ if (render) {
+        plt
+ }
 ```
 
 
@@ -342,10 +311,6 @@ if(nrow(sf_grid) == prod(dim(pop_layer))){
     please check and change the parameters for the country data report before running again. ')
   }
 
-  #import 1*1 KM pop raster and update the covar in the pltdata
-  #pop_raster_data <- raster("C:/IDD/Cholera/cmp_report/Layers/pop/2000_1km_Aggregated.tif")
-  #pop_raster_data <- raster("/home/qulu/cmp_report/Analysis/2000_1km_Aggregated.tif")
-    
   ### For loops and make the table
   admin_pop_table <- data.frame(matrix(NA, length(boundary_sf$shapeName), length(unique(pltdata$t)) + 1))
   
@@ -360,14 +325,6 @@ start_year <- as.numeric(stringr::str_extract(stringr::str_extract(params$config
   year_list <- unique(pltdata$t) + (start_year-1)
   colnames(admin_pop_table) <- c('adminlevel', year_list)
   admin_pop_table$adminlevel <- boundary_sf$shapeName
-  
-  # for (ts in unique(pltdata$t)){
-  #   ## filter and rasterize
-  #   pltdata_ts <- pltdata %>% filter(t == ts)
-  #   x_res <- (sf::st_bbox(pltdata_ts)$xmax - sf::st_bbox(pltdata_ts)$xmin) / (max(pltdata_ts$x) - min(pltdata_ts$x) + 1)
-  #   y_res <- (sf::st_bbox(pltdata_ts)$ymax - sf::st_bbox(pltdata_ts)$ymin) / (max(pltdata_ts$y) - min(pltdata_ts$y) + 1)
-  #   empty_raster <- raster::raster(pltdata_ts, res = max(x_res, y_res))
-  #   raster_data <- fasterize::fasterize(pltdata_ts, empty_raster, field = "covar")
 
     ## across different locations
     for (locs in admin_pop_table$adminlevel){
@@ -378,10 +335,6 @@ start_year <- as.numeric(stringr::str_extract(stringr::str_extract(params$config
       admin_pop_table[match(locs, admin_pop_table$adminlevel), !colnames(admin_pop_table)%in%"adminlevel"]<-round(sum_pop,4) 
       rm(cropped, masked)
     } 
-
-    ## optimize memory
-    #rm(pltdata_ts, empty_raster, raster_data)
-  #}
 
   ### Add a total row, change colnames, and display the table
   total_row <- c('Total', apply(data.frame(admin_pop_table[, -1]), 2, sum))
@@ -480,11 +433,6 @@ if(length(unique(pltdata$t))>1){
 **Fig 8. Modeled cases raster by time slices: time**
 ```{r caserast, fig.cap="Modeled cases", fig.height=5, fig.width=10}
 if(!is.null(case_raster)){
-  # case_raster_admin <- case_raster #for the following table
-  # rate_raster_admin <- case_raster #for the next rate table
-  # case_raster_admin <- disaggregated_case_sf
-  # rate_raster_admin <- disaggregated_rate_sf
-  #taxdat::plot_modeled_cases(disaggregated_case_sf, render = T)
   plt_case_raster <- disaggregated_case_sf %>%
     dplyr::select(dplyr::contains("modeled cases"),id,t) %>%
     tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
@@ -522,7 +470,6 @@ if(!is.null(case_raster)){
 **Table 4. Modeled cases by admin level and time:**
 ```{r echo = FALSE}
 ### Clean up the sf dataset
- try({
 case_raster_admin<-disaggregated_case_sf
 colnames(case_raster_admin)[stringr::str_detect(colnames(case_raster_admin),"modeled case")] <- "value"
 
@@ -554,7 +501,7 @@ for (ts in unique(case_raster_admin$t)){
 ### Add a total row, change colnames, and display the table
 total_row <- c('Total', apply(data.frame(admin_case_table[, -1]), 2, sum))
 admin_case_table <- rbind(admin_case_table, total_row)
-admin_case_table[, -1] <- apply(as.matrix.noquote(admin_case_table[, -1]),  # Using apply function
+admin_case_table[, -1] <- apply(as.matrix(noquote(admin_case_table[, -1])),  # Using apply function
                                   2,
                                   as.numeric)
 admin_case_table$mean_across_years <- apply(admin_case_table[, -1], 1, mean)
@@ -566,7 +513,7 @@ admin_case_table %>%
   kableExtra::kable(col.names = c('Admin Level', year_list, 'Mean across Years')) %>%
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
   kableExtra::kable_paper(full_width = F) %>%
-  kableExtra::row_spec(nrow(admin_case_table), bold = T)})
+  kableExtra::row_spec(nrow(admin_case_table), bold = T)
 
 ```
 
@@ -585,7 +532,6 @@ if(!is.null(case_raster)){
 **Table 5. Modeled population-weighted incidence rates by admin level and time:**
 ```{r echo = FALSE}
 ### Clean up the sf dataset
-try({
 rate_raster_admin<-disaggregated_rate_sf
 colnames(rate_raster_admin)[stringr::str_detect(colnames(rate_raster_admin),"modeled rate")] <- "value"
 
@@ -637,7 +583,7 @@ for (ts in unique(rate_raster_admin$t)){
 ### Add a total row, change colnames, and display the table
 total_row <- c('Weighted Total', total_w_rate * 1e4)
 admin_rate_table <- rbind(admin_rate_table, total_row)
-admin_rate_table[, -1] <- apply(as.matrix.noquote(admin_rate_table[, -1]),  # Using apply function
+admin_rate_table[, -1] <- apply(as.matrix(noquote(admin_rate_table[, -1])),  # Using apply function
                                   2,
                                   as.numeric)
 admin_rate_table$mean_across_years <- apply(admin_rate_table[, -1], 1, mean)
@@ -650,7 +596,6 @@ admin_rate_table %>%
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
   kableExtra::kable_paper(full_width = F) %>%
   kableExtra::row_spec(nrow(admin_rate_table), bold = T)
-})
 
 ```
 
@@ -719,7 +664,7 @@ try({
 
 
 **Fig 10. Actual observations versus modeled cases scatter plot:**
-```{r datafidelity1, fig.cap="Observations vs. modeled cases (tfrac adjusted)", fig.height=10, fig.width=10}
+```{r datafidelity1, fig.cap="Observations vs. modeled cases", fig.height=10, fig.width=10}
 
 if(!is.null(data_fidelity)){
   
