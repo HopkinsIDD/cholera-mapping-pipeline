@@ -257,7 +257,7 @@ if(!is.null(disjoint_set_sf_cases)){
 ### Population
 **Fig 6. Population raster by time slices:**
 ```{r pop, fig.height=5, fig.width=10, fig.cap="Population density"}
-pop_raster_data <- raster(paste0(params$config,"/Analysis/2000_1km_Aggregated.tif"))
+pop_raster_data <- raster(paste0(params$cholera_directory,"/Analysis/2000_1km_Aggregated.tif"))
 country_shp <- rgeoboundaries::gb_adm0(as.character(stringr::str_extract(params$config, "[A-Z]{3}")))
 pop_raster_data_cropped <- crop(pop_raster_data,extent(country_shp))
 pop_raster_data_cropped_masked<-mask(pop_raster_data_cropped,country_shp)
