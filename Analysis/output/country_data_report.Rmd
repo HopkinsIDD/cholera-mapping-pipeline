@@ -67,14 +67,14 @@ config <- yaml::read_yaml(paste0(params$cholera_directory, params$config))
 # 
 file_names <- taxdat::get_filenames(config, params$cholera_directory)
 
-# for old runs
-#file_names[["stan_input"]]<-stringr::str_remove(file_names[["stan_input"]],"allOCs_")
-#file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],"allOCs_")
-##file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],".iv-wN-cwN-csF-teT-teaF-weF-F")
-#file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],"-csF-teT-teaF-weT-F")
-#file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],"-F")
-#file_names[["covar"]]<-stringr::str_remove(file_names[["covar"]],"allOCs_")
-#file_names[["data"]]<-stringr::str_remove(file_names[["data"]],"allOCs_")
+####the following lines are needed if this report is for old runs (file names are different)####
+# file_names[["stan_input"]]<-stringr::str_remove(file_names[["stan_input"]],"allOCs_")
+# file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],"allOCs_")
+# file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],"-csF-teT-teaF-weT-F")
+# file_names[["stan_output"]]<-stringr::str_remove(file_names[["stan_output"]],"-F")
+# file_names[["covar"]]<-stringr::str_remove(file_names[["covar"]],"allOCs_")
+# file_names[["data"]]<-stringr::str_remove(file_names[["data"]],"allOCs_")
+################################################################################################
 
 stan_input <- NULL
 try({
@@ -272,9 +272,7 @@ plt<-ggplot2::ggplot()+ggplot2::geom_sf(data = pop_raster_data_cropped_sf, ggplo
             option = "E", na.value = "white") + ggplot2::theme_bw() +
             ggplot2::theme(legend.position = "bottom",
                 legend.text = ggplot2::element_text(angle = 45,hjust = 1, vjust = 1))
- if (render) {
-        plt
- }
+plt
 ```
 
 
@@ -310,7 +308,7 @@ if(nrow(sf_grid) == prod(dim(pop_layer))){
     stop('Error: the current admin level is unnecessarily high or invalid, 
     please check and change the parameters for the country data report before running again. ')
   }
-
+    
   ### For loops and make the table
   admin_pop_table <- data.frame(matrix(NA, length(boundary_sf$shapeName), length(unique(pltdata$t)) + 1))
   
@@ -430,7 +428,7 @@ if(length(unique(pltdata$t))>1){
 ```
 
 ### Modeled cases
-**Fig 8. Modeled cases raster by time slices: time**
+**Fig 8. Modeled cases raster by time slices:**
 ```{r caserast, fig.cap="Modeled cases", fig.height=5, fig.width=10}
 if(!is.null(case_raster)){
   plt_case_raster <- disaggregated_case_sf %>%
@@ -633,8 +631,10 @@ try({
     actual_cases$censoring <- rep(stan_data$censoring_inds, each = nchain)
     actual_cases$oc_uid <- rep(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$OC_UID, 
                                each = nchain) #newly added
-    actual_cases$oc_year <- rep(format(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$TR, '%Y'), 
-                               each = nchain) #newly added
+    actual_cases$oc_year <- rep(paste0(format(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$TL, '%Y'),
+                                       "_",
+                                       format(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$TR, '%Y')),
+                               each = nchain) #newly added and updated on 21-12-14
     
     stan_data<-read_file_of_type(file_names["data"],"stan_data")
     obs_tfrac=data.frame(
@@ -707,7 +707,7 @@ if(!is.null(data_fidelity)){
 
 ```
 
-```{r datafidelity4, fig.cap="Observations vs. modeled cases (tfrac unadjusted)", fig.height=8, fig.width=10}
+```{r datafidelity4, fig.cap="Observations vs. modeled cases", fig.height=8, fig.width=10}
 
 if(!is.null(data_fidelity)){
   
