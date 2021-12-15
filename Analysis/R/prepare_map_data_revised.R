@@ -50,6 +50,8 @@ cases <- taxdat::pull_taxonomy_data(
   uids = filter_OCs,
 ) %>%
   taxdat::rename_database_fields(source = data_source)
+sf::st_geometry(cases) <- sf::st_as_sfc(lapply(sf::st_geometry(cases), sf::st_collection_extract, type = "POLYGON"))
+
 
 # Get OC UIDs for all extracted data
 uids <- sort(unique(as.numeric(cases$OC_UID)))
