@@ -23,6 +23,26 @@ read_file_of_type <- function(filename, variable){
   return(eval(expr = parse(text=variable)))
 }
 
+
+#' @export
+#' @name update_filename_oldruns
+#' @title update_filename_oldruns
+#' @description Change filenames for old runs
+#' @param filename filename
+#' @param old_runs if the report is for old runs (before 2021-12)
+#' @return
+update_filename_oldruns <- function(filename,old_runs=FALSE){
+  if(old_runs){
+    filename[["stan_input"]]<-stringr::str_remove(filename[["stan_input"]],"allOCs_")
+    filename[["stan_output"]]<-stringr::str_remove(filename[["stan_output"]],"allOCs_")
+    filename[["stan_output"]]<-stringr::str_remove(filename[["stan_output"]],"-csF-teT-teaF-weT-F")
+    filename[["stan_output"]]<-stringr::str_remove(filename[["stan_output"]],"-F")
+    filename[["covar"]]<-stringr::str_remove(filename[["covar"]],"allOCs_")
+    filename[["data"]]<-stringr::str_remove(filename[["data"]],"allOCs_")
+  }
+  return(filename)
+}
+
 #' @export
 #' @name get_obs_stats
 #' @title get_obs_stats
@@ -473,6 +493,62 @@ plot_modeled_cases <- function(case_raster,
     plt
   }
 }
+
+
+#' @export
+#' @name plot_disaggregated_modeled_cases
+#' @title plot_disaggregated_modeled_cases
+#' @description add
+#' @param case_raster case_raster object
+#' @param disaggregated_case_sf disaggregated case raster object
+#' @param render default is TRUE
+#' @param plot_file default is NULL
+#' @param width plot width
+#' @param height plot height
+#' @return ggplot object with modeled cases map
+plot_disaggregated_modeled_cases <- function(case_raster,
+                               disaggregated_case_sf,
+                               render = T,
+                               plot_file = NULL,
+                               width = NULL,
+                               height = NULL){
+  plt_case_raster <- disaggregated_case_sf %>%
+    dplyr::select(dplyr::contains("modeled cases"),id,t) %>%
+    tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
+    # tidyr::pivot_longer(contains("iterations: Chain"), names_to = "chain", values_to = "value") %>%
+    dplyr::mutate(chain = stringr::str_replace(chain, "modeled cases", ""))
+  
+  plt_2020_case_raster <- case_raster %>%
+    dplyr::select(dplyr::contains("modeled cases"),id,t) %>%
+    tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
+    dplyr::mutate(chain = stringr::str_replace(chain, "modeled cases", ""))
+  
+  plt_case_raster <- plt_case_raster %>%subset(plt_case_raster$t%in%unique(plt_2020_case_raster$t))%>%mutate(value=ifelse(value<exp(-5),exp(-5),value))
+  
+  plt <- ggplot2::ggplot()
+  plt <-   ggplot2::ggplot() +
+    ggplot2::geom_sf(
+      data = plt_case_raster,
+      ggplot2::aes(fill = value),color=NA,size=0.00001)+
+    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = TRUE)+
+    ggplot2::geom_sf(data=plt_2020_case_raster%>%mutate(value=NA),fill=NA,color="black",size=0.05)+
+    ggplot2::labs(fill="Incidence\n [cases/year]")+
+    ggplot2::theme_bw() +
+    ggplot2::theme(legend.position = "bottom") +
+    ggplot2::theme(legend.text =  ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))+
+    ggplot2::facet_wrap(~t,ncol = length(unique(plt_case_raster$t))) 
+  
+  if (!is.null(plot_file)) {
+    ggplot2::ggsave(plt, plot_file, width = width , heigth = height)
+  }
+  if(render) {
+    plt
+  }
+}
+
+
+
+
 
 
 #' @export
