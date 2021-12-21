@@ -345,10 +345,13 @@ plot_raster_covariates <- function(covar_data_filename,
     #   ggplot2::theme(legend.position = "bottom") +
     #   ggplot2::facet_wrap(~covars)
     plt<-pltdata_dummy%>%group_by(covars)%>%
-      do(gg={ggplot(.,ggplot2::aes(fill = value, color = value)) + ggplot2::geom_sf()+
-          ggplot2::facet_wrap(~covars)+ggplot2::scale_fill_viridis_c(aesthetics = c("colour", 
-                                                                                    "fill"), guide = ggplot2::guide_colorbar(title = "Covariate at time 1"), 
-                                                                     option = "B", na.value = "white") + ggplot2::theme_bw() + 
+      do(gg={
+        ggplot(.,ggplot2::aes(fill = value, color = value)) + ggplot2::geom_sf()+
+          ggplot2::facet_wrap(~covars)+
+          ggplot2::scale_fill_viridis_c(aesthetics = c("colour", "fill"),
+                                        guide = ggplot2::guide_colorbar(title = "Covariate at time 1"),
+                                        option = "B", na.value = "white") + 
+          ggplot2::theme_bw() + 
           ggplot2::theme(legend.position = "bottom",
                          legend.key.size = unit(0.5, 'cm'),
                          legend.title =element_text(size=10))})%>%
@@ -603,7 +606,7 @@ plot_model_fidelity <- function(data_fidelity,
       ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = chains)) +
       ggplot2::geom_abline(intercept = 0, slope = 1) +
       ggplot2::coord_fixed(ratio = 1, xlim = c(1, max(comparison[[1]][,3:4])), ylim = c(1, max(comparison[[1]][,3:4]))) +
-      ggplot2::themec_bw() +
+      ggplot2::theme_bw() +
       ggplot2::facet_wrap(~censoring)
   }
 
