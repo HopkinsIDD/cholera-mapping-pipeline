@@ -2,8 +2,8 @@
 title: "Data and Model Outputs Report"
 output: html_document
 params:
-  cholera_directory: "C:/IDD/Cholera/cmp_report"
-  config: "/Analysis/configs/Dec_2021_runs/SDN_2015_2019/config_SDN_2016_2016.yml"
+  cholera_directory: "~/cholera-mapping-pipeline"
+  config: "/Analysis/configs/config.yml"
   drop_nodata_years: TRUE
   admin_level_for_summary_table: '1'
   args: 'myarg'
@@ -28,7 +28,6 @@ library(taxdat)
 library(sf)
 library(raster)
 library(stars)
-sf::sf_use_s2(FALSE)
 
 ### other new packages (mainly for "rgeoboundaries")
 chooseCRANmirror(ind = 77)
@@ -54,17 +53,25 @@ for (package in package_list) {
   # detach(pos = which(grepl(package, search())))
 }
 
+
+#Figure Caption Numbering,
+capFigNo = 1
+#Function to add the Figure Number
+capFig = function(x){
+    x = paste0("Figure ",capFigNo,". ",x)
+    capFigNo <<- capFigNo + 1
+    x
+}
+
 ```
 
 # Mapping results summary for `r stringr::str_extract(params$config, "[A-Z]{3}")` and period `r stringr::str_extract(params$config, "[0-9]{4}_[0-9]{4}")`
 
 ## Cholera input data
 **Data input:**
-
 ```{r load data}
 # Load data directory
 config <- yaml::read_yaml(paste0(params$cholera_directory, params$config))
-# 
 file_names <- taxdat::get_filenames(config, params$cholera_directory)
 
 ####the following lines are needed if this report is for old runs (file names are different)####
@@ -102,10 +109,9 @@ try({
 ```
 
 ## GAM Input
-**Fig 1. Observations input for the GAM model:**
-```{r gam input}
+**Observations input for the GAM model:**
+```{r gam input,fig.cap=capFig("Observations input for the GAM model")}
 try({
-
   initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_values_data")
   
   initial_values_data$gam_fit_input %>%
@@ -132,8 +138,8 @@ try({
 
 
 # GAM Output
-**Fig 2. Observations input for the GAM model:**
-```{r gam output}
+**Observations input for the GAM model:**
+```{r gam output,fig.cap=capFig("Observations input for the GAM model")}
 try({
 initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_values_data")
   gam_output_df<-taxdat::get_gam_values(config,params$cholera_directory)
@@ -157,7 +163,6 @@ initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_
 
 
 **Table 1. Data used within the model:**
-
 ```{r cases}
 if(!is.null(sf_cases_resized)){
   # Get case data statistics
@@ -177,7 +182,6 @@ if(!is.null(sf_cases_resized)){
 ```
 
 **Table 2. Data dropped from the model:**
-
 ```{r dropcases}
 ### 11/02/2021 update -- dropped = all - used
 if(!is.null(sf_cases) & !is.null(sf_cases_resized)){
@@ -216,8 +220,8 @@ try({
 })
 ```
 
-**Fig 3. Cases by time:**
-```{r rawobsmap, fig.height=5, fig.width=10, fig.cap="Observed case counts by time adjusted for time fraction cases/year"}
+**Cases by time:**
+```{r rawobsmap, fig.height=5, fig.width=10, fig.cap=capFig("Observed case counts by time adjusted for time fraction cases/year")}
 if(!is.null(disjoint_set_sf_cases)){
   taxdat::plot_raw_observed_cases(
     disjoint_set_sf_cases,
@@ -227,10 +231,11 @@ if(!is.null(disjoint_set_sf_cases)){
   warning("disjoint_set_sf_cases is NULL")
 }
 
+capFig("Observed case counts by time adjusted for time fraction cases/year")
 ```
 
-**Fig 4. Area adjusted cases by time:**
-```{r areadjustedmap, fig.height=5, fig.width=10, fig.cap="Area adjusted average observed case counts by time adjusted for time fraction cases/(year * kilometer)"}
+**Area adjusted cases by time:**
+```{r areadjustedmap, fig.height=5, fig.width=10, fig.cap=capFig("Area adjusted average observed case counts by time adjusted for time fraction cases/(year * kilometer)")}
 if(!is.null(disjoint_set_sf_cases)){
   taxdat::plot_area_adjusted_observed_cases(
     disjoint_set_sf_cases,
@@ -239,10 +244,11 @@ if(!is.null(disjoint_set_sf_cases)){
 } else{
   warning("disjoint_set_sf_cases is NULL")
 }
+
 ```
 
-**Fig 5. Cases unique location periods:**
-```{r obsmap, fig.height=5, fig.width=10, fig.cap="Number of observations by unique observed location periods."}
+**Cases unique location periods:**
+```{r obsmap, fig.height=5, fig.width=10, fig.cap=capFig("Number of observations by unique observed location periods.")}
 if(!is.null(disjoint_set_sf_cases)){
   taxdat::plot_raw_observations(disjoint_set_sf_cases,
                                 render = T)
@@ -255,8 +261,8 @@ if(!is.null(disjoint_set_sf_cases)){
 ## Covariates
 
 ### Population
-**Fig 6. Population raster by time slices:**
-```{r pop, fig.height=5, fig.width=10, fig.cap="Population density"}
+**Population raster by time slices:**
+```{r pop, fig.height=5, fig.width=10, fig.cap=capFig("Population density")}
 pop_raster_data <- raster(paste0(params$cholera_directory,"/Analysis/2000_1km_Aggregated.tif"))
 country_shp <- rgeoboundaries::gb_adm0(as.character(stringr::str_extract(params$config, "[A-Z]{3}")))
 pop_raster_data_cropped <- crop(pop_raster_data,extent(country_shp))
@@ -353,8 +359,8 @@ start_year <- as.numeric(stringr::str_extract(stringr::str_extract(params$config
 ```
 
 ### Other covariates
-**Fig 7. Distance to water raster:**
-```{r covars, fig.height=5, fig.width=8, fig.cap="Covariate rasters"}
+**Covariate rasters:**
+```{r covars, fig.height=5, fig.width=8, fig.cap=capFig("Covariate rasters")}
 taxdat::plot_raster_covariates(covar_data_filename = file_names["covar"], render = T)
 ```
 
@@ -428,8 +434,8 @@ if(length(unique(pltdata$t))>1){
 ```
 
 ### Modeled cases
-**Fig 8. Modeled cases raster by time slices:**
-```{r caserast, fig.cap="Modeled cases", fig.height=5, fig.width=10}
+**Modeled cases raster by time slices:**
+```{r caserast, fig.cap=capFig("Modeled cases"), fig.height=5, fig.width=10}
 if(!is.null(case_raster)){
   plt_case_raster <- disaggregated_case_sf %>%
     dplyr::select(dplyr::contains("modeled cases"),id,t) %>%
@@ -459,7 +465,6 @@ if(!is.null(case_raster)){
 } else{
   warning("case_raster is NULL")
 }
-
 
 ```
 
@@ -518,8 +523,8 @@ admin_case_table %>%
 
 
 ### Modeled incidence rates
-**Fig 9. Modeled incidence rates raster by time slices:**
-```{r raterast, fig.cap="Modeled rates", fig.height=5, fig.width=10}
+**Modeled incidence rates raster by time slices:**
+```{r raterast, fig.cap=capFig("Modeled rates by time"), fig.height=5, fig.width=10}
 if(!is.null(case_raster)){
   taxdat::plot_modeled_rates(case_raster, render = T)
 } else{
@@ -603,7 +608,6 @@ admin_rate_table %>%
 ```{r import_modelfidel}
 data_fidelity <- NULL
 try({
-  
   if(file.exists(file_names["initial_values"])){
   data_fidelity <- taxdat::get_data_fidelity(stan_input_filenames = file_names["stan_input"],
                                           model_output_filenames = file_names["stan_output"])
@@ -663,8 +667,8 @@ try({
 ```
 
 
-**Fig 10. Actual observations versus modeled cases scatter plot:**
-```{r datafidelity1, fig.cap="Observations vs. modeled cases", fig.height=10, fig.width=10}
+**Actual observations versus modeled cases scatter plot:**
+```{r datafidelity1, fig.cap=capFig("Observations vs. modeled cases"), fig.height=10, fig.width=10}
 
 if(!is.null(data_fidelity)){
   
@@ -678,7 +682,7 @@ if(!is.null(data_fidelity)){
 
 ```
 
-```{r datafidelity2, fig.cap="Observations/tfrac vs. modeled cases/tfrac ", fig.height=10, fig.width=10}
+```{r datafidelity2, fig.cap=capFig("Observations/tfrac vs. modeled cases/tfrac"), fig.height=10, fig.width=10}
 
 if(!is.null(data_fidelity)){
   
@@ -693,7 +697,7 @@ if(!is.null(data_fidelity)){
 ```
 
 
-```{r datafidelity3, fig.cap="Observations vs. modeled cases (tfrac adjusted)", fig.height=15, fig.width=10}
+```{r datafidelity3, fig.cap=capFig("Observations vs. modeled cases (tfrac adjusted)"), fig.height=15, fig.width=10}
 
 if(!is.null(data_fidelity)){
   
@@ -707,7 +711,7 @@ if(!is.null(data_fidelity)){
 
 ```
 
-```{r datafidelity4, fig.cap="Observations vs. modeled cases", fig.height=8, fig.width=10}
+```{r datafidelity4, fig.cap=capFig("Observations vs. modeled cases"), fig.height=8, fig.width=10}
 
 if(!is.null(data_fidelity)){
   
@@ -722,8 +726,8 @@ if(!is.null(data_fidelity)){
 ```
 
 
-**Fig 11. Stan trace plots:**
-```{r traceplots, fig.height=8, fig.width=10, fig.cap="Stan trace plots"}
+**Stan trace plots:**
+```{r traceplots, fig.height=8, fig.width=10, fig.cap=capFig("Stan trace plots")}
 
 if(!is.null(model.rand)){
 taxdat::plot_chain_convergence(file_names[["stan_output"]],
@@ -734,8 +738,8 @@ taxdat::plot_chain_convergence(file_names[["stan_output"]],
 ```
 
 
-**Fig 12. Parameter posteriors:**
-```{r params, fig.height=6, fig.width=6, fig.cap="Parameter posteriors"}
+**Parameter posteriors:**
+```{r params, fig.height=6, fig.width=6, fig.cap=capFig("Parameter posteriors")}
 if(!is.null(model.rand)){
   rstan::plot(model.rand, pars =  c("rho", "betas", "log_std_dev_w", "eta"))
 
@@ -745,8 +749,8 @@ if(!is.null(model.rand)){
 ```
 
 
-**Fig 13. Gelman-Rubin Rhat:**
-```{r rhat, fig.height=5, fig.width=10, fig.cap="Gelman-Rubin Rhat"}
+**Gelman-Rubin Rhat:**
+```{r rhat, fig.height=5, fig.width=10, fig.cap=capFig("Gelman-Rubin Rhat")}
 if(!is.null(model.rand)){
   taxdat::plot_rhat(model.rand, render = T)
 } else{
