@@ -233,7 +233,7 @@ if (warmup) {
   }
 }
 if (!(config$time_effect)) {
-  stan_data$mat_grid_time <- matrix(NA,0,0)
+  stan_data$mat_grid_time <- as.array(matrix(0,2,2))
 }
 
 # Set censoring and time effect and autocorrelation
