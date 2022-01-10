@@ -643,7 +643,7 @@ try({
 **Actual observations versus modeled cases scatter plot:**
 ```{r datafidelity1, fig.cap=capFig("Observations vs. modeled cases"), fig.height=10, fig.width=10}
 
-if(!is.null(data_fidelity)){
+if(!is.null(data_fidelity)&!config$censoring){
   
   taxdat::plot_model_fidelity_tfrac_adjusted(data_fidelity = data_fidelity,
                                               case_raster = case_raster,
@@ -672,7 +672,7 @@ if(!is.null(data_fidelity)){
 
 ```{r datafidelity3, fig.cap=capFig("Observations vs. modeled cases (tfrac adjusted)"), fig.height=15, fig.width=10}
 
-if(!is.null(data_fidelity)){
+if(!is.null(data_fidelity)&!config$censoring){
   
   taxdat::plot_model_fidelity_tfrac_adjusted_by_year(data_fidelity = data_fidelity,
                                                       case_raster = case_raster,
