@@ -29,7 +29,7 @@ option_list <- list(
     help = "Model run configuration file"
   ),
   optparse::make_option(c("-d", "--cholera_directory"), action = "store", default = NULL, type="character", help = "Cholera directory"),
-  optparse::make_option(c("-o", "--old_runs"), action = "store", default = NULL, type="character", help = "old runs or not")
+  optparse::make_option(c("-o", "--old_runs"), action = "store", default = NULL, type="character", help = "old runs or not"),
   optparse::make_option(c("-s", "--single_year"), action = "store", default = NULL, type="character", help = "single year runs or not")
 )
 
