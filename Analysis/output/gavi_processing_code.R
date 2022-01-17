@@ -1,20 +1,16 @@
 
-library(stringr)
-library(dplyr)
-library(magrittr)
-library(purrr)
-library(readr)
-library(ggplot2)
-library(taxdat)
-library(sf)
-library(raster)
-library(stars)
-
 ### other new packages (mainly for "rgeoboundaries")
 chooseCRANmirror(ind = 77)
 
 package_list <- c(
-  "fasterize", 
+  "stringr",
+  "dplyr",
+  "magrittr",
+  "purrr",
+  "readr",
+  "sf",
+  "raster",
+  "fasterize",
   "remotes",
   "rgeoboundaries",
   "taxdat",
@@ -53,6 +49,16 @@ for (package in package_list) {
   }
   # detach(pos = which(grepl(package, search())))
 }
+
+library(stringr)
+library(dplyr)
+library(magrittr)
+library(purrr)
+library(readr)
+library(taxdat)
+library(sf)
+library(raster)
+library(stars)
 
 ##Method1: create summary values for each layer across cells, then summarize across layers to get CIs.
 #for each layer, group the cells by incidence rates (mild, moderate, and high incidence areas)
