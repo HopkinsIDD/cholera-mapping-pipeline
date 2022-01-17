@@ -14,7 +14,9 @@ package_list <- c(
   "remotes",
   "rgeoboundaries",
   "taxdat",
-  "stars"
+  "stars",
+  "optparse",
+  "yaml"
 )
 
 ### Run options
