@@ -5,7 +5,6 @@ library(magrittr)
 library(purrr)
 library(readr)
 library(ggplot2)
-library(kableExtra)
 library(taxdat)
 library(sf)
 library(raster)
@@ -18,7 +17,8 @@ package_list <- c(
   "fasterize", 
   "remotes",
   "rgeoboundaries",
-  "taxdat"
+  "taxdat",
+  "stars"
 )
 
 ### Run options
