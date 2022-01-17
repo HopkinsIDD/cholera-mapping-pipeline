@@ -33,7 +33,6 @@ option_list <- list(
   optparse::make_option(c("-s", "--single_year"), action = "store", default = NULL, type="character", help = "single year runs or not")
 )
 
-params <- optparse::OptionParser(option_list = option_list) %>% optparse::parse_args()
 
 for (package in package_list) {
   if (!require(package = package, character.only = T)) {
@@ -42,9 +41,7 @@ for (package in package_list) {
         remotes::install_gitlab("dickoa/rgeoboundaries")
         remotes::install_github("wmgeolab/rgeoboundaries")
       })
-    } else if (package == "taxdat"){
-      install.packages(paste0(params$cholera_directory,  "/packages/taxdat"), type="source", repos=NULL)
-    }else{
+    } else{
       install.packages(pkgs = package)
       library(package = package, character.only = T)
     }
@@ -61,6 +58,12 @@ library(taxdat)
 library(sf)
 library(raster)
 library(stars)
+
+params <- optparse::OptionParser(option_list = option_list) %>% optparse::parse_args()
+
+install.packages(paste0(params$cholera_directory,  "/packages/taxdat"), type="source", repos=NULL)
+
+
 
 ##Method1: create summary values for each layer across cells, then summarize across layers to get CIs.
 #for each layer, group the cells by incidence rates (mild, moderate, and high incidence areas)
