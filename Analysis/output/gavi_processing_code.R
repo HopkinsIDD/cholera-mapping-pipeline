@@ -14,7 +14,6 @@ package_list <- c(
   "remotes",
   "rgeoboundaries",
   "taxdat",
-  "stars",
   "optparse",
   "yaml"
 )
@@ -57,7 +56,6 @@ library(readr)
 library(taxdat)
 library(sf)
 library(raster)
-library(stars)
 
 params <- optparse::OptionParser(option_list = option_list) %>% optparse::parse_args()
 
