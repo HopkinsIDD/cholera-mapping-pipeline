@@ -1,0 +1,181 @@
+country code,country,indicator,est_mean,est_low,est_high,est_median
+AGO,Angola,cases,618.2378815,0,2368.969609,NA
+AGO,Angola,rate_10k,0.20800000000000002,0,0.7949999999999999,NA
+AGO,Angola,perc_pop_highIncid,0.64,0,3.46,0
+AGO,Angola,perc_pop_medIncid,1.59,0,5.4,0
+AGO,Angola,perc_pop_lowIncid,5.07,0,25.71,4.68
+BDI,Burundi,cases,504.4742253,89.76670772,1156.387821,NA
+BDI,Burundi,rate_10k,0.464,0.0826,1.0644,NA
+BDI,Burundi,perc_pop_highIncid,0.08,0,1.41,0
+BDI,Burundi,perc_pop_medIncid,9.3,0,34.16,5.73
+BDI,Burundi,perc_pop_lowIncid,57.42,14.54,82.05,63.52
+BEN,Benin,cases,179.8972049,0.011590966,847.2840047,NA
+BEN,Benin,rate_10k,0.16099999999999998,1.0399999999999999e-5,0.758,NA
+BEN,Benin,perc_pop_highIncid,0.13,0,1.2,0
+BEN,Benin,perc_pop_medIncid,2.21,0,12.32,0
+BEN,Benin,perc_pop_lowIncid,5.71,0,20.93,1.2
+BFA,Burkina Faso,cases,0.063905469,3.48e-72,0.181904089,NA
+BFA,Burkina Faso,rate_10k,3.28e-5,1.7800000000000001e-75,9.33e-5,NA
+BFA,Burkina Faso,perc_pop_highIncid,0,0,0,0
+BFA,Burkina Faso,perc_pop_medIncid,0,0,0,0
+BFA,Burkina Faso,perc_pop_lowIncid,0,0,0,0
+CAF,C. African Republic,cases,35.67944997,0.0059236,180.2495748,NA
+CAF,C. African Republic,rate_10k,0.0766,1.27e-5,0.387,NA
+CAF,C. African Republic,perc_pop_highIncid,0,0,0.04,0
+CAF,C. African Republic,perc_pop_medIncid,0.53,0,3.86,0
+CAF,C. African Republic,perc_pop_lowIncid,19.01,0,98.19,0
+CIV,Cote D'Ivoire,cases,37.91526554,4.774786461,138.7693179,NA
+CIV,Cote D'Ivoire,rate_10k,0.015600000000000001,0.00197,0.057100000000000005,NA
+CIV,Cote D'Ivoire,perc_pop_highIncid,0,0,0,0
+CIV,Cote D'Ivoire,perc_pop_medIncid,0,0,0,0
+CIV,Cote D'Ivoire,perc_pop_lowIncid,2.02,0,17.17,0
+CMR,Cameroon,cases,562.3344218,20.23996824,1546.305021,NA
+CMR,Cameroon,rate_10k,0.23399999999999999,0.008409999999999999,0.643,NA
+CMR,Cameroon,perc_pop_highIncid,0.5,0.01,1.67,0.02
+CMR,Cameroon,perc_pop_medIncid,3.06,0.01,8.11,1.34
+CMR,Cameroon,perc_pop_lowIncid,5.21,1.54,7.86,5.72
+COD,DR Congo,cases,49062.09819,35886.4035,69505.46599,NA
+COD,DR Congo,rate_10k,6.0317300000000005,4.4119,8.54505,NA
+COD,DR Congo,perc_pop_highIncid,6.85,3.5,13.3,6.03
+COD,DR Congo,perc_pop_medIncid,15.41,7.28,35.84,11.35
+COD,DR Congo,perc_pop_lowIncid,22.9,13.11,38.85,21.63
+COG,Republic of Congo,cases,21.2836954,0,95.76005777,NA
+COG,Republic of Congo,rate_10k,0.0405,0,0.182,NA
+COG,Republic of Congo,perc_pop_highIncid,0.07,0,0.49,0
+COG,Republic of Congo,perc_pop_medIncid,0.38,0,2.61,0.04
+COG,Republic of Congo,perc_pop_lowIncid,3.48,0,25.77,1.25
+ETH,Ethiopia,cases,18238.3778,765.7372942,57415.96243,NA
+ETH,Ethiopia,rate_10k,1.73769,0.07300000000000001,5.470400000000001,NA
+ETH,Ethiopia,perc_pop_highIncid,0.39,0,2.5,0
+ETH,Ethiopia,perc_pop_medIncid,1.29,0,7.3,0.09
+ETH,Ethiopia,perc_pop_lowIncid,1.63,0,4.7,1.68
+GHA,Ghana,cases,168.9656849,0.272088025,483.4152091,NA
+GHA,Ghana,rate_10k,0.0586,9.44e-5,0.16799999999999998,NA
+GHA,Ghana,perc_pop_highIncid,0.04,0,0.26,0
+GHA,Ghana,perc_pop_medIncid,1.61,0,5.72,0
+GHA,Ghana,perc_pop_lowIncid,4.46,0,18.52,0.23
+GIN,Guinea,cases,1.017551922,0.005172987,0.796885606,NA
+GIN,Guinea,rate_10k,8e-4,4.07e-6,6.27e-4,NA
+GIN,Guinea,perc_pop_highIncid,0,0,0,0
+GIN,Guinea,perc_pop_medIncid,0.01,0,0,0
+GIN,Guinea,perc_pop_lowIncid,0.07,0,0.25,0
+GNB,Guinea Bissau,cases,0.07245397,1.88e-21,0.449233913,NA
+GNB,Guinea Bissau,rate_10k,3.91e-4,1.0100000000000002e-23,0.0024200000000000003,NA
+GNB,Guinea Bissau,perc_pop_highIncid,NA,NA,NA,NA
+GNB,Guinea Bissau,perc_pop_medIncid,NA,NA,NA,NA
+GNB,Guinea Bissau,perc_pop_lowIncid,NA,NA,NA,NA
+KEN,Kenya,cases,7650.411787,4187.263438,10761.67729,NA
+KEN,Kenya,rate_10k,1.5393199999999998,0.843,2.16533,NA
+KEN,Kenya,perc_pop_highIncid,1.79,0.63,3.4,1.71
+KEN,Kenya,perc_pop_medIncid,5.87,3.92,8.15,5.79
+KEN,Kenya,perc_pop_lowIncid,5.56,3.35,8.21,5.48
+LBR,Liberia,cases,79.17785596,4.4e-8,750.4644637,NA
+LBR,Liberia,rate_10k,0.166,9.24e-11,1.5749700000000002,NA
+LBR,Liberia,perc_pop_highIncid,0.31,0,1.6,0.07
+LBR,Liberia,perc_pop_medIncid,4.06,0,10.78,3.82
+LBR,Liberia,perc_pop_lowIncid,16.8,0,44.21,16.02
+MLI,Mali,cases,0.070394038,4.33e-10,0.327705929,NA
+MLI,Mali,rate_10k,3.74e-5,2.3000000000000003e-13,1.74e-4,NA
+MLI,Mali,perc_pop_highIncid,0,0,0,0
+MLI,Mali,perc_pop_medIncid,0,0,0,0
+MLI,Mali,perc_pop_lowIncid,0,0,0.01,0
+MOZ,Mozambique,cases,5555.698484,872.9410921,9209.744838,NA
+MOZ,Mozambique,rate_10k,1.87257,0.294,3.1041800000000004,NA
+MOZ,Mozambique,perc_pop_highIncid,1.58,0.47,3.2,1.54
+MOZ,Mozambique,perc_pop_medIncid,5.43,0.75,11.25,6.17
+MOZ,Mozambique,perc_pop_lowIncid,7.01,2.33,11.8,6.83
+MRT,Mauritania,cases,0.825091652,0,1.219790252,NA
+MRT,Mauritania,rate_10k,0.00187,0,0.00276,NA
+MRT,Mauritania,perc_pop_highIncid,0,0,0.01,0
+MRT,Mauritania,perc_pop_medIncid,0.02,0,0.09,0
+MRT,Mauritania,perc_pop_lowIncid,0.13,0,0.99,0
+MWI,Malawi,cases,1026.140687,26.20831057,2379.014495,NA
+MWI,Malawi,rate_10k,0.5509999999999999,0.0141,1.27752,NA
+MWI,Malawi,perc_pop_highIncid,0.99,0,2.56,1.19
+MWI,Malawi,perc_pop_medIncid,9.88,0.15,25.11,10.59
+MWI,Malawi,perc_pop_lowIncid,21.06,2.92,29.27,25.67
+NER,Niger,cases,2496.577331,0.016407902,12495.28505,NA
+NER,Niger,rate_10k,1.16242,7.64e-6,5.81789,NA
+NER,Niger,perc_pop_highIncid,0.39,0,2.5,0
+NER,Niger,perc_pop_medIncid,1.29,0,7.3,0.09
+NER,Niger,perc_pop_lowIncid,1.63,0,4.7,1.68
+NGA,Nigeria,cases,13166.7719,734.3943732,32538.64727,NA
+NGA,Nigeria,rate_10k,0.69,0.038500000000000006,1.70461,NA
+NGA,Nigeria,perc_pop_highIncid,0.76,0.01,1.86,0.47
+NGA,Nigeria,perc_pop_medIncid,2.26,0.59,5.06,1.72
+NGA,Nigeria,perc_pop_lowIncid,3.83,1.07,6.94,3.29
+RWA,Rwanda,cases,72.27355708,0,361.2947545,NA
+RWA,Rwanda,rate_10k,0.0592,0,0.296,NA
+RWA,Rwanda,perc_pop_highIncid,0.01,0,0,0
+RWA,Rwanda,perc_pop_medIncid,1.03,0,8.1,0
+RWA,Rwanda,perc_pop_lowIncid,6.94,0,50.95,0
+SDN,Sudan,cases,1528.638216,0,5890.619872,NA
+SDN,Sudan,rate_10k,0.377,0,1.45328,NA
+SDN,Sudan,perc_pop_highIncid,0.23,0,1.25,0
+SDN,Sudan,perc_pop_medIncid,1.56,0,7.68,0.03
+SDN,Sudan,perc_pop_lowIncid,5.83,0,24.62,0.96
+SEN,Senegal,cases,3.071226105,0,13.34059618,NA
+SEN,Senegal,rate_10k,0.0019399999999999999,0,0.00842,NA
+SEN,Senegal,perc_pop_highIncid,0,0,0.02,0
+SEN,Senegal,perc_pop_medIncid,0.02,0,0.25,0
+SEN,Senegal,perc_pop_lowIncid,0.21,0,2.21,0
+SLE,Sierra Leone,cases,0.744599046,4.83e-72,0.36281783,NA
+SLE,Sierra Leone,rate_10k,9.83e-4,6.380000000000001e-75,4.79e-4,NA
+SLE,Sierra Leone,perc_pop_highIncid,0,0,0,0
+SLE,Sierra Leone,perc_pop_medIncid,0.01,0,0,0
+SLE,Sierra Leone,perc_pop_lowIncid,0.03,0,0.24,0
+SOM,Somalia,cases,22495.72634,4940.453132,76886.96863,NA
+SOM,Somalia,rate_10k,15.25907,3.35116,52.1532,NA
+SOM,Somalia,perc_pop_highIncid,24.55,10.27,45.34,20.22
+SOM,Somalia,perc_pop_medIncid,23.09,17.07,29.4,22.54
+SOM,Somalia,perc_pop_lowIncid,19.03,15.6,22.25,18.91
+SSD,South Sudan,cases,6266.384633,0.00231891,19240.60553,NA
+SSD,South Sudan,rate_10k,4.9829300000000005,1.8400000000000002e-6,15.299809999999999,NA
+SSD,South Sudan,perc_pop_highIncid,6.09,0,14.35,7.42
+SSD,South Sudan,perc_pop_medIncid,4.54,0,10.14,6.13
+SSD,South Sudan,perc_pop_lowIncid,5.59,0,11.9,8
+SWZ,Eswatini,cases,0,0,0,NA
+SWZ,Eswatini,rate_10k,0,0,0,NA
+SWZ,Eswatini,perc_pop_highIncid,NA,NA,NA,NA
+SWZ,Eswatini,perc_pop_medIncid,NA,NA,NA,NA
+SWZ,Eswatini,perc_pop_lowIncid,NA,NA,NA,NA
+TCD,Chad,cases,357.6622955,6.16331e-4,1604.27646,NA
+TCD,Chad,rate_10k,0.24000000000000002,4.1400000000000003e-7,1.0767,NA
+TCD,Chad,perc_pop_highIncid,0.29,0,1.5,0
+TCD,Chad,perc_pop_medIncid,0.52,0,1.92,0
+TCD,Chad,perc_pop_lowIncid,0.52,0,1.92,0.01
+TGO,Togo,cases,9.180302708,1.2899999999999999e-38,58.65523818,NA
+TGO,Togo,rate_10k,0.0118,1.6599999999999997e-41,0.0752,NA
+TGO,Togo,perc_pop_highIncid,0.01,0,0,0
+TGO,Togo,perc_pop_medIncid,0.22,0,1.53,0
+TGO,Togo,perc_pop_lowIncid,2.09,0,11.67,0.1
+TZA,Tanzania (incl Zanzibar),cases,12172.12274,2254.379226,34169.65523,NA
+TZA,Tanzania (incl Zanzibar),rate_10k,2.12391,0.393,5.96225,NA
+TZA,Tanzania (incl Zanzibar),perc_pop_highIncid,3.69,0.03,12.13,1.9
+TZA,Tanzania (incl Zanzibar),perc_pop_medIncid,9.22,2.06,14.91,11.9
+TZA,Tanzania (incl Zanzibar),perc_pop_lowIncid,13.15,1.09,27.95,13.13
+TZA_M,Tanzania mainland,cases,11281.09011,2254.379226,33164.74657,NA
+TZA_M,Tanzania mainland,rate_10k,1.9922,0.39799999999999996,5.856770000000001,NA
+TZA_M,Tanzania mainland,perc_pop_highIncid,3.63,0.02,12.22,1.85
+TZA_M,Tanzania mainland,perc_pop_medIncid,6.87,0.25,14.04,5.19
+TZA_M,Tanzania mainland,perc_pop_lowIncid,12.8,0.49,28.16,13.23
+UGA,Uganda,cases,1699.355781,485.4122327,3797.958956,NA
+UGA,Uganda,rate_10k,0.396,0.113,0.886,NA
+UGA,Uganda,perc_pop_highIncid,0.57,0.1,1.28,0.62
+UGA,Uganda,perc_pop_medIncid,5.5,0.96,14.33,5.1
+UGA,Uganda,perc_pop_lowIncid,14.82,9,17.19,15.89
+ZAF,South Africa,cases,0,0,0,NA
+ZAF,South Africa,rate_10k,0,0,0,NA
+ZAF,South Africa,perc_pop_highIncid,NA,NA,NA,NA
+ZAF,South Africa,perc_pop_medIncid,NA,NA,NA,NA
+ZAF,South Africa,perc_pop_lowIncid,NA,NA,NA,NA
+ZMB,Zambia,cases,1887.468529,30.99037771,4200.755506,NA
+ZMB,Zambia,rate_10k,1.10416,0.0181,2.45743,NA
+ZMB,Zambia,perc_pop_highIncid,4.58,0,11.51,0.16
+ZMB,Zambia,perc_pop_medIncid,5.8,0.02,12.79,2.88
+ZMB,Zambia,perc_pop_lowIncid,7.98,3.11,11.89,8.31
+ZWE,Zimbabwe,cases,2192.285547,0,10825.57973,NA
+ZWE,Zimbabwe,rate_10k,1.3262500000000002,0,6.54909,NA
+ZWE,Zimbabwe,perc_pop_highIncid,2.28,0,13.05,0
+ZWE,Zimbabwe,perc_pop_medIncid,2.7,0,15.39,0.05
+ZWE,Zimbabwe,perc_pop_lowIncid,11.71,0,40.32,8.74
