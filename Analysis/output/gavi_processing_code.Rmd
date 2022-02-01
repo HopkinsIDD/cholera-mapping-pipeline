@@ -124,19 +124,19 @@ get_disaggregated_rate_raster <- function(covar_data_filename,
     modeled_cases_mean_by_grid_layer_tmp1<-data.frame()
     for (row_idx in unique(obs_years)) {
       tmp <- modeled_cases_mean_by_grid_layer_tmp[(row_idx+1):(row_idx+nrow(modeled_cases_mean_by_grid_layer_tmp)/5),]
-      modeled_cases_mean_by_grid_layer_tmp1<-rbind(modeled_cases_mean_by_grid_layer_tmp1,tmp)}
+      modeled_cases_mean_by_grid_layer_tmp1<-cbind(modeled_cases_mean_by_grid_layer_tmp1,tmp)}
   }else{
     modeled_cases_mean_by_grid_layer_tmp1 <- modeled_cases_mean_by_grid_layer_tmp
-  }
-
+    
 #comvert 1000 layers to 5000 layers (time)
   data1=data.frame(modeled_cases_mean_by_grid_layer_tmp1[1:length(unique(rate_raster$geom)),1:1000])
   data2=data.frame(modeled_cases_mean_by_grid_layer_tmp1[(1+length(unique(rate_raster$geom))):(2*length(unique(rate_raster$geom))),1:1000])
   data3=data.frame(modeled_cases_mean_by_grid_layer_tmp1[(1+(2*length(unique(rate_raster$geom)))):(3*length(unique(rate_raster$geom))),1:1000])
   data4=data.frame(modeled_cases_mean_by_grid_layer_tmp1[(1+(3*length(unique(rate_raster$geom)))):(4*length(unique(rate_raster$geom))),1:1000])
   data5=data.frame(modeled_cases_mean_by_grid_layer_tmp1[(1+(4*length(unique(rate_raster$geom)))):(5*length(unique(rate_raster$geom))),1:1000])
-  
   modeled_cases_mean_by_grid_layer<-cbind(data1,data2,data3,data4,data5)
+
+  }
 
   if(!ncol(modeled_cases_mean_by_grid_layer)==5000){
     stop("wrong rate raster processing")
@@ -155,7 +155,7 @@ get_disaggregated_rate_raster <- function(covar_data_filename,
   modeled_rates_mean_by_grid_layer$id=1:nrow(modeled_rates_mean_by_grid_layer)
   rate_raster <- merge(rate_raster[1:length(unique(rate_raster$geom)),],modeled_rates_mean_by_grid_layer,by="id")
 
-  colnames(rate_raster)[str_detect(colnames(rate_raster),".*[0-9].*")&!colnames(rate_raster)%in%"pop2017"] <- paste0("layer",seq_len(5*dim(modeled_cases)[1]))
+  colnames(rate_raster)[str_detect(colnames(rate_raster),".*[0-9].*")&!colnames(rate_raster)%in%"pop2017"] <-   paste0("layer",seq_len(5*dim(modeled_cases)[1]))
 
   rate_raster <- rate_raster[,str_detect(colnames(rate_raster),".*[0-9].*")&!colnames(rate_raster)%in%"pop2017"]
 
@@ -258,12 +258,6 @@ if(params$old_runs){
  file_names[["stan_output"]] <- stringr::str_remove(file_names[["stan_output"]],"iv-wN-cwN-csF-teT-teaF-weF.")
  file_names[["stan_output"]] <- stringr::str_remove( file_names[["stan_output"]],"-F")
 }
-# 
-# file_names<-list()
-# file_names[["stan_output"]] <-"C:/IDD/Cholera/gavi_report/SEL_stan_output.rdata"
-# file_names[["covar"]] <- "C:/IDD/Cholera/gavi_report/SLE_1_years_2015-01-01-2019-12-31_20km_suspected.dw-aw-as-ao-cs-cw-ac.covar.rdata"
-# file_names[['stan_input']]<-"C:/IDD/Cholera/gavi_report/SLE_1_years_2015-01-01-2019-12-31_20km_suspected.dw-aw-as-ao-cs-cw-ac.pc-sp1-agT-tftN-tfsN.stan_input.rdata"
-# file_names[["data"]]<-"C:/IDD/Cholera/gavi_report/SLE_1_years_2015-01-01-2019-12-31_20km_suspected.preprocess.rdata"
 
 #shapefile imported
 iso_code <- as.character(stringr::str_extract(params$config, "[A-Z]{3}"))
