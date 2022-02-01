@@ -1,7 +1,7 @@
-install.packages('packages/taxdat',type='source',repos=NULL)
-library(taxdat)
-config_filename="C:/IDD/Cholera/cmp_taxdat/Analysis/configs/Dec_2021_runs/ZWE_2015_2019/config_ZWE_2015_2019.yml"
-cholera_directory="C:/IDD/Cholera/cmp_taxdat"
+# install.packages('packages/taxdat',type='source',repos=NULL)
+# library(taxdat)
+# config_filename="C:/IDD/Cholera/cmp_taxdat/Analysis/configs/Dec_2021_runs/ZWE_2015_2019/config_ZWE_2015_2019.yml"
+# cholera_directory="C:/IDD/Cholera/cmp_taxdat"
 
 #' @name plot_raster_with_fill
 #' @title plot_raster_with_fill
@@ -247,7 +247,7 @@ merge_modeled_rates_mean_into_raster_no_cache <- function(config, cache) {
 merge_modeled_rates_mean_into_raster <- cache_fun_results("modeled_rates_mean_raster",merge_modeled_rates_mean_into_raster_no_cache,overwrite = T,config)
 
 ##example:
-pdf("try.pdf")
-plot_grid_cases_mean_raster(config,cache)
-plot_modeled_rates_raster(config,cache)
-dev.off()
+# pdf("try.pdf")
+# plot_grid_cases_mean_raster(config,cache)
+# plot_modeled_rates_raster(config,cache)
+# dev.off()
