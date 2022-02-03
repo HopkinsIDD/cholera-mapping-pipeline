@@ -177,6 +177,12 @@ model {
     vector[smooth_grid_N] std_dev; // Rescaled std_dev by std_dev_w
     vector[smooth_grid_N] t_rowsum; // only the rowsum of t is used
     
+    
+    // Construct w
+    b = rho ./ (1 + (diag - 1) * rho * rho );
+    vec_var = (1 - rho * rho) ./ (1 + (1. * diag - 1) * rho * rho);
+    std_dev = std_dev_w * sqrt(vec_var);
+    
     // Linear in number of edges
     for(i in 1:smooth_grid_N){
       t_rowsum[i] = 0;
@@ -184,11 +190,6 @@ model {
     for(i in 1:N_edges){
       t_rowsum[node1[i] ] += w[node2[i] ] * b[ node1[i] ];
     }
-    
-    // Construct w
-    b = rho ./ (1 + (diag - 1) * rho * rho );
-    vec_var = (1 - rho * rho) ./ (1 + (1. * diag - 1) * rho * rho);
-    std_dev = std_dev_w * sqrt(vec_var);
     
     // NOTE:  no prior on phi_raw, it is used to construct phi
     // the following computes the prior on phi on the unit scale with std_dev = 1
