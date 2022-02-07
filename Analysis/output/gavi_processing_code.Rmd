@@ -117,16 +117,23 @@ get_disaggregated_rate_raster <- function(covar_data_filename,
   modeled_cases_mean_by_grid_layer_tmp <- as.data.frame(t(apply(modeled_cases, c(1,3), mean)))%>%
   mutate(id=seq_len(dim(modeled_cases)[3]))
 
+ 
   #subset years with obervations and remove years without obsevations (drop some years)
   stan_input <- read_file_of_type(stan_input_filenames, "stan_input")
   if(params$single_year==FALSE){
     obs_years <- (nrow(modeled_cases_mean_by_grid_layer_tmp)/5)*((min(lubridate::year(stan_input$sf_cases_resized$TL)):max(lubridate::year(stan_input$sf_cases_resized$TR)))-2015)    
     modeled_cases_mean_by_grid_layer_tmp1<-data.frame()
     for (row_idx in unique(obs_years)) {
-      tmp <- modeled_cases_mean_by_grid_layer_tmp[(row_idx+1):(row_idx+nrow(modeled_cases_mean_by_grid_layer_tmp)/5),]
+      tmp <- modeled_cases_mean_by_grid_layer_tmp[(row_idx+1):(row_idx+nrow(modeled_cases_mean_by_grid_layer_tmp)/5),1:1000]
+      if(length(modeled_cases_mean_by_grid_layer_tmp1)==0){
+        modeled_cases_mean_by_grid_layer_tmp1<-tmp
+      }else{
       modeled_cases_mean_by_grid_layer_tmp1<-cbind(modeled_cases_mean_by_grid_layer_tmp1,tmp)}
+      }
+  
+    modeled_cases_mean_by_grid_layer<-  modeled_cases_mean_by_grid_layer_tmp1
   }else{
-    modeled_cases_mean_by_grid_layer_tmp1 <- modeled_cases_mean_by_grid_layer_tmp
+    modeled_cases_mean_by_grid_layer_tmp1 <-  modeled_cases_mean_by_grid_layer_tmp
     
 #comvert 1000 layers to 5000 layers (time)
   data1=data.frame(modeled_cases_mean_by_grid_layer_tmp1[1:length(unique(rate_raster$geom)),1:1000])
@@ -138,10 +145,7 @@ get_disaggregated_rate_raster <- function(covar_data_filename,
 
   }
 
-  if(!ncol(modeled_cases_mean_by_grid_layer)==5000){
-    stop("wrong rate raster processing")
-  }
-  
+
   #estimate 2017 population data from the covariate database
   stan_input <- read_file_of_type(stan_input_filenames, "stan_input")
   pop_sf_grid<-stan_input$sf_grid
@@ -153,6 +157,7 @@ get_disaggregated_rate_raster <- function(covar_data_filename,
   modeled_rates_mean_by_grid_layer<-modeled_cases_mean_by_grid_layer
   modeled_rates_mean_by_grid_layer[str_detect(colnames(modeled_rates_mean_by_grid_layer),".*[0-9].*")] <- modeled_cases_mean_by_grid_layer[str_detect(colnames(modeled_cases_mean_by_grid_layer),".*[0-9].*")]/modeled_cases_mean_by_grid_layer$pop2017
   modeled_rates_mean_by_grid_layer$id=1:nrow(modeled_rates_mean_by_grid_layer)
+
   rate_raster <- merge(rate_raster[1:length(unique(rate_raster$geom)),],modeled_rates_mean_by_grid_layer,by="id")
 
   colnames(rate_raster)[str_detect(colnames(rate_raster),".*[0-9].*")&!colnames(rate_raster)%in%"pop2017"] <-   paste0("layer",seq_len(5*dim(modeled_cases)[1]))
