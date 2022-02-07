@@ -27,7 +27,6 @@ run_test_case = function(
   data_type="grid_case",
   oc_type="std_oc",
   polygon_type="std_grid",
-  grid_type="std_grid",
   grid_coverage_type="std_coverage",
   observation_type="single_test_observation",
   
