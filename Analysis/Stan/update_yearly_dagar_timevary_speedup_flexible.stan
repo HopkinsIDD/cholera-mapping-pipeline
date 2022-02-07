@@ -39,7 +39,6 @@ data {
   int <lower=0, upper=L> map_loc_grid_loc[K2]; // the location side of the mapping from locations to gridcells
   int <lower=0, upper=N> map_loc_grid_grid[K2]; // the gridcell side of the mapping from locations to gridcells
   
-  matrix[N, T] mat_grid_time; // The time side of the mapping from locations/times to grid
   int <lower=0,upper=smooth_grid_N> map_smooth_grid[N]; //vector with repeating smooth_grid_N indexes repeating 1:N
   
   // Covariate stuff
@@ -62,6 +61,7 @@ data {
   
   // If time slice effect pass indicator function for years without data
   vector<lower=0, upper=1>[N*do_time_slice_effect] has_data_year;
+  matrix[N*do_time_slice_effect + 2 * (do_time_slice_effect != 1), T*do_time_slice_effect + 2*(do_time_slice_effect != 1)] mat_grid_time; // The time side of the mapping from locations/times to grid (2x2 in case of missing just so it's easy to create)
 }
 
 transformed data {
