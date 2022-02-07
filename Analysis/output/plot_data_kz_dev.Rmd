@@ -411,6 +411,7 @@ if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 |
         geom_point(data = (raw_data_filtered %>% filter(TR == TL)),
                   aes(x=ymd(TL), y=suspected_cases),
                   size = 0.7, alpha=0.5, shape=23, color = OC_UID) +
+        scale_x_date(date_labels = "%m-%Y") + 
         facet_wrap(~location_name, ncol = as.integer(plot1pre_ncol_factor), scales = "free") +
         theme_bw()
     
@@ -426,6 +427,7 @@ if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 |
                       colour = OC_UID),
                   fill = NA, size = 0.35 * plot1pre_ncol_factor, alpha = 0.3, 
                   stat = "identity") +
+        scale_x_date(date_labels = "%m-%Y") + 
         ylab('Average Daily Cases') + 
         facet_wrap(~location_name, ncol = as.integer(plot1pre_ncol_factor), scales = "free") +
         theme_bw()
@@ -439,6 +441,7 @@ if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 |
                       colour = OC_UID),
                   fill = NA, size = 0.35 * plot1pre_ncol_factor, alpha = 0.3, 
                   stat = "identity") +
+        scale_x_date(date_labels = "%m-%Y") + 
         labs(y = 'Total Cases over Period') + 
         facet_wrap(~location_name, ncol = as.integer(plot1pre_ncol_factor), scales = "free") +
         theme_bw()
@@ -464,6 +467,7 @@ if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 |
       geom_point(data = (raw_data_filtered %>% filter(TR == TL)),
                 aes(x=ymd(TL), y=suspected_cases),
                 size = 0.7, alpha=0.5, shape=23) +
+      scale_x_date(date_labels = "%m-%Y") + 
       labs(y = 'Average Daily Cases') + 
       facet_wrap(~location_name, ncol = as.integer(plot1pre_ncol_factor), scales = "free") +
       theme_bw()
@@ -483,6 +487,7 @@ if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 |
       geom_point(data = (raw_data_filtered %>% filter(TR == TL)),
                 aes(x=ymd(TL), y=suspected_cases),
                 size = 0.7, alpha=0.5, shape=23) +
+      scale_x_date(date_labels = "%m-%Y") + 
       labs(y = 'Total Cases for Period OC and Daily Cases for Daily OC') + 
       facet_wrap(~location_name, ncol = as.integer(plot1pre_ncol_factor), scales = "free") +
       theme_bw()
@@ -1003,6 +1008,17 @@ raw_data_filtered_dis_daily_same = raw_data_filtered_dis_daily %>%
   ungroup() %>% 
   filter(duplicate > 1)
 
+if(is.null(raw_data_filtered_dis_daily_same$OC_UID) | 
+   is.null(raw_data_filtered_dis_daily_same$location_name) | 
+   is.null(raw_data_filtered_dis_daily_same$year) |
+   all(is.na(raw_data_filtered_dis_daily_same$OC_UID)) | 
+   all(is.na(raw_data_filtered_dis_daily_same$location_name)) | 
+   all(is.na(raw_data_filtered_dis_daily_same$year)) ){
+  same_OC_UID_daily_compare <- FALSE
+}
+```
+
+```{r echo=FALSE, eval=same_OC_UID_daily_compare, include=same_OC_UID_daily_compare}
 raw_data_filtered_dis_daily_same %>% 
   ggplot() +
   geom_segment( aes(x=ymd(TL), xend=ymd(TL), y=lower_oc, yend=higher_oc), 
@@ -1127,7 +1143,9 @@ plot4_height_factor <- (3 * nrow(raw_data_filtered_dis_period_stack[raw_data_fil
                           / plot4_ncol_factor)
 
 ##if there is zero row to display
-if (nrow(raw_data_filtered_dis_period_stack[raw_data_filtered_dis_period_stack$period_token == 1, ]) == 0){
+if (nrow(raw_data_filtered_dis_period_stack[raw_data_filtered_dis_period_stack$period_token == 1, ]) == 0 | 
+    is.null(raw_data_filtered_dis_period_stack$location_name) | is.null(raw_data_filtered_dis_period_stack$dis_period) | 
+    is.null(raw_data_filtered_dis_period_stack$year)){
   eval_value4 <- FALSE
   include_value4 <- FALSE
   plot4_height_factor <- 10 #not gonna be used
