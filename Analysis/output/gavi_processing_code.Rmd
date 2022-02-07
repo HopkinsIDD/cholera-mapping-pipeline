@@ -51,7 +51,6 @@ for (package in package_list) {
       library(package = package, character.only = T)
     }
   }
-  # detach(pos = which(grepl(package, search())))
 }
 ```
 
@@ -94,17 +93,18 @@ get_pop2017 <- function(sf_grid) {
   return(sf_grid)
 }
 
-#' @name get_disaggregated_rate_raster
-#' @title get_disaggregated_rate_raster
+#' @name get_rate_raster
+#' @title get_rate_raster
 #' @description get rate raster for each layer 
 #' @param preprocessed_data_filename
 #' @param covar_data_filename
 #' @param model_output_filenames
 #' @return rate_raster
-get_disaggregated_rate_raster <- function(covar_data_filename,
+get_rate_raster <- function(covar_data_filename,
                                           model_output_filenames,
                                           stan_input_filenames,
-                                          if_single_year_run){
+                                          if_single_year_run,
+                                          res=c(0.1666667,0.1666667)){
   #load model output data
   covar_cube_output <- read_file_of_type(covar_data_filename, "covar_cube_output")
   rate_raster <- covar_cube_output$sf_grid
@@ -117,7 +117,6 @@ get_disaggregated_rate_raster <- function(covar_data_filename,
   modeled_cases_mean_by_grid_layer_tmp <- as.data.frame(t(apply(modeled_cases, c(1,3), mean)))%>%
   mutate(id=seq_len(dim(modeled_cases)[3]))
 
- 
   #subset years with obervations and remove years without obsevations (drop some years)
   stan_input <- read_file_of_type(stan_input_filenames, "stan_input")
   if(params$single_year==FALSE){
@@ -130,21 +129,10 @@ get_disaggregated_rate_raster <- function(covar_data_filename,
       }else{
       modeled_cases_mean_by_grid_layer_tmp1<-cbind(modeled_cases_mean_by_grid_layer_tmp1,tmp)}
       }
-  
     modeled_cases_mean_by_grid_layer<-  modeled_cases_mean_by_grid_layer_tmp1
   }else{
     modeled_cases_mean_by_grid_layer_tmp1 <-  modeled_cases_mean_by_grid_layer_tmp
-    
-#comvert 1000 layers to 5000 layers (time)
-  data1=data.frame(modeled_cases_mean_by_grid_layer_tmp1[1:length(unique(rate_raster$geom)),1:1000])
-  data2=data.frame(modeled_cases_mean_by_grid_layer_tmp1[(1+length(unique(rate_raster$geom))):(2*length(unique(rate_raster$geom))),1:1000])
-  data3=data.frame(modeled_cases_mean_by_grid_layer_tmp1[(1+(2*length(unique(rate_raster$geom)))):(3*length(unique(rate_raster$geom))),1:1000])
-  data4=data.frame(modeled_cases_mean_by_grid_layer_tmp1[(1+(3*length(unique(rate_raster$geom)))):(4*length(unique(rate_raster$geom))),1:1000])
-  data5=data.frame(modeled_cases_mean_by_grid_layer_tmp1[(1+(4*length(unique(rate_raster$geom)))):(5*length(unique(rate_raster$geom))),1:1000])
-  modeled_cases_mean_by_grid_layer<-cbind(data1,data2,data3,data4,data5)
-
   }
-
 
   #estimate 2017 population data from the covariate database
   stan_input <- read_file_of_type(stan_input_filenames, "stan_input")
@@ -164,14 +152,14 @@ get_disaggregated_rate_raster <- function(covar_data_filename,
 
   rate_raster <- rate_raster[,str_detect(colnames(rate_raster),".*[0-9].*")&!colnames(rate_raster)%in%"pop2017"]
 
-  raster_2020<-raster::raster(rate_raster, res =c(0.1666667,0.1666667)) 
+  raster_2020<-raster::raster(rate_raster, res =res) 
   
  for (layer_idx in seq_len(ncol(rate_raster)-1)){
 
     layer_value <- rate_raster[,layer_idx]
      
     #empty raster
-    single_layer <- raster::raster(rate_raster, res =c(0.1666667,0.1666667))
+    single_layer <- raster::raster(rate_raster, res =ress)
     #assign rate values into the raster
     single_rate_raster_2020 <- fasterize::fasterize(layer_value, single_layer, field = paste0("layer",layer_idx))
     
@@ -219,9 +207,8 @@ aggregate_affected_pop_across_layers <- function(pop_prop,probability_cutoffs, i
   return(rbind(mean_values,probability_distribution))
 }
 
-#get_affected_pop
-#' @name get_affected_pop
-#' @title get_affected_pop
+#' @name get_pop_at_risk
+#' @title get_pop_at_risk
 #' @param pop_raster: 1*1 KM population raster
 #' @param rate_raster: 1*1 KM rate_raster (disaggregated from 20*20 KM rater raster)
 #' @param country_shp: country shapefile
@@ -231,7 +218,7 @@ aggregate_affected_pop_across_layers <- function(pop_prop,probability_cutoffs, i
 #' @param within_layer_aggregator: the function to aggregate cells within one layer
 #' @param across_layer_aggregator: the function to aggregate across layers
 #' @return 
-get_affected_pop <- function(pop_raster_cropped,
+get_pop_at_risk <- function(pop_raster_cropped,
                              rate_raster_cropped,
                              shapefile,
                              threshold_list=c(0.001,0.0001,0.00001),
@@ -269,11 +256,10 @@ iso_code <- as.character(stringr::str_extract(params$config, "[A-Z]{3}"))
 shapefile <- rgeoboundaries::gb_adm0(iso_code)
 
 #rate raster
-rate_raster_2020 <- get_disaggregated_rate_raster(covar_data_filename=file_names[["covar"]],
-                                                           model_output_filenames=file_names[["stan_output"]],
-                                                           stan_input_filenames=file_names[['stan_input']],
-                                                           if_single_year_run=params$single_year
-                                                           )
+rate_raster_2020 <- get_rate_raster(covar_data_filename=file_names[["covar"]],
+                                    model_output_filenames=file_names[["stan_output"]],
+                                    stan_input_filenames=file_names[['stan_input']],
+                                    if_single_year_run=params$single_year)
 rate_raster_2020_cropped <- crop_to_shapefile(raster = rate_raster_2020,shapefile = shapefile,snap="near")
 rm(rate_raster_2020)
 gc()
@@ -295,15 +281,16 @@ gc()
 ```
 
 ```{r processing}
-table<-get_affected_pop(pop_raster_cropped=pop_raster_2017_cropped,
-                             rate_raster_cropped=rate_raster_2020_cropped,
-                             shapefile=shapefile,
-                             threshold_list=c(0.001,0.0001,0.00001),
-                             include_mean=TRUE,
-                             calculate_disjoint_values = TRUE,
-                             within_layer_aggregator=aggregate_affected_pop_across_cells,
-                             across_layer_aggregator=aggregate_affected_pop_across_layers,
-                             probability_cutoffs=c(0.025,0.5,0.975))
+table<-get_pop_at_risk(pop_raster_cropped=pop_raster_2017_cropped,
+                       rate_raster_cropped=rate_raster_2020_cropped,
+                       res=c(0.1666667,0.1666667),#20*20KM
+                       shapefile=shapefile,
+                       threshold_list=c(0.001,0.0001,0.00001),
+                       include_mean=TRUE,
+                       calculate_disjoint_values = TRUE,
+                       within_layer_aggregator=aggregate_affected_pop_across_cells,
+                       across_layer_aggregator=aggregate_affected_pop_across_layers,
+                       probability_cutoffs=c(0.025,0.5,0.975))
 
 if(params$single_year){
 year_list=str_sub(params$config,-8,-5)
@@ -312,6 +299,6 @@ year_list="2015_2019"
 }
 
 filename<-paste0("final_table",iso_code,year_list,".csv")
- write.csv(table,filename)
- kableExtra::kable(table)
+write.csv(table,filename)
+kableExtra::kable(table)
 ```
