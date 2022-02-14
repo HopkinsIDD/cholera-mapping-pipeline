@@ -669,7 +669,7 @@ if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 &
   include_value3 = FALSE
   eval_value4 = FALSE
   include_value4 = FALSE
-  print('The rest of the disagreement figures will not be generated because the daily OCs are missing. ')
+
 } else if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 & 
              nrow(raw_data[raw_data$TL == raw_data$TR, ]) > 0  ){
   ##what if there is only one kind of OC_UID for daily OCs
@@ -778,6 +778,7 @@ if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 &
   eval_value4 = FALSE
   include_value4 = FALSE
   print('The rest of the disagreement figures will not be generated because the daily OCs are missing. ')
+
 }
 
 ### Just to make sure this variable exists, it won't be used
@@ -1142,6 +1143,7 @@ raw_data_filtered_dis_period_stack <- raw_data_filtered_dis_period_stack %>%
 plot4_height_factor <- (3 * nrow(raw_data_filtered_dis_period_stack[raw_data_filtered_dis_period_stack$period_token == 1, ])
                           / plot4_ncol_factor)
 
+
 ##if there is zero row to display
 if (nrow(raw_data_filtered_dis_period_stack[raw_data_filtered_dis_period_stack$period_token == 1, ]) == 0 | 
     is.null(raw_data_filtered_dis_period_stack$location_name) | is.null(raw_data_filtered_dis_period_stack$dis_period) | 
@@ -1150,6 +1152,7 @@ if (nrow(raw_data_filtered_dis_period_stack[raw_data_filtered_dis_period_stack$p
   include_value4 <- FALSE
   plot4_height_factor <- 10 #not gonna be used
   warning('Fig 7. will not be generated because there is no useful comparison to display. ')
+  
 }
 
 ```
@@ -1184,6 +1187,7 @@ raw_data_filtered_dis_period_stack %>%
 
 ## Fig 8. Stan input data -- number of cases by OC_UID over periods and locations
 **This figure illustrates the stan input cases data (stan_input$sf_cases_resized) **
+
 ```{r echo=FALSE}
 # Just to calculate the width and height
 stan_input_data_temp <- sf::st_drop_geometry(stan_input_data)
