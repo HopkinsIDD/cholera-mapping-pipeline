@@ -74,11 +74,6 @@ package_list <- c(
 #   detach(pos = which(grepl(package, search())), force = T)
 # }
 
-if (as.logical(Sys.getenv("PRODUCTION_RUN", TRUE)) && (nrow(gert::git_status()) != 0)) {
-  print(gert::git_status())
-  stop("There are local changes to the repository.  This is not allowed for a production run. Please revert or commit local changes")
-}
-
 
 
 
@@ -108,6 +103,12 @@ try({setwd(dirname(rstudioapi::getActiveDocumentContext()$path))}, silent = TRUE
 cholera_directory <- ifelse(is.null(opt$cholera_directory),
                             rprojroot::find_root(rprojroot::has_file(".choldir")),
                             opt$cholera_directory)
+
+
+if (as.logical(Sys.getenv("PRODUCTION_RUN", TRUE)) && (nrow(gert::git_status(repo=cholera_directory)) != 0)) {
+  print(gert::git_status(repo=cholera_directory))
+  stop("There are local changes to the repository.  This is not allowed for a production run. Please revert or commit local changes")
+}
 
 # Relative to the repository, where is the layers directory
 laydir <- ifelse(is.null(opt$layers_directory),
