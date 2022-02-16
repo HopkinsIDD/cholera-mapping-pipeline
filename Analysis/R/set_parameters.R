@@ -57,6 +57,7 @@ package_list <- c(
   "zoo"
 )
 
+library(magrittr)
 
 # for (package in package_list) {
 #   if (!require(package = package, character.only = T)) {
