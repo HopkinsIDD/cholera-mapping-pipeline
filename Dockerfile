@@ -11,7 +11,7 @@ ENV LC_ALL en_US.UTF-8
 
 # set noninteractive installation
 ENV DEBIAN_FRONTEND noninteractive
-ENV R_VERSION 4.0.3-1.2004.0
+ENV R_VERSION 4.1.0-1.2004.0
 
 # see https://www.digitalocean.com/community/tutorials/how-to-install-r-on-ubuntu-18-04
 # https://cran.r-project.org/bin/linux/debian/
@@ -72,6 +72,7 @@ RUN apt-get update && \
     gdal-bin \
     supervisor \
     awscli \
+    r-base-core=$R_VERSION \
     r-base-dev=$R_VERSION \
     postgresql \
     postgis \
