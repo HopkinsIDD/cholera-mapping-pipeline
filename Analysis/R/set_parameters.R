@@ -20,14 +20,6 @@ if (Sys.getenv("PRODUCTION_RUN", TRUE)) {
 
 ### Libraries
 
-if (Sys.getenv("REINSTALL_TAXDAT", FALSE)) {
-  install.packages("packages/taxdat", type = "source", repos = NULL)
-} else if (!require(taxdat)) {
-  install.packages("packages/taxdat", type = "source", repos = NULL)
-} else {
-  detach("package:taxdat")
-}
-
 # Install required packages
 package_list <- c(
   "DBI",
@@ -107,8 +99,18 @@ cholera_directory <- ifelse(is.null(opt$cholera_directory),
 
 if (as.logical(Sys.getenv("PRODUCTION_RUN", TRUE)) && (nrow(gert::git_status(repo=cholera_directory)) != 0)) {
   print(gert::git_status(repo=cholera_directory))
+  Sys.setenv(REINSTALL_TAXDAT = TRUE)
   stop("There are local changes to the repository.  This is not allowed for a production run. Please revert or commit local changes")
 }
+
+if (Sys.getenv("REINSTALL_TAXDAT", FALSE)) {
+  install.packages(paste0(cholera_directory, "packages/taxdat"), type = "source", repos = NULL)
+} else if (!require(taxdat)) {
+  install.packages(paste0(cholera_directory, "packages/taxdat"), type = "source", repos = NULL)
+} else {
+  detach("package:taxdat")
+}
+
 
 # Relative to the repository, where is the layers directory
 laydir <- ifelse(is.null(opt$layers_directory),
