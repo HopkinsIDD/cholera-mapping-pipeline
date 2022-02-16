@@ -890,8 +890,8 @@ Hash: 7fb0c9e1209a804b329a7df3cd422008
 Package: taxdat
 Source: source
 Version: 0.1
-Hash: 6725a9f1bc70316999965e2d1e5b87ae
-Requires: ISOcodes, magrittr
+Hash: d47b75f8a13103c46631369f02687b20
+Requires: ISOcodes, dplyr, magrittr, tidyr
 SourcePath: ~/R/pkgs//taxdat
 
 Package: testthat
