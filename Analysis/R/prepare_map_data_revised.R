@@ -42,10 +42,19 @@ if (data_source == "api") {
 
 # This pulls the data either from the mid-distance database or the postgresql
 # database on idmodeling2
-cases <- taxdat::pull_taxonomy_data(username = username, password = password, locations = long_countries, 
-    time_left = start_time, time_right = end_time, source = data_source, uids = filter_OCs, 
-    ) %>%
-    taxdat::rename_database_fields(source = data_source)
+cases <- taxdat::pull_taxonomy_data(
+  username = username,
+  password = password,
+  locations = long_countries,
+  time_left = start_time,
+  time_right = end_time,
+  source = data_source,
+  uids = filter_OCs,
+) %>%
+  taxdat::rename_database_fields(source = data_source)
+index <- sf::st_geometry_type(cases) == sf::st_geometry_type(sf::st_geometrycollection())
+sf::st_geometry(cases[index, ]) <- sf::st_as_sfc(lapply(sf::st_geometry(cases[index, ]), sf::st_collection_extract, type = "POLYGON"))
+
 
 # Get OC UIDs for all extracted data
 uids <- sort(unique(as.numeric(cases$OC_UID)))

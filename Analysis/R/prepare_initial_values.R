@@ -211,6 +211,9 @@ if (warmup) {
             as.matrix()
     }
 }
+if (!(config$time_effect)) {
+  stan_data$mat_grid_time <- as.array(matrix(0,2,2))
+}
 
 # Set censoring and time effect and autocorrelation
 stan_data$do_censoring <- ifelse(stan_params$censoring, 1, 0)
@@ -229,14 +232,15 @@ if (stan_params$use_rho_prior) {
 }
 
 if (stan_params$time_effect) {
-    # Extract number of observations per year
-    obs_per_year <- df %>%
-        dplyr::count(obs_year) %>%
-        dplyr::mutate(obs_year = as.numeric(as.character(obs_year)))
-    # For each time slice check if there is data informing it If there is no data in
-    # a given year, the model will ignore the yearly random effect
-    has_data_year <- purrr::map_dbl(stan_data$map_grid_time, ~. %in% obs_per_year$obs_year)
-    stan_data$has_data_year <- has_data_year
+  # Extract number of observations per year
+  obs_per_year <- df %>% dplyr::count(obs_year) %>% 
+    dplyr::mutate(obs_year = as.numeric(as.character(obs_year)))
+  # For each time slice check if there is data informing it
+  # If there is no data in a given year, the model will ignore the yearly random effect
+  has_data_year <- purrr::map_dbl(stan_data$map_grid_time, ~ . %in% obs_per_year$obs_year)
+  stan_data$has_data_year <- has_data_year
+} else {
+  stan_data$has_data_year <- array(dim = c(0))
 }
 
 # Set value of negative binomial models with fixed overdispersion parameter

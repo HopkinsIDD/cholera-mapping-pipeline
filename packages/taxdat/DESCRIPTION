@@ -8,14 +8,14 @@ Maintainer: Joshua Kaminsky <jkaminsky@jhu.edu>
 Description: This package is designed to load and work with taxonomy files in a particular file structure.
 Encoding: UTF-8
 License: GPL (>= 2)
-Depends: R (>= 3.4),ISOcodes,magrittr, dplyr, tidyr
+Depends: R (>= 3.4),ISOcodes,magrittr, dplyr, tidyr, igraph
 Suggests: readxl, sf, sp, raster, rgdal, testthat, knitr, rmarkdown
 RoxygenNote: 7.1.2
-VignetteBuilder: knitr
-Collate: 
+Collate:
     'color_scale.R'
     'config_helpers.R'
     'covariate_helpers.R'
+    'database_api_key.R'
     'file_name_functions.R'
     'gam_formula.R'
     'geo_lookup_helpers.R'
