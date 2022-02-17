@@ -20,6 +20,9 @@ params:
   polygonal: c(TRUE, TRUE)
   radiating: c(FALSE,  FALSE)
   iteration: 10000
+  constant=c(TRUE,FALSE,FALSE)
+  Data_simulation_covariates: c(TRUE,TRUE,TRUE)
+  Model_covariates: c(TRUE,TRUE,FALSE)
 ---
 ```{r setup, include=FALSE, dev="CairoPNG"}
 knitr::opts_chunk$set(
