@@ -140,13 +140,15 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
 ## Change covariates
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
 test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
-test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2,
-                                                   nonspatial = c(FALSE, FALSE),
-                                                   nontemporal = c(FALSE, FALSE),
-                                                   spatially_smooth = c(TRUE,FALSE),
-                                                   temporally_smooth = c(FALSE,FALSE),
-                                                   polygonal = c(TRUE, TRUE),
-                                                   radiating = c(FALSE,FALSE), seed = my_seed)
+test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 3,
+                                                   nonspatial = c(FALSE, FALSE,FALSE),
+                                                   nontemporal = c(FALSE, FALSE,FALSE),
+                                                   spatially_smooth = c(TRUE,TRUE,TRUE),
+                                                   temporally_smooth = c(FALSE, FALSE,FALSE),
+                                                   polygonal = c(TRUE,TRUE,TRUE),
+                                                   radiating = c(FALSE,FALSE,FALSE), 
+                                                   constant=c(FALSE,FALSE,FALSE),
+                                                   seed = my_seed)
 
 my_seed <- .GlobalEnv$.Random.seed
 min_time_left <- query_time_left
@@ -158,7 +160,7 @@ test_raster_observation <- create_test_raster(nrows = 10, ncols = 10, nlayers = 
 test_covariates_observation <- create_multiple_test_covariates(test_raster = test_raster_observation, ncovariates = 3,
                                                                nonspatial = c(FALSE, FALSE,FALSE),
                                                                nontemporal = c(FALSE, FALSE,FALSE),
-                                                               spatially_smooth = c(TRUE,TRUE,FALSE),
+                                                               spatially_smooth = c(TRUE,TRUE,TRUE),
                                                                temporally_smooth = c(FALSE, FALSE,FALSE),
                                                                polygonal = c(TRUE,TRUE,TRUE),
                                                                radiating = c(FALSE,FALSE,FALSE), 
@@ -262,7 +264,7 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                 grid_coverage_type="100%",
                                 randomize=TRUE,
                                 ncovariates=2, 
-                                single_year_run=FALSE,
+                                single_year_run="no",
                                 iteration=10000,
                                 nonspatial = c(FALSE, FALSE,FALSE), 
                                 nontemporal = c(FALSE, FALSE,FALSE), 
@@ -273,5 +275,3 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                 constant=c(TRUE,FALSE,FALSE),
                                 Data_simulation_covariates=c(TRUE,TRUE,TRUE),
                                 Model_covariates=c(TRUE,TRUE,FALSE)))
-
-## Actually do something with the groundtruth and output
