@@ -1,6 +1,6 @@
 ---
 title: "Continent Map Report"
-output: 
+output:
   html_document:
     toc: true
     toc_float: true
@@ -25,6 +25,15 @@ library(sp)
 library(abind)
 library(taxdat)
 
+if (! "params" %in% ls()) {
+  params <- list(
+    cholera_directory = "~/git/cholera-mapping-pipeline/",
+    config_directory = "~/git/cholera-configs/Dec_2021_runs",
+    output_dir = "~/git/cholera-mapping-output/continent_map",
+    max_countries = Inf
+  )
+}
+
 options(bitmapType = 'cairo')
 knitr::opts_chunk$set(
   echo = FALSE,
@@ -38,87 +47,63 @@ knitr::opts_chunk$set(
 ```
 
 ```{r dir_settings}
-dir.create(stringr::str_c(params$cholera_directory, params$output_dir), showWarnings = FALSE)
+dir.create(params$output_dir, showWarnings = FALSE)
 ```
 
 ```{r datapull}
-orig_configs <- list.files(stringr::str_c(params$cholera_directory, params$config_directory), full.names = TRUE)
-orig_locations <- stringr::str_extract(orig_configs, "[A-Z]{3}")
-
-skip_cntry <- c("BWA", "COG", "DJI", "ERI", "GAB", "GMB", "GNQ", "LSO", "MDG", "NAM", "SEN", "SWZ")
-if (sum(orig_locations %in% skip_cntry) > 1) {
-  indexes <- unlist(lapply(skip_cntry, function(cntry){
-    which(stringr::str_detect(orig_configs, cntry))
-  }))
-  all_configs <- orig_configs[-indexes]
-} else {
-  all_configs <- orig_configs
-}
-
+all_files <- list.files(params$config_directory, full.names = TRUE, recursive=TRUE)
+all_configs <- all_files[grepl('.yml$', all_files)]
 all_locations <- stringr::str_extract(all_configs, "[A-Z]{3}")
+unique_locations <- unique(all_locations)
 print(all_configs)
 print(all_locations)
 
 sf_cases_resized <- list()
 sf_grid <- list()
 country_count <- 0
+results <- NULL
+full_cache <- new.env()
+full_cache$case_results <- NULL
+error_locations_cases <- unique_locations
 for(config_filename in all_configs){
+  tryCatch({
+  local_cache <- new.env()
   print(config_filename)
   if(country_count >= params$max_countries){break}
-  config <- yaml::read_yaml(config_filename)
-  file_names <- taxdat::get_filenames(config, params$cholera_directory)
-  print(file_names)
-  if(all(file.exists(file_names))){
-    stan_input <- taxdat::read_file_of_type(file_names[['stan_input']], "stan_input")
-    model.rand <- taxdat::read_file_of_type(file_names[['stan_output']], "model.rand")
-    niter_per_chain <- dim(MCMCvis::MCMCchains(model.rand,params='lp__',chain_num=1))[1]
-    nchain <- dim(MCMCvis::MCMCchains(model.rand,params='lp__'))[1] / niter_per_chain
-    stan_output <- lapply(rstan::extract(model.rand), function(x){array(x,c(niter_per_chain, nchain, dim(x)[-1]))})
-
-    
-    stan_input$sf_grid <- stan_input$sf_grid %>% dplyr::ungroup() %>% dplyr::select(t,id)
-    stan_input$sf_grid[paste('cases','chain',seq_len(nchain),sep='_')] <- apply(stan_output$grid_cases, c(3,2), mean)
-    stan_input$sf_grid[paste('rate','chain',seq_len(nchain),sep='_')] <- apply(exp(stan_output$log_lambda), c(3,2), mean)
-    stan_input$sf_grid$row_index <- seq_len(nrow(stan_input$sf_grid))
-    stan_input$sf_grid <- data.frame(stan_input$sf_grid) # workaround to prevent warning: https://github.com/r-spatial/sf/issues/1149
-    stan_input$sf_grid <- tidyr::pivot_longer(
-      stan_input$sf_grid,
-      cols=c(
-        paste('cases','chain',seq_len(nchain),sep='_'),
-        paste('rate','chain',seq_len(nchain),sep='_')
-      ),
-      names_to="scenario",
-      values_to="modeled"
-    ) %>% sf::st_sf()
-    stan_input$sf_grid <- tidyr::separate(col=scenario, into = c('type',NA,'chain'),stan_input$sf_grid)
-  
-    stan_input$sf_cases_resized <- dplyr::rename(
-      dplyr::select(sf::st_as_sf(dplyr::ungroup(stan_input$sf_cases_resized)), locationPeriod_id, OC_UID,TL,TR,attributes.fields.suspected_cases),
-      observed = attributes.fields.suspected_cases
-    )
-    stan_input$sf_cases_resized[paste('cases','chain',seq_len(nchain),sep='_')] <- apply(stan_output$modeled_cases, c(3,2), mean)
-    stan_input$sf_cases_resized$row_index <- seq_len(nrow(stan_input$sf_cases_resized))
-    stan_input$sf_cases_resized <- data.frame(stan_input$sf_cases_resized) # workaround to prevent warning: https://github.com/r-spatial/sf/issues/1149
-    stan_input$sf_cases_resized <- tidyr::pivot_longer(stan_input$sf_cases_resized,cols=paste('cases','chain',seq_len(nchain),sep='_'),names_to="scenario",values_to="modeled") %>% sf::st_sf()
-    stan_input$sf_cases_resized <- tidyr::separate(col=scenario, into = c('type',NA,'chain'),stan_input$sf_cases_resized)
-
-    stan_input$sf_cases_resized$filename <- config_filename
-    stan_input$sf_grid$filename <- config_filename
-  
-    if("list" %in% class(sf_grid)){
-      sf_grid <- stan_input$sf_grid
-    } else {
-      sf_grid <- rbind(sf_grid, stan_input$sf_grid)
-    }
-    if("list" %in% class(sf_cases_resized)){
-      sf_cases_resized <- stan_input$sf_cases_resized
-    } else {
-      sf_cases_resized <- rbind(sf_cases_resized, stan_input$sf_cases_resized)
-    }
-
-    country_count <- country_count + 1
+  if(is.null(full_cache$case_results)) {
+    taxdat:::merge_modeled_cases_mean_into_raster(config_filename, local_cache, params$cholera_directory)
+    full_cache$case_results <- local_cache$modeled_cases_mean_raster
+  } else {
+    taxdat:::merge_modeled_cases_mean_into_raster(config_filename, local_cache, params$cholera_directory)
+    full_cache$case_results <- rbind(full_cache$case_results, local_cache$modeled_cases_mean_raster)
   }
+  error_locations_cases <- error_locations_cases[error_locations_cases != all_locations[all_configs == config_filename] ]
+  }, error = function(e) {
+    warning(paste(config_filename,"failed with message", e$message))
+  })
 }
+taxdat:::plot_raster_with_fill("case_results", "cases", "modeled_cases_mean", full_cache)
+
+full_cache$rate_results <- NULL
+error_locations_rates <- unique_locations
+for(config_filename in all_configs){
+  tryCatch({
+  local_cache <- new.env()
+  print(config_filename)
+  if(country_count >= params$max_countries){break}
+  if(is.null(full_cache$rate_results)) {
+    taxdat:::merge_modeled_rates_mean_into_raster(config_filename, local_cache, params$cholera_directory)
+    full_cache$rate_results <- local_cache$modeled_rates_mean_raster
+  } else {
+    taxdat:::merge_modeled_rates_mean_into_raster(config_filename, local_cache, params$cholera_directory)
+    full_cache$rate_results <- rbind(full_cache$rate_results, local_cache$modeled_rates_mean_raster)
+  }
+  error_locations_rates <- error_locations_rates[error_locations_rates != all_locations[all_configs == config_filename] ]
+  }, error = function(e) {
+    warning(paste(config_filename,"failed with message", e$message))
+  })
+}
+taxdat:::plot_raster_with_fill("rate_results", "rates", "modeled_rates_mean", full_cache)
 
 afr_shp <- sf::st_boundary(sf::st_read(paste(params$cholera_directory,"Layers/Africa.shp",sep='/')))
 
