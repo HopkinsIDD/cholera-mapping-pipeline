@@ -46,6 +46,7 @@ RUN apt-get update && \
     libxslt1-dev \
     libffi-dev \
     libblas-dev \
+    libxt-dev \
     liblapack-dev \
     libatlas-base-dev \
     libxml2-dev \
