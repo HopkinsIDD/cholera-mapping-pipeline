@@ -3,7 +3,7 @@ title: "Data and Model Outputs Report"
 output: html_document
 params:
   cholera_directory: "/home/app/cmp/"
-  config_filename: "/ome/app/cmp/Analysis/R/test_config.yml"
+  config_filename: "/home/app/cmp/Analysis/R/test_config.yml"
   drop_nodata_years: TRUE
 ---
 ```{r setup, include=FALSE, dev="CairoPNG"}
