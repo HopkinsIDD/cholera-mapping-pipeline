@@ -108,121 +108,14 @@ taxdat:::plot_raster_with_fill("rate_results", "rates", "modeled_rates_mean", fu
 afr_shp <- sf::st_boundary(sf::st_read(paste(params$cholera_directory,"Layers/Africa.shp",sep='/')))
 
 # add CRS
-afr_shp <- as(afr_shp, 'Spatial')
-sp::proj4string(afr_shp) <- sp::CRS("+init=epsg:4326 +proj=longlat +datum=WGS84 +no_defs")
-afr_shp <- as(afr_shp, 'sf')
-```
+# afr_shp <- as(afr_shp, 'Spatial')
+# sp::proj4string(afr_shp) <- sp::CRS("+init=epsg:4326 +proj=longlat +datum=WGS84 +no_defs")
+# afr_shp <- as(afr_shp, 'sf')
+# Somehow add crs to plot
 
-# Mapping results summary for `r paste(all_locations, collapse =', ')`
-
-```{r makenosplit}
-single_sf_grid <- sf_grid %>% dplyr::group_by(id, type) %>% dplyr::summarize(modeled = mean(modeled), geometry = geom) %>% dplyr::ungroup() %>% unique()
-```
-
-### Plot Grid Output Cases {.tabset}
-
-#### Cases
-
-```{r gridoutcase, fig.height=7}
-taxdat::plot_map(dplyr::filter(single_sf_grid,type=='cases'),"modeled", facet_column='type', colorscale_type = 'cases', render=TRUE, plot_border = afr_shp)
-```
-
-#### Cases with log transform
-
-```{r gridoutcaselog, fig.height=7}
-taxdat::plot_map(dplyr::filter(single_sf_grid,type=='cases'),"modeled", facet_column='type', colorscale_type = 'cases', render=TRUE, plot_border = afr_shp, use_log=TRUE)
-```
-
-### Plot Grid Output Rates {.tabset}
-
-#### Rates
-
-```{r gridoutrate, fig.height=7}
-taxdat::plot_map(dplyr::filter(single_sf_grid,type=='rate'),"modeled", facet_column='type', colorscale_type = 'rates', render=TRUE, plot_border = afr_shp)
-```
-
-#### Rates with log transform
-
-```{r gridoutratelog, fig.height=7}
-taxdat::plot_map(dplyr::filter(single_sf_grid,type=='rate'),"modeled", facet_column='type', colorscale_type = 'rates', render=TRUE, plot_border = afr_shp, use_log=TRUE)
-```
-
-```{r makechainsplit}
-rm(single_sf_grid)
-chain_sf_grid <- sf_grid %>% dplyr::group_by(id,chain,type) %>% dplyr::summarize(modeled = mean(modeled), geometry = geom) %>% dplyr::ungroup() %>% unique()
-```
-
-### Plot Grid Output Cases by Chain {.tabset}
-
-#### Cases by chain
-
-```{r chaingrdioutcase, fig.height=7}
-taxdat::plot_map(dplyr::filter(chain_sf_grid,type=='cases'), "modeled", "chain", colorscale_type = 'cases', render=TRUE, plot_border = afr_shp)
-```
-
-#### Cases with log transform by chain
-
-```{r chaingridoutcaselog, fig.height=7}
-taxdat::plot_map(dplyr::filter(chain_sf_grid,type=='cases'), "modeled", "chain", colorscale_type = 'cases', render=TRUE, plot_border = afr_shp, use_log = TRUE)
-```
-
-### Plot Grid Output Rates by Chain {.tabset}
-
-#### Rates by chain
-
-```{r chaingridoutrate, fig.height=7}
-taxdat::plot_map(dplyr::filter(chain_sf_grid,type=='rate'), "modeled", "chain", colorscale_type = 'rates', render=TRUE, plot_border = afr_shp)
-```
-
-#### Rates with log transform by chain
-
-```{r chaingridoutratelog, fig.height=7}
-taxdat::plot_map(dplyr::filter(chain_sf_grid,type=='rate'), "modeled", "chain", colorscale_type = 'rates', render=TRUE, plot_border = afr_shp, use_log = TRUE)
-```
-
-### Plot Grid Output Cases by Time {.tabset}
-
-```{r maketimesplit}
-rm(chain_sf_grid)
-time_sf_grid <- sf_grid %>% dplyr::group_by(id,t,type) %>% dplyr::summarize(modeled = mean(modeled), geometry = geom) %>% dplyr::ungroup() %>% unique()
-```
-
-#### Cases by time
-
-```{r timegrdioutcase, fig.height=7}
-taxdat::plot_map(dplyr::filter(time_sf_grid,type=='cases'), "modeled", "t", colorscale_type = 'cases', render=TRUE, plot_border = afr_shp)
-```
-
-#### Cases with log transform by time
-
-```{r timegridoutcaselog, fig.height=7}
-taxdat::plot_map(dplyr::filter(time_sf_grid,type=='cases'), "modeled", "t", colorscale_type = 'cases', render=TRUE, plot_border = afr_shp, use_log = TRUE)
-```
-
-### Plot Grid Output Rates by Time {.tabset}
-
-#### Rates by time
-
-```{r timegridoutrate, fig.height=7}
-taxdat::plot_map(dplyr::filter(time_sf_grid,type=='rate'), "modeled", "t", colorscale_type = 'rates', render=TRUE, plot_border = afr_shp)
-```
-
-#### Rates with log transform by time
-
-```{r timegridoutratelog, fig.height=7}
-taxdat::plot_map(dplyr::filter(time_sf_grid,type=='rate'), "modeled", "t", colorscale_type = 'rates', render=TRUE, plot_border = afr_shp, use_log = TRUE)
-```
-
-```{r cleantimesplit, echo=FALSE, warning=FALSE,message=FALSE}
-rm(time_sf_grid)
-```
-
-### Plot Observed vs Modeled
-
-```{r modelfit}
-sf_cases_resized %>%
-  ggplot2::ggplot() +
-  ggplot2::geom_point(ggplot2::aes(x=modeled+1,y=observed+1,color=as.character(chain))) +
-  ggplot2::scale_x_continuous(trans="log10") +
-  ggplot2::scale_y_continuous(trans="log10")
+## TODO:
+## Aggregation:
+## - Instead of iterating over each config, iterate over each country and aggregate over each config
+## - Remove configs that are not for production runs
+## - Diagnose errors in some country results with creating local_cache
 ```
