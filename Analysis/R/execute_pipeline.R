@@ -274,7 +274,8 @@ if (config[["processing"]][["remove_overlaps"]]) {
     observation_data <- taxdat::remove_overlapping_observations(observation_data_with_t,
         unique_column_names = "t") %>%
         dplyr::ungroup() %>%
-        dplyr::select(-t)
+        dplyr::select(-t) %>%
+        sf::st_as_sf()
 
     ## new_observation_changer <- setNames(
     ## sort(unique(observation_data_without_t$updated_observation_id)),
