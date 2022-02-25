@@ -3,20 +3,16 @@ library(taxdat)
 
 dbuser <- Sys.getenv("USER", "app")
 dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
-option_list <- list(
-  optparse::make_option(c("-d", "--cholera_pipeline_directory"),
+option_list <- list(optparse::make_option(c("-d", "--cholera_pipeline_directory"),
     action = "store", default = Sys.getenv("CHOLERA_PIPELINE_DIRECTORY", rprojroot::find_root(".choldir")),
-    type = "character", help = "Pipeline directory"),
-  optparse::make_option(c("-d",
+    type = "character", help = "Pipeline directory"), optparse::make_option(c("-d",
     "--cholera_output_directory"), action = "store", default = Sys.getenv("CHOLERA_OUTPUT_DIRECTORY",
-      paste0(rprojroot::find_root(".choldir"), "/Analysis/data")), type = "character", help = "Output directory"),
-  optparse::make_option(c("-p",
-    "--postgres_database_name"), action = "store", default = Sys.getenv("CHOLERA_POSTGRES_DATABASE",
-      "cholera_covariates"), type = "character", help = "Postgres database name"),
+    paste0(rprojroot::find_root(".choldir"), "/Analysis/data")), type = "character",
+    help = "Output directory"), optparse::make_option(c("-p", "--postgres_database_name"),
+    action = "store", default = Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates"),
+    type = "character", help = "Postgres database name"), optparse::make_option(c("--postgres_database_user"),
+    action = "store", default = Sys.getenv("USER", "app"), type = "character", help = "Postgres database user"))
 
-  optparse::make_option(c("--postgres_database_user"), action = "store", default = Sys.getenv("USER",
-    "app"), type = "character", help = "Postgres database user")
-)
 opt <- optparse::parse_args((optparse::OptionParser(option_list = option_list)))
 
 dbname <- opt$postgres_database_name
@@ -122,14 +118,15 @@ my_seed <- c(10403, 624, 105045778, 1207077739, 2042172336, -219892751, -7680601
 
 query_time_left <- lubridate::ymd("2000-01-01")
 query_time_right <- lubridate::ymd("2001-12-31")
+
 ## Pull data frames needed to create testing database from the api This doesn't
 ## pull covariates, but does pull everything else tryCatch({ all_dfs <-
 ## taxdat::create_testing_dfs_from_api( username
-## =Sys.getenv('CHOLERA_API_USERNAME'), api_key = Sys.getenv('CHOLERA_API_KEY'),
-## locations = 'AFR::KEN', time_left = query_time_left, time_right =
-## query_time_right, uids = NULL, website =
-## 'https://api.cholera-taxonomy.middle-distance.com/' ) }, error = function(e) {
-## })
+## =Sys.getenv('CHOLERA_API_USERNAME'), api_key =
+## Sys.getenv('CHOLERA_API_KEY'), locations = 'AFR::KEN', time_left =
+## query_time_left, time_right = query_time_right, uids = NULL, website =
+## 'https://api.cholera-taxonomy.middle-distance.com/' ) }, error = function(e)
+## { })
 load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_object.rdata"))
 
 
@@ -180,61 +177,29 @@ test_underlying_distribution <- create_underlying_distribution(covariates = rast
     seed = my_seed)
 my_seed <- .GlobalEnv$.Random.seed
 
-observation_time_lefts <- seq.Date(query_time_left,query_time_right,56)
-observation_time_rights <- c(observation_time_lefts[-1]-1, query_time_right)
+observation_time_lefts <- seq.Date(query_time_left, query_time_right, 56)
+observation_time_rights <- c(observation_time_lefts[-1] - 1, query_time_right)
 
-test_observations <- observe_polygons(
-  test_polygons = dplyr::mutate(
-    all_dfs$shapes_df,
-    location = qualified_name,
-    geometry = geom
-  ),
-  test_covariates = raster_df,
-  underlying_distribution = test_underlying_distribution,
-  noise = FALSE,
-  number_draws = 1,
-  grid_proportion_observed = 1,
-  polygon_proportion_observed = 1,
-  min_time_left = query_time_left,
-  max_time_right = query_time_right,
-  seed = my_seed
-)
-for(date_idx in seq_len(length(observation_time_lefts))) {
-  if (is.null(test_observations)) {
-    test_observations <- observe_polygons(
-      test_polygons = dplyr::mutate(
-        all_dfs$shapes_df,
-        location = qualified_name,
-        geometry = geom
-      ),
-      test_covariates = raster_df,
-      underlying_distribution = test_underlying_distribution,
-      noise = FALSE,
-      number_draws = 1,
-      grid_proportion_observed = 1,
-      polygon_proportion_observed = 1,
-      min_time_left = observation_time_lefts[date_idx],
-      max_time_right = observation_time_rights[date_idx],
-      seed = my_seed
-    )
-  } else {
-    test_observations <- rbind(test_observations, observe_polygons(
-      test_polygons = dplyr::mutate(
-        all_dfs$shapes_df,
-        location = qualified_name,
-        geometry = geom
-      ),
-      test_covariates = raster_df,
-      underlying_distribution = test_underlying_distribution,
-      noise = FALSE,
-      number_draws = 1,
-      grid_proportion_observed = 1,
-      polygon_proportion_observed = 1,
-      min_time_left = observation_time_lefts[date_idx],
-      max_time_right = observation_time_rights[date_idx],
-      seed = my_seed
-    ))
-  }
+test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df,
+    location = qualified_name, geometry = geom), test_covariates = raster_df, underlying_distribution = test_underlying_distribution,
+    noise = FALSE, number_draws = 1, grid_proportion_observed = 1, polygon_proportion_observed = 1,
+    min_time_left = query_time_left, max_time_right = query_time_right, seed = my_seed)
+for (date_idx in seq_len(length(observation_time_lefts))) {
+    if (is.null(test_observations)) {
+        test_observations <- observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df,
+            location = qualified_name, geometry = geom), test_covariates = raster_df,
+            underlying_distribution = test_underlying_distribution, noise = FALSE,
+            number_draws = 1, grid_proportion_observed = 1, polygon_proportion_observed = 1,
+            min_time_left = observation_time_lefts[date_idx], max_time_right = observation_time_rights[date_idx],
+            seed = my_seed)
+    } else {
+        test_observations <- rbind(test_observations, observe_polygons(test_polygons = dplyr::mutate(all_dfs$shapes_df,
+            location = qualified_name, geometry = geom), test_covariates = raster_df,
+            underlying_distribution = test_underlying_distribution, noise = FALSE,
+            number_draws = 1, grid_proportion_observed = 1, polygon_proportion_observed = 1,
+            min_time_left = observation_time_lefts[date_idx], max_time_right = observation_time_rights[date_idx],
+            seed = my_seed))
+    }
 }
 my_seed <- .GlobalEnv$.Random.seed
 
@@ -262,7 +227,8 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
     smoothing_period = 1, case_definition = "suspected", covariate_choices = raster_df$name,
     data_source = "sql", file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir",
         "Analysis", "output", "test.stan_output.rdata"), stan_input = rprojroot::find_root_file(criterion = ".choldir",
-        "Analysis", "output", "test.stan_input.rdata")), processing = list(aggregate = TRUE, remove_overlaps = FALSE))
+        "Analysis", "output", "test.stan_input.rdata")), processing = list(aggregate = TRUE,
+        remove_overlaps = FALSE))
 
 yaml::write_yaml(x = config, file = config_filename)
 
