@@ -13,6 +13,7 @@ Suggests: readxl, sf, sp, raster, rgdal, testthat, knitr, rmarkdown
 RoxygenNote: 7.1.2
 VignetteBuilder: knitr
 Collate: 
+    'aggregation.R'
     'color_scale.R'
     'config_helpers.R'
     'covariate_helpers.R'
@@ -27,6 +28,7 @@ Collate:
     'setup_helpers.R'
     'pull_data_helpers.R'
     'model_evaluation_helpers.R'
+    'plot_cache_function.R'
     'plot_map.R'
     'run_stan_helpers.R'
     'shapefile_manipulation.R'

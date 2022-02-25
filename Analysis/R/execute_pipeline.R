@@ -243,6 +243,63 @@ temporal_location_grid_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = gl
        {config[[\"general\"]][[\"time_scale\"]]}
     )"))
 
+# Intermediate operations like aggregation and overlap removal
+
+observation_data.bak <- observation_data
+observation_temporal_location_mapping.bak <- observation_temporal_location_mapping
+if (config[["processing"]][["aggregate"]]) {
+    temporally_linked_observations <- observation_data %>%
+        dplyr::inner_join(observation_temporal_location_mapping)
+
+    observation_data_aggregated <- taxdat::aggregate_case_data(temporally_linked_observations,
+        taxdat::get_unique_columns_by_group(temporally_linked_observations, grouping_columns = c("observation_collection_id",
+            "temporal_location_id"), skip_columns = c("observation_collection_id",
+            "location_period_id", "shape", cases_column)))
+
+
+    observation_data <- sf::st_as_sf(taxdat::project_to_groups(observation_data_aggregated,
+        "observation_id", observation_data))
+    observation_temporal_location_mapping <- taxdat::project_to_groups(observation_data_aggregated,
+        c("observation_id", "temporal_location_id"), observation_temporal_location_mapping)
+
+}
+
+
+if (config[["processing"]][["remove_overlaps"]]) {
+    observation_data_with_t <- observation_data %>%
+        dplyr::inner_join(observation_temporal_location_mapping) %>%
+        dplyr::group_by(!!!rlang::syms(taxdat::get_unique_columns_by_group(observation_data,
+            "observation_id", skip_columns = c("shape")))) %>%
+        dplyr::summarize(t = list(unique(t)))
+    observation_data <- taxdat::remove_overlapping_observations(observation_data_with_t,
+        unique_column_names = "t") %>%
+        dplyr::ungroup() %>%
+        dplyr::select(-t)
+
+    ## new_observation_changer <- setNames(
+    ## sort(unique(observation_data_without_t$updated_observation_id)),
+    ## sort(unique(observation_data_without_t$intermediate_observation_id)) )
+    ## if
+    ## (!all(new_observation_changer[as.character(observation_data_without_t$intermediate_observation_id)]
+    ## == observation_data_without_t$updated_observation_id)) { stop('There is
+    ## a problem with computing the updated observation indices') }
+    ## observation_temporal_location_mapping <-
+    ## observation_temporal_location_mapping %>%
+    ## dplyr::mutate(intermediate_observation_id = updated_observation_id,
+    ## updated_observation_id =
+    ## new_observation_changer[as.character(intermediate_observation_id)]) %>%
+    ## dplyr::filter(!is.na(updated_observation_id),
+    ## !is.na(updated_temporal_location_id))
+    ## observation_temporal_location_mapping <-
+    ## observation_temporal_location_mapping %>%
+    ## dplyr::mutate(updated_observation_id =
+    ## observation_changer[as.character(observation_id)],
+    ## updated_temporal_location_id =
+    ## temporal_location_changer[as.character(temporal_location_id)], ) %>%
+    ## dplyr::filter(!is.na(updated_observation_id),
+    ## !is.na(updated_temporal_location_id))
+}
+
 ## Compute Missingness and remove partial observations
 
 covariate_covered_grid_ids <- covar_cube %>%
@@ -334,30 +391,7 @@ temporal_location_grid_mapping <- temporal_location_grid_mapping %>%
 ### Construct some additional parameters based on the above Define relevent
 ### directories Name the output file
 
-# Intermediate operations like aggregation and overlap removal
-
-observation_data.bak <- observation_data
-observation_temporal_location_mapping.bak <- observation_temporal_location_mapping
-if (config[["processing"]][["aggregate"]]) {
-    temporally_linked_observations <- observation_data %>%
-        dplyr::inner_join(observation_temporal_location_mapping)
-
-    observation_data_aggregated <- taxdat::aggregate_case_data(temporally_linked_observations,
-        taxdat::get_unique_columns_by_group(temporally_linked_observations, grouping_columns = c("observation_collection_id",
-            "temporal_location_id"), skip_columns = c("observation_collection_id",
-            "location_period_id", "shape", cases_column)))
-
-
-    observation_data <- sf::st_as_sf(taxdat::project_to_groups(observation_data_aggregated,
-        "updated_observation_id", observation_data))
-    observation_temporal_location_mapping <- taxdat::project_to_groups(observation_data_aggregated,
-        c("updated_observation_id", "temporal_location_id"), observation_temporal_location_mapping)
-
-}
-
-
-# if (config[['processing']][['remove_overlaps']]) { browser() } Stan modeling
-# section
+## Stan modeling section
 
 print("*** STARTING STAN MODEL ***")
 

@@ -85,8 +85,7 @@ aggregate_case_data <- function(case_data, unique_column_names = c("loctime")) {
             return(.x[!duplicated(.x), ])
         }) %>%
         dplyr::ungroup()
-    case_data$observation_id <- bit64::as.integer64(NA)
-    case_data$updated_observation_id <- bit64::as.integer64(factor(case_data$unique_observation_ids,
+    case_data$observation_id <- bit64::as.integer64(factor(case_data$unique_observation_ids,
         sort(unique(case_data$unique_observation_ids))))
     case_data <- sf::st_as_sf(case_data)
     sf::st_crs(case_data) <- ocrs
@@ -100,6 +99,7 @@ remove_overlapping_observations <- function(case_data, unique_column_names = c("
         dplyr::group_by(!!!rlang::syms(unique_column_names), observation_collection_id,
             location_period_id) %>%
         dplyr::group_modify(function(.x, .y) {
+            .x <- dplyr::arrange(.x, desc(time_right), time_left)
             for (to_remove in rev(seq_len(nrow(.x)))) {
                 other_indices <- seq_len(nrow(.x))
                 other_indices <- other_indices[other_indices != to_remove]
@@ -118,6 +118,6 @@ remove_overlapping_observations <- function(case_data, unique_column_names = c("
                 }
             }
             return(.x)
-        })
-    return(case_data)
+        }) %>%
+        return()
 }
