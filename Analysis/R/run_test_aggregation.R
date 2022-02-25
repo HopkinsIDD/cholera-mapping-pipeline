@@ -262,7 +262,7 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
     smoothing_period = 1, case_definition = "suspected", covariate_choices = raster_df$name,
     data_source = "sql", file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir",
         "Analysis", "output", "test.stan_output.rdata"), stan_input = rprojroot::find_root_file(criterion = ".choldir",
-        "Analysis", "output", "test.stan_input.rdata")))
+        "Analysis", "output", "test.stan_input.rdata")), processing = list(aggregate = TRUE, remove_overlaps = FALSE))
 
 yaml::write_yaml(x = config, file = config_filename)
 
