@@ -598,11 +598,11 @@ create or replace function pull_observation_data(location_name text, start_date 
       INNER JOIN
         filter_location_periods(location_name) as filtered_location_periods
           ON
-\t    observations.location_period_id = filtered_location_periods.location_period_id
+    observations.location_period_id = filtered_location_periods.location_period_id
       LEFT JOIN
         shapes
-\t  ON
-\t    observations.location_period_id = shapes.location_period_id
+  ON
+    observations.location_period_id = shapes.location_period_id
   WHERE
     observations.time_left >= start_date AND
     observations.time_right <= end_date;
@@ -739,12 +739,14 @@ create or replace function pull_observation_location_period_map(location_name te
     observation_id bigint,
     location_period_id bigint,
     t bigint,
+    tfrac double precision,
     temporal_location_id bigint
   ) AS $$
   SELECT
     observation_data.id as observation_id,
     location_periods.location_period_id,
     temporal_grid.id as t,
+    (least(observation_data.time_right, temporal_grid.time_max) - greatest(observation_data.time_left, temporal_grid.time_min)) * 1.::double precision / (temporal_grid.time_max - temporal_grid.time_min) as tfrac,
     DENSE_RANK() OVER (ORDER BY location_periods.location_period_id, temporal_grid.id) as temporal_location_id
   FROM
     pull_observation_data(location_name, start_date, end_date) as observation_data

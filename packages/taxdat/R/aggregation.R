@@ -31,7 +31,7 @@ get_unique_columns_by_group <- function(df, grouping_columns, skip_columns = gro
 
 
 #' @export
-aggregate_case_data <- function(case_data, unique_column_names = c("loctime")) {
+aggregate_case_data <- function(case_data, unique_column_names = c("loctime"), columns_to_sum_over = c("tfrac")) {
     ## aggregate observations:
     ocrs <- sf::st_crs(case_data)
     # TODO : Remove observation_collection_id, location_period_id from this
@@ -43,7 +43,7 @@ aggregate_case_data <- function(case_data, unique_column_names = c("loctime")) {
             cat("iter", unlist(.y), "\n")
             if (nrow(.x) <= 1) {
                 .x %>%
-                  dplyr::select(time_left, time_right, !!rlang::sym(cases_column)) %>%
+                  dplyr::select(time_left, time_right, !!!rlang::syms(columns_to_sum_over)) %>%
                   return()
             }
             ## combine non-adjacent but overlapping observations
@@ -76,10 +76,10 @@ aggregate_case_data <- function(case_data, unique_column_names = c("loctime")) {
             .x <- .x %>%
                 dplyr::group_by(set) %>%
                 dplyr::summarize(time_left = min(time_left), time_right = min(time_left) +
-                  sum(duration) - 1, `:=`(!!cases_column, sum(!!rlang::sym(cases_column),
-                  na.rm = TRUE)), unique_observation_ids = paste(sort(unique(sprintf(paste0("%0",
-                  ceiling(log(max(case_data$observation_id))/log(10)), "d"), as.integer(observation_id)))),
-                  collapse = " ")) %>%
+                  sum(duration) - 1, dplyr::across(columns_to_sum_over, ~sum(., na.rm = TRUE)),
+                  unique_observation_ids = paste(sort(unique(sprintf(paste0("%0",
+                    ceiling(log(max(case_data$observation_id))/log(10)), "d"), as.integer(observation_id)))),
+                    collapse = " ")) %>%
                 dplyr::ungroup() %>%
                 dplyr::select(-set)
             return(.x[!duplicated(.x), ])
@@ -120,4 +120,40 @@ remove_overlapping_observations <- function(case_data, unique_column_names = c("
             return(.x)
         }) %>%
         return()
+}
+
+#' @export
+do_censoring <- function(case_data, colnames, unique_column_names = c("loctime"),
+    threshold = 0.95) {
+    ocrs <- sf::st_crs(case_data)
+    max_observation_id <- max(case_data$observation_id)
+    case_data <- case_data %>%
+        dplyr::group_by(!!!rlang::syms(unique_column_names), observation_id) %>%
+        dplyr::group_modify(function(.x, .y) {
+            good_indices <- .x$tfrac > threshold
+            bad_indices <- .x$tfrac <= threshold
+            .x$new_observation_id <- .y$observation_id
+            ## only do censoring if there is at least one bad observation
+            if (any(bad_indices)) {
+                overestimate <- .x[good_indices, ]
+                underestimate <- .x
+                for (colname in colnames) {
+                  underestimate[[paste0(colname, "_R")]] <- underestimate[[colname]]
+                  overestimate[[paste0(colname, "_L")]] <- overestimate[[colname]][good_indices]
+                  overestimate[[colname]] <- as.numeric(NA)
+                  underestimate[[colname]] <- as.numeric(NA)
+                }
+                underestimate$new_observation_id <- .y$observation_id
+                overestimate$new_observation_id <- .y$observation_id + max_observation_id
+                .x <- bind_rows(underestimate, overestimate)
+            }
+            return(.x)
+        }) %>%
+        dplyr::ungroup()
+    case_data$original_observation_id <- case_data$observation_id
+    case_data$observation_id <- case_data$new_observation_id
+    case_data$new_observation_id <- NULL
+    case_data <- sf::st_as_sf(case_data)
+    sf::st_crs(case_data) <- ocrs
+    return(case_data)
 }

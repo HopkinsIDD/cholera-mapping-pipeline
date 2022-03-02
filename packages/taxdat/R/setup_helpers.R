@@ -255,6 +255,40 @@ config_checks[["stan"]][["nchain"]] <- function(value, config) {
     }
     return(TRUE)
 }
+config_checks[["stan"]][["beta_sigma_scale"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['stan']][['beta_sigma_scale']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['stan']][['beta_sigma_scale']] is NA")
+        return(FALSE)
+    }
+    if (!is.numeric(value)) {
+        warning("config[['stan']][['beta_sigma_scale']] should be numeric, but is",
+            value)
+        return(FALSE)
+    }
+    return(TRUE)
+}
+config_checks[["stan"]][["sigma_eta_scale"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['stan']][['sigma_eta_scale']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['stan']][['sigma_eta_scale']] is NA")
+        return(FALSE)
+    }
+    if (!is.numeric(value)) {
+        warning("config[['stan']][['sigma_eta_scale']] should be numeric, but is",
+            value)
+        return(FALSE)
+    }
+    return(TRUE)
+}
 
 config_checks[["initial_values"]] <- list()
 config_checks[["initial_values"]][["warmup"]] <- function(value, config) {
@@ -310,6 +344,43 @@ config_checks[["processing"]][["aggregate"]] <- function(value, config) {
     }
     return(TRUE)
 }
+config_checks[["processing"]][["censor_incomplete_observations"]] <- list()
+config_checks[["processing"]][["censor_incomplete_observations"]][["perform"]] <- function(value,
+    config) {
+    if (length(value) != 1) {
+        warning(paste("config[['processing']][['censor_incomplete_observations']][['perform']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['processing']][['censor_incomplete_observations']][['perform']] is NA")
+        return(FALSE)
+    }
+    if (!is.logical(value)) {
+        warning("config[['processing']][['censor_incomplete_observations']][['perform']] should be logical, but is",
+            value)
+        return(FALSE)
+    }
+    return(TRUE)
+}
+config_checks[["processing"]][["censor_incomplete_observations"]][["threshold"]] <- function(value,
+    config) {
+    if (length(value) != 1) {
+        warning(paste("config[['processing']][['censor_incomplete_observations']][['threshold']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['processing']][['censor_incomplete_observations']][['threshold']] is NA")
+        return(FALSE)
+    }
+    if (!is.numeric(value)) {
+        warning("config[['processing']][['censor_incomplete_observations']][['threshold']] should be numeric, but is",
+            value)
+        return(FALSE)
+    }
+    return(TRUE)
+}
 
 
 #' @name check_config
@@ -360,12 +431,19 @@ config_defaults[["processing"]][["aggregate"]] <- function(config) {
 config_defaults[["processing"]][["remove_overlaps"]] <- function(config) {
     return(TRUE)
 }
+config_defaults[["processing"]][["censor_incomplete_observations"]] <- list()
+config_defaults[["processing"]][["censor_incomplete_observations"]][["perform"]] <- function(config) {
+    return(TRUE)
+}
+config_defaults[["processing"]][["censor_incomplete_observations"]][["threshold"]] <- function(config) {
+    return(0.95)
+}
 
 config_defaults[["stan"]] <- list()
 config_defaults[["stan"]][["nchain"]] <- function(config) {
     return(pmax(config[["stan"]][["ncores"]], 2))
 }
-config_defaults[["stan"]][["nccores"]] <- function(config) {
+config_defaults[["stan"]][["ncores"]] <- function(config) {
     return(2)
 }
 config_defaults[["stan"]][["recompile"]] <- function(config) {
@@ -373,6 +451,12 @@ config_defaults[["stan"]][["recompile"]] <- function(config) {
 }
 config_defaults[["stan"]][["directory"]] <- function(config) {
     return(rprojroot::find_root_file("Analysis/Stan", criterion = rprojroot::has_file(".choldir")))
+}
+config_defaults[["stan"]][["beta_sigma_scale"]] <- function(config) {
+    return(1)
+}
+config_defaults[["stan"]][["sigma_eta_scale"]] <- function(config) {
+    return(5)
 }
 
 #' @name complete_config
