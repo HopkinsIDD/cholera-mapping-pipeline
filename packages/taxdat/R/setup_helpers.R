@@ -310,18 +310,37 @@ config_checks[["initial_values"]][["warmup"]] <- function(value, config) {
 }
 
 config_checks[["processing"]] <- list()
-config_checks[["processing"]][["remove_overlaps"]] <- function(value, config) {
+config_checks[["processing"]][["reorder_adjacency_matrix"]] <- function(value, config) {
     if (length(value) != 1) {
-        warning(paste("config[['processing']][['remove_overlaps']] should be of length 1, but is of length",
+        warning(paste("config[['processing']][['reorder_adjacency_matrix']] should be of length 1, but is of length",
             length(value), "with value", value))
         return(FALSE)
     }
     if (is.na(value)) {
-        warning("config[['processing']][['remove_overlaps']] is NA")
+        warning("config[['processing']][['reorder_adjacency_matrix']] is NA")
         return(FALSE)
     }
     if (!is.logical(value)) {
-        warning("config[['processing']][['remove_overlaps']] should be logical, but is",
+        warning("config[['processing']][['reorder_adjacency_matrix']] should be logical, but is",
+            value)
+        return(FALSE)
+    }
+    return(TRUE)
+}
+config_checks[["processing"]][["remove_overlaps"]] <- list()
+config_checks[["processing"]][["remove_overlaps"]][["preform"]] <- function(value,
+    config) {
+    if (length(value) != 1) {
+        warning(paste("config[['processing']][['remove_overlaps']][['perform']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['processing']][['remove_overlaps']][['perform']] is NA")
+        return(FALSE)
+    }
+    if (!is.logical(value)) {
+        warning("config[['processing']][['remove_overlaps']][['perform']] should be logical, but is",
             value)
         return(FALSE)
     }
@@ -426,6 +445,10 @@ config_defaults[["initial_values"]][["warmup"]] <- function(config) {
 
 config_defaults[["processing"]] <- list()
 config_defaults[["processing"]][["aggregate"]] <- function(config) {
+    return(TRUE)
+}
+config_defaults[["processing"]][["reorder_adjacency_matrix"]] <- list()
+config_defaults[["processing"]][["reorder_adjacency_matrix"]][["perform"]] <- function(config) {
     return(TRUE)
 }
 config_defaults[["processing"]][["remove_overlaps"]] <- function(config) {

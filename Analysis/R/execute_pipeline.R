@@ -198,7 +198,7 @@ observation_data <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.
     )")) %>%
     dplyr::mutate(shape = sf::st_as_sfc(shape), suspected_cases_L = as.numeric(NA),
         suspected_cases_R = as.numeric(NA), confirmed_cases_L = as.numeric(NA), confirmed_cases_R = as.numeric(NA),
-        deaths_L = as.numeric(NA), deaths_R = as.numeric(NA), ) %>%
+        deaths_L = as.numeric(NA), deaths_R = as.numeric(NA)) %>%
     dplyr::filter(!is.na(!!rlang::sym(cases_column))) %>%
     sf::st_as_sf()
 
@@ -304,18 +304,16 @@ if (config[["processing"]][["censor_incomplete_observations"]][["perform"]]) {
     observation_data[[paste0(cases_column, "_L")]] <- as.numeric(NA)
     observation_data[[paste0(cases_column, "_R")]] <- as.numeric(NA)
 }
+
 if (!all(is.na(observation_data[[paste0(cases_column, "_R")]]) | is.na(observation_data[[cases_column]])) &&
     !all(is.na(observation_data[[cases_column]]) | is.na(observation_data[[paste0(cases_column,
         "_L")]])) && !all(is.na(observation_data[[paste0(cases_column, "_R")]]) |
-    is.na(observation_data[[paste0(cases_column, "_L")]]))) ## Compute Missingness and remove partial observations is.na(observation_data[[paste0(cases_column,
-    is.na(observation_data[[paste0(cases_column, "_L")]]))) ## Compute Missingness and remove partial observations "_L")]])))
-    is.na(observation_data[[paste0(cases_column, "_L")]]))) ## Compute Missingness and remove partial observations ##
-    is.na(observation_data[[paste0(cases_column, "_L")]]))) ## Compute Missingness and remove partial observations Compute
-    is.na(observation_data[[paste0(cases_column, "_L")]]))) ## Compute Missingness and remove partial observations Missingness
-    is.na(observation_data[[paste0(cases_column, "_L")]]))) ## Compute Missingness and remove partial observations and
-    is.na(observation_data[[paste0(cases_column, "_L")]]))) ## Compute Missingness and remove partial observations remove
-    is.na(observation_data[[paste0(cases_column, "_L")]]))) ## Compute Missingness and remove partial observations partial
-    is.na(observation_data[[paste0(cases_column, "_L")]]))) ## Compute Missingness and remove partial observations observations
+    is.na(observation_data[[paste0(cases_column, "_L")]])) | any(is.na(observation_data[[paste0(cases_column,
+    "_R")]]) & is.na(observation_data[[cases_column]]) & is.na(observation_data[[paste0(cases_column,
+    "_L")]]))) {
+    stop(paste0("All observations should have exactly one observation from ", cases_column,
+        "_R ", cases_column, " ", cases_column, "_L by this point in processing."))
+}
 
 
 covariate_covered_grid_ids <- covar_cube %>%
@@ -404,6 +402,14 @@ temporal_location_grid_mapping <- temporal_location_grid_mapping %>%
     dplyr::filter(!is.na(updated_spatial_grid_id), !is.na(updated_temporal_location_id),
         !is.na(spacetime_grid_id))
 
+if (config[["processing"]][["reorder_adjacency_matrix"]][["perform"]]) {
+    bias <- covar_cube %>%
+        dplyr::filter(t == min(t)) %>%
+        dplyr::mutate(bias = x - y) %>%
+        .[["bias"]]
+    grid_adjacency <- taxdat::reorder_adjacency_matrix(grid_adjacency, bias, c("updated_id_1",
+        "updated_id_2"))
+}
 ### Construct some additional parameters based on the above Define relevent
 ### directories Name the output file
 

@@ -157,3 +157,42 @@ do_censoring <- function(case_data, colnames, unique_column_names = c("loctime")
     sf::st_crs(case_data) <- ocrs
     return(case_data)
 }
+
+#' @title Reorder for single source
+#'
+#' @description Reorder adjacency matrix to have single source
+#'
+#' @param A
+#' @param coords
+#'
+#' @return the reodered adjacency matrix
+#' @export
+reorder_adjacency_matrix <- function(adjacency_frame, element_bias, id_cols = c("id_1",
+    "id_2")) {
+    ## element_bias <- covar_cube %>% dplyr::filter(t == min(t)) %>%
+    ## mutate(bias = x - y) %>% .[['bias']]
+    N <- length(element_bias)
+
+    element_changer <- setNames(seq_len(N), seq_len(N)[order(element_bias)])
+
+    adjacency_matrix <- Matrix::sparseMatrix(i = adjacency_frame[[id_cols[[1]]]],
+        adjacency_frame[[id_cols[[2]]]], x = TRUE, symmetric = TRUE)[element_changer,
+        element_changer]
+
+    print("Reordering adjacency to have single source")
+
+    # Number of vertices
+    if (N != nrow(adjacency_matrix)) {
+        stop(paste("Adjacency frame does not imply the correct number of gridcells. This probably means there are gridcells with no neighbors:",
+            N, "expected, but", nrow(adjacency_matrix), "found."))
+    }
+
+    adjacency_graph <- igraph::graph_from_adjacency_matrix(adjacency_matrix, "undirected")
+    bfs_order <- as.vector(igraph::bfs(adjacency_graph, root = 1)$order)
+    reordered_matrix <- Matrix::triu(adjacency_matrix[bfs_order, bfs_order])[order(bfs_order),
+        order(bfs_order)][order(element_changer), order(element_changer)]
+    reordered_frame <- Matrix::summary(reordered_matrix)[, c("i", "j")]
+    names(reordered_frame) <- id_cols
+    return(reordered_frame)
+
+}
