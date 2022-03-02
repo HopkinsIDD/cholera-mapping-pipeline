@@ -16,3 +16,5 @@ Analysis/R/run_test_jk.R
 Analysis/output/test.stan_output.rdata
 Analysis/output/test.stan_input.rdata
 .Rhistory
+Analysis/configs/
+Layers/

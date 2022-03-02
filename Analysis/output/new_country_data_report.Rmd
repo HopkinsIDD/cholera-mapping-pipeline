@@ -1,0 +1,240 @@
+---
+title: "Data and Model Outputs Report"
+output: html_document
+params:
+  cholera_directory: "/home/app/cmp/"
+  config_filename: "/home/app/cmp/Analysis/R/test_config.yml"
+  drop_nodata_years: TRUE
+---
+```{r setup, include=FALSE, dev="CairoPNG"}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  dev="CairoPNG",
+  error = FALSE,
+  fig.align = "center",
+  message = TRUE,
+  warning = TRUE
+)
+library(stringr)
+library(dplyr)
+library(magrittr)
+library(purrr)
+library(readr)
+library(ggplot2)
+library(kableExtra)
+library(taxdat)
+library(sf)
+
+if (!("params" %in% ls())) {
+  params <- list(
+    cholera_directory = "/home/app/cmp/",
+    config_filename = "/home/app/cmp/Analysis/R/test_config.yml",
+    drop_nodata_years = TRUE
+  )
+}
+```
+
+# Mapping results summary for `r params$config_filename`
+
+## Cholera input data
+**Data input:**
+
+```{r load data}
+
+# Load data directory
+config <- yaml::read_yaml(params$config_filename)
+
+file_names <- taxdat::get_filenames(config, params$cholera_directory)
+
+stan_input <- taxdat::read_file_of_type(file_names[['stan_input']], "stan_input")
+
+sf_cases_resized <- stan_input$observation_data
+
+model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
+niter_per_chain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__', chain_num=1))[1]
+nchain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__'))[1] / niter_per_chain
+stan_output <- lapply(rstan::extract(model.rand), function(x){array(x,c(niter_per_chain, nchain, dim(x)[-1]))})
+cases_chains <- apply(stan_output$grid_cases, c(3,2), mean)
+```
+
+
+```{r disjoint set sf cases}
+disjoint_set_sf_cases <- taxdat::get_disjoint_set_sf_cases(stan_input_filename = file_names[["stan_input"]])
+```
+
+```{r rawobsmap, fig.height=5, fig.width=10, fig.cap="Observed case counts by time adjusted for time fraction cases/year"}
+  taxdat::plot_raw_observed_cases(
+    disjoint_set_sf_cases,
+    render = T
+  )
+```
+
+```{r areadjustedmap, fig.height=5, fig.width=10, fig.cap="Area adjusted average observed case counts by time adjusted for time fraction cases/(year * kilometer)"}
+taxdat::plot_area_adjusted_observed_cases(
+  disjoint_set_sf_cases,
+  render = T
+)
+```
+
+```{r obsmap, fig.height=5, fig.width=10, fig.cap="Number of observations by unique observed location periods."}
+taxdat::plot_raw_observations(disjoint_set_sf_cases,
+                              render = T)
+```
+
+
+## Covariates
+
+### Population
+```{r pop, fig.height=5, fig.width=10, fig.cap="Population density"}
+taxdat::plot_raster_population(covar_data_filename = file_names[["stan_input"]], render = T)
+```
+
+### Other covariates
+
+```{r covars, fig.height=5, fig.width=8, fig.cap="Covariate rasters"}
+taxdat::plot_raster_covariates(covar_data_filename = file_names["covar"], render = T)
+```
+
+## Output maps
+
+```{r analysisyears}
+analysis_years <- lubridate::year(config$general$start_date):lubridate::year(config$general$end_date)
+obs_years <- min(lubridate::year(stan_input$observation_data$time_left)):max(lubridate::year(stan_input$observation_data$time_right))
+```
+
+
+```{r importcase}
+case_raster <- taxdat::get_case_raster(
+  stan_input_filename = file_names[["stan_input"]],
+  model_output_filenames = file_names[["stan_output"]]
+)
+
+  if (all(analysis_years %in% obs_years)){
+    message("All analysis years are represented by OCs.")
+  } else{
+    drop_year_ix <- which(!analysis_years %in% obs_years)
+    message(paste(paste(analysis_years[drop_year_ix], collapse = ", "), "are not represented in OCs"))
+    if(params$drop_nodata_years){
+      message(paste("Dropping", paste(analysis_years[drop_year_ix], collapse = ", "), "from case_raster"))
+      case_raster <- dplyr::filter(case_raster, !(t %in% drop_year_ix))
+    }
+  }
+
+```
+
+```{r caserast, fig.cap="Modeled cases", fig.height=5, fig.width=10}
+
+if (!is.null(case_raster)) {
+  taxdat::plot_modeled_cases(case_raster, render = T)
+} else{
+  warning("case_raster is NULL")
+}
+
+```
+
+```{r raterast, fig.cap="Modeled rates", fig.height=5, fig.width=10}
+if(!is.null(case_raster)){
+  taxdat::plot_modeled_rates(case_raster, render = T)
+} else{
+  warning("case_raster is NULL")
+}
+```
+
+## Validation
+
+```{r import_modelfidel}
+data_fidelity <- taxdat::get_data_fidelity(
+  stan_input_filenames = file_names[["stan_input"]],
+  model_output_filenames = file_names[["stan_output"]]
+)
+
+```
+
+```{r datafidelity, fig.cap="Observations vs. modeled cases", fig.height=6, fig.width=6}
+
+if(!is.null(data_fidelity)){
+  taxdat::plot_model_fidelity(data_fidelity = data_fidelity,
+                            render = T)
+} else{
+  warning("data_fidelity is NULL")
+}
+
+
+```
+
+```{r traceplots, fig.height=8, fig.width=10, fig.cap="Stan trace plots"}
+
+if(!is.null(model.rand)){
+  ## No eta in the model right now
+  ## taxdat::plot_chain_convergence(file_names[["stan_output"]], pars =  c("rho", "betas", "log_std_dev_w", "eta"), render = T)
+  taxdat::plot_chain_convergence(file_names[["stan_output"]], pars =  c("rho", "betas", "log_std_dev_w"), render = T)
+}
+
+```
+
+
+
+```{r params, fig.height=6, fig.width=6, fig.cap="Parameter posteriors"}
+if(!is.null(model.rand)){
+  ## No eta in the model right now
+  ## rstan::plot(model.rand, pars =  c("rho", "betas", "log_std_dev_w", "eta"))
+  rstan::plot(model.rand, pars =  c("rho", "betas", "log_std_dev_w"))
+
+} else{
+  warning("model.rand is NULL")
+}
+```
+```{r rhat, fig.height=5, fig.width=10, fig.cap="Gelman-Rubin Rhat"}
+if (!is.null(model.rand)) {
+  taxdat::plot_rhat(model.rand, render = T)
+} else{
+  warning("model.rand is NULL")
+}
+```
+
+## Estimated cases by chain and time slice
+
+```{r cases_chain_table, fig.width=10, fig.cap = "Sum of grid cases by chain and year"}
+
+if(!is.null(model.rand) && !is.null(stan_input)){
+  covar_cube <- stan_input$covar_cube
+  covar_cube[,paste("cases", "chain", seq_len(ncol(cases_chains)), sep = "_")] <- cases_chains
+
+  if(params$drop_nodata_years & !all(analysis_years %in% obs_years)){
+    drop_year_ix <- which(!analysis_years %in% obs_years)
+    message(paste("Dropping", paste(analysis_years[drop_year_ix], collapse = ", "), "from cases_chains"))
+    covar_cube[, paste("cases", "chain", drop_year_ix, sep = "_")] <- NULL
+    stan_input$sf_grid <- dplyr::filter(stan_input$sf_grid, !(t %in% drop_year_ix))
+  }
+
+  warning("This plot says years but it lies unless the time slices are years")
+  by_years <- covar_cube %>%
+    dplyr::group_by(t) %>%
+    dplyr::summarise(dplyr::across(dplyr::contains("cases_chain"), sum)) %>%
+    dplyr::mutate(t = as.character(t))
+  mai <- by_years %>%
+    dplyr::summarise(dplyr::across(dplyr::contains("cases_chain"), mean)) %>%
+    dplyr::mutate(t = "mean annual cases")
+
+  dplyr::bind_rows(by_years, mai) %>%
+    kableExtra::kable(col.names = c("time slice", paste("chain", 1:nchain))) %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped"))
+
+} else{
+  warning("stan_input is NULL")
+}
+
+
+```
+
+```{r full country modeled cases, fig.cap = "comparison with WHO Output"}
+
+if(!is.null(stan_input$observation_data) & !is.null(model.rand)){
+  grid_cases_mean <- apply(cases_chains,1,mean)
+  total_cases <- sum(grid_cases_mean)
+  print(paste("There are",format(round(total_cases), big.mark=","),"total cases"))
+
+} else{
+  warning("chains was not extracted from model.rand")
+}
+```
