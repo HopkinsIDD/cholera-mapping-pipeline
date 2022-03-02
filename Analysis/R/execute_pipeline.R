@@ -196,15 +196,9 @@ observation_data <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.
        {config[[\"general\"]][[\"start_date\"]]},
        {config[[\"general\"]][[\"end_date\"]]}
     )")) %>%
-    dplyr::mutate(
-      shape = sf::st_as_sfc(shape),
-      suspected_cases_L = as.numeric(NA),
-      suspected_cases_R = as.numeric(NA),
-      confirmed_cases_L = as.numeric(NA),
-      confirmed_cases_R = as.numeric(NA),
-      deaths_L = as.numeric(NA),
-      deaths_R = as.numeric(NA),
-    ) %>%
+    dplyr::mutate(shape = sf::st_as_sfc(shape), suspected_cases_L = as.numeric(NA),
+        suspected_cases_R = as.numeric(NA), confirmed_cases_L = as.numeric(NA), confirmed_cases_R = as.numeric(NA),
+        deaths_L = as.numeric(NA), deaths_R = as.numeric(NA), ) %>%
     dplyr::filter(!is.na(!!rlang::sym(cases_column))) %>%
     sf::st_as_sf()
 
@@ -262,7 +256,8 @@ if (config[["processing"]][["aggregate"]]) {
     observation_data_aggregated <- taxdat::aggregate_case_data(temporally_linked_observations,
         taxdat::get_unique_columns_by_group(temporally_linked_observations, grouping_columns = c("observation_collection_id",
             "temporal_location_id"), skip_columns = c("observation_collection_id",
-            "location_period_id", "shape", cases_column)), columns_to_sum_over = c("tfrac", cases_column))
+            "location_period_id", "shape", cases_column)), columns_to_sum_over = c("tfrac",
+            cases_column))
 
 
     observation_data <- sf::st_as_sf(taxdat::project_to_groups(observation_data_aggregated,
@@ -293,16 +288,11 @@ if (config[["processing"]][["censor_incomplete_observations"]][["perform"]]) {
         dplyr::inner_join(observation_temporal_location_mapping)
 
 
-    observation_data_censored <- taxdat::do_censoring(
-      temporally_linked_observations,
-      unique_column_names = taxdat::get_unique_columns_by_group(
-        temporally_linked_observations,
-        grouping_columns = c("observation_id"),
-        skip_columns = c("observation_id", "shape", cases_column, paste0(cases_column, "_R"), paste0(cases_column, "_L"))
-      ),
-      colnames = cases_column,
-      threshold = config[["processing"]][["censor_incomplete_observations"]][["threshold"]]
-    )
+    observation_data_censored <- taxdat::do_censoring(temporally_linked_observations,
+        unique_column_names = taxdat::get_unique_columns_by_group(temporally_linked_observations,
+            grouping_columns = c("observation_id"), skip_columns = c("observation_id",
+                "shape", cases_column, paste0(cases_column, "_R"), paste0(cases_column,
+                  "_L"))), colnames = cases_column, threshold = config[["processing"]][["censor_incomplete_observations"]][["threshold"]])
 
 
     observation_data <- sf::st_as_sf(taxdat::project_to_groups(observation_data_censored,
@@ -310,11 +300,22 @@ if (config[["processing"]][["censor_incomplete_observations"]][["perform"]]) {
     observation_temporal_location_mapping <- taxdat::project_to_groups(observation_data_censored,
         c("observation_id", "temporal_location_id"), observation_temporal_location_mapping)
 } else {
-  observation_data <- dplyr::filter(observation_data, !is.na(!!rlang::sym(cases_column)))
-  observation_data[[paste0(cases_column, "_L")]] <- as.numeric(NA)
-  observation_data[[paste0(cases_column, "_R")]] <- as.numeric(NA)
+    observation_data <- dplyr::filter(observation_data, !is.na(!!rlang::sym(cases_column)))
+    observation_data[[paste0(cases_column, "_L")]] <- as.numeric(NA)
+    observation_data[[paste0(cases_column, "_R")]] <- as.numeric(NA)
 }
-## Compute Missingness and remove partial observations
+if (!all(is.na(observation_data[[paste0(cases_column, "_R")]]) | is.na(observation_data[[cases_column]])) &&
+    !all(is.na(observation_data[[cases_column]]) | is.na(observation_data[[paste0(cases_column,
+        "_L")]])) && !all(is.na(observation_data[[paste0(cases_column, "_R")]]) |
+    is.na(observation_data[[paste0(cases_column, "_L")]]))) ## Compute Missingness and remove partial observations is.na(observation_data[[paste0(cases_column,
+    is.na(observation_data[[paste0(cases_column, "_L")]]))) ## Compute Missingness and remove partial observations "_L")]])))
+    is.na(observation_data[[paste0(cases_column, "_L")]]))) ## Compute Missingness and remove partial observations ##
+    is.na(observation_data[[paste0(cases_column, "_L")]]))) ## Compute Missingness and remove partial observations Compute
+    is.na(observation_data[[paste0(cases_column, "_L")]]))) ## Compute Missingness and remove partial observations Missingness
+    is.na(observation_data[[paste0(cases_column, "_L")]]))) ## Compute Missingness and remove partial observations and
+    is.na(observation_data[[paste0(cases_column, "_L")]]))) ## Compute Missingness and remove partial observations remove
+    is.na(observation_data[[paste0(cases_column, "_L")]]))) ## Compute Missingness and remove partial observations partial
+    is.na(observation_data[[paste0(cases_column, "_L")]]))) ## Compute Missingness and remove partial observations observations
 
 
 covariate_covered_grid_ids <- covar_cube %>%
@@ -479,52 +480,28 @@ options(mc.cores = config[["stan"]][["ncores"]])
 standardize = function(x) (x - mean(x))/sd(x)
 standardize_covar = function(M) cbind(M[, 1], apply(M[, -1, drop = F], 2, standardize))
 
-stan_data <- list(
-  N = nrow(covar_cube),
-  N_edges = nrow(grid_adjacency),
-  smooth_grid_N = length(unique(covar_cube$updated_id)),
-  node1 = as.integer(grid_adjacency$updated_id_1),
-  node2 = as.integer(grid_adjacency$updated_id_2),
-  diag = nneighbors$nneighbors, pop = covar_cube$population, meanrate = 1, M = nrow(observation_data),
-  M_right = sum(!is.na(observation_data[[paste0(cases_column, "_R")]])),
-  M_full = sum(!is.na(observation_data[[cases_column]])),
-  M_left = sum(!is.na(observation_data[[paste0(cases_column, "_L")]])),
-  ind_right = as.array(which(!is.na(observation_data[[paste0(cases_column, "_R")]]))),
-  ind_full = as.array(which(!is.na(observation_data[[cases_column]]))),
-  ind_left = as.array(which(!is.na(observation_data[[paste0(cases_column, "_L")]]))),
-  T = cast_to_int32(max(observation_temporal_location_mapping$t)),
-  y = as.array(pmax(
-    pmin(
-      observation_data[[cases_column]],
-      observation_data[[paste0(cases_column, "_R")]],
-      na.rm=TRUE
-    ),
-    observation_data[[paste0(cases_column, "_L")]],
-    na.rm=TRUE
-  )),
-  L = length(unique(observation_temporal_location_mapping$updated_temporal_location_id)),
-  K1 = nrow(observation_temporal_location_mapping),
-  K2 = nrow(temporal_location_grid_mapping),
-  map_obs_loctime_obs = as.array(cast_to_int32(
-    observation_temporal_location_mapping$updated_observation_id
-  )),
-  map_obs_loctime_loc = as.array(cast_to_int32(
-    observation_temporal_location_mapping$updated_temporal_location_id
-  )),
-  tfrac = as.array(rep(1, times = nrow(observation_temporal_location_mapping))),
-  map_loc_grid_loc = as.array(cast_to_int32(temporal_location_grid_mapping$updated_temporal_location_id)),
-  map_loc_grid_grid = as.array(cast_to_int32(temporal_location_grid_mapping$spacetime_grid_id)),
-  as.array(cast_to_int32(temporal_location_grid_mapping$updated_spatial_grid_id)),
- map_smooth_grid = as.array(cast_to_int32(covar_cube$updated_id)),
-  rho = 0.999,
-  covar = standardize_covar(as.matrix(covar_cube[, covariate_names])),
- ncovar = length(covariate_names),
- beta_sigma_scale = config[["stan"]][["beta_sigma_scale"]],
- sigma_eta_scale = config[["stan"]][["sigma_eta_scale"]],
- use_weights = FALSE,
- use_rho_prior = TRUE
-  do_censoring = (0 != (sum(!is.na(observation_data[[paste0(cases_column, "_L")]])) + sum(!is.na(observation_data[[paste0(cases_column, "_R")]])))),
-)
+stan_data <- list(N = nrow(covar_cube), N_edges = nrow(grid_adjacency), smooth_grid_N = length(unique(covar_cube$updated_id)),
+    node1 = as.integer(grid_adjacency$updated_id_1), node2 = as.integer(grid_adjacency$updated_id_2),
+    diag = nneighbors$nneighbors, pop = covar_cube$population, meanrate = 1, M = nrow(observation_data),
+    M_right = sum(!is.na(observation_data[[paste0(cases_column, "_R")]])), M_full = sum(!is.na(observation_data[[cases_column]])),
+    M_left = sum(!is.na(observation_data[[paste0(cases_column, "_L")]])), ind_right = as.array(which(!is.na(observation_data[[paste0(cases_column,
+        "_R")]]))), ind_full = as.array(which(!is.na(observation_data[[cases_column]]))),
+    ind_left = as.array(which(!is.na(observation_data[[paste0(cases_column, "_L")]]))),
+    T = cast_to_int32(max(observation_temporal_location_mapping$t)), y = as.array(pmax(pmin(observation_data[[cases_column]],
+        observation_data[[paste0(cases_column, "_R")]], na.rm = TRUE), observation_data[[paste0(cases_column,
+        "_L")]], na.rm = TRUE)), L = length(unique(observation_temporal_location_mapping$updated_temporal_location_id)),
+    K1 = nrow(observation_temporal_location_mapping), K2 = nrow(temporal_location_grid_mapping),
+    map_obs_loctime_obs = as.array(cast_to_int32(observation_temporal_location_mapping$updated_observation_id)),
+    map_obs_loctime_loc = as.array(cast_to_int32(observation_temporal_location_mapping$updated_temporal_location_id)),
+    tfrac = as.array(rep(1, times = nrow(observation_temporal_location_mapping))),
+    map_loc_grid_loc = as.array(cast_to_int32(temporal_location_grid_mapping$updated_temporal_location_id)),
+    map_loc_grid_grid = as.array(cast_to_int32(temporal_location_grid_mapping$spacetime_grid_id)),
+    as.array(cast_to_int32(temporal_location_grid_mapping$updated_spatial_grid_id)),
+    map_smooth_grid = as.array(cast_to_int32(covar_cube$updated_id)), rho = 0.999,
+    covar = standardize_covar(as.matrix(covar_cube[, covariate_names])), ncovar = length(covariate_names),
+    beta_sigma_scale = config[["stan"]][["beta_sigma_scale"]], sigma_eta_scale = config[["stan"]][["sigma_eta_scale"]],
+    use_weights = FALSE, use_rho_prior = TRUE, do_censoring = (0 != (sum(!is.na(observation_data[[paste0(cases_column,
+        "_L")]])) + sum(!is.na(observation_data[[paste0(cases_column, "_R")]])))))
 
 
 # Save input
