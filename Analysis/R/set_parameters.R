@@ -12,15 +12,14 @@ if (Sys.getenv("INTERACTIVE_RUN", FALSE)) {
   )
 }
 
+if (Sys.getenv("PRODUCTION_RUN", TRUE)) {
+  Sys.setenv("REINSTALL_TAXDAT" = TRUE)
+}
+
 
 
 ### Libraries
 
-if (!require(taxdat)) {
-  install.packages("packages/taxdat", type = "source", repos = NULL)
-} else {
-  detach("package:taxdat")
-}
 # Install required packages
 package_list <- c(
   "DBI",
@@ -58,6 +57,7 @@ package_list <- c(
   "zoo"
 )
 
+library(magrittr)
 
 # for (package in package_list) {
 #   if (!require(package = package, character.only = T)) {
@@ -66,6 +66,8 @@ package_list <- c(
 #   }
 #   detach(pos = which(grepl(package, search())), force = T)
 # }
+
+
 
 
 ### Run options
@@ -91,15 +93,33 @@ config <- yaml::read_yaml(opt$config)
 try({setwd(utils::getSrcDirectory())}, silent = TRUE)
 try({setwd(dirname(rstudioapi::getActiveDocumentContext()$path))}, silent = TRUE)
 # Where is the repository
-cholera_directory <- ifelse(is.null(opt$cholera_directory), 
+cholera_directory <- ifelse(is.null(opt$cholera_directory),
                             rprojroot::find_root(rprojroot::has_file(".choldir")),
                             opt$cholera_directory)
+
+
+if (as.logical(Sys.getenv("PRODUCTION_RUN", TRUE)) && (nrow(gert::git_status(repo=cholera_directory)) != 0)) {
+  print(gert::git_status(repo=cholera_directory))
+  Sys.setenv(REINSTALL_TAXDAT = TRUE)
+  stop("There are local changes to the repository.  This is not allowed for a production run. Please revert or commit local changes")
+}
+
+if (Sys.getenv("REINSTALL_TAXDAT", FALSE)) {
+  install.packages(paste0(cholera_directory, "packages/taxdat"), type = "source", repos = NULL)
+} else if (!require(taxdat)) {
+  install.packages(paste0(cholera_directory, "packages/taxdat"), type = "source", repos = NULL)
+} else {
+  detach("package:taxdat")
+}
+
 
 # Relative to the repository, where is the layers directory
 laydir <- ifelse(is.null(opt$layers_directory),
                  rprojroot::find_root_file("Layers", criterion = rprojroot::has_file(".choldir")),
-                 opt$layers_directory)  
+                 opt$layers_directory)
 
+# s2 has different ideas about geometry validity than postgis does
+sf::sf_use_s2(FALSE)
 
 ## Inputs --------------------------------------------------------------------------------------------------------------
 print("---- Reading Parameters ----\n")
@@ -266,19 +286,19 @@ for(t_idx in 1:length(all_test_idx)){
     warning("We should revisit the way we name maps")
     map_name <- taxdat::make_map_name(config)
   }
-  
+
   covariate_name_part <- paste(short_covariates, collapse = '-')
   setwd(cholera_directory)
   dir.create("Analysis/output", showWarnings = FALSE)
-  
+
   # Load dictionary of configuration options
   config_dict <- yaml::read_yaml(paste0(cholera_directory, "/Analysis/configs/config_dictionary.yml"))
-  
+
   file_names <- taxdat::get_filenames(config=config, cholera_directory = cholera_directory)
-  
+
   # Preparation: Load auxillary functions
   # source(stringr::str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
-  
+
   ## Step 1: process observation shapefiles and prepare data ##
   print(file_names[["data"]])
   if(file.exists(file_names[["data"]])){
@@ -287,7 +307,7 @@ for(t_idx in 1:length(all_test_idx)){
     load(file_names[["data"]])
   } else if(!testing){
     source(paste(cholera_directory, 'Analysis', 'R', 'prepare_grid.R', sep='/'))
-    
+
     # First prepare the computation grid and get the grid name
     full_grid_name <- prepare_grid(
       dbuser = dbuser,
@@ -295,14 +315,14 @@ for(t_idx in 1:length(all_test_idx)){
       res_space = res_space,
       ingest = config$ingest_covariates
     )
-    
+
     # Pull data from taxonomy database (either using the API or SQL)
     source(paste(cholera_directory,'Analysis','R','prepare_map_data_revised.R',sep='/'))
-    
+
   } else {
     source(paste(cholera_directory,"Analysis", "R", "create_standardized_testing_data.R",sep='/'))
   }
-  
+
   ## Step 2: Extract the covariate cube and grid ##
   print(file_names[["covar"]])
   if (file.exists(file_names[["covar"]])) {
@@ -310,12 +330,12 @@ for(t_idx in 1:length(all_test_idx)){
     warning("Covariate cube already preprocessed, skipping")
     load(file_names[["covar"]])
   } else if(!testing){
-    
+
     # Note: the first covariate is always the population raster
     ## Step 2a: ingest the required covariates ##
     # Load the function
     source(paste(cholera_directory, 'Analysis', 'R', 'prepare_covariates.R', sep='/'))
-    
+
     # Run covariate preparation. The function return the list of covariate names
     # included in the model
     covar_list <- prepare_covariates(
@@ -332,10 +352,10 @@ for(t_idx in 1:length(all_test_idx)){
       full_grid_name = full_grid_name,
       aoi_name = config$aoi
     )
-    
+
     ## Step 2b: create the covar cube
     source(paste(cholera_directory, "Analysis/R/prepare_covar_cube.R", sep = "/"))
-    
+
     covar_cube_output <- prepare_covar_cube(
       covar_list = covar_list,
       dbuser = dbuser,
@@ -348,19 +368,19 @@ for(t_idx in 1:length(all_test_idx)){
       res_time = res_time,
       username = dbuser
     )
-    
+
     # Save results to file
     save(covar_cube_output, file = file_names[["covar"]])
   }
   print("NCOVAR")
   print(length(covariate_choices))
   print("NCOVAR")
-  
+
   ## Step 3: Prepare the stan input ##
   print(file_names[["stan_input"]])
   if(!file.exists(file_names[["stan_input"]])){
     source(paste(cholera_directory, "Analysis/R/prepare_stan_input.R", sep = "/"))
-    
+
     stan_input <-  prepare_stan_input(
       dbuser = dbuser,
       cholera_directory = cholera_directory,
@@ -375,23 +395,23 @@ for(t_idx in 1:length(all_test_idx)){
       location_periods_dict = covar_cube_output$location_periods_dict,
       covar_cube = covar_cube_output$covar_cube
     )
-    
+
     # Save data
     save(stan_input, file = file_names[["stan_input"]])
     sink(gsub('rdata','json', file_names[["stan_input"]]))
     cat(jsonlite::toJSON(stan_input$stan_data, auto_unbox=TRUE,matrix='rowmajor'))
     sink(NULL)
-    
+
   } else {
     print("Stan input already created, skipping")
     warning("Stan input already created, skipping")
   }
   load(file_names[["stan_input"]])
-  
+
   stan_data <- stan_input$stan_data
   sf_cases_resized <- stan_input$sf_cases_resized
   sf_grid <- stan_input$sf_grid
-  
+
   ## Step 4: Prepare the initial conditions
   if(file.exists(file_names[["initial_values"]])){
     print("Initial_values already found, skipping")
@@ -401,7 +421,7 @@ for(t_idx in 1:length(all_test_idx)){
     recompile <- FALSE
   }
   load(file_names[["initial_values"]])
-  
+
   ## Step 5: Run the model
   print(file_names[["stan_output"]])
   if(file.exists(file_names[["stan_output"]])){
@@ -415,7 +435,7 @@ for(t_idx in 1:length(all_test_idx)){
     source(paste(cholera_directory,'Analysis','R','run_stan_model.R',sep='/'))
     recompile <- FALSE
   }
-  
+
   taxdat::clean_all_tmp(dbuser = dbuser, map_name = map_name)
-  
+
 }
