@@ -29,6 +29,8 @@ library(taxdat)
 library(sf)
 library(raster)
 library(stars)
+sf::sf_use_s2(FALSE)
+
 
 ### other new packages (mainly for "rgeoboundaries")
 chooseCRANmirror(ind = 77)
@@ -74,7 +76,6 @@ capFig = function(x){
 # Load data directory
 config <- yaml::read_yaml(paste0(params$cholera_directory, params$config))
 file_names <- taxdat::get_filenames(config, params$cholera_directory)
-file_names<-update_filename_oldruns(filename=file_names,old_runs=params$old_runs)
 
 stan_input <- NULL
 try({
@@ -256,8 +257,15 @@ if(!is.null(disjoint_set_sf_cases)){
 ### Population
 **Population raster by time slices:**
 ```{r pop, fig.height=5, fig.width=10, fig.cap=capFig("Population density")}
-pop_raster_data <- raster(paste0(params$cholera_directory,"/Layers/pop/2000_1km_Aggregated.tif"))
-country_shp <- rgeoboundaries::gb_adm0(as.character(stringr::str_extract(params$config, "[A-Z]{3}")))
+pop_raster_data <- raster(paste0(params$cholera_directory,"/Layers/pop/2000_1km_Aggregated.tif"))##update to temporal-varying population (1*1KM)
+
+if(as.character(stringr::str_extract(params$config, "[A-Z]{3}")) == "ZNZ"){
+  country_shp <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+                                                c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
+}else{
+  country_shp <- rgeoboundaries::gb_adm0(as.character(stringr::str_extract(params$config, "[A-Z]{3}")))
+}
+
 pop_raster_data_cropped <- crop(pop_raster_data,extent(country_shp))
 pop_raster_data_cropped_masked<-mask(pop_raster_data_cropped,country_shp)
 
@@ -295,6 +303,11 @@ if(nrow(sf_grid) == prod(dim(pop_layer))){
   ### Use the geo package
   iso_code <- as.character(stringr::str_extract(params$config, "[A-Z]{3}"))
   admin_level <- as.numeric(params$admin_level_for_summary_table)
+  if (iso_code == "ZNZ" & admin_level == 1){
+    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
+  } else if (iso_code == "ZNZ"){
+    stop('Sorry, currently ZNZ only has the admin 1 level shape files available to use, please try again. ')
+  } else{
   if (admin_level == 1){
     boundary_sf <- rgeoboundaries::gb_adm1(iso_code)
   }else if (admin_level == 2){
@@ -307,6 +320,7 @@ if(nrow(sf_grid) == prod(dim(pop_layer))){
     stop('Error: the current admin level is unnecessarily high or invalid, 
     please check and change the parameters for the country data report before running again. ')
   }
+}
     
   ### For loops and make the table
   admin_pop_table <- data.frame(matrix(NA, length(boundary_sf$shapeName), length(unique(pltdata$t)) + 1))
@@ -332,7 +346,6 @@ year_list <- unique(pltdata$t) + (start_year-1)
       cropped <- raster::crop(pop_raster_data, boundary_sf[boundary_sf$shapeName == locs, ], snap = "out")
       masked <- raster::mask(cropped, boundary_sf[boundary_sf$shapeName == locs, ], updatevalue = NA)
       sum_pop <- sum(raster::getValues(masked), na.rm = TRUE)
-      #admin_pop_table[match(locs, admin_pop_table$adminlevel), (match(ts, unique(pltdata$t)) + 1)] <- sum_pop
       admin_pop_table[match(locs, admin_pop_table$adminlevel), !colnames(admin_pop_table)%in%"adminlevel"]<-round(sum_pop,4) 
       rm(cropped, masked)
     } 
@@ -352,7 +365,6 @@ year_list <- unique(pltdata$t) + (start_year-1)
   warning("sf_grid has a different number of cells or timepoints than covar_cube")
 }
 ## ===============================================
-
 ```
 
 ### Other covariates
@@ -383,7 +395,7 @@ case_raster <- NULL
     tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
     dplyr::mutate(chain = stringr::str_replace(chain, "modeled rates", ""),value=value)
   
-  empty_raster <- raster::raster(rate_raster, res = max(0.00833333, 0.00833333))
+  empty_raster <- raster::raster(rate_raster, res = max(0.00833333, 0.00833333))#1*1km raster
   disaggregated_rate_raster <- fasterize::fasterize(rate_raster, empty_raster, field = c("value"),by="t")
   
 if(length(unique(pltdata$t))>1){
@@ -551,7 +563,6 @@ for (ts in unique(rate_raster_admin$t)){
   }
   
   ## optimize memory
-  #rm(rate_raster_admin_ts, empty_raster, raster_data_pop, raster_data_rate, raster_data_cal_case)
   rm(rate_raster_admin_ts, raster_data_cal_case,raster_data_pop)
   
 }
@@ -586,6 +597,7 @@ try({
                                           model_output_filenames = file_names["stan_output"])
   
   }else{
+    #for old runs without initial_values output files
     stan_input_filenames = file_names["stan_input"]
     model_output_filenames = file_names["stan_output"]
     if (length(stan_input_filenames) != length(model_output_filenames))
@@ -743,6 +755,7 @@ if(!is.null(sf_cases_resized) & !is.null(model.rand)){
   who_annual_cases$observed <- who_annual_cases$attributes.fields.suspected_cases # fix me
   who_annual_cases_from_db <- NULL
   try({
+    #FIX this: pull data from sql not api
     who_annual_cases_from_db <- taxdat::pull_output_by_source(who_annual_cases, "%WHO Annual Cholera Reports%",
                                                               database_api_key_rfile = stringr::str_c(params$cholera_directory, "Analysis/R/database_api_key.R"))
   })
