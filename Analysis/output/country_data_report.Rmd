@@ -53,7 +53,6 @@ for (package in package_list) {
       library(package = package, character.only = T)
     }
   }
-  # detach(pos = which(grepl(package, search())))
 }
 
 
@@ -364,7 +363,7 @@ year_list <- unique(pltdata$t) + (start_year-1)
 } else{
   warning("sf_grid has a different number of cells or timepoints than covar_cube")
 }
-## ===============================================
+
 ```
 
 ### Other covariates
@@ -755,7 +754,6 @@ if(!is.null(sf_cases_resized) & !is.null(model.rand)){
   who_annual_cases$observed <- who_annual_cases$attributes.fields.suspected_cases # fix me
   who_annual_cases_from_db <- NULL
   try({
-    #FIX this: pull data from sql not api
     who_annual_cases_from_db <- taxdat::pull_output_by_source(who_annual_cases, "%WHO Annual Cholera Reports%",
                                                               database_api_key_rfile = stringr::str_c(params$cholera_directory, "Analysis/R/database_api_key.R"))
   })
