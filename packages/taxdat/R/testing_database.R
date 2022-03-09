@@ -126,16 +126,25 @@ CREATE MATERIALIZED VIEW grids.master_spatial_grid as
     add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
-#' @description Create a resized_spatial_grids table for use in testing
-#' @name create_resized_spatial_grids_table
-#' @title create_resized_spatial_grids_table
-#' @param psql_connection a connection to a database made with dbConnect
-#' @param drop Whether to drop an existing table
-create_resized_spatial_grids_table <- function(psql_connection, drop = FALSE) {
-    drop_query <- "DROP TABLE IF EXISTS grids.resized_spatial_grids CASCADE;"
-    add_query <- c("CREATE TABLE grids.resized_spatial_grids(rid integer, rast raster, width int, height int);",
-        "CREATE INDEX grids_resized_spatial_grids_size_idx ON grids.resized_spatial_grids (width, height, rid);")
+create_spatial_resolutions_table <- function(psql_connection, drop = FALSE) {
+    add_query <- "CREATE TABLE grids.spatial_resolutions(width_in_km int, height_in_km int, UNIQUE(width_in_km, height_in_km));"
+    drop_query <- "DROP TABLE IF EXISTS grids.spatial_resolutions CASCADE;"
+    add_and_or_drop(psql_connection, add_query, drop_query, drop)
+}
 
+create_resized_spatial_grids_view <- function(psql_connection, drop = FALSE) {
+    add_query <- "
+CREATE MATERIALIZED VIEW grids.resized_spatial_grids AS
+   SELECT
+     spatial_resolutions.width_in_km as width,
+     spatial_resolutions.height_in_km as height,
+     resized_grid.*
+   FROM
+     grids.spatial_resolutions,
+   LATERAL
+     resize_spatial_grid(width_in_km, height_in_km) as resized_grid;
+"
+    drop_query <- "DROP MATERIALIZED VIEW IF EXISTS grids.resized_spatial_grids CASCADE;"
     add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
@@ -184,40 +193,45 @@ FROM grids.time_bounds;"
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, add_query))
 }
 
-#' @description Create a resized_spatial_grid_polygons view for use in testing
-#' @name create_resized_spatial_grid_polygons_view
-#' @title create_resized_spatial_grid_polygons_view
+#' @description Create a resized_spatial_grid_pixels view for use in testing
+#' @name create_resized_spatial_grid_pixels_view
+#' @title create_resized_spatial_grid_pixels_view
 #' @param psql_connection a connection to a database made with dbConnect
-create_resized_spatial_grid_polygons_view <- function(psql_connection) {
+create_resized_spatial_grid_pixels_view <- function(psql_connection) {
     add_query <- "
-CREATE MATERIALIZED VIEW IF NOT EXISTS grids.resized_spatial_grid_polygons
+CREATE MATERIALIZED VIEW IF NOT EXISTS grids.resized_spatial_grid_pixels
 AS
   SELECT
+    ROW_NUMBER() OVER (ORDER BY 1) as id,
     rid,
     width,
     height,
-    dp.*
+    dp.x,
+    dp.y,
+    dp.geom as polygon,
+    st_centroid(dp.geom) as centroid
   FROM
     grids.resized_spatial_grids, LATERAL ST_PixelAsPolygons(rast, 1) AS dp;"
 
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, add_query))
 }
 
-#' @description Create a resized_spatial_grid_centroids view for use in testing
-#' @name create_resized_spatial_grid_centroids_view
-#' @title create_resized_spatial_grid_centroids_view
+#' @description Create a master_spatial_grid_centroids view for use in testing
+#' @name create_master_spatial_grid_centroids_view
+#' @title create_master_spatial_grid_centroids_view
 #' @param psql_connection a connection to a database made with dbConnect
-create_resized_spatial_grid_centroids_view <- function(psql_connection, drop = FALSE) {
+create_master_spatial_grid_centroids_view <- function(psql_connection, drop = FALSE) {
     add_query <- "
-CREATE MATERIALIZED VIEW IF NOT EXISTS grids.resized_spatial_grid_centroids
+CREATE MATERIALIZED VIEW IF NOT EXISTS grids.master_spatial_grid_centroids
 AS
   SELECT
+    ROW_NUMBER() OVER (ORDER BY 1) as id,
     rid,
-    width,
-    height,
-    dp.*
+    dp.x,
+    dp.y,
+    dp.geom
   FROM
-    grids.resized_spatial_grids, LATERAL ST_PixelAsCentroids(rast, 1) AS dp;"
+    grids.master_spatial_grid, LATERAL ST_PixelAsCentroids(rast, 1) AS dp;"
 
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, add_query))
 }
@@ -292,14 +306,20 @@ create_testing_base_database <- function(psql_connection, drop = FALSE) {
 #' @param psql_connection a connection to a database made with dbConnect
 #' @param drop Whether to drop existing database elements
 create_testing_additional_database <- function(psql_connection, drop = FALSE) {
-    create_resized_spatial_grids_table(psql_connection, drop)
+    create_spatial_resolutions_table(psql_connection, drop)
+    create_resize_spatial_grid_function(psql_connection)
+    create_resized_spatial_grids_view(psql_connection, drop)
     create_all_covariates_table(psql_connection, drop)
     create_time_bounds_table(psql_connection, drop)
     create_master_temporal_grid_view(psql_connection)
-    create_resized_spatial_grid_polygons_view(psql_connection)
-    create_resized_spatial_grid_centroids_view(psql_connection)
+    create_resized_spatial_grid_pixels_view(psql_connection)
+    create_master_spatial_grid_centroids_view(psql_connection)
     create_location_period_raster_map_view(psql_connection)
     create_covariate_grid_map_view(psql_connection)
+    create_shape_master_spatial_grid_map_view(psql_connection)
+    create_master_spatial_grid_resized_spatial_grid_map_view(psql_connection)
+    create_resized_spatial_grid_populations_view(psql_connection)
+    create_resized_spatial_fraction_view(psql_connection)
     invisible(NULL)
 }
 
@@ -314,7 +334,7 @@ create or replace function resize_spatial_grid(width_in_km int, height_in_km int
       master_spatial_grid.rast,
       (st_metadata(master_spatial_grid.rast)).width / width_in_km,
       (st_metadata(master_spatial_grid.rast)).height / height_in_km
-    ) as rast
+    ) as new_rast
   FROM
     grids.master_spatial_grid;
   $$ LANGUAGE SQL;"
@@ -366,26 +386,6 @@ WHEN (
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, trigger_add_query))
 }
 
-create_ingest_resized_spatial_grid_function <- function(psql_connection) {
-    function_query <- "
-create or replace function ingest_resized_spatial_grid(width_in_km int, height_in_km int)
-  returns void
-  LANGUAGE plpgsql
-  as $$
-  BEGIN
-  PERFORM * FROM grids.resized_spatial_grids
-    WHERE resized_spatial_grids.width = width_in_km AND resized_spatial_grids.height = height_in_km;
-  IF NOT FOUND THEN
-     INSERT INTO grids.resized_spatial_grids
-     SELECT rid, rast, width_in_km AS width, height_in_km AS height FROM resize_spatial_grid(width_in_km, height_in_km);
-  END IF;
-  END;
-  $$ SECURITY DEFINER;"
-
-    DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
-    invisible(NULL)
-}
-
 create_ingest_covariate_function <- function(psql_connection) {
     function_query <- "
 create or replace function ingest_covariate(name text, table_name text, ingest_time_left date, ingest_time_right date)
@@ -405,7 +405,7 @@ create or replace function ingest_covariate(name text, table_name text, ingest_t
 }
 
 create_pull_grid_adjacency_function <- function(psql_connection) {
-    create_filter_resized_spatial_grid_centroids_to_location_function(psql_connection)
+    create_filter_resized_spatial_grid_pixels_to_location_function(psql_connection)
     function_query <- "
 CREATE OR REPLACE FUNCTION pull_grid_adjacency(location_name text, width_in_km int, height_in_km int)
 RETURNS TABLE(id_1 BIGINT, rid_1 INT, x_1 INT, y_1 INT, id_2 BIGINT, rid_2 INT, x_2 INT, y_2 INT)AS $$
@@ -418,30 +418,14 @@ RETURNS TABLE(id_1 BIGINT, rid_1 INT, x_1 INT, y_1 INT, id_2 BIGINT, rid_2 INT, 
     rhs.rid AS rid_2,
     rhs.x AS x_2,
     rhs.y AS y_2
-  FROM filter_resized_spatial_grid_centroids_to_location(location_name, width_in_km, height_in_km) AS lhs
+  FROM filter_resized_spatial_grid_pixels_to_location(location_name, width_in_km, height_in_km) AS lhs
     INNER JOIN
-      grids.resized_spatial_grid_polygons AS lhs_poly
+      filter_resized_spatial_grid_pixels_to_location(location_name, width_in_km, height_in_km) AS rhs
         ON
-          lhs.rid = lhs_poly.rid AND
-          lhs.x = lhs_poly.x AND
-          lhs.y = lhs_poly.y
-    INNER JOIN
-      grids.resized_spatial_grid_polygons AS rhs_poly
-        ON
-          ST_INTERSECTS(st_buffer(lhs_poly.geom, sqrt(st_area(lhs_poly.geom))*.01), rhs_poly.geom)
-    INNER JOIN
-      filter_resized_spatial_grid_centroids_to_location(location_name, width_in_km, height_in_km) AS rhs
-        ON
-          rhs.rid = rhs_poly.rid AND
-          rhs.x = rhs_poly.x AND
-          rhs.y = rhs_poly.y
-
+          lhs.rid = rhs.rid AND
+          ST_INTERSECTS(ST_BUFFER(lhs.polygon, SQRT(ST_AREA(lhs.polygon))*.01), rhs.polygon)
   WHERE
-    lhs.id < rhs.id AND
-    lhs_poly.width = width_in_km AND
-    lhs_poly.height = height_in_km AND
-    rhs_poly.width = width_in_km AND
-    rhs_poly.height = height_in_km
+    lhs.id < rhs.id
   $$ LANGUAGE SQL;"
 
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
@@ -449,7 +433,7 @@ RETURNS TABLE(id_1 BIGINT, rid_1 INT, x_1 INT, y_1 INT, id_2 BIGINT, rid_2 INT, 
 }
 
 create_pull_symmetric_grid_adjacency_function <- function(psql_connection) {
-    create_filter_resized_spatial_grid_centroids_to_location_function(psql_connection)
+    create_filter_resized_spatial_grid_pixels_to_location_function(psql_connection)
     function_query <- "
 CREATE OR REPLACE FUNCTION pull_symmetric_grid_adjacency(location_name text, width_in_km int, height_in_km int)
 RETURNS TABLE(id_1 BIGINT, rid_1 INT, x_1 INT, y_1 INT, id_2 BIGINT, rid_2 INT, x_2 INT, y_2 INT)AS $$
@@ -462,45 +446,30 @@ RETURNS TABLE(id_1 BIGINT, rid_1 INT, x_1 INT, y_1 INT, id_2 BIGINT, rid_2 INT, 
     rhs.rid AS rid_2,
     rhs.x AS x_2,
     rhs.y AS y_2
-  FROM filter_resized_spatial_grid_centroids_to_location(location_name, width_in_km, height_in_km) AS lhs
+  FROM filter_resized_spatial_grid_pixels_to_location(location_name, width_in_km, height_in_km) AS lhs
     INNER JOIN
-      grids.resized_spatial_grid_polygons AS lhs_poly
+      filter_resized_spatial_grid_pixels_to_location(location_name, width_in_km, height_in_km) AS rhs
         ON
-          lhs.rid = lhs_poly.rid AND
-          lhs.x = lhs_poly.x AND
-          lhs.y = lhs_poly.y
-    INNER JOIN
-      grids.resized_spatial_grid_polygons AS rhs_poly
-        ON
-          ST_INTERSECTS(st_buffer(lhs_poly.geom, sqrt(st_area(lhs_poly.geom))*.01), rhs_poly.geom)
-    INNER JOIN
-      filter_resized_spatial_grid_centroids_to_location(location_name, width_in_km, height_in_km) AS rhs
-        ON
-          rhs.rid = rhs_poly.rid AND
-          rhs.x = rhs_poly.x AND
-          rhs.y = rhs_poly.y
-
+          lhs.rid = rhs.rid AND
+          ST_INTERSECTS(ST_BUFFER(lhs.polygon, SQRT(ST_AREA(lhs.polygon))*.01), rhs.polygon)
   WHERE
-    lhs.id != rhs.id AND
-    lhs_poly.width = width_in_km AND
-    lhs_poly.height = height_in_km AND
-    rhs_poly.width = width_in_km AND
-    rhs_poly.height = height_in_km
+    lhs.id != rhs.id
   $$ LANGUAGE SQL;"
 
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
 }
 
-create_filter_resized_spatial_grid_centroids_to_location_function <- function(psql_connection) {
+create_filter_resized_spatial_grid_pixels_to_location_function <- function(psql_connection) {
     function_query <- "
-create or replace function filter_resized_spatial_grid_centroids_to_location(location_name text, width_in_km int, height_in_km int)
-  returns table(id bigint, rid int, x int, y int, geom geometry) AS $$
+create or replace function filter_resized_spatial_grid_pixels_to_location(location_name text, width_in_km int, height_in_km int)
+  returns table(id bigint, rid int, x int, y int, centroid geometry, polygon geometry) AS $$
   SELECT
-    ROW_NUMBER() OVER (ORDER BY 1) as id,
-    resized_spatial_grid_centroids.rid,
-    resized_spatial_grid_centroids.x,
-    resized_spatial_grid_centroids.y,
-    resized_spatial_grid_centroids.geom
+    resized_spatial_grid_pixels.id,
+    resized_spatial_grid_pixels.rid,
+    resized_spatial_grid_pixels.x,
+    resized_spatial_grid_pixels.y,
+    resized_spatial_grid_pixels.centroid,
+    resized_spatial_grid_pixels.polygon
   FROM
     locations
   LEFT JOIN
@@ -516,16 +485,28 @@ create or replace function filter_resized_spatial_grid_centroids_to_location(loc
       ON
         location_period_raster_map.shape_id = shapes.id
   LEFT JOIN
-    grids.resized_spatial_grid_centroids
+    grids.master_spatial_grid_centroids
       ON
-        location_period_raster_map.rid = resized_spatial_grid_centroids.rid AND
-        resized_spatial_grid_centroids.width = location_period_raster_map.width AND
-        resized_spatial_grid_centroids.height = location_period_raster_map.height AND
-\tst_contains(shapes.shape, resized_spatial_grid_centroids.geom)
+        location_period_raster_map.rid = grids.master_spatial_grid_centroids.rid AND
+        st_contains(shapes.shape, master_spatial_grid_centroids.geom)
+  LEFT JOIN
+    grids.resized_spatial_grid_pixels
+      ON
+        master_spatial_grid_centroids.rid = resized_spatial_grid_pixels.rid AND
+        resized_spatial_grid_pixels.width = location_period_raster_map.width AND
+        resized_spatial_grid_pixels.height = location_period_raster_map.height AND
+        st_contains(resized_spatial_grid_pixels.polygon, master_spatial_grid_centroids.geom)
   WHERE
     locations.qualified_name = location_name AND
-    resized_spatial_grid_centroids.width = width_in_km AND
-    resized_spatial_grid_centroids.height = height_in_km
+    resized_spatial_grid_pixels.width = width_in_km AND
+    resized_spatial_grid_pixels.height = height_in_km
+  GROUP BY
+  resized_spatial_grid_pixels.id,
+  resized_spatial_grid_pixels.rid,
+  resized_spatial_grid_pixels.x,
+  resized_spatial_grid_pixels.y,
+  resized_spatial_grid_pixels.centroid,
+  resized_spatial_grid_pixels.polygon
   $$ LANGUAGE SQL;"
 
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
@@ -615,18 +596,18 @@ create or replace function pull_observation_data(location_name text, start_date 
 create_pull_location_period_grid_map_function <- function(psql_connection) {
     function_query <- "
 create or replace function pull_location_period_grid_map(location_name text, start_date date, end_date date, width_in_km int, height_in_km int, time_scale text)
-RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint, temporal_location_id bigint, shape_id bigint, spatial_grid_id bigint, rid int, x int, y int, t bigint) AS $$
+RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint, shape_id bigint, spatial_grid_id bigint, rid int, x int, y int, t bigint, sfrac double precision) AS $$
   SELECT
     location_periods.qualified_name as qualified_name,
     location_periods.location_id as location_id,
     location_periods.location_period_id as location_period_id,
-    temporal_locations.temporal_location_id as temporal_location_id,
     shapes.id as shape_id,
     spatial_grid.id as spatial_grid_id,
     spatial_grid.rid,
     spatial_grid.x,
     spatial_grid.y,
-    temporal_locations.t
+    temporal_grid.id as t,
+    shape_resized_spatial_grid_map_view.sfrac
   FROM
     filter_location_periods(location_name) as location_periods
       LEFT JOIN
@@ -634,13 +615,25 @@ RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint
       on
         location_periods.location_period_id = shapes.location_period_id
       LEFT JOIN
-    filter_resized_spatial_grid_centroids_to_location(location_name, width_in_km, height_in_km) as spatial_grid
-      on
-        ST_CONTAINS(shapes.shape, spatial_grid.geom)
+    grids.shape_resized_spatial_grid_map_view
+      ON
+        shape_resized_spatial_grid_map_view.shape_id = shapes.id
       LEFT JOIN
-    pull_observation_location_period_map(location_name, start_date, end_date, time_scale) as temporal_locations
-      on location_periods.location_period_id = temporal_locations.location_period_id;
-  $$ LANGUAGE SQL;"
+    grids.resized_spatial_grid_pixels as spatial_grid
+      ON
+        shape_resized_spatial_grid_map_view.resized_id = spatial_grid.id
+      RIGHT JOIN
+    resize_temporal_grid(time_scale) as temporal_grid
+      ON
+        shape_resized_spatial_grid_map_view.time_left <= temporal_grid.time_midpoint AND
+        shape_resized_spatial_grid_map_view.time_right >= temporal_grid.time_midpoint
+  WHERE
+    shape_resized_spatial_grid_map_view.width = width_in_km AND
+    shape_resized_spatial_grid_map_view.height = height_in_km AND
+    temporal_grid.time_midpoint <= end_date AND
+    temporal_grid.time_midpoint >= start_date
+  $$ LANGUAGE SQL;
+"
 
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
     invisible(NULL)
@@ -694,16 +687,16 @@ RETURNS TABLE(covariate_name text, t bigint, id bigint, rid int, x int, y int, v
   SELECT
     all_covariates.covariate_name,
     temporal_grid.id as t,
-    grid_centroids.id,
-    grid_centroids.rid,
-    grid_centroids.x,
-    grid_centroids.y,
-    ST_VALUE(all_covariates.rast, grid_centroids.geom) as value
-  FROM filter_resized_spatial_grid_centroids_to_location(location_name, width_in_km, height_in_km) as grid_centroids
+    grid_pixels.id,
+    grid_pixels.rid,
+    grid_pixels.x,
+    grid_pixels.y,
+    ST_VALUE(all_covariates.rast, grid_pixels.centroid) as value
+  FROM filter_resized_spatial_grid_pixels_to_location(location_name, width_in_km, height_in_km) as grid_pixels
     INNER JOIN
       covariate_grid_map
         ON
-          grid_centroids.rid = covariate_grid_map.grid_rid
+          grid_pixels.rid = covariate_grid_map.grid_rid
     INNER JOIN
       resize_temporal_grid(time_scale) as temporal_grid
         ON
@@ -720,7 +713,7 @@ RETURNS TABLE(covariate_name text, t bigint, id bigint, rid int, x int, y int, v
           all_covariates.time_left <= temporal_grid.time_midpoint AND
             all_covariates.time_right >= temporal_grid.time_midpoint AND
           covariate_grid_map.covariate_name = all_covariates.covariate_name AND
-          st_intersects(all_covariates.rast, grid_centroids.geom)
+          st_intersects(all_covariates.rast, grid_pixels.centroid)
   WHERE
     temporal_grid.time_midpoint >= start_date AND
     temporal_grid.time_midpoint <= end_date AND
@@ -739,15 +732,13 @@ create or replace function pull_observation_location_period_map(location_name te
     observation_id bigint,
     location_period_id bigint,
     t bigint,
-    tfrac double precision,
-    temporal_location_id bigint
+    tfrac double precision
   ) AS $$
   SELECT
     observation_data.id as observation_id,
     location_periods.location_period_id,
     temporal_grid.id as t,
-    (least(observation_data.time_right, temporal_grid.time_max) - greatest(observation_data.time_left, temporal_grid.time_min)) * 1.::double precision / (temporal_grid.time_max - temporal_grid.time_min) as tfrac,
-    DENSE_RANK() OVER (ORDER BY location_periods.location_period_id, temporal_grid.id) as temporal_location_id
+    (least(observation_data.time_right, temporal_grid.time_max) - greatest(observation_data.time_left, temporal_grid.time_min)) * 1.::double precision / (temporal_grid.time_max - temporal_grid.time_min) as tfrac
   FROM
     pull_observation_data(location_name, start_date, end_date) as observation_data
       LEFT JOIN
@@ -771,9 +762,7 @@ create or replace function pull_observation_location_period_map(location_name te
 #' @title create_testing_database_functions
 #' @param psql_connection a connection to a database made with dbConnect
 create_testing_database_functions <- function(psql_connection) {
-    create_resize_spatial_grid_function(psql_connection)
     create_lookup_location_period_function(psql_connection)
-    create_ingest_resized_spatial_grid_function(psql_connection)
     create_ingest_covariate_function(psql_connection)
     create_pull_grid_adjacency_function(psql_connection)
     create_pull_symmetric_grid_adjacency_function(psql_connection)
@@ -790,8 +779,9 @@ create_testing_database_functions <- function(psql_connection) {
 #' @export
 refresh_materialized_views <- function(psql_connection) {
     queries <- paste("REFRESH MATERIALIZED VIEW", c("grids.master_spatial_grid",
-        "grids.resized_spatial_grid_polygons", "grids.resized_spatial_grid_centroids",
-        "location_period_raster_map", "covariate_grid_map"))
+        "grids.resized_spatial_grids", "grids.resized_spatial_grid_pixels", "grids.master_spatial_grid_centroids",
+        "location_period_raster_map", "covariate_grid_map", "shape_master_spatial_grid_centroids_map",
+        "grids.master_spatial_grid_resized_spatial_grid_map", "grids.shape_resized_spatial_grid_map_view"))
     for (query in queries) {
         DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, query))
     }
@@ -838,6 +828,9 @@ setup_testing_database_from_dataframes <- function(psql_connection, data_frame_l
     insert_testing_shapefiles(psql_connection, data_frame_list$shapes_df)
     refresh_materialized_views(psql_connection)
     ingest_spatial_grid(psql_connection, width = 1, height = 1)
+    ingest_spatial_grid(psql_connection, width = 2, height = 2)
+    ingest_spatial_grid(psql_connection, width = 5, height = 5)
+    ingest_spatial_grid(psql_connection, width = 10, height = 10)
     refresh_materialized_views(psql_connection)
     insert_testing_observations(psql_connection, data_frame_list$observations_df)
     for (fun in covariate_creation_function_list) {
@@ -849,11 +842,11 @@ setup_testing_database_from_dataframes <- function(psql_connection, data_frame_l
 
 drop_testing_database_functions <- function(psql_connection) {
     drop_queries <- c("DROP FUNCTION resize_spatial_grid", "DROP FUNCTION lookup_location_period",
-        "DROP FUNCTION ingest_resized_spatial_grid", "DROP FUNCTION ingest_covariate",
-        "DROP FUNCTION filter_resized_spatial_grid", "DROP FUNCTION filter_resized_spatial_grid_centroids_to_location",
-        "DROP FUNCTION pull_symmetric_grid_adjacency", "DROP FUNCTION pull_observation_data",
-        "DROP FUNCTION filter_location_periods", "DROP FUNCTION resize_temporal_grid",
-        "DROP FUNCTION pull_observation_location_period_map", "DROP FUNCTION pull_location_period_grid_map")
+        "DROP FUNCTION ingest_covariate", "DROP FUNCTION filter_resized_spatial_grid",
+        "DROP FUNCTION filter_resized_spatial_grid_pixels_to_location", "DROP FUNCTION pull_symmetric_grid_adjacency",
+        "DROP FUNCTION pull_observation_data", "DROP FUNCTION filter_location_periods",
+        "DROP FUNCTION resize_temporal_grid", "DROP FUNCTION pull_observation_location_period_map",
+        "DROP FUNCTION pull_location_period_grid_map")
 
     sapply(drop_queries, function(query) {
         DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, query))
@@ -870,11 +863,10 @@ destroy_testing_database <- function(psql_connection) {
     drop_query <- c("DROP TABLE IF EXISTS location_periods CASCADE", "DROP TABLE IF EXISTS locations CASCADE",
         "DROP TABLE IF EXISTS shapes CASCADE", "DROP TABLE IF EXISTS observations CASCADE",
         "DROP TABLE IF EXISTS location_hierarchies CASCADE", "DROP MATERIALIZED VIEW IF EXISTS grids.master_spatial_grid CASCADE",
-        "DROP TABLE IF EXISTS grids.resized_spatial_grids CASCADE", "DROP TABLE IF EXISTS grids.time_bounds CASCADE",
-        "DROP TABLE IF EXISTS covariates.all_covariates CASCADE", "DROP MATERIALIZED VIEW IF EXISTS grids.resized_spatial_grid_polygons",
-        "DROP MATERIALIZED VIEW IF EXISTS grids.resized_spatial_grid_centroids",
-        "DROP MATERIALIZED VIEW IF EXISTS location_period_raster_map", "DROP MATERIALIZED VIEW IF EXISTS covariate_grid_map CASCADE",
-        "DROP SCHEMA IF EXISTS covariates CASCADE")
+        "DROP TABLE IF EXISTS grids.spatial_resolutions CASCADE", "DROP TABLE IF EXISTS grids.time_bounds CASCADE",
+        "DROP TABLE IF EXISTS covariates.all_covariates CASCADE", "DROP MATERIALIZED VIEW IF EXISTS grids.resized_spatial_grid_pixels",
+        "DROP MATERIALIZED VIEW IF EXISTS grids.master_spatial_grid_centroids", "DROP MATERIALIZED VIEW IF EXISTS location_period_raster_map",
+        "DROP MATERIALIZED VIEW IF EXISTS covariate_grid_map CASCADE", "DROP SCHEMA IF EXISTS covariates CASCADE")
     sapply(drop_query, function(query) {
         DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, query))
     })
@@ -1102,12 +1094,12 @@ insert_testing_observations <- function(psql_connection, observation_df) {
 #' @param heigh height of the grid cells in km
 #' @export
 ingest_spatial_grid <- function(psql_connection, width = 1, height = 1, do_refresh = TRUE) {
+    ingest_query <- "INSERT INTO grids.spatial_resolutions VALUES({width}, {height});"
+    ingest_query <- glue::glue_sql(.con = psql_connection, ingest_query)
+    DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, ingest_query))
     if (do_refresh) {
         refresh_materialized_views(psql_connection)
     }
-    ingest_query <- "SELECT ingest_resized_spatial_grid({width}, {height});"
-    ingest_query <- glue::glue_sql(.con = psql_connection, ingest_query)
-    DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, ingest_query))
     invisible(NULL)
 }
 
@@ -1338,4 +1330,119 @@ convert_simulated_data_to_test_dataframes <- function(simulated_data) {
         min_time_left = min_time_left, max_time_right = max_time_right)
 
     return(list(dataframes = all_dfs, covariate_function_list = covariate_raster_funs))
+}
+
+
+
+## --- NEW
+
+create_shape_master_spatial_grid_map_view <- function(psql_connection) {
+    add_query <- "
+CREATE MATERIALIZED VIEW IF NOT EXISTS shape_master_spatial_grid_centroids_map
+AS
+  SELECT
+    ROW_NUMBER() OVER (ORDER BY 1) as id,
+    master_spatial_grid_centroids.id as grid_id,
+    shapes.id as shape_id
+  FROM
+    grids.master_spatial_grid_centroids
+      INNER JOIN
+    shapes
+      ON
+        ST_CONTAINS(shapes.shape, master_spatial_grid_centroids.geom);
+"
+
+    DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, add_query))
+}
+
+create_master_spatial_grid_resized_spatial_grid_map_view <- function(psql_connection) {
+    add_query <- "
+  CREATE MATERIALIZED VIEW IF NOT EXISTS grids.master_spatial_grid_resized_spatial_grid_map AS
+    SELECT
+      master_grid.id as master_id,
+      resized_grid.id as resized_id,
+      resized_grid.width,
+      resized_grid.height
+    FROM
+      grids.master_spatial_grid_centroids AS master_grid
+    INNER JOIN
+      grids.resized_spatial_grid_pixels AS resized_grid
+        ON
+          ST_CONTAINS(resized_grid.polygon, master_grid.geom);
+"
+    DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, add_query))
+}
+
+create_resized_spatial_grid_populations_view <- function(psql_connection) {
+    add_query <- "
+  CREATE VIEW grids.resized_spatial_grid_populations as SELECT
+    resized_id,
+    all_covariates.time_left,
+    all_covariates.time_right,
+    sum(st_value(rast, geom)) as master_grid_population
+  FROM
+    grids.master_spatial_grid_centroids
+      INNER JOIN
+  covariates.all_covariates
+    ON
+      st_intersects(all_covariates.rast, master_spatial_grid_centroids.geom)
+    LEFT JOIN
+  grids.master_spatial_grid_resized_spatial_grid_map
+    ON
+      master_spatial_grid_centroids.id = master_spatial_grid_resized_spatial_grid_map.master_id
+  WHERE
+    covariate_name = 'population'
+  GROUP BY
+    resized_id,
+    all_covariates.time_left,
+    all_covariates.time_right
+  ORDER BY
+    sum(st_value(rast,geom));
+  "
+    DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, add_query))
+}
+
+create_resized_spatial_fraction_view <- function(psql_connection) {
+    add_query <- "
+  CREATE MATERIALIZED VIEW IF NOT EXISTS grids.shape_resized_spatial_grid_map_view as
+  SELECT
+    master_spatial_grid_resized_spatial_grid_map.resized_id,
+    master_spatial_grid_resized_spatial_grid_map.width,
+    master_spatial_grid_resized_spatial_grid_map.height,
+    shape_id,
+    all_covariates.time_left,
+    all_covariates.time_right,
+    sum(st_value(rast, geom)) / resized_spatial_grid_populations.master_grid_population as sfrac
+  FROM
+    grids.master_spatial_grid_centroids
+      INNER JOIN
+  covariates.all_covariates
+    ON
+      st_intersects(all_covariates.rast, master_spatial_grid_centroids.geom)
+    LEFT JOIN
+  grids.master_spatial_grid_resized_spatial_grid_map
+    ON
+      master_spatial_grid_centroids.id = master_spatial_grid_resized_spatial_grid_map.master_id
+    LEFT JOIN
+  shape_master_spatial_grid_centroids_map
+    ON
+      master_spatial_grid_centroids.id = shape_master_spatial_grid_centroids_map.grid_id
+    LEFT JOIN
+  grids.resized_spatial_grid_populations
+    ON
+      all_covariates.time_left = resized_spatial_grid_populations.time_left AND
+      all_covariates.time_right = resized_spatial_grid_populations.time_right AND
+      master_spatial_grid_resized_spatial_grid_map.resized_id = resized_spatial_grid_populations.resized_id
+  WHERE
+    covariate_name = 'population'
+  GROUP BY
+    master_spatial_grid_resized_spatial_grid_map.resized_id,
+    shape_id,
+    all_covariates.time_left,
+    all_covariates.time_right,
+    resized_spatial_grid_populations.master_grid_population,
+    master_spatial_grid_resized_spatial_grid_map.width,
+    master_spatial_grid_resized_spatial_grid_map.height;
+  "
+    DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, add_query))
 }

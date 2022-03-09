@@ -230,10 +230,8 @@ observation_temporal_location_mapping <- DBI::dbGetQuery(conn = conn_pg, stateme
        {config[[\"general\"]][[\"start_date\"]]},
        {config[[\"general\"]][[\"end_date\"]]},
        {config[[\"general\"]][[\"time_scale\"]]}
-    )"))
-
-unique_temporal_location_ids <- sort(unique(observation_data[["temporal_location_id"]]))
-unique_location_ids <- sort(unique(observation_data[["location_id"]]))
+    )")) %>%
+    dplyr::mutate(temporal_location_id = paste(location_period_id, t, sep = "_"))
 
 temporal_location_grid_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
     "SELECT * FROM pull_location_period_grid_map(
@@ -243,7 +241,16 @@ temporal_location_grid_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = gl
        {config[[\"general\"]][[\"width_in_km\"]]},
        {config[[\"general\"]][[\"height_in_km\"]]},
        {config[[\"general\"]][[\"time_scale\"]]}
-    )"))
+    )")) %>%
+    dplyr::mutate(temporal_location_id = paste(location_period_id, t, sep = "_"))
+
+unique_temporal_location_ids <- unique(c(observation_temporal_location_mapping$temporal_location_id,
+    temporal_location_grid_mapping$temporal_location_id))
+
+observation_temporal_location_mapping[["temporal_location_id"]] <- bit64::as.integer64(match(observation_temporal_location_mapping[["temporal_location_id"]],
+    unique_temporal_location_ids))
+temporal_location_grid_mapping[["temporal_location_id"]] <- bit64::as.integer64(match(temporal_location_grid_mapping[["temporal_location_id"]],
+    unique_temporal_location_ids))
 
 # Intermediate operations like aggregation and overlap removal
 
@@ -427,7 +434,7 @@ if (config$initial_values$warmup) {
     covariate_names <- colnames(covar_cube[, -c(1:5, ncol(covar_cube))])
     initial_values_df <- observation_data %>%
         dplyr::inner_join(observation_temporal_location_mapping) %>%
-        dplyr::inner_join(temporal_location_grid_mapping, by = c(temporal_location_id = "temporal_location_id",
+        dplyr::inner_join(temporal_location_grid_mapping, by = c("temporal_location_id",
             "t")) %>%
         dplyr::inner_join(covar_cube, by = c("x", "y", "t", "spacetime_grid_id")) %>%
         dplyr::group_by(updated_observation_id) %>%
