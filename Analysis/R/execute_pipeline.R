@@ -431,7 +431,8 @@ library(rstan)
 ## INITIAL VALUES
 
 if (config$initial_values$warmup) {
-    covariate_names <- colnames(covar_cube[, -c(1:5, ncol(covar_cube))])
+    covariate_names <- colnames(as.data.frame(covar_cube)[, -c(1:6, ncol(covar_cube) -
+        1, ncol(covar_cube))])
     initial_values_df <- observation_data %>%
         dplyr::inner_join(observation_temporal_location_mapping) %>%
         dplyr::inner_join(temporal_location_grid_mapping, by = c("temporal_location_id",
@@ -445,11 +446,17 @@ if (config$initial_values$warmup) {
         }) %>%
         dplyr::mutate(log_y = log(y), gam_offset = log_y)
 
-    gam_formula <- taxdat::get_gam_formula(cases_column_name = cases_column, covariate_names = covariate_names)
+    number_of_gridcells <- covar_cube %>%
+        dplyr::group_by(x, y) %>%
+        dplyr::summarize(.groups = "drop") %>%
+        nrow()
+    gam_formula <- taxdat::get_gam_formula(cases_column_name = cases_column, covariate_names = covariate_names,
+        max_knots = number_of_gridcells - 1)
 
     gam_fit <- mgcv::gam(gam_formula, family = "gaussian", data = initial_values_df)
     gam_predict <- mgcv::predict.gam(gam_fit, covar_cube)
-    covariate_effect <- as.vector(as.matrix(covar_cube[covariate_names]) %*% coef(gam_fit)[covariate_names])
+    covariate_effect <- as.vector(as.matrix(as.data.frame(covar_cube)[, covariate_names]) %*%
+        coef(gam_fit)[covariate_names])
 
     initial_betas <- coef(gam_fit)[covariate_names]
     initial_eta <- coef(gam_fit)["obs_year"]
@@ -509,11 +516,12 @@ stan_data <- list(N = nrow(covar_cube), N_edges = nrow(grid_adjacency), smooth_g
     tfrac = as.array(rep(1, times = nrow(observation_temporal_location_mapping))),
     map_loc_grid_loc = as.array(cast_to_int32(temporal_location_grid_mapping$updated_temporal_location_id)),
     map_loc_grid_grid = as.array(cast_to_int32(temporal_location_grid_mapping$spacetime_grid_id)),
-    as.array(cast_to_int32(temporal_location_grid_mapping$updated_spatial_grid_id)),
+    map_loc_grid_sfrac = as.array(temporal_location_grid_mapping$sfrac), as.array(cast_to_int32(temporal_location_grid_mapping$updated_spatial_grid_id)),
     map_smooth_grid = as.array(cast_to_int32(covar_cube$updated_id)), rho = 0.999,
-    covar = standardize_covar(as.matrix(covar_cube[, covariate_names])), ncovar = length(covariate_names),
-    beta_sigma_scale = config[["stan"]][["beta_sigma_scale"]], sigma_eta_scale = config[["stan"]][["sigma_eta_scale"]],
-    use_weights = FALSE, use_rho_prior = TRUE, do_censoring = (0 != (sum(!is.na(observation_data[[paste0(cases_column,
+    covar = standardize_covar(as.matrix(as.data.frame(covar_cube)[, covariate_names])),
+    ncovar = length(covariate_names), beta_sigma_scale = config[["stan"]][["beta_sigma_scale"]],
+    sigma_eta_scale = config[["stan"]][["sigma_eta_scale"]], use_weights = FALSE,
+    use_rho_prior = TRUE, do_censoring = (0 != (sum(!is.na(observation_data[[paste0(cases_column,
         "_L")]])) + sum(!is.na(observation_data[[paste0(cases_column, "_R")]])))))
 
 

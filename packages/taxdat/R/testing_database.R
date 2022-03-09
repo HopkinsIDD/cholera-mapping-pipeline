@@ -683,7 +683,7 @@ create_pull_covar_cube_function <- function(psql_connection) {
     create_resize_temporal_grid_function(psql_connection)
     function_query <- "
 create or replace function pull_covar_cube(location_name text, start_date date, end_date date, width_in_km int, height_in_km int, time_scale text)
-RETURNS TABLE(covariate_name text, t bigint, id bigint, rid int, x int, y int, value double precision)AS $$
+RETURNS TABLE(covariate_name text, t bigint, id bigint, rid int, x int, y int, value double precision, geometry geometry)AS $$
   SELECT
     all_covariates.covariate_name,
     temporal_grid.id as t,
@@ -691,7 +691,8 @@ RETURNS TABLE(covariate_name text, t bigint, id bigint, rid int, x int, y int, v
     grid_pixels.rid,
     grid_pixels.x,
     grid_pixels.y,
-    ST_VALUE(all_covariates.rast, grid_pixels.centroid) as value
+    ST_VALUE(all_covariates.rast, grid_pixels.centroid) as value,
+    grid_pixels.polygon as geometry
   FROM filter_resized_spatial_grid_pixels_to_location(location_name, width_in_km, height_in_km) as grid_pixels
     INNER JOIN
       covariate_grid_map

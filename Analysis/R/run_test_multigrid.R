@@ -225,7 +225,7 @@ config_filename <- paste0(pipeline_dir, "/Analysis/R/test_config.yml")
 ## Put your config stuff in here
 config <- list(general = list(location_name = all_dfs$location_df$qualified_name[[1]],
     start_date = as.character(min_time_left), end_date = as.character(max_time_right),
-    width_in_km = 1, height_in_km = 1, time_scale = "year"), stan = list(directory = rprojroot::find_root_file(criterion = ".choldir",
+    width_in_km = 2, height_in_km = 2, time_scale = "year"), stan = list(directory = rprojroot::find_root_file(criterion = ".choldir",
     "Analysis", "Stan"), ncores = 1, model = "dagar_seasonal_flexible.stan", niter = 10000,
     recompile = TRUE), name = "test_???", taxonomy = "taxonomy-working/working-entry1",
     smoothing_period = 1, case_definition = "suspected", covariate_choices = raster_df$name,
