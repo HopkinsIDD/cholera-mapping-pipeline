@@ -143,10 +143,12 @@ test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_exte
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2,
                                                    nonspatial = c(FALSE, FALSE),
                                                    nontemporal = c(FALSE, FALSE),
-                                                   spatially_smooth = c(TRUE,FALSE),
-                                                   temporally_smooth = c(FALSE,FALSE),
-                                                   polygonal = c(TRUE, TRUE),
-                                                   radiating = c(FALSE,FALSE), seed = my_seed)
+                                                   spatially_smooth = c(TRUE,TRUE),
+                                                   temporally_smooth = c(FALSE, FALSE),
+                                                   polygonal = c(TRUE,TRUE),
+                                                   radiating = c(FALSE,FALSE), 
+                                                   constant=c(FALSE,FALSE),
+                                                   seed = my_seed)
 
 my_seed <- .GlobalEnv$.Random.seed
 min_time_left <- query_time_left
@@ -170,6 +172,9 @@ min_time_left <- query_time_left
 max_time_right <- query_time_right
 covariate_raster_funs_observation <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates_observation, 
                                                                                                   min_time_left, max_time_right)
+
+##save additional covariates in the data generation process for country data report
+saveRDS(test_covariates_observation,"/home/app/cmp/Analysis/output/test_case_4_data_simulation_covariates.rdata")
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change observations
@@ -197,8 +202,11 @@ all_dfs$observations_df <- test_observations %>%
                 qualified_name = location, primary = TRUE, phantom = FALSE, suspected_cases = cases, 
                 deaths = NA, confirmed_cases = NA)
 
-#overlapping observations with inconsistent case counts
-all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("1::",all_dfs$observations_df$qualified_name),]$suspected_cases)
+#partially covered for certain polygons
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1::14"),]$suspected_cases=round(all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1::14"),]$suspected_cases*0.5,0)
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1::89"),]$suspected_cases=round(all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1::89"),]$suspected_cases*0.5,0)
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1::99"),]$suspected_cases=round(all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1::99"),]$suspected_cases*0.5,0)
+all_dfs$observations_df=all_dfs$observations_df%>%subset(!qualified_name%in%c("1::2","1::10","1::20"))
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
@@ -228,22 +236,25 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                nrows=10,
                ncols=10,
                data_type="Grid data",
-               oc_type="Inconsistent observations over spatial levels (2 times difference)",
+               oc_type="Inconsistent observations",
                polygon_type="Fake polygon",
-               grid_coverage_type="100%",
+               polygon_coverage="97%",
                randomize=TRUE,
-               ncovariates=2,
-               single_year_run=FALSE,
-               iteration=10000,
+               ncovariates=3, 
+               single_year_run="no",
+               iteration=1000,
                nonspatial = c(FALSE, FALSE,FALSE), 
-               nontemporal = c(FALSE, FALSE,FALSE), 
-               spatially_smooth = c(TRUE, TRUE,FALSE), 
+               nontemporal = c(TRUE, TRUE,TRUE), 
+               spatially_smooth = c(TRUE, TRUE,TRUE), 
                temporally_smooth = c(FALSE,FALSE,FALSE), 
                polygonal = c(TRUE, TRUE,TRUE), 
                radiating = c(FALSE, FALSE,TRUE),
                constant=c(TRUE,FALSE,FALSE),
                Data_simulation_covariates=c(TRUE,TRUE,TRUE),
-               Model_covariates=c(TRUE,TRUE,FALSE)
+               Model_covariates=c(TRUE,TRUE,FALSE),
+               Observations_with_inconsistent_data="*0.5",
+               Loc_with_inconsistent_data=c("1::89","1::14","1:99"),
+               Cov_data_simulation_filename="/home/app/cmp/Analysis/output/test_case_4_data_simulation_covariates.rdata"
 )
 
 yaml::write_yaml(x = config, file = config_filename)
@@ -257,21 +268,25 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                 nrows=10,
                                 ncols=10,
                                 data_type="Grid data",
-                                oc_type="Inconsistent observations over spatial levels (2 times difference)",
+                                oc_type="Inconsistent observations",
                                 polygon_type="Fake polygon",
-                                grid_coverage_type="100%",
+                                polygon_coverage="97%",
                                 randomize=TRUE,
-                                ncovariates=2,
-                                single_year_run=FALSE,
-                                iteration=10000,
+                                ncovariates=3, 
+                                single_year_run="no",
+                                iteration=1000,
                                 nonspatial = c(FALSE, FALSE,FALSE), 
-                                nontemporal = c(FALSE, FALSE,FALSE), 
-                                spatially_smooth = c(TRUE, TRUE,FALSE), 
+                                nontemporal = c(TRUE, TRUE,TRUE), 
+                                spatially_smooth = c(TRUE, TRUE,TRUE), 
                                 temporally_smooth = c(FALSE,FALSE,FALSE), 
                                 polygonal = c(TRUE, TRUE,TRUE), 
                                 radiating = c(FALSE, FALSE,TRUE),
                                 constant=c(TRUE,FALSE,FALSE),
                                 Data_simulation_covariates=c(TRUE,TRUE,TRUE),
-                                Model_covariates=c(TRUE,TRUE,FALSE)))
-
+                                Model_covariates=c(TRUE,TRUE,FALSE),
+                                Observations_with_inconsistent_data="*0.5",
+                                Loc_with_inconsistent_data=c("1::89","1::14","1:99"),
+                                Cov_data_simulation_filename="/home/app/cmp/Analysis/output/test_case_4_data_simulation_covariates.rdata"),
+                  output_file="Country data report test case 4"
+)
 ## Actually do something with the groundtruth and output
