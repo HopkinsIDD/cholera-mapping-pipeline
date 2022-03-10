@@ -23,25 +23,25 @@ file_names:
 nrows: 10.0
 ncols: 10.0
 data_type: Grid data
-oc_type: Inconsistent observations over spatial levels (2 times difference)
+oc_type: Inconsistent observations
 polygon_type: Fake polygon
-grid_coverage_type: 100%
+polygon_coverage: 97%
 randomize: yes
-ncovariates: 2.0
-single_year_run: no
-iteration: 10000.0
+ncovariates: 3.0
+single_year_run: 'no'
+iteration: 1000.0
 nonspatial:
 - no
 - no
 - no
 nontemporal:
-- no
-- no
-- no
+- yes
+- yes
+- yes
 spatially_smooth:
 - yes
 - yes
-- no
+- yes
 temporally_smooth:
 - no
 - no
@@ -66,3 +66,9 @@ Model_covariates:
 - yes
 - yes
 - no
+Observations_with_inconsistent_data: '*0.5'
+Loc_with_inconsistent_data:
+- 1::89
+- 1::14
+- 1:99
+Cov_data_simulation_filename: /home/app/cmp/Analysis/output/test_case_4_data_simulation_covariates.rdata
