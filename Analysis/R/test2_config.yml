@@ -9,7 +9,7 @@ stan:
   directory: /home/app/cmp/Analysis/Stan
   ncores: 1.0
   model: dagar_seasonal.stan
-  niter: 10000.0
+  niter: 1000.0
   recompile: yes
 name: test_???
 taxonomy: taxonomy-working/working-entry1
@@ -17,31 +17,32 @@ smoothing_period: 1.0
 case_definition: suspected
 covariate_choices: ~
 data_source: sql
+ingest_covariates: 'no'
 file_names:
   stan_output: /home/app/cmp/Analysis/output/test2.stan_output.rdata
   stan_input: /home/app/cmp/Analysis/output/test2.stan_input.rdata
 nrows: 10.0
 ncols: 10.0
 data_type: Grid data
-oc_type: Partial coverage without missing data
+oc_type: '-'
 polygon_type: Fake polygon
-grid_coverage_type: 100%
+polygon_coverage: 97%
 randomize: yes
-ncovariates: 2.0
-single_year_run: no
-iteration: 10000.0
+ncovariates: 3.0
+single_year_run: 'no'
+iteration: 1000.0
 nonspatial:
 - no
 - no
 - no
 nontemporal:
-- no
-- no
-- no
+- yes
+- yes
+- yes
 spatially_smooth:
 - yes
 - yes
-- no
+- yes
 temporally_smooth:
 - no
 - no
@@ -66,3 +67,6 @@ Model_covariates:
 - yes
 - yes
 - no
+Observations_with_inconsistent_data: '+0'
+Loc_with_inconsistent_data: '-'
+Cov_data_simulation_filename: /home/app/cmp/Analysis/output/test_case_2_data_simulation_covariates.rdata
