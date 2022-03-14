@@ -529,7 +529,7 @@ plot_modeled_rates <- function(case_raster,
       data = case_raster,
       ggplot2::aes(fill = value ),color="black",size=0.05) +
     taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
-    ggplot2::labs(fill="Incidence rate\n [cases/10'000/year]")+
+    ggplot2::labs(fill="Incidence rate\n [cases/100'000/year]")+
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::facet_wrap(~t,ncol = 5) +
