@@ -12,7 +12,7 @@ get_stan_input_no_cache <- function(config, cache, cholera_directory) {
   require(sf)
   return(stan_input)
 }
-get_stan_input <- cache_fun_results("stan_input", get_stan_input_no_cache)
+get_stan_input <- cache_fun_results("stan_input", get_stan_input_no_cache,overwrite = T,config=config)
 
 #' @name get_sf_cases_resized_no_cache
 #' @title get_sf_cases_resized_no_cache
@@ -24,7 +24,7 @@ get_sf_cases_resized_no_cache <- function(config, cache, cholera_directory) {
   get_stan_input(config, cache, cholera_direcotry)
   return(cache[["stan_input"]][["sf_cases_resized"]])
 }
-get_sf_cases_resized <- cache_fun_results("sf_cases_resized", get_sf_cases_resized_no_cache)
+get_sf_cases_resized <- cache_fun_results("sf_cases_resized", get_sf_cases_resized_no_cache,overwrite = T,config=config)
 
 #' @name plot_ObservationSummary_table
 #' @title plot_ObservationSummary_table
