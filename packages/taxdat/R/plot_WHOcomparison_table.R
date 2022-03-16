@@ -14,8 +14,7 @@ get_model_rand_no_cache <- function(config, cache, cholera_directory) {
   require(sf)
   return(model.rand)
 }
-get_model_rand <- cache_fun_results(name = "model.rand", fun = get_model_rand_no_cache,
-                                    overwrite = T, config = config)
+get_model_rand <- cache_fun_results(name = "model.rand", fun = get_model_rand_no_cache,overwrite = T, config = config)
 
 #' @name get_stan_input_no_cache
 #' @title get_stan_input_no_cache
@@ -29,7 +28,7 @@ get_stan_input_no_cache <- function(config, cache, cholera_directory) {
   require(sf)
   return(stan_input)
 }
-get_stan_input <- cache_fun_results("stan_input", get_stan_input_no_cache)
+get_stan_input <- cache_fun_results("stan_input", get_stan_input_no_cache,overwrite = T,config=config)
 
 #' @name get_sf_cases_resized_no_cache
 #' @title get_sf_cases_resized_no_cache
@@ -41,7 +40,7 @@ get_sf_cases_resized_no_cache <- function(config, cache, cholera_directory) {
   get_stan_input(config, cache, cholera_direcotry)
   return(cache[["stan_input"]][["sf_cases_resized"]])
 }
-get_sf_cases_resized <- cache_fun_results("sf_cases_resized", get_sf_cases_resized_no_cache)
+get_sf_cases_resized <- cache_fun_results("sf_cases_resized", get_sf_cases_resized_no_cache,overwrite = T,config=config)
 
 #' @name plot_WHOcomparison_table
 #' @title plot_WHOcomparison_table
