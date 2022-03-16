@@ -61,7 +61,7 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory) {
       dplyr::select(OC_UID, TL, TR, observed, modeled) %>%
       dplyr::mutate_if(is.numeric, function(x) {format(round(x) , big.mark=",")}) %>%
       dplyr::rename(col.names = c("OC id", "start time", "end time", "# Observed cases", "# Modeled Cases"))
-      dplyr::rename( `OC id`=OC_UID, `start time`=TL, `end time`=TR, `# Observed cases`=observed, `# Modeled Cases`=modeled)
+      dplyr::rename( `OC id`=OC_UID, `start time`=TL, `end time`=TR, `Observed cases`=observed, `Modeled Cases`=modeled)
   }
   
   return(who_comparison_table)
