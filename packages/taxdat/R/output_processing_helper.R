@@ -1,40 +1,5 @@
 #' @include file_name_functions.R
 
-#' @name crop_to_shapefile
-#' @title crop_to_shapefile: crop the raster with country shapefile
-#' @param raster: raster file
-#' @param shapefile: the country or location shapefile
-#' @param snap: in which direct the extext should be aligned to
-#' @return cropped and maksed raster 
-crop_to_shapefile <- function(raster, shapefile, snap) {
-  raster_cropped <- raster::crop(raster,extent(shapefile),snap=snap)
-  raster_cropped<-raster::mask(raster_cropped,shapefile)
-  return(raster_cropped)
-}
-
-#' Get 2017 population
-#'
-#' @param sf_grid the sf_grid object from the stan_input file
-#'
-#' @return a new sf_grid object with a column for the 2017 population
-#'
-get_pop2017 <- function(sf_grid) {
-  # Connect to database
-  conn <- taxdat::connect_to_db(Sys.getenv("USER"))
-  
-  # Pul the 2017 population data
-  pop2017 <- rpostgis::pgGetRast(conn, 
-                                 name = c("covariates", "pop_1_years_20_20"), 
-                                 band =  which(2000:2020 == 2017))
-  
-  # Extract the values at the centroids of sf_grid
-  sf_grid$pop2017 <- raster::extract(pop2017, sf::st_centroid(sf_grid))
-  
-  DBI::dbDisconnect(conn)
-  
-  return(sf_grid)
-}
-
 #' @name get_rate_raster
 #' @title get_rate_raster
 #' @description get rate raster for each layer 
@@ -46,13 +11,15 @@ get_rate_raster <- function(covar_data_filename,
                             model_output_filenames,
                             stan_input_filenames,
                             if_single_year_run,
-                            res=c(0.1666667,0.1666667)){
+                            res=c(0.1666667,0.1666667),
+                            starting_year=2015){
   #load model output data
   covar_cube_output <- read_file_of_type(covar_data_filename, "covar_cube_output")
   rate_raster <- covar_cube_output$sf_grid
   non_na_gridcells <- taxdat::get_non_na_gridcells(covar_data_filename)
   rate_raster <- rate_raster[non_na_gridcells,]
   model.rand <- read_file_of_type(model_output_filenames, "model.rand")
+  niter_per_chain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__', chain_num=1))[1]
   
   # average modeled cases across chains
   modeled_cases <- as.array(model.rand)[, , grepl("grid_case", names(model.rand)),drop=FALSE]
@@ -62,10 +29,14 @@ get_rate_raster <- function(covar_data_filename,
   #subset years with obervations and remove years without obsevations (drop some years)
   stan_input <- read_file_of_type(stan_input_filenames, "stan_input")
   if(params$single_year==FALSE){
-    obs_years <- (nrow(modeled_cases_mean_by_grid_layer_tmp)/5)*((min(lubridate::year(stan_input$sf_cases_resized$TL)):max(lubridate::year(stan_input$sf_cases_resized$TR)))-2015)    
+    
+    obs_years <- (nrow(modeled_cases_mean_by_grid_layer_tmp)/length(unique(lubridate::year(stan_input$sf_cases_resized$TL),lubridate::year(stan_input$sf_cases_resized$TR))))*((unique(c(lubridate::year(stan_input$sf_cases_resized$TL),lubridate::year(stan_input$sf_cases_resized$TR))))-starting_year)
+    
     modeled_cases_mean_by_grid_layer_tmp1<-data.frame()
     for (row_idx in unique(obs_years)) {
-      tmp <- modeled_cases_mean_by_grid_layer_tmp[(row_idx+1):(row_idx+nrow(modeled_cases_mean_by_grid_layer_tmp)/5),1:1000]
+      
+      tmp <- modeled_cases_mean_by_grid_layer_tmp[(row_idx+1):(row_idx+nrow(modeled_cases_mean_by_grid_layer_tmp)/length(unique(lubridate::year(stan_input$sf_cases_resized$TL),lubridate::year(stan_input$sf_cases_resized$TR)))),1:niter_per_chain]
+      
       if(length(modeled_cases_mean_by_grid_layer_tmp1)==0){
         modeled_cases_mean_by_grid_layer_tmp1<-tmp
       }else{
@@ -90,7 +61,7 @@ get_rate_raster <- function(covar_data_filename,
   
   rate_raster <- merge(rate_raster[1:length(unique(rate_raster$geom)),],modeled_rates_mean_by_grid_layer,by="id")
   
-  colnames(rate_raster)[str_detect(colnames(rate_raster),".*[0-9].*")&!colnames(rate_raster)%in%"pop2017"] <-   paste0("layer",seq_len(5*dim(modeled_cases)[1]))
+  colnames(rate_raster)[str_detect(colnames(rate_raster),".*[0-9].*")&!colnames(rate_raster)%in%"pop2017"] <-   paste0("layer",seq_len(length(unique(lubridate::year(stan_input$sf_cases_resized$TL),lubridate::year(stan_input$sf_cases_resized$TR)))*dim(modeled_cases)[1]))
   
   rate_raster <- rate_raster[,str_detect(colnames(rate_raster),".*[0-9].*")&!colnames(rate_raster)%in%"pop2017"]
   
@@ -101,7 +72,7 @@ get_rate_raster <- function(covar_data_filename,
     layer_value <- rate_raster[,layer_idx]
     
     #empty raster
-    single_layer <- raster::raster(rate_raster, res =ress)
+    single_layer <- raster::raster(rate_raster, res =res)
     #assign rate values into the raster
     single_rate_raster_2020 <- fasterize::fasterize(layer_value, single_layer, field = paste0("layer",layer_idx))
     
