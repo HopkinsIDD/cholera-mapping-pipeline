@@ -1,4 +1,4 @@
-function_cache <- new.env()
+function_cache <- new.env() #should these two be here all the time? 
 cache <- new.env()
 # cache results
 #' @name cache_fun_results

@@ -57,9 +57,17 @@ plot_modeled_rates_raster <- function(config, cache, cholera_directory) {
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment that contains all the parameter information
 #' @return covar cube
-get_covar_cube_no_cache <- function(config, cache, cholera_directory) {
+get_covar_cube_no_cache <- function(config, cache, cholera_directory, self_defined_output_dir = NULL) {
     config <- yaml::read_yaml(config_filename)
     file_names <- taxdat::get_filenames(config, cholera_directory)
+    print(paste0("The self_defined_output_dir is ", self_defined_output_dir))
+    if(!is.null(self_defined_output_dir)){
+        local_output_dir <- paste0(cholera_directory, "/", self_defined_output_dir)
+        file_names <- unlist(lapply(names(file_names), function(file_name){
+                                    gsub("^.*?/Analysis/data", local_output_dir, file_names[file_name])
+                                    }))
+    }
+    
     covar_cube <- taxdat::read_file_of_type(file_names[["covar"]], "covar_cube_output")
     require(bit64)
     require(sf)
@@ -76,8 +84,8 @@ get_covar_cube <- cache_fun_results(name = "covar_cube", fun = get_covar_cube_no
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment that contains all the parameter information
 #' @return covar_cube (raster object)
-get_raster_object_no_cache <- function(config, cache, cholera_directory) {
-    get_covar_cube(config, cache, cholera_directory)
+get_raster_object_no_cache <- function(config, cache, cholera_directory, ...) {
+    get_covar_cube(config, cache, cholera_directory, ...) 
     sf_grid <- cache[["covar_cube"]]$sf_grid
     return(sf_grid)
 }
@@ -93,9 +101,17 @@ get_raster_object <- cache_fun_results(name = "sf_grid", fun = get_raster_object
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment that contains all the parameter information
 #' @return model.rand
-get_model_rand_no_cache <- function(config, cache, cholera_directory) {
+get_model_rand_no_cache <- function(config, cache, cholera_directory, self_defined_output_dir = NULL) {
     config <- yaml::read_yaml(config_filename)
     file_names <- taxdat::get_filenames(config, cholera_directory)
+    print(paste0("The self_defined_output_dir is ", self_defined_output_dir))
+    if(!is.null(self_defined_output_dir)){
+        local_output_dir <- paste0(cholera_directory, "/", self_defined_output_dir)
+        file_names <- unlist(lapply(names(file_names), function(file_name){
+                                    gsub("^.*?/Analysis/data", local_output_dir, file_names[file_name])
+                                    }))
+    }
+
     model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
     require(bit64)
     require(sf)
@@ -113,8 +129,8 @@ get_model_rand <- cache_fun_results(name = "model.rand", fun = get_model_rand_no
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment that contains all the parameter information
 #' @return  modeled_cases
-get_modeled_cases_no_cache <- function(config, cache, cholera_directory) {
-    get_model_rand(config, cache, cholera_directory)
+get_modeled_cases_no_cache <- function(config, cache, cholera_directory, ...) {
+    get_model_rand(config, cache, cholera_directory, ...)
     modeled_cases <- MCMCvis::MCMCchains(cache[["model.rand"]], params = "grid_cases")
     return(modeled_cases)
 }
@@ -130,8 +146,8 @@ get_modeled_cases <- cache_fun_results("modeled_cases", get_modeled_cases_no_cac
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment that contains all the parameter information
 #' @return  modeled_rates
-get_modeled_rates_no_cache <- function(config, cache, cholera_directory) {
-    get_model_rand(config, cache, cholera_directory)
+get_modeled_rates_no_cache <- function(config, cache, cholera_directory, ...) {
+    get_model_rand(config, cache, cholera_directory, ...) 
     modeled_rates <- exp(MCMCvis::MCMCchains(cache[["model.rand"]], params = "log_lambda"))
     return(modeled_rates)
 }
@@ -142,8 +158,8 @@ get_modeled_rates <- cache_fun_results("modeled_rates", get_modeled_rates_no_cac
 
 
 # get new aggregated data: get_modeled_cases_mean
-get_modeled_cases_mean_no_cache <- function(config, cache, cholera_directory) {
-    get_modeled_cases(config, cache, cholera_directory)
+get_modeled_cases_mean_no_cache <- function(config, cache, cholera_directory, ...) {
+    get_modeled_cases(config, cache, cholera_directory, ...)
     modeled_cases_mean <- aggregate_to_modeled_cases_mean(cache[["modeled_cases"]],
         funs = "mean")
     return(modeled_cases_mean)
@@ -164,8 +180,8 @@ aggregate_to_modeled_cases_mean <- function(modeled_cases, funs = "mean") {
 }
 
 # get new aggregated data: get_modeled_rates_mean
-get_modeled_rates_mean_no_cache <- function(config, cache, cholera_directory) {
-    get_modeled_rates(config, cache, cholera_directory)
+get_modeled_rates_mean_no_cache <- function(config, cache, cholera_directory, ...) {
+    get_modeled_rates(config, cache, cholera_directory, ...)
     modeled_rates_mean <- aggregate_to_modeled_rates_mean(cache[["modeled_rates"]],
         funs = "mean")
     return(modeled_rates_mean)
@@ -193,10 +209,10 @@ aggregate_to_modeled_rates_mean <- function(modeled_rates, funs = "mean") {
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment that contains all the parameter information
 #' @return  raster filled with modeled cases mean for each grid cell by times
-merge_modeled_cases_mean_into_raster_no_cache <- function(config, cache, cholera_directory) {
-    get_raster_object(config, cache, cholera_directory)
+merge_modeled_cases_mean_into_raster_no_cache <- function(config, cache, cholera_directory, ...) {
+    get_raster_object(config, cache, cholera_directory, ...)
     modeled_cases_mean_raster <- cache[["sf_grid"]]
-    get_modeled_cases_mean(config, cache, cholera_directory)
+    get_modeled_cases_mean(config, cache, cholera_directory, ...)
     modeled_cases_mean <- cache[["modeled_cases_mean"]]
     modeled_cases_mean_raster$modeled_cases_mean <- modeled_cases_mean
     return(modeled_cases_mean_raster)
@@ -212,10 +228,10 @@ merge_modeled_cases_mean_into_raster <- cache_fun_results("modeled_cases_mean_ra
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment that contains all the parameter information
 #' @return  raster filled with modeled rates mean for each grid cell by times
-merge_modeled_rates_mean_into_raster_no_cache <- function(config, cache, cholera_directory) {
-    get_raster_object(config, cache, cholera_directory)
+merge_modeled_rates_mean_into_raster_no_cache <- function(config, cache, cholera_directory, ...) {
+    get_raster_object(config, cache, cholera_directory, ...)
     grid_rates_mean_raster <- cache[["sf_grid"]]
-    get_modeled_rates_mean(config, cache, cholera_directory)
+    get_modeled_rates_mean(config, cache, cholera_directory, ...)
     modeled_rates_mean <- cache[["modeled_rates_mean"]]
     grid_rates_mean_raster$modeled_rates_mean <- modeled_rates_mean
     return(grid_rates_mean_raster)

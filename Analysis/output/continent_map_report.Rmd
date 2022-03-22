@@ -5,11 +5,13 @@ output:
     toc: true
     toc_float: true
 params:
-  cholera_directory: "~/code/cholera-mapping-pipeline/"
+  cholera_directory: "/home/kaiyuezou/mapping_pipeline/2_23_continent_mapping/cholera-mapping-pipeline"
   config_directory: "Analysis/configs/2015_2019_full_base/"
   output_dir: "Analysis/output/2015_2019_full_base/"
   max_countries: Inf
+  dropped_years: list("ZWE" = c(2017), "ZNZ" = c(2018, 2019), "SDN" = c(2015, 2017))
 ---
+```
 ```{r setup, include=FALSE, dev="CairoPNG"}
 library(stringr)
 library(dplyr)
@@ -25,11 +27,20 @@ library(sp)
 library(abind)
 library(taxdat)
 
+#tmp
+params <- new.env()
+params$cholera_directory <- "/home/kaiyuezou/mapping_pipeline/9_23_dev/cholera-mapping-pipeline"
+params$config_directory <- "Analysis/configs/Gavi_reports/Dec_2021_runs"
+params$output_dir <- "Analysis/data/true_2021_Dec_runs_output_for_push/cholera-mapping-output"
+params$map_output_dir <- "continent_map"
+params$max_countries <- Inf
+params$dropped_years <- list("ZWE" = c(2017), "ZNZ" = c(2018, 2019), "SDN" = c(2015, 2017)) 
+
 if (! "params" %in% ls()) {
   params <- list(
     cholera_directory = "~/git/cholera-mapping-pipeline/",
     config_directory = "~/git/cholera-configs/Dec_2021_runs",
-    output_dir = "~/git/cholera-mapping-output/continent_map",
+    map_output_dir = "~/git/cholera-mapping-output/continent_map",
     max_countries = Inf
   )
 }
@@ -47,8 +58,401 @@ knitr::opts_chunk$set(
 ```
 
 ```{r dir_settings}
-dir.create(params$output_dir, showWarnings = FALSE)
+dir.create(params$map_output_dir, showWarnings = FALSE)
 ```
+
+```{r aggregation_tmp}
+### The for loop through all the countries (primarily for the Dec 2021 run)
+## Setup and get all the countries 
+final_cache <- new.env() 
+final_cache$case_results <- NULL 
+final_cache$rate_results <- NULL 
+country_caches <- list()
+country_count <- 0
+complete_country <- c()
+sf_cases_resized <- list()
+sf_grid <- list()
+results <- NULL
+
+all_config_folders <- list.dirs(paste0(params$cholera_directory, "/", params$config_directory), full.names = TRUE, recursive=FALSE)
+all_countries <- stringr::str_extract(all_config_folders, "[A-Z]{3}")
+all_countries <- all_countries[!is.na(all_countries)]
+all_countries <- unique(all_countries)
+error_countries_cases <- all_countries
+error_countries_rates <- all_countries
+
+## From countries to certain config files 
+all_configs <- new.env() 
+invisible(lapply(all_countries, function(country_code){
+  # a little fix for TZA
+  if(country_code == "TZA"){country_code <- "TZA_mainland"}
+  # get all the .yml files in each country folder and choose the only correct one/ones 
+  config_folder_index <- match(TRUE, grepl(country_code, all_config_folders, fixed = TRUE))
+  all_files <- list.files(all_config_folders[config_folder_index], full.names = TRUE, recursive=FALSE)
+  potential_config_fn <- all_files[grepl('^.*?/config_[A-Z]{3}_.*?.yml$', all_files)]
+  correct_config_fn <- potential_config_fn[nchar(potential_config_fn) == max(nchar(potential_config_fn))]
+  # a little fix for TZA
+  if(country_code == "TZA_mainland"){country_code <- "TZA"}
+  # save the config filenames in the cache
+  all_configs[[country_code]] <- correct_config_fn 
+}))
+
+## Loop through each country 
+for(country in all_countries) {
+
+  ## For efficiency reason
+  if(country %in% complete_country){next} 
+  
+  ## Deal with the single year runs first  
+  if(length(all_configs[[country]]) > 1 & country %in% c("TZA", "SDN")){
+    # a new country_cache and a confusing config_caches
+    country_cache <- new.env() 
+    config_caches <- lapply(all_configs[[country]], yaml::read_yaml)
+    # for each single config -- case
+    for(config_filename in all_configs[[country]]) {
+      # check whether the config has the corresponding model output
+      config_check <- check_unused_config_by_output(config_filename, params$cholera_directory, params$output_dir, delete_unused_config = FALSE)
+      if(!is.logical(config_check)) {config_filename <- config_check} else if(config_check) {next} 
+      # the year may need to be dropped
+      year_in_run <- as.numeric(unlist(stringr::str_extract_all(config_filename, "[0-9]{4}"))[length(unlist(stringr::str_extract_all(config_filename, "[0-9]{4}")))])
+      if(country %in% names(params$dropped_years) & year_in_run %in% params$dropped_years[[country]]){next}
+      # run 
+      stitch_case_raster_stack(
+        output_cache = country_cache,
+        input_caches = config_caches,
+        cholera_directory = params$cholera_directory, 
+        config_filename = config_filename, 
+        output_dir <- params$output_dir
+      )
+    }
+    # for each single config -- rate 
+    config_caches <- lapply(all_configs[[country]], yaml::read_yaml)
+    for(config_filename in all_configs[[country]]) {
+      # check whether the config has the corresponding model output
+      config_check <- check_unused_config_by_output(config_filename, params$cholera_directory, params$output_dir, delete_unused_config = FALSE)
+      if(!is.logical(config_check)) {config_filename <- config_check} else if(config_check) {next} 
+      # the year may need to be dropped
+      year_in_run <- as.numeric(unlist(stringr::str_extract_all(config_filename, "[0-9]{4}"))[length(unlist(stringr::str_extract_all(config_filename, "[0-9]{4}")))])
+      if(country %in% names(params$dropped_years) & year_in_run %in% params$dropped_years[[country]]){next}
+      # run 
+      stitch_rate_raster_stack(
+        output_cache = country_cache,
+        input_caches = config_caches,
+        cholera_directory = params$cholera_directory, 
+        config_filename = config_filename, 
+        output_dir <- params$output_dir
+      )
+    } 
+    # get the mean of the case raster and rate raster (optional) 
+    get_mean_case_raster_in_sf(country_cache)
+    get_mean_rate_raster_in_sf(country_cache)
+    # from country_cache to final_cache (cases and rates)
+    if(is.null(final_cache$case_results)) {
+      final_cache$case_results <- country_cache$modeled_cases_mean_raster %>% select(t, modeled_cases_mean)
+    } else {
+      final_cache$case_results <- rbind(final_cache$case_results, country_cache$modeled_cases_mean_raster %>% select(t, modeled_cases_mean))
+    }
+    if(is.null(final_cache$rate_results)) {
+      final_cache$rate_results <- country_cache$modeled_rates_mean_raster %>% select(t, modeled_rates_mean)
+    } else {
+      final_cache$rate_results <- rbind(final_cache$rate_results, country_cache$modeled_rates_mean_raster %>% select(t, modeled_rates_mean))
+    }
+  
+  ## Then multi-year run
+  }else if(length(all_configs[[country]]) == 1){
+    # First the case raster 
+    tryCatch({ 
+    country_cache <- new.env()
+    config_filename <- all_configs[[country]] 
+    if(country_count >= params$max_countries){break}
+    if(is.null(final_cache$case_results)) {
+      taxdat:::merge_modeled_cases_mean_into_raster(config_filename, country_cache, params$cholera_directory, params$output_dir)
+      remove_dropped_years(country_cache, country, params$dropped_years, 2015:2019) 
+      get_mean_case_raster_in_sf(country_cache)
+      final_cache$case_results <- country_cache$modeled_cases_mean_raster %>% select(t, modeled_cases_mean)
+    } else {
+      taxdat:::merge_modeled_cases_mean_into_raster(config_filename, country_cache, params$cholera_directory, params$output_dir)
+      remove_dropped_years(country_cache, country, params$dropped_years, 2015:2019) 
+      get_mean_case_raster_in_sf(country_cache)
+      final_cache$case_results <- rbind(final_cache$case_results, country_cache$modeled_cases_mean_raster %>% select(t, modeled_cases_mean))
+    } 
+    # error_countries_cases <- error_countries_cases[error_countries_cases != all_countries[all_configs[[country]] == config_filename] ]
+    }, error = function(e) {
+      warning(paste(config_filename,"failed with message", e$message))
+    })
+    # Then the rate raster 
+    tryCatch({ 
+    country_cache <- new.env()
+    config_filename <- all_configs[[country]] 
+    if(country_count >= params$max_countries){break}
+    if(is.null(final_cache$rate_results)) {
+      taxdat:::merge_modeled_rates_mean_into_raster(config_filename, country_cache, params$cholera_directory, params$output_dir)
+      remove_dropped_years(country_cache, country, params$dropped_years, 2015:2019) 
+      get_mean_rate_raster_in_sf(country_cache)
+      final_cache$rate_results <- country_cache$modeled_rates_mean_raster %>% select(t, modeled_rates_mean)
+    } else {
+      taxdat:::merge_modeled_rates_mean_into_raster(config_filename, country_cache, params$cholera_directory, params$output_dir)
+      remove_dropped_years(country_cache, country, params$dropped_years, 2015:2019) 
+      get_mean_rate_raster_in_sf(country_cache)
+      final_cache$rate_results <- rbind(final_cache$rate_results, country_cache$modeled_rates_mean_raster %>% select(t, modeled_rates_mean))
+    } 
+    
+    }, error = function(e) {
+      warning(paste(config_filename,"failed with message", e$message))
+    })
+
+  ## Multi-year run country has multiple configs error 
+  }else{
+    stop(paste0("The country ", country, " does not have single year runs but multiple configs to use, please check. "))
+  }
+
+  country_count <- country_count + 1 
+  complete_country <- c(complete_country, country)
+
+
+
+  # ### Undecided 
+  # config_caches <- lapply(all_configs[[country]], yaml::read_yaml(single_config))
+  # country_cache <- new.env()
+  # for(config_filename in all_configs[[country]]) {
+  #   # do_stuff_with_config
+  # } 
+  # merge_grid_cases_aggregate(
+  #   output_cache = country_cache,
+  #   input_caches = config_caches,
+  # )
+
+  # country_caches[[country]] <- country_cache
+}
+
+### Plotting 
+afr_shp <- sf::st_boundary(sf::st_read("/home/kaiyuezou/mapping_pipeline/9_23_dev/cholera-mapping-pipeline/Layers/africa_self_shp/afr_g2014_2013_0.shp"))
+shapefilename <- "/home/kaiyuezou/mapping_pipeline/9_23_dev/cholera-mapping-pipeline/Layers/africa_self_shp/afr_g2014_2013_0.shp"
+
+plot_raster_with_fill_with_shp <- function(name, color_scale_type, fill_column, cache, shapefilename) {
+    raster_object <- cache[[name]]
+    fill_column <- grep(stringr::str_remove(fill_column, "s$"), names(raster_object),
+        value = TRUE)
+    shp <- sf::st_boundary(sf::st_read(shapefilename)) 
+    plot <- ggplot2::ggplot() + ggplot2::geom_sf(data = raster_object, ggplot2::aes_string(fill = fill_column),
+        lwd = 0) + taxdat::color_scale(type = color_scale_type, use_case = "ggplot map") +
+        taxdat::map_theme() + ggplot2::facet_wrap(~t) + geom_sf(data = shp) + coord_sf()
+    return(plot)
+}
+
+plot_case <- plot_raster_with_fill_with_shp("case_results", "cases", "modeled_cases_mean", final_cache, shapefilename)
+pdf("/home/kaiyuezou/mapping_pipeline/2_23_continent_mapping/cholera-mapping-pipeline/Analysis/output/continent_case_testing.pdf")
+plot_case
+# ggplot() + geom_sf(data = afr_shp) + coord_sf()
+# plot_case
+# plot(afr_shp)
+dev.off()
+
+plot_rate <- plot_raster_with_fill_with_shp("rate_results", "rates", "modeled_rates_mean", final_cache, shapefilename)
+pdf("/home/kaiyuezou/mapping_pipeline/2_23_continent_mapping/cholera-mapping-pipeline/Analysis/output/continent_rate_testing.pdf")
+plot_rate
+dev.off()
+# afr_shp <- sf::st_boundary(sf::st_read(paste(params$cholera_directory,"Layers/Africa.shp",sep='/')))
+
+# add CRS
+# afr_shp <- as(afr_shp, 'Spatial')
+# sp::proj4string(afr_shp) <- sp::CRS("+init=epsg:4326 +proj=longlat +datum=WGS84 +no_defs")
+# afr_shp <- as(afr_shp, 'sf')
+# Somehow add crs to plot
+
+```
+
+```{r taxdat_functions}
+remove_dropped_years <- function(output_cache, country, dropped_years, full_year_vector = 2015:2019){
+  if(country %in% names(dropped_years)){
+
+    if("modeled_cases_mean_raster" %in% names(output_cache)){
+      if(length(unique(output_cache$modeled_cases_mean_raster$t)) == length(full_year_vector)){
+        index_to_remove <- match(dropped_years[[country]], full_year_vector)
+        output_cache$modeled_cases_mean_raster <- output_cache$modeled_cases_mean_raster %>%
+          filter(!t %in% index_to_remove)
+      }else{
+        warning(paste0("The dropped years check in country ", country, " did not get passed, be cautions with the output. "))
+        return(invisible())
+      }
+
+    }else if("modeled_rates_mean_raster" %in% names(output_cache)){
+      if(length(unique(output_cache$modeled_rates_mean_raster$t)) == length(full_year_vector)){
+        index_to_remove <- match(dropped_years[[country]], full_year_vector)
+        output_cache$modeled_rates_mean_raster <- output_cache$modeled_rates_mean_raster %>%
+          filter(!t %in% index_to_remove)
+      }else{
+        warning(paste0("The dropped years check in country ", country, " did not get passed, be cautions with the output. "))
+        return(invisible())
+      }
+    }
+
+  }
+
+}
+
+check_unused_config_by_output <- function(config_filename, 
+                                          cholera_directory, 
+                                          output_dir, 
+                                          delete_unused_config = FALSE){
+  ### The first check (for single year run)
+  config <- yaml::read_yaml(config_filename)
+  supposed_output_name <- taxdat::make_map_name(config)
+  if(!any(grepl(supposed_output_name, list.files(paste0(cholera_directory, "/", output_dir)))) 
+      & delete_unused_config 
+      & file.exists(config_filename)){
+    file.remove(config_filename)
+  }else if(!any(grepl(supposed_output_name, list.files(paste0(cholera_directory, "/", output_dir))))){
+    return(TRUE)
+  }
+
+  ### The ultimate check (for multi-year run)
+  local_output_dir <- paste0(cholera_directory, "/", output_dir)
+  file_names <- taxdat::get_filenames(config, cholera_directory)
+  file_names <- unlist(lapply(names(file_names), function(file_name){
+                              gsub("^.*?/Analysis/data", local_output_dir, file_names[file_name])
+                              }))
+  if(file.exists(file_names["stan_output"])){
+    return(FALSE)
+  }else{
+    ## Deal with the old one 
+    if(delete_unused_config & file.exists(config_filename)){
+      file.remove(config_filename)
+    }
+    ## Try other configs
+    config_dir <- stringr::str_extract(config_filename, ".*/")
+    all_configs <- list.files(config_dir, ".yml$")
+    for (configs in all_configs){
+      full_config_fn <- paste0(config_dir, configs)
+      config <- yaml::read_yaml(full_config_fn)
+      
+      file_names <- taxdat::get_filenames(config, cholera_directory)
+      file_names <- unlist(lapply(names(file_names), function(file_name){
+                                  gsub("^.*?/Analysis/data", local_output_dir, file_names[file_name])
+                                  }))
+      if(file.exists(file_names["stan_output"])){
+        return(full_config_fn) 
+      }else{
+        next 
+      }
+    }
+    stop("There is no correct config file for the existing model stan output, please check. ") 
+  }
+  
+}
+
+stitch_case_raster_stack <- function(output_cache, input_caches, cholera_directory, config_filename, output_dir){
+  stitch_caches(output_cache, 
+                name = "modeled_cases_raster", 
+                input_caches, 
+                initial_value = list(type = "first"), 
+                combination_function = stack_case_rate_raster_in_sf, 
+                cholera_directory, 
+                config_filename, 
+                output_dir)
+}
+
+stitch_rate_raster_stack <- function(output_cache, input_caches, cholera_directory, config_filename, output_dir){
+  stitch_caches(output_cache, 
+                name = "modeled_rates_raster", 
+                input_caches, 
+                initial_value = list(type = "first"), 
+                combination_function = stack_case_rate_raster_in_sf, 
+                cholera_directory, 
+                config_filename, 
+                output_dir)
+}
+
+stitch_caches <- function(
+  output_cache,
+  name,
+  input_caches,
+  initial_value = list(type = "first", value = NULL),
+  combination_function = function(x,y,...) {return(x + y)},
+  ...
+  ){
+  if (initial_value$type == "first") {
+    output_cache[[paste0(name, "_config")]] <- input_caches[[1]]
+    input_caches <- input_caches[-1]
+  } else if (initial_value$type == "fixed") {
+    output_cache[[paste0(name, "_config")]] <- initial_value$value
+  }
+  
+  combination_function(output_cache, name, ...) 
+  
+  return(invisible())
+}
+
+stack_case_rate_raster_in_sf <- function( output_cache, 
+                                          name, 
+                                          cholera_directory, 
+                                          config_filename, 
+                                          output_dir) {
+  ## Get the file names 
+  config_fn <- config_filename
+  local_output_dir <- paste0(cholera_directory, "/", output_dir)
+  config <- yaml::read_yaml(config_fn)
+
+  file_names <- taxdat::get_filenames(config, cholera_directory)
+  file_names <- unlist(lapply(names(file_names), function(file_name){
+                              gsub("^.*?/Analysis/data", local_output_dir, file_names[file_name])
+                              }))
+
+  ## Get the new sf dataset 
+  modeled_cases_rates_raster <- taxdat::get_case_raster(preprocessed_data_filename = file_names["data"],
+                                                        covar_data_filename = file_names["covar"],
+                                                        model_output_filenames = file_names["stan_output"])
+  names(modeled_cases_rates_raster)[ncol(modeled_cases_rates_raster) - 1] <- "modeled_cases"
+  names(modeled_cases_rates_raster)[ncol(modeled_cases_rates_raster)] <- "modeled_rates"
+  
+  ## Stitch together 
+  if(is.null(output_cache[[name]])) {
+    output_cache[[name]] <- modeled_cases_rates_raster 
+  } else {
+    modeled_cases_rates_raster$t <- max(output_cache[[name]]$t + 1)
+    output_cache[[name]] <- rbind(output_cache[[name]], modeled_cases_rates_raster)
+  } 
+}
+
+get_mean_case_raster_in_sf <- function(output_cache){
+  if("modeled_cases_mean_raster" %in% names(output_cache)){
+    output_cache[["modeled_cases_mean_raster"]]$grp = sapply(st_equals(output_cache[["modeled_cases_mean_raster"]]), max)
+    output_cache[["modeled_cases_mean_raster"]] <- output_cache[["modeled_cases_mean_raster"]] %>% 
+      group_by(grp) %>% 
+      summarise(modeled_cases_mean = mean(modeled_cases_mean, na.rm = TRUE), t = "Annualized") %>% 
+      select(t, modeled_cases_mean)
+
+  }else{
+    output_cache[["modeled_cases_raster"]]$grp = sapply(st_equals(output_cache[["modeled_cases_raster"]]), max)
+    output_cache[["modeled_cases_mean_raster"]] <- output_cache[["modeled_cases_raster"]] %>% 
+      group_by(grp) %>% 
+      summarise(modeled_cases_mean = mean(modeled_cases, na.rm = TRUE), t = "Annualized") %>% 
+      select(t, modeled_cases_mean) 
+  }
+  
+}
+
+get_mean_rate_raster_in_sf <- function(output_cache){
+  if("modeled_rates_mean_raster" %in% names(output_cache)){
+    output_cache[["modeled_rates_mean_raster"]]$grp = sapply(st_equals(output_cache[["modeled_rates_mean_raster"]]), max)
+    output_cache[["modeled_rates_mean_raster"]] <- output_cache[["modeled_rates_mean_raster"]] %>% 
+      group_by(grp) %>% 
+      summarise(modeled_rates_mean = mean(modeled_rates_mean, na.rm = TRUE), t = "Annualized") %>% 
+      select(t, modeled_rates_mean) 
+
+  }else{
+    output_cache[["modeled_rates_raster"]]$grp = sapply(st_equals(output_cache[["modeled_rates_raster"]]), max)
+    output_cache[["modeled_rates_mean_raster"]] <- output_cache[["modeled_rates_raster"]] %>% 
+      group_by(grp) %>% 
+      summarise(modeled_rates_mean = mean(modeled_rates, na.rm = TRUE), t = "Annualized") %>% 
+      select(t, modeled_rates_mean) 
+  }
+  
+}
+
+```
+
+
 
 ```{r datapull}
 all_files <- list.files(params$config_directory, full.names = TRUE, recursive=TRUE)
@@ -118,4 +522,6 @@ afr_shp <- sf::st_boundary(sf::st_read(paste(params$cholera_directory,"Layers/Af
 ## - Instead of iterating over each config, iterate over each country and aggregate over each config
 ## - Remove configs that are not for production runs
 ## - Diagnose errors in some country results with creating local_cache
+## - not real mean from the multi-year runs
+## - what's wrong with the scale? 
 ```
