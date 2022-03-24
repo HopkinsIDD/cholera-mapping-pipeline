@@ -21,6 +21,9 @@ chol_model <- cmdstanr::cmdstan_model(stan_model_path,
                                       quiet = FALSE,
                                       force_recompile = F)
 
+# Remove censoring inds that are character
+initial_values_data$stan_data$censoring_inds <- NULL
+
 cmdstan_fit <- chol_model$sample(
   seed = 1234,
   data = initial_values_data$stan_data,
