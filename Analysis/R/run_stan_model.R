@@ -25,7 +25,7 @@ cmdstan_fit <- chol_model$sample(
   seed = 1234,
   data = initial_values_data$stan_data,
   chains = nchain,
-  parallel_chains = chains,
+  parallel_chains = nchain,
   iter_warmup = round(niter/2),
   iter_sampling = round(niter/2),
   max_treedepth = 15,
