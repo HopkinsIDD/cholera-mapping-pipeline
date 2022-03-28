@@ -96,7 +96,7 @@ df <- purrr::map_dfr(
                      tfrac = tfrac_vec,
                      censored = stan_data$censoring_inds[i]) %>%
         {
-          if (stan_data$covar > 0) {
+          if (stan_data$ncovar > 0) {
             cbind(., beta_mat) 
           } else {
             .
