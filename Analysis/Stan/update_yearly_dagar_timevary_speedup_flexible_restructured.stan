@@ -177,6 +177,11 @@ model {
     vector[smooth_grid_N] std_dev; // Rescaled std_dev by std_dev_w
     vector[smooth_grid_N] t_rowsum; // only the rowsum of t is used
     
+    // Construct w
+    b = rho ./ (1 + (diag - 1) * rho * rho );
+    vec_var = (1 - rho * rho) ./ (1 + (1. * diag - 1) * rho * rho);
+    std_dev = std_dev_w * sqrt(vec_var);
+    
     // Linear in number of edges
     for(i in 1:smooth_grid_N){
       t_rowsum[i] = 0;
@@ -184,11 +189,6 @@ model {
     for(i in 1:N_edges){
       t_rowsum[node1[i] ] += w[node2[i] ] * b[ node1[i] ];
     }
-    
-    // Construct w
-    b = rho ./ (1 + (diag - 1) * rho * rho );
-    vec_var = (1 - rho * rho) ./ (1 + (1. * diag - 1) * rho * rho);
-    std_dev = std_dev_w * sqrt(vec_var);
     
     // NOTE:  no prior on phi_raw, it is used to construct phi
     // the following computes the prior on phi on the unit scale with std_dev = 1
@@ -265,40 +265,41 @@ model {
   }
 }
 // generated quantities {
-//   real<lower=0> tfrac_modeled_cases[M]; //expected number of cases for each observation
-//   real log_lik[M]; // log-likelihood of observations
-//   
-//   // first initialize to 0
-//   for (i in 1:M) {
-//     tfrac_modeled_cases[i] = 0;
-//   }
-//   //now accumulate
-//   for (i in 1:K1) {
-//     tfrac_modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
-//   }
-//   
-//   if (do_censoring == 0) {
-//     for (i in 1:M) {
-//       log_lik[i] = poisson_lpmf(y[i] | modeled_cases[i]);
-//     }
-//   } else {
-//     // full observations
-//     for (i in 1:M_full) {
-//       log_lik[ind_full[i]] = poisson_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]]);
-//     }
-//     // rigth-censored observations
-//     for(i in 1:M_right){
-//       real lpmf;
-//       lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
-//       // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
-//       if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
-//         real lls[2];
-//         lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
-//         lls[2] = lpmf;
-//         log_lik[ind_right[i]] = log_sum_exp(lls);
-//       } else {
-//         log_lik[ind_right[i]] = lpmf;
-//       }
-//     }
-//   }
-// }
+  //   real<lower=0> tfrac_modeled_cases[M]; //expected number of cases for each observation
+  //   real log_lik[M]; // log-likelihood of observations
+  //   
+  //   // first initialize to 0
+  //   for (i in 1:M) {
+    //     tfrac_modeled_cases[i] = 0;
+    //   }
+    //   //now accumulate
+    //   for (i in 1:K1) {
+      //     tfrac_modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
+      //   }
+      //   
+      //   if (do_censoring == 0) {
+        //     for (i in 1:M) {
+          //       log_lik[i] = poisson_lpmf(y[i] | modeled_cases[i]);
+          //     }
+          //   } else {
+            //     // full observations
+            //     for (i in 1:M_full) {
+              //       log_lik[ind_full[i]] = poisson_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]]);
+              //     }
+              //     // rigth-censored observations
+              //     for(i in 1:M_right){
+                //       real lpmf;
+                //       lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+                //       // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
+                //       if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
+                  //         real lls[2];
+                  //         lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+                  //         lls[2] = lpmf;
+                  //         log_lik[ind_right[i]] = log_sum_exp(lls);
+                  //       } else {
+                    //         log_lik[ind_right[i]] = lpmf;
+                    //       }
+                    //     }
+                    //   }
+                    // }
+                    
