@@ -444,9 +444,6 @@ prepare_stan_input <- function(
   stan_data$K1 <- length(stan_data$map_obs_loctime_obs)
   stan_data$K2 <- length(stan_data$map_loc_grid_loc)
   stan_data$L <- length(ind_mapping_resized$u_loctimes)
-  stan_data$ncovar <- length(covariate_choices)
-  
-  print(stan_data$ncovar)
   
   if (stan_data$ncovar > 1) {
     # Case when covariates are used
@@ -478,6 +475,8 @@ prepare_stan_input <- function(
       # standardize
       standardize_covar(stan_data$covar)
     }
+    
+    stan_data$ncovar <- length(covariate_choices)
   } else {
     # Case when no covariates are used
     stan_data$covar <- array()
