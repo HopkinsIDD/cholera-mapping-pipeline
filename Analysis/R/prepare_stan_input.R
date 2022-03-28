@@ -479,7 +479,7 @@ prepare_stan_input <- function(
     stan_data$ncovar <- length(covariate_choices)
   } else {
     # Case when no covariates are used
-    stan_data$covar <- array()
+    stan_data$covar <- array(0, dim = c(0))
     stan_data$ncovar <- 0
   }
   
