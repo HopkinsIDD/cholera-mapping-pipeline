@@ -72,9 +72,11 @@ df <- purrr::map_dfr(
     sx <- coord_frame$x[ind]
     sy <- coord_frame$y[ind]
     
-    beta_mat <- stan_data$covar[ind, ] %>% 
-      matrix(ncol = stan_data$ncovar) %>% 
-      magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar))
+    if (stan_data$covar > 0) {
+      beta_mat <- stan_data$covar[ind, ] %>% 
+        matrix(ncol = stan_data$ncovar) %>% 
+        magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar))
+    }
     
     year_mat <- mat_grid_time[ind, ] %>%
       matrix(ncol = ncol(mat_grid_time)) %>%
@@ -93,7 +95,13 @@ df <- purrr::map_dfr(
                      ey = pop*stan_data$meanrate,
                      tfrac = tfrac_vec,
                      censored = stan_data$censoring_inds[i]) %>%
-        cbind(beta_mat) %>% 
+        {
+          if (stan_data$covar > 0) {
+            cbind(., beta_mat) 
+          } else {
+            .
+          }
+        } %>% 
         cbind(year_mat)
     )
   }
