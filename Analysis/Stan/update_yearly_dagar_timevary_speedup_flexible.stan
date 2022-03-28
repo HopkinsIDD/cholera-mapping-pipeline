@@ -148,7 +148,12 @@ transformed parameters {
   }
   
   // log-rates without time-slice effects
-  log_lambda =  w[map_smooth_grid] + log_meanrate + covar * betas;
+  log_lambda =  w[map_smooth_grid] + log_meanrate;
+  
+  // covariates if applicable
+  if (ncovar > 1) {
+    log_lambda += covar * betas;
+  }
   
   // Add time slice effects
   if (do_time_slice_effect == 1) {

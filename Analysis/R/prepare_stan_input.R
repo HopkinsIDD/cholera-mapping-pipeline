@@ -448,7 +448,8 @@ prepare_stan_input <- function(
   
   print(stan_data$ncovar)
   
-  if (stan_data$ncovar > 0) {
+  if (stan_data$ncovar > 1) {
+    # Case when covariates are used
     # Flatten covariate cube to 2d array: [n_pix * n_time_units] * [n_cov]
     # Here the first covariate corresponds to the population raster, so needs to be
     # excluded. Data flattened by pixels first, meaning that
@@ -477,6 +478,10 @@ prepare_stan_input <- function(
       # standardize
       standardize_covar(stan_data$covar)
     }
+  } else {
+    # Case when no covariates are used
+    stan_data$covar <- array()
+    stan_data$ncovar <- 0
   }
   
   full_grid <- dplyr::left_join(sf::st_drop_geometry(sf_grid),sf::st_drop_geometry(smooth_grid))[,c('upd_id','smooth_id', 't')]
