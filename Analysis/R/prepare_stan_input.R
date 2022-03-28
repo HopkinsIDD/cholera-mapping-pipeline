@@ -445,7 +445,7 @@ prepare_stan_input <- function(
   stan_data$K2 <- length(stan_data$map_loc_grid_loc)
   stan_data$L <- length(ind_mapping_resized$u_loctimes)
   
-  if (stan_data$ncovar > 1) {
+  if (length(covariate_choices) > 0) {
     # Case when covariates are used
     # Flatten covariate cube to 2d array: [n_pix * n_time_units] * [n_cov]
     # Here the first covariate corresponds to the population raster, so needs to be
