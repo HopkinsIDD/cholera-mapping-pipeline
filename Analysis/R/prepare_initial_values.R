@@ -127,9 +127,7 @@ covar_warmup <- stan_params$covar_warmup
 stan_data$sigma_eta_scale <- stan_params$sigma_eta_scale
 
 # Add scale of prior on the sd of regression coefficients
-if (stan_data$ncovar >= 1) {
-  stan_data$beta_sigma_scale <- stan_params$beta_sigma_scale
-}
+stan_data$beta_sigma_scale <- stan_params$beta_sigma_scale
 
 
 if (warmup) {
