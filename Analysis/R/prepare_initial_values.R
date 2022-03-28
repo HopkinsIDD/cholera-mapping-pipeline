@@ -72,7 +72,7 @@ df <- purrr::map_dfr(
     sx <- coord_frame$x[ind]
     sy <- coord_frame$y[ind]
     
-    if (stan_data$covar > 0) {
+    if (stan_data$ncovar > 0) {
       beta_mat <- stan_data$covar[ind, ] %>% 
         matrix(ncol = stan_data$ncovar) %>% 
         magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar))
