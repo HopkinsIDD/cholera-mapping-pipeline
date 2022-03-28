@@ -189,6 +189,7 @@ conn_pg <- taxdat::connect_to_db(dbname = opt$postgres_database_name, dbuser = o
 
 cases_column <- "suspected_cases"
 ## Observations
+print("Starting")
 observation_data <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
     "SELECT *
      FROM pull_observation_data(
@@ -201,6 +202,7 @@ observation_data <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.
         deaths_L = as.numeric(NA), deaths_R = as.numeric(NA)) %>%
     dplyr::filter(!is.na(!!rlang::sym(cases_column))) %>%
     sf::st_as_sf()
+print("Pulled observation data")
 
 ## Covariates
 covar_cube <- DBI::dbGetQuery(conn = conn_pg, glue::glue_sql(.con = conn_pg, "SELECT *
@@ -214,6 +216,7 @@ covar_cube <- DBI::dbGetQuery(conn = conn_pg, glue::glue_sql(.con = conn_pg, "SE
     )")) %>%
     dplyr::filter(!is.na(value)) %>%
     tidyr::pivot_wider(names_from = covariate_name, values_from = value)
+print("Pulled covariates")
 
 
 
@@ -223,6 +226,7 @@ grid_adjacency <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.co
        {config[[\"general\"]][[\"width_in_km\"]]},
        {config[[\"general\"]][[\"height_in_km\"]]}
     )"))
+print("Pulled adjacency matrix")
 
 observation_temporal_location_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
     "SELECT * FROM pull_observation_location_period_map(
@@ -232,6 +236,7 @@ observation_temporal_location_mapping <- DBI::dbGetQuery(conn = conn_pg, stateme
        {config[[\"general\"]][[\"time_scale\"]]}
     )")) %>%
     dplyr::mutate(temporal_location_id = paste(location_period_id, t, sep = "_"))
+print("Pulled observation-location map")
 
 temporal_location_grid_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
     "SELECT * FROM pull_location_period_grid_map(
@@ -243,6 +248,7 @@ temporal_location_grid_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = gl
        {config[[\"general\"]][[\"time_scale\"]]}
     )")) %>%
     dplyr::mutate(temporal_location_id = paste(location_period_id, t, sep = "_"))
+print("Pulled location-grid map")
 
 unique_temporal_location_ids <- unique(c(observation_temporal_location_mapping$temporal_location_id,
     temporal_location_grid_mapping$temporal_location_id))
@@ -252,11 +258,13 @@ observation_temporal_location_mapping[["temporal_location_id"]] <- bit64::as.int
 temporal_location_grid_mapping[["temporal_location_id"]] <- bit64::as.integer64(match(temporal_location_grid_mapping[["temporal_location_id"]],
     unique_temporal_location_ids))
 
+print("Starting processing")
 # Intermediate operations like aggregation and overlap removal
 
 observation_data.bak <- observation_data
 observation_temporal_location_mapping.bak <- observation_temporal_location_mapping
 if (config[["processing"]][["aggregate"]]) {
+    print("Aggregating")
     temporally_linked_observations <- observation_data %>%
         dplyr::inner_join(observation_temporal_location_mapping)
 
@@ -272,10 +280,12 @@ if (config[["processing"]][["aggregate"]]) {
     observation_temporal_location_mapping <- taxdat::project_to_groups(observation_data_aggregated,
         c("observation_id", "temporal_location_id"), observation_temporal_location_mapping)
 
+    print("Finished aggregating")
 }
 
 
 if (config[["processing"]][["remove_overlaps"]]) {
+    print("Removing overlaps")
     observation_data_with_t <- observation_data %>%
         dplyr::inner_join(observation_temporal_location_mapping) %>%
         dplyr::group_by(!!!rlang::syms(taxdat::get_unique_columns_by_group(observation_data,
@@ -287,10 +297,12 @@ if (config[["processing"]][["remove_overlaps"]]) {
         dplyr::select(-t) %>%
         sf::st_as_sf()
 
+    print("Finished removing overlaps")
 }
 
 
 if (config[["processing"]][["censor_incomplete_observations"]][["perform"]]) {
+    print("Censoring incomplete observations")
     temporally_linked_observations <- observation_data %>%
         dplyr::inner_join(observation_temporal_location_mapping)
 
@@ -306,6 +318,7 @@ if (config[["processing"]][["censor_incomplete_observations"]][["perform"]]) {
         "observation_id", observation_data))
     observation_temporal_location_mapping <- taxdat::project_to_groups(observation_data_censored,
         c("observation_id", "temporal_location_id"), observation_temporal_location_mapping)
+    print("Finished censoring incomplete observations")
 } else {
     observation_data <- dplyr::filter(observation_data, !is.na(!!rlang::sym(cases_column)))
     observation_data[[paste0(cases_column, "_L")]] <- as.numeric(NA)
@@ -322,6 +335,7 @@ if (!all(is.na(observation_data[[paste0(cases_column, "_R")]]) | is.na(observati
         "_R ", cases_column, " ", cases_column, "_L by this point in processing."))
 }
 
+print("Reindexing")
 
 covariate_covered_grid_ids <- covar_cube %>%
     dplyr::filter(!is.na(id), !is.na(t), population > 0) %>%
@@ -409,14 +423,20 @@ temporal_location_grid_mapping <- temporal_location_grid_mapping %>%
     dplyr::filter(!is.na(updated_spatial_grid_id), !is.na(updated_temporal_location_id),
         !is.na(spacetime_grid_id))
 
+print("Finished reindexing")
+
 if (config[["processing"]][["reorder_adjacency_matrix"]][["perform"]]) {
+    print("Reordering adjacency matrix")
     bias <- covar_cube %>%
         dplyr::filter(t == min(t)) %>%
         dplyr::mutate(bias = x - y) %>%
         .[["bias"]]
     grid_adjacency <- taxdat::reorder_adjacency_matrix(grid_adjacency, bias, c("updated_id_1",
         "updated_id_2"))
+    print("Finished reordering adjacency matrix")
 }
+
+
 ### Construct some additional parameters based on the above Define relevent
 ### directories Name the output file
 
@@ -430,7 +450,8 @@ library(rstan)
 
 ## INITIAL VALUES
 
-if (config$initial_values$warmup) {
+if (config[["initial_values"]][["warmup"]]) {
+    print("Starting gam warmup")
     covariate_names <- colnames(as.data.frame(covar_cube)[, -c(1:6, ncol(covar_cube) -
         1, ncol(covar_cube))])
     initial_values_df <- observation_data %>%
@@ -475,6 +496,7 @@ if (config$initial_values$warmup) {
     covar_cube[["covariate_contribution"]] <- covariate_effect
     covar_cube[["spatial_smoothing_term"]] <- gam_predict - covariate_effect
     covar_cube[["gam_output"]] <- gam_predict
+    print("Finished gam warmup")
 } else {
     initial_values_list <- "random"
     initial_values_df <- "no warmup performed"
@@ -500,6 +522,7 @@ options(mc.cores = config[["stan"]][["ncores"]])
 standardize = function(x) (x - mean(x))/sd(x)
 standardize_covar = function(M) cbind(M[, 1], apply(M[, -1, drop = F], 2, standardize))
 
+print("Creating stan data")
 stan_data <- list(N = nrow(covar_cube), N_edges = nrow(grid_adjacency), smooth_grid_N = length(unique(covar_cube$updated_id)),
     node1 = as.integer(grid_adjacency$updated_id_1), node2 = as.integer(grid_adjacency$updated_id_2),
     diag = nneighbors$nneighbors, pop = covar_cube$population, meanrate = 1, M = nrow(observation_data),
@@ -524,21 +547,29 @@ stan_data <- list(N = nrow(covar_cube), N_edges = nrow(grid_adjacency), smooth_g
     use_rho_prior = TRUE, do_censoring = (0 != (sum(!is.na(observation_data[[paste0(cases_column,
         "_L")]])) + sum(!is.na(observation_data[[paste0(cases_column, "_R")]])))))
 
+print("Finished creating stan data")
+
 
 # Save input
+print("Saving model input")
 stan_input <- list(stan_data = stan_data, covar_cube = covar_cube, observation_data = observation_data,
     grid_adjacency = grid_adjacency, observation_temporal_location_mapping = observation_temporal_location_mapping,
     temporal_location_grid_mapping = temporal_location_grid_mapping, initial_values_list = initial_values_list,
     initial_values_df = initial_values_df)
 save(stan_input, file = config[["file_names"]][["stan_input"]])
+print("Finished saving model input")
 
+print("Running STAN")
 start_time <- Sys.time()
 model.rand <- rstan::stan(file = stan_model_path, data = stan_data, chains = config[["stan"]][["nchain"]],
     iter = config[["stan"]][["niter"]], pars = c("b", "t_rowsum", "vec_var"), include = FALSE,
     control = list(max_treedepth = 15), refresh = 10, init = initial_values_list)
 end_time <- Sys.time()
+print("Finished runing STAN")
 
 elapsed_time <- end_time - start_time
 
 # Save output
+print("Saving output")
 save(model.rand, elapsed_time, file = config[["file_names"]][["stan_output"]])
+print("Finished saving output")
