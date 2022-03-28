@@ -383,9 +383,6 @@ for(t_idx in 1:length(all_test_idx)){
     # Save results to file
     save(covar_cube_output, file = file_names[["covar"]])
   }
-  print("NCOVAR")
-  print(length(covariate_choices))
-  print("NCOVAR")
 
   ## Step 3: Prepare the stan input ##
   print(file_names[["stan_input"]])
