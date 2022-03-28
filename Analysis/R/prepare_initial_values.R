@@ -172,10 +172,16 @@ if (warmup) {
     cbind(mat_grid_time[indall, ] %>% 
             tibble::as_tibble() %>%
             magrittr::set_colnames(paste0("year_", 1:ncol(mat_grid_time)))) %>% 
-    # Extract the covariates
-    cbind(stan_data$covar[indall, ] %>% 
-            matrix(ncol = stan_data$ncovar) %>% 
-            magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar)))
+    { 
+      if(stan_data$ncovar > 0) {
+        # Extract the covariates
+        cbind(., stan_data$covar[indall, ] %>% 
+                matrix(ncol = stan_data$ncovar) %>% 
+                magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar)))
+      } else {
+        .
+      }
+    }
   
   # Predict log(lambda) for the reference year with covariates
   y_pred_mean <- mgcv::predict.gam(gam_fit, predict_df)
