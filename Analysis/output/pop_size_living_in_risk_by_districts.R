@@ -10,7 +10,7 @@ old_output_dir_single <- "Analysis/data/June_2021_runs/single/cholera-mapping-ou
 old_output_dir_multiple <- "Analysis/data/June_2021_runs/multiple/cholera-mapping-output"
 model_output_version <- "both" #new/old/both
 final_output_dir <- "/home/kaiyuezou/mapping_pipeline/pop_3_29" 
-country_code <- "COD" 
+country_code <- "all" 
 
 
 
@@ -655,14 +655,15 @@ for(country_code in Dec_2021_list){
         }
         ### Put different years together
         if(is.null(sf_rate_pop_cbind)){
-          sf_rate_pop_cbind <- sf_rate_pop[, 1:(ncol(sf_rate_pop)-2)] #will try a better way to remove pop2017
+          sf_rate_pop_cbind <- sf_rate_pop #will try a better way to remove pop2017
         }else if( match(config_fns, params$config) != length(params$config) ){
           # sf_rate_pop_cbind <- cbind(sf_rate_pop_cbind, sf_rate_pop[, 1:(ncol(sf_rate_pop)-2)] %>% st_drop_geometry())
-          sf_rate_pop_cbind <- st_join(sf_rate_pop_cbind, sf_rate_pop[, 1:(ncol(sf_rate_pop)-2)], join = st_nearest_feature, left = T)
+          sf_rate_pop_cbind <- st_join(sf_rate_pop_cbind, sf_rate_pop[, names(sf_rate_pop)[!names(sf_rate_pop) %in% c("pop2017")]], join = st_nearest_feature, left = T)
           # sf::st_join(sf_rate_pop_cbind, sf_rate_pop[, 1:(ncol(sf_rate_pop)-2)])
           # sf_rate_pop_cbind <- merge(sf_rate_pop_cbind, sf_rate_pop[, 1:(ncol(sf_rate_pop)-2)], by = "geometry")
         }else{
-          sf_rate_pop_cbind <- st_join(sf_rate_pop_cbind, sf_rate_pop, join = st_nearest_feature, left = T)
+          sf_rate_pop_cbind <- st_join(sf_rate_pop_cbind, sf_rate_pop[, names(sf_rate_pop)[!names(sf_rate_pop) %in% c("pop2017")]], join = st_nearest_feature, left = T)
+          sf_rate_pop_cbind <- sf_rate_pop_cbind[, c(colnames(sf_rate_pop_cbind)[!colnames(sf_rate_pop_cbind) %in% c("pop2017", "geometry")], c("pop2017", "geometry"))]
           sf_rate_pop <- sf_rate_pop_cbind
           rm(sf_rate_pop_cbind)
         }
