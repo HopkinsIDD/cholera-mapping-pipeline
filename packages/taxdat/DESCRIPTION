@@ -25,6 +25,7 @@ Collate:
     'setup_helpers.R'
     'pull_data_helpers.R'
     'model_evaluation_helpers.R'
+    'output_processing_helper.R'
     'plot_map.R'
     'run_stan_helpers.R'
     'shapefile_manipulation.R'
