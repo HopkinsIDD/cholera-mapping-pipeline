@@ -34,7 +34,8 @@ cmdstan_fit <- chol_model$sample(
   max_treedepth = 15,
   init = initial_values_data$init.list,
   sig_figs = 5,
-  save_warmup = F
+  save_warmup = F,
+  refresh = 100
 )
 
 # Transform back to stanfit object
