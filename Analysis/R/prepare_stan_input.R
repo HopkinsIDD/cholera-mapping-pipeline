@@ -454,6 +454,7 @@ prepare_stan_input <- function(
     # TODO check if the index removing the first covarcub column which should correspond
     # to population is correct
 
+    stan_data$ncovar <- length(covariate_choices)
     stan_data$covar <- matrix(apply(covar_cube, 3, function(x) x[non_na_gridcells])[, -1], nrow = length(non_na_gridcells))
     
     for (i in rev(seq_len(stan_data$ncovar:1))) {
@@ -476,7 +477,6 @@ prepare_stan_input <- function(
       standardize_covar(stan_data$covar)
     }
     
-    stan_data$ncovar <- length(covariate_choices)
   } else {
     # Case when no covariates are used
     stan_data$covar <- array(0, dim = c(length(non_na_gridcells), 0))
