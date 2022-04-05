@@ -102,7 +102,7 @@ make_stan_input_filename <- function(cholera_directory,
         covariate_name_part, '.', to_add, ".stan_input", '.rdata',sep='')
 }
 
-#' @title Make Stan output filename
+#' @title Make initial values filename
 #' @name make_initial_values_filename
 #' @description Make string for Stan output Rdata file name
 #'
@@ -120,15 +120,16 @@ make_initial_values_filename <- function(cholera_directory,
                                          config,
                                          config_dict) {
   
-  if ("file_names" %in% names(config)) {
-    filename <- paste(cholera_directory, "Analysis", "data", sep = "/")
-    if ("output_directory" %in% names(config[["file_names"]])) {
-      filename <- config[["file_names"]][["output_directory"]]
+    if ("file_names" %in% names(config)) {
+        filename <- paste(cholera_directory, "Analysis", "data", sep = "/")
+        if ("output_directory" %in% names(config[["file_names"]])) {
+            filename <- config[["file_names"]][["output_directory"]]
+        }
+        if ("initial_values_filename" %in% names(config[["file_names"]])) {
+            return(paste(filename, config[["file_names"]][["initial_values_filename"]],
+                sep = "/"))
+        }
     }
-    if ("stan_output_filename" %in% names(config[["file_names"]])) {
-      return(paste(filename, config[["file_names"]][["stan_output_filename"]], sep = "/"))
-    }
-  }
   
   # Get stan input filename
   base_filename <- make_stan_input_filename(cholera_directory,
