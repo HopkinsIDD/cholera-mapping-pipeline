@@ -90,7 +90,7 @@ aggregate_pop_by_threshold_across_cells <- function(rate_raster_cropped,threshol
   names(pop_prop) <- paste0(">=",threshold_list)
   for (threshold_idx in seq_len(length(threshold_list))) {
     pop_prop[,threshold_idx] <-
-      100*sum(rate_raster_cropped[which(rate_raster_cropped[,1]>=threshold_list[threshold_idx]]),2])/sum(rate_raster_cropped[,2])
+      100*sum(rate_raster_cropped[which(rate_raster_cropped[,1]>=threshold_list[threshold_idx]),2])/sum(rate_raster_cropped[,2])
   }
   pop_prop<-t(t(cbind(0,pop_prop))-dplyr::lag(t(cbind(0,pop_prop))))[,-1]
   return(pop_prop)
