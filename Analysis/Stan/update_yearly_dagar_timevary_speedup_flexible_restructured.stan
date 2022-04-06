@@ -39,6 +39,7 @@ data {
   int <lower=0, upper=L> map_loc_grid_loc[K2]; // the location side of the mapping from locations to gridcells
   int <lower=0, upper=N> map_loc_grid_grid[K2]; // the gridcell side of the mapping from locations to gridcells
   
+  matrix[N, T] mat_grid_time; // The time side of the mapping from locations/times to grid
   int <lower=0,upper=smooth_grid_N> map_smooth_grid[N]; //vector with repeating smooth_grid_N indexes repeating 1:N
   
   // Covariate stuff
@@ -61,7 +62,6 @@ data {
   
   // If time slice effect pass indicator function for years without data
   vector<lower=0, upper=1>[N*do_time_slice_effect] has_data_year;
-  matrix[N*do_time_slice_effect + 2 * (do_time_slice_effect != 1), T*do_time_slice_effect + 2*(do_time_slice_effect != 1)] mat_grid_time; // The time side of the mapping from locations/times to grid (2x2 in case of missing just so it's easy to create)
 }
 
 transformed data {
@@ -113,83 +113,86 @@ parameters {
 }
 
 transformed parameters {
-  vector[N] log_lambda; //local log rate
-  vector[smooth_grid_N] b; //
-  vector[smooth_grid_N] vec_var; //
-  vector[smooth_grid_N] t_rowsum; // only the rowsum of t is used
-  vector[smooth_grid_N] std_dev; // Rescaled std_dev by std_dev_w
+  
   vector<lower=0>[L] location_cases; //cases modeled in each (temporal) location.
-  vector<lower=0>[N] grid_cases; //cases modeled in each gridcell and time point.
   vector[T*do_time_slice_effect] eta; // yearly random effects
-  
-  // real w_sum;
-  
   real<lower=0> modeled_cases[M]; //expected number of cases for each observation
   real<lower=0> std_dev_w;
+  vector[N] log_lambda; //local log rate
   
-  if (do_time_slice_effect == 1) {
-    for(i in 1:T) {
-      // scale yearly random effects
-      eta[i] = sigma_eta_scale * sigma_eta_tilde[1] * eta_tilde[i];
+  {
+    vector[N] grid_cases; //cases modeled in each gridcell and time point.
+    
+    if (do_time_slice_effect == 1) {
+      for(i in 1:T) {
+        // scale yearly random effects
+        eta[i] = sigma_eta_scale * sigma_eta_tilde[1] * eta_tilde[i];
+      }
     }
-  }
-  
-  std_dev_w = exp(log_std_dev_w);
-  
-  // Construct w
-  vec_var = (1 - rho * rho) ./ (1 + (1. * diag - 1) * rho * rho);
-  b = rho ./ (1 + (diag - 1) * rho * rho );
-  // Linear in number of edges
-  for(i in 1:smooth_grid_N){
-    t_rowsum[i] = 0;
-  }
-  for(i in 1:N_edges){
-    t_rowsum[node1[i] ] += w[node2[i] ] * b[ node1[i] ];
-  }
-  
-  // log-rates without time-slice effects
-  log_lambda =  w[map_smooth_grid] + log_meanrate + covar * betas;
-  
-  // Add time slice effects
-  if (do_time_slice_effect == 1) {
-    log_lambda += (mat_grid_time * eta) .* has_data_year;
-  }
-  
-  grid_cases = exp(log_lambda + logpop);
-  
-  //calculate the expected number of cases by location
-  
-  // calculate number of cases for each location
-  for(i in 1:L){
-    location_cases[i] = 0;
-  }
-  for(i in 1:K2){
-    location_cases[map_loc_grid_loc[i]] += grid_cases[map_loc_grid_grid[i]];
-  }
-  
-  //first initialize to 0
-  for (i in 1:M) {
-    modeled_cases[i] = 0;
-  }
-  
-  //now accumulate
-  for (i in 1:K1) {
-    if (do_censoring == 1) {
-      modeled_cases[map_obs_loctime_obs[i]] += location_cases[map_obs_loctime_loc[i]];
-    } else {
-      modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
+    
+    std_dev_w = exp(log_std_dev_w);
+    
+    
+    // log-rates without time-slice effects
+    log_lambda =  w[map_smooth_grid] + log_meanrate + covar * betas;
+    
+    // Add time slice effects
+    if (do_time_slice_effect == 1) {
+      log_lambda += (mat_grid_time * eta) .* has_data_year;
     }
+    
+    grid_cases = exp(log_lambda + logpop);
+    
+    //calculate the expected number of cases by location
+    
+    // calculate number of cases for each location
+    for(i in 1:L){
+      location_cases[i] = 0;
+    }
+    for(i in 1:K2){
+      location_cases[map_loc_grid_loc[i]] += grid_cases[map_loc_grid_grid[i]];
+    }
+    
+    //first initialize to 0
+    for (i in 1:M) {
+      modeled_cases[i] = 0;
+    }
+    
+    //now accumulate
+    for (i in 1:K1) {
+      if (do_censoring == 1) {
+        modeled_cases[map_obs_loctime_obs[i]] += location_cases[map_obs_loctime_loc[i]];
+      } else {
+        modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
+      }
+    }
+    //w_sum = sum(w);
   }
-  //w_sum = sum(w);
-  std_dev = std_dev_w * sqrt(vec_var);
 }
-
 model {
   
-  // NOTE:  no prior on phi_raw, it is used to construct phi
-  // the following computes the prior on phi on the unit scale with std_dev = 1
-  for(i in 1:smooth_grid_N){
-    target += normal_lpdf(w[i] | t_rowsum[i], std_dev[i]);
+  {
+    vector[smooth_grid_N] b; //
+    vector[smooth_grid_N] vec_var; //
+    vector[smooth_grid_N] std_dev; // Rescaled std_dev by std_dev_w
+    vector[smooth_grid_N] t_rowsum; // only the rowsum of t is used
+    
+    // Linear in number of edges
+    for(i in 1:smooth_grid_N){
+      t_rowsum[i] = 0;
+    }
+    for(i in 1:N_edges){
+      t_rowsum[node1[i] ] += w[node2[i] ] * b[ node1[i] ];
+    }
+    
+    // Construct w
+    b = rho ./ (1 + (diag - 1) * rho * rho );
+    vec_var = (1 - rho * rho) ./ (1 + (1. * diag - 1) * rho * rho);
+    std_dev = std_dev_w * sqrt(vec_var);
+    
+    // NOTE:  no prior on phi_raw, it is used to construct phi
+    // the following computes the prior on phi on the unit scale with std_dev = 1
+    target += normal_lpdf(w | t_rowsum, std_dev);
   }
   
   // prior on regression coefficients
@@ -249,12 +252,6 @@ model {
         }
       }
       target += sum(lp_censored);
-      
-      // add a 0-centered prior on the censored cases
-      for (idx in ind_right) {
-        modeled_cases[idx] ~ cauchy(0, 2);
-      }
-      
     }
   } else {
     if (use_weights == 1) {
@@ -267,41 +264,41 @@ model {
     }
   }
 }
-generated quantities {
-  real<lower=0> tfrac_modeled_cases[M]; //expected number of cases for each observation
-  real log_lik[M]; // log-likelihood of observations
-  
-  // first initialize to 0
-  for (i in 1:M) {
-    tfrac_modeled_cases[i] = 0;
-  }
-  //now accumulate
-  for (i in 1:K1) {
-    tfrac_modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
-  }
-  
-  if (do_censoring == 0) {
-    for (i in 1:M) {
-      log_lik[i] = poisson_lpmf(y[i] | modeled_cases[i]);
-    }
-  } else {
-    // full observations
-    for (i in 1:M_full) {
-      log_lik[ind_full[i]] = poisson_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]]);
-    }
-    // rigth-censored observations
-    for(i in 1:M_right){
-      real lpmf;
-      lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
-      // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
-      if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
-        real lls[2];
-        lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
-        lls[2] = lpmf;
-        log_lik[ind_right[i]] = log_sum_exp(lls);
-      } else {
-        log_lik[ind_right[i]] = lpmf;
-      }
-    }
-  }
-}
+// generated quantities {
+//   real<lower=0> tfrac_modeled_cases[M]; //expected number of cases for each observation
+//   real log_lik[M]; // log-likelihood of observations
+//   
+//   // first initialize to 0
+//   for (i in 1:M) {
+//     tfrac_modeled_cases[i] = 0;
+//   }
+//   //now accumulate
+//   for (i in 1:K1) {
+//     tfrac_modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
+//   }
+//   
+//   if (do_censoring == 0) {
+//     for (i in 1:M) {
+//       log_lik[i] = poisson_lpmf(y[i] | modeled_cases[i]);
+//     }
+//   } else {
+//     // full observations
+//     for (i in 1:M_full) {
+//       log_lik[ind_full[i]] = poisson_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]]);
+//     }
+//     // rigth-censored observations
+//     for(i in 1:M_right){
+//       real lpmf;
+//       lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+//       // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
+//       if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
+//         real lls[2];
+//         lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+//         lls[2] = lpmf;
+//         log_lik[ind_right[i]] = log_sum_exp(lls);
+//       } else {
+//         log_lik[ind_right[i]] = lpmf;
+//       }
+//     }
+//   }
+// }
