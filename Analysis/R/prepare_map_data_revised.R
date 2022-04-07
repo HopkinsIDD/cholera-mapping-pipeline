@@ -15,7 +15,7 @@ if (data_source == "api") {
   # NEED TO ADD WHO REGION LOOKUP AND APPEND FOR ALL LOCATIONS
   countries <- sapply(countries_name, taxdat::fix_country_name)
   who_region <- sapply(countries_name, taxdat::lookup_WHO_region)
-  long_countries <- paste(who_region, gsub("_", "::", countries_name), sep = "::")
+  long_countries <- paste("CT-World", who_region, gsub("_", "::", countries_name), sep = "::")
   worldpop_region <- unique(sapply(countries_name, taxdat::lookup_WorldPop_region))
   username <- Sys.getenv("CHOLERA_API_USERNAME", "NONE")
   password <- Sys.getenv("CHOLERA_API_KEY", "NONE")
@@ -50,6 +50,9 @@ cases <- taxdat::pull_taxonomy_data(
   uids = filter_OCs,
 ) %>%
   taxdat::rename_database_fields(source = data_source)
+index <- sf::st_geometry_type(cases) == sf::st_geometry_type(sf::st_geometrycollection())
+sf::st_geometry(cases[index, ]) <- sf::st_as_sfc(lapply(sf::st_geometry(cases[index, ]), sf::st_collection_extract, type = "POLYGON"))
+
 
 # Get OC UIDs for all extracted data
 uids <- sort(unique(as.numeric(cases$OC_UID)))
