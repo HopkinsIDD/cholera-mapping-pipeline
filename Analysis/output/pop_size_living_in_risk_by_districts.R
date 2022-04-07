@@ -379,7 +379,7 @@ aggregate_affected_pop_across_cells_by_districts <- function( sf_rate_pop,
 #' @return 
 generate_final_table <- function( intermediate_table, 
                                   iso_code, 
-                                  probability_cutoffs = c(0.025,0.5,0.975)){ 
+                                  probability_cutoffs = c(0.025, 0.050, 0.500, 0.950, 0.975)){ 
   district_vector <- unique(gsub( ".*<=", "", names(intermediate_table)[!grepl("^pop_.*", names(intermediate_table))] ))   
   threshold_vector <- unique(gsub( "<=.*", "", names(intermediate_table)[!grepl("^pop_.*", names(intermediate_table))] ))
   threshold_vector <- sort(as.numeric(threshold_vector), decreasing = TRUE)
@@ -426,11 +426,12 @@ generate_final_table <- function( intermediate_table,
   }  
 
   final_summary_table <- apply(final_table, 2, mean)
+  final_summary_table <- rbind(final_summary_table, apply(final_table, 2, IQR))
   for(cutoffs in probability_cutoffs){
     final_summary_table <- rbind(final_summary_table, apply(final_table, 2, quantile, cutoffs))
   }
   final_summary_table <- as.data.frame(final_summary_table) %>% 
-    dplyr::mutate(statistics = c("mean", probability_cutoffs)) %>%
+    dplyr::mutate(statistics = c("mean", "IQR", probability_cutoffs)) %>%
     dplyr::select(statistics, names(final_table))
 
   return(final_summary_table)
@@ -714,16 +715,25 @@ if( all(paste0(Dec_2021_full_list, "_sum_table.csv") %in% list.files(final_outpu
   agg_sum_table <- tibble::tibble(country_name = as.character(), 
                                   mean_1e_5 = as.numeric(), 
                                   median_1e_5 = as.numeric(), 
+                                  iqr_1e_5 = as.numeric(), 
+                                  q025_1e_5 = as.numeric(), 
                                   q05_1e_5 = as.numeric(), 
                                   q95_1e_5 = as.numeric(), 
+                                  q975_1e_5 = as.numeric(), 
                                   mean_1e_4 = as.numeric(), 
                                   median_1e_4 = as.numeric(), 
+                                  iqr_1e_4 = as.numeric(), 
+                                  q025_1e_4 = as.numeric(), 
                                   q05_1e_4 = as.numeric(), 
                                   q95_1e_4 = as.numeric(), 
+                                  q975_1e_4 = as.numeric(), 
                                   mean_1e_3 = as.numeric(), 
                                   median_1e_3 = as.numeric(), 
+                                  iqr_1e_3 = as.numeric(), 
+                                  q025_1e_3 = as.numeric(), 
                                   q05_1e_3 = as.numeric(), 
-                                  q95_1e_3 = as.numeric())
+                                  q95_1e_3 = as.numeric(), 
+                                  q975_1e_3 = as.numeric() )
 
   for(country_code in Dec_2021_full_list){
     sum_table <- readr::read_csv(paste0(final_output_dir, "/", country_code, "_sum_table.csv"))
@@ -731,21 +741,30 @@ if( all(paste0(Dec_2021_full_list, "_sum_table.csv") %in% list.files(final_outpu
     agg_sum_table <- agg_sum_table %>% 
       add_row(country_name = country_name_full_list[match(country_code, Dec_2021_full_list)], 
               mean_1e_5 = as.numeric(sum_table[1, 4]), 
-              median_1e_5 = as.numeric(sum_table[3, 4]), 
-              q05_1e_5 = as.numeric(sum_table[2, 4]), 
-              q95_1e_5 = as.numeric(sum_table[4, 4]), 
+              median_1e_5 = as.numeric(sum_table[5, 4]), 
+              iqr_1e_5 = as.numeric(sum_table[2, 4]), 
+              q025_1e_5 = as.numeric(sum_table[3, 4]), 
+              q05_1e_5 = as.numeric(sum_table[4, 4]), 
+              q95_1e_5 = as.numeric(sum_table[6, 4]), 
+              q975_1e_5 = as.numeric(sum_table[7, 4]), 
               mean_1e_4 = as.numeric(sum_table[1, 3]), 
-              median_1e_4 = as.numeric(sum_table[3, 3]), 
-              q05_1e_4 = as.numeric(sum_table[2, 3]), 
-              q95_1e_4 = as.numeric(sum_table[4, 3]), 
+              median_1e_4 = as.numeric(sum_table[5, 3]), 
+              iqr_1e_4 = as.numeric(sum_table[2, 3]), 
+              q025_1e_4 = as.numeric(sum_table[3, 3]), 
+              q05_1e_4 = as.numeric(sum_table[4, 3]), 
+              q95_1e_4 = as.numeric(sum_table[6, 3]), 
+              q975_1e_4 = as.numeric(sum_table[7, 3]), 
               mean_1e_3 = as.numeric(sum_table[1, 2]), 
-              median_1e_3 = as.numeric(sum_table[3, 2]), 
-              q05_1e_3 = as.numeric(sum_table[2, 2]), 
-              q95_1e_3 = as.numeric(sum_table[4, 2]) )
+              median_1e_3 = as.numeric(sum_table[5, 2]), 
+              iqr_1e_3 = as.numeric(sum_table[2, 2]), 
+              q025_1e_3 = as.numeric(sum_table[3, 2]), 
+              q05_1e_3 = as.numeric(sum_table[4, 2]), 
+              q95_1e_3 = as.numeric(sum_table[6, 2]), 
+              q975_1e_3 = as.numeric(sum_table[7, 2]) )
   }
-  names(agg_sum_table) <- c("Country Name", ">= 1e-05 Mean", ">= 1e-05 Median", ">= 1e-05 Q0.05", ">= 1e-05 Q0.95", 
-                                            ">= 1e-04 Mean", ">= 1e-04 Median", ">= 1e-04 Q0.05", ">= 1e-04 Q0.95", 
-                                            ">= 1e-03 Mean", ">= 1e-03 Median", ">= 1e-03 Q0.05", ">= 1e-03 Q0.95")
+  names(agg_sum_table) <- c("Country Name", ">= 1e-05 Mean", ">= 1e-05 Median", ">= 1e-05 IQR", ">= 1e-05 Q0.025", ">= 1e-05 Q0.05", ">= 1e-05 Q0.95", ">= 1e-05 Q0.975", 
+                                            ">= 1e-04 Mean", ">= 1e-04 Median", ">= 1e-04 IQR", ">= 1e-04 Q0.025", ">= 1e-04 Q0.05", ">= 1e-04 Q0.95", ">= 1e-04 Q0.975", 
+                                            ">= 1e-03 Mean", ">= 1e-03 Median", ">= 1e-03 IQR", ">= 1e-03 Q0.025", ">= 1e-03 Q0.05", ">= 1e-03 Q0.95", ">= 1e-03 Q0.975")
   readr::write_csv(agg_sum_table, paste0(final_output_dir, "/all_country_sum_table.csv"))
 }
 
