@@ -139,7 +139,7 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 1, test_extent = test_extent)
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2,
                                                    nonspatial = c(FALSE, FALSE),
                                                    nontemporal = c(FALSE, FALSE),
@@ -154,7 +154,7 @@ max_time_right <- query_time_right
 covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates, 
                                                                                       min_time_left, max_time_right)
 
-test_raster_observation <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
+test_raster_observation <- create_test_raster(nrows = 10, ncols = 10, nlayers = 1, test_extent = test_extent)
 test_covariates_observation <- create_multiple_test_covariates(test_raster = test_raster_observation, ncovariates = 3,
                                                                nonspatial = c(FALSE, FALSE,FALSE),
                                                                nontemporal = c(FALSE, FALSE,FALSE),
@@ -200,9 +200,6 @@ all_dfs$observations_df <- test_observations %>%
 #overlapping observations with inconsistent case counts
 all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1"),]$suspected_cases=3*sum(all_dfs$observations_df[grep("1::",all_dfs$observations_df$qualified_name),]$suspected_cases)
 
-#partially covered for certain polygons
-all_dfs$observations_df=all_dfs$observations_df%>%subset(!qualified_name%in%c("1::2","1::10","1::20"))
-
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
 setup_testing_database(conn_pg, drop = TRUE)
@@ -231,22 +228,25 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                nrows=10,
                ncols=10,
                data_type="Grid data",
-               oc_type="Inconsistent observations over spatial levels (2 times difference) and Partial coverage without missing data",
+               oc_type="-",
                polygon_type="Fake polygon",
-               grid_coverage_type="100%",
+               polygon_coverage="100%",
                randomize=TRUE,
-               ncovariates=2, 
-               single_year_run=FALSE,
-               iteration=10000,
+               ncovariates=3,
+               single_year_run="yes",
+               iteration=1000,
                nonspatial = c(FALSE, FALSE,FALSE), 
-               nontemporal = c(FALSE, FALSE,FALSE), 
-               spatially_smooth = c(TRUE, TRUE,FALSE), 
+               nontemporal = c(TRUE, TRUE,TRUE), 
+               spatially_smooth = c(TRUE, TRUE,TRUE), 
                temporally_smooth = c(FALSE,FALSE,FALSE), 
                polygonal = c(TRUE, TRUE,TRUE), 
                radiating = c(FALSE, FALSE,TRUE),
                constant=c(TRUE,FALSE,FALSE),
                Data_simulation_covariates=c(TRUE,TRUE,TRUE),
-               Model_covariates=c(TRUE,TRUE,FALSE)
+               Model_covariates=c(TRUE,TRUE,FALSE),
+               Observations_with_inconsistent_data="+0",
+               Loc_with_inconsistent_data="-",
+               Cov_data_simulation_filename="/home/app/cmp/Analysis/output/test_case_5_data_simulation_covariates.rdata"
 )
 
 yaml::write_yaml(x = config, file = config_filename)
@@ -260,21 +260,26 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                 nrows=10,
                                 ncols=10,
                                 data_type="Grid data",
-                                oc_type="Inconsistent observations over spatial levels (2 times difference) and Partial coverage without missing data",
+                                oc_type="-",
                                 polygon_type="Fake polygon",
-                                grid_coverage_type="100%",
+                                polygon_coverage="100%",
                                 randomize=TRUE,
-                                ncovariates=2,
-                                single_year_run=FALSE,
-                                iteration=10000,
-                                nonspatial = c(FALSE, FALSE,FALSE), 
-                                nontemporal = c(FALSE, FALSE,FALSE), 
-                                spatially_smooth = c(TRUE, TRUE,FALSE), 
-                                temporally_smooth = c(FALSE,FALSE,FALSE), 
-                                polygonal = c(TRUE, TRUE,TRUE), 
+                                ncovariates=3,
+                                single_year_run="yes",
+                                iteration=1000,
+                                nonspatial = c(FALSE, FALSE,FALSE),
+                                nontemporal = c(TRUE, TRUE,TRUE),
+                                spatially_smooth = c(TRUE, TRUE,TRUE),
+                                temporally_smooth = c(FALSE,FALSE,FALSE),
+                                polygonal = c(TRUE, TRUE,TRUE),
                                 radiating = c(FALSE, FALSE,TRUE),
                                 constant=c(TRUE,FALSE,FALSE),
                                 Data_simulation_covariates=c(TRUE,TRUE,TRUE),
-                                Model_covariates=c(TRUE,TRUE,FALSE)))
+                                Model_covariates=c(TRUE,TRUE,FALSE),
+                                Observations_with_inconsistent_data="+0",
+                                Loc_with_inconsistent_data="-",
+                                Cov_data_simulation_filename="/home/app/cmp/Analysis/output/test_case_5_data_simulation_covariates.rdata"),
+                  output_file="Country data report test case 5"
+)
 
 ## Actually do something with the groundtruth and output
