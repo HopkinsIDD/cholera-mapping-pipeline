@@ -379,7 +379,7 @@ aggregate_affected_pop_across_cells_by_districts <- function( sf_rate_pop,
 #' @return 
 generate_final_table <- function( intermediate_table, 
                                   iso_code, 
-                                  probability_cutoffs = c(0.025, 0.050, 0.500, 0.950, 0.975)){ 
+                                  probability_cutoffs = c(0.025, 0.050, 0.250, 0.500, 0.750, 0.950, 0.975)){ 
   district_vector <- unique(gsub( ".*<=", "", names(intermediate_table)[!grepl("^pop_.*", names(intermediate_table))] ))   
   threshold_vector <- unique(gsub( "<=.*", "", names(intermediate_table)[!grepl("^pop_.*", names(intermediate_table))] ))
   threshold_vector <- sort(as.numeric(threshold_vector), decreasing = TRUE)
@@ -716,15 +716,19 @@ if( all(paste0(Dec_2021_full_list, "_sum_table.csv") %in% list.files(final_outpu
                                   mean_1e_5 = as.numeric(), 
                                   median_1e_5 = as.numeric(), 
                                   iqr_1e_5 = as.numeric(), 
-                                  q025_1e_5 = as.numeric(), 
+                                  q025_1e_5 = as.numeric(),
                                   q05_1e_5 = as.numeric(), 
+                                  q25_1e_5 = as.numeric(), 
+                                  q75_1e_5 = as.numeric(), 
                                   q95_1e_5 = as.numeric(), 
                                   q975_1e_5 = as.numeric(), 
                                   mean_1e_4 = as.numeric(), 
                                   median_1e_4 = as.numeric(), 
                                   iqr_1e_4 = as.numeric(), 
                                   q025_1e_4 = as.numeric(), 
-                                  q05_1e_4 = as.numeric(), 
+                                  q05_1e_4 = as.numeric(),
+                                  q25_1e_4 = as.numeric(), 
+                                  q75_1e_4 = as.numeric(),  
                                   q95_1e_4 = as.numeric(), 
                                   q975_1e_4 = as.numeric(), 
                                   mean_1e_3 = as.numeric(), 
@@ -732,6 +736,8 @@ if( all(paste0(Dec_2021_full_list, "_sum_table.csv") %in% list.files(final_outpu
                                   iqr_1e_3 = as.numeric(), 
                                   q025_1e_3 = as.numeric(), 
                                   q05_1e_3 = as.numeric(), 
+                                  q25_1e_3 = as.numeric(), 
+                                  q75_1e_3 = as.numeric(), 
                                   q95_1e_3 = as.numeric(), 
                                   q975_1e_3 = as.numeric() )
 
@@ -741,30 +747,36 @@ if( all(paste0(Dec_2021_full_list, "_sum_table.csv") %in% list.files(final_outpu
     agg_sum_table <- agg_sum_table %>% 
       add_row(country_name = country_name_full_list[match(country_code, Dec_2021_full_list)], 
               mean_1e_5 = as.numeric(sum_table[1, 4]), 
-              median_1e_5 = as.numeric(sum_table[5, 4]), 
+              median_1e_5 = as.numeric(sum_table[6, 4]), 
               iqr_1e_5 = as.numeric(sum_table[2, 4]), 
               q025_1e_5 = as.numeric(sum_table[3, 4]), 
               q05_1e_5 = as.numeric(sum_table[4, 4]), 
-              q95_1e_5 = as.numeric(sum_table[6, 4]), 
-              q975_1e_5 = as.numeric(sum_table[7, 4]), 
+              q25_1e_5 = as.numeric(sum_table[5, 4]), 
+              q75_1e_5 = as.numeric(sum_table[7, 4]), 
+              q95_1e_5 = as.numeric(sum_table[8, 4]), 
+              q975_1e_5 = as.numeric(sum_table[9, 4]), 
               mean_1e_4 = as.numeric(sum_table[1, 3]), 
-              median_1e_4 = as.numeric(sum_table[5, 3]), 
+              median_1e_4 = as.numeric(sum_table[6, 3]), 
               iqr_1e_4 = as.numeric(sum_table[2, 3]), 
               q025_1e_4 = as.numeric(sum_table[3, 3]), 
               q05_1e_4 = as.numeric(sum_table[4, 3]), 
-              q95_1e_4 = as.numeric(sum_table[6, 3]), 
-              q975_1e_4 = as.numeric(sum_table[7, 3]), 
+              q25_1e_4 = as.numeric(sum_table[5, 3]), 
+              q75_1e_4 = as.numeric(sum_table[7, 3]), 
+              q95_1e_4 = as.numeric(sum_table[8, 3]), 
+              q975_1e_4 = as.numeric(sum_table[9, 3]), 
               mean_1e_3 = as.numeric(sum_table[1, 2]), 
-              median_1e_3 = as.numeric(sum_table[5, 2]), 
+              median_1e_3 = as.numeric(sum_table[6, 2]), 
               iqr_1e_3 = as.numeric(sum_table[2, 2]), 
               q025_1e_3 = as.numeric(sum_table[3, 2]), 
               q05_1e_3 = as.numeric(sum_table[4, 2]), 
-              q95_1e_3 = as.numeric(sum_table[6, 2]), 
-              q975_1e_3 = as.numeric(sum_table[7, 2]) )
+              q25_1e_3 = as.numeric(sum_table[5, 2]), 
+              q75_1e_3 = as.numeric(sum_table[7, 2]), 
+              q95_1e_3 = as.numeric(sum_table[8, 2]), 
+              q975_1e_3 = as.numeric(sum_table[9, 2]) )
   }
-  names(agg_sum_table) <- c("Country Name", ">= 1e-05 Mean", ">= 1e-05 Median", ">= 1e-05 IQR", ">= 1e-05 Q0.025", ">= 1e-05 Q0.05", ">= 1e-05 Q0.95", ">= 1e-05 Q0.975", 
-                                            ">= 1e-04 Mean", ">= 1e-04 Median", ">= 1e-04 IQR", ">= 1e-04 Q0.025", ">= 1e-04 Q0.05", ">= 1e-04 Q0.95", ">= 1e-04 Q0.975", 
-                                            ">= 1e-03 Mean", ">= 1e-03 Median", ">= 1e-03 IQR", ">= 1e-03 Q0.025", ">= 1e-03 Q0.05", ">= 1e-03 Q0.95", ">= 1e-03 Q0.975")
+  names(agg_sum_table) <- c("Country Name", ">= 1e-05 Mean", ">= 1e-05 Median", ">= 1e-05 IQR", ">= 1e-05 Q0.025", ">= 1e-05 Q0.05", ">= 1e-05 Q0.25", ">= 1e-05 Q0.75", ">= 1e-05 Q0.95", ">= 1e-05 Q0.975", 
+                                            ">= 1e-04 Mean", ">= 1e-04 Median", ">= 1e-04 IQR", ">= 1e-04 Q0.025", ">= 1e-04 Q0.05", ">= 1e-04 Q0.25", ">= 1e-04 Q0.75", ">= 1e-04 Q0.95", ">= 1e-04 Q0.975", 
+                                            ">= 1e-03 Mean", ">= 1e-03 Median", ">= 1e-03 IQR", ">= 1e-03 Q0.025", ">= 1e-03 Q0.05", ">= 1e-03 Q0.25", ">= 1e-03 Q0.75", ">= 1e-03 Q0.95", ">= 1e-03 Q0.975")
   readr::write_csv(agg_sum_table, paste0(final_output_dir, "/all_country_sum_table.csv"))
 }
 
