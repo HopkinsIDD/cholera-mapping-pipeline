@@ -131,8 +131,8 @@ get_model_rand <- cache_fun_results(name = "model.rand", fun = get_model_rand_no
 #' @return  modeled_cases
 get_modeled_cases_no_cache <- function(config, cache, cholera_directory, ...) {
     get_model_rand(config, cache, cholera_directory, ...)
-    modeled_cases <- MCMCvis::MCMCchains(cache[["model.rand"]], params = "grid_cases")
-    return(modeled_cases)
+  modeled_cases <-  as.array(cache[["model.rand"]])[, , grepl("grid_case", names(cache[["model.rand"]])),drop=FALSE]
+  return(modeled_cases)
 }
 # cache the results
 get_modeled_cases <- cache_fun_results("modeled_cases", get_modeled_cases_no_cache,
@@ -148,8 +148,8 @@ get_modeled_cases <- cache_fun_results("modeled_cases", get_modeled_cases_no_cac
 #' @return  modeled_rates
 get_modeled_rates_no_cache <- function(config, cache, cholera_directory, ...) {
     get_model_rand(config, cache, cholera_directory, ...) 
-    modeled_rates <- exp(MCMCvis::MCMCchains(cache[["model.rand"]], params = "log_lambda"))
-    return(modeled_rates)
+  modeled_rates <- exp(as.array(model.rand)[, , grepl("log_lambda", names(model.rand)), drop = FALSE])
+  return(modeled_rates)
 }
 # cache the results
 get_modeled_rates <- cache_fun_results("modeled_rates", get_modeled_rates_no_cache,
