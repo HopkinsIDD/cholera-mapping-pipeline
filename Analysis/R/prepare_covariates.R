@@ -115,7 +115,24 @@ prepare_covariates <- function(
   }
   print("CHECKPOINT B")
 
+  # What if we want to have population in both resolutions 
+  get_both_pop_1km_20km <- TRUE #this can be an option
+  if(get_both_pop_1km_20km){ 
+    covar_toingest_list$pop1km <- covar_toingest_list$pop
+    covar_toingest_list$pop1km$name <- "population1km"
+  }
+  res_x_original <- res_x
+  res_y_original <- res_y
+
   for (covarit in covar_toingest_list) {
+
+    if(covarit$name == "population1km"){
+      res_x <- 1
+      res_y <- 1
+    }else{
+      res_x <- res_x_original
+      res_y <- res_y_original
+    }
 
     covar_alias <- taxdat::make_covar_alias(alias = covarit$alias,
                                   type = covarit$type,
