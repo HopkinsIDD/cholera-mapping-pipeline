@@ -7,8 +7,9 @@ output:
     toc_float: true
   pdf_document: default
 params:
-  config: "/Analysis/configs/Dec_2021_runs/MOZ_2015_2019/config_MOZ_2015_2019.yml"
-  cholera_directory: "/home/kaiyuezou/mapping_pipeline/9_23_dev/cholera-mapping-pipeline"
+  config: "Analysis/.../~.yml"
+  cholera_directory: "/home/.../cholera-mapping-pipeline"
+  local_output_dir: "/home/.../cholera-mapping-output"
   credential_directory: ""
   args: 'run-comparison'
   filter_zeros: 'FALSE'
@@ -45,6 +46,8 @@ params:
 ### 12/7/2021 New updates -- fixed more bugs
 ### 12/15/2021 New updates -- added figures that only facet on location_name
 ### 12/22/2021 New updates -- fixed the disagreement error, added more to the summary table
+### 02/17/2022 New updates -- fixed ZNZ issue; fixed plot height issue
+### 02/23/2022 New updates -- fixed the comparison table 3.  
 
 ```
 
@@ -72,6 +75,11 @@ Sys.setlocale("LC_ALL","English")
 # Load config
 config <- paste0(params$cholera_directory, "/", params$config) %>% yaml::read_yaml() #get the config file
 files <- taxdat::get_filenames(config, params$cholera_directory)
+if(!is.null(params$local_output_dir)){
+  files <- unlist(lapply(names(files), function(file){
+                  gsub("^.*?/Analysis/data", params$local_output_dir, files[file])
+                  }))
+}
 
 # Load taxonomy_data, raw_data, and stan_input_data
 time_left <- as.Date(config$start_time)
@@ -179,6 +187,17 @@ sum_obs2 <- sf::st_drop_geometry(taxonomy_data) %>%
             num_cases = sum(suspected_cases, na.rm = TRUE), 
             num_locationPeriod_id = length(unique(locationPeriod_id)), 
             num_OC_UID = length(unique(OC_UID)))
+
+if(sum(!sum_obs2$year %in% sum_obs1$year) > 0){
+  for (years in sum_obs2$year[!sum_obs2$year %in% sum_obs1$year]){
+    sum_obs1 <- sum_obs1 %>%
+      add_row(year = years,
+              num_observations = 0, 
+              num_cases = 0, 
+              num_locationPeriod_id = 0, 
+              num_OC_UID = 0)
+  }
+}
 
 sum_obs <- tibble::tibble(
   year = sum_obs2$year, 
@@ -405,12 +424,12 @@ if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 |
   if ( nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 ){
       
       raw_data_filtered %>% 
-        geom_segment( data = (raw_data_filtered %>% filter(TR == TL)),
-                      aes(x=ymd(TL), xend=ymd(TL), y=0, yend=suspected_cases), 
-                      size=0.3, alpha=0.5, color = OC_UID) + 
-        geom_point(data = (raw_data_filtered %>% filter(TR == TL)),
-                  aes(x=ymd(TL), y=suspected_cases),
-                  size = 0.7, alpha=0.5, shape=23, color = OC_UID) +
+        filter(TR == TL) %>%
+        ggplot(colour = OC_UID) + 
+        geom_segment( aes(x=ymd(TL), xend=ymd(TL), y=0, yend=suspected_cases), 
+                      size=0.3, alpha=0.5) + 
+        geom_point( aes(x=ymd(TL), y=suspected_cases),
+                    size = 0.7, alpha=0.5, shape=23) +
         scale_x_date(date_labels = "%m-%Y") + 
         facet_wrap(~location_name, ncol = as.integer(plot1pre_ncol_factor), scales = "free") +
         theme_bw()
@@ -505,7 +524,7 @@ if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 |
 ```{r echo=FALSE}
 plot1_ncol_factor <- 2 #for now
 
-plot1_height_factor <- 3 * length( unique(raw_data_filtered[c('location_name', 'year'), ]) ) / plot1_ncol_factor
+plot1_height_factor <- 3 * nrow(unique(raw_data_filtered[, c('location_name', 'year')])) / plot1_ncol_factor #fixed on 2/17
 if(across_year_indicator){ 
   plot1_height_factor_2 <- 3 * length( unique(raw_across_year_data_filtered[c('location_name', 'year'), ]) ) / plot1_ncol_factor
 } else {plot1_height_factor_2 <- 10} #10 won't be used
@@ -523,12 +542,12 @@ if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 |
   if ( nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 ){
       
       raw_data_filtered %>% 
-        geom_segment( data = (raw_data_filtered %>% filter(TR == TL)),
-                      aes(x=ymd(TL), xend=ymd(TL), y=0, yend=suspected_cases), 
-                      size=0.3, alpha=0.5, color = OC_UID) + 
-        geom_point(data = (raw_data_filtered %>% filter(TR == TL)),
-                  aes(x=ymd(TL), y=suspected_cases),
-                  size = 0.7, alpha=0.5, shape=23, color = OC_UID) +
+        filter(TR == TL) %>%
+        ggplot(color = OC_UID) + 
+        geom_segment( aes(x=ymd(TL), xend=ymd(TL), y=0, yend=suspected_cases), 
+                      size=0.3, alpha=0.5) + 
+        geom_point( aes(x=ymd(TL), y=suspected_cases),
+                    size = 0.7, alpha=0.5, shape=23) +
         facet_wrap(~year + location_name, ncol = as.integer(plot1_ncol_factor), scales = "free") +
         theme_bw()
     
@@ -669,7 +688,7 @@ if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 &
   include_value3 = FALSE
   eval_value4 = FALSE
   include_value4 = FALSE
-
+  print('The rest of the disagreement figures will not be generated because the daily OCs are missing. ')
 } else if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 & 
              nrow(raw_data[raw_data$TL == raw_data$TR, ]) > 0  ){
   ##what if there is only one kind of OC_UID for daily OCs
@@ -778,7 +797,6 @@ if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 &
   eval_value4 = FALSE
   include_value4 = FALSE
   print('The rest of the disagreement figures will not be generated because the daily OCs are missing. ')
-
 }
 
 ### Just to make sure this variable exists, it won't be used
@@ -797,7 +815,7 @@ plot4_height_factor <- 10
 **The period-based observations (total number of cases) are represented in rectangles **
 ```{r echo=FALSE}
 plot2_ncol_factor <- 2 #for now
-plot2_height_factor <- 3 * length( unique(raw_data_filtered[c('location_name', 'year'), ]) ) / plot2_ncol_factor
+plot2_height_factor <- 3 * nrow(unique(raw_data_filtered[, c('location_name', 'year')])) / plot2_ncol_factor
 
 ```
 
@@ -833,6 +851,7 @@ if ( nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 &
     theme_bw()
 }else if (nrow(raw_data[raw_data$TL == raw_data$TR, ]) > 0){
   raw_data_filtered %>%
+    ggplot() +  
     geom_point(data = (raw_data_filtered %>% 
                          filter(TL == TR) %>%
                          group_by(OC_UID, location_name, year) %>% 
@@ -1143,7 +1162,6 @@ raw_data_filtered_dis_period_stack <- raw_data_filtered_dis_period_stack %>%
 plot4_height_factor <- (3 * nrow(raw_data_filtered_dis_period_stack[raw_data_filtered_dis_period_stack$period_token == 1, ])
                           / plot4_ncol_factor)
 
-
 ##if there is zero row to display
 if (nrow(raw_data_filtered_dis_period_stack[raw_data_filtered_dis_period_stack$period_token == 1, ]) == 0 | 
     is.null(raw_data_filtered_dis_period_stack$location_name) | is.null(raw_data_filtered_dis_period_stack$dis_period) | 
@@ -1152,7 +1170,6 @@ if (nrow(raw_data_filtered_dis_period_stack[raw_data_filtered_dis_period_stack$p
   include_value4 <- FALSE
   plot4_height_factor <- 10 #not gonna be used
   warning('Fig 7. will not be generated because there is no useful comparison to display. ')
-  
 }
 
 ```
@@ -1187,7 +1204,6 @@ raw_data_filtered_dis_period_stack %>%
 
 ## Fig 8. Stan input data -- number of cases by OC_UID over periods and locations
 **This figure illustrates the stan input cases data (stan_input$sf_cases_resized) **
-
 ```{r echo=FALSE}
 # Just to calculate the width and height
 stan_input_data_temp <- sf::st_drop_geometry(stan_input_data)
