@@ -749,7 +749,7 @@ if(!is.null(sf_cases_resized) & !is.null(model.rand)){
   
   who_annual_cases <- sf_cases_resized
   chains <- data_fidelity[[1]] %>% 
-    filter(str_detect(parameter, "tfrac", negate = T)) %>% 
+    filter(str_detect(variable, "tfrac", negate = T)) %>% 
     group_by(variable) %>% 
     summarise(modeled = mean(`modeled cases`))
   who_annual_cases$modeled <- chains$modeled
