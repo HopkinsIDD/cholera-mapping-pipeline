@@ -58,8 +58,5 @@ chol_gen <- chol_gen_model$generate_quantities(fitted_params = cmdstan_fit,
                                                data = initial_values_data$stan_data,
                                                parallel_chains = nchain)
 
-# Transform back to stanfit object
-chol_gen_rstan <- rstan::read_stan_csv(chol_gen$output_files())
-
 # Save generated quantities
-save(chol_gen_rstan, file = file_names[["stan_genquant"]])
+save(chol_gen, file = file_names[["stan_genquant"]])
