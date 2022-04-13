@@ -412,12 +412,12 @@ get_case_raster <- function(covar_data_filename,
     # Get the generated quantities
     genquant <- read_file_of_type(filename, "chol_gen")
     
-    varnames <- dimnames(genquant)[[3]]    # All available parameters
+    varnames <- dimnames(genquant$draws())[[3]]    # All available parameters
     
     # Get cases and rates
-    modeled_cases <- as.array(genquant)[, , grepl("grid_case", varnames),drop=FALSE]
+    modeled_cases <- as.array(genquant$draws())[, , grepl("grid_case", varnames),drop=FALSE]
     modeled_cases_mean <- apply(modeled_cases, 3, mean)
-    modeled_rates <- exp(as.array(genquant)[, , grepl("log_lambda", varnames), drop = FALSE])
+    modeled_rates <- exp(as.array(genquant$draws())[, , grepl("log_lambda", varnames), drop = FALSE])
     modeled_rates_mean <- apply(modeled_rates, 3, mean)
     
     case_raster <- dplyr::mutate(case_raster,
@@ -604,7 +604,7 @@ plot_modeled_rates <- function(case_raster,
 get_data_fidelity <- function(stan_input_filenames, 
                               genquant_filenames){
   
-  if (length(stan_input_filenames) != length(model_output_filenames))
+  if (length(stan_input_filenames) != length(genquant_filenames))
     stop("Need to provide same number of stan_input and stan_output files")
   
   rc <- list()
@@ -615,7 +615,7 @@ get_data_fidelity <- function(stan_input_filenames,
     filename <- genquant_filenames[i]
     
     genquant <- read_file_of_type(filename, "chol_gen")
-    nchain <- dim(genquant[2])
+    nchain <- length(genquant$metadata()$id)
     
     # ####important added -- 11/12/2021
     # taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$OC_UID
@@ -626,11 +626,12 @@ get_data_fidelity <- function(stan_input_filenames,
     stan_data <- read_file_of_type(stan_input_filenames[i], "stan_input")$stan_data
     
     # Get modeled cases
-    varnames <- dimnames(genquant)[[3]]
-    modeled_cases <- as.array(genquant)[, , grepl("modeled_cases", varnames), drop = FALSE]
+    varnames <- dimnames(genquant$draws())[[3]]    # All available parameters
+    modeled_cases <- as.array(genquant$draws())[, , grepl("modeled_cases", varnames), drop = FALSE]
     modeled_cases_chain_mean <- apply(modeled_cases, c(2, 3), mean)
     actual_cases <- matrix(stan_data$y, nrow(modeled_cases_chain_mean), ncol(modeled_cases_chain_mean), byrow=TRUE)
     dimnames(actual_cases) <- dimnames(modeled_cases_chain_mean)
+    
     modeled_cases_chain_mean <- reshape2::melt(modeled_cases_chain_mean)
     actual_cases <- reshape2::melt(actual_cases)
     actual_cases$censoring <- rep(stan_data$censoring_inds, each = nchain)
@@ -642,16 +643,18 @@ get_data_fidelity <- function(stan_input_filenames,
                                 each = nchain) #newly added
     
     obs_tfrac=data.frame(
-      obs = initial_values_data$stan_data$map_obs_loctime_obs,
-      tfrac = initial_values_data$stan_data$tfrac
+      obs = stan_data$map_obs_loctime_obs,
+      tfrac = stan_data$tfrac
     ) %>%
       dplyr::group_by(obs) %>%
       dplyr::summarize(tfrac = sum(tfrac))
     actual_cases$tfrac<-1
-    actual_cases[stringr::str_detect(actual_cases$parameters,"tfrac"),]$tfrac<-rep(obs_tfrac$tfrac,each=nchain)
+    actual_cases[stringr::str_detect(actual_cases$variable,"tfrac"),]$tfrac<-rep(obs_tfrac$tfrac,each=nchain)
     
-    comparison <- dplyr::left_join(modeled_cases_chain_mean, actual_cases, by = c(chains = "chains", parameters = "parameters"))
+    comparison <- dplyr::left_join(modeled_cases_chain_mean, actual_cases, by = c(chain = "chain", variable = "variable"))
     names(comparison)[3:4] <- c("modeled cases", "actual cases")
+    comparison$chain <- factor(comparison$chain)
+    
     rc[[filename]] <- comparison
     names(rc)[[layer_index]] <- paste(
       paste(filename_to_stubs(filename)[2:3], collapse = " "),
@@ -678,15 +681,15 @@ plot_model_fidelity <- function(data_fidelity,
   rate_raster <- case_raster
   if (!by_censoring) {
     plt <- ggplot2::ggplot(comparison[[1]]  %>% 
-                             dplyr::filter(stringr::str_detect(parameters, 'tfrac'))) +
-      ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = chains)) +
+                             dplyr::filter(stringr::str_detect(variable, 'tfrac'))) +
+      ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = chain)) +
       ggplot2::geom_abline(intercept = 0, slope = 1) +
       ggplot2::coord_fixed(ratio = 1, xlim = c(1, max(comparison[[1]][,3:4])), ylim = c(1, max(comparison[[1]][,3:4]))) +
       ggplot2::theme_bw()
   } else {
     plt <- ggplot2::ggplot(comparison[[1]] %>% 
-                             dplyr::filter(!stringr::str_detect(parameters, 'tfrac'))) +
-      ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = chains)) +
+                             dplyr::filter(!stringr::str_detect(variable, 'tfrac'))) +
+      ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = chain)) +
       ggplot2::geom_abline(intercept = 0, slope = 1) +
       ggplot2::coord_fixed(ratio = 1, xlim = c(1, max(comparison[[1]][,3:4])), ylim = c(1, max(comparison[[1]][,3:4]))) +
       ggplot2::theme_bw() +
