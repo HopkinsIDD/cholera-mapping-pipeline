@@ -717,7 +717,7 @@ plot_model_fidelity_tfrac_adjusted <- function(data_fidelity,
   rate_raster <- case_raster
   
   plt <- ggplot2::ggplot(comparison[[1]]  %>% 
-                           dplyr::filter(!stringr::str_detect(parameters, 'tfrac'))) +
+                           dplyr::filter(!stringr::str_detect(variable, 'tfrac'))) +
     ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = oc_uid)) +
     ggplot2::labs(x="Actual cases",y="Modeled cases")+
     ggplot2::geom_abline(intercept = 0, slope = 1) +
@@ -746,7 +746,7 @@ plot_model_fidelity_tfrac_converted <- function(data_fidelity,
   rate_raster <- case_raster
   
   plt <- ggplot2::ggplot(comparison[[1]]  %>% 
-                           dplyr::filter(stringr::str_detect(parameters, 'tfrac'))) +
+                           dplyr::filter(stringr::str_detect(variable, 'tfrac'))) +
     ggplot2::geom_point(ggplot2::aes(y = `modeled cases`/tfrac, x = `actual cases`/tfrac, col = oc_uid)) +
     ggplot2::labs(x="Actual cases/tfrac",y="tfrac_modeled_cases/tfrac")+
     ggplot2::geom_abline(intercept = 0, slope = 1) +
@@ -774,7 +774,7 @@ plot_model_fidelity_tfrac_adjusted_by_year <- function(data_fidelity,
   rate_raster <- case_raster
   
   plt <- ggplot2::ggplot(comparison[[1]]  %>% 
-                           dplyr::filter(!stringr::str_detect(parameters, 'tfrac'))) +
+                           dplyr::filter(!stringr::str_detect(variable, 'tfrac'))) +
     ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = oc_uid)) +
     ggplot2::labs(x="Actual cases",y="Modeled cases")+
     ggplot2::geom_abline(intercept = 0, slope = 1) +
@@ -802,7 +802,7 @@ plot_model_fidelity_tfrac_unadjusted <- function(data_fidelity,
   rate_raster <- case_raster
   
   plt <- ggplot2::ggplot(comparison[[1]] %>% 
-                           dplyr::filter(!stringr::str_detect(parameters, 'tfrac'))) +
+                           dplyr::filter(!stringr::str_detect(variable, 'tfrac'))) +
     ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = oc_uid)) +
     ggplot2::labs(x="Actual cases",y="modeled_cases")+
     ggplot2::geom_abline(intercept = 0, slope = 1) +
