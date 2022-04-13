@@ -255,31 +255,30 @@ merge_modeled_cases_mean_into_polygon_no_cache <- function(config, cache, choler
 merge_modeled_cases_mean_into_polygon <- cache_fun_results("sf_object", merge_modeled_cases_mean_into_polygon_no_cache,
     overwrite = T, config)
 
-
-#' @name get_modeled_polygon_cases_mean_disjoint_no_cache
-#' @title get_modeled_polygon_cases_mean_disjoint_no_cache
+#' @name aggregate_modeled_polygon_cases_mean_disjoint_no_cache
+#' @title aggregate_modeled_polygon_cases_mean_disjoint_no_cache
 #' @description get modeld cases mean by polygon (location periods)
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment that contains all the parameter information
 #' @return modeled cases mean by location periods
-get_modeled_polygon_cases_mean_disjoint_no_cache <- function(config, cache, cholera_directory) {
+aggregate_modeled_polygon_cases_mean_disjoint_no_cache <- function(config, cache, cholera_directory) {
     merge_modeled_cases_mean_into_polygon_no_cache(config, cache, cholera_directory)
     modeled_polygon_cases_mean_disjoint <- separate_by_overlap(cache[["sf_object"]],
         name_column = "locationPeriod_id")
     return(modeled_polygon_cases_mean_disjoint)
 }
 
-get_modeled_polygon_cases_mean_disjoint <- cache_fun_results("modeled_polygon_cases_mean_disjoint",
-    get_modeled_polygon_cases_mean_disjoint_no_cache, overwrite = T)
+aggregate_modeled_polygon_cases_mean_disjoint <- cache_fun_results("modeled_polygon_cases_mean_disjoint",
+                                                                   aggregate_modeled_polygon_cases_mean_disjoint_no_cache, overwrite = T)
 # get_modeled_polygon_cases_mean_disjoint(config,cache)
 
-#' @name get_modeled_polygon_cases_mean_disjoint_aggregated_no_cache
-#' @title get_modeled_polygon_cases_mean_disjoint_aggregated_no_cache
+#' @name aggregate_modeled_polygon_cases_mean_disjoint_aggregated_no_cache
+#' @title aggregate_modeled_polygon_cases_mean_disjoint_aggregated_no_cache
 #' @description get normalized (aggregated) modeled cases mean by polygon (location periods)
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment that contains all the parameter information
 #' @return normalized (aggregated) modeled cases mean by location periods
-get_modeled_polygon_cases_mean_disjoint_aggregated_no_cache <- function(config, cache,
+aggregate_modeled_polygon_cases_mean_disjoint_aggregated <- function(config, cache,
     cholera_directory) {
     get_modeled_polygon_cases_mean_disjoint(config, cache, cholera_directory)
     modeled_polygon_cases_mean_disjoint_aggregated = aggregate_to_location_period(cache[["modeled_polygon_cases_mean_disjoint"]],
@@ -289,5 +288,5 @@ get_modeled_polygon_cases_mean_disjoint_aggregated_no_cache <- function(config, 
     return(modeled_polygon_cases_mean_disjoint_aggregated)
 }
 
-get_modeled_polygon_cases_mean_disjoint_aggregated <- cache_fun_results("modeled_polygon_cases_mean_disjoint_aggregated",
-    get_modeled_polygon_cases_mean_disjoint_aggregated_no_cache, overwrite = T)
+aggregate_modeled_polygon_cases_mean_disjoint_aggregated <- cache_fun_results("modeled_polygon_cases_mean_disjoint_aggregated",
+                                                                        aggregate_modeled_polygon_cases_mean_disjoint_aggregated_no_cache, overwrite = T)
