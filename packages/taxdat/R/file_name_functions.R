@@ -420,7 +420,7 @@ get_filenames <- function (config, cholera_directory) {
   
   rc <- setNames(c(preprocessed_data_fname, preprocessed_covar_fname,
                    stan_input_fname, initial_values_fname, stan_output_fname,
-                   stan_genquant), 
+                   stan_genquant_fname), 
                  c("data", "covar", "stan_input", "initial_values", "stan_output", "stan_genquant"))
   return(rc)
 }
