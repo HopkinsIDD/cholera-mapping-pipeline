@@ -195,11 +195,11 @@ plot_raw_observed_cases <- function(disjoint_set_sf_cases,
 #' @param height plot height
 #' @return ggplot object with area-adjusted observed cases
 plot_area_adjusted_observed_cases <- function(
-  disjoint_set_sf_cases,
-  render = F,
-  plot_file = NULL,
-  width = NULL,
-  height = NULL){
+    disjoint_set_sf_cases,
+    render = F,
+    plot_file = NULL,
+    width = NULL,
+    height = NULL){
   plt <- ggplot2::ggplot()
   plt <- plt +
     ggplot2::geom_sf(
@@ -473,7 +473,7 @@ plot_modeled_cases <- function(case_raster,
     ggplot2::geom_sf(
       data = case_raster,
       ggplot2::aes(fill = value#, color =  value
-                   ),color="black",size=0.05) +
+      ),color="black",size=0.05) +
     # ggplot2::scale_fill_vidris_c("modeled cases", limits = uniform_scale_fun()) +
     # ggplot2::scale_fill_viridis_c(trans = "log",
     #                               breaks = c(1, 10, 100, 1000),
@@ -507,11 +507,11 @@ plot_modeled_cases <- function(case_raster,
 #' @param height plot height
 #' @return ggplot object with modeled cases map
 plot_disaggregated_modeled_cases <- function(case_raster,
-                               disaggregated_case_sf,
-                               render = T,
-                               plot_file = NULL,
-                               width = NULL,
-                               height = NULL){
+                                             disaggregated_case_sf,
+                                             render = T,
+                                             plot_file = NULL,
+                                             width = NULL,
+                                             height = NULL){
   plt_case_raster <- disaggregated_case_sf %>%
     dplyr::select(dplyr::contains("modeled cases"),id,t) %>%
     tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
@@ -632,8 +632,8 @@ get_data_fidelity <- function(stan_input_filenames, model_output_filenames){
     actual_cases$oc_year <- rep(paste0(format(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$TL, '%Y'),
                                        "_",
                                        format(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$TR, '%Y')),
-                               each = nchain) #newly added
-
+                                each = nchain) #newly added
+    
     obs_tfrac=data.frame(
       obs = initial_values_data$stan_data$map_obs_loctime_obs,
       tfrac = initial_values_data$stan_data$tfrac
@@ -685,8 +685,8 @@ plot_model_fidelity <- function(data_fidelity,
       ggplot2::theme_bw() +
       ggplot2::facet_wrap(~censoring)
   }
-
- 
+  
+  
   if (render) {
     plt
   }
@@ -701,13 +701,13 @@ plot_model_fidelity <- function(data_fidelity,
 #' @param render default is TRUE
 #' @return ggplot object with modeled vs actual cases by observation
 plot_model_fidelity_tfrac_adjusted <- function(data_fidelity,
-                                case_raster,
-                                render = T){
+                                               case_raster,
+                                               render = T){
   comparison <- data_fidelity
   rate_raster <- case_raster
   
   plt <- ggplot2::ggplot(comparison[[1]]  %>% 
-                            dplyr::filter(!stringr::str_detect(parameters, 'tfrac'))) +
+                           dplyr::filter(!stringr::str_detect(parameters, 'tfrac'))) +
     ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = oc_uid)) +
     ggplot2::labs(x="Actual cases",y="Modeled cases")+
     ggplot2::geom_abline(intercept = 0, slope = 1) +
@@ -730,8 +730,8 @@ plot_model_fidelity_tfrac_adjusted <- function(data_fidelity,
 #' @param render default is TRUE
 #' @return ggplot object with modeled vs actual cases by observation
 plot_model_fidelity_tfrac_converted <- function(data_fidelity,
-                                               case_raster,
-                                               render = T){
+                                                case_raster,
+                                                render = T){
   comparison <- data_fidelity
   rate_raster <- case_raster
   
@@ -743,7 +743,7 @@ plot_model_fidelity_tfrac_converted <- function(data_fidelity,
     ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[[1]][,3:4])), ylim = c(0, max(comparison[[1]][,3:4]))) +
     ggplot2::theme_bw()
   
-
+  
   if (render) {
     plt
   }
@@ -758,13 +758,13 @@ plot_model_fidelity_tfrac_converted <- function(data_fidelity,
 #' @param render default is TRUE
 #' @return ggplot object with modeled vs actual cases by observation
 plot_model_fidelity_tfrac_adjusted_by_year <- function(data_fidelity,
-                                case_raster,
-                                render = T){
+                                                       case_raster,
+                                                       render = T){
   comparison <- data_fidelity
   rate_raster <- case_raster
   
   plt <- ggplot2::ggplot(comparison[[1]]  %>% 
-                            dplyr::filter(!stringr::str_detect(parameters, 'tfrac'))) +
+                           dplyr::filter(!stringr::str_detect(parameters, 'tfrac'))) +
     ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = oc_uid)) +
     ggplot2::labs(x="Actual cases",y="Modeled cases")+
     ggplot2::geom_abline(intercept = 0, slope = 1) +
@@ -786,13 +786,13 @@ plot_model_fidelity_tfrac_adjusted_by_year <- function(data_fidelity,
 #' @param render default is TRUE
 #' @return ggplot object with modeled vs actual cases by observation
 plot_model_fidelity_tfrac_unadjusted <- function(data_fidelity,
-                                case_raster,
-                                render = T){
+                                                 case_raster,
+                                                 render = T){
   comparison <- data_fidelity
   rate_raster <- case_raster
-
+  
   plt <- ggplot2::ggplot(comparison[[1]] %>% 
-                            dplyr::filter(!stringr::str_detect(parameters, 'tfrac'))) +
+                           dplyr::filter(!stringr::str_detect(parameters, 'tfrac'))) +
     ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = oc_uid)) +
     ggplot2::labs(x="Actual cases",y="modeled_cases")+
     ggplot2::geom_abline(intercept = 0, slope = 1) +
@@ -1010,7 +1010,7 @@ get_gam_values <- function(config,
   file_names <- get_filenames(config, cholera_directory)
   stan_input <- read_file_of_type(file_names["stan_input"], "stan_input")
   initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_values_data")
-
+  
   coord_frame <- tibble::as_tibble(sf::st_coordinates(stan_input$sf_grid)) %>% 
     dplyr::group_by(L2) %>% 
     dplyr::summarise(x = mean(X), 
