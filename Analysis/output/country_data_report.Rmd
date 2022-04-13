@@ -816,8 +816,7 @@ if(!is.null(model.rand) && !is.null(stan_input)){
 ```{r full country modeled cases, fig.cap = "comparison with WHO Output"}
 
 if(!is.null(sf_cases_resized) & !is.null(model.rand)){
-  grid_cases_mean <- apply(chains$grid_cases,2,mean)
-  total_cases <- sum(grid_cases_mean)
+  total_cases <- cases_chains %>% apply(1, mean) %>% sum()
   print(paste("There are",format(round(total_cases), big.mark=","),"total cases"))
   
 } else{
