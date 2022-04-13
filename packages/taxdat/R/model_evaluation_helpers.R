@@ -547,8 +547,45 @@ plot_disaggregated_modeled_cases <- function(case_raster,
 }
 
 
+#' @export
+#' @name plot_disaggregated_modeled_cases_time_varying
+#' @title plot_disaggregated_modeled_cases_time_varying
+#' @description add
+#' @param disaggregated_case_sf disaggregated case raster object
+#' @param country_iso the iso code of the country
+#' @param render default is TRUE
+#' @param plot_file default is NULL
+#' @param width plot width
+#' @param height plot height
+#' @return ggplot object with modeled cases map
+plot_disaggregated_modeled_cases_time_varying <- function(disaggregated_case_sf,
+                                                          country_iso,
+                                                          render = T,
+                                                          plot_file = NULL,
+                                                          width = NULL,
+                                                          height = NULL){
 
+boundary_sf <- rgeoboundaries::gb_adm0(country_iso)
+plt <- ggplot2::ggplot()
+plt <-   ggplot2::ggplot() +
+  ggplot2::geom_sf(
+    data = disaggregated_case_sf,
+    ggplot2::aes(fill = value),color=NA,size=0.00001)+
+  taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = TRUE)+
+  ggplot2::geom_sf(data=boundary_sf,fill=NA,color="black",size=0.05)+
+  ggplot2::labs(fill="Incidence\n [cases/year]")+
+  ggplot2::theme_bw() +
+  ggplot2::theme(legend.position = "bottom") +
+  ggplot2::theme(legend.text =  ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))+
+  ggplot2::facet_wrap(~t,ncol = length(unique(disaggregated_case_sf$t))) 
 
+  if (!is.null(plot_file)) {
+    ggplot2::ggsave(plt, plot_file, width = width , heigth = height)
+  }
+  if(render) {
+    plt
+  }
+}
 
 
 #' @export
@@ -584,6 +621,45 @@ plot_modeled_rates <- function(case_raster,
     ggplot2::facet_wrap(~t,ncol = 5) +
     ggplot2::theme(legend.text =  ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))
   
+  if (!is.null(plot_file)) {
+    ggplot2::ggsave(plt, plot_file, width = width , heigth = height)
+  }
+  if (render) {
+    plt
+  }
+}
+
+
+#' @export
+#' @name plot_modeled_rates_time_varying
+#' @title plot_modeled_rates_time_varying
+#' @description add
+#' @param disaggregated_rate_sf disaggregated_rate_sf object
+#' @param render default is TRUE
+#' @param plot_file default is NULL
+#' @param width plot width
+#' @param height plot height
+#' @return ggplot object with modeled rates map
+plot_modeled_rates_time_varying <- function(disaggregated_rate_sf,
+                                            country_iso,
+                                            render = T,
+                                            plot_file = NULL,
+                                            width = NULL,
+                                            height = NULL){
+  boundary_sf <- rgeoboundaries::gb_adm0(country_iso)
+   plt <- ggplot2::ggplot()
+   plt <-   ggplot2::ggplot() +
+   ggplot2::geom_sf(
+    data = disaggregated_rate_sf,
+    ggplot2::aes(fill = value),color=NA,size=0.00001)+
+    taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
+    ggplot2::geom_sf(data=boundary_sf,fill=NA,color="black",size=0.05)+
+    ggplot2::labs(fill="Incidence rate\n [cases/10'000/year]")+
+    ggplot2::theme_bw() +
+    ggplot2::theme(legend.position = "bottom") +
+  ggplot2::theme(legend.text =  ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))+
+  ggplot2::facet_wrap(~t,ncol = length(unique(disaggregated_rate_sf$t)))
+
   if (!is.null(plot_file)) {
     ggplot2::ggsave(plt, plot_file, width = width , heigth = height)
   }
