@@ -13,6 +13,9 @@ read_file_of_type <- function(filename, variable){
   if(grepl('output.\\d+.csv$',filename)) { # Stan output csv
     model.rand <- rstan::read_stan_csv(filename)
   }
+  if(grepl('.rds$', filename)) { # Stan generated quantities
+    chol_gen <- readRDS(filename)
+  }
   if(grepl('json$',filename)) { #stan input json
     stan_data <- jsonlite::read_json(filename, simplifyVector=TRUE)
   }
@@ -391,32 +394,30 @@ plot_raster_covariates <- function(covar_data_filename,
 #' @name get_case_raster
 #' @title get_case_raster
 #' @description add
-#' @param preprocessed_data_filename prepreprocess rdata file name
 #' @param covar_data_filename covariates rdata filename
-#' @param model_output_filenames model output filenames
+#' @param genquant_filenames model generated quantities filenames
 #' @return
-get_case_raster <- function(preprocessed_data_filename,
-                            covar_data_filename,
-                            model_output_filenames
+get_case_raster <- function(covar_data_filename,
+                            genquant_filenames
 ) {
-  sf_cases <- read_file_of_type(preprocessed_data_filename,"sf_cases")
-  # layer_index <- 1
   covar_cube_output <- read_file_of_type(covar_data_filename, "covar_cube_output")
-  sf_grid <- covar_cube_output$sf_grid
-  case_raster <- sf_grid
-  test_data <- NULL
+  case_raster <- covar_cube_output$sf_grid
   
   nchains <- 0
   non_na_gridcells <- get_non_na_gridcells(covar_data_filename)
   
-  for (filename in model_output_filenames) {
+  for (filename in genquant_filenames) {
     nchains <- nchains + 1
-    model.rand <- read_file_of_type(filename,"model.rand")
-    # Check if stan ran
-    stan_divergence <- rstan::check_divergences(model.rand)
-    modeled_cases <- as.array(model.rand)[, , grepl("grid_case", names(model.rand)),drop=FALSE]
+    
+    # Get the generated quantities
+    genquant <- read_file_of_type(filename, "chol_gen")
+    
+    varnames <- dimnames(genquant)[[3]]    # All available parameters
+    
+    # Get cases and rates
+    modeled_cases <- as.array(genquant)[, , grepl("grid_case", varnames),drop=FALSE]
     modeled_cases_mean <- apply(modeled_cases, 3, mean)
-    modeled_rates <- exp(as.array(model.rand)[, , grepl("log_lambda", names(model.rand)), drop = FALSE])
+    modeled_rates <- exp(as.array(genquant)[, , grepl("log_lambda", varnames), drop = FALSE])
     modeled_rates_mean <- apply(modeled_rates, 3, mean)
     
     case_raster <- dplyr::mutate(case_raster,
@@ -597,30 +598,35 @@ plot_modeled_rates <- function(case_raster,
 #' @name get_data_fidelity
 #' @title get_data_fidelity
 #' @description add
-#' @param model_output_filenames model_output_filenames
+#' @param genquant_filenames genquant_filenames
 #' @return
-get_data_fidelity <- function(stan_input_filenames, model_output_filenames){
+get_data_fidelity <- function(stan_input_filenames, 
+                              genquant_filenames){
   
   if (length(stan_input_filenames) != length(model_output_filenames))
     stop("Need to provide same number of stan_input and stan_output files")
   
   rc <- list()
   layer_index <- 1
-  for (i in 1:length(model_output_filenames)) {
+  
+  for (i in 1:length(genquant_filenames)) {
     i=1
-    filename <- model_output_filenames[i]
-    # corresponding_input_filename <- gsub('\\d+.csv','json',gsub("stan_output","stan_input", filename))
-    # print(c(filename, corresponding_input_filename))
-    model.rand <- read_file_of_type(filename, "model.rand")
-    nchain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__'))[1] / niter_per_chain
+    filename <- genquant_filenames[i]
+    
+    genquant <- read_file_of_type(filename, "chol_gen")
+    nchain <- dim(genquant[2])
     
     # ####important added -- 11/12/2021
     # taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$OC_UID
     # taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$"attributes.fields.suspected_cases"
     # taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$stan_data$y
-
+    
+    # Get daata
     stan_data <- read_file_of_type(stan_input_filenames[i], "stan_input")$stan_data
-    modeled_cases <- as.array(model.rand)[, , grepl("modeled_cases", names(model.rand)), drop = FALSE]
+    
+    # Get modeled cases
+    varnames <- dimnames(genquant)[[3]]
+    modeled_cases <- as.array(genquant)[, , grepl("modeled_cases", varnames), drop = FALSE]
     modeled_cases_chain_mean <- apply(modeled_cases, c(2, 3), mean)
     actual_cases <- matrix(stan_data$y, nrow(modeled_cases_chain_mean), ncol(modeled_cases_chain_mean), byrow=TRUE)
     dimnames(actual_cases) <- dimnames(modeled_cases_chain_mean)

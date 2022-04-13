@@ -289,7 +289,7 @@ make_stan_genquant_filename <- function(cholera_directory,
   to_add <- stringr::str_replace_all(to_add, "FALSE", "F")
   to_add <- stringr::str_replace_all(to_add, "NULL", "N")
   
-  paste0(base_filename, to_add, ".stan_genquant.rdata")
+  paste0(base_filename, to_add, ".stan_genquant.rds")
 }
 
 #' @title Make map output filename

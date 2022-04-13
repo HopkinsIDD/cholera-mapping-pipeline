@@ -59,4 +59,4 @@ chol_gen <- chol_gen_model$generate_quantities(fitted_params = cmdstan_fit,
                                                parallel_chains = nchain)
 
 # Save generated quantities
-save(chol_gen, file = file_names[["stan_genquant"]])
+chol_gen$save_object(file = file_names[["stan_genquant"]])
