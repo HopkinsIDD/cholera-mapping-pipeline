@@ -1,21 +1,42 @@
 #' @include plot_cache_function.R
-
-#' @name get_observed_polygon_cases_disjoint_no_cache
-#' @title get_observed_polygon_cases_disjoint_no_cache
-#' @description get observed cases by polygon (location periods)
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return observed cases location periods
-aggregate_observed_polygon_cases_disjoint_no_cache <- function(config, cache, cholera_directory) {
-  get_stan_input(config, cache, cholera_directory)
-  get_sf_cases_resized(config, cache, cholera_directory)
-  observed_polygon_cases_disjoint <- separate_by_overlap(cache[["sf_cases_resized"]],
-                                                         name_column = "locationPeriod_id")
-  return(observed_polygon_cases_disjoint)
+#' 
+#' @name separate_by_overlap
+#' @title separate_by_overlap
+#' @description group observations by non-overlapping location periods
+#' @param sf_object sf object
+#' @param name_column the column name of the location periods
+#' @return updated sf object by set (location periods)
+separate_by_overlap <- function(sf_object, name_column = "location_period_id") {
+  unique_geometries <- sf_object %>%
+    dplyr::group_by(!!!rlang::syms(name_column)) %>%
+    dplyr::summarize(.groups = "drop") %>%
+    sf::st_as_sf()
+  unique_geometries[["area"]] <- sf::st_area(unique_geometries)
+  unique_geometries <- unique_geometries %>%
+    dplyr::arrange(-area)
+  overlaps <- sf::st_relate(unique_geometries, unique_geometries, "2********")
+  
+  non_overlaps <- lapply(overlaps, setdiff, x = seq_len(nrow(unique_geometries)))
+  
+  unique_geometries[["set"]] <- NA
+  set_index <- 0
+  unassigned_elements <- which(is.na(unique_geometries[["set"]]))
+  while (length(unassigned_elements) > 0) {
+    set_index <- set_index + 1
+    unique_geometries[["set"]][unassigned_elements[[1]]] <- set_index
+    compatible_things <- non_overlaps[[unassigned_elements[[1]]]]
+    while (length(compatible_things) > 0) {
+      unique_geometries[["set"]][compatible_things[[1]]] <- set_index
+      compatible_things <- intersect(compatible_things, non_overlaps[[compatible_things[[1]]]])
+    }
+    unassigned_elements <- which(is.na(unique_geometries[["set"]]))
+  }
+  
+  sf_object[["set"]] <- unique_geometries[["set"]][match(sf_object[[name_column]],
+                                                         unique_geometries[[name_column]])]
+  
+  return(sf_object)
 }
-
-get_observed_polygon_cases_disjoint <- cache_fun_results("observed_polygon_cases_disjoint",
-                                                         get_observed_polygon_cases_disjoint_no_cache, overwrite = T)
 
 #' @name aggregate_to_location_period
 #' @title aggregate_to_location_period
@@ -55,3 +76,4 @@ aggregate_observed_polygon_cases_disjoint_no_cache <- function(config, cache, ch
 
 aggregate_observed_polygon_cases_disjoint <- cache_fun_results("observed_polygon_cases_disjoint",
                                                                aggregate_observed_polygon_cases_disjoint_no_cache, overwrite = T)
+
