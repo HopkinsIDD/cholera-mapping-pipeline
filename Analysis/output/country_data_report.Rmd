@@ -94,10 +94,15 @@ try({
   sf_cases <- taxdat::read_file_of_type(file_names["data"], "sf_cases")
   sf_cases_resized <- stan_input$sf_cases_resized
   model.rand <- taxdat::read_file_of_type(file_names["stan_output"], "model.rand")
+  genquant <- taxdat::read_file_of_type(file_names["stan_genquant"], "chol_gen")
   niter_per_chain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__', chain_num=1))[1]
   nchain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__'))[1] / niter_per_chain
   stan_output <- lapply(rstan::extract(model.rand), function(x){array(x,c(niter_per_chain, nchain, dim(x)[-1]))})
-  cases_chains <- apply(stan_output$grid_cases, c(3,2), mean)
+  
+  varnames <- dimnames(genquant$draws())[[3]]    # All available parameters
+  modeled_cases <- as.array(genquant$draws())[, , grepl("grid_case", varnames),drop=FALSE]
+  
+  cases_chains <- apply(modeled_cases, c(3,2), mean)
 })
 ```
 
