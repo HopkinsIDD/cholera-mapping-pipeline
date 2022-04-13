@@ -76,23 +76,21 @@ get_covar_cube_no_cache <- function(config, cache, cholera_directory, self_defin
 # cache the results
 get_covar_cube <- cache_fun_results(name = "covar_cube", fun = get_covar_cube_no_cache,
     overwrite = T, config = config)
-# get_covar_cube(config=config,cache)
 
-#' @name get_raster_object_no_cache
-#' @title get_raster_object_no_cache
-#' @description load covar_cube from stan input
+#' @name get_sf_grid_no_cache
+#' @title get_sf_grid_no_cache
+#' @description extrac sf_grid from covar_cube_output
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment that contains all the parameter information
-#' @return covar_cube (raster object)
-get_raster_object_no_cache <- function(config, cache, cholera_directory, ...) {
-    get_covar_cube(config, cache, cholera_directory, ...) 
-    sf_grid <- cache[["covar_cube"]]$sf_grid
-    return(sf_grid)
+#' @return  sf_grid
+get_sf_grid_no_cache <- function(config, cache, cholera_directory, ...) {
+  get_covar(config, cache, cholera_directory, ...)
+  sf_grid <- cache[["covar_cube_output"]]$sf_grid
+  return(sf_grid)
 }
 # cache the results
-get_raster_object <- cache_fun_results(name = "sf_grid", fun = get_raster_object_no_cache,
-    overwrite = T, config = config)
-# get_raster_object(config=config,cache)
+get_sf_grid <- cache_fun_results("sf_grid", get_sf_grid_no_cache,
+                                 overwrite = T, config = config)
 
 ##### pull stan non-cached model.rand
 #' @name get_model_rand_no_cache
@@ -119,8 +117,6 @@ get_model_rand_no_cache <- function(config, cache, cholera_directory, self_defin
 }
 get_model_rand <- cache_fun_results(name = "model.rand", fun = get_model_rand_no_cache,
     overwrite = T, config = config)
-# get_model_rand(config=config,cache)
-
 
 # pull non-cached modeled cases (for modeled cases)
 #' @name get_modeled_cases_no_cache
@@ -137,7 +133,6 @@ get_modeled_cases_no_cache <- function(config, cache, cholera_directory, ...) {
 # cache the results
 get_modeled_cases <- cache_fun_results("modeled_cases", get_modeled_cases_no_cache,
     overwrite = T, config = config)
-# get_modeled_cases(config=config,cache)
 
 # pull non-cached grid rates (for modeled cases)
 #' @name get_modeled_rates_no_cache
@@ -154,8 +149,6 @@ get_modeled_rates_no_cache <- function(config, cache, cholera_directory, ...) {
 # cache the results
 get_modeled_rates <- cache_fun_results("modeled_rates", get_modeled_rates_no_cache,
     overwrite = T, config = config)
-# get_modeled_rates(config=config,cache)
-
 
 # get new aggregated data: get_modeled_cases_mean
 get_modeled_cases_mean_no_cache <- function(config, cache, cholera_directory, ...) {
@@ -168,15 +161,15 @@ get_modeled_cases_mean <- cache_fun_results("modeled_cases_mean", get_modeled_ca
     overwrite = T, config = config)
 # get_modeled_cases_mean(config,cache)
 
-#' @name aggregate_to_modeled_cases_mean
-#' @title aggregate_to_modeled_cases_mean
-#' @description get the mean of the modeled cases for each grid cell
+#' @name aggregate_modeled_cases_by_chain_no_cache
+#' @title aggregate_modeled_cases_by_chain_no_cache
+#' @description get the mean of the modeled cases by chain
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment that contains all the parameter information
 #' @return  modeled cases mean for each grid cell by times
-aggregate_to_modeled_cases_mean <- function(modeled_cases, funs = "mean") {
-    modeled_cases_mean <- apply(modeled_cases, 2, mean)
-    return(modeled_cases_mean)
+aggregate_modeled_cases_by_chain_no_cache <- function(modeled_cases, funs = "mean") {
+  modeled_cases_by_chain <- apply(modeled_cases, 2, funs)
+  return(modeled_cases_by_chain)
 }
 
 # get new aggregated data: get_modeled_rates_mean
@@ -190,16 +183,20 @@ get_modeled_rates_mean <- cache_fun_results("modeled_rates_mean", get_modeled_ra
     overwrite = T, config = config)
 # get_modeled_rates_mean(config=config,cache)
 
-#' @name aggregate_to_modeled_rates_mean
-#' @title aggregate_to_modeled_rates_mean
-#' @description get the mean of the modeled rates each grid cell
+
+#' @name aggregate_modeled_rates_by_chain_no_cache
+#' @title aggregate_modeled_rates_by_chain_no_cache
+#' @description get the mean of the modeled rates by chain
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment that contains all the parameter information
 #' @return  modeled rates mean for each grid cell by times
-aggregate_to_modeled_rates_mean <- function(modeled_rates, funs = "mean") {
-    modeled_rates_mean <- apply(modeled_rates, 2, mean)
-    return(modeled_rates_mean)
+aggregate_modeled_rates_by_chain_no_cache <- function(modeled_rates, funs = "mean") {
+  modeled_rates_by_chain <- apply(modeled_rates, 2, funs)
+  return(modeled_rates_by_chain)
 }
+# cache the results
+aggregate_modeled_rates_by_chain <- cache_fun_results("modeled_rates_by_chain", aggregate_modeled_rates_by_chain_no_cache,
+                                                      overwrite = T, config = config)
 
 ###############'merge/attach' functions############################
 # integrate grid cases mean into the raster
