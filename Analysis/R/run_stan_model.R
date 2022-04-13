@@ -47,7 +47,7 @@ save(model.rand, file = file_names[["stan_output"]])
 # Run generated quantities ------------------------------------------------
 
 # Compile cmdstanr gen quantities
-gen_path <- stringr::replace(stan_model_path, "\\.", "_generate.")
+gen_path <- stringr::str_replace(stan_model_path, "\\.", "_generate.")
 
 chol_gen_model <- cmdstanr::cmdstan_model(gen_path,
                                           quiet = FALSE,
