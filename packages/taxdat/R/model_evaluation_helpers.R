@@ -441,6 +441,7 @@ get_case_raster <- function(covar_data_filename,
 #' @description add
 #' @param covar_data_filename covariates rdata filename
 #' @return
+#' @export
 get_non_na_gridcells <- function(covar_data_filename){
   covar_cube_output <- read_file_of_type(covar_data_filename, "covar_cube_output")
   non_na_gridcells <- covar_cube_output$non_na_gridcells
