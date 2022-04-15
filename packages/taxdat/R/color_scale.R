@@ -22,7 +22,7 @@ color_scale = function(type='cases', use_case = 'leaflet', use_log = FALSE){
     }
     
     limits <- c(exp(-5),NA)
-  } else if (type %in% c('rate', 'rates')){
+  }  else if (type %in% c('rate', 'rates')){
     colors <- c("blue","white","red")
     limits <- c(1e-7,1e-1) # 1e-2 to 1e4 on cases per 1e5
     breaks <- function(x){
@@ -46,9 +46,33 @@ color_scale = function(type='cases', use_case = 'leaflet', use_log = FALSE){
     } else {
       transform <- scales::trans_new(name='per1e5',transform = function(x){x*1e5},inverse=function(x){x/1e5})
     }
-    # breaks <- c(1e-7,1e-6,1e-5,1e-4,1e-3,1e-2,1e-1,1,10)
-    # labels <- c("<.01",".1","1","10","100","1000",">10000")
-  } else {
+
+    } else if (type %in% c("test case rates")){
+      
+      colors <- c("blue","white","red")
+      limits <- c(1e-2,1e-1) # 1e3 to 1e4 on cases per 1e5
+      breaks <- function(x){
+        logscale_x <- log(x*1e5)/log(10)
+        return(10^seq(floor(logscale_x[1]),ceiling(logscale_x[2]),by=1)/1e5)
+      }
+      if(use_log){
+        transform <- scales::trans_new(
+          name='log10per1e5',
+          transform = function(x){log10(x*1e5)},
+          inverse=function(x){(10^x)/1e5},
+          domain=c(1e-100,Inf),
+          breaks = breaks,
+          format = function(x){
+            new_x <- scales::label_number(scale=1e5,big.mark=',')(x)
+            new_x[which.min(x)] <- paste("<=", new_x[which.min(x)])
+            new_x[which.max(x)] <- paste(">=", new_x[which.max(x)])
+            return(new_x)
+          }
+        )
+      } else {
+        transform <- scales::trans_new(name='per1e5',transform = function(x){x*1e5},inverse=function(x){x/1e5})
+      }
+    }else{
     stop(paste("The type",type,"is not recognized"))
   }
   
