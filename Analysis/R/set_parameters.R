@@ -204,10 +204,16 @@ covariate_dict <- yaml::read_yaml(paste0(laydir, "/covariate_dictionary.yml"))
 all_covariate_choices <- names(covariate_dict)
 short_covariate_choices <- purrr::map_chr(covariate_dict, "abbr")
 
-# User-defined covariates names and abbreviations
-covariate_choices <- taxdat::check_covariate_choices(covar_choices = config$covariate_choices,
-                                                     available_choices = all_covariate_choices)
-short_covariates <- short_covariate_choices[covariate_choices]
+if (is.null(config$covariate_choices)) {
+  # Case when model is run with random effects only
+  short_covariates <- NULL
+  print("---- Running with no covariates (spatial random effects only)")
+} else {
+  # User-defined covariates names and abbreviations
+  covariate_choices <- taxdat::check_covariate_choices(covar_choices = config$covariate_choices,
+                                                       available_choices = all_covariate_choices)
+  short_covariates <- short_covariate_choices[covariate_choices]
+}
 
 # - - - -
 # STAN parameters
@@ -287,7 +293,12 @@ for(t_idx in 1:length(all_test_idx)){
     map_name <- taxdat::make_map_name(config)
   }
 
-  covariate_name_part <- paste(short_covariates, collapse = '-')
+  if (is.null(short_covariates)) {
+    covariate_name_part <- "nocovar"
+  } else {
+    covariate_name_part <- paste(short_covariates, collapse = '-')
+  }
+  
   setwd(cholera_directory)
   dir.create("Analysis/output", showWarnings = FALSE)
 
@@ -372,9 +383,6 @@ for(t_idx in 1:length(all_test_idx)){
     # Save results to file
     save(covar_cube_output, file = file_names[["covar"]])
   }
-  print("NCOVAR")
-  print(length(covariate_choices))
-  print("NCOVAR")
 
   ## Step 3: Prepare the stan input ##
   print(file_names[["stan_input"]])
