@@ -43,7 +43,7 @@ plot_modeled_cases_polygon_raw <- function(config, cache, cholera_directory) {
         use_case = "ggplot map") + taxdat::map_theme() + ggplot2::facet_wrap(~set)
     return(plot)
 }
-####
+
 
 get_stan_input_no_cache <- function(config, cache, cholera_directory) {
     load(config[["file_names"]][["stan_input"]])
@@ -51,7 +51,7 @@ get_stan_input_no_cache <- function(config, cache, cholera_directory) {
     require(sf)
     return(stan_input)
 }
-get_stan_input <- cache_fun_results("stan_input", get_stan_input_no_cache)
+get_stan_input <- cache_fun_results("stan_input", get_stan_input_no_cache,overwrite = T, config = config)
 
 #' @name get_sf_cases_resized_no_cache
 #' @title get_sf_cases_resized_no_cache
@@ -64,7 +64,7 @@ get_sf_cases_resized_no_cache <- function(config, cache, cholera_directory) {
     return(cache[["stan_input"]][["sf_cases_resized"]])
 }
 
-get_sf_cases_resized <- cache_fun_results("sf_cases_resized", get_sf_cases_resized_no_cache)
+get_sf_cases_resized <- cache_fun_results("sf_cases_resized", get_sf_cases_resized_no_cache,overwrite = T, config = config)
 
 #' @name separate_by_overlap
 #' @title separate_by_overlap
@@ -192,7 +192,7 @@ get_observed_polygon_cases_disjoint_aggregated_no_cache <- function(config, cach
 }
 
 get_observed_polygon_cases_disjoint_aggregated <- cache_fun_results("observed_polygon_cases_disjoint_aggregated",
-    get_observed_polygon_cases_disjoint_aggregated_no_cache, overwrite = T)
+    get_observed_polygon_cases_disjoint_aggregated_no_cache, overwrite = T, config = config)
 
 # pull non-cached modeled cases (for modeled cases)
 #' @name get_grid_cases_no_cache
@@ -270,8 +270,7 @@ get_modeled_polygon_cases_mean_disjoint_no_cache <- function(config, cache, chol
 }
 
 get_modeled_polygon_cases_mean_disjoint <- cache_fun_results("modeled_polygon_cases_mean_disjoint",
-    get_modeled_polygon_cases_mean_disjoint_no_cache, overwrite = T)
-# get_modeled_polygon_cases_mean_disjoint(config,cache)
+    get_modeled_polygon_cases_mean_disjoint_no_cache, overwrite = T, config = config)
 
 #' @name get_modeled_polygon_cases_mean_disjoint_aggregated_no_cache
 #' @title get_modeled_polygon_cases_mean_disjoint_aggregated_no_cache
@@ -290,4 +289,4 @@ get_modeled_polygon_cases_mean_disjoint_aggregated_no_cache <- function(config, 
 }
 
 get_modeled_polygon_cases_mean_disjoint_aggregated <- cache_fun_results("modeled_polygon_cases_mean_disjoint_aggregated",
-    get_modeled_polygon_cases_mean_disjoint_aggregated_no_cache, overwrite = T)
+    get_modeled_polygon_cases_mean_disjoint_aggregated_no_cache, overwrite = T, config = config)
