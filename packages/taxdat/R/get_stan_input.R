@@ -1,5 +1,6 @@
 #' @include plot_cache_function.R
 
+#' @export
 #' @name get_stan_input_no_cache
 #' @title get_stan_input_no_cache
 #' @description load stan input based on the config file
@@ -7,7 +8,7 @@
 #' @param cache the cached environment that contains all the parameter information
 #' @return stan_input
 get_stan_input_no_cache <- function(config, cache, cholera_directory) {
-  config <- yaml::read_yaml(config_filename)
+  config <- yaml::read_yaml(config)
   file_names <- taxdat::get_filenames(config, cholera_directory)
   stan_input <- taxdat::read_file_of_type(file_names[["stan_input"]], "stan_input")
   require(bit64)
@@ -16,7 +17,7 @@ get_stan_input_no_cache <- function(config, cache, cholera_directory) {
 }
 
 get_stan_input <- cache_fun_results(name = "stan_input", fun = get_stan_input_no_cache,
-                                    overwrite = T, config = config)
+                                    overwrite = T,cholera_directory=cholera_directory)
 
 #' @name get_sf_cases_resized_no_cache
 #' @title get_sf_cases_resized_no_cache
