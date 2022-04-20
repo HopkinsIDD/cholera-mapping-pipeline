@@ -7,7 +7,7 @@
 #' @param cache the cached environment that contains all the parameter information
 #' @return model.rand
 get_model_rand_no_cache <- function(config, cache, cholera_directory) {
-  config <- yaml::read_yaml(config_filename)
+  config <- yaml::read_yaml(config)
   file_names <- taxdat::get_filenames(config, cholera_directory)
   model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
   require(bit64)
