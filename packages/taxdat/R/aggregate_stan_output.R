@@ -6,7 +6,7 @@
 #' @param cache 
 #' @return covar cube
 get_model_rand_no_cache <- function(config, cache, cholera_directory) {
-  config <- yaml::read_yaml(config_filename)
+  config <- yaml::read_yaml(config)
   file_names <- taxdat::get_filenames(config, cholera_directory)
   model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
   require(bit64)
@@ -100,7 +100,7 @@ aggregate_modeled_rates_by_chain_gridtime_no_cache <- function(modeled_rates, fu
 
 # cache the results
 aggregate_modeled_rates_by_chain_gridtime <- cache_fun_results("aggregated_modeled_rates_by_chain_gridtime",aggregate_modeled_rates_by_chain_gridtime_no_cache,
-                                                               overwrite=T,config=config)
+                                                               overwrite=T,config=config,cholera_directory = cholera_directory)
 
 #' @name aggregate_modeled_cases_by_gridtime_no_cache
 #' @description aggregate the modeled cases by grid*time
