@@ -58,7 +58,7 @@ plot_modeled_rates_raster <- function(config, cache, cholera_directory) {
 #' @param cache the cached environment that contains all the parameter information
 #' @return covar cube
 get_covar_cube_no_cache <- function(config, cache, cholera_directory, self_defined_output_dir = NULL) {
-    config <- yaml::read_yaml(config_filename)
+    config <- yaml::read_yaml(config)
     file_names <- taxdat::get_filenames(config, cholera_directory)
     print(paste0("The self_defined_output_dir is ", self_defined_output_dir))
     if(!is.null(self_defined_output_dir)){
@@ -100,7 +100,7 @@ get_sf_grid <- cache_fun_results("sf_grid", get_sf_grid_no_cache,
 #' @param cache the cached environment that contains all the parameter information
 #' @return model.rand
 get_model_rand_no_cache <- function(config, cache, cholera_directory, self_defined_output_dir = NULL) {
-    config <- yaml::read_yaml(config_filename)
+    config <- yaml::read_yaml(config)
     file_names <- taxdat::get_filenames(config, cholera_directory)
     print(paste0("The self_defined_output_dir is ", self_defined_output_dir))
     if(!is.null(self_defined_output_dir)){
@@ -361,7 +361,7 @@ stitch_caches_no_cache <- function(
   
   return(invisible())
 }
-stitch_caches <- cache_fun_results(name, stitch_caches_no_cache, overwrite = T) #this may be problematic
+stitch_caches <- cache_fun_results("modeled_cases", stitch_caches_no_cache, overwrite = T) #this may be problematic
 
 #  a specific stitch function that can stack model output from different year together 
 #' @name stack_case_rate_raster_in_sf
@@ -403,8 +403,8 @@ stack_case_rate_raster_in_sf_no_cache <- function( output_cache,
     output_cache[[name]] <- rbind(output_cache[[name]], modeled_cases_rates_raster)
   } 
 }
-stack_case_rate_raster_in_sf <- cache_fun_results(name,
-    stack_case_rate_raster_in_sf_no_cache, overwrite = T, config_filename)
+stack_case_rate_raster_in_sf <- cache_fun_results("modeled_cases",
+    stack_case_rate_raster_in_sf_no_cache, overwrite = T, config)
 
 # drop the years with invalid model output 
 #' @name remove_dropped_years
