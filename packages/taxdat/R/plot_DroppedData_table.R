@@ -21,38 +21,13 @@ get_stan_input <- cache_fun_results("stan_input", get_stan_input_no_cache,overwr
 #' @param cache the cached environment that contains all the parameter information
 #' @return sf_cases_resized object
 get_sf_cases_resized_no_cache <- function(config, cache, cholera_directory) {
-  get_stan_input(config, cache, cholera_direcotry)
-  return(cache[["stan_input"]][["sf_cases_resized"]])
+  get_stan_input(name="stan_input",
+                 cache=cache,
+                 config = paste0(params$cholera_directory, params$config), 
+                 cholera_directory = params$cholera_directory)
+  return(cache[["stan_input"]]$sf_cases_resized)
 }
 get_sf_cases_resized <- cache_fun_results("sf_cases_resized", get_sf_cases_resized_no_cache,overwrite = T,config=config)
-
-
-#' @name get_preprocessed_data_no_cache
-#' @title get_preprocessed_data_no_cache
-#' @description load preprossed data object based on the config file
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return  object
-get_preprocessed_data_no_cache <- function(config, cache, cholera_directory) {
-  load(config[["file_names"]][["data"]])
-  require(bit64)
-  require(sf)
-  return(stan_input)
-}
-get_preprocessed_data <- cache_fun_results("data", get_preprocessed_data_no_cache)
-
-#' @name get_sf_cases_no_cache
-#' @title get_sf_cases_no_cache
-#' @description load sf cases object from preprocessed data based on the config file
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return sf_cases object
-get_sf_cases_no_cache <- function(config, cache, cholera_directory) {
-  get_preprocessed_data(config, cache, cholera_direcotry)
-  return(cache[["data"]][["sf_cases"]])
-}
-get_sf_cases <- cache_fun_results("sf_cases", get_sf_cases_no_cache)
-
 
 #' @name plot_DroppedData_table
 #' @title plot_ObservationSummary_table
