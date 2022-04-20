@@ -6,7 +6,7 @@
 #' @param cache 
 #' @return covar cube
 get_covar_no_cache <- function(config, cache, cholera_directory) {
-  config <- yaml::read_yaml(config_filename)
+  config <- yaml::read_yaml(config)
   file_names <- taxdat::get_filenames(config, cholera_directory)
   covar_cube_output <- taxdat::read_file_of_type(file_names["covar"], "covar_cube_output")
   require(bit64)
