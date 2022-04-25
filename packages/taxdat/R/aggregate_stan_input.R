@@ -67,13 +67,40 @@ aggregate_to_location_period <- function(sf_object, aggregation_function, groupi
 #' @param cache the cached environment that contains all the parameter information
 #' @return observed cases location periods
 aggregate_observed_polygon_cases_disjoint_no_cache <- function(config, cache, cholera_directory) {
-  get_stan_input(config, cache, cholera_directory)
-  get_sf_cases_resized(config, cache, cholera_directory)
+  get_stan_input(name="stan_input",config=config, cache=cache, cholera_directory=cholera_directory)
+  get_sf_cases_resized(name="sf_cases_resized",config=config, cache=cache, cholera_directory=cholera_directory)
   observed_polygon_cases_disjoint <- separate_by_overlap(cache[["sf_cases_resized"]],
                                                          name_column = "locationPeriod_id")
   return(observed_polygon_cases_disjoint)
 }
 
 aggregate_observed_polygon_cases_disjoint <- cache_fun_results("observed_polygon_cases_disjoint",
-                                                               aggregate_observed_polygon_cases_disjoint_no_cache, overwrite = T)
+                                                               aggregate_observed_polygon_cases_disjoint_no_cache, 
+                                                               overwrite = T,
+                                                               cofig,
+                                                               cholera_directory)
 
+
+
+#' @name aggregate_observed_polygon_cases_disjoint_aggregated_no_cache
+#' @title aggregate_observed_polygon_cases_disjoint_aggregated_no_cache
+#' @description get modeled cases mean by polygon (location periods)
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment that contains all the parameter information
+#' @return modeled cases mean by location periods
+aggregate_observed_polygon_cases_disjoint_aggregated_no_cache <- function(config, cache,
+                                                                          cholera_directory) {
+  aggregate_observed_polygon_cases_disjoint(name="observed_polygon_cases_disjoint",
+                                            cache=cache,
+                                            config=config,
+                                            cholera_directory=cholera_directory)
+
+  observed_polygon_cases_disjoint_aggregated = aggregate_to_location_period(cache[["observed_polygon_cases_disjoint"]],
+                                                                            aggregation_function = function(...) {
+                                                                              mean(normalize_cases_by_time(...))
+                                                                            }, grouping_columns = c("locationPeriod_id", "set"), case_column = "attributes.fields.suspected_cases")
+  return(observed_polygon_cases_disjoint_aggregated)
+}
+
+aggregate_observed_polygon_cases_disjoint_aggregated <- cache_fun_results("observed_polygon_cases_disjoint_aggregated",
+                                                                          aggregate_observed_polygon_cases_disjoint_aggregated_no_cache, overwrite = T,config,cholera_directory)
