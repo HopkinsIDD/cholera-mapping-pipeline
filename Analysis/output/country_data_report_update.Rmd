@@ -35,7 +35,6 @@ library(stars)
 sf::sf_use_s2(FALSE)
 library(taxdat)
 
-
 ### other new packages (mainly for "rgeoboundaries")
 chooseCRANmirror(ind = 77)
 
@@ -114,14 +113,10 @@ get_model_rand(name="model.rand",
                config = paste0(params$cholera_directory,params$config), 
                cholera_directory = params$cholera_directory)
 
-
 get_modeled_cases(name="modeled_cases",
                   cache=cache,
                   config = paste0(params$cholera_directory, params$config),
                   cholera_directory = params$cholera_directory)
-
-
-
 
 get_modeled_rates(name="modeled_rates",
                   cache=cache,
@@ -135,12 +130,10 @@ cache[["modeled_cases_by_chain"]]<-aggregate_modeled_cases_by_chain_no_cache(
                                  cholera_directory = params$cholera_directory
                                  )
 
-
 cache[["cases_chains"]]<-aggregate_modeled_cases_by_chain_gridtime_no_cache(
                                           cache=cache,
                                  config = paste0(params$cholera_directory, params$config),
                                  cholera_directory = params$cholera_directory)
-
 
 #stan_output <- lapply(rstan::extract(cache[["model.rand"]]), function(x){array(x,c(niter_per_chain, nchain, dim(x)[-1]))})
 cache[["niter_per_chain"]]<-get_stan_model_niter_per_chain_no_cache(cache=cache,
@@ -152,7 +145,6 @@ cache[["nchain"]]<-get_stan_model_nchain_no_cache(cache=cache,
 cache[["stan_output"]]<-get_stan_output_no_cache(cache=cache,
                                  config = paste0(params$cholera_directory, params$config),
                                  cholera_directory = params$cholera_directory)
-
   
 get_initial_values(name="initial_values_data",
                   cache=cache,
@@ -163,6 +155,10 @@ cache[["gam_output_df"]]<-get_gam_values_no_cache(
                   cache=cache,
                   config = paste0(params$cholera_directory, params$config),
                   cholera_directory = params$cholera_directory)
+  
+
+  covar_cube <- cache[["covar_cube"]]
+  sf_grid <- cache[["sf_grid"]]
   
 names(cache)
 ```
@@ -209,43 +205,22 @@ aggregate_observed_polygon_cases_disjoint_aggregated(name="observed_polygon_case
                                                      config=params$config,
                                                      cholera_directory=params$cholera_directory,
                                                      cache=cache)
-
 disjoint_set_sf_cases <- cache[["observed_polygon_cases_disjoint_aggregated"]]
-colnames(disjoint_set_sf_cases)
 ```
 
 **Cases by time:**
 ```{r rawobsmap, fig.height=5, fig.width=10, fig.cap=capFig("Observed case counts by time adjusted for time fraction cases/year")}
-if(!is.null(disjoint_set_sf_cases)){
-  plot_observed_cases_polygon_raw(config=params$config, cache=cache, cholera_directory=params$cholera_directory) 
-} else{
-  warning("disjoint_set_sf_cases is NULL")
-}
-
-capFig("Observed case counts by time adjusted for time fraction cases/year")
+  plot_observed_cases_polygon_raw(config=params$config,cache=cache,cholera_directory=params$cholera_directory) 
 ```
 
 **Area adjusted cases by time:**
 ```{r areadjustedmap, fig.height=5, fig.width=10, fig.cap=capFig("Area adjusted average observed case counts by time adjusted for time fraction cases/(year * kilometer)")}
-if(!is.null(disjoint_set_sf_cases)){
-  taxdat::plot_area_adjusted_observed_cases(
-    disjoint_set_sf_cases,
-    render = T
-  )
-} else{
-  warning("disjoint_set_sf_cases is NULL")
-}
-
+  plot_area_adjusted_observed_cases(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
 ```
 
 **Cases unique location periods:**
 ```{r obsmap, fig.height=5, fig.width=10, fig.cap=capFig("Number of observations by unique observed location periods.")}
-if(!is.null(disjoint_set_sf_cases)){
-  taxdat::plot_raw_observations(disjoint_set_sf_cases,
-                                render = T)
-} else{
-  warning("disjoint_set_sf_cases is NULL")
-}
+plot_raw_observations(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
 ```
 
 
@@ -260,6 +235,9 @@ if(as.character(stringr::str_extract(params$config, "[A-Z]{3}")) == "ZNZ"){
 }else{
   country_shp <- rgeoboundaries::gb_adm0(as.character(stringr::str_extract(params$config, "[A-Z]{3}")))
 }
+
+
+plot_time_varying_pop_raster(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 
 ### Get the pltdata
 covar_data_filename = file_names["covar"]
