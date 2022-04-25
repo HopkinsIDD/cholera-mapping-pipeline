@@ -184,78 +184,6 @@ plot_raw_observed_cases <- function(disjoint_set_sf_cases,
 }
 
 
-#' @export
-#' @name plot_area_adjusted_observed_cases
-#' @title plot_area_adjusted_observed_cases
-#' @description add
-#' @param disjoint_set_sf_cases disjoint set of sf cases object
-#' @param render default is FALSE
-#' @param plot_file default is NULL
-#' @param width plot width
-#' @param height plot height
-#' @return ggplot object with area-adjusted observed cases
-plot_area_adjusted_observed_cases <- function(
-  disjoint_set_sf_cases,
-  render = F,
-  plot_file = NULL,
-  width = NULL,
-  height = NULL){
-  plt <- ggplot2::ggplot()
-  plt <- plt +
-    ggplot2::geom_sf(
-      data = disjoint_set_sf_cases,
-      ggplot2::aes(fill = area_adjusted_cases)
-    ) +
-    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
-    ggplot2::labs(fill="Area-adjusted cases")+
-    ggplot2::theme_bw() +
-    ggplot2::theme(legend.position = "bottom") +
-    ggplot2::facet_wrap(~set)
-  
-  if (!is.null(plot_file)) {
-    ggplot2::ggsave(plt, plot_file, width = width , heigth = height)
-  }
-  if(render){
-    plt
-  }
-}
-
-
-#' @export
-#' @name plot_area_adjusted_observed_cases
-#' @title plot_area_adjusted_observed_cases
-#' @description add
-#' @param disjoint_set_sf_cases disjoint set of sf cases object
-#' @param render default is FALSE
-#' @param plot_file default is NULL
-#' @param width plot width
-#' @param height plot height
-#' @return ggplot object with number of observations observed by unique location periods
-plot_raw_observations <- function(disjoint_set_sf_cases,
-                                  render = F,
-                                  plot_file = NULL,
-                                  width = NULL,
-                                  height = NULL){
-  plt <- ggplot2::ggplot()
-  plt <- plt +
-    ggplot2::geom_sf(
-      data = disjoint_set_sf_cases,
-      ggplot2::aes(fill = observations)
-    ) +
-    ggplot2::scale_fill_viridis_c("Observation") +
-    ggplot2::facet_wrap(~set, ncol = 5) +
-    ggplot2::theme_bw() +
-    ggplot2::theme(legend.position = "bottom")
-  
-  if (!is.null(plot_file)) {
-    ggplot2::ggsave(plt, plot_file, width = width , heigth = height)
-  }
-  
-  if (render) {
-    plt
-  }
-}
-
 
 #' @export
 #' @name plot_raster_population
@@ -981,8 +909,8 @@ get_spatial_coverage <- function(config,
                                  area_cuts = c(0, 1e2, 1e3, 1e4, Inf)) {
   # Get stan input and covar cube
   file_names <- get_filenames(config, cholera_directory)
-  stan_input <- read_file_of_type(file_names["stan_input"], "stan_input")
-  sf_cases <- stan_input$sf_cases_resized #read_file_of_type(file_names["data"], "sf_cases")
+  stan_input <- cache[["stan_input"]]
+  sf_cases <- stan_input$sf_cases_resized
   sf_cases$location_name <- NA
   
   covar_cube_output <- read_file_of_type(file_names["covar"], "covar_cube_output")
@@ -1069,64 +997,4 @@ get_spatial_coverage <- function(config,
     dplyr::mutate(coverage = n_pix/tot_n_pix)
   
   return(lp_input)
-}
-
-#' @export
-#' @name get_gam_values
-#' @description gets the predicted GAM rate and case incidence values that are used 
-#' for initializing the model
-#' @param config the configuration file
-#' @param cholera_directory the cholera directory where the data is stored
-#' @return a dataframe based on sf_grid with a column for the log predictions of
-#' cases (log_y) and of rates (log_lambda)
-get_gam_values <- function(config,
-                           cholera_directory) {
-  
-  # Get stan input and covar cube
-  file_names <- get_filenames(config, cholera_directory)
-  stan_input <- read_file_of_type(file_names["stan_input"], "stan_input")
-  initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_values_data")
-
-  coord_frame <- tibble::as_tibble(sf::st_coordinates(stan_input$sf_grid)) %>% 
-    dplyr::group_by(L2) %>% 
-    dplyr::summarise(x = mean(X), 
-                     y = mean(Y))
-  
-  # Create matrix of time
-  year_df <- tibble::tibble(year = stan_input$stan_data$map_grid_time)
-  year_df$year <- factor(year_df$year)
-  
-  ## one random effect per year
-  if (length(unique(year_df$year)) == 1) {
-    mat_grid_time <- matrix(1, nrow(year_df))
-  } else {
-    mat_grid_time <- model.matrix(as.formula("~ year - 1"), data = year_df)
-  }
-  
-  predict_df <- tibble::tibble(sx = coord_frame$x,
-                               sy = coord_frame$y) %>% 
-    # Set all years to 0 to get the reference year
-    cbind(mat_grid_time %>% 
-            tibble::as_tibble() %>%
-            magrittr::set_colnames(paste0("year_", 1:ncol(mat_grid_time)))) %>% 
-    # Extract the covariates
-    cbind(stan_input$stan_data$covar %>% 
-            matrix(ncol = stan_input$stan_data$ncovar) %>% 
-            magrittr::set_colnames(paste0("beta_", 1:stan_input$stan_data$ncovar))) %>% 
-    tibble::as_tibble() %>% 
-    mutate(logpop = log(stan_input$stan_data$pop),
-           logoffset = logpop + log(stan_input$stan_data$meanrate))
-  
-  # Predict log(lambda) for the reference year with covariates
-  log_y_pred_mean <- mgcv::predict.gam(initial_values_data$gam_fit_output, predict_df)
-  
-  y_pred_df <- stan_input$sf_grid %>% 
-    dplyr::mutate(log_y = log_y_pred_mean + predict_df$logoffset,
-                  y = exp(y),
-                  log_lambda = log_y_pred_mean + log(stan_input$stan_data$meanrate),
-                  lambda = exp(log_lambda),
-                  sx=predict_df$sx,
-                  sy=predict_df$sy)
-  
-  return(y_pred_df)
 }
