@@ -3,14 +3,17 @@ title: "Data and Model Outputs Report"
 output: html_document
 params: 
   cholera_directory: "C:/IDD/Cholera/commit_git/cholera-mapping-pipeline"
-  config: "/Analysis/configs/config_ZNZ_2015_2019_censoring_nocovar.yml"
+  config: "/Analysis/configs/config_TGO_2015_2019_censoring_prior.yml"
   drop_nodata_years: TRUE
   admin_level_for_summary_table: '1'
   args: 'myarg'
   old_runs: FALSE
 ---
 ```{r setup, include=FALSE, dev="CairoPNG"}
+library(knitr)
 knitr::opts_chunk$set(
+  cache=TRUE,
+  cache.lazy = FALSE,
   echo = FALSE,
   dev="CairoPNG",
   error = FALSE,
@@ -73,57 +76,15 @@ capFig = function(x){
 ## Cholera input data
 **Data input:**
 ```{r load data}
-# Load data directory
-
-#config <- yaml::read_yaml(paste0(params$cholera_directory, params$config))
-#file_names <- taxdat::get_filenames(config, params$cholera_directory)
-# 
-# stan_input <- NULL
-# try({
-#   stan_input <- taxdat::read_file_of_type(file_names[['stan_input']], "stan_input")
-# })
-# if (is.null(stan_input)) {
-#   cat(file_names[['stan_input']])
-#   stop("Stan input not found")
-# }
-# 
-# sf_cases <- NULL
-# sf_cases_resized <- NULL
-# model.rand <- NULL
-# stan_output <- NULL
-# cases_chains <- NULL
-# try({
-#   sf_cases <- taxdat::read_file_of_type(file_names["data"], "sf_cases")
-#   sf_cases_resized <- stan_input$sf_cases_resized
-#   model.rand <- taxdat::read_file_of_type(file_names["stan_output"], "model.rand")
-   
-#   niter_per_chain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__', chain_num=1))[1]
-#   nchain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__'))[1] / niter_per_chain
-
-#   stan_output <- lapply(rstan::extract(model.rand), function(x){array(x,c(niter_per_chain, nchain, dim(x)[-1]))})
-#   cases_chains <- apply(stan_output$grid_cases, c(3,2), mean)
-# })
-# 
-# 
-# get_stan_input <- cache_fun_results(name = "stan_input", fun = get_stan_input_no_cache,
-#                                     overwrite = T, config = config)
-
-# get_stan_input_no_cache(config=paste0(params$cholera_directory, params$config),
-#                        cache=cache,
-#                        cholera_directory = params$cholera_directory)
+# Load data
 cache<-new.env()
 
 get_stan_input(name="stan_input",
                cache=cache,
                config = paste0(params$cholera_directory, params$config), 
                cholera_directory = params$cholera_directory)
-
-get_model_rand(name="model.rand",
-               cache=cache,
-               config = paste0(params$cholera_directory, params$config), 
-               cholera_directory = params$cholera_directory)
-
-get_sf_cases_resized(name="sf_cases_resized",
+get_sf_cases_resized(
+                    name="sf_cases_resized",
                     cache=cache,
                     config = paste0(params$cholera_directory, params$config),
                     cholera_directory = params$cholera_directory)
@@ -133,86 +94,99 @@ get_sf_cases(name="sf_cases",
              config=paste0(params$cholera_directory, params$config),
              cholera_directory=params$cholera_directory)
 
-aggregate_modeled_rates_by_chain_gridtime(name="aggregated_modeled_rates_by_chain_gridtime",
-             cache=cache,
-             config=paste0(params$cholera_directory, params$config),
-             cholera_directory=params$cholera_directory)
+####stan output file name contains invalid characters in windows, so manually edit the stan output file name############
+get_model_rand_no_cache <- function(config, cache, cholera_directory) {
+  config <- yaml::read_yaml(config)
+  file_names <- taxdat::get_filenames(config, cholera_directory)
+  file_names[["stan_output"]]<-"C:/IDD/Cholera/commit_git/cholera-mapping-pipeline/Analysis/data/TGO_stan_output.rdata"
+  model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
+  require(bit64)
+  require(sf)
+  return(model.rand)
+}
+# cache the results
+get_model_rand <- cache_fun_results(name = "model.rand", fun = get_model_rand_no_cache,
+                                    overwrite = T, config = config)
+####################
 
-             
-cache[["stan_input"]]
-cache[["sf_cases_resized"]]
-cache[["sf_cases"]]
+get_model_rand(name="model.rand",
+               cache=cache,
+               config = paste0(params$cholera_directory,params$config), 
+               cholera_directory = params$cholera_directory)
 
 
+get_modeled_cases(name="modeled_cases",
+                  cache=cache,
+                  config = paste0(params$cholera_directory, params$config),
+                  cholera_directory = params$cholera_directory)
+
+
+
+
+get_modeled_rates(name="modeled_rates",
+                  cache=cache,
+                  config = paste0(params$cholera_directory, params$config),
+                  cholera_directory = params$cholera_directory
+)
+
+cache[["modeled_cases_by_chain"]]<-aggregate_modeled_cases_by_chain_no_cache(
+                                 cache=cache,
+                                 config = paste0(params$cholera_directory, params$config),
+                                 cholera_directory = params$cholera_directory
+                                 )
+
+
+cache[["cases_chains"]]<-aggregate_modeled_cases_by_chain_gridtime_no_cache(
+                                          cache=cache,
+                                 config = paste0(params$cholera_directory, params$config),
+                                 cholera_directory = params$cholera_directory)
+
+
+#stan_output <- lapply(rstan::extract(cache[["model.rand"]]), function(x){array(x,c(niter_per_chain, nchain, dim(x)[-1]))})
+cache[["niter_per_chain"]]<-get_stan_model_niter_per_chain_no_cache(cache=cache,
+                                 config = paste0(params$cholera_directory, params$config),
+                                 cholera_directory = params$cholera_directory)
+cache[["nchain"]]<-get_stan_model_nchain_no_cache(cache=cache,
+                                 config = paste0(params$cholera_directory, params$config),
+                                 cholera_directory = params$cholera_directory)
+cache[["stan_output"]]<-get_stan_output_no_cache(cache=cache,
+                                 config = paste0(params$cholera_directory, params$config),
+                                 cholera_directory = params$cholera_directory)
+
+  
+get_initial_values(name="initial_values_data",
+                  cache=cache,
+                  config = paste0(params$cholera_directory, params$config),
+                  cholera_directory = params$cholera_directory)
+
+cache[["gam_output_df"]]<-get_gam_values_no_cache(
+                  cache=cache,
+                  config = paste0(params$cholera_directory, params$config),
+                  cholera_directory = params$cholera_directory)
+  
+names(cache)
 ```
 
 ## GAM Input
 **Observations input for the GAM model:**
 ```{r gam input,fig.cap=capFig("Observations input for the GAM model")}
-try({
-  initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_values_data")
-  
-  initial_values_data$gam_fit_input %>%
-    dplyr::group_by(sx, sy) %>%
-    dplyr::summarize(y = mean(y)) %>%
-    ggplot() +
-    geom_tile(aes(x = sx, y = sy, fill = y)) +
-    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
-    ggplot2::labs(fill="Cases")
-
-  initial_values_data$gam_fit_input %>%
-    dplyr::group_by(sx, sy) %>%
-    dplyr::summarize(y = mean(y), pop = mean(pop)) %>%
-    dplyr::ungroup() %>%
-    dplyr::mutate(y = ifelse(y == 0, 1e-99, y)) %>%
-    ggplot() +
-    geom_tile(aes(x = sx, y = sy, fill = y / pop)) +
-    taxdat::map_theme() +
-    taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
-    ggplot2::labs(fill="Incidence rate")
-  
-})
+plot_gam_fit_input_cases (name="initial_values_data",cache=cache)
+plot_gam_fit_input_rates (name="initial_values_data",cache=cache)
 ```
 
 
 # GAM Output
 **Observations input for the GAM model:**
 ```{r gam output,fig.cap=capFig("Observations input for the GAM model")}
-try({
-initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_values_data")
-  gam_output_df<-taxdat::get_gam_values(config,params$cholera_directory)
-  
-  gam_output_df %>%
-  ggplot() +
-  geom_tile(aes(x = sx, y = sy, fill =y)) +
-  taxdat::map_theme() +
-  taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
-  ggplot2::labs(fill="Cases")
-
-
-  gam_output_df %>%
-  ggplot() +
-  geom_tile(aes(x = sx, y = sy, fill =lambda)) +
-  taxdat::map_theme() +
-  taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
-  ggplot2::labs(fill="Incidence rate")
-})
+  plot_gam_fit_output_cases(name="gam_output_df",cache=cache)
+  plot_gam_fit_output_rates(name="gam_output_df",cache=cache)
 ```
 
 
 **Table 1. Data used within the model:**
 ```{r cases}
-if(!is.null(sf_cases_resized)){
-  # Get case data statistics
-  obs_stats <- taxdat::get_obs_stats(sf_cases_resized)
-
-  obs_stats %>%
-    dplyr::select(-dplyr::contains("u_")) %>%
-    dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
-    kableExtra::kable(col.names = c("year", "# observations", "# suspected cases", "# location periods", "# observation collections")) %>%
-    kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
-    kableExtra::kable_paper(full_width = T) %>%
-    kableExtra::row_spec(nrow(obs_stats), bold = T)
+if(!is.null(cache[["sf_cases_resized"]])){
+  plot_ObservationSummary_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 } else{
   warning("sf_cases_resized is NULL")
 }
@@ -222,29 +196,8 @@ if(!is.null(sf_cases_resized)){
 **Table 2. Data dropped from the model:**
 ```{r dropcases}
 ### 11/02/2021 update -- dropped = all - used
-if(!is.null(sf_cases) & !is.null(sf_cases_resized)){
-  used_obs_stats <- obs_stats[order(obs_stats$year), ]
-  all_obs_stats <- taxdat::get_obs_stats(sf_cases)
-  all_obs_stats <- all_obs_stats[order(all_obs_stats$year), ]
-  dropped_obs_stats <- all_obs_stats %>% 
-    mutate(n_obs = all_obs_stats$n_obs - used_obs_stats$n_obs) %>% 
-    mutate(n_cases = all_obs_stats$n_cases - used_obs_stats$n_cases) %>% 
-    mutate(n_lp = all_obs_stats$n_lp - used_obs_stats$n_lp) %>% 
-    mutate(n_OCs = all_obs_stats$n_OCs - used_obs_stats$n_OCs)
-
-  for (i in 1:nrow(all_obs_stats)){
-    dropped_obs_stats$u_lps[i] <- paste(sort(unique(setdiff(stringr::str_split(all_obs_stats$u_lps[i], ',')[[1]], 
-                                                            stringr::str_split(used_obs_stats$u_lps[i], ',')[[1]]))), collapse = ",")
-    dropped_obs_stats$u_OCs[i] <- paste(sort(unique(setdiff(stringr::str_split(all_obs_stats$u_OCs[i], ',')[[1]], 
-                                                            stringr::str_split(used_obs_stats$u_OCs[i], ',')[[1]]))), collapse = ",")
-  }
-
-  dropped_obs_stats %>%
-    dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
-    kableExtra::kable(col.names = c("year", "# dropped observations", "# dropped suspected cases", "# dropped location periods",  "dropped location periods", "# dropped  observation collections",  "dropped observation collections")) %>%
-    kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
-    kableExtra::kable_paper(full_width = F) %>%
-    kableExtra::row_spec(nrow(dropped_obs_stats), bold = T)
+if(!is.null(cache[["sf_cases"]]) & !is.null(cache[["sf_cases_resized"]])){
+  plot_DroppedData_table (config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 } else{
   warning("sf_cases or sf_cases_resized is NULL")
 }
@@ -252,19 +205,19 @@ if(!is.null(sf_cases) & !is.null(sf_cases_resized)){
 ```
 
 ```{r disjoint set sf cases}
-disjoint_set_sf_cases <- NULL
-try({
-  disjoint_set_sf_cases <- taxdat::get_disjoint_set_sf_cases(stan_input_filename = file_names["stan_input"])
-})
+aggregate_observed_polygon_cases_disjoint_aggregated(name="observed_polygon_cases_disjoint_aggregated",
+                                                     config=params$config,
+                                                     cholera_directory=params$cholera_directory,
+                                                     cache=cache)
+
+disjoint_set_sf_cases <- cache[["observed_polygon_cases_disjoint_aggregated"]]
+colnames(disjoint_set_sf_cases)
 ```
 
 **Cases by time:**
 ```{r rawobsmap, fig.height=5, fig.width=10, fig.cap=capFig("Observed case counts by time adjusted for time fraction cases/year")}
 if(!is.null(disjoint_set_sf_cases)){
-  taxdat::plot_raw_observed_cases(
-    disjoint_set_sf_cases,
-    render = T
-  )
+  plot_observed_cases_polygon_raw(config=params$config, cache=cache, cholera_directory=params$cholera_directory) 
 } else{
   warning("disjoint_set_sf_cases is NULL")
 }
