@@ -39,7 +39,6 @@ data {
   int <lower=0, upper=L> map_loc_grid_loc[K2]; // the location side of the mapping from locations to gridcells
   int <lower=0, upper=N> map_loc_grid_grid[K2]; // the gridcell side of the mapping from locations to gridcells
   
-  matrix[N, T] mat_grid_time; // The time side of the mapping from locations/times to grid
   int <lower=0,upper=smooth_grid_N> map_smooth_grid[N]; //vector with repeating smooth_grid_N indexes repeating 1:N
   
   // Covariate stuff
@@ -57,9 +56,12 @@ data {
   int<lower=0, upper=1> do_time_slice_effect_autocor;
   // Weight likelihoods by expected number of cases
   int<lower=0, upper=1> use_weights; 
+  // Prior for high values of rho
+  int<lower=0, upper=1> use_rho_prior;
   
   // If time slice effect pass indicator function for years without data
   vector<lower=0, upper=1>[N*do_time_slice_effect] has_data_year;
+  matrix[N*do_time_slice_effect + 2 * (do_time_slice_effect != 1), T*do_time_slice_effect + 2*(do_time_slice_effect != 1)] mat_grid_time; // The time side of the mapping from locations/times to grid (2x2 in case of missing just so it's easy to create)
 }
 
 transformed data {
@@ -146,7 +148,12 @@ transformed parameters {
   }
   
   // log-rates without time-slice effects
-  log_lambda =  w[map_smooth_grid] + log_meanrate + covar * betas;
+  log_lambda =  w[map_smooth_grid] + log_meanrate;
+  
+  // covariates if applicable
+  if (ncovar > 1) {
+    log_lambda += covar * betas;
+  }
   
   // Add time slice effects
   if (do_time_slice_effect == 1) {
@@ -192,6 +199,11 @@ model {
   
   // prior on regression coefficients
   target += normal_lpdf(betas| 0, beta_sigma_scale);
+  
+  // prior on rho if provided
+  if (use_rho_prior == 1) {
+    target += beta_lpdf(rho | 5, 1.5);
+  }
   
   if (do_time_slice_effect == 1) {
     // prior on the time_slice random effects
@@ -242,6 +254,12 @@ model {
         }
       }
       target += sum(lp_censored);
+      
+      // add a 0-centered prior on the censored cases
+      for (idx in ind_right) {
+        modeled_cases[idx] ~ cauchy(0, 2);
+      }
+      
     }
   } else {
     if (use_weights == 1) {

@@ -1,4 +1,4 @@
-#' @include read_data_helpers.R
+#' @include pull_data_helpers.R
 #' @include setup_helpers.R
 #' @include file_name_functions.R
 
@@ -13,6 +13,9 @@ read_file_of_type <- function(filename, variable){
   if(grepl('output.\\d+.csv$',filename)) { # Stan output csv
     model.rand <- rstan::read_stan_csv(filename)
   }
+  if(grepl('.rds$', filename)) { # Stan generated quantities
+    chol_gen <- readRDS(filename)
+  }
   if(grepl('json$',filename)) { #stan input json
     stan_data <- jsonlite::read_json(filename, simplifyVector=TRUE)
   }
@@ -21,6 +24,26 @@ read_file_of_type <- function(filename, variable){
   }
   if(!exists(variable)){stop(paste0("The variable (",variable,") isn't present in the file", filename, ")"))}
   return(eval(expr = parse(text=variable)))
+}
+
+
+#' @export
+#' @name update_filename_oldruns
+#' @title update_filename_oldruns
+#' @description Change filenames for old runs
+#' @param filename filename
+#' @param old_runs if the report is for old runs (before 2021-12)
+#' @return
+update_filename_oldruns <- function(filename,old_runs=FALSE){
+  if(old_runs){
+    filename[["stan_input"]]<-stringr::str_remove(filename[["stan_input"]],"allOCs_")
+    filename[["stan_output"]]<-stringr::str_remove(filename[["stan_output"]],"allOCs_")
+    filename[["stan_output"]]<-stringr::str_remove(filename[["stan_output"]],"-csF-teT-teaF-weT-F")
+    filename[["stan_output"]]<-stringr::str_remove(filename[["stan_output"]],"-F")
+    filename[["covar"]]<-stringr::str_remove(filename[["covar"]],"allOCs_")
+    filename[["data"]]<-stringr::str_remove(filename[["data"]],"allOCs_")
+  }
+  return(filename)
 }
 
 #' @export
@@ -149,7 +172,8 @@ plot_raw_observed_cases <- function(disjoint_set_sf_cases,
       data = disjoint_set_sf_cases,
       ggplot2::aes(fill = cases)
     ) +
-    ggplot2::scale_fill_gradient2("Average cases by location period", low="white",mid="orange",high="red",na.value='blue') +
+    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
+    ggplot2::labs(fill="Average cases by location period")+
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::facet_wrap(~set)
@@ -174,18 +198,19 @@ plot_raw_observed_cases <- function(disjoint_set_sf_cases,
 #' @param height plot height
 #' @return ggplot object with area-adjusted observed cases
 plot_area_adjusted_observed_cases <- function(
-  disjoint_set_sf_cases,
-  render = F,
-  plot_file = NULL,
-  width = NULL,
-  height = NULL){
+    disjoint_set_sf_cases,
+    render = F,
+    plot_file = NULL,
+    width = NULL,
+    height = NULL){
   plt <- ggplot2::ggplot()
   plt <- plt +
     ggplot2::geom_sf(
       data = disjoint_set_sf_cases,
       ggplot2::aes(fill = area_adjusted_cases)
     ) +
-    ggplot2::scale_fill_gradient2("Area-adjusted cases", low="white",mid="orange",high="red",na.value='blue') +
+    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
+    ggplot2::labs(fill="Area-adjusted cases")+
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::facet_wrap(~set)
@@ -296,7 +321,7 @@ plot_raster_population <- function(covar_data_filename,
 #' @return ggplot object with covariate raster
 plot_raster_covariates <- function(covar_data_filename,
                                    render = T) {
-  plt <- ggplot2::ggplot()
+  # plt <- ggplot2::ggplot()
   covar_cube_output <- read_file_of_type(covar_data_filename, "covar_cube_output")
   covar_cube <- covar_cube_output$covar_cube
   sf_grid <- covar_cube_output$sf_grid
@@ -307,7 +332,7 @@ plot_raster_covariates <- function(covar_data_filename,
     
     covar_df <- purrr::map_dfc(seq_len(ncovar), function(x){
       if(ncovar>1){
-        covar_layer <- covar_layers[,,x]
+        covar_layer <- cbind(covar_layers[,,x])
       } else {
         covar_layer <- abind::adrop(covar_layers, 3)
       }
@@ -329,19 +354,31 @@ plot_raster_covariates <- function(covar_data_filename,
         one_of(dimnames(covar_cube_output$covar_cube)[[3]]), key = "covars", value = "value"
       )
     
-    plt <- plt +
-      ggplot2::geom_sf(
-        data = pltdata_dummy,
-        ggplot2::aes(fill = value, color = value)
-      ) +
-      ggplot2::scale_fill_viridis_c(aesthetics = c("colour", "fill"),
-                                    guide = ggplot2::guide_colorbar(title = "Covariate at time 1"),
-                                    option = "B",
-                                    na.value = "white")  +
-      ggplot2::theme_bw() +
-      # ggplot2::scale_fill_continuous("Covariate at time 1") +
-      ggplot2::theme(legend.position = "bottom") +
-      ggplot2::facet_wrap(~covars)
+    # plt <- plt +
+    #   ggplot2::geom_sf(
+    #     data = pltdata_dummy,
+    #     ggplot2::aes(fill = value, color = value)
+    #   ) +
+    #   ggplot2::scale_fill_viridis_c(aesthetics = c("colour", "fill"),
+    #                                 guide = ggplot2::guide_colorbar(title = "Covariate at time 1"),
+    #                                 option = "B",
+    #                                 na.value = "white")  +
+    #   ggplot2::theme_bw() +
+    #   # ggplot2::scale_fill_continuous("Covariate at time 1") +
+    #   ggplot2::theme(legend.position = "bottom") +
+    #   ggplot2::facet_wrap(~covars)
+    plt<-pltdata_dummy%>%group_by(covars)%>%
+      do(gg={
+        ggplot(.,ggplot2::aes(fill = value, color = value)) + ggplot2::geom_sf()+
+          ggplot2::facet_wrap(~covars)+
+          ggplot2::scale_fill_viridis_c(aesthetics = c("colour", "fill"),
+                                        guide = ggplot2::guide_colorbar(title = "Covariate at time 1"),
+                                        option = "B", na.value = "white") + 
+          ggplot2::theme_bw() + 
+          ggplot2::theme(legend.position = "bottom",
+                         legend.key.size = unit(0.5, 'cm'),
+                         legend.title =element_text(size=10))})%>%
+      .$gg%>%gridExtra::grid.arrange(grobs=.,nrow=2)
     
   } else{
     warning("sf_grid has a different number of cells or timepoints than covar_cube")
@@ -357,32 +394,30 @@ plot_raster_covariates <- function(covar_data_filename,
 #' @name get_case_raster
 #' @title get_case_raster
 #' @description add
-#' @param preprocessed_data_filename prepreprocess rdata file name
 #' @param covar_data_filename covariates rdata filename
-#' @param model_output_filenames model output filenames
+#' @param genquant_filenames model generated quantities filenames
 #' @return
-get_case_raster <- function(preprocessed_data_filename,
-                            covar_data_filename,
-                            model_output_filenames
+get_case_raster <- function(covar_data_filename,
+                            genquant_filenames
 ) {
-  sf_cases <- read_file_of_type(preprocessed_data_filename,"sf_cases")
-  # layer_index <- 1
   covar_cube_output <- read_file_of_type(covar_data_filename, "covar_cube_output")
-  sf_grid <- covar_cube_output$sf_grid
-  case_raster <- sf_grid
-  test_data <- NULL
+  case_raster <- covar_cube_output$sf_grid
   
   nchains <- 0
   non_na_gridcells <- get_non_na_gridcells(covar_data_filename)
   
-  for (filename in model_output_filenames) {
+  for (filename in genquant_filenames) {
     nchains <- nchains + 1
-    model.rand <- read_file_of_type(filename,"model.rand")
-    # Check if stan ran
-    stan_divergence <- rstan::check_divergences(model.rand)
-    modeled_cases <- as.array(model.rand)[, , grepl("grid_case", names(model.rand)),drop=FALSE]
+    
+    # Get the generated quantities
+    genquant <- read_file_of_type(filename, "chol_gen")
+    
+    varnames <- dimnames(genquant$draws())[[3]]    # All available parameters
+    
+    # Get cases and rates
+    modeled_cases <- as.array(genquant$draws())[, , grepl("grid_case", varnames),drop=FALSE]
     modeled_cases_mean <- apply(modeled_cases, 3, mean)
-    modeled_rates <- exp(as.array(model.rand)[, , grepl("log_lambda", names(model.rand)), drop = FALSE])
+    modeled_rates <- exp(as.array(genquant$draws())[, , grepl("log_lambda", varnames), drop = FALSE])
     modeled_rates_mean <- apply(modeled_rates, 3, mean)
     
     case_raster <- dplyr::mutate(case_raster,
@@ -406,6 +441,7 @@ get_case_raster <- function(preprocessed_data_filename,
 #' @description add
 #' @param covar_data_filename covariates rdata filename
 #' @return
+#' @export
 get_non_na_gridcells <- function(covar_data_filename){
   covar_cube_output <- read_file_of_type(covar_data_filename, "covar_cube_output")
   non_na_gridcells <- covar_cube_output$non_na_gridcells
@@ -438,12 +474,15 @@ plot_modeled_cases <- function(case_raster,
   plt <- plt +
     ggplot2::geom_sf(
       data = case_raster,
-      ggplot2::aes(fill = value, color =  value)) +
+      ggplot2::aes(fill = value#, color =  value
+      ),color="black",size=0.05) +
     # ggplot2::scale_fill_vidris_c("modeled cases", limits = uniform_scale_fun()) +
-    ggplot2::scale_fill_viridis_c(trans = "log",
-                                  breaks = c(1, 10, 100, 1000),
-                                  aesthetics = c("colour", "fill"),
-                                  guide = ggplot2::guide_colorbar(title = "Incidence\n [cases/year]"))  +
+    # ggplot2::scale_fill_viridis_c(trans = "log",
+    #                               breaks = c(1, 10, 100, 1000),
+    #                               aesthetics = c("colour", "fill"),
+    #                               guide = ggplot2::guide_colorbar(title = "Incidence\n [cases/year]"))  +
+    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = TRUE)+
+    ggplot2::labs(fill="Incidence\n [cases/year]")+
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::facet_wrap(~t,ncol = 5) +
@@ -456,6 +495,62 @@ plot_modeled_cases <- function(case_raster,
     plt
   }
 }
+
+
+#' @export
+#' @name plot_disaggregated_modeled_cases
+#' @title plot_disaggregated_modeled_cases
+#' @description add
+#' @param case_raster case_raster object
+#' @param disaggregated_case_sf disaggregated case raster object
+#' @param render default is TRUE
+#' @param plot_file default is NULL
+#' @param width plot width
+#' @param height plot height
+#' @return ggplot object with modeled cases map
+plot_disaggregated_modeled_cases <- function(case_raster,
+                                             disaggregated_case_sf,
+                                             render = T,
+                                             plot_file = NULL,
+                                             width = NULL,
+                                             height = NULL){
+  plt_case_raster <- disaggregated_case_sf %>%
+    dplyr::select(dplyr::contains("modeled cases"),id,t) %>%
+    tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
+    # tidyr::pivot_longer(contains("iterations: Chain"), names_to = "chain", values_to = "value") %>%
+    dplyr::mutate(chain = stringr::str_replace(chain, "modeled cases", ""))
+  
+  plt_2020_case_raster <- case_raster %>%
+    dplyr::select(dplyr::contains("modeled cases"),id,t) %>%
+    tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
+    dplyr::mutate(chain = stringr::str_replace(chain, "modeled cases", ""))
+  
+  plt_case_raster <- plt_case_raster %>%subset(plt_case_raster$t%in%unique(plt_2020_case_raster$t))%>%mutate(value=ifelse(value<exp(-5),exp(-5),value))
+  
+  plt <- ggplot2::ggplot()
+  plt <-   ggplot2::ggplot() +
+    ggplot2::geom_sf(
+      data = plt_case_raster,
+      ggplot2::aes(fill = value),color=NA,size=0.00001)+
+    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = TRUE)+
+    ggplot2::geom_sf(data=plt_2020_case_raster%>%mutate(value=NA),fill=NA,color="black",size=0.05)+
+    ggplot2::labs(fill="Incidence\n [cases/year]")+
+    ggplot2::theme_bw() +
+    ggplot2::theme(legend.position = "bottom") +
+    ggplot2::theme(legend.text =  ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))+
+    ggplot2::facet_wrap(~t,ncol = length(unique(plt_case_raster$t))) 
+  
+  if (!is.null(plot_file)) {
+    ggplot2::ggsave(plt, plot_file, width = width , heigth = height)
+  }
+  if(render) {
+    plt
+  }
+}
+
+
+
+
 
 
 #' @export
@@ -479,17 +574,13 @@ plot_modeled_rates <- function(case_raster,
     tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
     dplyr::mutate(chain = stringr::str_replace(chain, "modeled rates", ""))
   
-  rate_rescaling <-  1e4  # rescale to have incidence per 10'000 people
   plt <- ggplot2::ggplot()
   plt <- plt +
     ggplot2::geom_sf(
       data = case_raster,
-      ggplot2::aes(fill = value * rate_rescaling, color = value * rate_rescaling)) +
-    # ggplot2::scale_fill_continuous("modeled rates", limits = uniform_scale_fun()) +
-    ggplot2::scale_fill_viridis_c(trans = "log",
-                                  breaks = c(0.01, 0.1, 1, 10, 100, 1000),
-                                  aesthetics = c("colour", "fill"),
-                                  guide = ggplot2::guide_colorbar(title = "Incidence rate\n [cases/10'000/year]"))  +
+      ggplot2::aes(fill = value ),color="black",size=0.05) +
+    taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
+    ggplot2::labs(fill="Incidence rate\n [cases/10'000/year]")+
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::facet_wrap(~t,ncol = 5) +
@@ -508,29 +599,62 @@ plot_modeled_rates <- function(case_raster,
 #' @name get_data_fidelity
 #' @title get_data_fidelity
 #' @description add
-#' @param model_output_filenames model_output_filenames
+#' @param genquant_filenames genquant_filenames
 #' @return
-get_data_fidelity <- function(stan_input_filenames, model_output_filenames){
+get_data_fidelity <- function(stan_input_filenames, 
+                              genquant_filenames){
   
-  if (length(stan_input_filenames) != length(model_output_filenames))
+  if (length(stan_input_filenames) != length(genquant_filenames))
     stop("Need to provide same number of stan_input and stan_output files")
   
   rc <- list()
   layer_index <- 1
-  for (i in 1:length(model_output_filenames)) {
-    filename <- model_output_filenames[i]
-    # corresponding_input_filename <- gsub('\\d+.csv','json',gsub("stan_output","stan_input", filename))
-    # print(c(filename, corresponding_input_filename))
-    model.rand <- read_file_of_type(filename, "model.rand")
+  
+  for (i in 1:length(genquant_filenames)) {
+    i=1
+    filename <- genquant_filenames[i]
+    
+    genquant <- read_file_of_type(filename, "chol_gen")
+    nchain <- length(genquant$metadata()$id)
+    
+    # ####important added -- 11/12/2021
+    # taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$OC_UID
+    # taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$"attributes.fields.suspected_cases"
+    # taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$stan_data$y
+    
+    # Get daata
     stan_data <- read_file_of_type(stan_input_filenames[i], "stan_input")$stan_data
-    modeled_cases <- as.array(model.rand)[, , grepl("modeled_cases", names(model.rand)), drop = FALSE]
+    
+    # Get modeled cases
+    varnames <- dimnames(genquant$draws())[[3]]    # All available parameters
+    modeled_cases <- as.array(genquant$draws())[, , grepl("modeled_cases", varnames), drop = FALSE]
     modeled_cases_chain_mean <- apply(modeled_cases, c(2, 3), mean)
     actual_cases <- matrix(stan_data$y, nrow(modeled_cases_chain_mean), ncol(modeled_cases_chain_mean), byrow=TRUE)
     dimnames(actual_cases) <- dimnames(modeled_cases_chain_mean)
+    
     modeled_cases_chain_mean <- reshape2::melt(modeled_cases_chain_mean)
     actual_cases <- reshape2::melt(actual_cases)
-    comparison <- dplyr::left_join(modeled_cases_chain_mean, actual_cases, by = c(chains = "chains", parameters = "parameters"))
+    actual_cases$censoring <- rep(stan_data$censoring_inds, each = nchain)
+    actual_cases$oc_uid <- rep(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$OC_UID, 
+                               each = nchain) #newly added
+    actual_cases$oc_year <- rep(paste0(format(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$TL, '%Y'),
+                                       "_",
+                                       format(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$TR, '%Y')),
+                                each = nchain) #newly added
+    
+    obs_tfrac=data.frame(
+      obs = stan_data$map_obs_loctime_obs,
+      tfrac = stan_data$tfrac
+    ) %>%
+      dplyr::group_by(obs) %>%
+      dplyr::summarize(tfrac = sum(tfrac))
+    actual_cases$tfrac<-1
+    actual_cases[stringr::str_detect(actual_cases$variable,"tfrac"),]$tfrac<-rep(obs_tfrac$tfrac,each=nchain)
+    
+    comparison <- dplyr::left_join(modeled_cases_chain_mean, actual_cases, by = c(chain = "chain", variable = "variable"))
     names(comparison)[3:4] <- c("modeled cases", "actual cases")
+    comparison$chain <- factor(comparison$chain)
+    
     rc[[filename]] <- comparison
     names(rc)[[layer_index]] <- paste(
       paste(filename_to_stubs(filename)[2:3], collapse = " "),
@@ -551,14 +675,140 @@ get_data_fidelity <- function(stan_input_filenames, model_output_filenames){
 #' @return ggplot object with modeled vs actual cases by observation
 plot_model_fidelity <- function(data_fidelity,
                                 case_raster,
-                                render = T){
+                                render = T,
+                                by_censoring = F){
   comparison <- data_fidelity
   rate_raster <- case_raster
-  plt <- ggplot2::ggplot(comparison[[1]]) +
-    ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = chains)) +
+  if (!by_censoring) {
+    plt <- ggplot2::ggplot(comparison[[1]]  %>% 
+                             dplyr::filter(stringr::str_detect(variable, 'tfrac'))) +
+      ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = chain)) +
+      ggplot2::geom_abline(intercept = 0, slope = 1) +
+      ggplot2::coord_fixed(ratio = 1, xlim = c(1, max(comparison[[1]][,3:4])), ylim = c(1, max(comparison[[1]][,3:4]))) +
+      ggplot2::theme_bw()
+  } else {
+    plt <- ggplot2::ggplot(comparison[[1]] %>% 
+                             dplyr::filter(!stringr::str_detect(variable, 'tfrac'))) +
+      ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = chain)) +
+      ggplot2::geom_abline(intercept = 0, slope = 1) +
+      ggplot2::coord_fixed(ratio = 1, xlim = c(1, max(comparison[[1]][,3:4])), ylim = c(1, max(comparison[[1]][,3:4]))) +
+      ggplot2::theme_bw() +
+      ggplot2::facet_wrap(~censoring)
+  }
+  
+  
+  if (render) {
+    plt
+  }
+}
+
+#' @export
+#' @name plot_model_fidelity_tfrac_adjusted
+#' @title plot_model_fidelity_tfrac_adjusted
+#' @description add
+#' @param data_fidelity data_fidelity object
+#' @param case_raster case_raster object
+#' @param render default is TRUE
+#' @return ggplot object with modeled vs actual cases by observation
+plot_model_fidelity_tfrac_adjusted <- function(data_fidelity,
+                                               case_raster,
+                                               render = T){
+  comparison <- data_fidelity
+  rate_raster <- case_raster
+  
+  plt <- ggplot2::ggplot(comparison[[1]]  %>% 
+                           dplyr::filter(!stringr::str_detect(variable, 'tfrac'))) +
+    ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = oc_uid)) +
+    ggplot2::labs(x="Actual cases",y="Modeled cases")+
     ggplot2::geom_abline(intercept = 0, slope = 1) +
-    ggplot2::coord_fixed(ratio = 1, xlim = c(1, max(comparison[[1]][,3:4])), ylim = c(1, max(comparison[[1]][,3:4]))) +
+    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[[1]][,3:4])), ylim = c(0, max(comparison[[1]][,3:4]))) +
     ggplot2::theme_bw()
+  
+  
+  if (render) {
+    plt
+  }
+}
+
+
+#' @export
+#' @name plot_model_fidelity_tfrac_converted
+#' @title plot_model_fidelity_tfrac_converted
+#' @description add
+#' @param data_fidelity data_fidelity object
+#' @param case_raster case_raster object
+#' @param render default is TRUE
+#' @return ggplot object with modeled vs actual cases by observation
+plot_model_fidelity_tfrac_converted <- function(data_fidelity,
+                                                case_raster,
+                                                render = T){
+  comparison <- data_fidelity
+  rate_raster <- case_raster
+  
+  plt <- ggplot2::ggplot(comparison[[1]]  %>% 
+                           dplyr::filter(stringr::str_detect(variable, 'tfrac'))) +
+    ggplot2::geom_point(ggplot2::aes(y = `modeled cases`/tfrac, x = `actual cases`/tfrac, col = oc_uid)) +
+    ggplot2::labs(x="Actual cases/tfrac",y="tfrac_modeled_cases/tfrac")+
+    ggplot2::geom_abline(intercept = 0, slope = 1) +
+    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[[1]][,3:4])), ylim = c(0, max(comparison[[1]][,3:4]))) +
+    ggplot2::theme_bw()
+  
+  
+  if (render) {
+    plt
+  }
+}
+
+#' @export
+#' @name plot_model_fidelity_tfrac_adjusted_by_year
+#' @title plot_model_fidelity_tfrac_adjusted_by_year
+#' @description add
+#' @param data_fidelity data_fidelity object
+#' @param case_raster case_raster object
+#' @param render default is TRUE
+#' @return ggplot object with modeled vs actual cases by observation
+plot_model_fidelity_tfrac_adjusted_by_year <- function(data_fidelity,
+                                                       case_raster,
+                                                       render = T){
+  comparison <- data_fidelity
+  rate_raster <- case_raster
+  
+  plt <- ggplot2::ggplot(comparison[[1]]  %>% 
+                           dplyr::filter(!stringr::str_detect(variable, 'tfrac'))) +
+    ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = oc_uid)) +
+    ggplot2::labs(x="Actual cases",y="Modeled cases")+
+    ggplot2::geom_abline(intercept = 0, slope = 1) +
+    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[[1]][,3:4])), ylim = c(0, max(comparison[[1]][,3:4]))) +
+    ggplot2::theme_bw() +
+    ggplot2::facet_wrap(~oc_year, ncol = 2)
+  
+  if (render) {
+    plt
+  }
+}
+
+#' @export
+#' @name plot_model_fidelity_tfrac_unadjusted
+#' @title plot_model_fidelity_tfrac_unadjusted
+#' @description add
+#' @param data_fidelity data_fidelity object
+#' @param case_raster case_raster object
+#' @param render default is TRUE
+#' @return ggplot object with modeled vs actual cases by observation
+plot_model_fidelity_tfrac_unadjusted <- function(data_fidelity,
+                                                 case_raster,
+                                                 render = T){
+  comparison <- data_fidelity
+  rate_raster <- case_raster
+  
+  plt <- ggplot2::ggplot(comparison[[1]] %>% 
+                           dplyr::filter(!stringr::str_detect(variable, 'tfrac'))) +
+    ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = oc_uid)) +
+    ggplot2::labs(x="Actual cases",y="modeled_cases")+
+    ggplot2::geom_abline(intercept = 0, slope = 1) +
+    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[[1]][,3:4])), ylim = c(0, max(comparison[[1]][,3:4]))) +
+    ggplot2::theme_bw() +
+    ggplot2::facet_wrap(~censoring, ncol = 2)
   
   if (render) {
     plt
@@ -808,7 +1058,9 @@ get_gam_values <- function(config,
     dplyr::mutate(log_y = log_y_pred_mean + predict_df$logoffset,
                   y = exp(y),
                   log_lambda = log_y_pred_mean + log(stan_input$stan_data$meanrate),
-                  lambda = exp(log_lambda))
+                  lambda = exp(log_lambda),
+                  sx=predict_df$sx,
+                  sy=predict_df$sy)
   
   return(y_pred_df)
 }

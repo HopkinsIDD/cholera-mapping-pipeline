@@ -72,9 +72,11 @@ df <- purrr::map_dfr(
     sx <- coord_frame$x[ind]
     sy <- coord_frame$y[ind]
     
-    beta_mat <- stan_data$covar[ind, ] %>% 
-      matrix(ncol = stan_data$ncovar) %>% 
-      magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar))
+    if (stan_data$ncovar > 0) {
+      beta_mat <- stan_data$covar[ind, ] %>% 
+        matrix(ncol = stan_data$ncovar) %>% 
+        magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar))
+    }
     
     year_mat <- mat_grid_time[ind, ] %>%
       matrix(ncol = ncol(mat_grid_time)) %>%
@@ -93,8 +95,14 @@ df <- purrr::map_dfr(
                      ey = pop*stan_data$meanrate,
                      tfrac = tfrac_vec,
                      censored = stan_data$censoring_inds[i]) %>%
-      cbind(beta_mat) %>% 
-      cbind(year_mat)
+        {
+          if (stan_data$ncovar > 0) {
+            cbind(., beta_mat) 
+          } else {
+            .
+          }
+        } %>% 
+        cbind(year_mat)
     )
   }
 ) %>% 
@@ -119,9 +127,7 @@ covar_warmup <- stan_params$covar_warmup
 stan_data$sigma_eta_scale <- stan_params$sigma_eta_scale
 
 # Add scale of prior on the sd of regression coefficients
-if (stan_data$ncovar >= 1) {
-  stan_data$beta_sigma_scale <- stan_params$beta_sigma_scale
-}
+stan_data$beta_sigma_scale <- stan_params$beta_sigma_scale
 
 
 if (warmup) {
@@ -164,10 +170,16 @@ if (warmup) {
     cbind(mat_grid_time[indall, ] %>% 
             tibble::as_tibble() %>%
             magrittr::set_colnames(paste0("year_", 1:ncol(mat_grid_time)))) %>% 
-    # Extract the covariates
-    cbind(stan_data$covar[indall, ] %>% 
-            matrix(ncol = stan_data$ncovar) %>% 
-            magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar)))
+    { 
+      if(stan_data$ncovar > 0) {
+        # Extract the covariates
+        cbind(., stan_data$covar[indall, ] %>% 
+                matrix(ncol = stan_data$ncovar) %>% 
+                magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar)))
+      } else {
+        .
+      }
+    }
   
   # Predict log(lambda) for the reference year with covariates
   y_pred_mean <- mgcv::predict.gam(gam_fit, predict_df)
@@ -217,22 +229,39 @@ if (warmup) {
   
   if (stan_data$ncovar >= 1 & covar_warmup) {
     betas <- coef(gam_fit) %>% .[stringr::str_detect(names(.), "beta")]
-    init.list <- append(init.list,
-                        # Perturbation of fitted betas
-                        list(betas = rnorm(length(betas), betas, .1) %>% array()))
+    for (i in 1:length(init.list)) {
+      init.list[[i]] <- append(init.list[[i]],
+                               # Perturbation of fitted betas
+                               list(betas = rnorm(length(betas), betas, .1) %>% array()))
+    }
   }
   
 } else {
   # Set to random initial draws if no covar warmup
   init.list <- "random"
+  
+  if (config$time_effect) {
+    stan_data$mat_grid_time <- mat_grid_time %>% as.matrix()
+  }
 }
-
+if (!(config$time_effect)) {
+  stan_data$mat_grid_time <- as.array(matrix(0,2,2))
+}
 
 # Set censoring and time effect and autocorrelation
 stan_data$do_censoring <- ifelse(stan_params$censoring, 1, 0)
 stan_data$do_time_slice_effect <- ifelse(stan_params$time_effect, 1, 0)
 stan_data$do_time_slice_effect_autocor <- ifelse(stan_params$time_effect_autocor, 1, 0)
 stan_data$use_weights <- ifelse(stan_params$use_weights, 1, 0)
+stan_data$use_rho_prior<- ifelse(stan_params$use_rho_prior, 1, 0)
+
+if (stan_params$use_rho_prior) {
+  if (init.list != "random") {
+    for (i in 1:length(init.list)) {
+      init.list[[i]] <- append(init.list[[i]], list(rho = runif(1, .6, 1)))
+    }
+  }
+}
 
 if (stan_params$time_effect) {
   # Extract number of observations per year
@@ -242,6 +271,8 @@ if (stan_params$time_effect) {
   # If there is no data in a given year, the model will ignore the yearly random effect
   has_data_year <- purrr::map_dbl(stan_data$map_grid_time, ~ . %in% obs_per_year$obs_year)
   stan_data$has_data_year <- has_data_year
+} else {
+  stan_data$has_data_year <- array(dim = c(0))
 }
 
 # Set value of negative binomial models with fixed overdispersion parameter

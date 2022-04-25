@@ -151,3 +151,16 @@ create_table_from_data_frame <- function(df, user_name, table_name, overwrite = 
   DBI::dbWriteTable(conn_pg, table_name, df)
   DBI::dbDisconnect(conn_pg)
 }
+
+#' @export
+#' @name crop_to_shapefile
+#' @title crop_to_shapefile: crop the raster with country shapefile
+#' @param raster: raster file
+#' @param shapefile: the country or location shapefile
+#' @param snap: in which direct the extext should be aligned to
+#' @return cropped and maksed raster 
+crop_to_shapefile <- function(raster, shapefile, snap) {
+  raster_cropped <- raster::crop(raster,extent(shapefile),snap=snap)
+  raster_cropped<-raster::mask(raster_cropped,shapefile)
+  return(raster_cropped)
+}

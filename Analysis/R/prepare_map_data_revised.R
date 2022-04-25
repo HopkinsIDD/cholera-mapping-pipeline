@@ -15,7 +15,7 @@ if (data_source == "api") {
   # NEED TO ADD WHO REGION LOOKUP AND APPEND FOR ALL LOCATIONS
   countries <- sapply(countries_name, taxdat::fix_country_name)
   who_region <- sapply(countries_name, taxdat::lookup_WHO_region)
-  long_countries <- paste(who_region, gsub("_", "::", countries_name), sep = "::")
+  long_countries <- paste("CT-World", who_region, gsub("_", "::", countries_name), sep = "::")
   worldpop_region <- unique(sapply(countries_name, taxdat::lookup_WorldPop_region))
   username <- Sys.getenv("CHOLERA_API_USERNAME", "NONE")
   password <- Sys.getenv("CHOLERA_API_KEY", "NONE")
@@ -46,9 +46,13 @@ cases <- taxdat::pull_taxonomy_data(
   locations = long_countries,
   time_left = start_time,
   time_right = end_time,
-  source = data_source
+  source = data_source,
+  uids = filter_OCs,
 ) %>%
   taxdat::rename_database_fields(source = data_source)
+index <- sf::st_geometry_type(cases) == sf::st_geometry_type(sf::st_geometrycollection())
+sf::st_geometry(cases[index, ]) <- sf::st_as_sfc(lapply(sf::st_geometry(cases[index, ]), sf::st_collection_extract, type = "POLYGON"))
+
 
 # Get OC UIDs for all extracted data
 uids <- sort(unique(as.numeric(cases$OC_UID)))
@@ -124,10 +128,11 @@ if (any(grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles)))) {
   warning("Geometry collections present in locations.  See output for details")
   print(paste("The following location periods are affected:", paste(shapefiles[grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles)), ][["location_period_id"]], collapse = ", ")))
   warning("Attempting to fix geometry collections, but not in a smart way.  Please fix the underlying data instead.")
-  tmp2 <- do.call(sf:::rbind.sf, lapply(shapefiles$geojson[grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles))], function(x) {
+  problem_indices <- which(grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles)))
+  tmp2 <- do.call(sf:::rbind.sf, lapply(shapefiles$geojson[problem_indices], function(x) {
     sf::st_sf(sf::st_sfc(x[[1]]))
   }))
-  shapefiles[sf::st_geometry_type(shapefiles) == "GEOMETRYCOLLECTION", ]$geojson <- sf::st_geometry(tmp2)
+  shapefiles[["geojson"]][problem_indices] <- sf::st_geometry(tmp2)
 }
 
 # Write location periods in data ---------------------------------------
