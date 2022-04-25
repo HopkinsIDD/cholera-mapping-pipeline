@@ -24,7 +24,10 @@ plot_sf_with_fill <- function(name, color_scale_type, fill_column) {
 #' @param cache the cached environment that contains all the parameter information
 #' #' @return ggplot object
 plot_observed_cases_polygon_raw <- function(config, cache, cholera_directory) {
-    aggregate_observed_polygon_cases_disjoint_aggregated(config, cache, cholera_directory)
+    aggregate_observed_polygon_cases_disjoint_aggregated(name="observed_polygon_cases_disjoint_aggregated",
+                                                         config=params$config,
+                                                         cholera_directory=params$cholera_directory,
+                                                         cache=cache)
     plot <- plot_sf_with_fill(name = "observed_polygon_cases_disjoint_aggregated",
         color_scale_type = "cases", fill_column = "attributes.fields.suspected_cases")
     return(plot)
@@ -37,13 +40,13 @@ plot_observed_cases_polygon_raw <- function(config, cache, cholera_directory) {
 #' @param cache the cached environment that contains all the parameter information
 #' @return ggplot object
 plot_modeled_cases_polygon_raw <- function(config, cache, cholera_directory) {
-    get_modeled_polygon_cases_mean_disjoint_aggregated(config, cache, cholera_directory)
+    get_modeled_polygon_cases_mean_disjoint_aggregated(config=config, cache=cache, cholera_directory=cholera_directory)
     plot <- ggplot2::ggplot() + ggplot2::geom_sf(data = cache[["modeled_polygon_cases_mean_disjoint_aggregated"]],
-        ggplot2::aes(fill = modeled_cases_mean)) + taxdat::color_scale(type = "cases",
+        ggplot2::aes(fill = modeled_cases_mean)) + taxdat::color_scale(type = "attributes.fields.suspected_cases",
         use_case = "ggplot map") + taxdat::map_theme() + ggplot2::facet_wrap(~set)
     return(plot)
 }
-####
+
 
 get_stan_input_no_cache <- function(config, cache, cholera_directory) {
     load(config[["file_names"]][["stan_input"]])
@@ -60,11 +63,13 @@ get_stan_input <- cache_fun_results("stan_input", get_stan_input_no_cache,overwr
 #' @param cache the cached environment that contains all the parameter information
 #' @return sf_cases_resized object
 get_sf_cases_resized_no_cache <- function(config, cache, cholera_directory) {
-    get_stan_input(config, cache, cholera_direcotry)
-    return(cache[["stan_input"]][["sf_cases_resized"]])
+    get_stan_input(name="stan_input",
+                   cache=cache,
+                   config = paste0(params$cholera_directory, params$config), 
+                   cholera_directory = params$cholera_directory)
+    return(cache[["stan_input"]]$sf_cases_resized)
 }
-
-get_sf_cases_resized <- cache_fun_results("sf_cases_resized", get_sf_cases_resized_no_cache,overwrite = T)
+get_sf_cases_resized <- cache_fun_results(name="sf_cases_resized", get_sf_cases_resized_no_cache,overwrite = T,config=config,cholera_directory = cholera_directory)
 
 #' @name separate_by_overlap
 #' @title separate_by_overlap
@@ -134,65 +139,6 @@ get_stan_input_no_cache <- function(config, cache, cholera_directory) {
 
 get_stan_input <- cache_fun_results(name = "stan_input", fun = get_stan_input_no_cache,
     overwrite = T, config = config)
-
-#' @name aggregate_observed_polygon_cases_disjoint_no_cache
-#' @title aggregate_observed_polygon_cases_disjoint_no_cache
-#' @description get observed cases by polygon (location periods)
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return observed cases location periods
-aggregate_observed_polygon_cases_disjoint_no_cache <- function(config, cache, cholera_directory) {
-    get_stan_input(config, cache, cholera_directory)
-    get_sf_cases_resized(config, cache, cholera_directory)
-    observed_polygon_cases_disjoint <- separate_by_overlap(cache[["sf_cases_resized"]],
-        name_column = "locationPeriod_id")
-    return(observed_polygon_cases_disjoint)
-}
-
-aggregate_observed_polygon_cases_disjoint <- cache_fun_results("observed_polygon_cases_disjoint",
-    aggregate_observed_polygon_cases_disjoint_no_cache, overwrite = T)
-
-# aggregate_observed_polygon_cases_disjoint(config,cache)
-
-#' @name aggregate_to_location_period
-#' @title aggregate_to_location_period
-#' @description aggregated cases to location periods
-#' @param sf_object sf object
-#' @param aggregation_function the function used to aggregate cases by location periods
-#' @param group_columns the column name of location period ids
-#' @return observed cases by sets (location periods)
-aggregate_to_location_period <- function(sf_object, aggregation_function, grouping_columns = "locationPeriod_id",
-    case_column = "attributes.fields.suspected_cases") {
-    sf_object %>%
-        dplyr::group_by(!!!rlang::syms(grouping_columns)) %>%
-        dplyr::group_modify(function(.x, .y) {
-            rc <- sf::st_sf(x = aggregation_function(cases = .x[[case_column]], time_left = .x[["TL"]],
-                time_right = .x[["TR"]]), geom = sf::st_geometry(.x)[1])
-            names(rc)[[1]] <- case_column
-            return(rc)
-        }) %>%
-        sf::st_as_sf() %>%
-        return()
-}
-
-#' @name aggregate_observed_polygon_cases_disjoint_aggregated_no_cache
-#' @title aggregate_observed_polygon_cases_disjoint_aggregated_no_cache
-#' @description get modeled cases mean by polygon (location periods)
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return modeled cases mean by location periods
-aggregate_observed_polygon_cases_disjoint_aggregated_no_cache <- function(config, cache,
-    cholera_directory) {
-    aggregate_observed_polygon_cases_disjoint(config, cache, cholera_directory)
-    observed_polygon_cases_disjoint_aggregated = aggregate_to_location_period(cache[["observed_polygon_cases_disjoint"]],
-        aggregation_function = function(...) {
-            mean(normalize_cases_by_time(...))
-        }, grouping_columns = c("locationPeriod_id", "set"), case_column = "attributes.fields.suspected_cases")
-    return(observed_polygon_cases_disjoint_aggregated)
-}
-
-aggregate_observed_polygon_cases_disjoint_aggregated <- cache_fun_results("observed_polygon_cases_disjoint_aggregated",
-    aggregate_observed_polygon_cases_disjoint_aggregated_no_cache, overwrite = T)
 
 # pull non-cached modeled cases (for modeled cases)
 #' @name get_grid_cases_no_cache
