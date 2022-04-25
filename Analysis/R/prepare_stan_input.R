@@ -444,11 +444,9 @@ prepare_stan_input <- function(
   stan_data$K1 <- length(stan_data$map_obs_loctime_obs)
   stan_data$K2 <- length(stan_data$map_loc_grid_loc)
   stan_data$L <- length(ind_mapping_resized$u_loctimes)
-  stan_data$ncovar <- length(covariate_choices)
   
-  print(stan_data$ncovar)
-  
-  if (stan_data$ncovar > 0) {
+  if (length(covariate_choices) > 0) {
+    # Case when covariates are used
     # Flatten covariate cube to 2d array: [n_pix * n_time_units] * [n_cov]
     # Here the first covariate corresponds to the population raster, so needs to be
     # excluded. Data flattened by pixels first, meaning that
@@ -456,6 +454,7 @@ prepare_stan_input <- function(
     # TODO check if the index removing the first covarcub column which should correspond
     # to population is correct
 
+    stan_data$ncovar <- length(covariate_choices)
     stan_data$covar <- matrix(apply(covar_cube, 3, function(x) x[non_na_gridcells])[, -1], nrow = length(non_na_gridcells))
     
     for (i in rev(seq_len(stan_data$ncovar:1))) {
@@ -477,6 +476,11 @@ prepare_stan_input <- function(
       # standardize
       standardize_covar(stan_data$covar)
     }
+    
+  } else {
+    # Case when no covariates are used
+    stan_data$covar <- array(0, dim = c(length(non_na_gridcells), 0))
+    stan_data$ncovar <- 0
   }
   
   full_grid <- dplyr::left_join(sf::st_drop_geometry(sf_grid),sf::st_drop_geometry(smooth_grid))[,c('upd_id','smooth_id', 't')]

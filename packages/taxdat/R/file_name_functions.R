@@ -366,14 +366,20 @@ make_map_name <- function(config, .f = NULL) {
 #' @export
 
 get_filenames <- function (config, cholera_directory) {
-  # Covariate names
-  covariate_dict <- yaml::read_yaml(paste0(cholera_directory, "/Layers/covariate_dictionary.yml"))
-  all_covariate_choices <- names(covariate_dict)
-  short_covariate_choices <- purrr::map_chr(covariate_dict, "abbr")
-  covariate_choices <- check_covariate_choices(covar_choices = config$covariate_choices,
-                                               available_choices = all_covariate_choices)
-  short_covariates <- short_covariate_choices[covariate_choices]
-  covariate_name_part <- paste(short_covariates, collapse = "-")
+  
+  if (is.null(config$covariate_choices)) {
+    covariate_name_part <- "nocovar"
+  } else {
+    # Covariate names
+    covariate_dict <- yaml::read_yaml(paste0(cholera_directory, "/Layers/covariate_dictionary.yml"))
+    all_covariate_choices <- names(covariate_dict)
+    short_covariate_choices <- purrr::map_chr(covariate_dict, "abbr")
+    covariate_choices <- check_covariate_choices(covar_choices = config$covariate_choices,
+                                                 available_choices = all_covariate_choices)
+    short_covariates <- short_covariate_choices[covariate_choices]
+    covariate_name_part <- paste(short_covariates, collapse = '-')
+  }
+  
   map_name <- make_map_name(config)
   
   # Load dictionary of configuration options
