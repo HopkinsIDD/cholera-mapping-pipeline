@@ -99,24 +99,18 @@ get_sf_grid <- cache_fun_results("sf_grid", get_sf_grid_no_cache,
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment that contains all the parameter information
 #' @return model.rand
-get_model_rand_no_cache <- function(config, cache, cholera_directory, self_defined_output_dir = NULL) {
-    config <- yaml::read_yaml(config)
-    file_names <- taxdat::get_filenames(config, cholera_directory)
-    print(paste0("The self_defined_output_dir is ", self_defined_output_dir))
-    if(!is.null(self_defined_output_dir)){
-        local_output_dir <- paste0(cholera_directory, "/", self_defined_output_dir)
-        file_names <- unlist(lapply(names(file_names), function(file_name){
-                                    gsub("^.*?/Analysis/data", local_output_dir, file_names[file_name])
-                                    }))
-    }
-
-    model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
-    require(bit64)
-    require(sf)
-    return(model.rand)
+get_model_rand_no_cache <- function(config, cache, cholera_directory) {
+  config <- yaml::read_yaml(config)
+  file_names <- taxdat::get_filenames(config, cholera_directory)
+  file_names[["stan_output"]]<-"C:/IDD/Cholera/commit_git/cholera-mapping-pipeline/Analysis/data/TGO_stan_output.rdata"
+  model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
+  require(bit64)
+  require(sf)
+  return(model.rand)
 }
+# cache the results
 get_model_rand <- cache_fun_results(name = "model.rand", fun = get_model_rand_no_cache,
-    overwrite = T, config = config)
+                                    overwrite = T, config = config)
 
 # pull non-cached modeled cases (for modeled cases)
 #' @name get_modeled_cases_no_cache
@@ -126,13 +120,14 @@ get_model_rand <- cache_fun_results(name = "model.rand", fun = get_model_rand_no
 #' @param cache the cached environment that contains all the parameter information
 #' @return  modeled_cases
 get_modeled_cases_no_cache <- function(config, cache, cholera_directory, ...) {
-    get_model_rand(config, cache, cholera_directory, ...)
+  get_model_rand(name="model.rand",config=config, cache=cache, cholera_directory=cholera_directory, ...)
   modeled_cases <-  as.array(cache[["model.rand"]])[, , grepl("grid_case", names(cache[["model.rand"]])),drop=FALSE]
   return(modeled_cases)
 }
 # cache the results
 get_modeled_cases <- cache_fun_results("modeled_cases", get_modeled_cases_no_cache,
-    overwrite = T, config = config)
+                                       overwrite = T, config = config)
+
 
 # pull non-cached grid rates (for modeled cases)
 #' @name get_modeled_rates_no_cache
@@ -142,13 +137,13 @@ get_modeled_cases <- cache_fun_results("modeled_cases", get_modeled_cases_no_cac
 #' @param cache the cached environment that contains all the parameter information
 #' @return  modeled_rates
 get_modeled_rates_no_cache <- function(config, cache, cholera_directory, ...) {
-    get_model_rand(config, cache, cholera_directory, ...) 
-  modeled_rates <- exp(as.array(model.rand)[, , grepl("log_lambda", names(model.rand)), drop = FALSE])
+  get_model_rand(name="model.rand",config=config, cache=cache, cholera_directory=cholera_directory)
+  modeled_rates <- exp(as.array(cache[["model.rand"]])[, , grepl("log_lambda", names(cache[["model.rand"]])), drop = FALSE])
   return(modeled_rates)
 }
 # cache the results
 get_modeled_rates <- cache_fun_results("modeled_rates", get_modeled_rates_no_cache,
-    overwrite = T, config = config)
+                                       overwrite = T, config = config)
 
 # get new aggregated data: get_modeled_cases_mean
 get_modeled_cases_mean_no_cache <- function(config, cache, cholera_directory, ...) {
@@ -167,10 +162,22 @@ get_modeled_cases_mean <- cache_fun_results("modeled_cases_mean", get_modeled_ca
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment that contains all the parameter information
 #' @return  modeled cases mean for each grid cell by times
-aggregate_modeled_cases_by_chain_no_cache <- function(modeled_cases, funs = "mean") {
-  modeled_cases_by_chain <- apply(modeled_cases, 2, funs)
+aggregate_modeled_cases_by_chain_no_cache <- function(config,cholera_directory,cache,funs = "mean") {
+  get_modeled_cases(name="modeled_cases",
+                    cache=cache,
+                    config = paste0(params$cholera_directory, params$config),
+                    cholera_directory = params$cholera_directory
+  )
+  modeled_cases_by_chain <- apply(cache[["modeled_cases"]], 2, funs)
+  
   return(modeled_cases_by_chain)
 }
+# cache the results
+aggregate_modeled_cases_by_chain <- cache_fun_results(name="modeled_cases_by_chain", 
+                                                      aggregate_modeled_cases_by_chain_no_cache,
+                                                      overwrite = T, 
+                                                      config = config,
+                                                      cholera_directory=cholera_directory)
 
 # get new aggregated data: get_modeled_rates_mean
 get_modeled_rates_mean_no_cache <- function(config, cache, cholera_directory, ...) {
