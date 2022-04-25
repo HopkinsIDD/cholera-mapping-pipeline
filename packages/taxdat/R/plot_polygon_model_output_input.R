@@ -11,8 +11,10 @@ plot_sf_with_fill <- function(name, color_scale_type, fill_column) {
     sf_object <- cache[[name]]
     fill_column <- grep(stringr::str_remove(fill_column, "suspected_cases"), names(sf_object),
         value = TRUE)
-    plot <- ggplot2::ggplot() + ggplot2::geom_sf(data = sf_object, ggplot2::aes_string(fill = fill_column)) +
-        taxdat::color_scale(type = color_scale_type, use_case = "ggplot map") + taxdat::map_theme() +
+    plot <- ggplot2::ggplot() + 
+        ggplot2::geom_sf(data = sf_object, ggplot2::aes_string(fill = fill_column)) +
+        taxdat::color_scale(type = color_scale_type, use_case = "ggplot map") + 
+        taxdat::map_theme() +
         ggplot2::facet_wrap(~set)
     return(plot)
 }
@@ -25,13 +27,64 @@ plot_sf_with_fill <- function(name, color_scale_type, fill_column) {
 #' #' @return ggplot object
 plot_observed_cases_polygon_raw <- function(config, cache, cholera_directory) {
     aggregate_observed_polygon_cases_disjoint_aggregated(name="observed_polygon_cases_disjoint_aggregated",
-                                                         config=params$config,
-                                                         cholera_directory=params$cholera_directory,
+                                                         config=config,
+                                                         cholera_directory=cholera_directory,
                                                          cache=cache)
     plot <- plot_sf_with_fill(name = "observed_polygon_cases_disjoint_aggregated",
         color_scale_type = "cases", fill_column = "attributes.fields.suspected_cases")
     return(plot)
 }
+
+
+#' @name plot_area_adjusted_observed_cases
+#' @title plot_area_adjusted_observed_cases
+#' @description plot the polygon with observed cases
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment that contains all the parameter information
+#' #' @return ggplot object
+plot_area_adjusted_observed_cases<- function(config, cache, cholera_directory) {
+    aggregate_observed_polygon_cases_disjoint_aggregated(name="observed_polygon_cases_disjoint_aggregated",
+                                                         config=config,
+                                                         cholera_directory=cholera_directory,
+                                                         cache=cache)
+    cache[["area_adjusted_observed_polygon_cases_disjoint_aggregated"]]<-cache[["observed_polygon_cases_disjoint_aggregated"]]%>%
+        rowwise()%>%
+        mutate(area_adjusted_suspected_cases=as.numeric(attributes.fields.suspected_cases/sf::st_area(geom)))
+    
+    plot <- plot_sf_with_fill(name = "area_adjusted_observed_polygon_cases_disjoint_aggregated",
+                              color_scale_type = "cases", fill_column = "area_adjusted_suspected_cases")
+    return(plot)
+}
+
+
+#' @name plot_raw_observations
+#' @title plot_raw_observations
+#' @description plot the polygon with number of observations
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment that contains all the parameter information
+#' #' @return ggplot object
+plot_raw_observations<- function(config, cache, cholera_directory) {
+    aggregate_observed_polygon_cases_disjoint(name="observed_polygon_cases_disjoint",
+                                                         config=config,
+                                                         cholera_directory=cholera_directory,
+                                                         cache=cache)
+    cache[["observed_polygon_observations_disjoint_aggregated"]]<-cache[["observed_polygon_cases_disjoint"]]%>%
+        group_by(locationPeriod_id)%>%
+        mutate(observations=n())
+    
+    plot<-ggplot2::ggplot()+
+        ggplot2::geom_sf(
+            data = cache[["observed_polygon_observations_disjoint_aggregated"]],
+            ggplot2::aes(fill = observations)
+        ) +
+        ggplot2::scale_fill_viridis_c("Observation") +
+        ggplot2::facet_wrap(~set, ncol = 5) +
+        ggplot2::theme_bw() +
+        ggplot2::theme(legend.position = "bottom")
+
+    return(plot)
+}
+
 
 #' @name plot_modeled_cases_polygon_raw
 #' @title plot_modeled_cases_polygon_raw
@@ -46,30 +99,6 @@ plot_modeled_cases_polygon_raw <- function(config, cache, cholera_directory) {
         use_case = "ggplot map") + taxdat::map_theme() + ggplot2::facet_wrap(~set)
     return(plot)
 }
-
-
-get_stan_input_no_cache <- function(config, cache, cholera_directory) {
-    load(config[["file_names"]][["stan_input"]])
-    require(bit64)
-    require(sf)
-    return(stan_input)
-}
-get_stan_input <- cache_fun_results("stan_input", get_stan_input_no_cache,overwrite = T)
-
-#' @name get_sf_cases_resized_no_cache
-#' @title get_sf_cases_resized_no_cache
-#' @description load sf object (i.e.,sf_cases_resized) from stan input based on the config file
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return sf_cases_resized object
-get_sf_cases_resized_no_cache <- function(config, cache, cholera_directory) {
-    get_stan_input(name="stan_input",
-                   cache=cache,
-                   config = paste0(params$cholera_directory, params$config), 
-                   cholera_directory = params$cholera_directory)
-    return(cache[["stan_input"]]$sf_cases_resized)
-}
-get_sf_cases_resized <- cache_fun_results(name="sf_cases_resized", get_sf_cases_resized_no_cache,overwrite = T,config=config,cholera_directory = cholera_directory)
 
 #' @name separate_by_overlap
 #' @title separate_by_overlap
@@ -119,7 +148,6 @@ separate_by_overlap <- function(sf_object, name_column = "location_period_id") {
 normalize_cases_by_time <- function(cases, time_left, time_right) {
     return(cases/as.numeric(time_right - time_left + 1) * 365)
 }
-
 
 # pull stan non-cached stan input
 #' @name get_stan_input_no_cache
