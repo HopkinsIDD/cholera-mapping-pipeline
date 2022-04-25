@@ -37,10 +37,13 @@ get_stan_input <- cache_fun_results("stan_input", get_stan_input_no_cache,overwr
 #' @param cache the cached environment that contains all the parameter information
 #' @return sf_cases_resized object
 get_sf_cases_resized_no_cache <- function(config, cache, cholera_directory) {
-  get_stan_input(config, cache, cholera_direcotry)
-  return(cache[["stan_input"]][["sf_cases_resized"]])
+  get_stan_input(name="stan_input",
+                 cache=cache,
+                 config = paste0(params$cholera_directory, params$config), 
+                 cholera_directory = params$cholera_directory)
+  return(cache[["stan_input"]]$sf_cases_resized)
 }
-get_sf_cases_resized <- cache_fun_results("sf_cases_resized", get_sf_cases_resized_no_cache,overwrite = T,config=config)
+get_sf_cases_resized <- cache_fun_results(name="sf_cases_resized", get_sf_cases_resized_no_cache,overwrite = T,config=config,cholera_directory = cholera_directory)
 
 #' @name plot_WHOcomparison_table
 #' @title plot_WHOcomparison_table
