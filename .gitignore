@@ -20,3 +20,4 @@ Analysis/output/test.stan_input.rdata
 .Rhistory
 Analysis/configs/
 Layers/
+covar_list_.txt
