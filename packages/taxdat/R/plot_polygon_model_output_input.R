@@ -241,10 +241,8 @@ aggregate_modeled_polygon_cases_mean_disjoint_no_cache <- function(config, cache
         name_column = "locationPeriod_id")
     return(modeled_polygon_cases_mean_disjoint)
 }
-
 aggregate_modeled_polygon_cases_mean_disjoint <- cache_fun_results("modeled_polygon_cases_mean_disjoint",
                                                                    aggregate_modeled_polygon_cases_mean_disjoint_no_cache, overwrite = T)
-# get_modeled_polygon_cases_mean_disjoint(config,cache)
 
 #' @name aggregate_modeled_polygon_cases_mean_disjoint_aggregated_no_cache
 #' @title aggregate_modeled_polygon_cases_mean_disjoint_aggregated_no_cache

@@ -111,21 +111,14 @@ parameters {
   // Covariate stuff
   vector[ncovar] betas;
 }
-
-transformed parameters {
+generated quantities {
+  real<lower=0> tfrac_modeled_cases[M]; //expected number of cases for each observation
+  real log_lik[M]; // log-likelihood of observations
   vector[N] log_lambda; //local log rate
-  vector[smooth_grid_N] b; //
-  vector[smooth_grid_N] vec_var; //
-  vector[smooth_grid_N] t_rowsum; // only the rowsum of t is used
-  vector[smooth_grid_N] std_dev; // Rescaled std_dev by std_dev_w
   vector<lower=0>[L] location_cases; //cases modeled in each (temporal) location.
   vector<lower=0>[N] grid_cases; //cases modeled in each gridcell and time point.
   vector[T*do_time_slice_effect] eta; // yearly random effects
-  
-  // real w_sum;
-  
   real<lower=0> modeled_cases[M]; //expected number of cases for each observation
-  real<lower=0> std_dev_w;
   
   if (do_time_slice_effect == 1) {
     for(i in 1:T) {
@@ -134,26 +127,8 @@ transformed parameters {
     }
   }
   
-  std_dev_w = exp(log_std_dev_w);
-  
-  // Construct w
-  vec_var = (1 - rho * rho) ./ (1 + (1. * diag - 1) * rho * rho);
-  b = rho ./ (1 + (diag - 1) * rho * rho );
-  // Linear in number of edges
-  for(i in 1:smooth_grid_N){
-    t_rowsum[i] = 0;
-  }
-  for(i in 1:N_edges){
-    t_rowsum[node1[i] ] += w[node2[i] ] * b[ node1[i] ];
-  }
-  
   // log-rates without time-slice effects
-  log_lambda =  w[map_smooth_grid] + log_meanrate;
-  
-  // covariates if applicable
-  if (ncovar > 1) {
-    log_lambda += covar * betas;
-  }
+  log_lambda =  w[map_smooth_grid] + log_meanrate + covar * betas;
   
   // Add time slice effects
   if (do_time_slice_effect == 1) {
@@ -185,96 +160,6 @@ transformed parameters {
       modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
     }
   }
-  //w_sum = sum(w);
-  std_dev = std_dev_w * sqrt(vec_var);
-}
-
-model {
-  
-  // NOTE:  no prior on phi_raw, it is used to construct phi
-  // the following computes the prior on phi on the unit scale with std_dev = 1
-  for(i in 1:smooth_grid_N){
-    target += normal_lpdf(w[i] | t_rowsum[i], std_dev[i]);
-  }
-  
-  // prior on regression coefficients
-  target += normal_lpdf(betas| 0, beta_sigma_scale);
-  
-  // prior on rho if provided
-  if (use_rho_prior == 1) {
-    target += beta_lpdf(rho | 5, 1.5);
-  }
-  
-  if (do_time_slice_effect == 1) {
-    // prior on the time_slice random effects
-    // For the autocorrelated model sigma is the sd of the increments in the random effects
-    sigma_eta_tilde ~ std_normal();
-    
-    if (do_time_slice_effect_autocor == 1) {
-      real tau = 1/(sigma_eta_tilde[1] * sigma_eta_scale)^2; // precision of the increments of the time-slice random effects
-      // Autocorrelation on yearly random effects with 0-sum constraint 
-      // The increments of the time-slice random effects are assumed to have mean 0
-      // and variance 1/tau
-      // Sorbye and Rue (2014) https://doi.org/10.1016/j.spasta.2013.06.004
-      target += (T-1.0)/2.0 * log(tau) - tau/2 * (dot_self(eta[2:T] - eta[1:(T-1)]));
-      sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraint
-    } else {
-      eta_tilde ~ std_normal();
-    }
-  }
-  
-  if (do_censoring == 1) {
-    
-    if (M_full > 0) {
-      // data model for estimated rates for full time slice observations
-      target += poisson_lpmf(y[ind_full]| modeled_cases[ind_full]);
-    }
-    
-    if (M_right > 0) {
-      //data model for estimated rates for right-censored time slice observations
-      //note that according to Stan the complementary CDF, or CCDF(Y|modeled_cases))
-      // is defined as Pr(Y > y | modeled_cases),
-      // we therefore add the probability Pr(Y = y|modeled_cases) to CCDF(y|modeled_casees)
-      // to get Pr(Y >= y|modeled_cases)
-      //https://mc-stan.org/docs/2_25/functions-reference/cumulative-distribution-functions.html
-      
-      vector[M_right] lp_censored;
-      
-      for(i in 1:M_right){
-        real lpmf;
-        lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
-        // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
-        if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
-          real lls[2];
-          lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
-          lls[2] = lpmf;
-          lp_censored[i] = log_sum_exp(lls);
-        } else {
-          lp_censored[i] = lpmf;
-        }
-      }
-      target += sum(lp_censored);
-      
-      // add a 0-centered prior on the censored cases
-      for (idx in ind_right) {
-        modeled_cases[idx] ~ cauchy(0, 2);
-      }
-      
-    }
-  } else {
-    if (use_weights == 1) {
-      //data model for estimated rates
-      for(i in 1:M){
-        target += poisson_lpmf(y[i] | modeled_cases[i])/weights[i];
-      } 
-    } else {
-      target += poisson_lpmf(y | modeled_cases);
-    }
-  }
-}
-generated quantities {
-  real<lower=0> tfrac_modeled_cases[M]; //expected number of cases for each observation
-  real log_lik[M]; // log-likelihood of observations
   
   // first initialize to 0
   for (i in 1:M) {

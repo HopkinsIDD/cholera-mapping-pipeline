@@ -368,7 +368,8 @@ stitch_caches_no_cache <- function(
   
   return(invisible())
 }
-stitch_caches <- cache_fun_results("modeled_cases", stitch_caches_no_cache, overwrite = T) #this may be problematic
+
+stitch_caches <- cache_fun_results("modeled_cases",stitch_caches_no_cache, overwrite = T) #this may be problematic
 
 #  a specific stitch function that can stack model output from different year together 
 #' @name stack_case_rate_raster_in_sf

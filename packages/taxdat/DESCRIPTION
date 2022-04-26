@@ -35,6 +35,7 @@ Collate:
     'pull_data_helpers.R'
     'model_evaluation_helpers.R'
     'output_processing_helper.R'
+    'plot_cache_function.R'
     'plot_DroppedData_table.R'
     'plot_GAM.R'
     'plot_MCMC.R'

@@ -17,7 +17,7 @@ knitr::opts_chunk$set(
   fig.align = "center",
   message = TRUE,
   warning = TRUE
-  )
+)
 library(stringr)
 library(dplyr)
 library(magrittr)
@@ -60,9 +60,9 @@ for (package in package_list) {
 capFigNo = 1
 #Function to add the Figure Number
 capFig = function(x){
-    x = paste0("Figure ",capFigNo,". ",x)
-    capFigNo <<- capFigNo + 1
-    x
+  x = paste0("Figure ",capFigNo,". ",x)
+  capFigNo <<- capFigNo + 1
+  x
 }
 
 ```
@@ -95,10 +95,15 @@ try({
   sf_cases <- taxdat::read_file_of_type(file_names["data"], "sf_cases")
   sf_cases_resized <- stan_input$sf_cases_resized
   model.rand <- taxdat::read_file_of_type(file_names["stan_output"], "model.rand")
+  genquant <- taxdat::read_file_of_type(file_names["stan_genquant"], "chol_gen")
   niter_per_chain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__', chain_num=1))[1]
   nchain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__'))[1] / niter_per_chain
   stan_output <- lapply(rstan::extract(model.rand), function(x){array(x,c(niter_per_chain, nchain, dim(x)[-1]))})
-  cases_chains <- apply(stan_output$grid_cases, c(3,2), mean)
+  
+  varnames <- dimnames(genquant$draws())[[3]]    # All available parameters
+  modeled_cases <- as.array(genquant$draws())[, , grepl("grid_case", varnames),drop=FALSE]
+  
+  cases_chains <- apply(modeled_cases, c(3,2), mean)
 })
 ```
 
@@ -115,7 +120,7 @@ try({
     geom_tile(aes(x = sx, y = sy, fill = y)) +
     taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
     ggplot2::labs(fill="Cases")
-
+  
   initial_values_data$gam_fit_input %>%
     dplyr::group_by(sx, sy) %>%
     dplyr::summarize(y = mean(y), pop = mean(pop)) %>%
@@ -135,23 +140,23 @@ try({
 **Observations input for the GAM model:**
 ```{r gam output,fig.cap=capFig("Observations input for the GAM model")}
 try({
-initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_values_data")
+  initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_values_data")
   gam_output_df<-taxdat::get_gam_values(config,params$cholera_directory)
   
   gam_output_df %>%
-  ggplot() +
-  geom_tile(aes(x = sx, y = sy, fill =y)) +
-  taxdat::map_theme() +
-  taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
-  ggplot2::labs(fill="Cases")
-
-
+    ggplot() +
+    geom_tile(aes(x = sx, y = sy, fill =y)) +
+    taxdat::map_theme() +
+    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
+    ggplot2::labs(fill="Cases")
+  
+  
   gam_output_df %>%
-  ggplot() +
-  geom_tile(aes(x = sx, y = sy, fill =lambda)) +
-  taxdat::map_theme() +
-  taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
-  ggplot2::labs(fill="Incidence rate")
+    ggplot() +
+    geom_tile(aes(x = sx, y = sy, fill =lambda)) +
+    taxdat::map_theme() +
+    taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
+    ggplot2::labs(fill="Incidence rate")
 })
 ```
 
@@ -161,7 +166,7 @@ initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_
 if(!is.null(sf_cases_resized)){
   # Get case data statistics
   obs_stats <- taxdat::get_obs_stats(sf_cases_resized)
-
+  
   obs_stats %>%
     dplyr::select(-dplyr::contains("u_")) %>%
     dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
@@ -187,14 +192,14 @@ if(!is.null(sf_cases) & !is.null(sf_cases_resized)){
     mutate(n_cases = all_obs_stats$n_cases - used_obs_stats$n_cases) %>% 
     mutate(n_lp = all_obs_stats$n_lp - used_obs_stats$n_lp) %>% 
     mutate(n_OCs = all_obs_stats$n_OCs - used_obs_stats$n_OCs)
-
+  
   for (i in 1:nrow(all_obs_stats)){
     dropped_obs_stats$u_lps[i] <- paste(sort(unique(setdiff(stringr::str_split(all_obs_stats$u_lps[i], ',')[[1]], 
                                                             stringr::str_split(used_obs_stats$u_lps[i], ',')[[1]]))), collapse = ",")
     dropped_obs_stats$u_OCs[i] <- paste(sort(unique(setdiff(stringr::str_split(all_obs_stats$u_OCs[i], ',')[[1]], 
                                                             stringr::str_split(used_obs_stats$u_OCs[i], ',')[[1]]))), collapse = ",")
   }
-
+  
   dropped_obs_stats %>%
     dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
     kableExtra::kable(col.names = c("year", "# dropped observations", "# dropped suspected cases", "# dropped location periods",  "dropped location periods", "# dropped  observation collections",  "dropped observation collections")) %>%
@@ -313,20 +318,20 @@ if(nrow(sf_grid) == prod(dim(pop_layer))){
   } else if (iso_code == "ZNZ"){
     stop('Sorry, currently ZNZ only has the admin 1 level shape files available to use, please try again. ')
   } else{
-  if (admin_level == 1){
-    boundary_sf <- rgeoboundaries::gb_adm1(iso_code)
-  }else if (admin_level == 2){
-    boundary_sf <- rgeoboundaries::gb_adm2(iso_code)
-    warning('The current admin level is set at 2. ')
-  }else if (admin_level == 3){
-    boundary_sf <- rgeoboundaries::gb_adm3(iso_code)
-    warning('The current admin level is set at 3. ')
-  }else{
-    stop('Error: the current admin level is unnecessarily high or invalid, 
+    if (admin_level == 1){
+      boundary_sf <- rgeoboundaries::gb_adm1(iso_code)
+    }else if (admin_level == 2){
+      boundary_sf <- rgeoboundaries::gb_adm2(iso_code)
+      warning('The current admin level is set at 2. ')
+    }else if (admin_level == 3){
+      boundary_sf <- rgeoboundaries::gb_adm3(iso_code)
+      warning('The current admin level is set at 3. ')
+    }else{
+      stop('Error: the current admin level is unnecessarily high or invalid, 
     please check and change the parameters for the country data report before running again. ')
+    }
   }
-}
-    
+  
   ### For loops and make the table
   admin_pop_table <- data.frame(matrix(NA, length(boundary_sf$shapeName), length(unique(pltdata$t)) + 1))
   
@@ -338,11 +343,15 @@ if(nrow(sf_grid) == prod(dim(pop_layer))){
   if(is.na(start_year)){
   start_year <- as.numeric(stringr::str_extract(params$config, "[0-9]{1,4}"))
   year_list <- unique(pltdata$t) + (start_year-1)
-
-  if(!start_year%in%c(2015,2016,2017,2018,2019)){
+  
+  if(is.na(start_year)){
+    start_year <- as.numeric(stringr::str_extract(params$config, "[0-9]{1,4}"))
+    year_list <- unique(pltdata$t) + (start_year-1)
+    
+    if(!start_year%in%c(2015,2016,2017,2018,2019)){
       start_year <- as.numeric(stringr::str_extract(params$config, "\\d+(?=.yml)"))
       year_list <- start_year
-  }
+    }
   }
   
   colnames(admin_pop_table) <- c('adminlevel', year_list)
@@ -398,6 +407,8 @@ case_raster <- NULL
   case_raster <- taxdat::get_case_raster(preprocessed_data_filename = file_names["data"],
 covar_data_filename = file_names["covar"],
 model_output_filenames = file_names["stan_output"])
+  case_raster <- taxdat::get_case_raster(covar_data_filename = file_names["covar"],
+                                       genquant_filenames = file_names["stan_genquant"])
  
   #disaggregate incidence raster to 1*1KM 
   rate_raster <- case_raster %>%
@@ -418,6 +429,7 @@ model_output_filenames = file_names["stan_output"])
   empty_raster <- raster::raster(case_raster, res = max(0.00833333, 0.00833333))#1*1km raster
   disaggregated_case_raster <- fasterize::fasterize(case_raster, empty_raster, field = c("value"),by="t")
  
+
 if(length(unique(pltdata$t))>1){
   disaggregated_case_sf=disaggregated_case_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)%>%dplyr::rename("1"=X1,"2"=X2,"3"=X3,"4"=X4,"5"=X5)%>%tidyr::pivot_longer(.,cols=c("1","2","3","4","5"),names_to="t")%>%as.data.frame(.)%>%sf::st_as_sf(.)
   colnames(disaggregated_case_sf)[stringr::str_detect( colnames(disaggregated_case_sf),"value")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"value")]
@@ -428,12 +440,11 @@ if(length(unique(pltdata$t))>1){
   disaggregated_rate_sf$id<-rep(1:(nrow(disaggregated_rate_sf)/length(unique(disaggregated_rate_sf$t))),each=5)
 
 }  else{
-  
+
   disaggregated_case_sf=disaggregated_case_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)
   colnames(disaggregated_case_sf)[stringr::str_detect( colnames(disaggregated_case_sf),"layer")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled case")]
   disaggregated_case_sf$id<-rep(1:(nrow(disaggregated_case_sf)/length(unique(disaggregated_case_sf$t))),each=1)
 
- #single year runs
   disaggregated_rate_sf=disaggregated_rate_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)%>%dplyr::rename("1"=X1)%>%tidyr::pivot_longer(.,cols=c("1"),names_to="t")%>%as.data.frame(.)%>%sf::st_as_sf(.)
   colnames(disaggregated_rate_sf)[stringr::str_detect( colnames(disaggregated_rate_sf),"value")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled rate")]
   disaggregated_rate_sf$id<-rep(1:(nrow(disaggregated_rate_sf)/length(unique(disaggregated_rate_sf$t))),each=1)
@@ -478,7 +489,7 @@ for (ts in unique(case_raster_admin$t)){
   case_raster_admin_ts <- case_raster_admin %>% filter(t == ts)
   empty_raster <- raster::raster(case_raster_admin_ts, res = res(disaggregated_case_raster))
   raster_data <- fasterize::fasterize(case_raster_admin_ts, empty_raster, field = "value")
-
+  
   ## across different locations
   for (locs in admin_case_table$adminlevel){
     cropped <- raster::crop(raster_data, boundary_sf[boundary_sf$shapeName == locs, ], snap = "near")
@@ -487,7 +498,7 @@ for (ts in unique(case_raster_admin$t)){
     admin_case_table[match(locs, admin_case_table$adminlevel), (match(ts, unique(case_raster_admin$t)) + 1)] <- sum_case
     rm(cropped, masked)
   } 
-
+  
   ## optimize memory
   rm(case_raster_admin_ts, empty_raster, raster_data)
 }
@@ -496,11 +507,11 @@ for (ts in unique(case_raster_admin$t)){
 total_row <- c('Total', apply(data.frame(admin_case_table[, -1]), 2, sum))
 admin_case_table <- rbind(admin_case_table, total_row)
 admin_case_table[, -1] <- apply(as.matrix(noquote(admin_case_table[, -1])),  # Using apply function
-                                  2,
-                                  as.numeric)
+                                2,
+                                as.numeric)
 admin_case_table$mean_across_years <- apply(admin_case_table[, -1], 1, mean)
 admin_case_table <- admin_case_table %>% 
- mutate_if(is.numeric, round, digits=4)
+  mutate_if(is.numeric, round, digits=4)
 
 admin_case_table %>%
   dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
@@ -545,7 +556,7 @@ for (ts in unique(rate_raster_admin$t)){
   pop_cropped <- raster::crop(pop_raster_data,disaggregated_rate_raster)
   origin(pop_cropped)<-origin(disaggregated_rate_raster)
   raster_data_pop <- pop_cropped
-
+  
   ## across different locations
   for (locs in admin_rate_table$adminlevel){
     ## the calculated case raster
@@ -561,7 +572,7 @@ for (ts in unique(rate_raster_admin$t)){
     admin_rate_table[match(locs, admin_rate_table$adminlevel), (match(ts, unique(rate_raster_admin$t)) + 1)] <- w_rate
     rm(cropped, masked)
   } 
-
+  
   ## the total weighted rate
   if(exists('total_w_rate')){
     total_w_rate <- c(total_w_rate,
@@ -579,11 +590,11 @@ for (ts in unique(rate_raster_admin$t)){
 total_row <- c('Weighted Total', total_w_rate * 1e4)
 admin_rate_table <- rbind(admin_rate_table, total_row)
 admin_rate_table[, -1] <- apply(as.matrix(noquote(admin_rate_table[, -1])),  # Using apply function
-                                  2,
-                                  as.numeric)
+                                2,
+                                as.numeric)
 admin_rate_table$mean_across_years <- apply(admin_rate_table[, -1], 1, mean)
 admin_rate_table <- admin_rate_table %>% 
- mutate_if(is.numeric, round, digits=4)
+  mutate_if(is.numeric, round, digits=4)
 
 admin_rate_table %>%
   dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
@@ -600,59 +611,59 @@ admin_rate_table %>%
 data_fidelity <- NULL
 try({
   if(file.exists(file_names["initial_values"])){
-  data_fidelity <- taxdat::get_data_fidelity(stan_input_filenames = file_names["stan_input"],
-                                          model_output_filenames = file_names["stan_output"])
-  
+    data_fidelity <- taxdat::get_data_fidelity(stan_input_filenames = file_names["stan_input"], 
+                                               genquant_filenames = file_names["stan_genquant"])
+    
   }else{
     #for old runs without initial_values output files
     stan_input_filenames = file_names["stan_input"]
     model_output_filenames = file_names["stan_output"]
     if (length(stan_input_filenames) != length(model_output_filenames))
-    stop("Need to provide same number of stan_input and stan_output files")
-  
-  rc <- list()
-  layer_index <- 1
-  for (i in 1:length(model_output_filenames)) {
-    filename <- model_output_filenames[i]
-    model.rand <- read_file_of_type(filename, "model.rand")
-    nchain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__'))[1] / niter_per_chain
+      stop("Need to provide same number of stan_input and stan_output files")
     
-    stan_data <- read_file_of_type(stan_input_filenames[i], "stan_input")$stan_data
-    modeled_cases <- as.array(model.rand)[, , grepl("modeled_cases", names(model.rand)), drop = FALSE]
-    modeled_cases_chain_mean <- apply(modeled_cases, c(2, 3), mean)
-    actual_cases <- matrix(stan_data$y, nrow(modeled_cases_chain_mean), ncol(modeled_cases_chain_mean), byrow=TRUE)
-    dimnames(actual_cases) <- dimnames(modeled_cases_chain_mean)
-    modeled_cases_chain_mean <- reshape2::melt(modeled_cases_chain_mean)
-    actual_cases <- reshape2::melt(actual_cases)
-    actual_cases$censoring <- rep(stan_data$censoring_inds, each = nchain)
-    actual_cases$oc_uid <- rep(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$OC_UID, 
-                               each = nchain) #newly added
-    actual_cases$oc_year <- rep(paste0(format(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$TL, '%Y'),
-                                       "_",
-                                       format(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$TR, '%Y')),
-                               each = nchain) #newly added and updated on 21-12-14
+    rc <- list()
+    layer_index <- 1
+    for (i in 1:length(model_output_filenames)) {
+      filename <- model_output_filenames[i]
+      model.rand <- read_file_of_type(filename, "model.rand")
+      nchain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__'))[1] / niter_per_chain
+      
+      stan_data <- read_file_of_type(stan_input_filenames[i], "stan_input")$stan_data
+      modeled_cases <- as.array(model.rand)[, , grepl("modeled_cases", names(model.rand)), drop = FALSE]
+      modeled_cases_chain_mean <- apply(modeled_cases, c(2, 3), mean)
+      actual_cases <- matrix(stan_data$y, nrow(modeled_cases_chain_mean), ncol(modeled_cases_chain_mean), byrow=TRUE)
+      dimnames(actual_cases) <- dimnames(modeled_cases_chain_mean)
+      modeled_cases_chain_mean <- reshape2::melt(modeled_cases_chain_mean)
+      actual_cases <- reshape2::melt(actual_cases)
+      actual_cases$censoring <- rep(stan_data$censoring_inds, each = nchain)
+      actual_cases$oc_uid <- rep(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$OC_UID, 
+                                 each = nchain) #newly added
+      actual_cases$oc_year <- rep(paste0(format(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$TL, '%Y'),
+                                         "_",
+                                         format(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$TR, '%Y')),
+                                  each = nchain) #newly added and updated on 21-12-14
+      
+      stan_data<-read_file_of_type(file_names["data"],"stan_data")
+      obs_tfrac=data.frame(
+        obs = stan_data$map_obs_loctime_obs,
+        tfrac = stan_data$tfrac
+      ) %>%
+        dplyr::group_by(obs) %>%
+        dplyr::summarize(tfrac = sum(tfrac))
+      actual_cases$tfrac<-1
+      actual_cases[stringr::str_detect(actual_cases$parameters,"tfrac"),]$tfrac<-rep(obs_tfrac$tfrac,each=nchain)
+      
+      comparison <- dplyr::left_join(modeled_cases_chain_mean, actual_cases, by = c(chains = "chains", parameters = "parameters"))
+      names(comparison)[3:4] <- c("modeled cases", "actual cases")
+      rc[[filename]] <- comparison
+      names(rc)[[layer_index]] <- paste(
+        paste(filename_to_stubs(filename)[2:3], collapse = " "),
+        "\niterations: Chain", filename_to_stubs(filename)[5])
+      layer_index <- layer_index + 1
+    }
     
-    stan_data<-read_file_of_type(file_names["data"],"stan_data")
-    obs_tfrac=data.frame(
-      obs = stan_data$map_obs_loctime_obs,
-      tfrac = stan_data$tfrac
-    ) %>%
-      dplyr::group_by(obs) %>%
-      dplyr::summarize(tfrac = sum(tfrac))
-    actual_cases$tfrac<-1
-    actual_cases[stringr::str_detect(actual_cases$parameters,"tfrac"),]$tfrac<-rep(obs_tfrac$tfrac,each=nchain)
-    
-    comparison <- dplyr::left_join(modeled_cases_chain_mean, actual_cases, by = c(chains = "chains", parameters = "parameters"))
-    names(comparison)[3:4] <- c("modeled cases", "actual cases")
-    rc[[filename]] <- comparison
-    names(rc)[[layer_index]] <- paste(
-      paste(filename_to_stubs(filename)[2:3], collapse = " "),
-      "\niterations: Chain", filename_to_stubs(filename)[5])
-    layer_index <- layer_index + 1
+    data_fidelity<-rc
   }
-  data_fidelity<-rc
-}
-  
 })
 ```
 
@@ -686,8 +697,8 @@ if(!is.null(data_fidelity)){
 if(!is.null(data_fidelity)&!config$censoring){
   
   taxdat::plot_model_fidelity_tfrac_adjusted_by_year(data_fidelity = data_fidelity,
-                                                      case_raster = case_raster,
-                                                      render = T)
+                                                     case_raster = case_raster,
+                                                     render = T)
   
 } else{
   warning("data_fidelity is NULL")
@@ -699,9 +710,9 @@ if(!is.null(data_fidelity)&!config$censoring){
 if(!is.null(data_fidelity)){
   
   taxdat::plot_model_fidelity_tfrac_unadjusted(data_fidelity = data_fidelity,
-                                                case_raster = case_raster,
-                                                render = T)
-
+                                               case_raster = case_raster,
+                                               render = T)
+  
 } else{
   warning("data_fidelity is NULL")
 }
@@ -713,9 +724,9 @@ if(!is.null(data_fidelity)){
 ```{r traceplots, fig.height=8, fig.width=10, fig.cap=capFig("Stan trace plots")}
 
 if(!is.null(model.rand)){
-taxdat::plot_chain_convergence(file_names[["stan_output"]],
-                               pars =  c("rho", "betas", "log_std_dev_w", "eta"),
-                               render = T)
+  taxdat::plot_chain_convergence(file_names[["stan_output"]],
+                                 pars =  c("rho", "betas", "log_std_dev_w", "eta"),
+                                 render = T)
 }
 
 ```
@@ -725,7 +736,7 @@ taxdat::plot_chain_convergence(file_names[["stan_output"]],
 ```{r params, fig.height=6, fig.width=6, fig.cap=capFig("Parameter posteriors")}
 if(!is.null(model.rand)){
   rstan::plot(model.rand, pars =  c("rho", "betas", "log_std_dev_w", "eta"))
-
+  
 } else{
   warning("model.rand is NULL")
 }
@@ -746,8 +757,11 @@ if(!is.null(model.rand)){
 ```{r WHO output, fig.height=5, fig.width=10, fig.cap = "comparison with WHO Output"}
 if(!is.null(sf_cases_resized) & !is.null(model.rand)){
   who_annual_cases <- sf_cases_resized
-  chains <- rstan::extract(model.rand)
-  who_annual_cases$modeled <- apply(chains$modeled_cases,2,mean)
+  chains <- data_fidelity[[1]] %>% 
+    filter(str_detect(variable, "tfrac", negate = T)) %>% 
+    group_by(variable) %>% 
+    summarise(modeled = mean(`modeled cases`))
+  who_annual_cases$modeled <- chains$modeled
   who_annual_cases$observed <- who_annual_cases$attributes.fields.suspected_cases # fix me
   who_annual_cases_from_db <- NULL
   try({
@@ -762,7 +776,7 @@ if(!is.null(sf_cases_resized) & !is.null(model.rand)){
       kableExtra::kable(col.names = c("OC id", "start time", "end time", "# Observed cases", "# Modeled Cases")) %>%
       kableExtra::kable_styling(bootstrap_options = c("striped"))
   }
-
+  
 } else{
   warning("sf_cases_resized or model.rand is NULL")
 }
@@ -776,15 +790,15 @@ if(!is.null(model.rand) && !is.null(stan_input)){
     dplyr::ungroup() %>%
     dplyr::select(t,id)
   stan_input$sf_grid[paste('cases','chain',seq_len(nchain),sep='_')] <- cases_chains
-
+  
   if(params$drop_nodata_years & !all(analysis_years %in% obs_years)){
-      drop_year_ix <- which(!analysis_years %in% obs_years)
-      message(paste("Dropping", paste(analysis_years[drop_year_ix], collapse = ", "), "from cases_chains"))
-      stan_input$sf_grid <- dplyr::filter(stan_input$sf_grid, !(t %in% drop_year_ix))
-    }
-
+    drop_year_ix <- which(!analysis_years %in% obs_years)
+    message(paste("Dropping", paste(analysis_years[drop_year_ix], collapse = ", "), "from cases_chains"))
+    stan_input$sf_grid <- dplyr::filter(stan_input$sf_grid, !(t %in% drop_year_ix))
+  }
+  
   sf_grid_wider <- sf::st_drop_geometry(stan_input$sf_grid)
-
+  
   by_years <- sf_grid_wider %>%
     dplyr::group_by(t) %>%
     dplyr::summarise(dplyr::across(dplyr::contains("cases_chain"), sum)) %>%
@@ -792,11 +806,11 @@ if(!is.null(model.rand) && !is.null(stan_input)){
   mai <- by_years %>%
     dplyr::summarise(dplyr::across(dplyr::contains("cases_chain"), mean)) %>%
     dplyr::mutate(t = "mean annual cases")
-
+  
   dplyr::bind_rows(by_years, mai) %>%
     kableExtra::kable(col.names = c("time slice", paste("chain", 1:nchain))) %>%
     kableExtra::kable_styling(bootstrap_options = c("striped"))
-
+  
 } else{
   warning("stan_input is NULL")
 }
@@ -804,10 +818,9 @@ if(!is.null(model.rand) && !is.null(stan_input)){
 
 ```{r full country modeled cases, fig.cap = "comparison with WHO Output"}
 if(!is.null(sf_cases_resized) & !is.null(model.rand)){
-  grid_cases_mean <- apply(chains$grid_cases,2,mean)
-  total_cases <- sum(grid_cases_mean)
+  total_cases <- cases_chains %>% apply(1, mean) %>% sum()
   print(paste("There are",format(round(total_cases), big.mark=","),"total cases"))
-
+  
 } else{
   warning("chains was not extracted from model.rand")
 }
