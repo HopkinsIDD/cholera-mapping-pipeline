@@ -1,50 +1,5 @@
 #' @include plot_cache_function.R
-
-#' @name get_model_rand_no_cache
-#' @title get_model_rand_no_cache
-#' @description load model.rand from stan output
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return model.rand
-get_model_rand_no_cache <- function(config, cache, cholera_directory) {
-  config <- yaml::read_yaml(config)
-  file_names <- taxdat::get_filenames(config, cholera_directory)
-  model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
-  require(bit64)
-  require(sf)
-  return(model.rand)
-}
-get_model_rand <- cache_fun_results(name = "model.rand", fun = get_model_rand_no_cache,overwrite = T, config = config)
-
-#' @name get_stan_input_no_cache
-#' @title get_stan_input_no_cache
-#' @description load stan_input object based on the config file
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return stan_input object
-get_stan_input_no_cache <- function(config, cache, cholera_directory) {
-  load(config[["file_names"]][["stan_input"]])
-  require(bit64)
-  require(sf)
-  return(stan_input)
-}
-get_stan_input <- cache_fun_results("stan_input", get_stan_input_no_cache,overwrite = T,config=config)
-
-#' @name get_sf_cases_resized_no_cache
-#' @title get_sf_cases_resized_no_cache
-#' @description load sf object (i.e.,sf_cases_resized) from stan input based on the config file
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return sf_cases_resized object
-get_sf_cases_resized_no_cache <- function(config, cache, cholera_directory) {
-  get_stan_input(name="stan_input",
-                 cache=cache,
-                 config = paste0(params$cholera_directory, params$config), 
-                 cholera_directory = params$cholera_directory)
-  return(cache[["stan_input"]]$sf_cases_resized)
-}
-get_sf_cases_resized <- cache_fun_results(name="sf_cases_resized", get_sf_cases_resized_no_cache,overwrite = T,config=config,cholera_directory = cholera_directory)
-
+#' 
 #' @name plot_WHOcomparison_table
 #' @title plot_WHOcomparison_table
 #' @description plot the polygon with modeled cases
