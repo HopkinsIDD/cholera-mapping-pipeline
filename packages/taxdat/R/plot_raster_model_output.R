@@ -49,135 +49,6 @@ plot_modeled_rates_raster <- function(config, cache, cholera_directory) {
 
 }
 
-########################################################### pull raster object
-########################################################### from covar file
-#' @name get_covar_cube_no_cache
-#' @title get_covar_cube_no_cache
-#' @description load stan input
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return covar cube
-get_covar_cube_no_cache <- function(config, cache, cholera_directory, self_defined_output_dir = NULL) {
-    config <- yaml::read_yaml(config)
-    file_names <- taxdat::get_filenames(config, cholera_directory)
-    print(paste0("The self_defined_output_dir is ", self_defined_output_dir))
-    if(!is.null(self_defined_output_dir)){
-        local_output_dir <- paste0(cholera_directory, "/", self_defined_output_dir)
-        file_names <- unlist(lapply(names(file_names), function(file_name){
-                                    gsub("^.*?/Analysis/data", local_output_dir, file_names[file_name])
-                                    }))
-    }
-    
-    covar_cube <- taxdat::read_file_of_type(file_names[["covar"]], "covar_cube_output")
-    require(bit64)
-    require(sf)
-    return(covar_cube)
-}
-# cache the results
-get_covar_cube <- cache_fun_results(name = "covar_cube", fun = get_covar_cube_no_cache,
-    overwrite = T, config = config)
-
-#' @name get_sf_grid_no_cache
-#' @title get_sf_grid_no_cache
-#' @description extrac sf_grid from covar_cube_output
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return  sf_grid
-get_sf_grid_no_cache <- function(config, cache, cholera_directory, ...) {
-  get_covar(config, cache, cholera_directory, ...)
-  sf_grid <- cache[["covar_cube_output"]]$sf_grid
-  return(sf_grid)
-}
-# cache the results
-get_sf_grid <- cache_fun_results("sf_grid", get_sf_grid_no_cache,
-                                 overwrite = T, config = config)
-
-##### pull stan non-cached model.rand
-#' @name get_model_rand_no_cache
-#' @title get_model_rand_no_cache
-#' @description load model.rand from stan output
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return model.rand
-get_model_rand_no_cache <- function(config, cache, cholera_directory) {
-  config <- yaml::read_yaml(config)
-  file_names <- taxdat::get_filenames(config, cholera_directory)
-  file_names[["stan_output"]]<-"C:/IDD/Cholera/commit_git/cholera-mapping-pipeline/Analysis/data/TGO_stan_output.rdata"
-  model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
-  require(bit64)
-  require(sf)
-  return(model.rand)
-}
-# cache the results
-get_model_rand <- cache_fun_results(name = "model.rand", fun = get_model_rand_no_cache,
-                                    overwrite = T, config = config)
-
-# pull non-cached modeled cases (for modeled cases)
-#' @name get_modeled_cases_no_cache
-#' @title get_modeled_cases_no_cache
-#' @description extrac modeled cases from model.rand
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return  modeled_cases
-get_modeled_cases_no_cache <- function(config, cache, cholera_directory, ...) {
-  get_model_rand(name="model.rand",config=config, cache=cache, cholera_directory=cholera_directory, ...)
-  modeled_cases <-  as.array(cache[["model.rand"]])[, , grepl("grid_case", names(cache[["model.rand"]])),drop=FALSE]
-  return(modeled_cases)
-}
-# cache the results
-get_modeled_cases <- cache_fun_results("modeled_cases", get_modeled_cases_no_cache,
-                                       overwrite = T, config = config)
-
-
-# pull non-cached grid rates (for modeled cases)
-#' @name get_modeled_rates_no_cache
-#' @title get_modeled_rates_no_cache
-#' @description extrac modeled rates (from log lambda) from model.rand
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return  modeled_rates
-get_modeled_rates_no_cache <- function(config, cache, cholera_directory, ...) {
-  get_model_rand(name="model.rand",config=config, cache=cache, cholera_directory=cholera_directory)
-  modeled_rates <- exp(as.array(cache[["model.rand"]])[, , grepl("log_lambda", names(cache[["model.rand"]])), drop = FALSE])
-  return(modeled_rates)
-}
-# cache the results
-get_modeled_rates <- cache_fun_results("modeled_rates", get_modeled_rates_no_cache,
-                                       overwrite = T, config = config)
-
-# get new aggregated data: get_modeled_cases_mean
-get_modeled_cases_mean_no_cache <- function(config, cache, cholera_directory, ...) {
-    get_modeled_cases(config, cache, cholera_directory, ...)
-    modeled_cases_mean <- aggregate_to_modeled_cases_mean(cache[["modeled_cases"]],
-        funs = "mean")
-    return(modeled_cases_mean)
-}
-get_modeled_cases_mean <- cache_fun_results("modeled_cases_mean", get_modeled_cases_mean_no_cache,
-    overwrite = T, config = config)
-# get_modeled_cases_mean(config,cache)
-
-#' @name aggregate_modeled_cases_by_chain_no_cache
-#' @title aggregate_modeled_cases_by_chain_no_cache
-#' @description get the mean of the modeled cases by chain
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return  modeled cases mean for each grid cell by times
-aggregate_modeled_cases_by_chain_no_cache <- function(config,cholera_directory,cache,funs = "mean") {
-  get_modeled_cases(name="modeled_cases",
-                    cache=cache,
-                    config = paste0(params$cholera_directory, params$config),
-                    cholera_directory = params$cholera_directory
-  )
-  modeled_cases_by_chain <- apply(cache[["modeled_cases"]], 2, funs)
-  
-  return(modeled_cases_by_chain)
-}
-# cache the results
-aggregate_modeled_cases_by_chain <- cache_fun_results(name="modeled_cases_by_chain", 
-                                                      aggregate_modeled_cases_by_chain_no_cache,
-                                                      overwrite = T, 
-                                                      config = config,
-                                                      cholera_directory=cholera_directory)
 
 # get new aggregated data: get_modeled_rates_mean
 get_modeled_rates_mean_no_cache <- function(config, cache, cholera_directory, ...) {
@@ -189,21 +60,6 @@ get_modeled_rates_mean_no_cache <- function(config, cache, cholera_directory, ..
 get_modeled_rates_mean <- cache_fun_results("modeled_rates_mean", get_modeled_rates_mean_no_cache,
     overwrite = T, config = config)
 # get_modeled_rates_mean(config=config,cache)
-
-
-#' @name aggregate_modeled_rates_by_chain_no_cache
-#' @title aggregate_modeled_rates_by_chain_no_cache
-#' @description get the mean of the modeled rates by chain
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return  modeled rates mean for each grid cell by times
-aggregate_modeled_rates_by_chain_no_cache <- function(modeled_rates, funs = "mean") {
-  modeled_rates_by_chain <- apply(modeled_rates, 2, funs)
-  return(modeled_rates_by_chain)
-}
-# cache the results
-aggregate_modeled_rates_by_chain <- cache_fun_results("modeled_rates_by_chain", aggregate_modeled_rates_by_chain_no_cache,
-                                                      overwrite = T, config = config)
 
 ###############'merge/attach' functions############################
 # integrate grid cases mean into the raster
@@ -223,7 +79,6 @@ merge_modeled_cases_mean_into_raster_no_cache <- function(config, cache, cholera
 }
 merge_modeled_cases_mean_into_raster <- cache_fun_results("modeled_cases_mean_raster",
     merge_modeled_cases_mean_into_raster_no_cache, overwrite = T, config)
-# merge_modeled_cases_mean_into_raster(config,cache)
 
 # integrate modeled rates mean into the raster
 #' @name merge_modeled_rates_mean_into_raster
