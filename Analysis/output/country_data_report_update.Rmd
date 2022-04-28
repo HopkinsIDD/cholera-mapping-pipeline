@@ -1,5 +1,5 @@
 ---
-title: "Data and Model Outputs Report"
+title: "Country Data Report"
 output: html_document
 params: 
   cholera_directory: "C:/IDD/Cholera/commit_git/cholera-mapping-pipeline"
@@ -32,8 +32,8 @@ library(taxdat)
 library(sf)
 library(raster)
 library(stars)
-sf::sf_use_s2(FALSE)
 library(taxdat)
+sf::sf_use_s2(FALSE)
 
 ### other new packages (mainly for "rgeoboundaries")
 chooseCRANmirror(ind = 77)
@@ -58,7 +58,6 @@ for (package in package_list) {
   }
 }
 
-
 #Figure Caption Numbering,
 capFigNo = 1
 #Function to add the Figure Number
@@ -77,7 +76,7 @@ capFig = function(x){
 ```{r load data}
 # Load data
 cache<-new.env()
-
+#stan input
 get_stan_input(name="stan_input",
                cache=cache,
                config = paste0(params$cholera_directory, params$config), 
@@ -92,21 +91,6 @@ get_sf_cases(name="sf_cases",
              cache=cache,
              config=paste0(params$cholera_directory, params$config),
              cholera_directory=params$cholera_directory)
-
-####stan output file name contains invalid characters in windows, so manually edit the stan output file name############
-get_model_rand_no_cache <- function(config, cache, cholera_directory) {
-  config <- yaml::read_yaml(config)
-  file_names <- taxdat::get_filenames(config, cholera_directory)
-  file_names[["stan_output"]]<-"C:/IDD/Cholera/commit_git/cholera-mapping-pipeline/Analysis/data/TGO_stan_output.rdata"
-  model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
-  require(bit64)
-  require(sf)
-  return(model.rand)
-}
-# cache the results
-get_model_rand <- cache_fun_results(name = "model.rand", fun = get_model_rand_no_cache,
-                                    overwrite = T, config = config)
-####################
 
 get_model_rand(name="model.rand",
                cache=cache,
@@ -123,19 +107,15 @@ get_modeled_rates(name="modeled_rates",
                   config = paste0(params$cholera_directory, params$config),
                   cholera_directory = params$cholera_directory
 )
-
 cache[["modeled_cases_by_chain"]]<-aggregate_modeled_cases_by_chain_no_cache(
                                  cache=cache,
                                  config = paste0(params$cholera_directory, params$config),
                                  cholera_directory = params$cholera_directory
                                  )
-
 cache[["cases_chains"]]<-aggregate_modeled_cases_by_chain_gridtime_no_cache(
                                           cache=cache,
                                  config = paste0(params$cholera_directory, params$config),
                                  cholera_directory = params$cholera_directory)
-
-#stan_output <- lapply(rstan::extract(cache[["model.rand"]]), function(x){array(x,c(niter_per_chain, nchain, dim(x)[-1]))})
 cache[["niter_per_chain"]]<-get_stan_model_niter_per_chain_no_cache(cache=cache,
                                  config = paste0(params$cholera_directory, params$config),
                                  cholera_directory = params$cholera_directory)
@@ -145,7 +125,7 @@ cache[["nchain"]]<-get_stan_model_nchain_no_cache(cache=cache,
 cache[["stan_output"]]<-get_stan_output_no_cache(cache=cache,
                                  config = paste0(params$cholera_directory, params$config),
                                  cholera_directory = params$cholera_directory)
-  
+#initial values
 get_initial_values(name="initial_values_data",
                   cache=cache,
                   config = paste0(params$cholera_directory, params$config),
@@ -156,10 +136,11 @@ cache[["gam_output_df"]]<-get_gam_values_no_cache(
                   config = paste0(params$cholera_directory, params$config),
                   cholera_directory = params$cholera_directory)
   
+#covariate
+get_covar_cube (name="covar_cube", config = params$config,cache=cache,cholera_directory = params$cholera_directory)
 
-  covar_cube <- cache[["covar_cube"]]
-  sf_grid <- cache[["sf_grid"]]
-  
+get_sf_grid(name="sf_grid",config = params$config,cache=cache,cholera_directory = params$cholera_directory)
+
 names(cache)
 ```
 
@@ -181,36 +162,23 @@ plot_gam_fit_input_rates (name="initial_values_data",cache=cache)
 
 **Table 1. Data used within the model:**
 ```{r cases}
-if(!is.null(cache[["sf_cases_resized"]])){
   plot_ObservationSummary_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
-} else{
-  warning("sf_cases_resized is NULL")
-}
-
 ```
 
 **Table 2. Data dropped from the model:**
 ```{r dropcases}
-### 11/02/2021 update -- dropped = all - used
-if(!is.null(cache[["sf_cases"]]) & !is.null(cache[["sf_cases_resized"]])){
   plot_DroppedData_table (config=params$config, cache=cache, cholera_directory=params$cholera_directory)
-} else{
-  warning("sf_cases or sf_cases_resized is NULL")
-}
-
 ```
 
 ```{r disjoint set sf cases}
-aggregate_observed_polygon_cases_disjoint_aggregated(name="observed_polygon_cases_disjoint_aggregated",
-                                                     config=params$config,
-                                                     cholera_directory=params$cholera_directory,
-                                                     cache=cache)
+aggregate_observed_polygon_cases_disjoint_aggregated(name="observed_polygon_cases_disjoint_aggregated",config=params$config,cholera_directory=params$cholera_directory,cache=cache)
 disjoint_set_sf_cases <- cache[["observed_polygon_cases_disjoint_aggregated"]]
 ```
 
 **Cases by time:**
 ```{r rawobsmap, fig.height=5, fig.width=10, fig.cap=capFig("Observed case counts by time adjusted for time fraction cases/year")}
-  plot_observed_cases_polygon_raw(config=params$config,cache=cache,cholera_directory=params$cholera_directory) 
+plot_observed_cases_polygon_raw(config=params$config,cache=cache,cholera_directory=params$cholera_directory) 
+
 ```
 
 **Area adjusted cases by time:**
@@ -236,40 +204,8 @@ if(as.character(stringr::str_extract(params$config, "[A-Z]{3}")) == "ZNZ"){
   country_shp <- rgeoboundaries::gb_adm0(as.character(stringr::str_extract(params$config, "[A-Z]{3}")))
 }
 
-
 plot_time_varying_pop_raster(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 
-### Get the pltdata
-covar_data_filename = file_names["covar"]
-covar_cube_output <- taxdat::read_file_of_type(covar_data_filename, "covar_cube_output")
-covar_cube <- covar_cube_output$covar_cube
-sf_grid <- covar_cube_output$sf_grid
-pop_layer <- covar_cube[,,1, drop = F] ## population is always the first layer
-covar <- data.frame(covar = unlist(lapply(1:ncol(pop_layer), function(x){
-    pop_layer[, x, 1]
-  })))
-  pltdata <- dplyr::bind_cols(sf_grid, covar)
-
-analysis_years <- lubridate::year(config$start_time):lubridate::year(config$end_time)
-pltdata$t<- factor(pltdata$t, labels = analysis_years )
-
-plt<-ggplot2::ggplot()+ggplot2::geom_sf(data = pltdata , ggplot2::aes(fill = covar,
-            color = covar)) + ggplot2::scale_fill_viridis_c("Population",
-            trans = "log", breaks = c(100, 1000, 10000,
-                1e+05), aesthetics = c("colour", "fill"),
-            guide = ggplot2::guide_colorbar(title = "Population density [per grid cell]"),
-            option = "E", na.value = "white") + ggplot2::theme_bw() +
-            ggplot2::theme(legend.position = "bottom",
-                legend.text = ggplot2::element_text(angle = 45,hjust = 1, vjust = 1))+
- facet_wrap(~ t)
-plt
-
-pop_raster_data<-raster()
-for(layer in unique(pltdata$t)){
-  empty_raster <- raster::raster(pltdata[which(pltdata$t==layer),], res = max(0.00833333, 0.00833333))#1*1km raster
-  pop_raster_data_tmp <- fasterize::fasterize(pltdata[which(pltdata$t==layer),], empty_raster, field = c("covar"))
-  pop_raster_data<-stack(pop_raster_data,pop_raster_data_tmp)
-}
 ```
 
 
@@ -356,15 +292,15 @@ for(layer in 1:raster::nlayers(pop_raster_data)){
 ### Other covariates
 **Covariate rasters:**
 ```{r covars, fig.height=5, fig.width=8, fig.cap=capFig("Covariate rasters")}
-taxdat::plot_raster_covariates(covar_data_filename = file_names["covar"], render = T)
+plot_raster_covariates(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
 ```
 
 ## Output maps
 
 ```{r analysisyears}
-obs_years <- min(lubridate::year(stan_input$sf_cases_resized$TL)):max(lubridate::year(stan_input$sf_cases_resized$TR))
+obs_years <- min(lubridate::year(cache[["stan_input"]]$sf_cases_resized$TL)):max(lubridate::year(cache[["stan_input"]]$sf_cases_resized$TR))
 # Runtimes by chain
-rstan::get_elapsed_time(model.rand)
+rstan::get_elapsed_time(cache[["model.rand"]])
 ```
 
 
@@ -572,63 +508,7 @@ admin_rate_table %>%
 ## Validation
 
 ```{r import_modelfidel}
-data_fidelity <- NULL
-try({
-  if(file.exists(file_names["initial_values"])){
-  data_fidelity <- taxdat::get_data_fidelity(stan_input_filenames = file_names["stan_input"],
-                                          model_output_filenames = file_names["stan_output"])
-  
-  }else{
-    #for old runs without initial_values output files
-    stan_input_filenames = file_names["stan_input"]
-    model_output_filenames = file_names["stan_output"]
-    if (length(stan_input_filenames) != length(model_output_filenames))
-    stop("Need to provide same number of stan_input and stan_output files")
-  
-  rc <- list()
-  layer_index <- 1
-  for (i in 1:length(model_output_filenames)) {
-    filename <- model_output_filenames[i]
-    model.rand <- read_file_of_type(filename, "model.rand")
-    nchain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__'))[1] / niter_per_chain
-    
-    stan_data <- read_file_of_type(stan_input_filenames[i], "stan_input")$stan_data
-    modeled_cases <- as.array(model.rand)[, , grepl("modeled_cases", names(model.rand)), drop = FALSE]
-    modeled_cases_chain_mean <- apply(modeled_cases, c(2, 3), mean)
-    actual_cases <- matrix(stan_data$y, nrow(modeled_cases_chain_mean), ncol(modeled_cases_chain_mean), byrow=TRUE)
-    dimnames(actual_cases) <- dimnames(modeled_cases_chain_mean)
-    modeled_cases_chain_mean <- reshape2::melt(modeled_cases_chain_mean)
-    actual_cases <- reshape2::melt(actual_cases)
-    actual_cases$censoring <- rep(stan_data$censoring_inds, each = nchain)
-    actual_cases$oc_uid <- rep(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$OC_UID, 
-                               each = nchain) #newly added
-    actual_cases$oc_year <- rep(paste0(format(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$TL, '%Y'),
-                                       "_",
-                                       format(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$TR, '%Y')),
-                               each = nchain) #newly added and updated on 21-12-14
-    
-    stan_data<-read_file_of_type(file_names["data"],"stan_data")
-    obs_tfrac=data.frame(
-      obs = stan_data$map_obs_loctime_obs,
-      tfrac = stan_data$tfrac
-    ) %>%
-      dplyr::group_by(obs) %>%
-      dplyr::summarize(tfrac = sum(tfrac))
-    actual_cases$tfrac<-1
-    actual_cases[stringr::str_detect(actual_cases$parameters,"tfrac"),]$tfrac<-rep(obs_tfrac$tfrac,each=nchain)
-    
-    comparison <- dplyr::left_join(modeled_cases_chain_mean, actual_cases, by = c(chains = "chains", parameters = "parameters"))
-    names(comparison)[3:4] <- c("modeled cases", "actual cases")
-    rc[[filename]] <- comparison
-    names(rc)[[layer_index]] <- paste(
-      paste(filename_to_stubs(filename)[2:3], collapse = " "),
-      "\niterations: Chain", filename_to_stubs(filename)[5])
-    layer_index <- layer_index + 1
-  }
-  data_fidelity<-rc
-}
-  
-})
+get_data_fidelity(cache,cholera_directory,config)
 ```
 
 
@@ -646,11 +526,9 @@ if(!is.null(data_fidelity)&!config$censoring){
 
 ```{r datafidelity2, fig.cap=capFig("Observations/tfrac vs. modeled cases/tfrac"), fig.height=10, fig.width=10}
 if(!is.null(data_fidelity)){
-  
   taxdat::plot_model_fidelity_tfrac_converted(data_fidelity = data_fidelity,
                                               case_raster = case_raster,
                                               render = T)
-  
 } else{
   warning("data_fidelity is NULL")
 }
@@ -659,11 +537,9 @@ if(!is.null(data_fidelity)){
 
 ```{r datafidelity3, fig.cap=capFig("Observations vs. modeled cases (tfrac adjusted)"), fig.height=15, fig.width=10}
 if(!is.null(data_fidelity)&!config$censoring){
-  
   taxdat::plot_model_fidelity_tfrac_adjusted_by_year(data_fidelity = data_fidelity,
                                                       case_raster = case_raster,
                                                       render = T)
-  
 } else{
   warning("data_fidelity is NULL")
 }
@@ -672,11 +548,9 @@ if(!is.null(data_fidelity)&!config$censoring){
 ```{r datafidelity4, fig.cap=capFig("Observations vs. modeled cases"), fig.height=8, fig.width=10}
 
 if(!is.null(data_fidelity)){
-  
   taxdat::plot_model_fidelity_tfrac_unadjusted(data_fidelity = data_fidelity,
                                                 case_raster = case_raster,
                                                 render = T)
-
 } else{
   warning("data_fidelity is NULL")
 }
@@ -686,61 +560,25 @@ if(!is.null(data_fidelity)){
 
 **Stan trace plots:**
 ```{r traceplots, fig.height=8, fig.width=10, fig.cap=capFig("Stan trace plots")}
-
-if(!is.null(model.rand)){
-taxdat::plot_chain_convergence(file_names[["stan_output"]],
-                               pars =  c("rho", "betas", "log_std_dev_w", "eta"),
-                               render = T)
-}
-
+plot_chain_convergence(cache=cache,name="model.rand")
 ```
 
 
 **Parameter posteriors:**
 ```{r params, fig.height=6, fig.width=6, fig.cap=capFig("Parameter posteriors")}
-if(!is.null(model.rand)){
-  rstan::plot(model.rand, pars =  c("rho", "betas", "log_std_dev_w", "eta"))
-
-} else{
-  warning("model.rand is NULL")
-}
+plot_MCMCpars(name="model.rand",cache=cache)
 ```
 
 
 **Gelman-Rubin Rhat:**
 ```{r rhat, fig.height=5, fig.width=10, fig.cap=capFig("Gelman-Rubin Rhat")}
-if(!is.null(model.rand)){
-  taxdat::plot_rhat(model.rand, render = T)
-} else{
-  warning("model.rand is NULL")
-}
+plot_Rhat(name="model.rand",cache)
 ```
 
 
 **Table 6. Observed and estimates of WHO annual cholera reports:**
 ```{r WHO output, fig.height=5, fig.width=10, fig.cap = "comparison with WHO Output"}
-if(!is.null(sf_cases_resized) & !is.null(model.rand)){
-  who_annual_cases <- sf_cases_resized
-  chains <- rstan::extract(model.rand)
-  who_annual_cases$modeled <- apply(chains$modeled_cases,2,mean)
-  who_annual_cases$observed <- who_annual_cases$attributes.fields.suspected_cases # fix me
-  who_annual_cases_from_db <- NULL
-  try({
-    who_annual_cases_from_db <- taxdat::pull_output_by_source(who_annual_cases, "%WHO Annual Cholera Reports%",
-                                                              database_api_key_rfile = stringr::str_c(params$cholera_directory, "Analysis/R/database_api_key.R"))
-  })
-  if(!is.null(who_annual_cases_from_db)) {
-    who_annual_cases_from_db %>%
-      as.data.frame() %>%
-      dplyr::select(OC_UID, TL, TR, observed, modeled) %>%
-      dplyr::mutate_if(is.numeric, function(x) {format(round(x) , big.mark=",")}) %>%
-      kableExtra::kable(col.names = c("OC id", "start time", "end time", "# Observed cases", "# Modeled Cases")) %>%
-      kableExtra::kable_styling(bootstrap_options = c("striped"))
-  }
-
-} else{
-  warning("sf_cases_resized or model.rand is NULL")
-}
+plot_WHOcomparison_table (config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
 
 
