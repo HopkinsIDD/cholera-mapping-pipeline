@@ -7,9 +7,10 @@
 #' @param color_scale the color scale of the plot
 #' @param fill_column the column name to fill the raster
 #' @return ggplot object
-plot_sf_with_fill <- function(name, color_scale_type, fill_column) {
+plot_sf_with_fill <- function(cache,name, color_scale_type, fill_column) {
     sf_object <- cache[[name]]
-    fill_column <- grep(stringr::str_remove(fill_column, "suspected_cases"), names(sf_object),
+    updated_fill_column <- fill_column
+    updated_fill_column <- grep(stringr::str_remove(updated_fill_column, fill_column), names(sf_object),
         value = TRUE)
     plot <- ggplot2::ggplot() + 
         ggplot2::geom_sf(data = sf_object, ggplot2::aes_string(fill = fill_column)) +
@@ -30,7 +31,7 @@ plot_observed_cases_polygon_raw <- function(config, cache, cholera_directory) {
                                                          config=config,
                                                          cholera_directory=cholera_directory,
                                                          cache=cache)
-    plot <- plot_sf_with_fill(name = "observed_polygon_cases_disjoint_aggregated",
+    plot <- plot_sf_with_fill(cache=cache,name = "observed_polygon_cases_disjoint_aggregated",
         color_scale_type = "cases", fill_column = "attributes.fields.suspected_cases")
     return(plot)
 }
@@ -51,7 +52,7 @@ plot_area_adjusted_observed_cases<- function(config, cache, cholera_directory) {
         rowwise()%>%
         mutate(area_adjusted_suspected_cases=as.numeric(attributes.fields.suspected_cases/sf::st_area(geom)))
     
-    plot <- plot_sf_with_fill(name = "area_adjusted_observed_polygon_cases_disjoint_aggregated",
+    plot <- plot_sf_with_fill(cache=cache,name = "area_adjusted_observed_polygon_cases_disjoint_aggregated",
                               color_scale_type = "cases", fill_column = "area_adjusted_suspected_cases")
     return(plot)
 }
@@ -148,42 +149,6 @@ separate_by_overlap <- function(sf_object, name_column = "location_period_id") {
 normalize_cases_by_time <- function(cases, time_left, time_right) {
     return(cases/as.numeric(time_right - time_left + 1) * 365)
 }
-
-# pull stan non-cached stan input
-#' @name get_stan_input_no_cache
-#' @title get_stan_input_no_cache
-#' @description load stan input based on the config file
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return stan_input
-get_stan_input_no_cache <- function(config, cache, cholera_directory) {
-    config <- yaml::read_yaml(config)
-    file_names <- taxdat::get_filenames(config, cholera_directory)
-    stan_input <- taxdat::read_file_of_type(file_names[["stan_input"]], "stan_input")
-    require(bit64)
-    require(sf)
-    return(stan_input)
-}
-
-get_stan_input <- cache_fun_results(name = "stan_input", fun = get_stan_input_no_cache,
-    overwrite = T, config = config)
-
-# pull non-cached modeled cases (for modeled cases)
-#' @name get_grid_cases_no_cache
-#' @title get_grid_cases_no_cache
-#' @description extrac modeled cases from model.rand
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return  grid_cases
-get_modeled_cases_no_cache <- function(config, cache, cholera_directory) {
-    get_model_rand(config, cache, cholera_directory)
-    modeled_cases <- as.array(cache[["model.rand"]])[, , grepl("modeled_cases", names(cache[["model.rand"]])),
-        drop = FALSE]
-    return(modeled_cases)
-}
-
-get_modeled_cases <- cache_fun_results("modeled_cases", get_modeled_cases_no_cache,
-    overwrite = T, config = config)
 
 # get new aggregated data: get_grid_cases_mean
 get_modeled_cases_mean_no_cache <- function(config, cache, cholera_directory) {
