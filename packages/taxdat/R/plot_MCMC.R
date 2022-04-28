@@ -1,22 +1,5 @@
 #' @include plot_cache_function.R
 
-#' @name get_model_rand_no_cache
-#' @description load stan output
-#' @param config 
-#' @param cache 
-#' @return covar cube
-get_model_rand_no_cache <- function(config, cache, cholera_directory) {
-  config <- yaml::read_yaml(config)
-  file_names <- taxdat::get_filenames(config, cholera_directory)
-  model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
-  require(bit64)
-  require(sf)
-  return(model.rand)
-}
-# cache the results
-get_model_rand <- cache_fun_results(name = "model.rand", fun = get_model_rand_no_cache,
-                                    overwrite = T, config = config)
-
 #' @name plot_chain_convergence
 #' @description plot the chain convergence
 #' @param name of the input object which is model.rand
@@ -52,7 +35,6 @@ plot_MCMCpars <- function(name,cache,pars) {
 #' @return ggplot object
 
 plot_Rhat <- function(name, cache,rhat_thresh=1.05){
-  
   model.rand<-cache[[name]]
   fit_summary <- rstan::summary(model.rand)
   rhats <- tibble::tibble(Rhat = round(fit_summary$summary[which(str_detect(row.names(fit_summary$summary), "modeled_cases")), "Rhat"], 2)) %>%
