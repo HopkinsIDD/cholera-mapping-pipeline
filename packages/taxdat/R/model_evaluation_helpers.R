@@ -238,64 +238,6 @@ plot_raster_population <- function(covar_data_filename,
 
 
 
-#' @export
-#' @name get_case_raster
-#' @title get_case_raster
-#' @description add
-#' @param covar_data_filename covariates rdata filename
-#' @param genquant_filenames model generated quantities filenames
-#' @return
-get_case_raster <- function(covar_data_filename,
-                            genquant_filenames
-) {
-  covar_cube_output <- read_file_of_type(covar_data_filename, "covar_cube_output")
-  case_raster <- covar_cube_output$sf_grid
-  
-  nchains <- 0
-  non_na_gridcells <- get_non_na_gridcells(covar_data_filename)
-  
-  for (filename in genquant_filenames) {
-    nchains <- nchains + 1
-    
-    # Get the generated quantities
-    genquant <- read_file_of_type(filename, "chol_gen")
-    
-    varnames <- dimnames(genquant$draws())[[3]]    # All available parameters
-    
-    # Get cases and rates
-    modeled_cases <- as.array(genquant$draws())[, , grepl("grid_case", varnames),drop=FALSE]
-    modeled_cases_mean <- apply(modeled_cases, 3, mean)
-    modeled_rates <- exp(as.array(genquant$draws())[, , grepl("log_lambda", varnames), drop = FALSE])
-    modeled_rates_mean <- apply(modeled_rates, 3, mean)
-    
-    case_raster <- dplyr::mutate(case_raster,
-                                 modeled_cases_mean = NA,
-                                 modeled_rates_mean = NA)
-    case_raster[non_na_gridcells,]$modeled_cases_mean <- modeled_cases_mean
-    names(case_raster)[which(names(case_raster)=="modeled_cases_mean")] <- paste("modeled cases\n",
-                                                                                 paste(filename_to_stubs(filename)[2:3], collapse = " "), "\niterations: Chain",
-                                                                                 filename_to_stubs(filename)[5])
-    case_raster[non_na_gridcells,]$modeled_rates_mean <- modeled_rates_mean
-    names(case_raster)[which(names(case_raster)=="modeled_rates_mean")] <- paste("modeled rates\n",
-                                                                                 paste(filename_to_stubs(filename)[2:3], collapse = " "), "\niterations: Chain",
-                                                                                 filename_to_stubs(filename)[5])
-  }
-  case_raster
-}
-
-
-#' @name get_non_na_gridcells
-#' @title get_non_na_gridcells
-#' @description add
-#' @param covar_data_filename covariates rdata filename
-#' @return
-#' @export
-get_non_na_gridcells <- function(covar_data_filename){
-  covar_cube_output <- read_file_of_type(covar_data_filename, "covar_cube_output")
-  non_na_gridcells <- covar_cube_output$non_na_gridcells
-  non_na_gridcells
-}
-
 
 #' @export
 #' @name plot_modeled_cases
@@ -409,13 +351,18 @@ plot_disaggregated_modeled_cases <- function(case_raster,
 #' @param height plot height
 #' @return ggplot object with modeled cases map
 plot_disaggregated_modeled_cases_time_varying <- function(disaggregated_case_sf,
-                                                          country_iso,
                                                           render = T,
                                                           plot_file = NULL,
                                                           width = NULL,
                                                           height = NULL){
 
-boundary_sf <- rgeoboundaries::gb_adm0(country_iso)
+  if(as.character(stringr::str_extract(params$config, "[A-Z]{3}")) == "ZNZ"){
+    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+                                                    c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
+  }else{
+    boundary_sf <- rgeoboundaries::gb_adm0(as.character(stringr::str_extract(params$config, "[A-Z]{3}")))
+  }
+
 plt <- ggplot2::ggplot()
 plt <-   ggplot2::ggplot() +
   ggplot2::geom_sf(
@@ -491,12 +438,17 @@ plot_modeled_rates <- function(case_raster,
 #' @param height plot height
 #' @return ggplot object with modeled rates map
 plot_modeled_rates_time_varying <- function(disaggregated_rate_sf,
-                                            country_iso,
                                             render = T,
                                             plot_file = NULL,
                                             width = NULL,
                                             height = NULL){
-  boundary_sf <- rgeoboundaries::gb_adm0(country_iso)
+  if(as.character(stringr::str_extract(params$config, "[A-Z]{3}")) == "ZNZ"){
+    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+                                                    c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
+  }else{
+    boundary_sf <- rgeoboundaries::gb_adm0(as.character(stringr::str_extract(params$config, "[A-Z]{3}")))
+  }
+  
    plt <- ggplot2::ggplot()
    plt <-   ggplot2::ggplot() +
    ggplot2::geom_sf(
