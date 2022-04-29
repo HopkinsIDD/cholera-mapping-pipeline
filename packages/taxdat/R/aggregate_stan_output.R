@@ -54,8 +54,6 @@ aggregate_modeled_cases_by_chain <- cache_fun_results(name="modeled_cases_by_cha
                                                       config = config,
                                                       cholera_directory=cholera_directory)
 
-
-######
 #' @name aggregate_modeled_rates_by_chain_no_cache
 #' @title aggregate_modeled_rates_by_chain_no_cache
 #' @description get the mean of the modeled rates by chain
@@ -111,8 +109,14 @@ aggregate_modeled_rates_by_chain_gridtime <- cache_fun_results("aggregated_model
 #' @param modeled_cases
 #' @param funs the function to aggregate the modeled cases
 #' @return modeled cases mean across chains and iterations by grid*timee
-aggregate_modeled_cases_by_gridtime_no_cache <- function(modeled_cases, funs = "mean"){
-  aggregated_modeled_cases_by_gridtime <- apply(modeled_cases, c(3), funs)
+aggregate_modeled_cases_by_gridtime_no_cache <- function(cache,config,cholera_directory, funs = "mean"){
+  get_modeled_cases(name="modeled_cases",
+                    cache=cache,
+                    config = paste0(cholera_directory, config),
+                    cholera_directory = cholera_directory
+  )
+  
+  aggregated_modeled_cases_by_gridtime <- apply(cache[["modeled_cases"]], c(3), funs)
   return(aggregated_modeled_cases_by_gridtime)
 }
 
@@ -122,11 +126,19 @@ aggregate_modeled_cases_by_gridtime <- cache_fun_results("aggregated_modeled_cas
 
 #' @name aggregate_modeled_rates_by_gridtime_no_cache
 #' @description aggregate the modeled rates by grid*time
-#' @param modeled_rates
+#' @param cache
+#' @param config
+#' @param cholera_directory
 #' @param funs the function to aggregate the modeled rates
 #' @return modeled rates mean across chains and iterations by grid*timee
-aggregate_modeled_rates_by_gridtime_no_cache <- function(modeled_rates, funs = "mean"){
-  aggregated_modeled_rates_by_gridtime <- apply(modeled_rates, c(3), funs)
+aggregate_modeled_rates_by_gridtime_no_cache <- function(cache,config,cholera_directory, funs = "mean"){
+  get_modeled_rates(name="modeled_rates",
+                    cache=cache,
+                    config = paste0(cholera_directory, config),
+                    cholera_directory = cholera_directory
+  )
+  
+  aggregated_modeled_rates_by_gridtime <- apply(cache[["modeled_rates"]], c(3), funs)
   return(aggregated_modeled_rates_by_gridtime)
 }
 
