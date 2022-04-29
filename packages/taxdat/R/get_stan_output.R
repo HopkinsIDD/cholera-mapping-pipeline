@@ -36,7 +36,7 @@ get_stan_model_niter_per_chain_no_cache <- function(config, cache, cholera_direc
 get_stan_model_niter_per_chain <- cache_fun_results(name = "niter_per_chain",
                                                     fun = get_stan_model_niter_per_chain_no_cache,
                                                     overwrite = T,
-                                                    config=params$config,
+                                                    config=config,
                                                     cholera_directory=cholera_directory)
 
 #' @export
