@@ -13,7 +13,7 @@ plot_sf_with_fill <- function(cache,name, color_scale_type, fill_column) {
     updated_fill_column <- grep(stringr::str_remove(updated_fill_column, fill_column), names(sf_object),
         value = TRUE)
     plot <- ggplot2::ggplot() + 
-        ggplot2::geom_sf(data = sf_object, ggplot2::aes_string(fill = fill_column)) +
+        ggplot2::geom_sf(data = sf_object, ggplot2::aes_string(fill = updated_fill_column)) +
         taxdat::color_scale(type = color_scale_type, use_case = "ggplot map") + 
         taxdat::map_theme() +
         ggplot2::facet_wrap(~set)
