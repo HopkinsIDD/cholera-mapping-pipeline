@@ -7,11 +7,11 @@
 #' @param cache the cached environment that contains all the parameter information
 #' @return table with who comparison statistics
 plot_WHOcomparison_table <- function(config, cache, cholera_directory) {
-  get_sf_cases_resized(config, cache, cholera_directory)
-  get_model_rand(config, cache, cholera_directory)
+  get_sf_cases_resized(name="sf_cases_resized",config=config, cache=cache, cholera_directory=cholera_directory)
+  get_model_rand(name="model_rand",config=config, cache=cache, cholera_directory=cholera_directory)
   
-  who_annual_cases <- sf_cases_resized
-  chains <- rstan::extract(model.rand)
+  who_annual_cases <- cache[["sf_cases_resized"]]
+  chains <- rstan::extract(cache[["model_rand"]])
   who_annual_cases$modeled <- apply(chains$modeled_cases,2,mean)
   who_annual_cases$observed <- who_annual_cases$attributes.fields.suspected_cases # fix me
   who_annual_cases_from_db <- NULL
