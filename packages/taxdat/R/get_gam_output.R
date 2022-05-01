@@ -33,8 +33,8 @@ get_gam_values_no_cache <- function(
                            cache) {
   
   # Get stan input and covar cube
- get_stan_input(name="stan_input",config=paste0(config,cholera_directory),cache=cache,cholera_directory=cholera_directory)
- get_initial_values(name="initial_values_data",config=paste0(config,cholera_directory),cache=cache,cholera_directory=cholera_directory)
+ get_stan_input(name="stan_input",config=config,cache=cache,cholera_directory=cholera_directory)
+ get_initial_values(name="initial_values_data",config=config,cache=cache,cholera_directory=cholera_directory)
   
   coord_frame <- tibble::as_tibble(sf::st_coordinates(cache[["stan_input"]]$sf_grid)) %>% 
     dplyr::group_by(L2) %>% 
