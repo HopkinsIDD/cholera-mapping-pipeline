@@ -79,69 +79,66 @@ cache<-new.env()
 #stan input
 get_stan_input(name="stan_input",
                cache=cache,
-               config = paste0(params$cholera_directory, params$config), 
+               config = params$config, 
                cholera_directory = params$cholera_directory)
 get_sf_cases_resized(
                     name="sf_cases_resized",
                     cache=cache,
-                    config = paste0(params$cholera_directory, params$config),
+                    config = params$config,
                     cholera_directory = params$cholera_directory)
 
 get_sf_cases(name="sf_cases",
              cache=cache,
-             config=paste0(params$cholera_directory, params$config),
+             config=params$config,
              cholera_directory=params$cholera_directory)
+
 
 get_model_rand(name="model.rand",
                cache=cache,
-               config = paste0(params$cholera_directory,params$config), 
+               config = params$config, 
                cholera_directory = params$cholera_directory)
 
 get_modeled_cases(name="modeled_cases",
                   cache=cache,
-                  config = paste0(params$cholera_directory, params$config),
+                  config=params$config,
                   cholera_directory = params$cholera_directory)
 
 get_modeled_rates(name="modeled_rates",
                   cache=cache,
-                  config = paste0(params$cholera_directory, params$config),
+                  config = params$config,
                   cholera_directory = params$cholera_directory
 )
+
 cache[["modeled_cases_by_chain"]]<-aggregate_modeled_cases_by_chain_no_cache(
                                  cache=cache,
-                                 config = paste0(params$cholera_directory, params$config),
-                                 cholera_directory = params$cholera_directory
-                                 )
+                                 config = params$config,
+                                 cholera_directory = params$cholera_directory)
 cache[["cases_chains"]]<-aggregate_modeled_cases_by_chain_gridtime_no_cache(
                                           cache=cache,
-                                 config = paste0(params$cholera_directory, params$config),
+                                 config = params$config,
                                  cholera_directory = params$cholera_directory)
 cache[["niter_per_chain"]]<-get_stan_model_niter_per_chain_no_cache(cache=cache,
-                                 config = paste0(params$cholera_directory, params$config),
+                                 config = params$config,
                                  cholera_directory = params$cholera_directory)
 cache[["nchain"]]<-get_stan_model_nchain_no_cache(cache=cache,
-                                 config = paste0(params$cholera_directory, params$config),
+                                 config = params$config,
                                  cholera_directory = params$cholera_directory)
 cache[["stan_output"]]<-get_stan_output_no_cache(cache=cache,
-                                 config = paste0(params$cholera_directory, params$config),
+                                 config = params$config,
                                  cholera_directory = params$cholera_directory)
 #initial values
 get_initial_values(name="initial_values_data",
                   cache=cache,
-                  config = paste0(params$cholera_directory, params$config),
+                  config = params$config,
                   cholera_directory = params$cholera_directory)
 
 cache[["gam_output_df"]]<-get_gam_values_no_cache(
                   cache=cache,
-                  config = paste0(params$cholera_directory, params$config),
+                  config = params$config,
                   cholera_directory = params$cholera_directory)
-  
 #covariate
 get_covar_cube (name="covar_cube", config = params$config,cache=cache,cholera_directory = params$cholera_directory)
-
 get_sf_grid(name="sf_grid",config = params$config,cache=cache,cholera_directory = params$cholera_directory)
-
-names(cache)
 ```
 
 ## GAM Input
@@ -266,51 +263,32 @@ plot_incidence_by_admin(cache=cache,config=params$config,cholera_directory=param
 ## Validation
 
 ```{r import_modelfidel}
-get_data_fidelity(cache,cholera_directory,config)
+cache[["data_fidelity"]]<-get_data_fidelity(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
 ```
 
 **Actual observations versus modeled cases scatter plot:**
 ```{r datafidelity1, fig.cap=capFig("Observations vs. modeled cases"), fig.height=10, fig.width=10}
-if(!is.null(data_fidelity)&!config$censoring){
-  
-  taxdat::plot_model_fidelity_tfrac_adjusted(data_fidelity = data_fidelity,
-                                              case_raster = case_raster,
+taxdat::plot_model_fidelity_tfrac_adjusted(data_fidelity = cache[["data_fidelity"]],
+                                              case_raster = cache[["case_raster"]],
                                               render = T)
-} else{
-  warning("data_fidelity is NULL")
-}
 ```
 
 ```{r datafidelity2, fig.cap=capFig("Observations/tfrac vs. modeled cases/tfrac"), fig.height=10, fig.width=10}
-if(!is.null(data_fidelity)){
-  taxdat::plot_model_fidelity_tfrac_converted(data_fidelity = data_fidelity,
-                                              case_raster = case_raster,
+  taxdat::plot_model_fidelity_tfrac_converted(data_fidelity = cache[["data_fidelity"]],
+                                              case_raster = cache[["case_raster"]],
                                               render = T)
-} else{
-  warning("data_fidelity is NULL")
-}
 ```
 
 ```{r datafidelity3, fig.cap=capFig("Observations vs. modeled cases (tfrac adjusted)"), fig.height=15, fig.width=10}
-if(!is.null(data_fidelity)&!config$censoring){
-  taxdat::plot_model_fidelity_tfrac_adjusted_by_year(data_fidelity = data_fidelity,
-                                                      case_raster = case_raster,
+  taxdat::plot_model_fidelity_tfrac_adjusted_by_year(data_fidelity = cache[["data_fidelity"]],
+                                              case_raster = cache[["case_raster"]],
                                                       render = T)
-} else{
-  warning("data_fidelity is NULL")
-}
 ```
 
 ```{r datafidelity4, fig.cap=capFig("Observations vs. modeled cases"), fig.height=8, fig.width=10}
-
-if(!is.null(data_fidelity)){
-  taxdat::plot_model_fidelity_tfrac_unadjusted(data_fidelity = data_fidelity,
-                                                case_raster = case_raster,
+  taxdat::plot_model_fidelity_tfrac_unadjusted(data_fidelity = cache[["data_fidelity"]],
+                                              case_raster = cache[["case_raster"]],
                                                 render = T)
-} else{
-  warning("data_fidelity is NULL")
-}
-
 ```
 
 
@@ -340,35 +318,7 @@ plot_WHOcomparison_table (config=params$config, cache=cache, cholera_directory=p
 
 **Table 7. Estimated cases by chain and time slice:**
 ```{r cases_chain_table, fig.width=10, fig.cap = "Sum of grid cases by chain and year"}
-if(!is.null(model.rand) && !is.null(stan_input)){
-  stan_input$sf_grid <- stan_input$sf_grid %>%
-    dplyr::ungroup() %>%
-    dplyr::select(t,id)
-  stan_input$sf_grid[paste('cases','chain',seq_len(nchain),sep='_')] <- cases_chains
-
-  if(params$drop_nodata_years & !all(analysis_years %in% obs_years)){
-      drop_year_ix <- which(!analysis_years %in% obs_years)
-      message(paste("Dropping", paste(analysis_years[drop_year_ix], collapse = ", "), "from cases_chains"))
-      stan_input$sf_grid <- dplyr::filter(stan_input$sf_grid, !(t %in% drop_year_ix))
-    }
-
-  sf_grid_wider <- sf::st_drop_geometry(stan_input$sf_grid)
-
-  by_years <- sf_grid_wider %>%
-    dplyr::group_by(t) %>%
-    dplyr::summarise(dplyr::across(dplyr::contains("cases_chain"), sum)) %>%
-    dplyr::mutate(t = as.character(t))
-  mai <- by_years %>%
-    dplyr::summarise(dplyr::across(dplyr::contains("cases_chain"), mean)) %>%
-    dplyr::mutate(t = "mean annual cases")
-
-  dplyr::bind_rows(by_years, mai) %>%
-    kableExtra::kable(col.names = c("time slice", paste("chain", 1:nchain))) %>%
-    kableExtra::kable_styling(bootstrap_options = c("striped"))
-
-} else{
-  warning("stan_input is NULL")
-}
+plot_modeled_cases_by_chain_time (config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
 
 ```{r full country modeled cases, fig.cap = "comparison with WHO Output"}
