@@ -522,12 +522,12 @@ plot_model_fidelity_tfrac_adjusted <- function(data_fidelity,
   comparison <- data_fidelity
   rate_raster <- case_raster
   
-  plt <- ggplot2::ggplot(comparison[[1]]  %>% 
-                           dplyr::filter(!stringr::str_detect(variable, 'tfrac'))) +
+  plt <- ggplot2::ggplot(comparison %>% 
+                           dplyr::filter(!stringr::str_detect(censoring, 'tfrac'))) +
     ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = oc_uid)) +
     ggplot2::labs(x="Actual cases",y="Modeled cases")+
     ggplot2::geom_abline(intercept = 0, slope = 1) +
-    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[[1]][,3:4])), ylim = c(0, max(comparison[[1]][,3:4]))) +
+    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[,3:4])), ylim = c(0, max(comparison[,3:4]))) +
     ggplot2::theme_bw()
   
   
@@ -551,12 +551,12 @@ plot_model_fidelity_tfrac_converted <- function(data_fidelity,
   comparison <- data_fidelity
   rate_raster <- case_raster
   
-  plt <- ggplot2::ggplot(comparison[[1]]  %>% 
-                           dplyr::filter(stringr::str_detect(variable, 'tfrac'))) +
+  plt <- ggplot2::ggplot(comparison %>% 
+                           dplyr::filter(stringr::str_detect(censoring, 'tfrac'))) +
     ggplot2::geom_point(ggplot2::aes(y = `modeled cases`/tfrac, x = `actual cases`/tfrac, col = oc_uid)) +
     ggplot2::labs(x="Actual cases/tfrac",y="tfrac_modeled_cases/tfrac")+
     ggplot2::geom_abline(intercept = 0, slope = 1) +
-    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[[1]][,3:4])), ylim = c(0, max(comparison[[1]][,3:4]))) +
+    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[,3:4])), ylim = c(0, max(comparison[,3:4]))) +
     ggplot2::theme_bw()
   
   
@@ -579,12 +579,12 @@ plot_model_fidelity_tfrac_adjusted_by_year <- function(data_fidelity,
   comparison <- data_fidelity
   rate_raster <- case_raster
   
-  plt <- ggplot2::ggplot(comparison[[1]]  %>% 
-                           dplyr::filter(!stringr::str_detect(variable, 'tfrac'))) +
+  plt <- ggplot2::ggplot(comparison  %>% 
+                           dplyr::filter(!stringr::str_detect(censoring, 'tfrac'))) +
     ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = oc_uid)) +
     ggplot2::labs(x="Actual cases",y="Modeled cases")+
     ggplot2::geom_abline(intercept = 0, slope = 1) +
-    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[[1]][,3:4])), ylim = c(0, max(comparison[[1]][,3:4]))) +
+    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[,3:4])), ylim = c(0, max(comparison[,3:4]))) +
     ggplot2::theme_bw() +
     ggplot2::facet_wrap(~oc_year, ncol = 2)
   
@@ -607,12 +607,12 @@ plot_model_fidelity_tfrac_unadjusted <- function(data_fidelity,
   comparison <- data_fidelity
   rate_raster <- case_raster
   
-  plt <- ggplot2::ggplot(comparison[[1]] %>% 
-                           dplyr::filter(!stringr::str_detect(variable, 'tfrac'))) +
+  plt <- ggplot2::ggplot(comparison%>% 
+                           dplyr::filter(!stringr::str_detect(censoring, 'tfrac'))) +
     ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = oc_uid)) +
     ggplot2::labs(x="Actual cases",y="modeled_cases")+
     ggplot2::geom_abline(intercept = 0, slope = 1) +
-    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[[1]][,3:4])), ylim = c(0, max(comparison[[1]][,3:4]))) +
+    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[,3:4])), ylim = c(0, max(comparison[,3:4]))) +
     ggplot2::theme_bw() +
     ggplot2::facet_wrap(~censoring, ncol = 2)
   
