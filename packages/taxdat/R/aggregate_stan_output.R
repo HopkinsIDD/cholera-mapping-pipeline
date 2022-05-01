@@ -16,6 +16,23 @@ get_modeled_cases_no_cache <- function(config, cache, cholera_directory, ...) {
 get_modeled_cases <- cache_fun_results("modeled_cases", get_modeled_cases_no_cache,
                                        overwrite = T, config = config)
 
+
+#' @name get_modeled_observed_cases_no_cache
+#' @title get_modeled_observed_cases_no_cache
+#' @description extrac modeled cases from model.rand
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment that contains all the parameter information
+#' @return  modeled_cases
+get_modeled_observed_cases_no_cache <- function(config, cache, cholera_directory, ...) {
+  get_model_rand(name="model.rand",config=config, cache=cache, cholera_directory=cholera_directory, ...)
+  modeled_observed_cases <-  as.array(cache[["model.rand"]])[, , grepl("modeled_cases", names(cache[["model.rand"]])),drop=FALSE]
+  return(modeled_observed_cases)
+}
+# cache the results
+get_modeled_observed_cases <- cache_fun_results("modeled_observed_cases", get_modeled_observed_cases_no_cache,
+                                       overwrite = F, config = config)
+
+
 #' @name get_modeled_rates_no_cache
 #' @title get_modeled_rates_no_cache
 #' @description extrac modeled rates (from log lambda) from model.rand
@@ -40,8 +57,8 @@ get_modeled_rates <- cache_fun_results("modeled_rates", get_modeled_rates_no_cac
 aggregate_modeled_cases_by_chain_no_cache <- function(config,cholera_directory,cache,funs = "mean") {
   get_modeled_cases(name="modeled_cases",
                     cache=cache,
-                    config = paste0(params$cholera_directory, params$config),
-                    cholera_directory = params$cholera_directory
+                    config = config,
+                    cholera_directory = cholera_directory
   )
   modeled_cases_by_chain <- apply(cache[["modeled_cases"]], 2, funs)
 
@@ -76,8 +93,8 @@ aggregate_modeled_rates_by_chain <- cache_fun_results("modeled_rates_by_chain", 
 aggregate_modeled_cases_by_chain_gridtime_no_cache <- function(config,cholera_directory,cache,funs = "mean"){
   get_modeled_cases(name="modeled_cases",
                     cache=cache,
-                    config = paste0(params$cholera_directory, params$config),
-                    cholera_directory = params$cholera_directory
+                    config = config,
+                    cholera_directory = cholera_directory
   )
   
   aggregated_modeled_cases_by_chain_gridtime <-  apply(cache[["modeled_cases"]], c(2,3), funs)
@@ -89,6 +106,32 @@ aggregate_modeled_cases_by_chain_gridtime <- cache_fun_results("aggregated_model
                                                                aggregate_modeled_cases_by_chain_gridtime_no_cache,
                                                                overwrite=T,
                                                                config=params$config)
+
+
+
+#' @name aggregate_modeled_observed_cases_by_chain_gridtime_no_cache
+#' @description aggregate the modeled cases by chain
+#' @param modeled_cases
+#' @param funs the function to aggregate the modeled cases
+#' @return modeled cases across iterations by chains and grid*time
+aggregate_modeled_observed_cases_by_chain_gridtime_no_cache <- function(config,cholera_directory,cache,funs = "mean"){
+  get_modeled_observed_cases(name="modeled_observed_cases",
+                    cache=cache,
+                    config = config,
+                    cholera_directory = cholera_directory
+  )
+  
+  aggregated_modeled_observed_cases_by_chain_gridtime <-  apply(cache[["modeled_observed_cases"]], c(2,3), funs)
+  
+  return(aggregated_modeled_observed_cases_by_chain_gridtime)
+}
+# cache the results
+aggregate_modeled_observed_cases_by_chain_gridtime <- cache_fun_results("aggregated_modeled_observed_cases_by_chain_gridtime",
+                                                               aggregate_modeled_observed_cases_by_chain_gridtime_no_cache,
+                                                               overwrite=T,
+                                                               config=params$config)
+
+
 
 #' @name aggregate_modeled_rates_by_gridtime_no_cache
 #' @description aggregate the modeled rates for each grid cell
@@ -112,7 +155,7 @@ aggregate_modeled_rates_by_chain_gridtime <- cache_fun_results("aggregated_model
 aggregate_modeled_cases_by_gridtime_no_cache <- function(cache,config,cholera_directory, funs = "mean"){
   get_modeled_cases(name="modeled_cases",
                     cache=cache,
-                    config = paste0(cholera_directory, config),
+                    config = config,
                     cholera_directory = cholera_directory
   )
   
@@ -134,7 +177,7 @@ aggregate_modeled_cases_by_gridtime <- cache_fun_results("aggregated_modeled_cas
 aggregate_modeled_rates_by_gridtime_no_cache <- function(cache,config,cholera_directory, funs = "mean"){
   get_modeled_rates(name="modeled_rates",
                     cache=cache,
-                    config = paste0(cholera_directory, config),
+                    config = config,
                     cholera_directory = cholera_directory
   )
   
