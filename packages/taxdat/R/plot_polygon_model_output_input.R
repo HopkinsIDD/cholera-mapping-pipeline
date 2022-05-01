@@ -9,11 +9,11 @@
 #' @return ggplot object
 plot_sf_with_fill <- function(cache,name, color_scale_type, fill_column) {
     sf_object <- cache[[name]]
-    updated_fill_column <- fill_column
-    updated_fill_column <- grep(stringr::str_remove(updated_fill_column, fill_column), names(sf_object),
-        value = TRUE)
+    # updated_fill_column <- fill_column
+    # updated_fill_column <- grep(stringr::str_remove(updated_fill_column, fill_column), names(sf_object),
+    #     value = TRUE)
     plot <- ggplot2::ggplot() + 
-        ggplot2::geom_sf(data = sf_object, ggplot2::aes_string(fill = updated_fill_column)) +
+        ggplot2::geom_sf(data = sf_object, ggplot2::aes_string(fill = fill_column)) +
         taxdat::color_scale(type = color_scale_type, use_case = "ggplot map") + 
         taxdat::map_theme() +
         ggplot2::facet_wrap(~set)
@@ -35,7 +35,6 @@ plot_observed_cases_polygon_raw <- function(config, cache, cholera_directory) {
         color_scale_type = "cases", fill_column = "attributes.fields.suspected_cases")
     return(plot)
 }
-
 
 #' @name plot_area_adjusted_observed_cases
 #' @title plot_area_adjusted_observed_cases
