@@ -6,7 +6,7 @@
 #' @param cache 
 #' @return covar cube
 get_model_rand_no_cache <- function(config, cache, cholera_directory) {
-  config <- yaml::read_yaml(paste0(params$cholera_directory, params$config))
+  config <- yaml::read_yaml(paste0(cholera_directory, config))
   file_names <- taxdat::get_filenames(config, cholera_directory)
   file_names[["stan_output"]]<-"C:/IDD/Cholera/commit_git/cholera-mapping-pipeline/Analysis/data/TGO_stan_output.rdata"#need to be removed before commiting to repo
   model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
