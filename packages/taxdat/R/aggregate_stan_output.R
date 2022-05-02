@@ -8,13 +8,14 @@
 #' @param cache the cached environment that contains all the parameter information
 #' @return  modeled_cases
 get_modeled_cases_no_cache <- function(config, cache, cholera_directory, ...) {
-  get_model_rand(name="model.rand",config=config, cache=cache, cholera_directory=cholera_directory, ...)
-  modeled_cases <-  as.array(cache[["model.rand"]])[, , grepl("grid_case", names(cache[["model.rand"]])),drop=FALSE]
+  get_genquant(name="genquant",cache=cache,config=config,cholera_directory = cholera_directory)
+  varnames <- dimnames(cache[['genquant']]$draws())[[3]]
+  modeled_cases <- as.array(cache[['genquant']]$draws())[, , grepl("grid_case", varnames),drop=FALSE]
   return(modeled_cases)
 }
 # cache the results
 get_modeled_cases <- cache_fun_results("modeled_cases", get_modeled_cases_no_cache,
-                                       overwrite = T, config = config)
+                                       overwrite = F, config = config)
 
 
 #' @name get_modeled_observed_cases_no_cache
@@ -24,8 +25,9 @@ get_modeled_cases <- cache_fun_results("modeled_cases", get_modeled_cases_no_cac
 #' @param cache the cached environment that contains all the parameter information
 #' @return  modeled_cases
 get_modeled_observed_cases_no_cache <- function(config, cache, cholera_directory, ...) {
-  get_model_rand(name="model.rand",config=config, cache=cache, cholera_directory=cholera_directory, ...)
-  modeled_observed_cases <-  as.array(cache[["model.rand"]])[, , grepl("modeled_cases", names(cache[["model.rand"]])),drop=FALSE]
+  get_genquant(name="genquant",cache=cache,config=config,cholera_directory = cholera_directory)
+  varnames <- dimnames(cache[['genquant']]$draws())[[3]]
+  modeled_observed_cases <- as.array(cache[['genquant']]$draws())[, , grepl("modeled_cases", varnames),drop=FALSE]
   return(modeled_observed_cases)
 }
 # cache the results
@@ -40,13 +42,14 @@ get_modeled_observed_cases <- cache_fun_results("modeled_observed_cases", get_mo
 #' @param cache the cached environment that contains all the parameter information
 #' @return  modeled_rates
 get_modeled_rates_no_cache <- function(config, cache, cholera_directory, ...) {
-  get_model_rand(name="model.rand",config=config, cache=cache, cholera_directory=cholera_directory)
-  modeled_rates <- exp(as.array(cache[["model.rand"]])[, , grepl("log_lambda", names(cache[["model.rand"]])), drop = FALSE])
+  get_genquant(name="genquant",cache=cache,config=config,cholera_directory = cholera_directory)
+  varnames <- dimnames(cache[['genquant']]$draws())[[3]]
+  modeled_rates <- exp(as.array(cache[['genquant']]$draws())[, , grepl("log_lambda", varnames),drop=FALSE])
   return(modeled_rates)
 }
 # cache the results
 get_modeled_rates <- cache_fun_results("modeled_rates", get_modeled_rates_no_cache,
-                                       overwrite = T, config = config)
+                                       overwrite = F, config = config)
 
 #' @name aggregate_modeled_cases_by_chain_no_cache
 #' @title aggregate_modeled_cases_by_chain_no_cache
@@ -67,7 +70,7 @@ aggregate_modeled_cases_by_chain_no_cache <- function(config,cholera_directory,c
 # cache the results
 aggregate_modeled_cases_by_chain <- cache_fun_results(name="modeled_cases_by_chain", 
                                                       aggregate_modeled_cases_by_chain_no_cache,
-                                                      overwrite = T, 
+                                                      overwrite = F, 
                                                       config = config,
                                                       cholera_directory=cholera_directory)
 
@@ -83,7 +86,7 @@ aggregate_modeled_rates_by_chain_no_cache <- function(modeled_rates, funs = "mea
 }
 # cache the results
 aggregate_modeled_rates_by_chain <- cache_fun_results("modeled_rates_by_chain", aggregate_modeled_rates_by_chain_no_cache,
-                                                      overwrite = T, config = config)
+                                                      overwrite = F, config = config)
 
 #' @name aggregate_modeled_cases_by_chain_gridtime_no_cache
 #' @description aggregate the modeled cases by chain
@@ -104,7 +107,7 @@ aggregate_modeled_cases_by_chain_gridtime_no_cache <- function(config,cholera_di
 # cache the results
 aggregate_modeled_cases_by_chain_gridtime <- cache_fun_results("aggregated_modeled_cases_by_chain_gridtime",
                                                                aggregate_modeled_cases_by_chain_gridtime_no_cache,
-                                                               overwrite=T,
+                                                               overwrite=F,
                                                                config=params$config)
 
 
@@ -128,7 +131,7 @@ aggregate_modeled_observed_cases_by_chain_gridtime_no_cache <- function(config,c
 # cache the results
 aggregate_modeled_observed_cases_by_chain_gridtime <- cache_fun_results("aggregated_modeled_observed_cases_by_chain_gridtime",
                                                                aggregate_modeled_observed_cases_by_chain_gridtime_no_cache,
-                                                               overwrite=T,
+                                                               overwrite=F,
                                                                config=params$config)
 
 
@@ -145,7 +148,7 @@ aggregate_modeled_rates_by_chain_gridtime_no_cache <- function(modeled_rates, fu
 
 # cache the results
 aggregate_modeled_rates_by_chain_gridtime <- cache_fun_results("aggregated_modeled_rates_by_chain_gridtime",aggregate_modeled_rates_by_chain_gridtime_no_cache,
-                                                               overwrite=T,config=config,cholera_directory = cholera_directory)
+                                                               overwrite=F,config=config,cholera_directory = cholera_directory)
 
 #' @name aggregate_modeled_cases_by_gridtime_no_cache
 #' @description aggregate the modeled cases by grid*time
@@ -165,7 +168,7 @@ aggregate_modeled_cases_by_gridtime_no_cache <- function(cache,config,cholera_di
 
 # cache the results
 aggregate_modeled_cases_by_gridtime <- cache_fun_results("aggregated_modeled_cases_by_gridtime",aggregate_modeled_cases_by_gridtime_no_cache,
-                                                               overwrite=T,config=config)
+                                                               overwrite=F,config=config)
 
 #' @name aggregate_modeled_rates_by_gridtime_no_cache
 #' @description aggregate the modeled rates by grid*time
@@ -187,7 +190,7 @@ aggregate_modeled_rates_by_gridtime_no_cache <- function(cache,config,cholera_di
 
 # cache the results
 aggregate_modeled_rates_by_gridtime <- cache_fun_results("aggregated_modeled_rates_by_gridtime",aggregate_modeled_rates_by_gridtime_no_cache,
-                                                         overwrite=T,config=config)
+                                                         overwrite=F,config=config)
 
 #' @name aggregate_averaged_modeled_cases_by_time_across_country_no_cache
 #' @description aggregate the averaged modeled cases across chains and iterations by grid*time over the country
@@ -210,7 +213,7 @@ aggregate_averaged_modeled_cases_by_time_across_country_no_cache <- function(con
 
 # cache the results
 aggregate_averaged_modeled_cases_by_time_across_country <- cache_fun_results("aggregated_averaged_modeled_cases_by_time_across_country",aggregate_modeled_cases_by_gridtime_no_cache,
-                                                         overwrite=T,config=config)
+                                                         overwrite=F,config=config)
 
 #' @name aggregate_averaged_modeled_rates_by_time_across_country_no_cache
 #' @description aggregate the averaged modeled rates across chains and iterations by grid*time over the country
@@ -234,4 +237,4 @@ aggregate_averaged_modeled_rates_by_time_across_country_no_cache <- function(con
 
 # cache the results
 aggregate_averaged_modeled_rates_by_time_across_country <- cache_fun_results("aggregated_averaged_modeled_rates_by_time_across_country",aggregate_averaged_modeled_rates_by_time_across_country_no_cache,
-                                                                             overwrite=T,config=config)
+                                                                             overwrite=F,config=config)
