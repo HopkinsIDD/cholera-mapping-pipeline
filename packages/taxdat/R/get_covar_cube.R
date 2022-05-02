@@ -1,3 +1,4 @@
+#' @export
 #' @name get_covar_no_cache
 #' @description load covariate output data
 #' @param config 
@@ -12,9 +13,12 @@ get_covar_no_cache <- function(config, cache, cholera_directory) {
   return(covar_cube_output)
 }
 # cache the results
+#' @export
+#' @name get_covar
 get_covar <- cache_fun_results(name = "covar_cube_output", fun = get_covar_no_cache,
                                overwrite = T, config = config)
 
+#' @export
 #' @name get_covar_cube_no_cache
 #' @title get_covar_cube_no_cache
 #' @description extrac covar_cube from covar_cube_output
@@ -27,9 +31,11 @@ get_covar_cube_no_cache <- function(config, cache, cholera_directory, ...) {
   return(covar_cube)
 }
 # cache the results
+#' @export
+#' @name get_covar_cube
 get_covar_cube <- cache_fun_results(name="covar_cube", fun=get_covar_cube_no_cache,
                                     overwrite = T, config = config)
-
+#' @export
 #' @name get_sf_grid_no_cache
 #' @title get_sf_grid_no_cache
 #' @description extrac sf_grid from covar_cube_output
@@ -42,5 +48,7 @@ get_sf_grid_no_cache <- function(config, cache, cholera_directory, ...) {
   return(sf_grid)
 }
 # cache the results
+#' @export
+#' @name get_sf_grid
 get_sf_grid <- cache_fun_results("sf_grid", get_sf_grid_no_cache,
                                  overwrite = T, config = config)
