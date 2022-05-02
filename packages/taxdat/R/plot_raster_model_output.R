@@ -1,5 +1,6 @@
 #' @include plot_cache_function.R
 
+#' @export
 #' @name plot_raster_with_fill
 #' @title plot_raster_with_fill
 #' @description plot the rasters with cases or rates information
@@ -18,6 +19,7 @@ plot_raster_with_fill <- function(name, color_scale_type, fill_column, cache) {
 }
 
 # plot modeled cases raster
+#' @export
 #' @name plot_modeled_cases_raster
 #' @title plot_modeled_cases_raster
 #' @description plot the rasters with modeled cases
@@ -34,6 +36,7 @@ plot_modeled_cases_mean_raster <- function(config, cache, cholera_directory) {
 
 
 # plot modeled rates raster
+#' @export
 #' @name plot_modeled_rates_raster
 #' @title plot_modeled_rates_raster
 #' @description plot the rasters with modeled rates
@@ -51,18 +54,23 @@ plot_modeled_rates_raster <- function(config, cache, cholera_directory) {
 
 
 # get new aggregated data: get_modeled_rates_mean
+#' @export
+#' @name get_modeled_rates_mean_no_cache
 get_modeled_rates_mean_no_cache <- function(config, cache, cholera_directory, ...) {
     get_modeled_rates(config, cache, cholera_directory, ...)
     modeled_rates_mean <- aggregate_to_modeled_rates_mean(cache[["modeled_rates"]],
         funs = "mean")
     return(modeled_rates_mean)
 }
+#' @export
+#' @name get_modeled_rates_mean
 get_modeled_rates_mean <- cache_fun_results("modeled_rates_mean", get_modeled_rates_mean_no_cache,
     overwrite = T, config = config)
 # get_modeled_rates_mean(config=config,cache)
 
 ###############'merge/attach' functions############################
 # integrate grid cases mean into the raster
+#' @export
 #' @name merge_modeled_cases_mean_into_raster
 #' @title merge_modeled_cases_mean_into_raster
 #' @description merge the modeled cases mean into raster
@@ -77,10 +85,13 @@ merge_modeled_cases_mean_into_raster_no_cache <- function(config, cache, cholera
     modeled_cases_mean_raster$modeled_cases_mean <- modeled_cases_mean
     return(modeled_cases_mean_raster)
 }
+#' @export
+#' @name merge_modeled_cases_mean_into_raster
 merge_modeled_cases_mean_into_raster <- cache_fun_results("modeled_cases_mean_raster",
     merge_modeled_cases_mean_into_raster_no_cache, overwrite = T, config)
 
 # integrate modeled rates mean into the raster
+#' @export
 #' @name merge_modeled_rates_mean_into_raster
 #' @title merge_modeled_rates_mean_into_raster
 #' @description merge the modeled rates into raster
@@ -95,10 +106,13 @@ merge_modeled_rates_mean_into_raster_no_cache <- function(config, cache, cholera
     grid_rates_mean_raster$modeled_rates_mean <- modeled_rates_mean
     return(grid_rates_mean_raster)
 }
+#' @export
+#' @name merge_modeled_rates_mean_into_raster
 merge_modeled_rates_mean_into_raster <- cache_fun_results("modeled_rates_mean_raster",
     merge_modeled_rates_mean_into_raster_no_cache, overwrite = T, config)
 
 # stitch rate rasters from different single years together 
+#' @export
 #' @name stitch_rate_raster_stack
 #' @title stitch_rate_raster_stack
 #' @description stitch rate rasters from different single years together 
@@ -118,10 +132,14 @@ stitch_rate_raster_stack_no_cache <- function(output_cache, input_caches, choler
                 config_filename, 
                 output_dir)
 }
+
+#' @export
+#' @name stitch_rate_raster_stack
 stitch_rate_raster_stack <- cache_fun_results("modeled_rates_raster",
     stitch_rate_raster_stack_no_cache, overwrite = T, config_filename) 
 
 # get the mean of the rates
+#' @export
 #' @name get_mean_rate_raster_in_sf
 #' @title get_mean_rate_raster_in_sf
 #' @description get the mean of the rates 
@@ -144,9 +162,13 @@ get_mean_rate_raster_in_sf_no_cache <- function(output_cache){
   }
   
 }
+
+#' @export
+#' @name get_mean_rate_raster_in_sf
 get_mean_rate_raster_in_sf <- cache_fun_results("modeled_cases_mean_raster", get_mean_rate_raster_in_sf_no_cache, overwrite = T) 
 
 # stitch case rasters from different single years together 
+#' @export
 #' @name stitch_case_raster_stack
 #' @title stitch_case_raster_stack
 #' @description stitch case rasters from different single years together 
@@ -166,10 +188,14 @@ stitch_case_raster_stack_no_cache <- function(output_cache, input_caches, choler
                 config_filename, 
                 output_dir)
 }
+
+#' @export
+#' @name stitch_case_raster_stack
 stitch_case_raster_stack <- cache_fun_results("modeled_cases_raster",
     stitch_case_raster_stack_no_cache, overwrite = T, config_filename)
 
 # get the mean of the cases 
+#' @export
 #' @name get_mean_case_raster_in_sf
 #' @title get_mean_case_raster_in_sf
 #' @description get the mean of the cases 
@@ -192,9 +218,13 @@ get_mean_case_raster_in_sf_no_cache <- function(output_cache){
   }
   
 }
+
+#' @export
+#' @name get_mean_case_raster_in_sf
 get_mean_case_raster_in_sf <- cache_fun_results("modeled_cases_mean_raster", get_mean_case_raster_in_sf_no_cache, overwrite = T) 
 
 # general stitch function
+#' @export
 #' @name stitch_caches
 #' @title stitch_caches
 #' @description general stitch function that can take different combination function calls 
@@ -224,9 +254,12 @@ stitch_caches_no_cache <- function(
   return(invisible())
 }
 
+#' @export
+#' @name stitch_caches
 stitch_caches <- cache_fun_results("modeled_cases",stitch_caches_no_cache, overwrite = T) #this may be problematic
 
 #  a specific stitch function that can stack model output from different year together 
+#' @export
 #' @name stack_case_rate_raster_in_sf
 #' @title stack_case_rate_raster_in_sf
 #' @description a specific stitch function that can stack model output from different year together 
@@ -266,10 +299,14 @@ stack_case_rate_raster_in_sf_no_cache <- function( output_cache,
     output_cache[[name]] <- rbind(output_cache[[name]], modeled_cases_rates_raster)
   } 
 }
+
+#' @export
+#' @name stack_case_rate_raster_in_sf
 stack_case_rate_raster_in_sf <- cache_fun_results("modeled_cases",
     stack_case_rate_raster_in_sf_no_cache, overwrite = T, config)
 
 # drop the years with invalid model output 
+#' @export
 #' @name remove_dropped_years
 #' @title remove_dropped_years
 #' @description drop the years with invalid model output
@@ -306,7 +343,8 @@ remove_dropped_years <- function(output_cache, country, dropped_years = NULL, fu
 
 }
 
-# check whether a certain config doesn't have any corresponding model output 
+# check whether a certain config doesn't have any corresponding model output
+#' @export
 #' @name check_unused_config_by_output
 #' @title check_unused_config_by_output
 #' @description check whether a certain config doesn't have any corresponding model output, deleting the config is optional 
@@ -366,6 +404,7 @@ check_unused_config_by_output <- function(config_filename,
 }
 
 #  plot the continent 
+#' @export
 #' @name plot_raster_with_fill_and_continent_shp
 #' @title plot_raster_with_fill_and_continent_shp
 #' @description plot the continent 
