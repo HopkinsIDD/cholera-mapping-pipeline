@@ -1,5 +1,6 @@
 #' @include plot_cache_function.R
 #' 
+#' @export
 #' @name plot_modeled_cases_by_chain_time
 #' @title plot_modeled_cases_by_chain_time
 #' @description plot the polygon with modeled cases
