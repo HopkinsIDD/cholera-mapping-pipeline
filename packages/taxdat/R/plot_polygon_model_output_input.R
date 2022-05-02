@@ -39,7 +39,7 @@ plot_observed_cases_polygon_raw <- function(config, cache, cholera_directory) {
 }
 
 #' @export
-#' @name plot_area_adjusted_observed_cases
+#' @name aggregate_observed_polygon_cases_disjoint_aggregated
 #' @title plot_area_adjusted_observed_cases
 #' @description plot the polygon with observed cases
 #' @param config config file that contains the parameter information
