@@ -1,5 +1,6 @@
 #' @include plot_cache_function.R
 
+#' @export
 #' @name plot_chain_convergence
 #' @description plot the chain convergence
 #' @param name of the input object which is model.rand
@@ -13,6 +14,7 @@ plot_chain_convergence <- function(cache, name, pars= c("rho", "betas", "log_std
 }
 
 # plot parameter posteriors
+#' @export
 #' @name plot_MCMCpars
 #' @description plot the parameter posteriors 
 #' @param name name of the input object which is model.rand from stan output
@@ -27,6 +29,7 @@ plot_MCMCpars <- function(name,cache,pars) {
 }
 
 # plot  Gelman-Rubin Rhat
+#' @export
 #' @name plot_Rhat
 #' @description plot the Rhat of the model
 #' @param name name of the input object which is model.rand
