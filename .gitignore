@@ -21,3 +21,4 @@ Analysis/output/test.stan_input.rdata
 Analysis/configs/
 Layers/
 covar_list_.txt
+covar_list_qulu.txt
