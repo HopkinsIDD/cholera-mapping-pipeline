@@ -1,5 +1,5 @@
 #' @include plot_cache_function.R
-
+#' @export
 #' @name plot_ObservationSummary_table
 #' @title plot_ObservationSummary_table
 #' @description plot the polygon with modeled cases
