@@ -1,24 +1,5 @@
 #' @include plot_cache_function.R
 
-#' @name get_gam_output
-#' @description load get_gam_output
-#' @param config 
-#' @param cache 
-#' @return get_gam_output
-get_initial_values_no_cache <- function(config, cache, cholera_directory) {
-  config <- yaml::read_yaml(paste0(params$cholera_directory, params$config))
-  file_names <- taxdat::get_filenames(config, cholera_directory)
-  initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_values_data")
-  require(bit64)
-  require(sf)
-  return(initial_values_data)
-}
-# cache the results
-get_initial_values <- cache_fun_results(name = "initial_values_data", fun = get_initial_values_no_cache,
-                                        overwrite = T, config = config)
-
-
-
 #' @export
 #' @name get_gam_values_no_cache
 #' @description gets the predicted GAM rate and case incidence values that are used 
@@ -79,7 +60,8 @@ get_gam_values_no_cache <- function(
   
   return(gam_output_df)
 }
-
+#' @export
+#' @name get_gam_values
 get_gam_values<-cache_fun_results(name="gam_output_df",
                                   fun = get_gam_values_no_cache,
                                   overwrite = T, 
