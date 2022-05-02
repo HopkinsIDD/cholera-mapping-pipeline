@@ -1,6 +1,7 @@
 #' @include plot_cache_function.R
 #' @include get_stan_output.R
 
+#' @export
 #' @name get_modeled_cases_no_cache
 #' @title get_modeled_cases_no_cache
 #' @description extrac modeled cases from model.rand
@@ -14,10 +15,12 @@ get_modeled_cases_no_cache <- function(config, cache, cholera_directory, ...) {
   return(modeled_cases)
 }
 # cache the results
+#' @export
+#' @name get_modeled_cases
 get_modeled_cases <- cache_fun_results("modeled_cases", get_modeled_cases_no_cache,
                                        overwrite = F, config = config)
 
-
+#' @export
 #' @name get_modeled_observed_cases_no_cache
 #' @title get_modeled_observed_cases_no_cache
 #' @description extrac modeled cases from model.rand
@@ -31,10 +34,12 @@ get_modeled_observed_cases_no_cache <- function(config, cache, cholera_directory
   return(modeled_observed_cases)
 }
 # cache the results
+#' @export
+#' @name get_modeled_observed_cases
 get_modeled_observed_cases <- cache_fun_results("modeled_observed_cases", get_modeled_observed_cases_no_cache,
                                        overwrite = F, config = config)
 
-
+#' @export
 #' @name get_modeled_rates_no_cache
 #' @title get_modeled_rates_no_cache
 #' @description extrac modeled rates (from log lambda) from model.rand
@@ -48,9 +53,12 @@ get_modeled_rates_no_cache <- function(config, cache, cholera_directory, ...) {
   return(modeled_rates)
 }
 # cache the results
+#' @export
+#' @name get_modeled_rates
 get_modeled_rates <- cache_fun_results("modeled_rates", get_modeled_rates_no_cache,
                                        overwrite = F, config = config)
 
+#' @export
 #' @name aggregate_modeled_cases_by_chain_no_cache
 #' @title aggregate_modeled_cases_by_chain_no_cache
 #' @description get the mean of the modeled cases by chain
@@ -68,12 +76,15 @@ aggregate_modeled_cases_by_chain_no_cache <- function(config,cholera_directory,c
   return(modeled_cases_by_chain)
 }
 # cache the results
+#' @export
+#' @name aggregate_modeled_cases_by_chain
 aggregate_modeled_cases_by_chain <- cache_fun_results(name="modeled_cases_by_chain", 
                                                       aggregate_modeled_cases_by_chain_no_cache,
                                                       overwrite = F, 
                                                       config = config,
                                                       cholera_directory=cholera_directory)
 
+#' @export
 #' @name aggregate_modeled_rates_by_chain_no_cache
 #' @title aggregate_modeled_rates_by_chain_no_cache
 #' @description get the mean of the modeled rates by chain
@@ -85,9 +96,12 @@ aggregate_modeled_rates_by_chain_no_cache <- function(modeled_rates, funs = "mea
   return(modeled_rates_by_chain)
 }
 # cache the results
+#' @export
+#' @name aggregate_modeled_rates_by_chain
 aggregate_modeled_rates_by_chain <- cache_fun_results("modeled_rates_by_chain", aggregate_modeled_rates_by_chain_no_cache,
                                                       overwrite = F, config = config)
 
+#' @export
 #' @name aggregate_modeled_cases_by_chain_gridtime_no_cache
 #' @description aggregate the modeled cases by chain
 #' @param modeled_cases
@@ -105,13 +119,15 @@ aggregate_modeled_cases_by_chain_gridtime_no_cache <- function(config,cholera_di
   return(aggregated_modeled_cases_by_chain_gridtime)
   }
 # cache the results
+#' @export
+#' @name aggregate_modeled_cases_by_chain_gridtime
 aggregate_modeled_cases_by_chain_gridtime <- cache_fun_results("aggregated_modeled_cases_by_chain_gridtime",
                                                                aggregate_modeled_cases_by_chain_gridtime_no_cache,
                                                                overwrite=F,
                                                                config=params$config)
 
 
-
+#' @export
 #' @name aggregate_modeled_observed_cases_by_chain_gridtime_no_cache
 #' @description aggregate the modeled cases by chain
 #' @param modeled_cases
@@ -129,13 +145,15 @@ aggregate_modeled_observed_cases_by_chain_gridtime_no_cache <- function(config,c
   return(aggregated_modeled_observed_cases_by_chain_gridtime)
 }
 # cache the results
+#' @export
+#' @name aggregate_modeled_observed_cases_by_chain_gridtime
 aggregate_modeled_observed_cases_by_chain_gridtime <- cache_fun_results("aggregated_modeled_observed_cases_by_chain_gridtime",
                                                                aggregate_modeled_observed_cases_by_chain_gridtime_no_cache,
                                                                overwrite=F,
                                                                config=params$config)
 
 
-
+#' @export
 #' @name aggregate_modeled_rates_by_gridtime_no_cache
 #' @description aggregate the modeled rates for each grid cell
 #' @param modeled_rates
@@ -147,9 +165,12 @@ aggregate_modeled_rates_by_chain_gridtime_no_cache <- function(modeled_rates, fu
 }
 
 # cache the results
+#' @export
+#' @name aggregate_modeled_rates_by_chain_gridtime
 aggregate_modeled_rates_by_chain_gridtime <- cache_fun_results("aggregated_modeled_rates_by_chain_gridtime",aggregate_modeled_rates_by_chain_gridtime_no_cache,
                                                                overwrite=F,config=config,cholera_directory = cholera_directory)
 
+#' @export
 #' @name aggregate_modeled_cases_by_gridtime_no_cache
 #' @description aggregate the modeled cases by grid*time
 #' @param modeled_cases
@@ -167,9 +188,12 @@ aggregate_modeled_cases_by_gridtime_no_cache <- function(cache,config,cholera_di
 }
 
 # cache the results
+#' @export
+#' @name aggregate_modeled_cases_by_gridtime
 aggregate_modeled_cases_by_gridtime <- cache_fun_results("aggregated_modeled_cases_by_gridtime",aggregate_modeled_cases_by_gridtime_no_cache,
                                                                overwrite=F,config=config)
 
+#' @export
 #' @name aggregate_modeled_rates_by_gridtime_no_cache
 #' @description aggregate the modeled rates by grid*time
 #' @param cache
@@ -189,9 +213,12 @@ aggregate_modeled_rates_by_gridtime_no_cache <- function(cache,config,cholera_di
 }
 
 # cache the results
+#' @export
+#' @name aggregate_modeled_rates_by_gridtime
 aggregate_modeled_rates_by_gridtime <- cache_fun_results("aggregated_modeled_rates_by_gridtime",aggregate_modeled_rates_by_gridtime_no_cache,
                                                          overwrite=F,config=config)
 
+#' @export
 #' @name aggregate_averaged_modeled_cases_by_time_across_country_no_cache
 #' @description aggregate the averaged modeled cases across chains and iterations by grid*time over the country
 #' @param modeled_cases
@@ -212,9 +239,12 @@ aggregate_averaged_modeled_cases_by_time_across_country_no_cache <- function(con
 }
 
 # cache the results
+#' @export
+#' @name aggregate_averaged_modeled_cases_by_time_across_country
 aggregate_averaged_modeled_cases_by_time_across_country <- cache_fun_results("aggregated_averaged_modeled_cases_by_time_across_country",aggregate_modeled_cases_by_gridtime_no_cache,
                                                          overwrite=F,config=config)
 
+#' @export
 #' @name aggregate_averaged_modeled_rates_by_time_across_country_no_cache
 #' @description aggregate the averaged modeled rates across chains and iterations by grid*time over the country
 #' @param modeled_cases
@@ -236,5 +266,7 @@ aggregate_averaged_modeled_rates_by_time_across_country_no_cache <- function(con
 }
 
 # cache the results
+#' @export
+#' @name aggregate_averaged_modeled_rates_by_time_across_country
 aggregate_averaged_modeled_rates_by_time_across_country <- cache_fun_results("aggregated_averaged_modeled_rates_by_time_across_country",aggregate_averaged_modeled_rates_by_time_across_country_no_cache,
                                                                              overwrite=F,config=config)
