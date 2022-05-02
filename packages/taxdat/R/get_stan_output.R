@@ -1,5 +1,23 @@
 #' @include plot_cache_function.R
 
+#' @name get_genquant_no_cache
+#' @description load stan output
+#' @param config 
+#' @param cache 
+#' @return genquant
+get_genquant_no_cache <- function(config, cache, cholera_directory) {
+  config <- yaml::read_yaml(paste0(cholera_directory, config))
+  file_names <- taxdat::get_filenames(config, cholera_directory)
+  file_names[["stan_genquant"]]<-"C:/IDD/Cholera/commit_git/cholera-mapping-pipeline/Analysis/data/TGO_stan_genquant.rds"#need to be removed before commiting to repo
+  genquant <- taxdat::read_file_of_type(file_names[["stan_genquant"]], "chol_gen")
+  require(bit64)
+  require(sf)
+  return(genquant)
+}
+# cache the results
+get_genquant <- cache_fun_results(name = "genquant", fun = get_genquant_no_cache,
+                                    overwrite = F, config = config)
+
 #' @name get_model_rand_no_cache
 #' @description load stan output
 #' @param config 
@@ -8,7 +26,7 @@
 get_model_rand_no_cache <- function(config, cache, cholera_directory) {
   config <- yaml::read_yaml(paste0(cholera_directory, config))
   file_names <- taxdat::get_filenames(config, cholera_directory)
-  file_names[["stan_output"]]<-"C:/IDD/Cholera/commit_git/cholera-mapping-pipeline/Analysis/data/TGO_stan_output.rdata"#need to be removed before commiting to repo
+  file_names[["stan_output"]]<-"C:/IDD/Cholera/commit_git/cholera-mapping-pipeline/Analysis/data/TGO_stan_output1.rdata"#need to be removed before commiting to repo
   model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
   require(bit64)
   require(sf)
@@ -35,7 +53,7 @@ get_stan_model_niter_per_chain_no_cache <- function(config, cache, cholera_direc
 
 get_stan_model_niter_per_chain <- cache_fun_results(name = "niter_per_chain",
                                                     fun = get_stan_model_niter_per_chain_no_cache,
-                                                    overwrite = T,
+                                                    overwrite = F,
                                                     config=config,
                                                     cholera_directory=cholera_directory)
 
@@ -56,7 +74,7 @@ get_stan_model_nchain_no_cache <- function(config, cache, cholera_directory) {
 }
 
 get_stan_model_nchain <- cache_fun_results(name = "nchain", fun = get_stan_model_nchain_no_cache,
-                                              overwrite = T,cholera_directory=cholera_directory)
+                                              overwrite = F,cholera_directory=cholera_directory)
 
 
 #' @export
@@ -76,4 +94,4 @@ get_stan_output_no_cache <- function(config, cache, cholera_directory) {
 }
 
 get_stan_output <- cache_fun_results(name = "stan_output", fun = get_stan_output_no_cache,
-                                    overwrite = T,cholera_directory=cholera_directory)
+                                    overwrite = F,cholera_directory=cholera_directory)
