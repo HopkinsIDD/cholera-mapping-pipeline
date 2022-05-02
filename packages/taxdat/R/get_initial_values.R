@@ -1,5 +1,6 @@
 #' @include plot_cache_function.R
 
+#' @export
 #' @name get_initial_values_no_cache
 #' @description load initial values rdata
 #' @param config 
@@ -14,5 +15,7 @@ get_initial_values_no_cache <- function(config, cache, cholera_directory) {
   return(initial_values_data)
 }
 # cache the results
+#' @export
+#' @name get_initial_values
 get_initial_values <- cache_fun_results(name = "initial_values_data", fun = get_initial_values_no_cache,
                                     overwrite = T, config = config)
