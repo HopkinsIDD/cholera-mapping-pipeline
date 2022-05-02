@@ -17,7 +17,7 @@ plot_modeled_cases_by_chain_time <- function(config, cache, cholera_directory) {
     get_stan_model_nchain(name="nchain",cache=cache,config=config,cholera_directory=cholera_directory)
     nchain<-cache[["nchain"]] 
     cases_chains<-aggregate_modeled_cases_by_chain_gridtime_no_cache(
-                                              config=params$config,cholera_directory=params$cholera_directory,
+                                              config=config,cholera_directory=cholera_directory,
                                               cache=cache)
 
     stan_input$sf_grid[paste('cases','chain',seq_len(nchain),sep='_')] <- cases_chains
@@ -46,5 +46,3 @@ plot_modeled_cases_by_chain_time <- function(config, cache, cholera_directory) {
       kableExtra::kable_styling(bootstrap_options = c("striped"))
     
   }
-
-}
