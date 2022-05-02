@@ -1,5 +1,6 @@
 #' @include plot_cache_function.R
 
+#' @export
 #' @name plot_gam_fit_input_cases
 #' @title plot_gam_fit_input_cases
 #' @description plot the rasters with gam fitted input cases
@@ -17,7 +18,7 @@ plot_gam_fit_input_cases <- function(name="initial_values_data",cache) {
   return(plot)
 }
 
-
+#' @export
 #' @name plot_gam_fit_input_rates
 #' @title plot_gam_fit_input_rates
 #' @description plot the rasters with gam fitted input rates
@@ -38,6 +39,7 @@ plot_gam_fit_input_rates <- function(name="initial_values_data",cache) {
   return(plot)
 }
 
+#' @export
 #' @name plot_gam_fit_output_cases
 #' @title plot_gam_fit_output_cases
 #' @description plot the rasters with gam fitted output cases
@@ -54,7 +56,7 @@ plot_gam_fit_output_cases <- function(name="gam_output_df",cache) {
   return(plot)
 }
 
-
+#' @export
 #' @name plot_gam_fit_output_rates
 #' @title plot_gam_fit_input_rates
 #' @description plot the rasters with gam fitted output rates
