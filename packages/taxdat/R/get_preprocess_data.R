@@ -15,7 +15,8 @@ get_sf_cases_no_cache <- function(config, cache, cholera_directory) {
   require(sf)
   return(sf_cases)
 }
-
+#' @export
+#' @name get_sf_cases
 get_sf_cases <- cache_fun_results(name = "sf_cases", fun = get_sf_cases_no_cache,
                                     overwrite = F,cholera_directory=cholera_directory)
 
@@ -35,6 +36,7 @@ get_preprocessed_stan_no_cache <- function(config, cache, cholera_directory) {
   require(sf)
   return(preprocessed_stan_data)
 }
-
+#' @export
+#' @name get_preprocessed_stan
 get_preprocessed_stan <- cache_fun_results(name = "preprocessed_stan_data", fun = get_preprocessed_stan_no_cache,
                                   overwrite = F,cholera_directory=cholera_directory)
