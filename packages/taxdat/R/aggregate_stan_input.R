@@ -39,6 +39,7 @@ separate_by_overlap <- function(sf_object, name_column = "location_period_id") {
   return(sf_object)
 }
 
+#' @export
 #' @name aggregate_to_location_period
 #' @title aggregate_to_location_period
 #' @description aggregated cases to location periods
@@ -60,7 +61,7 @@ aggregate_to_location_period <- function(sf_object, aggregation_function, groupi
     return()
 }
 
-
+#' @export
 #' @name aggregate_observed_polygon_cases_disjoint_no_cache
 #' @title aggregate_observed_polygon_cases_disjoint_no_cache
 #' @description get observed cases by polygon (location periods)
@@ -75,6 +76,8 @@ aggregate_observed_polygon_cases_disjoint_no_cache <- function(config, cache, ch
   return(observed_polygon_cases_disjoint)
 }
 
+#' @export
+#' @name aggregate_observed_polygon_cases_disjoint
 aggregate_observed_polygon_cases_disjoint <- cache_fun_results("observed_polygon_cases_disjoint",
                                                                aggregate_observed_polygon_cases_disjoint_no_cache, 
                                                                overwrite = T,
@@ -82,7 +85,7 @@ aggregate_observed_polygon_cases_disjoint <- cache_fun_results("observed_polygon
                                                                cholera_directory)
 
 
-
+#' @export
 #' @name aggregate_observed_polygon_cases_disjoint_aggregated_no_cache
 #' @title aggregate_observed_polygon_cases_disjoint_aggregated_no_cache
 #' @description get modeled cases mean by polygon (location periods)
@@ -103,5 +106,7 @@ aggregate_observed_polygon_cases_disjoint_aggregated_no_cache <- function(config
   return(observed_polygon_cases_disjoint_aggregated)
 }
 
+#' @export
+#' @name aggregate_observed_polygon_cases_disjoint_aggregated
 aggregate_observed_polygon_cases_disjoint_aggregated <- cache_fun_results("observed_polygon_cases_disjoint_aggregated",
                                                                           aggregate_observed_polygon_cases_disjoint_aggregated_no_cache, overwrite = T,config,cholera_directory)
