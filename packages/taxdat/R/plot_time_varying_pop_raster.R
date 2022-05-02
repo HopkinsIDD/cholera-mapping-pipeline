@@ -1,5 +1,6 @@
 #' @include plot_cache_function.R
 
+#' @export
 #' @name plot_time_varying_pop_raster
 #' @description plot the time varying population raster
 #' @param cache the cache environment
