@@ -53,7 +53,8 @@ get_stan_model_niter_per_chain_no_cache <- function(config, cache, cholera_direc
   require(sf)
   return(niter_per_chain)
 }
-
+#' @export
+#' @name get_stan_model_niter_per_chain
 get_stan_model_niter_per_chain <- cache_fun_results(name = "niter_per_chain",
                                                     fun = get_stan_model_niter_per_chain_no_cache,
                                                     overwrite = F,
@@ -76,6 +77,8 @@ get_stan_model_nchain_no_cache <- function(config, cache, cholera_directory) {
   return(nchain)
 }
 
+#' @export
+#' @name get_stan_model_nchain
 get_stan_model_nchain <- cache_fun_results(name = "nchain", fun = get_stan_model_nchain_no_cache,
                                               overwrite = F,cholera_directory=cholera_directory)
 
@@ -95,6 +98,7 @@ get_stan_output_no_cache <- function(config, cache, cholera_directory) {
   require(sf)
   return(stan_output)
 }
-
+#' @export
+#' @name get_stan_output
 get_stan_output <- cache_fun_results(name = "stan_output", fun = get_stan_output_no_cache,
                                     overwrite = F,cholera_directory=cholera_directory)
