@@ -1,5 +1,6 @@
 #' @include plot_cache_function.R
 
+#' @export
 #' @name plot_sf_with_fill
 #' @title plot_sf_with_fill
 #' @description plot the polygon with cases or rates information
@@ -20,6 +21,7 @@ plot_sf_with_fill <- function(cache,name, color_scale_type, fill_column) {
     return(plot)
 }
 
+#' @export
 #' @name plot_observed_cases_polygon_raw
 #' @title plot_observed_cases_polygon_raw
 #' @description plot the polygon with observed cases
@@ -36,6 +38,7 @@ plot_observed_cases_polygon_raw <- function(config, cache, cholera_directory) {
     return(plot)
 }
 
+#' @export
 #' @name plot_area_adjusted_observed_cases
 #' @title plot_area_adjusted_observed_cases
 #' @description plot the polygon with observed cases
@@ -56,7 +59,7 @@ plot_area_adjusted_observed_cases<- function(config, cache, cholera_directory) {
     return(plot)
 }
 
-
+#' @export
 #' @name plot_raw_observations
 #' @title plot_raw_observations
 #' @description plot the polygon with number of observations
@@ -85,7 +88,7 @@ plot_raw_observations<- function(config, cache, cholera_directory) {
     return(plot)
 }
 
-
+#' @export
 #' @name plot_modeled_cases_polygon_raw
 #' @title plot_modeled_cases_polygon_raw
 #' @description plot the polygon with modeled cases
@@ -100,6 +103,7 @@ plot_modeled_cases_polygon_raw <- function(config, cache, cholera_directory) {
     return(plot)
 }
 
+#' @export
 #' @name separate_by_overlap
 #' @title separate_by_overlap
 #' @description group observations by non-overlapping location periods
@@ -138,6 +142,7 @@ separate_by_overlap <- function(sf_object, name_column = "location_period_id") {
     return(sf_object)
 }
 
+#' @export
 #' @name normalize_cases_by_time
 #' @title normalize_cases_by_time
 #' @description normalize the cases reported in location periods to yearly data
@@ -150,16 +155,20 @@ normalize_cases_by_time <- function(cases, time_left, time_right) {
 }
 
 # get new aggregated data: get_grid_cases_mean
+#' @export
+#' @name get_modeled_cases_mean_no_cache
 get_modeled_cases_mean_no_cache <- function(config, cache, cholera_directory) {
     get_modeled_cases(config, cache, cholera_directory)
     modeled_cases_mean <- aggregate_to_modeled_cases_mean(cache[["modeled_cases"]],
         funs = "mean")
     return(modeled_cases_mean)
 }
-
+#' @export
+#' @name get_modeled_cases_mean
 get_modeled_cases_mean <- cache_fun_results("modeled_cases_mean", get_modeled_cases_mean_no_cache,
     overwrite = T, config = config)
 
+#' @export
 #' @name aggregate_to_modeled_cases_mean
 #' @title aggregate_to_modeled_cases_mean
 #' @description get the mean of the modeled cases for each observation
@@ -175,6 +184,7 @@ aggregate_to_modeled_cases_mean <- function(modeled_cases, funs = "mean") {
 }
 
 # integrate modeled ases into the polygon
+#' @export
 #' @name merge_modeled_cases_mean_into_polygon_no_cache
 #' @title merge_modeled_cases_mean_into_polygon_no_cache
 #' @description merge the modeled cases mean into polygon
@@ -189,10 +199,12 @@ merge_modeled_cases_mean_into_polygon_no_cache <- function(config, cache, choler
     sf_object$modeled_cases_mean <- c(modeled_cases_mean)
     return(sf_object)
 }
-
+#' @export
+#' @name merge_modeled_cases_mean_into_polygon
 merge_modeled_cases_mean_into_polygon <- cache_fun_results("sf_object", merge_modeled_cases_mean_into_polygon_no_cache,
     overwrite = T, config)
 
+#' @export
 #' @name aggregate_modeled_polygon_cases_mean_disjoint_no_cache
 #' @title aggregate_modeled_polygon_cases_mean_disjoint_no_cache
 #' @description get modeld cases mean by polygon (location periods)
@@ -205,9 +217,13 @@ aggregate_modeled_polygon_cases_mean_disjoint_no_cache <- function(config, cache
         name_column = "locationPeriod_id")
     return(modeled_polygon_cases_mean_disjoint)
 }
+#' @export
+#' @name aggregate_modeled_polygon_cases_mean_disjoint
+
 aggregate_modeled_polygon_cases_mean_disjoint <- cache_fun_results("modeled_polygon_cases_mean_disjoint",
                                                                    aggregate_modeled_polygon_cases_mean_disjoint_no_cache, overwrite = T)
 
+#' @export
 #' @name aggregate_modeled_polygon_cases_mean_disjoint_aggregated_no_cache
 #' @title aggregate_modeled_polygon_cases_mean_disjoint_aggregated_no_cache
 #' @description get normalized (aggregated) modeled cases mean by polygon (location periods)
@@ -223,6 +239,7 @@ aggregate_modeled_polygon_cases_mean_disjoint_aggregated <- function(config, cac
         }, grouping_columns = c("locationPeriod_id", "set"), case_column = "modeled_cases_mean")
     return(modeled_polygon_cases_mean_disjoint_aggregated)
 }
-
+#' @export
+#' @name aggregate_modeled_polygon_cases_mean_disjoint_aggregated
 aggregate_modeled_polygon_cases_mean_disjoint_aggregated <- cache_fun_results("modeled_polygon_cases_mean_disjoint_aggregated",
                                                                         aggregate_modeled_polygon_cases_mean_disjoint_aggregated_no_cache, overwrite = T)
