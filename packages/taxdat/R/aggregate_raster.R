@@ -1,6 +1,7 @@
 #' @include plot_cache_function.R
 #' @include get_stan_output.R
 
+#' @export
 #' @name disaggregate_rate_raster
 #' @description disaggregate_rate_raster
 #' @param cache
@@ -21,6 +22,7 @@ disaggregate_rate_raster <- function(cache,config,cholera_directory){
   return(disaggregated_rate_raster)
 }
 
+#' @export
 #' @name disaggregate_case_raster
 #' @description disaggregate_case_raster
 #' @param cache
