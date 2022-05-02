@@ -1,5 +1,6 @@
 #' @include plot_cache_function.R
 
+#' @export
 #' @name get_non_na_gridcells
 #' @title get_non_na_gridcells
 #' @description add
