@@ -77,6 +77,8 @@ capFig = function(x){
 # Load data
 cache<-new.env()
 #stan input
+get_genquant(name="genquant",cache=cache,config=params$config,cholera_directory = params$cholera_directory)
+
 get_stan_input(name="stan_input",
                cache=cache,
                config = params$config, 
@@ -218,6 +220,7 @@ cache[["case_raster"]] <-get_case_raster(cache=cache,config=config,cholera_direc
 cache[["disaggregated_rate_sf"]]<-get_disaggregated_rates_sf(
                                                 cache=cache,config=params$config,
                                                 cholera_directory=params$cholera_directory)
+
 cache[["disaggregated_case_sf"]]<-get_disaggregated_cases_sf (
                                                 cache=cache,config=params$config,
                                                 cholera_directory=params$cholera_directory)
