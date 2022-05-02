@@ -1,5 +1,6 @@
 #' @include plot_cache_function.R
-#' 
+
+#' @export
 #' @name separate_by_overlap
 #' @title separate_by_overlap
 #' @description group observations by non-overlapping location periods
