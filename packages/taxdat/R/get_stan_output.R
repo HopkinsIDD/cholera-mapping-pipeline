@@ -1,5 +1,6 @@
 #' @include plot_cache_function.R
 
+#' @export
 #' @name get_genquant_no_cache
 #' @description load stan output
 #' @param config 
@@ -14,9 +15,11 @@ get_genquant_no_cache <- function(config, cache, cholera_directory) {
   return(genquant)
 }
 # cache the results
+#' @export
+#' @name get_genquant
 get_genquant <- cache_fun_results(name = "genquant", fun = get_genquant_no_cache,
                                     overwrite = F, config = config)
-
+#' @export
 #' @name get_model_rand_no_cache
 #' @description load stan output
 #' @param config 
@@ -31,6 +34,8 @@ get_model_rand_no_cache <- function(config, cache, cholera_directory) {
   return(model.rand)
 }
 # cache the results
+#' @export
+#' @name get_model_rand
 get_model_rand <- cache_fun_results(name = "model.rand", fun = get_model_rand_no_cache,
                                     overwrite = F, config = config)
 
