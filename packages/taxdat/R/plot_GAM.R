@@ -8,11 +8,13 @@
 #' @name cache the cache environment
 #' @return ggplot object
 plot_gam_fit_input_cases <- function(name="initial_values_data",cache) {
-   plot<-cache[["initial_values_data"]]$gam_fit_input %>%
+   plot<-cache[[name]]$gam_fit_input %>%
     dplyr::group_by(sx, sy) %>%
     dplyr::summarize(y = mean(y)) %>%
+    dplyr::ungroup() %>%
     ggplot() +
     geom_tile(aes(x = sx, y = sy, fill = y)) +
+    taxdat::map_theme() +
     taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
     ggplot2::labs(fill="Cases")
   return(plot)
@@ -26,7 +28,7 @@ plot_gam_fit_input_cases <- function(name="initial_values_data",cache) {
 #' @name cache the cache environment
 #' @return ggplot object
 plot_gam_fit_input_rates <- function(name="initial_values_data",cache) {
-  plot<-cache[["initial_values_data"]]$gam_fit_input %>%
+  plot<-cache[[name]]$gam_fit_input %>%
     dplyr::group_by(sx, sy) %>%
     dplyr::summarize(y = mean(y), pop = mean(pop)) %>%
     dplyr::ungroup() %>%
@@ -51,7 +53,7 @@ plot_gam_fit_output_cases <- function(name="gam_output_df",cache) {
     ggplot() +
     geom_tile(aes(x = sx, y = sy, fill =y)) +
     taxdat::map_theme() +
-    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
+    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FAsLSE)+
     ggplot2::labs(fill="Cases")
   return(plot)
 }
