@@ -271,7 +271,7 @@ cache[["data_fidelity"]]<-get_data_fidelity(cache=cache,cholera_directory=params
 
 **Actual observations versus modeled cases scatter plot:**
 ```{r datafidelity1, fig.cap=capFig("Observations vs. modeled cases"), fig.height=10, fig.width=10}
-taxdat::plot_model_fidelity_tfrac_adjusted(data_fidelity = cache[["data_fidelity"]],
+plot_model_fidelity_tfrac_adjusted(data_fidelity = cache[["data_fidelity"]],
                                               case_raster = cache[["case_raster"]],
                                               render = T)
 ```
@@ -283,13 +283,13 @@ taxdat::plot_model_fidelity_tfrac_adjusted(data_fidelity = cache[["data_fidelity
 ```
 
 ```{r datafidelity3, fig.cap=capFig("Observations vs. modeled cases (tfrac adjusted)"), fig.height=15, fig.width=10}
-  taxdat::plot_model_fidelity_tfrac_adjusted_by_year(data_fidelity = cache[["data_fidelity"]],
+plot_model_fidelity_tfrac_adjusted_by_year(data_fidelity = cache[["data_fidelity"]],
                                               case_raster = cache[["case_raster"]],
                                                       render = T)
 ```
 
 ```{r datafidelity4, fig.cap=capFig("Observations vs. modeled cases"), fig.height=8, fig.width=10}
-  taxdat::plot_model_fidelity_tfrac_unadjusted(data_fidelity = cache[["data_fidelity"]],
+plot_model_fidelity_tfrac_unadjusted(data_fidelity = cache[["data_fidelity"]],
                                               case_raster = cache[["case_raster"]],
                                                 render = T)
 ```
@@ -325,12 +325,10 @@ plot_modeled_cases_by_chain_time (config=params$config, cache=cache, cholera_dir
 ```
 
 ```{r full country modeled cases, fig.cap = "comparison with WHO Output"}
-if(!is.null(sf_cases_resized) & !is.null(model.rand)){
-  grid_cases_mean <- apply(chains$grid_cases,2,mean)
-  total_cases <- sum(grid_cases_mean)
+  get_modeled_cases(name="modeled_cases",
+                    cache=cache,
+                    config = params$config,
+                    cholera_directory=params$cholera_directory)
+  total_cases <- cache[["modeled_cases"]] %>% apply(3, mean) %>% sum()
   print(paste("There are",format(round(total_cases), big.mark=","),"total cases"))
-
-} else{
-  warning("chains was not extracted from model.rand")
-}
 ```
