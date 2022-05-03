@@ -146,24 +146,24 @@ get_sf_grid(name="sf_grid",config = params$config,cache=cache,cholera_directory 
 ## GAM Input
 **Observations input for the GAM model:**
 ```{r gam input,fig.cap=capFig("Observations input for the GAM model")}
-plot_gam_fit_input_cases (name="initial_values_data",cache=cache)
-plot_gam_fit_input_rates (name="initial_values_data",cache=cache)
+  plot_gam_fit_input_cases (name="initial_values_data",cache=cache)
+  plot_gam_fit_input_rates (name="initial_values_data",cache=cache)
 ```
 
 # GAM Output
-**Observations input for the GAM model:**
+**Observations output of the GAM model:**
 ```{r gam output,fig.cap=capFig("Observations input for the GAM model")}
   plot_gam_fit_output_cases(name="gam_output_df",cache=cache)
   plot_gam_fit_output_rates(name="gam_output_df",cache=cache)
 ```
 
 **Table 1. Data used within the model:**
-```{r cases, echo = FALSE}
+```{r echo = FALSE}
   plot_ObservationSummary_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
 
 **Table 2. Data dropped from the model:**
-```{r dropcases, echo=FALSE}
+```{r echo=FALSE}
   plot_DroppedData_table (config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
 
