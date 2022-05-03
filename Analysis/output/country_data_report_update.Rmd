@@ -158,12 +158,12 @@ plot_gam_fit_input_rates (name="initial_values_data",cache=cache)
 ```
 
 **Table 1. Data used within the model:**
-```{r cases echo = FALSE}
+```{r cases, echo = FALSE}
   plot_ObservationSummary_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
 
 **Table 2. Data dropped from the model:**
-```{r dropcases echo=FALSE}
+```{r dropcases, echo=FALSE}
   plot_DroppedData_table (config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
 
