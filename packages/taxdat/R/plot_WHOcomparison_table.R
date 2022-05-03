@@ -19,18 +19,16 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory) {
   who_annual_cases$modeled <-   chains$modeled
   who_annual_cases$observed <- who_annual_cases$attributes.fields.suspected_cases # fix me
   who_annual_cases_from_db <- NULL
-  
-  try({
-    who_annual_cases_from_db <- taxdat::pull_output_by_source(who_annual_cases, "%WHO Annual Cholera Reports%",
-                                                              database_api_key_rfile = stringr::str_c(cholera_directory, "Analysis/R/database_api_key.R"))
-  })
-  
+
+  who_annual_cases_from_db <- taxdat::pull_output_by_source(who_annual_cases, "%WHO Annual Cholera Reports%",
+                                                              database_api_key_rfile = stringr::str_c(cholera_directory, "/Analysis/R/database_api_key.R"))
+ 
   if(!is.null(who_annual_cases_from_db)) {
     who_comparison_table <- who_annual_cases_from_db %>%
       as.data.frame() %>%
       dplyr::select(OC_UID, TL, TR, observed, modeled) %>%
       dplyr::mutate_if(is.numeric, function(x) {format(round(x) , big.mark=",")}) %>%
-      dplyr::rename(col.names = c("OC id", "start time", "end time", "# Observed cases", "# Modeled Cases"))
+      dplyr::rename(col.names = c("OC id", "start time", "end time", "# Observed cases", "# Modeled Cases")) %>%
       dplyr::rename( `OC id`=OC_UID, `start time`=TL, `end time`=TR, `Observed cases`=observed, `Modeled Cases`=modeled)
   }
   
