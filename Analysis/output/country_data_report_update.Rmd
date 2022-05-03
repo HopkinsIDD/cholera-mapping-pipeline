@@ -9,7 +9,7 @@ params:
   args: 'myarg'
   old_runs: FALSE
 ---
-```{r setup, include=FALSE, dev="CairoPNG"}
+```{r setup, include=FALSE, dev="CairoPNG",message=FALSE}
 library(knitr)
 knitr::opts_chunk$set(
   cache=TRUE,
@@ -73,7 +73,7 @@ capFig = function(x){
 
 ## Cholera input data
 **Data input:**
-```{r load data}
+```{r load data,message=FALSE}
 # Load data
 cache<-new.env()
 #stan input
@@ -277,9 +277,7 @@ plot_model_fidelity_tfrac_adjusted(data_fidelity = cache[["data_fidelity"]],
 ```
 
 ```{r datafidelity2, fig.cap=capFig("Observations/tfrac vs. modeled cases/tfrac"), fig.height=10, fig.width=10}
-  taxdat::plot_model_fidelity_tfrac_converted(data_fidelity = cache[["data_fidelity"]],
-                                              case_raster = cache[["case_raster"]],
-                                              render = T)
+#taxdat::plot_model_fidelity_tfrac_converted(data_fidelity = cache[["data_fidelity"]],case_raster = cache[["case_raster"]],render = T)
 ```
 
 ```{r datafidelity3, fig.cap=capFig("Observations vs. modeled cases (tfrac adjusted)"), fig.height=15, fig.width=10}
