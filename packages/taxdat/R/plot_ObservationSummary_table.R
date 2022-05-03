@@ -11,7 +11,7 @@ plot_ObservationSummary_table <- function(config, cache, cholera_directory) {
   get_sf_cases_resized(
     name="sf_cases_resized",
     cache=cache,
-    config = paste0(cholera_directory, config),
+    config = config,
     cholera_directory = cholera_directory)
   
   obs_stats <- tibble::as_tibble(cache[["sf_cases_resized"]])
@@ -29,11 +29,13 @@ plot_ObservationSummary_table <- function(config, cache, cholera_directory) {
                          u_OCs  = paste(sort(unique(OC_UID)), collapse = ",")
   )
   
-  ObservationSummary_table <- obs_stats %>%
+obs_stats %>%
     dplyr::select(-dplyr::contains("u_")) %>%
     dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
-    dplyr::rename(year=year, `Observations`=n_obs, `Suspected cases`=n_cases, `Location periods`=n_lp, `Observation collections`=n_OCs)
-  
-  return(ObservationSummary_table)
-  
+    dplyr::rename(year=year, `Observations`=n_obs, `Suspected cases`=n_cases, `Location periods`=n_lp, `Observation collections`=n_OCs)%>%
+    kableExtra::kable(col.names = c("year", "# observations", "# suspected cases", "# location periods", "# observation collections")) %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+    kableExtra::kable_paper(full_width = T) %>%
+    kableExtra::row_spec(nrow(obs_stats), bold = T)
+
 }
