@@ -53,15 +53,20 @@ plot_DroppedData_table <- function(config, cache, cholera_directory) {
     mutate(n_cases = all_obs_stats$n_cases - used_obs_stats$n_cases) %>% 
     mutate(n_lp = all_obs_stats$n_lp - used_obs_stats$n_lp) %>% 
     mutate(n_OCs = all_obs_stats$n_OCs - used_obs_stats$n_OCs)
+  
   for (i in 1:nrow(all_obs_stats)){
     dropped_obs_stats$u_lps[i] <- paste(sort(unique(setdiff(stringr::str_split(all_obs_stats$u_lps[i], ',')[[1]], 
                                                             stringr::str_split(used_obs_stats$u_lps[i], ',')[[1]]))), collapse = ",")
     dropped_obs_stats$u_OCs[i] <- paste(sort(unique(setdiff(stringr::str_split(all_obs_stats$u_OCs[i], ',')[[1]], 
                                                             stringr::str_split(used_obs_stats$u_OCs[i], ',')[[1]]))), collapse = ",")
   }
-  Dropped_obs_table <- dropped_obs_stats %>%
+  
+  dropped_obs_stats %>%
     dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
-    dplyr::rename(year=year, `Number of dropped observations`=n_obs, `Number of dropped suspected cases`=n_cases, `Number of dropped location periods`=n_lp, `Number of dropped  observation collections`=n_OCs)
- 
-  return(Dropped_obs_table)
+    dplyr::rename(year=year, `Number of dropped observations`=n_obs, `Number of dropped suspected cases`=n_cases, `Number of dropped location periods`=n_lp, `Number of dropped  observation collections`=n_OCs) %>%
+    kableExtra::kable(col.names = c("year", "# dropped observations", "# dropped suspected cases", "# dropped location periods",  "dropped location periods", "# dropped  observation collections",  "dropped observation collections")) %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+    kableExtra::kable_paper(full_width = F) %>%
+    kableExtra::row_spec(nrow(dropped_obs_stats), bold = T)
+  
 }
