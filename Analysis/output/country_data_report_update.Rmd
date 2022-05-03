@@ -145,15 +145,21 @@ get_sf_grid(name="sf_grid",config = params$config,cache=cache,cholera_directory 
 
 ## GAM Input
 **Observations input for the GAM model:**
-```{r gam input,fig.cap=capFig("Observations input for the GAM model")}
+```{r gam input of cases,fig.cap=capFig("Observations input for the GAM model (cases)")}
   plot_gam_fit_input_cases (name="initial_values_data",cache=cache)
+```
+
+```{r gam input of rates,fig.cap=capFig("Observations output of the GAM model (rates)")}
   plot_gam_fit_input_rates (name="initial_values_data",cache=cache)
 ```
 
 # GAM Output
 **Observations output of the GAM model:**
-```{r gam output,fig.cap=capFig("Observations input for the GAM model")}
+```{r gam output of cases,fig.cap=capFig("Observations input for the GAM model (cases)")}
   plot_gam_fit_output_cases(name="gam_output_df",cache=cache)
+```
+
+```{r gam output of rates,fig.cap=capFig("Observations input for the GAM model (rates)")}
   plot_gam_fit_output_rates(name="gam_output_df",cache=cache)
 ```
 
@@ -167,7 +173,7 @@ get_sf_grid(name="sf_grid",config = params$config,cache=cache,cholera_directory 
   plot_DroppedData_table (config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
 
-```{r disjoint set sf cases}
+```{r disjoint set sf cases, message=FALSE}
 aggregate_observed_polygon_cases_disjoint_aggregated(name="observed_polygon_cases_disjoint_aggregated",config=params$config,cholera_directory=params$cholera_directory,cache=cache)
 disjoint_set_sf_cases <- cache[["observed_polygon_cases_disjoint_aggregated"]]
 ```
@@ -206,17 +212,14 @@ plot_raster_covariates(cache=cache,cholera_directory=params$cholera_directory,co
 ```
 
 ## Output maps
-
 ```{r analysisyears}
 obs_years <- min(lubridate::year(cache[["stan_input"]]$sf_cases_resized$TL)):max(lubridate::year(cache[["stan_input"]]$sf_cases_resized$TR))
-# Runtimes by chain
 rstan::get_elapsed_time(cache[["model.rand"]])
 ```
 
 
 ```{r importcase}
 cache[["case_raster"]] <-get_case_raster(cache=cache,config=config,cholera_directory=cholera_directory)
-
 cache[["disaggregated_rate_sf"]]<-get_disaggregated_rates_sf(
                                                 cache=cache,config=params$config,
                                                 cholera_directory=params$cholera_directory)
@@ -271,9 +274,7 @@ cache[["data_fidelity"]]<-get_data_fidelity(cache=cache,cholera_directory=params
 
 **Actual observations versus modeled cases scatter plot:**
 ```{r datafidelity1, fig.cap=capFig("Observations vs. modeled cases"), fig.height=10, fig.width=10}
-plot_model_fidelity_tfrac_adjusted(data_fidelity = cache[["data_fidelity"]],
-                                              case_raster = cache[["case_raster"]],
-                                              render = T)
+plot_model_fidelity_tfrac_adjusted(data_fidelity = cache[["data_fidelity"]],case_raster = cache[["case_raster"]],render = T)
 ```
 
 ```{r datafidelity2, fig.cap=capFig("Observations/tfrac vs. modeled cases/tfrac"), fig.height=10, fig.width=10}
@@ -281,17 +282,12 @@ plot_model_fidelity_tfrac_adjusted(data_fidelity = cache[["data_fidelity"]],
 ```
 
 ```{r datafidelity3, fig.cap=capFig("Observations vs. modeled cases (tfrac adjusted)"), fig.height=15, fig.width=10}
-plot_model_fidelity_tfrac_adjusted_by_year(data_fidelity = cache[["data_fidelity"]],
-                                              case_raster = cache[["case_raster"]],
-                                                      render = T)
+plot_model_fidelity_tfrac_adjusted_by_year(data_fidelity = cache[["data_fidelity"]],case_raster = cache[["case_raster"]],render = T)
 ```
 
 ```{r datafidelity4, fig.cap=capFig("Observations vs. modeled cases"), fig.height=8, fig.width=10}
-plot_model_fidelity_tfrac_unadjusted(data_fidelity = cache[["data_fidelity"]],
-                                              case_raster = cache[["case_raster"]],
-                                                render = T)
+plot_model_fidelity_tfrac_unadjusted(data_fidelity = cache[["data_fidelity"]],case_raster = cache[["case_raster"]],render = T)
 ```
-
 
 **Stan trace plots:**
 ```{r traceplots, fig.height=8, fig.width=10, fig.cap=capFig("Stan trace plots")}
@@ -323,10 +319,6 @@ plot_modeled_cases_by_chain_time (config=params$config, cache=cache, cholera_dir
 ```
 
 ```{r full country modeled cases, fig.cap = "comparison with WHO Output"}
-  get_modeled_cases(name="modeled_cases",
-                    cache=cache,
-                    config = params$config,
-                    cholera_directory=params$cholera_directory)
   total_cases <- cache[["modeled_cases"]] %>% apply(3, mean) %>% sum()
   print(paste("There are",format(round(total_cases), big.mark=","),"total cases"))
 ```
