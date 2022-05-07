@@ -105,7 +105,7 @@ get_rate_raster <- function(covar_data_filename,
                             model_output_filenames,
                             stan_input_filenames,
                             if_single_year_run,
-                            res=c(0.1666667,0.1666667)，
+                            res=c(0.1666667,0.1666667),
                             starting_year=2015){
   #load model output data
   covar_cube_output <- read_file_of_type(covar_data_filename, "covar_cube_output")

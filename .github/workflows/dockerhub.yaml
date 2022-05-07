@@ -7,11 +7,13 @@ on:
   push:
     branches:
       - master
+      - update_docker
     paths:
       - 'Dockerfile'
-      - 'packages/**'
-      - '.Rprofile'
-      - 'packrat/**'
+      - 'Docker.Rprofile'
+      - 'renv/**'
+      - 'renv.lock'
+      - 'renv.cache/**'
       - '.github/workflows/docker*'
 
 name: Deploy to DockerHub
@@ -49,11 +51,23 @@ jobs:
 
     - name: Build Push Master
       uses: docker/build-push-action@v2
+      if: contains( github.ref, 'master') || contains( github.base_ref, 'master' )
       with:
         push: true
         tags: |
           hopkinsidd/choleramappingpipeline:latest
           hopkinsidd/choleramappingpipeline:latest-master
+          hopkinsidd/choleramappingpipeline:${{steps.tags.outputs.shashort}}
+          hopkinsidd/choleramappingpipeline:${{steps.tags.outputs.reftag}}
+          hopkinsidd/choleramappingpipeline:${{ github.sha }}
+
+    - name: Build Push Master
+      uses: docker/build-push-action@v2
+      if: ! (contains( github.ref, 'master') || contains( github.base_ref, 'master' ))
+      with:
+        push: true
+        tags: |
+          hopkinsidd/choleramappingpipeline:latest-dev
           hopkinsidd/choleramappingpipeline:${{steps.tags.outputs.shashort}}
           hopkinsidd/choleramappingpipeline:${{steps.tags.outputs.reftag}}
           hopkinsidd/choleramappingpipeline:${{ github.sha }}
