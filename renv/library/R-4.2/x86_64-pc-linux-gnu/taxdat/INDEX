@@ -1,0 +1,163 @@
+add_explicit_file_names_to_config
+                        Add File Names to Existing Config
+aggregate_affected_pop_across_cells
+                        aggregate_affected_pop_across_cells: aggregate
+                        proportion of population living in each
+                        incidence group across cells for each layer
+aggregate_affected_pop_across_layers
+                        aggregate_affected_pop_across_layers: estimate
+                        the CI of the proportion of population living
+                        in each incidence group across layers
+align_rasters2          align_rasters2
+array_to_adjacency      array_to_adjacency
+array_to_centers        array_to_centers
+auto_config_Dec2021     Automate generation of config files - just for
+                        the Dec 2021 runs
+automate_mapping_config
+                        Automate generation of config files
+build_geoms_query       Build geometry
+case_definition_to_column_name
+                        case_definition_to_column_name
+check_case_definition   Check case definition
+check_covariate_choices
+                        Check covariate choices
+check_model_date_range
+                        Check modeling date range
+check_set_tfrac         Check set tfrac
+check_stan_model        Check stan model
+check_time_res          Check time resolution
+clean_all_tmp           clean all tmp
+color_scale             color_scale
+connect_to_db           Connect to database
+create_mapping_progress_table
+                        create_mapping_progress_table
+create_multiple_test_covariates
+                        create multiple test covariates
+create_standardized_test_data
+                        create_standardized_test_data
+create_test_covariate   create test covariate
+create_test_extent      create_test_extent
+create_test_layered_polygons
+                        create_test_layered_polygons
+create_test_polygons    create_test_polygons
+create_test_raster      create_test_raster
+create_underlying_distribution
+                        create_underlying_distribution
+crop_to_shapefile       crop_to_shapefile: crop the raster with country
+                        shapefile
+db_exists_table_multi   Table exists in multiple schemas
+expand_all_locations    expand_all_locations
+extract_covariate_metadata
+                        Extract covariate metadata
+filename_to_stubs       filename_to_stubs
+fix_country_name        fix_country_name
+gdal_cmd_builder2       gdal_cmd_builder2
+gdalinfo2               gdalinfo2
+gdalwarp2               gdalwarp2
+generate_time_sequence
+                        Generate time sequence
+get_case_raster         get_case_raster
+get_data_fidelity       get_data_fidelity
+get_disjoint_set_sf_cases
+                        get_disjoint_set_sf_cases
+get_filenames           get_filenames
+get_ncdf_metadata       Get NetCDF metadata
+get_non_na_gridcells    get_non_na_gridcells
+get_obs_stats           get_obs_stats
+get_or_set_seed         get_or_set_seed
+get_pop_at_risk         get_pop_at_risk
+get_pop2017             Get 2017 population
+get_rate_raster         get_rate_raster
+get_space_time_ind      Get space time index
+get_space_time_ind_speedup
+                        Get space time index
+get_stan_parameters     Get stan parameters
+get_temporal_bands      Get temporal bands
+get_time_res            Get time resolution
+ingest_covariate        Ingest covariate
+is_shapefile_valid      is_shapeilfe_valid
+linelist2phantom        linelist2phantom
+load_orig_map           load_orig_map
+lookup_WHO_region       lookup_WHO_region
+lookup_WorldPop_region
+                        lookup_WorldPop_region
+make_covar_alias        Make covariate alias
+make_covar_filename     Make covariate filename
+make_grid_centroids_table_name
+                        make grid centroids table name
+make_grid_file          make grid file
+make_initial_values_filename
+                        Make Stan output filename
+make_locationperiods_table_name
+                        make location periods table name
+make_map_name           Make map name
+make_map_output_filename
+                        Make map output filename
+make_observations_filename
+                        Make observations filename
+make_stan_input_filename
+                        Make Stan input filename
+make_stan_output_filename
+                        Make Stan output filename
+map_theme               map_theme
+modeling_time_slices    Modeling time slices
+na_smart_sum            na_smart_sum
+nb2graph                nb2graph
+observe_gridcells       observe_gridcells
+observe_polygons        observe_polygons
+parse_gdal_res          Parse GDAL resolution
+parse_time_res          Parse time resolution
+plot_area_adjusted_observed_cases
+                        plot_area_adjusted_observed_cases
+plot_chain_convergence
+                        plot_chain_convergence
+plot_disaggregated_modeled_cases
+                        plot_disaggregated_modeled_cases
+plot_map                plot_map
+plot_model_fidelity     plot_model_fidelity
+plot_model_fidelity_tfrac_adjusted
+                        plot_model_fidelity_tfrac_adjusted
+plot_model_fidelity_tfrac_adjusted_by_year
+                        plot_model_fidelity_tfrac_adjusted_by_year
+plot_model_fidelity_tfrac_converted
+                        plot_model_fidelity_tfrac_converted
+plot_model_fidelity_tfrac_unadjusted
+                        plot_model_fidelity_tfrac_unadjusted
+plot_modeled_cases      plot_modeled_cases
+plot_modeled_rates      plot_modeled_rates
+plot_raster_covariates
+                        plot_raster_covariates
+plot_raster_population
+                        plot_raster_population
+plot_raw_observed_cases
+                        plot_raw_observed_cases
+plot_rhat               plot_rhat
+pull_output_by_source   pull_output_by_source
+pull_taxonomy_data      Pull taxonomy data
+read_file_of_type       read_file_of_type
+read_taxonomy_data_api
+                        read_taxonomy_data_api
+read_taxonomy_data_sql
+                        Taxonomy SQL data pull
+reduce_sf_vector        reduce_sf_vector
+rename_database_fields
+                        Rename cholera data columns
+reorder_single_source   Reorder for single source
+show_progress           Show progress
+space_aggregate         Spatial aggregation
+standardize_string      standardize_string
+sum_nonNA               Sum non-NA cells
+time_aggregate          Aggregate time
+time_overlap            Time overlap
+time_unit_to_aggregate_function
+                        time_unit_to_aggregate_function
+time_unit_to_end_function
+                        time_unit_to_end_function
+time_unit_to_start_function
+                        time_unit_to_start_function
+transform_raster        Transform raster
+update_filename_oldruns
+                        update_filename_oldruns
+write_metadata          Write metadata
+write_ncdf              Write NCDF
+write_pg_raster         Write postgis raster
