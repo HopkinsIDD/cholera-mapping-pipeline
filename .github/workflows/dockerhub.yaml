@@ -27,8 +27,8 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
       with:
+          repository: HopkinsIDD/cholera-mapping-pipeline
           lfs: true
-
     -
       name: Set up QEMU
       uses: docker/setup-qemu-action@v1
