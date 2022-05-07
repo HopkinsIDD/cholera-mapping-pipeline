@@ -63,7 +63,7 @@ jobs:
 
     - name: Build Push Master
       uses: docker/build-push-action@v2
-      if: ! (contains( github.ref, 'master') || contains( github.base_ref, 'master' ))
+      if: (contains( github.ref, 'docker_update') || contains( github.base_ref, 'docker_update' ))
       with:
         push: true
         tags: |
