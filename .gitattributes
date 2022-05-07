@@ -1,2 +1,1 @@
 renv.cache/ filter=lfs diff=lfs merge=lfs -text
-renv.cache/** filter=lfs diff=lfs merge=lfs -text
