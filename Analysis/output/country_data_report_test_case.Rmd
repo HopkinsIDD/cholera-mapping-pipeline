@@ -3,7 +3,9 @@ title: "Country data report"
 output: html_document
 params:
   cholera_directory: "/home/app/cmp/"
-  config_filename: "/home/app/cmp/Analysis/R/test_config.yml"
+  config_filename: "/home/app/cmp/Analysis/R/test1_config.yml"
+  #cholera_directory: "C:/IDD/Cholera/cholera-mapping-pipeline/Analysis/output"
+  #config_filename: "C:/IDD/Cholera/cholera-mapping-pipeline/Analysis/R/test1_config.yml"
   drop_nodata_years: TRUE
   ncols: 10
   nrows: 10
@@ -14,20 +16,20 @@ params:
   randomize: TRUE
   ncovariates: 3
   single_year_run: "no"
-  iteration: 10000
+  iteration: 1000
   nonspatial: c(FALSE, FALSE,FALSE)
-  nontemporal: c(FALSE, FALSE,FALSE)
+  nontemporal: c(TRUE, TRUE,TRUE)
   spatially_smooth: c(TRUE, TRUE,TRUE)
   temporally_smooth: c(FALSE, FALSE,FALSE)
   polygonal: c(TRUE, TRUE,TRUE,)
-  radiating: c(FALSE,  FALSE,FALSE)
-  constant: c(FALSE,FALSE,FALSE)
+  radiating: c(FALSE,  FALSE,TRUE)
+  constant: c(TRUE,FALSE,FALSE)
   Data_simulation_covariates: c(TRUE,TRUE,TRUE)
   Model_covariates: c(TRUE,TRUE,FALSE)
   Observations_with_inconsistent_data: "no"
   Loc_with_inconsistent_data: "no"
-  Cov_data_simulation_filename: "/home/app/cmp/Analysis/output/data_simulation_covariates.rdata"
-  
+  Cov_data_simulation_filename: "/home/app/cmp/Analysis/output/test_case_1_data_simulation_covariates.rdata"
+  #Cov_data_simulation_filename: "C:/IDD/Cholera/cholera-mapping-pipeline/Analysis/output/test_case_1_data_simulation_covariates.rdata"
 ---
 
 ```{r setup, include=FALSE, dev="CairoPNG"}
@@ -206,12 +208,12 @@ if (!("params" %in% ls())) {
 config <- yaml::read_yaml(params$config_filename)
 
 file_names <- taxdat::get_filenames(config, params$cholera_directory)
-
 stan_input <- taxdat::read_file_of_type(file_names[['stan_input']], "stan_input")
-
+#load("C:/IDD/Cholera/cholera-mapping-pipeline/Analysis/output/test1.stan_input.rdata")
 sf_cases_resized <- stan_input$observation_data
-
+#load("C:/IDD/Cholera/cholera-mapping-pipeline/Analysis/output/test1.stan_output.rdata")
 model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
+
 niter_per_chain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__', chain_num=1))[1]
 nchain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__'))[1] / niter_per_chain
 stan_output <- lapply(rstan::extract(model.rand), function(x){array(x,c(niter_per_chain, nchain, dim(x)[-1]))})
@@ -267,37 +269,42 @@ disjoint_set_sf_cases<-disjoint_set_sf_cases%>%mutate(lon=map_dbl(shape,~sf::st_
 plt <- ggplot2::ggplot()
 
 if(all(params$Loc_with_inconsistent_data=="no")){
-  plt <- plt +
-    ggplot2::geom_sf(
-      data = disjoint_set_sf_cases,
-      ggplot2::aes(fill = cases)
-    ) +
-    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
+  disjoint_set_sf_cases%>%group_by(set)%>%
+      do(gg={
+        ggplot(.,ggplot2::aes(fill = cases))+
+          ggplot2::geom_sf() +
+          taxdat::color_scale(type = "case", use_case = "ggplot map", use_log = FALSE)+
     ggplot2::labs(fill="Average cases by location period")+
     ggplot2::theme_bw() +
-    ggplot2::theme(legend.position = "bottom") +
-    ggplot2::facet_wrap(~set)
-  
+    ggplot2::theme(legend.position = "bottom")+
+    ggplot2::facet_wrap(~set)})%>%
+      .$gg%>%gridExtra::grid.arrange(grobs=.,nrow=1)
+       
 }else{
-  plt <- plt +
-    ggplot2::geom_sf(
-      data = disjoint_set_sf_cases,ggplot2::aes(fill = cases)) +    
-    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
-    #ggplot2::labs(fill="Average cases by location period")+
-    ggplot2::geom_point(data=disjoint_set_sf_cases%>%subset(location_name%in%params$Loc_with_inconsistent_data),
+ 
+   disjoint_set_sf_cases%>%group_by(set)%>%
+      do(gg={
+        ggplot(.,ggplot2::aes(fill = cases))+
+          ggplot2::geom_sf() +
+          ggplot2::geom_point(data=disjoint_set_sf_cases%>%subset(location_name%in%params$Loc_with_inconsistent_data),
                         aes(x=lon,y=lat),shape=8)+
+    taxdat::color_scale(type = "case", use_case = "ggplot map", use_log = FALSE)+
     ggplot2::labs(fill="Average cases by location period",shape="Locations with \ninconsistent data")+
-    #ggplot2::scale_shape_manual(values = rep(8,length(params$Loc_with_inconsistent_data)))+
-    #ggplot2::scale_shape(name="Locations with \n inconsistent data")+
-    #guides(shape = guide_legend(override.aes = list(shape="Locations with \ninconsistent data")))+
     ggplot2::theme_bw() +
-    ggplot2::theme(legend.position = "bottom") +
-    ggplot2::facet_wrap(~set)
+    ggplot2::theme(legend.position = "bottom")+
+    ggplot2::facet_wrap(~set)})%>%
+      .$gg%>%gridExtra::grid.arrange(grobs=.,nrow=1)
+   
 }
-  plt
+  #plt
 ```
 
 ```{r areadjustedmap, fig.height=5, fig.width=10, fig.cap="Figure 2. Area adjusted average observed case counts by time adjusted for time fraction cases/(year * kilometer)"}
+#taxdat::plot_area_adjusted_observed_cases
+# cache<-new.env()
+# cache[["area_adjusted_observed_polygon_cases_disjoint_aggregated"]]<-disjoint_set_sf_cases
+# plot_sf_with_fill(cache = cache, name = "area_adjusted_observed_polygon_cases_disjoint_aggregated", 
+#         color_scale_type = "cases", fill_column = "area_adjusted_suspected_cases")
 taxdat::plot_area_adjusted_observed_cases(
   disjoint_set_sf_cases,
   render = T
@@ -370,6 +377,7 @@ pre_case_raster <- taxdat::get_case_raster(
   stan_input_filename = file_names[["stan_input"]],
   model_output_filenames = file_names[["stan_output"]]
 )
+
     loc_sf<-stan_input$observation_data[,colnames(stan_input$observation_data)%in%c("shape","location_name")]
     covar_grid<-merge(stan_input$temporal_location_grid_mapping%>%subset(!qualified_name==1),stan_input$covar_cube,by=c("spacetime_grid_id","x","y","rid","t"))
     empty_raster<-merge(covar_grid,loc_sf,by.x="qualified_name",by.y="location_name")%>%select("updated_id","x","y","qualified_name","shape","t")
@@ -379,6 +387,7 @@ pre_case_raster <- taxdat::get_case_raster(
     case_raster<-sf::st_as_sf(case_raster)
     case_raster$t<-as.factor(case_raster$t)
     levels(case_raster$t)<-1:nlevels(case_raster$t)
+    case_raster$t<-as.numeric(case_raster$t)
 
   if (all(analysis_years %in% obs_years)){
     message("All analysis years are represented by OCs.")
@@ -395,29 +404,53 @@ pre_case_raster <- taxdat::get_case_raster(
 
 ```{r caserast, fig.cap="Figure 4. Modeled cases", fig.height=5, fig.width=10}
 if (!is.null(case_raster)) {
-  #taxdat::plot_modeled_cases(case_raster, render = T)
-  
-     case_raster_case <- case_raster %>% dplyr::select(dplyr::contains("modeled cases"),
-        id, t) %>% tidyr::gather(dplyr::contains("iterations: Chain"),
-        key = "chain", value = "value") %>% dplyr::mutate(chain = stringr::str_replace(chain,
-        "modeled cases", ""))
-    case_raster_case$t<-as.numeric(case_raster_case$t)
-    plt <- ggplot2::ggplot()
-    plt <- plt +
-    ggplot2::geom_sf(
-      data = case_raster_case,
-      ggplot2::aes(fill = value
-                   ),color="black",size=0.05) +
-    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = TRUE)+
-    ggplot2::labs(fill="Incidence\n [cases/year]")+
-    ggplot2::theme_bw() +
-    ggplot2::theme(legend.position = "bottom") +
-    ggplot2::facet_wrap(~t,ncol = 2) +
-    ggplot2::theme(legend.text =  ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))
+# stan_divergence <- rstan::check_divergences(model.rand)
+# modeled_cases <- as.array(model.rand)[, , grepl("grid_case", names(model.rand)),drop=FALSE]
+# modeled_cases_mean <- apply(modeled_cases, 3, mean)
+# modeled_rates <- exp(as.array(model.rand)[, , grepl("log_lambda", names(model.rand)), drop = FALSE])
+# modeled_rates_mean <- apply(modeled_rates, 3, mean)
+# 
+# empty_raster <- dplyr::mutate(empty_raster,
+#                              modeled_cases_mean = NA,
+#                              modeled_rates_mean = NA,
+#                              )
+# empty_raster$modeled_cases_mean <- modeled_cases_mean
+# 
+# names(empty_raster)[which(names(empty_raster)=="modeled_cases_mean")] <- paste("modeled cases\n",
+#                                                                               "\niterations: Chain")
+# 
+# 
+# empty_raster$modeled_rates_mean <- modeled_rates_mean
+# names(empty_raster)[which(names(empty_raster)=="modeled_rates_mean")] <- paste("modeled rates\n",
+#                                                                              "\niterations: Chain")
+# case_raster<-sf::st_as_sf(empty_raster)
+# case_raster_case <- case_raster %>% dplyr::select(dplyr::contains("modeled cases"),
+#                                                   t,shape) %>% tidyr::gather(dplyr::contains("iterations: Chain"),
+#                                                                            key = "chain", value = "value") %>% dplyr::mutate(chain = stringr::str_replace(chain,"modeled cases", ""))
+# 
+# case_raster_case$t<-factor(case_raster_case$t)
+# levels(case_raster_case$t)[1]<-"1"
+# levels(case_raster_case$t)[2]<-"2"
+ case_raster_case <- case_raster %>% dplyr::select(dplyr::contains("modeled cases"),t,shape) %>% 
+   tidyr::gather(dplyr::contains("iterations: Chain"),key = "chain", value = "value") %>% 
+   dplyr::mutate(chain = stringr::str_replace(chain,"modeled cases", ""))
 
-    plt
+plt <- ggplot2::ggplot()
+plt <- plt +
+  ggplot2::geom_sf(
+    data = case_raster_case,
+    ggplot2::aes(fill = value
+    ),color="black",size=0.05) +
+  taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = TRUE)+
+  ggplot2::labs(fill="Incidence\n [cases/year]")+
+  ggplot2::theme_bw() +
+  ggplot2::theme(legend.position = "bottom") +
+  ggplot2::theme(legend.text =  ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))+
+  ggplot2::facet_wrap(~t,ncol = 2) 
+
+plt
   
-} else{
+  } else{
   warning("case_raster is NULL")
 }
 ```
@@ -426,7 +459,7 @@ if (!is.null(case_raster)) {
 if(!is.null(case_raster)){
   #taxdat::plot_modeled_rates(case_raster, render = T)
   case_raster_rate <- case_raster %>% dplyr::select(dplyr::contains("modeled rates"), 
-        id, t) %>% tidyr::gather(dplyr::contains("iterations: Chain"), 
+        shape, t) %>% tidyr::gather(dplyr::contains("iterations: Chain"), 
         key = "chain", value = "value") %>% dplyr::mutate(chain = stringr::str_replace(chain, 
         "modeled rates", ""))
   
@@ -437,8 +470,8 @@ if(!is.null(case_raster)){
     ggplot2::geom_sf(
       data = case_raster_rate,
       ggplot2::aes(fill = value ),color="black",size=0.05) +
-    taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
-    ggplot2::labs(fill="Incidence rate\n [cases/10'000/year]")+
+    taxdat::color_scale(type = "test case rates", use_case = "ggplot map", use_log = TRUE)+
+    ggplot2::labs(fill="Incidence rate\n [cases/100'000/year]")+
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::facet_wrap(~t,ncol = 2) +
@@ -517,7 +550,6 @@ if(!is.null(data_fidelity)){
 ```
 
 ```{r traceplots, fig.height=8, fig.width=10, fig.cap="Figure 7. Stan trace plots"}
-
 if(!is.null(model.rand)){
   ## No eta in the model right now
   ## taxdat::plot_chain_convergence(file_names[["stan_output"]], pars =  c("rho", "betas", "log_std_dev_w", "eta"), render = T)
