@@ -147,7 +147,7 @@ test_covariates <- create_multiple_test_covariates(test_raster = test_raster, nc
                                                    temporally_smooth = c(FALSE, FALSE),
                                                    polygonal = c(TRUE,TRUE),
                                                    radiating = c(FALSE,FALSE), 
-                                                   constant=c(FALSE,FALSE),
+                                                   constant=c(TRUE,FALSE),
                                                    seed = my_seed)
 
 my_seed <- .GlobalEnv$.Random.seed
