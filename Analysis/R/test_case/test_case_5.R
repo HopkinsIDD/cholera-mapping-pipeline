@@ -207,7 +207,7 @@ load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_obje
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change polygons
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 1, test_extent = test_extent)
 # Create 3 layers of testing polygons starting with a single country, and
 # splitting each polygon into 4 sub-polygons
 test_polygons <- sf::st_make_valid(create_test_layered_polygons(test_raster = test_raster, 
@@ -352,7 +352,7 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                ncovariates=3,
                single_year_run="yes",
                iteration=1000,
-               nonspatial = c(FALSE, FALSE,FALSE), 
+               nonspatial = c(FALSE, FALSE,TRUE), 
                nontemporal = c(TRUE, TRUE,TRUE), 
                spatially_smooth = c(TRUE, TRUE,TRUE), 
                temporally_smooth = c(FALSE,FALSE,FALSE), 
@@ -384,7 +384,7 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                 ncovariates=3,
                                 single_year_run="yes",
                                 iteration=1000,
-                                nonspatial = c(FALSE, FALSE,FALSE),
+                                nonspatial = c(FALSE, FALSE,TRUE),
                                 nontemporal = c(TRUE, TRUE,TRUE),
                                 spatially_smooth = c(TRUE, TRUE,TRUE),
                                 temporally_smooth = c(FALSE,FALSE,FALSE),
@@ -396,7 +396,7 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                 Observations_with_inconsistent_data="+0",
                                 Loc_with_inconsistent_data="-",
                                 Cov_data_simulation_filename="/home/app/cmp/Analysis/output/test_case_5_data_simulation_covariates.rdata"),
-                  output_file="Country data report test case 5_updated"
+                  output_file="Country data report test case 5_updated_20220505"
 )
 
 ## Actually do something with the groundtruth and output
