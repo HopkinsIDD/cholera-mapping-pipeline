@@ -2,8 +2,8 @@
 title: "Country Data Report"
 output: html_document
 params: 
-  cholera_directory: "C:/IDD/Cholera/commit_git/cholera-mapping-pipeline"
-  config: "/Analysis/configs/production_tests/censoring_prior_tests/TGO/config_TGO_2015_2019_censoring_prior.yml"
+  cholera_directory: "~/cholera-mapping-pipeline"
+  config: "/Analysis/configs/config.yml"
   drop_nodata_years: TRUE
   admin_level_for_summary_table: '1'
   args: 'myarg'
