@@ -1196,10 +1196,10 @@ get_covariate_values <- function(covar_name,
 #' @export
 #'
 get_pop_weights <- function(res_space,
-                              cntrd_table,
-                              intersections_table,
-                              lp_table,
-                              conn_pg) {
+                            cntrd_table,
+                            intersections_table,
+                            lp_table,
+                            conn_pg) {
   
   # First get the 20km populations in all cells
   pop_grid <- get_covariate_values(
@@ -1222,9 +1222,9 @@ get_pop_weights <- function(res_space,
                            by = res_time)
   covar_TR_seq <- aggregate_to_end(time_change_func(covar_TL_seq))
   
-  pop_1km_bands <- taxdat::get_temporal_bands(model_time_slices = time_slices,
-                                              covar_TL_seq = covar_TL_seq,
-                                              covar_TR_seq = covar_TR_seq)
+  pop_1km_bands <- get_temporal_bands(model_time_slices = time_slices,
+                                      covar_TL_seq = covar_TL_seq,
+                                      covar_TR_seq = covar_TR_seq)
   
   query <- glue::glue_sql("
       SELECT g.location_period_id, g.rid, g.x, g.y, {`{DBI::SQL(
@@ -1257,7 +1257,7 @@ get_pop_weights <- function(res_space,
     dplyr::mutate(pop_weight = ifelse(is.na(pop_weight), 1, pop_frac),
                   # Get time slice information to join to location periods dict
                   band = stringr::str_extract(name, "[0-9]+") %>% as.numeric(),
-                  t = map_dbl(band, ~ which(pop_1km_bands$ind == .)))
+                  t = purrr::map_dbl(band, ~ which(pop_1km_bands$ind == .)))
   
   
   return(pop_weights)
