@@ -52,7 +52,7 @@ get_gam_values_no_cache <- function(
   
   gam_output_df <- cache[["stan_input"]]$sf_grid %>% 
     dplyr::mutate(log_y = log_y_pred_mean + predict_df$logoffset,
-                  y = exp(y),
+                  y = exp(log_y),
                   log_lambda = log_y_pred_mean + log(cache[["stan_input"]]$stan_data$meanrate),
                   lambda = exp(log_lambda),
                   sx=predict_df$sx,
