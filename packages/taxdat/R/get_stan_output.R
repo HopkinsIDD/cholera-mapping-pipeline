@@ -9,7 +9,6 @@
 get_genquant_no_cache <- function(config, cache, cholera_directory) {
   config <- yaml::read_yaml(paste0(cholera_directory, config))
   file_names <- taxdat::get_filenames(config, cholera_directory)
-  #file_names[["stan_genquant"]]<-"C:/IDD/Cholera/commit_git/cholera-mapping-pipeline/Analysis/data/TGO_stan_genquant.rds"
   genquant <- taxdat::read_file_of_type(file_names[["stan_genquant"]], "chol_gen")
   require(bit64)
   require(sf)
@@ -29,7 +28,6 @@ get_genquant <- cache_fun_results(name = "genquant", fun = get_genquant_no_cache
 get_model_rand_no_cache <- function(config, cache, cholera_directory) {
   config <- yaml::read_yaml(paste0(cholera_directory, config))
   file_names <- taxdat::get_filenames(config, cholera_directory)
-  #file_names[["stan_output"]]<-'C:/IDD/Cholera/commit_git/cholera-mapping-pipeline/Analysis/data/TGO_stan_output1.rdata'
   model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
   require(bit64)
   require(sf)
