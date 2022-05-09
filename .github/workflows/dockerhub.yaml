@@ -30,7 +30,7 @@ jobs:
           repository: HopkinsIDD/cholera-mapping-pipeline
           lfs: true
     - name: Checkout LFS objects
-      run: git lfs checkout
+      run: git lfs pull
     -
       name: Set up QEMU
       uses: docker/setup-qemu-action@v1
