@@ -58,6 +58,9 @@ data {
   int<lower=0, upper=1> use_weights; 
   // Prior for high values of rho
   int<lower=0, upper=1> use_rho_prior;
+  // Weight likelihoods by expected number of cases
+  int<lower=0, upper=1> use_pop_weight; 
+  real<lower=0, upper=1> pop_weight[K2 * use_pop_weight];
   
   // If time slice effect pass indicator function for years without data
   vector<lower=0, upper=1>[N*do_time_slice_effect] has_data_year;
@@ -169,7 +172,11 @@ transformed parameters {
     location_cases[i] = 0;
   }
   for(i in 1:K2){
-    location_cases[map_loc_grid_loc[i]] += grid_cases[map_loc_grid_grid[i]];
+    if (use_pop_weight == 1) {
+      location_cases[map_loc_grid_loc[i]] += grid_cases[map_loc_grid_grid[i]] * pop_weight[map_loc_grid_grid[i]];
+    } else {
+      location_cases[map_loc_grid_loc[i]] += grid_cases[map_loc_grid_grid[i]];
+    }
   }
   
   //first initialize to 0

@@ -388,6 +388,15 @@ prepare_stan_input <- function(
   stan_data$map_loc_grid_grid <- as.array(ind_mapping_resized$map_loc_grid_grid)
   stan_data$u_loctime <- ind_mapping_resized$u_loctimes
   
+  # Add 1km population fraction
+  stan_data$use_pop_weight <- config$use_pop_weight
+  
+  if (config$use_pop_weight) {
+    stan_data$pop_weight <- ind_mapping_resized$u_loc_grid_weights
+  } else {
+    stan_data$pop_weight <- array(data = 0, dim = 0)
+  }
+  
   y_tfrac <- tibble::tibble(tfrac = stan_data$tfrac, 
                             map_obs_loctime_obs = stan_data$map_obs_loctime_obs) %>% 
     dplyr::group_by(map_obs_loctime_obs) %>% 
