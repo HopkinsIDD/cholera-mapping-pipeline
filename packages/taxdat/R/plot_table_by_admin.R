@@ -247,7 +247,7 @@ plot_incidence_by_admin <- function(cache,config,cholera_directory){
   pltdata$t<- factor(pltdata$t, labels = analysis_years )
   pop_raster_data<-raster()
   for(layer in unique(pltdata$t)){
-    empty_raster <- raster::raster(pltdata[which(pltdata$t==layer),], res = max(0.1666666, 0.1666666))#1*1km raster
+    empty_raster <- raster::raster(pltdata[which(pltdata$t==layer),], res = max(0.1666666, 0.1666666))#20*20km raster
     pop_raster_data_tmp <- fasterize::fasterize(pltdata[which(pltdata$t==layer),], empty_raster, field = c("covar"))
     pop_raster_data<-stack(pop_raster_data,pop_raster_data_tmp)
   }
