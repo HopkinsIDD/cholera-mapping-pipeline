@@ -1257,7 +1257,7 @@ get_pop_weights <- function(res_space,
     dplyr::mutate(pop_weight = ifelse(is.na(pop_weight), 1, pop_frac),
                   # Get time slice information to join to location periods dict
                   band = stringr::str_extract(name, "[0-9]+") %>% as.numeric(),
-                  t = map_dbl(band, ~ which(pop_1km_bands == .)))
+                  t = map_dbl(band, ~ which(pop_1km_bands$ind == .)))
   
   
   return(pop_weights)
