@@ -51,7 +51,8 @@ plot_gam_fit_output_cases <- function(name="gam_output_df",cache) {
     geom_tile(aes(x = sx, y = sy, fill =y)) +
     taxdat::map_theme() +
     taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
-    ggplot2::labs(fill="Cases")
+    ggplot2::labs(fill="Cases")+
+    ggplot2::facet_wrap(~t)
 }
 
 #' @export
@@ -67,5 +68,6 @@ plot_gam_fit_output_rates <- function(name="gam_output_df",cache) {
     geom_tile(aes(x = sx, y = sy, fill =lambda)) +
     taxdat::map_theme() +
     taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
-    ggplot2::labs(fill="Incidence rate")
+    ggplot2::labs(fill="Incidence rate")+
+    ggplot2::facet_wrap(~t)
 }
