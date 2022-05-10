@@ -184,6 +184,11 @@ intersections_table <- taxdat::make_grid_intersections_table_name(dbuser = dbuse
 
 DBI::dbClearResult(DBI::dbSendStatement(
   conn_pg,
+  glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(intersections_table)}`};",
+                 .con = conn_pg)
+))
+DBI::dbClearResult(DBI::dbSendStatement(
+  conn_pg,
   glue::glue_sql("CREATE TABLE {`{DBI::SQL(intersections_table)}`} AS (
                   SELECT location_period_id , b.rid, b.x, b.y, ST_Intersection(b.geom, a.geom) as geom,
                   g.geom as grid_centroid
