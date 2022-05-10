@@ -20,8 +20,9 @@ plot_modeled_cases_by_chain_time <- function(config, cache, cholera_directory) {
     cases_chains<-aggregate_modeled_cases_by_chain_gridtime_no_cache(
                                               config=config,cholera_directory=cholera_directory,
                                               cache=cache)
+    
+    stan_input$sf_grid[paste('cases','chain',seq_len(nchain),sep='_')] <- t(cases_chains)
 
-    stan_input$sf_grid[paste('cases','chain',seq_len(nchain),sep='_')] <- cases_chains
     config_file<-yaml::read_yaml(paste0(cholera_directory,config))
     analysis_years <- lubridate::year(config_file$start_time):lubridate::year(config_file$end_time)
     obs_years <- min(lubridate::year(cache[["sf_cases_resized"]]$TL)):max(lubridate::year(cache[["sf_cases_resized"]]$TR))
@@ -34,6 +35,7 @@ plot_modeled_cases_by_chain_time <- function(config, cache, cholera_directory) {
     
     sf_grid_wider <- sf::st_drop_geometry(stan_input$sf_grid)
     
+
     by_years <- sf_grid_wider %>%
       dplyr::group_by(t) %>%
       dplyr::summarise(dplyr::across(dplyr::contains("cases_chain"), sum)) %>%
