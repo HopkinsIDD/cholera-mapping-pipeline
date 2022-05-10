@@ -914,7 +914,7 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
                    "dbExistsTableMulti", "buildGeomsQuery", "showProgress", "getNCDFMetadata", 
                    "timeAggregate", "spaceAggregate", "gdalinfo2", "gdal_cmd_builder2", "gdalwarp2", 
                    "align_rasters2")
-  doFun(foreach::foreach(j = seq_along(raster_files)
+  doFun(foreach::foreach(j = seq_along(raster_files),
                          .combine = rbind,
                          .inorder = T, 
                          .export = export_funs,
