@@ -389,9 +389,9 @@ prepare_stan_input <- function(
   stan_data$u_loctime <- ind_mapping_resized$u_loctimes
   
   # Add 1km population fraction
-  stan_data$use_pop_weight <- config$use_pop_weight
+  stan_data$use_pop_weight <- stan_params$use_pop_weight
   
-  if (config$use_pop_weight) {
+  if (stan_params$use_pop_weight) {
     stan_data$pop_weight <- ind_mapping_resized$u_loc_grid_weights
   } else {
     stan_data$pop_weight <- array(data = 0, dim = 0)
