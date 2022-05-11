@@ -66,8 +66,8 @@ prepare_covar_cube <- function(
   
   for (j in seq_along(covar_list)) {
     
-    covar_date_metadata <- get_covariate_metadata(conn_pg = conn_pg, 
-                                                  covar = covar_list[j])
+    covar_date_metadata <- taxdat::get_covariate_metadata(conn_pg = conn_pg, 
+                                                          covar = covar_list[j])
     
     tmp <- taxdat::get_covariate_values(covar_name = covar_list[j],
                                         cntrd_table = cntrd_table,
