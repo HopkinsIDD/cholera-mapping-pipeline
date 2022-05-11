@@ -78,3 +78,4 @@ jobs:
           hopkinsidd/choleramappingpipeline:${{steps.tags.outputs.shashort}}
           hopkinsidd/choleramappingpipeline:${{steps.tags.outputs.reftag}}
           hopkinsidd/choleramappingpipeline:${{ github.sha }}
+        no-cache: true
