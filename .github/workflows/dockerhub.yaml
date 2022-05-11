@@ -69,13 +69,19 @@ jobs:
           hopkinsidd/choleramappingpipeline:${{ github.sha }}
 
     - name: Build Push Master
-      uses: docker/build-push-action@v2
+      uses: docker/build-push-action@v3
       if: (contains( github.ref, 'update_docker') || contains( github.base_ref, 'update_docker' ))
       with:
+        context: .
         push: true
         tags: |
           hopkinsidd/choleramappingpipeline:latest-dev
           hopkinsidd/choleramappingpipeline:${{steps.tags.outputs.shashort}}
           hopkinsidd/choleramappingpipeline:${{steps.tags.outputs.reftag}}
           hopkinsidd/choleramappingpipeline:${{ github.sha }}
-        no-cache: true
+        cache-from: type=local,src=/tmp/.buildx-cache
+        cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+    - name: Move cache
+      run: |
+        rm -rf /tmp/.buildx-cache
+        rm -rf /tmp/.buildx-cache-new
