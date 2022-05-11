@@ -101,7 +101,7 @@ prepare_covar_cube <- function(
     # Set covariate names in covar_cube
     dimnames(covar_cube)[[3]] <- stringr::str_split(covar_list, "\\.") %>% purrr::map_chr(~ .[2])
     
-    cat("---- Done ", covar, "\n")
+    cat("---- Done ", covar_list[j], "\n")
   }
   
   # determine the grids cells that have full data
