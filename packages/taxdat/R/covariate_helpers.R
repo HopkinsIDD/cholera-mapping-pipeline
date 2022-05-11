@@ -995,14 +995,14 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
                 unlist()
               
               # Update tmprast to have centroid of tiles
-              DBI::dbSendStatement(conn_pg,
+              DBI::dbSendStatement(conn,
                                    "
                                    CREATE TABLE tmprast2 AS (
                                    SELECT rid, rast, ST_Centroid(ST_Envelope(rast)
                                    FROM tmprast;
                                    )")
               
-              DBI::dbSendStatement(conn_pg, "DROP TABLE IF EXISTS tmprast;")
+              DBI::dbSendStatement(conn, "DROP TABLE IF EXISTS tmprast;")
               
               for (nb in 1:n_bands) {
                 DBI::dbClearResult(DBI::dbSendStatement(conn, glue::glue_sql("
