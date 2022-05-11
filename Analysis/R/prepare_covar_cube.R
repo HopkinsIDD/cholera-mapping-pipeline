@@ -87,7 +87,7 @@ prepare_covar_cube <- function(
       
       # Verify the dimensions of the extracted covariate
       if (!identical(dim(dat)[1:2], dim(covar_cube[, , j,drop=FALSE])[1:2])){
-        stop("Dimensions of extraction for covariate ", covar, " do no match the ones of covar_cube:\n",
+        stop("Dimensions of extraction for covariate ", covar_list[j], " do no match the ones of covar_cube:\n",
              "dim extraction: ", paste(dim(dat), collapse = " x "),
              "\ndim covar_cube: ", paste(dim(covar_cube[, , j]), collapse = " x "))
       }
@@ -95,7 +95,7 @@ prepare_covar_cube <- function(
       # Insert data in data cube
       covar_cube[, , j] <- dat
     } else {
-      stop("Couldn't find data to extract from covariate ", covar)
+      stop("Couldn't find data to extract from covariate ", covar_list[j])
     }
     
     # Set covariate names in covar_cube
