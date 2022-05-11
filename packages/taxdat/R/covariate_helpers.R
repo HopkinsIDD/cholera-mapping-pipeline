@@ -1133,6 +1133,29 @@ write_pg_raster <- function(dbuser, schema, table, outfile, band = 1) {
   raster::writeRaster(ras2, outfile)
 }
 
+#' Title
+#'
+#' @param conn_pg 
+#' @param covar 
+#'
+#' @return
+#' @export
+#'
+get_covariate_metadata <- function(conn_pg, 
+                                   covar) {
+  
+  if (stringr::str_detect(covar, "\\.")) {
+    covar <- strsplit(covar, "\\.")[[1]][2]
+  }
+  
+  DBI::dbGetQuery(
+    conn_pg,
+    glue::glue_sql("SELECT src_res_time, res_time, first_TL, last_TL
+          FROM covariates.metadata
+          WHERE covariate = {covar}",
+                   .con = conn_pg))
+}
+
 #' Get covariate values
 #'
 #' @param covar_name the name of the covariate in the database (with schema)
@@ -1151,12 +1174,8 @@ get_covariate_values <- function(covar_name,
   covar <- strsplit(covar_name, "\\.")[[1]][2]
   
   # Get covariate metadata then used to select temporal bands
-  covar_date_metadata <- DBI::dbGetQuery(
-    conn_pg,
-    glue::glue_sql("SELECT src_res_time, res_time, first_TL, last_TL
-          FROM covariates.metadata
-          WHERE covariate = {covar}",
-                   .con = conn_pg))
+  covar_date_metadata <-  get_covariate_metadata(conn_pg = conn_pg, 
+                                                 covar = covar)
   
   if (nrow(covar_date_metadata) == 0) {
     stop("Couldn't find covariate ", covar, "in metadata table")
