@@ -994,6 +994,8 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
                             FROM tmprast LIMIT 1;") %>%
                 unlist()
               
+              DBI::dbSendStatement(conn, "DROP TABLE IF EXISTS tmprast2;")
+              
               # Update tmprast to have centroid of tiles
               DBI::dbSendStatement(conn,
                                    "
