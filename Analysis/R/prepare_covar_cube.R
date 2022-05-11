@@ -1,4 +1,4 @@
-`# Preamble ---------------------------------------------------------------------
+# Preamble ---------------------------------------------------------------------
 
 #' @title Prepare covariate cube
 #' @description Extracts the covariates for each model gridcell
@@ -186,4 +186,3 @@ prepare_covar_cube <- function(
   
   return(output)
 }
-`
