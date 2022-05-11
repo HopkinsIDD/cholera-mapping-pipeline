@@ -65,12 +65,14 @@ prepare_covar_cube <- function(
   )
   
   for (j in seq_along(covar_list)) {
-    # covariate name
-    covar <- strsplit(covar_list[j], "\\.")[[1]][2]
+    
+    covar_date_metadata <- get_covariate_metadata(conn_pg = conn_pg, 
+                                                  covar = covar_list[j])
     
     tmp <- taxdat::get_covariate_values(covar_name = covar_list[j],
                                         cntrd_table = cntrd_table,
-                                        time_slices = time_slices)
+                                        time_slices = time_slices, 
+                                        conn_pg = conn_pg)
     
     if (length(tmp) > 0) {
       dat <- tmp %>%
@@ -160,9 +162,9 @@ prepare_covar_cube <- function(
                                          conn_pg = conn_pg)
   
   location_periods_dict <- location_periods_dict %>% 
-    dplyr::left_join(pop_fracs %>% 
-                       dplyr::select(location_period_id, t, pop_weights),
-                     by = c("location_period_id","rid", "x", "y", "t"))
+    dplyr::left_join(pop_weights,
+                     by = c("location_period_id","rid", "x", "y", "t")) %>% 
+    dplyr::mutate(pop_weight = ifelse(is.na(pop_weight), 1, pop_weight))
   
   # Stop of anything missing
   if (any(is.na(location_periods_dict$pop_weights))) {
