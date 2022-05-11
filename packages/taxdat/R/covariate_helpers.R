@@ -998,9 +998,9 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
               DBI::dbSendStatement(conn,
                                    "
                                    CREATE TABLE tmprast2 AS (
-                                   SELECT rid, rast, ST_Centroid(ST_Envelope(rast)
-                                   FROM tmprast;
-                                   )")
+                                   SELECT rid, rast, ST_Centroid(ST_Envelope(rast))
+                                   FROM tmprast);
+                                   ")
               
               DBI::dbSendStatement(conn, "DROP TABLE IF EXISTS tmprast;")
               
