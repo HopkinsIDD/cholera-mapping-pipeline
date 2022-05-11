@@ -2,10 +2,10 @@
 title: "Country data report"
 output: html_document
 params:
-  cholera_directory: "/home/app/cmp/"
-  config_filename: "/home/app/cmp/Analysis/R/test1_config.yml"
-  #cholera_directory: "C:/IDD/Cholera/cholera-mapping-pipeline/Analysis/output"
-  #config_filename: "C:/IDD/Cholera/cholera-mapping-pipeline/Analysis/R/test1_config.yml"
+  #cholera_directory: "/home/app/cmp/"
+  #config_filename: "/home/app/cmp/Analysis/R/test1_config.yml"
+  cholera_directory: "C:/IDD/Cholera/cholera-mapping-pipeline/Analysis/output"
+  config_filename: "C:/IDD/Cholera/cholera-mapping-pipeline/Analysis/R/test1_config.yml"
   drop_nodata_years: TRUE
   ncols: 10
   nrows: 10
@@ -28,8 +28,8 @@ params:
   Model_covariates: c(TRUE,TRUE,FALSE)
   Observations_with_inconsistent_data: "no"
   Loc_with_inconsistent_data: "no"
-  Cov_data_simulation_filename: "/home/app/cmp/Analysis/output/test_case_1_data_simulation_covariates.rdata"
-  #Cov_data_simulation_filename: "C:/IDD/Cholera/cholera-mapping-pipeline/Analysis/output/test_case_1_data_simulation_covariates.rdata"
+  #Cov_data_simulation_filename: "/home/app/cmp/Analysis/output/test_case_1_data_simulation_covariates.rdata"
+  Cov_data_simulation_filename: "C:/IDD/Cholera/cholera-mapping-pipeline/Analysis/output/test_case_1_data_simulation_covariates.rdata"
 ---
 
 ```{r setup, include=FALSE, dev="CairoPNG"}
@@ -333,6 +333,7 @@ taxdat::plot_area_adjusted_observed_cases(
                                         guide = ggplot2::guide_colorbar(title = "Covariate at time 1"),
                                         option = "B", na.value = "white") + 
           ggplot2::theme_bw() + 
+          ggplot2::facet_wrap(~t)+
           ggplot2::theme(legend.position = "bottom",
                          legend.key.size = unit(0.5, 'cm'),
                          legend.title =element_text(size=10))})%>%
@@ -345,7 +346,7 @@ taxdat::plot_area_adjusted_observed_cases(
 #plot the unused covariates
 data_simulation_covs <- readRDS(params$Cov_data_simulation_filename)
 
-covdata<-as.data.frame(do.call(rbind, data_simulation_covs[1:(length(data_simulation_covs)-1)])) %>%
+covdata<-as.data.frame(do.call(rbind, data_simulation_covs[2:(length(data_simulation_covs))])) %>%
   mutate(value=covariate,covariate=paste("Covariate",rep(2:length(data_simulation_covs),each=nrow(data_simulation_covs[[1]]))))# Convert list to data frame columns
 covdata<-sf::st_as_sf(covdata)
 
@@ -357,6 +358,7 @@ covdata<-sf::st_as_sf(covdata)
                                         guide = ggplot2::guide_colorbar(title = "Cvariates in data simulation"),
                                         option = "B", na.value = "white") + 
           ggplot2::theme_bw() + 
+          ggplot2::facet_wrap(~t)+
           ggplot2::theme(legend.position = "bottom",
                          legend.key.size = unit(0.5, 'cm'),
                          legend.title =element_text(size=10))})%>%
@@ -404,33 +406,6 @@ pre_case_raster <- taxdat::get_case_raster(
 
 ```{r caserast, fig.cap="Figure 4. Modeled cases", fig.height=5, fig.width=10}
 if (!is.null(case_raster)) {
-# stan_divergence <- rstan::check_divergences(model.rand)
-# modeled_cases <- as.array(model.rand)[, , grepl("grid_case", names(model.rand)),drop=FALSE]
-# modeled_cases_mean <- apply(modeled_cases, 3, mean)
-# modeled_rates <- exp(as.array(model.rand)[, , grepl("log_lambda", names(model.rand)), drop = FALSE])
-# modeled_rates_mean <- apply(modeled_rates, 3, mean)
-# 
-# empty_raster <- dplyr::mutate(empty_raster,
-#                              modeled_cases_mean = NA,
-#                              modeled_rates_mean = NA,
-#                              )
-# empty_raster$modeled_cases_mean <- modeled_cases_mean
-# 
-# names(empty_raster)[which(names(empty_raster)=="modeled_cases_mean")] <- paste("modeled cases\n",
-#                                                                               "\niterations: Chain")
-# 
-# 
-# empty_raster$modeled_rates_mean <- modeled_rates_mean
-# names(empty_raster)[which(names(empty_raster)=="modeled_rates_mean")] <- paste("modeled rates\n",
-#                                                                              "\niterations: Chain")
-# case_raster<-sf::st_as_sf(empty_raster)
-# case_raster_case <- case_raster %>% dplyr::select(dplyr::contains("modeled cases"),
-#                                                   t,shape) %>% tidyr::gather(dplyr::contains("iterations: Chain"),
-#                                                                            key = "chain", value = "value") %>% dplyr::mutate(chain = stringr::str_replace(chain,"modeled cases", ""))
-# 
-# case_raster_case$t<-factor(case_raster_case$t)
-# levels(case_raster_case$t)[1]<-"1"
-# levels(case_raster_case$t)[2]<-"2"
  case_raster_case <- case_raster %>% dplyr::select(dplyr::contains("modeled cases"),t,shape) %>% 
    tidyr::gather(dplyr::contains("iterations: Chain"),key = "chain", value = "value") %>% 
    dplyr::mutate(chain = stringr::str_replace(chain,"modeled cases", ""))
