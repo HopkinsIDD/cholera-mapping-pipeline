@@ -994,19 +994,28 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
                             FROM tmprast LIMIT 1;") %>%
                 unlist()
               
+              # Update tmprast to have centroid of tiles
+              DBI::dbSendStatement(conn_pg,
+                                   "
+                                   CREATE TABLE tmprast2 AS (
+                                   SELECT rid, rast, ST_Centroid(ST_Envelope(rast)
+                                   FROM tmprast;
+                                   )")
+              
+              DBI::dbSendStatement(conn_pg, "DROP TABLE IF EXISTS tmprast;")
+              
               for (nb in 1:n_bands) {
                 DBI::dbClearResult(DBI::dbSendStatement(conn, glue::glue_sql("
                 UPDATE {`{DBI::SQL(covar_table)}`} a
                               SET rast = ST_AddBand(a.rast, b.rast, {nb})
-                              FROM tmprast b
-                              WHERE ST_Intersects(ST_Centroid(ST_Envelope(a.rast)), 
-                              ST_Envelope(b.rast));", 
+                              FROM tmprast2 b
+                              WHERE ST_Intersects(b.centroid, a.rast);", 
                                                                              .con = conn)))
                 
                 show_progress(nb, n_bands, prefix = f_name)
               }
               
-              DBI::dbClearResult(DBI::dbSendStatement(conn, "DROP TABLE IF EXISTS tmprast;"))
+              DBI::dbClearResult(DBI::dbSendStatement(conn, "DROP TABLE IF EXISTS tmprast2;"))
             }
             cat("\n-- Done file ", j, "/", length(raster_files), " (took ", format(difftime(t_end, 
                                                                                             t_start, units = "hours"), digits = 2), ")\n", sep = "")
