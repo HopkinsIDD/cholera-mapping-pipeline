@@ -34,7 +34,8 @@ get_case_raster <- function(cache,cholera_directory,config
   case_raster <- cache[["sf_grid"]]
   
   non_na_gridcells <- get_non_na_gridcells(cache=cache,config=config,cholera_directory = cholera_directory)
-
+  case_raster_non_na<-case_raster%>%subset(long_id%in%non_na_gridcells)
+  
   # Get cases and rates
   cache[["aggregated_modeled_cases_by_gridtime"]]<-aggregate_modeled_cases_by_gridtime_no_cache(cache = cache,config=config,cholera_directory = cholera_directory)
   modeled_cases_mean<-cache[["aggregated_modeled_cases_by_gridtime"]]
@@ -42,7 +43,7 @@ get_case_raster <- function(cache,cholera_directory,config
   cache[["aggregated_modeled_rates_by_gridtime"]]<-aggregate_modeled_rates_by_gridtime_no_cache(cache = cache,config=config,cholera_directory = cholera_directory)
   modeled_rates_mean<-  cache[["aggregated_modeled_rates_by_gridtime"]]
   
-  case_raster <- dplyr::mutate(case_raster,
+  case_raster <- dplyr::mutate(case_raster_non_na,
                                modeled_cases_mean = modeled_cases_mean,
                                modeled_rates_mean = modeled_rates_mean)
   return(case_raster)
