@@ -7,11 +7,13 @@ on:
   push:
     branches:
       - master
+      - update_docker
     paths:
       - 'Dockerfile'
-      - 'packages/**'
-      - '.Rprofile'
-      - 'packrat/**'
+      - 'Docker.Rprofile'
+      - 'renv/**'
+      - 'renv.lock'
+      - 'renv.cache/**'
       - '.github/workflows/docker*'
 
 name: Deploy to DockerHub
@@ -23,8 +25,15 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
-
+      uses: actions/checkout@v3
+      with:
+          repository: HopkinsIDD/cholera-mapping-pipeline
+          ref: ${{ github.ref }}
+          lfs: true
+    - name: Checkout LFS objects
+      run: git lfs checkout
+    - name: Check that lfs files are present
+      run: wc -l renv.cache/R/renv/cache/v5/R-4.2/x86_64-pc-linux-gnu/abind/1.4-5/4f57884290cc75ab22f4af9e9d4ca862/abind/DESCRIPTION
     -
       name: Set up QEMU
       uses: docker/setup-qemu-action@v1
@@ -49,6 +58,7 @@ jobs:
 
     - name: Build Push Master
       uses: docker/build-push-action@v2
+      if: contains( github.ref, 'master') || contains( github.base_ref, 'master' )
       with:
         push: true
         tags: |
@@ -57,3 +67,21 @@ jobs:
           hopkinsidd/choleramappingpipeline:${{steps.tags.outputs.shashort}}
           hopkinsidd/choleramappingpipeline:${{steps.tags.outputs.reftag}}
           hopkinsidd/choleramappingpipeline:${{ github.sha }}
+
+    - name: Build Push Master
+      uses: docker/build-push-action@v3
+      if: (contains( github.ref, 'update_docker') || contains( github.base_ref, 'update_docker' ))
+      with:
+        context: .
+        push: true
+        tags: |
+          hopkinsidd/choleramappingpipeline:latest-dev
+          hopkinsidd/choleramappingpipeline:${{steps.tags.outputs.shashort}}
+          hopkinsidd/choleramappingpipeline:${{steps.tags.outputs.reftag}}
+          hopkinsidd/choleramappingpipeline:${{ github.sha }}
+        cache-from: type=local,src=/tmp/.buildx-cache
+        cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+    - name: Move cache
+      run: |
+        rm -rf /tmp/.buildx-cache
+        rm -rf /tmp/.buildx-cache-new

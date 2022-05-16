@@ -11,12 +11,12 @@ ENV LC_ALL en_US.UTF-8
 
 # set noninteractive installation
 ENV DEBIAN_FRONTEND noninteractive
-ENV R_VERSION 4.0.3-1.2004.0
 
 # see https://www.digitalocean.com/community/tutorials/how-to-install-r-on-ubuntu-18-04
 # https://cran.r-project.org/bin/linux/debian/
 # https://cran.r-project.org/bin/linux/ubuntu/README.html
 RUN set -e \
+      && apt-get update \
       && apt-get -y install --no-install-recommends --no-install-suggests \
         gnupg2 gnupg1 ca-certificates software-properties-common \
       && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9 \
@@ -72,7 +72,7 @@ RUN apt-get update && \
     gdal-bin \
     supervisor \
     awscli \
-    r-base-dev=$R_VERSION \
+    r-base-dev=4.1.0-1.2004.0 \
     postgresql \
     postgis \
     postgresql-12-postgis-3 \
@@ -117,13 +117,18 @@ RUN sudo service postgresql start \
 # R
 #####
 
-RUN sudo Rscript -e "install.packages('packrat',repos='https://cloud.r-project.org/')"
-COPY --chown=app:app packrat $HOME/packrat
+RUN sudo Rscript -e "install.packages('renv',repos='https://cloud.r-project.org/')" \
+    && cd /home/app
+    # && Rscript -e "renv::restore()" \
+    # && Rscript -e "cmdstanr::install_cmdstan()"
+COPY --chown=app:app renv.cache $HOME/.cache
+COPY --chown=app:app renv.lock $HOME/renv.lock
+COPY --chown=app:app renv $HOME/renv
 COPY --chown=app:app Docker.Rprofile $HOME/.Rprofile
-COPY --chown=app:app packages $HOME/R/pkgs
-RUN Rscript -e 'packrat::restore()'
 
-
+RUN git clone https://www.github.com/stan-dev/cmdstan --recurse-submodules \
+  && cd cmdstan \
+  && make build
 # RUN /bin/bash -c "/usr/bin/echo 'sudo service postgresql start' >> /home/app/.bashrc"
 
 CMD ["/bin/bash"]
