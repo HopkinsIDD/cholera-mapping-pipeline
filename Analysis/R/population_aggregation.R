@@ -41,7 +41,7 @@ if (opt$extract) {
   cat("--- Done Pix2Poly in ", formatC(difftime(t2, t1, units= "min"), digits = 2), " min \n")
   
   # Compute sum of 1km population
-  DBI::dbSendStatement(conn_pg, "DROP TABLE IF EXISTS tmppop2_{band}");
+  DBI::dbSendStatement(conn_pg, str_glue("DROP TABLE IF EXISTS tmppop2_{band}"));
   DBI::dbSendStatement(conn_pg, 
                        glue::glue_sql("
                 CREATE TABLE tmppop2_{band} AS (
