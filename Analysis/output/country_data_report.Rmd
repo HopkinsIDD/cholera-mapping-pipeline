@@ -73,6 +73,7 @@ capFig = function(x){
 **Data input:**
 ```{r load data}
 # Load data directory
+
 config <- yaml::read_yaml(paste0(params$cholera_directory, params$config))
 file_names <- taxdat::get_filenames(config, params$cholera_directory)
 
@@ -261,8 +262,6 @@ if(!is.null(disjoint_set_sf_cases)){
 ### Population
 **Population raster by time slices:**
 ```{r pop, fig.height=5, fig.width=10, fig.cap=capFig("Population density")}
-pop_raster_data <- raster(paste0(params$cholera_directory,"/Layers/pop/2000_1km_Aggregated.tif"))##update to temporal-varying population (1*1KM)
-
 if(as.character(stringr::str_extract(params$config, "[A-Z]{3}")) == "ZNZ"){
   country_shp <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
                                                 c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
@@ -270,20 +269,37 @@ if(as.character(stringr::str_extract(params$config, "[A-Z]{3}")) == "ZNZ"){
   country_shp <- rgeoboundaries::gb_adm0(as.character(stringr::str_extract(params$config, "[A-Z]{3}")))
 }
 
-pop_raster_data_cropped <- crop(pop_raster_data,extent(country_shp))
-pop_raster_data_cropped_masked<-mask(pop_raster_data_cropped,country_shp)
+### Get the pltdata
+covar_data_filename = file_names["covar"]
+covar_cube_output <- taxdat::read_file_of_type(covar_data_filename, "covar_cube_output")
+covar_cube <- covar_cube_output$covar_cube
+sf_grid <- covar_cube_output$sf_grid
+pop_layer <- covar_cube[,,1, drop = F] ## population is always the first layer
+covar <- data.frame(covar = unlist(lapply(1:ncol(pop_layer), function(x){
+    pop_layer[, x, 1]
+  })))
+  pltdata <- dplyr::bind_cols(sf_grid, covar)
 
-pop_raster_data_cropped_sf <- pop_raster_data_cropped_masked%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)
+analysis_years <- lubridate::year(config$start_time):lubridate::year(config$end_time)
+pltdata$t<- factor(pltdata$t, labels = analysis_years )
 
-plt<-ggplot2::ggplot()+ggplot2::geom_sf(data = pop_raster_data_cropped_sf, ggplot2::aes(fill = X2000_1km_Aggregated,
-            color = X2000_1km_Aggregated)) + ggplot2::scale_fill_viridis_c("Population",
+plt<-ggplot2::ggplot()+ggplot2::geom_sf(data = pltdata , ggplot2::aes(fill = covar,
+            color = covar)) + ggplot2::scale_fill_viridis_c("Population",
             trans = "log", breaks = c(100, 1000, 10000,
                 1e+05), aesthetics = c("colour", "fill"),
             guide = ggplot2::guide_colorbar(title = "Population density [per grid cell]"),
             option = "E", na.value = "white") + ggplot2::theme_bw() +
             ggplot2::theme(legend.position = "bottom",
-                legend.text = ggplot2::element_text(angle = 45,hjust = 1, vjust = 1))
+                legend.text = ggplot2::element_text(angle = 45,hjust = 1, vjust = 1))+
+ facet_wrap(~ t)
 plt
+
+pop_raster_data<-raster()
+for(layer in unique(pltdata$t)){
+  empty_raster <- raster::raster(pltdata[which(pltdata$t==layer),], res = max(0.00833333, 0.00833333))#1*1km raster
+  pop_raster_data_tmp <- fasterize::fasterize(pltdata[which(pltdata$t==layer),], empty_raster, field = c("covar"))
+  pop_raster_data<-stack(pop_raster_data,pop_raster_data_tmp)
+}
 ```
 
 
@@ -292,18 +308,8 @@ plt
 ## the rest of this section is added on 11/03/2021, and can be turned into a function in model_evaluation_helpers.R later
 ## ======================================================================================================================
 ### Get the pltdata
-covar_data_filename = file_names["covar"]
-covar_cube_output <- taxdat::read_file_of_type(covar_data_filename, "covar_cube_output")
-covar_cube <- covar_cube_output$covar_cube
-sf_grid <- covar_cube_output$sf_grid
-pop_layer <- covar_cube[,,1, drop = F] ## population is always the first layer
-
 if(nrow(sf_grid) == prod(dim(pop_layer))){
-  covar <- data.frame(covar = unlist(lapply(1:ncol(pop_layer), function(x){
-    pop_layer[, x, 1]
-  })))
-  pltdata <- dplyr::bind_cols(sf_grid, covar)
-  
+
   ### Use the geo package
   iso_code <- as.character(stringr::str_extract(params$config, "[A-Z]{3}"))
   admin_level <- as.numeric(params$admin_level_for_summary_table)
@@ -330,6 +336,12 @@ if(nrow(sf_grid) == prod(dim(pop_layer))){
   admin_pop_table <- data.frame(matrix(NA, length(boundary_sf$shapeName), length(unique(pltdata$t)) + 1))
   
   start_year <- as.numeric(stringr::str_extract(stringr::str_extract(params$config, "[A-Z]{3}_[0-9]{4}"), "[0-9]{4}"))
+  pltdata$t<-as.numeric(pltdata$t)
+  pltdata$t<-as.numeric(pltdata$t-min(pltdata$t))+1
+  year_list <- unique(pltdata$t) + (start_year-1)
+
+  if(is.na(start_year)){
+  start_year <- as.numeric(stringr::str_extract(params$config, "[0-9]{1,4}"))
   year_list <- unique(pltdata$t) + (start_year-1)
   
   if(is.na(start_year)){
@@ -344,16 +356,21 @@ if(nrow(sf_grid) == prod(dim(pop_layer))){
   
   colnames(admin_pop_table) <- c('adminlevel', year_list)
   admin_pop_table$adminlevel <- boundary_sf$shapeName
-  
-  ## across different locations
-  for (locs in admin_pop_table$adminlevel){
-    cropped <- raster::crop(pop_raster_data, boundary_sf[boundary_sf$shapeName == locs, ], snap = "out")
-    masked <- raster::mask(cropped, boundary_sf[boundary_sf$shapeName == locs, ], updatevalue = NA)
-    sum_pop <- sum(raster::getValues(masked), na.rm = TRUE)
-    admin_pop_table[match(locs, admin_pop_table$adminlevel), !colnames(admin_pop_table)%in%"adminlevel"]<-round(sum_pop,4) 
-    rm(cropped, masked)
-  } 
-  
+
+    ## across different locations and t
+
+for(layer in 1:raster::nlayers(pop_raster_data)){
+
+    for (locs in admin_pop_table$adminlevel){
+      cropped <- raster::crop(pop_raster_data[[layer]], boundary_sf[boundary_sf$shapeName == locs, layer+1], snap = "out")
+      masked <- raster::mask(cropped, boundary_sf[boundary_sf$shapeName == locs, layer+1], updatevalue = NA)
+      sum_pop <- sum(raster::getValues(masked), na.rm = TRUE)
+      admin_pop_table[match(locs, admin_pop_table$adminlevel), layer+1]<-round(sum_pop,4) 
+      rm(cropped, masked)
+    } 
+
+}
+
   ### Add a total row, change colnames, and display the table
   total_row <- c('Total', apply(data.frame(admin_pop_table[, -1]), 2, sum))
   admin_pop_table <- rbind(admin_pop_table, total_row)
@@ -368,7 +385,6 @@ if(nrow(sf_grid) == prod(dim(pop_layer))){
 } else{
   warning("sf_grid has a different number of cells or timepoints than covar_cube")
 }
-
 ```
 
 ### Other covariates
@@ -380,7 +396,6 @@ taxdat::plot_raster_covariates(covar_data_filename = file_names["covar"], render
 ## Output maps
 
 ```{r analysisyears}
-analysis_years <- lubridate::year(config$start_time):lubridate::year(config$end_time)
 obs_years <- min(lubridate::year(stan_input$sf_cases_resized$TL)):max(lubridate::year(stan_input$sf_cases_resized$TR))
 # Runtimes by chain
 rstan::get_elapsed_time(model.rand)
@@ -389,74 +404,73 @@ rstan::get_elapsed_time(model.rand)
 
 ```{r importcase}
 case_raster <- NULL
-case_raster <- taxdat::get_case_raster(covar_data_filename = file_names["covar"],
+  case_raster <- taxdat::get_case_raster(preprocessed_data_filename = file_names["data"],
+covar_data_filename = file_names["covar"],
+model_output_filenames = file_names["stan_output"])
+  case_raster <- taxdat::get_case_raster(covar_data_filename = file_names["covar"],
                                        genquant_filenames = file_names["stan_genquant"])
+ 
+  #disaggregate incidence raster to 1*1KM 
+  rate_raster <- case_raster %>%
+    dplyr::select(dplyr::contains("modeled rates"),id,t,x,y,geom) %>%
+    tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
+    dplyr::mutate(chain = stringr::str_replace(chain, "modeled rates", ""),value=value)
+  
+  empty_raster <- raster::raster(rate_raster, res = max(0.00833333, 0.00833333))#1*1km raster
+  disaggregated_rate_raster <- fasterize::fasterize(rate_raster, empty_raster, field = c("value"),by="t")
+ 
 
-#disaggregate incidence raster to 1*1KM 
-rate_raster <- case_raster %>%
-  dplyr::select(dplyr::contains("modeled rates"),id,t,x,y,geom) %>%
-  tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
-  dplyr::mutate(chain = stringr::str_replace(chain, "modeled rates", ""),value=value)
-
-empty_raster <- raster::raster(rate_raster, res = max(0.00833333, 0.00833333))#1*1km raster
-disaggregated_rate_raster <- fasterize::fasterize(rate_raster, empty_raster, field = c("value"),by="t")
+   #disaggregate case raster to 1*1KM 
+  case_raster <- case_raster %>%
+    dplyr::select(dplyr::contains("modeled cases"),id,t,x,y,geom) %>%
+    tidyr::gather(dplyr::contains("iterations: Chain"), key = "chain", value = "value") %>%
+    dplyr::mutate(chain = stringr::str_replace(chain, "modeled cases", ""),value=value)
+  
+  empty_raster <- raster::raster(case_raster, res = max(0.00833333, 0.00833333))#1*1km raster
+  disaggregated_case_raster <- fasterize::fasterize(case_raster, empty_raster, field = c("value"),by="t")
+ 
 
 if(length(unique(pltdata$t))>1){
+  disaggregated_case_sf=disaggregated_case_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)%>%dplyr::rename("1"=X1,"2"=X2,"3"=X3,"4"=X4,"5"=X5)%>%tidyr::pivot_longer(.,cols=c("1","2","3","4","5"),names_to="t")%>%as.data.frame(.)%>%sf::st_as_sf(.)
+  colnames(disaggregated_case_sf)[stringr::str_detect( colnames(disaggregated_case_sf),"value")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"value")]
+  disaggregated_case_sf$id<-rep(1:(nrow(disaggregated_case_sf)/length(unique(disaggregated_case_sf$t))),each=5)
+
   disaggregated_rate_sf=disaggregated_rate_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)%>%dplyr::rename("1"=X1,"2"=X2,"3"=X3,"4"=X4,"5"=X5)%>%tidyr::pivot_longer(.,cols=c("1","2","3","4","5"),names_to="t")%>%as.data.frame(.)%>%sf::st_as_sf(.)
-  colnames(disaggregated_rate_sf)[stringr::str_detect(colnames(disaggregated_rate_sf),"value")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled rate")]
+  colnames(disaggregated_rate_sf)[stringr::str_detect(colnames(disaggregated_rate_sf),"value")]=colnames(rate_raster)[stringr::str_detect(colnames(rate_raster),"value")]
   disaggregated_rate_sf$id<-rep(1:(nrow(disaggregated_rate_sf)/length(unique(disaggregated_rate_sf$t))),each=5)
+
 }  else{
-  #single year runs
+
+  disaggregated_case_sf=disaggregated_case_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)
+  colnames(disaggregated_case_sf)[stringr::str_detect( colnames(disaggregated_case_sf),"layer")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled case")]
+  disaggregated_case_sf$id<-rep(1:(nrow(disaggregated_case_sf)/length(unique(disaggregated_case_sf$t))),each=1)
+
   disaggregated_rate_sf=disaggregated_rate_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)%>%dplyr::rename("1"=X1)%>%tidyr::pivot_longer(.,cols=c("1"),names_to="t")%>%as.data.frame(.)%>%sf::st_as_sf(.)
   colnames(disaggregated_rate_sf)[stringr::str_detect( colnames(disaggregated_rate_sf),"value")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled rate")]
   disaggregated_rate_sf$id<-rep(1:(nrow(disaggregated_rate_sf)/length(unique(disaggregated_rate_sf$t))),each=1)
 }
 
-#disaggregate population raster to 1*1 KM
-#newplydata is the 1*1 KM raster #crop the country boundary
-#Crop the raster
-pop_cropped <- raster::crop(pop_raster_data,disaggregated_rate_raster)
-origin(pop_cropped)<-origin(disaggregated_rate_raster)
-disaggregated_case_raster<-pop_cropped*disaggregated_rate_raster
-
-##aggregate 1*1 case raster to 20*20 raster
-if(length(unique(pltdata$t))>1){
-  disaggregated_case_sf=disaggregated_case_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)%>%dplyr::rename("1"=layer.1,"2"=layer.2,"3"=layer.3,"4"=layer.4,"5"=layer.5)%>%tidyr::pivot_longer(.,cols=c("1","2","3","4","5"),names_to="t")%>%as.data.frame(.)%>%sf::st_as_sf(.)
-  colnames(disaggregated_case_sf)[stringr::str_detect( colnames(disaggregated_case_sf),"value")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled case")]
-  disaggregated_case_sf$id<-rep(1:(nrow(disaggregated_case_sf)/length(unique(disaggregated_case_sf$t))),each=5)
-  
-}else{
-  disaggregated_case_sf=disaggregated_case_raster%>%as(.,'SpatialPolygonsDataFrame')%>% sf::st_as_sf(.)
-  colnames(disaggregated_case_sf)[stringr::str_detect( colnames(disaggregated_case_sf),"layer")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"modeled case")]
-  disaggregated_case_sf$t=1
-  disaggregated_case_sf$id<-rep(1:(nrow(disaggregated_case_sf)/length(unique(disaggregated_case_sf$t))),each=1)
-}
-
-if(all(analysis_years %in% obs_years)){
-  message("All analysis years are represented by OCs.")
-} else{
-  drop_year_ix <- which(!analysis_years %in% obs_years)
-  message(paste(paste(analysis_years[drop_year_ix], collapse = ", "), "are not represented in OCs"))
-  if(params$drop_nodata_years){
-    message(paste("Dropping", paste(analysis_years[drop_year_ix], collapse = ", "), "from case_raster"))
-    case_raster <- dplyr::filter(case_raster, !(t %in% drop_year_ix))
+  if(all(analysis_years %in% obs_years)){
+    message("All analysis years are represented by OCs.")
+  } else{
+    drop_year_ix <- which(!analysis_years %in% obs_years)
+    message(paste(paste(analysis_years[drop_year_ix], collapse = ", "), "are not represented in OCs"))
+    if(params$drop_nodata_years){
+      message(paste("Dropping", paste(analysis_years[drop_year_ix], collapse = ", "), "from case_raster"))
+      case_raster <- dplyr::filter(case_raster, !(t %in% drop_year_ix))
+    }
   }
-}
-
 ```
 
 ### Modeled cases
 **Modeled cases raster by time slices:**
 ```{r caserast, fig.cap=capFig("Modeled cases"), fig.height=5, fig.width=10}
 if(!is.null(case_raster)){
-  plot_disaggregated_modeled_cases(case_raster=case_raster,disaggregated_case_sf=disaggregated_case_sf)
+ plot_disaggregated_modeled_cases_time_varying(case_raster=case_raster,disaggregated_case_sf=disaggregated_case_sf)
 } else{
   warning("case_raster is NULL")
 }
-
 ```
-
-
 
 **Table 4. Modeled cases by admin level and time:**
 ```{r echo = FALSE}
@@ -505,7 +519,6 @@ admin_case_table %>%
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
   kableExtra::kable_paper(full_width = F) %>%
   kableExtra::row_spec(nrow(admin_case_table), bold = T)
-
 ```
 
 
@@ -514,7 +527,7 @@ admin_case_table %>%
 **Modeled incidence rates raster by time slices:**
 ```{r raterast, fig.cap=capFig("Modeled rates by time"), fig.height=5, fig.width=10}
 if(!is.null(case_raster)){
-  taxdat::plot_modeled_rates(case_raster, render = T)
+  taxdat::plot_modeled_rates_time_varying(case_raster, render = T)
 } else{
   warning("case_raster is NULL")
 }
@@ -539,6 +552,9 @@ for (ts in unique(rate_raster_admin$t)){
   ## the rates raster
   rate_raster_admin_ts <- rate_raster_admin %>% filter(t == ts)
   raster_data_cal_case <- disaggregated_case_raster[[as.numeric(ts)]]
+
+  pop_cropped <- raster::crop(pop_raster_data,disaggregated_rate_raster)
+  origin(pop_cropped)<-origin(disaggregated_rate_raster)
   raster_data_pop <- pop_cropped
   
   ## across different locations
@@ -586,7 +602,6 @@ admin_rate_table %>%
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
   kableExtra::kable_paper(full_width = F) %>%
   kableExtra::row_spec(nrow(admin_rate_table), bold = T)
-
 ```
 
 
@@ -649,29 +664,23 @@ try({
     
     data_fidelity<-rc
   }
-  
 })
-
 ```
 
 
 **Actual observations versus modeled cases scatter plot:**
 ```{r datafidelity1, fig.cap=capFig("Observations vs. modeled cases"), fig.height=10, fig.width=10}
-
 if(!is.null(data_fidelity)&!config$censoring){
   
   taxdat::plot_model_fidelity_tfrac_adjusted(data_fidelity = data_fidelity,
-                                             case_raster = case_raster,
-                                             render = T)
-  
+                                              case_raster = case_raster,
+                                              render = T)
 } else{
   warning("data_fidelity is NULL")
 }
-
 ```
 
 ```{r datafidelity2, fig.cap=capFig("Observations/tfrac vs. modeled cases/tfrac"), fig.height=10, fig.width=10}
-
 if(!is.null(data_fidelity)){
   
   taxdat::plot_model_fidelity_tfrac_converted(data_fidelity = data_fidelity,
@@ -681,12 +690,10 @@ if(!is.null(data_fidelity)){
 } else{
   warning("data_fidelity is NULL")
 }
-
 ```
 
 
 ```{r datafidelity3, fig.cap=capFig("Observations vs. modeled cases (tfrac adjusted)"), fig.height=15, fig.width=10}
-
 if(!is.null(data_fidelity)&!config$censoring){
   
   taxdat::plot_model_fidelity_tfrac_adjusted_by_year(data_fidelity = data_fidelity,
@@ -696,7 +703,6 @@ if(!is.null(data_fidelity)&!config$censoring){
 } else{
   warning("data_fidelity is NULL")
 }
-
 ```
 
 ```{r datafidelity4, fig.cap=capFig("Observations vs. modeled cases"), fig.height=8, fig.width=10}
@@ -749,9 +755,7 @@ if(!is.null(model.rand)){
 
 **Table 6. Observed and estimates of WHO annual cholera reports:**
 ```{r WHO output, fig.height=5, fig.width=10, fig.cap = "comparison with WHO Output"}
-
 if(!is.null(sf_cases_resized) & !is.null(model.rand)){
-  
   who_annual_cases <- sf_cases_resized
   chains <- data_fidelity[[1]] %>% 
     filter(str_detect(variable, "tfrac", negate = T)) %>% 
@@ -781,7 +785,6 @@ if(!is.null(sf_cases_resized) & !is.null(model.rand)){
 
 **Table 7. Estimated cases by chain and time slice:**
 ```{r cases_chain_table, fig.width=10, fig.cap = "Sum of grid cases by chain and year"}
-
 if(!is.null(model.rand) && !is.null(stan_input)){
   stan_input$sf_grid <- stan_input$sf_grid %>%
     dplyr::ungroup() %>%
@@ -814,7 +817,6 @@ if(!is.null(model.rand) && !is.null(stan_input)){
 ```
 
 ```{r full country modeled cases, fig.cap = "comparison with WHO Output"}
-
 if(!is.null(sf_cases_resized) & !is.null(model.rand)){
   total_cases <- cases_chains %>% apply(1, mean) %>% sum()
   print(paste("There are",format(round(total_cases), big.mark=","),"total cases"))

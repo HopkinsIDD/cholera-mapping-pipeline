@@ -8,16 +8,16 @@ cache <- new.env()
 #' @param fun the function that will generate the output
 #' @param overwrite whether to overwrite the current environment
 #' @return
-cache_fun_results <- function(name, fun, ..., overwrite = FALSE, cholera_directory) {
+cache_fun_results <- function(name, fun, ..., overwrite = FALSE,cholera_directory) {
     if ((!overwrite) && (name %in% names(function_cache))) {
         stop("Please only cache a single function with the same name")
     }
     function_cache[[name]] <- TRUE
-    return(function(config, cache, cholera_directory, ...) {
+    return(function(name,config, cache,cholera_directory, ...) {
         if (name %in% names(cache)) {
             return(invisible())
         }
-        cache[[name]] <- fun(config, cache, cholera_directory, ...)
+        cache[[name]] <- fun(config, cache, cholera_directory,...)
         return(invisible())
     })
 }
