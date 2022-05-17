@@ -26,7 +26,8 @@ plot_sf_with_fill <- function(cache,name, color_scale_type, fill_column) {
 #' @title plot_observed_cases_polygon_raw
 #' @description plot the polygon with observed cases
 #' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' #' @return ggplot object
 plot_observed_cases_polygon_raw <- function(config, cache, cholera_directory) {
     aggregate_observed_polygon_cases_disjoint_aggregated(name="observed_polygon_cases_disjoint_aggregated",
@@ -43,7 +44,8 @@ plot_observed_cases_polygon_raw <- function(config, cache, cholera_directory) {
 #' @title plot_area_adjusted_observed_cases
 #' @description plot the polygon with observed cases
 #' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' #' @return ggplot object
 plot_area_adjusted_observed_cases<- function(config, cache, cholera_directory) {
     aggregate_observed_polygon_cases_disjoint_aggregated(name="observed_polygon_cases_disjoint_aggregated",
@@ -64,7 +66,8 @@ plot_area_adjusted_observed_cases<- function(config, cache, cholera_directory) {
 #' @title plot_raw_observations
 #' @description plot the polygon with number of observations
 #' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' #' @return ggplot object
 plot_raw_observations<- function(config, cache, cholera_directory) {
     aggregate_observed_polygon_cases_disjoint(name="observed_polygon_cases_disjoint",
@@ -93,7 +96,8 @@ plot_raw_observations<- function(config, cache, cholera_directory) {
 #' @title plot_modeled_cases_polygon_raw
 #' @description plot the polygon with modeled cases
 #' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return ggplot object
 plot_modeled_cases_polygon_raw <- function(config, cache, cholera_directory) {
     get_modeled_polygon_cases_mean_disjoint_aggregated(config=config, cache=cache, cholera_directory=cholera_directory)
@@ -173,7 +177,8 @@ get_modeled_cases_mean <- cache_fun_results("modeled_cases_mean", get_modeled_ca
 #' @title aggregate_to_modeled_cases_mean
 #' @description get the mean of the modeled cases for each observation
 #' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return  modeled cases mean for each grid cell by times
 aggregate_to_modeled_cases_mean <- function(modeled_cases, funs = "mean") {
     modeled_cases_mean_by_chain <- apply(modeled_cases, c(2, 3), mean)
@@ -189,7 +194,8 @@ aggregate_to_modeled_cases_mean <- function(modeled_cases, funs = "mean") {
 #' @title merge_modeled_cases_mean_into_polygon_no_cache
 #' @description merge the modeled cases mean into polygon
 #' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return polygon filled with modeled cases
 merge_modeled_cases_mean_into_polygon_no_cache <- function(config, cache, cholera_directory) {
     get_modeled_cases_mean(config, cache, cholera_directory)
@@ -209,7 +215,8 @@ merge_modeled_cases_mean_into_polygon <- cache_fun_results("sf_object", merge_mo
 #' @title aggregate_modeled_polygon_cases_mean_disjoint_no_cache
 #' @description get modeld cases mean by polygon (location periods)
 #' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return modeled cases mean by location periods
 aggregate_modeled_polygon_cases_mean_disjoint_no_cache <- function(config, cache, cholera_directory) {
     merge_modeled_cases_mean_into_polygon_no_cache(config, cache, cholera_directory)
@@ -228,7 +235,8 @@ aggregate_modeled_polygon_cases_mean_disjoint <- cache_fun_results("modeled_poly
 #' @title aggregate_modeled_polygon_cases_mean_disjoint_aggregated_no_cache
 #' @description get normalized (aggregated) modeled cases mean by polygon (location periods)
 #' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return normalized (aggregated) modeled cases mean by location periods
 aggregate_modeled_polygon_cases_mean_disjoint_aggregated <- function(config, cache,
     cholera_directory) {

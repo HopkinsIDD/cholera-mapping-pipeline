@@ -66,7 +66,8 @@ aggregate_to_location_period <- function(sf_object, aggregation_function, groupi
 #' @title aggregate_observed_polygon_cases_disjoint_no_cache
 #' @description get observed cases by polygon (location periods)
 #' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folders
 #' @return observed cases location periods
 aggregate_observed_polygon_cases_disjoint_no_cache <- function(config, cache, cholera_directory) {
   get_stan_input(name="stan_input",config=config, cache=cache, cholera_directory=cholera_directory)
@@ -90,7 +91,8 @@ aggregate_observed_polygon_cases_disjoint <- cache_fun_results("observed_polygon
 #' @title aggregate_observed_polygon_cases_disjoint_aggregated_no_cache
 #' @description get modeled cases mean by polygon (location periods)
 #' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return modeled cases mean by location periods
 aggregate_observed_polygon_cases_disjoint_aggregated_no_cache <- function(config, cache,
                                                                           cholera_directory) {

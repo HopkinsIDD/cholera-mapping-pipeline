@@ -3,9 +3,9 @@
 #' @export
 #' @name plot_time_varying_pop_raster
 #' @description plot the time varying population raster
-#' @param cache the cache environment
 #' @param config config file that contains the parameter information
-#' @param pars a list of parameters which we want to display
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 plot_time_varying_pop_raster <- function(cache,config, cholera_directory){
   config<-yaml::read_yaml(paste0(cholera_directory,config))
 
