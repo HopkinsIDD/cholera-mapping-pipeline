@@ -4,9 +4,9 @@
 #' @name get_non_na_gridcells
 #' @title get_non_na_gridcells
 #' @description add
-#' @param cache covariates rdata filename
-#' @param config
-#' @param cholera_directory
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return
 #' @export
 get_non_na_gridcells <- function(cache, config,cholera_directory){
@@ -20,9 +20,9 @@ get_non_na_gridcells <- function(cache, config,cholera_directory){
 #' @name get_case_raster
 #' @title get_case_raster
 #' @description add
-#' @param cache
-#' @param config
-#' @param cholera_directory
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return
 get_case_raster <- function(cache,cholera_directory,config
 ) {

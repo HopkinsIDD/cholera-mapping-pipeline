@@ -5,7 +5,8 @@
 #' @title plot_modeled_cases_by_chain_time
 #' @description plot the polygon with modeled cases
 #' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return table with modeled cases by time and chain
 plot_modeled_cases_by_chain_time <- function(config, cache, cholera_directory) {
   
@@ -35,7 +36,6 @@ plot_modeled_cases_by_chain_time <- function(config, cache, cholera_directory) {
     
     sf_grid_wider <- sf::st_drop_geometry(stan_input$sf_grid)
     
-
     by_years <- sf_grid_wider %>%
       dplyr::group_by(t) %>%
       dplyr::summarise(dplyr::across(dplyr::contains("cases_chain"), sum)) %>%

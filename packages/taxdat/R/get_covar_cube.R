@@ -1,8 +1,9 @@
 #' @export
 #' @name get_covar_no_cache
 #' @description load covariate output data
-#' @param config 
-#' @param cache 
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return covar cube
 get_covar_no_cache <- function(config, cache, cholera_directory) {
   config <- yaml::read_yaml(paste0(cholera_directory,config))
@@ -23,7 +24,8 @@ get_covar <- cache_fun_results(name = "covar_cube_output", fun = get_covar_no_ca
 #' @title get_covar_cube_no_cache
 #' @description extrac covar_cube from covar_cube_output
 #' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return  covar_cube
 get_covar_cube_no_cache <- function(config, cache, cholera_directory, ...) {
   get_covar(name="covar_cube_output",config=config, cache=cache, cholera_directory=cholera_directory)
@@ -40,7 +42,8 @@ get_covar_cube <- cache_fun_results(name="covar_cube", fun=get_covar_cube_no_cac
 #' @title get_sf_grid_no_cache
 #' @description extrac sf_grid from covar_cube_output
 #' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return  sf_grid
 get_sf_grid_no_cache <- function(config, cache, cholera_directory, ...) {
   get_covar(name="covar_cube_output",config=config, cache=cache, cholera_directory=cholera_directory)

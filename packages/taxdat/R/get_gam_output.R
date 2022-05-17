@@ -4,8 +4,9 @@
 #' @name get_gam_values_no_cache
 #' @description gets the predicted GAM rate and case incidence values that are used 
 #' for initializing the model
-#' @param config the configuration file
-#' @param cholera_directory the cholera directory where the data is stored
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return a dataframe based on sf_grid with a column for the log predictions of
 #' cases (log_y) and of rates (log_lambda)
 get_gam_values_no_cache <- function(
