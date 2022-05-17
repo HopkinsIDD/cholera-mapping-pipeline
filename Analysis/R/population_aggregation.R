@@ -45,9 +45,9 @@ if (opt$extract) {
   DBI::dbSendStatement(conn_pg, 
                        glue::glue_sql("
                 CREATE TABLE tmppop2_{band} AS (
-                SELECT a.rid, a.x, a.y, a.centroid, (ST_SummaryStats(ST_Clip(rast, {band}, geom, true))).sum as pop1km
+                SELECT a.rid, a.x, a.y, a.centroid, (ST_SummaryStats(ST_Union(ST_Clip(rast, {band}, geom, true)))).sum as pop1km
                 FROM covariates.pop_1_years_1_1, tmppop a
-                WHERE ST_Intersects(rast, centroid)
+                WHERE ST_Intersects(rast, geom)
                 );
                 ", .con = conn_pg))
   
