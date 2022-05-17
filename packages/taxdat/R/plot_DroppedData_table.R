@@ -5,7 +5,8 @@
 #' @title plot_ObservationSummary_table
 #' @description plot the polygon with modeled cases
 #' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return table with observation statistic summary
 plot_DroppedData_table <- function(config, cache, cholera_directory) {
   get_sf_cases_resized(

@@ -5,7 +5,8 @@
 #' @title plot_WHOcomparison_table
 #' @description plot the polygon with modeled cases
 #' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return table with who comparison statistics
 plot_WHOcomparison_table <- function(config, cache, cholera_directory) {
   get_sf_cases_resized(name="sf_cases_resized",config=config, cache=cache, cholera_directory=cholera_directory)

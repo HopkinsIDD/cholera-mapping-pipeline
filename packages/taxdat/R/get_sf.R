@@ -4,9 +4,9 @@
 #' @name get_disaggregated_cases_sf
 #' @title get_disaggregated_cases_sf
 #' @description add
-#' @param cache
-#' @param config
-#' @param cholera_directory
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return
 get_disaggregated_cases_sf <- function(cache,cholera_directory,config
 ) {
@@ -37,9 +37,9 @@ get_disaggregated_cases_sf <- function(cache,cholera_directory,config
 #' @name get_disaggregated_rates_sf
 #' @title get_disaggregated_rates_sf
 #' @description add
-#' @param cache
-#' @param config
-#' @param cholera_directory
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return
 get_disaggregated_rates_sf <- function(cache,cholera_directory,config
 ) {

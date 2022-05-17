@@ -4,9 +4,9 @@
 #' @name plot_pop_by_admin
 #' @title plot_pop_by_admin
 #' @description add
-#' @param config
-#' @param cache
-#' @param cholera_directory
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return table
 plot_pop_by_admin <- function(cache,cholera_directory,config) {
   config<-yaml::read_yaml(paste0(cholera_directory,config))
@@ -105,9 +105,9 @@ if(nrow(cache[["sf_grid"]]) == prod(dim(pop_layer))){
 #' @name plot_cases_by_admin
 #' @title plot_cases_by_admin
 #' @description add
-#' @param config
-#' @param cache
-#' @param cholera_directory
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return table
 plot_cases_by_admin <- function(cache, config, cholera_directory){
   config<-yaml::read_yaml(paste0(cholera_directory,config))

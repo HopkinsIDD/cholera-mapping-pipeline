@@ -4,9 +4,10 @@
 #' @export
 #' @name get_modeled_cases_no_cache
 #' @title get_modeled_cases_no_cache
-#' @description extrac modeled cases from model.rand
+#' @description extract modeled cases from model.rand
 #' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return  modeled_cases
 get_modeled_cases_no_cache <- function(config, cache, cholera_directory, ...) {
   get_genquant(name="genquant",cache=cache,config=config,cholera_directory = cholera_directory)
@@ -25,8 +26,9 @@ get_modeled_cases <- cache_fun_results("modeled_cases", get_modeled_cases_no_cac
 #' @title get_modeled_observed_cases_no_cache
 #' @description extrac modeled cases from model.rand
 #' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return  modeled_cases
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
+#' #' @return  modeled_cases
 get_modeled_observed_cases_no_cache <- function(config, cache, cholera_directory, ...) {
   get_genquant(name="genquant",cache=cache,config=config,cholera_directory = cholera_directory)
   varnames <- dimnames(cache[['genquant']]$draws())[[3]]
@@ -44,7 +46,8 @@ get_modeled_observed_cases <- cache_fun_results("modeled_observed_cases", get_mo
 #' @title get_modeled_rates_no_cache
 #' @description extrac modeled rates (from log lambda) from model.rand
 #' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return  modeled_rates
 get_modeled_rates_no_cache <- function(config, cache, cholera_directory, ...) {
   get_genquant(name="genquant",cache=cache,config=config,cholera_directory = cholera_directory)
@@ -63,7 +66,8 @@ get_modeled_rates <- cache_fun_results("modeled_rates", get_modeled_rates_no_cac
 #' @title aggregate_modeled_cases_by_chain_no_cache
 #' @description get the mean of the modeled cases by chain
 #' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return  modeled cases mean for each grid cell by times
 aggregate_modeled_cases_by_chain_no_cache <- function(config,cholera_directory,cache,funs = "mean") {
   get_modeled_cases(name="modeled_cases",
@@ -89,7 +93,8 @@ aggregate_modeled_cases_by_chain <- cache_fun_results(name="modeled_cases_by_cha
 #' @title aggregate_modeled_rates_by_chain_no_cache
 #' @description get the mean of the modeled rates by chain
 #' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return  modeled rates mean for each grid cell by times
 aggregate_modeled_rates_by_chain_no_cache <- function(modeled_rates, funs = "mean") {
   modeled_rates_by_chain <- apply(modeled_rates, 2, funs)
@@ -103,8 +108,10 @@ aggregate_modeled_rates_by_chain <- cache_fun_results("modeled_rates_by_chain", 
 
 #' @export
 #' @name aggregate_modeled_cases_by_chain_gridtime_no_cache
-#' @description aggregate the modeled cases by chain
-#' @param modeled_cases
+#' @description aggregate the modeled cases by chain 
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @param funs the function to aggregate the modeled cases
 #' @return modeled cases across iterations by chains and grid*time
 aggregate_modeled_cases_by_chain_gridtime_no_cache <- function(config,cholera_directory,cache,funs = "mean"){
@@ -130,7 +137,9 @@ aggregate_modeled_cases_by_chain_gridtime <- cache_fun_results("aggregated_model
 #' @export
 #' @name aggregate_modeled_observed_cases_by_chain_gridtime_no_cache
 #' @description aggregate the modeled cases by chain
-#' @param modeled_cases
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @param funs the function to aggregate the modeled cases
 #' @return modeled cases across iterations by chains and grid*time
 aggregate_modeled_observed_cases_by_chain_gridtime_no_cache <- function(config,cholera_directory,cache,funs = "mean"){
@@ -156,7 +165,9 @@ aggregate_modeled_observed_cases_by_chain_gridtime <- cache_fun_results("aggrega
 #' @export
 #' @name aggregate_modeled_rates_by_gridtime_no_cache
 #' @description aggregate the modeled rates for each grid cell
-#' @param modeled_rates
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @param funs the function to aggregate the modeled rates
 #' @return modeled rates mean across iterations by chains and grid*time
 aggregate_modeled_rates_by_chain_gridtime_no_cache <- function(modeled_rates, funs = "mean"){
@@ -173,7 +184,9 @@ aggregate_modeled_rates_by_chain_gridtime <- cache_fun_results("aggregated_model
 #' @export
 #' @name aggregate_modeled_cases_by_gridtime_no_cache
 #' @description aggregate the modeled cases by grid*time
-#' @param modeled_cases
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @param funs the function to aggregate the modeled cases
 #' @return modeled cases mean across chains and iterations by grid*timee
 aggregate_modeled_cases_by_gridtime_no_cache <- function(cache,config,cholera_directory, funs = "mean"){
@@ -196,9 +209,9 @@ aggregate_modeled_cases_by_gridtime <- cache_fun_results("aggregated_modeled_cas
 #' @export
 #' @name aggregate_modeled_rates_by_gridtime_no_cache
 #' @description aggregate the modeled rates by grid*time
-#' @param cache
-#' @param config
-#' @param cholera_directory
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @param funs the function to aggregate the modeled rates
 #' @return modeled rates mean across chains and iterations by grid*timee
 aggregate_modeled_rates_by_gridtime_no_cache <- function(cache,config,cholera_directory, funs = "mean"){
@@ -221,12 +234,19 @@ aggregate_modeled_rates_by_gridtime <- cache_fun_results("aggregated_modeled_rat
 #' @export
 #' @name aggregate_averaged_modeled_cases_by_time_across_country_no_cache
 #' @description aggregate the averaged modeled cases across chains and iterations by grid*time over the country
-#' @param modeled_cases
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @param average_funs the function to get the averaged modeled cases across chains and iterations
 #' @return modeled cases mean across chains and iterations by grid*timee over the country
-aggregate_averaged_modeled_cases_by_time_across_country_no_cache <- function(config, modeled_cases, average_funs = "mean"){
+aggregate_averaged_modeled_cases_by_time_across_country_no_cache <- function(config, cache,cholera_directory, average_funs = "mean"){
+  get_modeled_cases(name="modeled_cases",
+                    cache=cache,
+                    config = config,
+                    cholera_directory = cholera_directory
+  )
   
-  aggregated_modeled_cases_by_gridtime <- apply(modeled_cases, c(3), average_funs)
+  aggregated_modeled_cases_by_gridtime <- apply(cache[["modeled_cases"]], c(3), average_funs)
   analysis_years <- lubridate::year(config$start_time):lubridate::year(config$end_time)
 
   aggregated_averaged_modeled_cases_by_time_across_country<-
@@ -247,13 +267,20 @@ aggregate_averaged_modeled_cases_by_time_across_country <- cache_fun_results("ag
 #' @export
 #' @name aggregate_averaged_modeled_rates_by_time_across_country_no_cache
 #' @description aggregate the averaged modeled rates across chains and iterations by grid*time over the country
-#' @param modeled_cases
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @param average_funs the function to get the averaged modeled rates across chains and iterations
 #' @param aggregate_funs the function to get the aggregated averaged modeled rates over country
 #' @return modeled rates mean across chains and iterations by grid*timee over the country
-aggregate_averaged_modeled_rates_by_time_across_country_no_cache <- function(config, modeled_rates, average_funs = "mean",aggregate_funs="mean"){
+aggregate_averaged_modeled_rates_by_time_across_country_no_cache <- function(config, cache,cholera_directory, average_funs = "mean",aggregate_funs="mean"){
+  get_modeled_rates(name="modeled_rates",
+                    cache=cache,
+                    config = config,
+                    cholera_directory = cholera_directory
+  )
   
-  aggregated_modeled_rates_by_gridtime <- apply(modeled_cases, c(3), average_funs)
+  aggregated_modeled_rates_by_gridtime <- apply(cache[["modeled_rates"]], c(3), average_funs)
   analysis_years <- lubridate::year(config$start_time):lubridate::year(config$end_time)
   
   aggregated_averaged_modeled_rates_by_time_across_country<-
