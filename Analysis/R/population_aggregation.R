@@ -48,6 +48,7 @@ if (opt$extract) {
                 SELECT a.rid, a.x, a.y, a.centroid, (ST_SummaryStats(ST_Union(ST_Clip(rast, {band}, geom, true)))).sum as pop1km
                 FROM covariates.pop_1_years_1_1, tmppop a
                 WHERE ST_Intersects(rast, geom)
+                GROUP BY a.rid, a.x, a.y, a.centroid
                 );
                 ", .con = conn_pg))
   
