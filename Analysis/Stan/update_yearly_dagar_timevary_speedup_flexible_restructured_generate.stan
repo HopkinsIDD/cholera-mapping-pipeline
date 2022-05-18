@@ -60,7 +60,7 @@ data {
   // Prior for high values of rho
   int<lower=0, upper=1> use_rho_prior;
   int<lower=0, upper=1> use_pop_weight; 
-  real<lower=0, upper=1> pop_weight[K2 * use_pop_weight];
+  real<lower=0> pop_weight[K2 * use_pop_weight];
   
   
   // If time slice effect pass indicator function for years without data
