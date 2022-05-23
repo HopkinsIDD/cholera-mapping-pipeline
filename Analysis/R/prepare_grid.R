@@ -53,9 +53,10 @@ prepare_grid <- function(
       2020,
       "_1km_Aggregated.tif"
     )
+
     
     master_grid_filename <- paste0("Layers/pop/ppp_", 2020, "_1km_Aggregated.tif")
-    
+   
     cat("---- Couldn't find master grid, importing it from", master_grid_filename, "\n")
     
     if (!all(file.exists(master_grid_filename))) {
