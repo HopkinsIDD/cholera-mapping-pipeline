@@ -7,7 +7,7 @@ output:
     toc_float: true
   pdf_document: default
 params:
-  config: "Analysis/configs/Dev_nocovar/2015_2019_country/finished/config_AGO_2015_2019.yml"
+  config: "Analysis/configs/production_tests/Dev_nocovar/2015_2019_country/config_AGO_2015_2019.yml"
   cholera_directory: "/home/kaiyuezou/mapping_pipeline/dev_production/cholera-mapping-pipeline"
   local_output_dir: "" #this is the absolute directory of model output if a folder other than "data" is used to store the output 
   credential_directory: ""
@@ -49,6 +49,7 @@ params:
 ### 02/17/2022 New updates -- fixed ZNZ issue; fixed plot height issue
 ### 02/23/2022 New updates -- fixed the comparison table 3.  
 ### 05/11/2022 New updates -- added new table and plotted dropped observations 
+### 05/13/2022 New updates -- added back table 5 to distinguish partially and fully dropped observation collections 
 
 ```
 
@@ -220,8 +221,11 @@ rm(sum_obs)
 
 
 ## Table 4. Summary table for the difference between pre-processed dataset and the dataset directly drawn from taxonomy
+### Noted: the dropped observation collections listed below may be or not be fully dropped
 ```{r echo=FALSE, warning=FALSE}
 # try to get the diff dataframe
+taxonomy_data_ori <- taxonomy_data
+
 diff_id <- setdiff(taxonomy_data$id, raw_data$id)
 taxonomy_data_compare <- taxonomy_data %>% 
   mutate(OC_UID = observation_collection_id, 
@@ -245,93 +249,85 @@ diff_df %>%
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
   kableExtra::kable_paper(full_width = F)
 
+```
 
 
-# sum_obs1 <- raw_data %>% 
-#   select(year, suspected_cases, locationPeriod_id, OC_UID)
+## Table 5. Summary table for --fully-- dropped location periods and observation collections 
+```{r echo=FALSE, warning=FALSE}
+sum_obs1 <- sf::st_drop_geometry(raw_data) %>% 
+  select(year, suspected_cases, locationPeriod_id, OC_UID) %>% 
+  group_by(year) %>%
+  summarise(num_observations = n(), 
+            num_cases = sum(suspected_cases, na.rm = TRUE), 
+            num_locationPeriod_id = length(unique(locationPeriod_id)), 
+            num_OC_UID = length(unique(OC_UID)))
 
-# sum_obs2 <- taxonomy_data %>% 
-#   mutate(OC_UID = observation_collection_id, 
-#          locationPeriod_id = location_period_id, 
-#          year = lubridate::year(time_left)) %>% 
-#   select(year, suspected_cases, locationPeriod_id, OC_UID)
+sum_obs2 <- sf::st_drop_geometry(taxonomy_data) %>% 
+  mutate(OC_UID = observation_collection_id, 
+         locationPeriod_id = location_period_id, 
+         year = lubridate::year(time_left)) %>% 
+  select(year, suspected_cases, locationPeriod_id, OC_UID) %>% 
+  group_by(year) %>%
+  summarise(num_observations = n(), 
+            num_cases = sum(suspected_cases, na.rm = TRUE), 
+            num_locationPeriod_id = length(unique(locationPeriod_id)), 
+            num_OC_UID = length(unique(OC_UID)))
 
-# sum_obs1 <- sf::st_drop_geometry(raw_data) %>% 
-#   select(year, suspected_cases, locationPeriod_id, OC_UID) %>% 
-#   group_by(year) %>%
-#   summarise(num_observations = n(), 
-#             num_cases = sum(suspected_cases, na.rm = TRUE), 
-#             num_locationPeriod_id = length(unique(locationPeriod_id)), 
-#             num_OC_UID = length(unique(OC_UID)))
+if(sum(!sum_obs2$year %in% sum_obs1$year) > 0){
+  for (years in sum_obs2$year[!sum_obs2$year %in% sum_obs1$year]){
+    sum_obs1 <- sum_obs1 %>%
+      add_row(year = years,
+              num_observations = 0, 
+              num_cases = 0, 
+              num_locationPeriod_id = 0, 
+              num_OC_UID = 0)
+  }
+}
 
-# sum_obs2 <- sf::st_drop_geometry(taxonomy_data) %>% 
-#   mutate(OC_UID = observation_collection_id, 
-#          locationPeriod_id = location_period_id, 
-#          year = lubridate::year(time_left)) %>% 
-#   select(year, suspected_cases, locationPeriod_id, OC_UID) %>% 
-#   group_by(year) %>%
-#   summarise(num_observations = n(), 
-#             num_cases = sum(suspected_cases, na.rm = TRUE), 
-#             num_locationPeriod_id = length(unique(locationPeriod_id)), 
-#             num_OC_UID = length(unique(OC_UID)))
+sum_obs <- tibble::tibble(
+  year = sum_obs2$year, 
+  num_observations = sum_obs2$num_observations - sum_obs1$num_observations, 
+  num_cases = sum_obs2$num_cases - sum_obs1$num_cases, 
+  num_locationPeriod_id = sum_obs2$num_locationPeriod_id - sum_obs1$num_locationPeriod_id, 
+  num_OC_UID = sum_obs2$num_OC_UID - sum_obs1$num_OC_UID
+)
 
-# # sum_obs1 <- sf::st_drop_geometry(sum_obs1)
-# # sum_obs2 <- sf::st_drop_geometry(sum_obs2)
-# if(sum(!sum_obs2$year %in% sum_obs1$year) > 0){
-#   for (years in sum_obs2$year[!sum_obs2$year %in% sum_obs1$year]){
-#     sum_obs1 <- sum_obs1 %>%
-#       add_row(year = years,
-#               num_observations = 0, 
-#               num_cases = 0, 
-#               num_locationPeriod_id = 0, 
-#               num_OC_UID = 0)
-#   }
-# }
-
-# sum_obs <- tibble::tibble(
-#   year = sum_obs2$year, 
-#   num_observations = sum_obs2$num_observations - sum_obs1$num_observations, 
-#   num_cases = sum_obs2$num_cases - sum_obs1$num_cases, 
-#   num_locationPeriod_id = sum_obs2$num_locationPeriod_id - sum_obs1$num_locationPeriod_id, 
-#   num_OC_UID = sum_obs2$num_OC_UID - sum_obs1$num_OC_UID
-# )
-
-# dropped_locationPeriod_id <- c()
-# dropped_OC_UID <- c()
-# for (years in sum_obs2$year){
-#   list1 <- unique(raw_data[raw_data$year == years, ]$locationPeriod_id)
-#   list2 <- unique(taxonomy_data[taxonomy_data$year == years, ]$location_period_id)
-#   if(length(setdiff(list2, list1)) == 0){
-#     dropped_locationPeriod_id <- c(dropped_locationPeriod_id, "0")
-#   }else{
-#     dropped <- paste(setdiff(list2, list1), collapse = ', ')
-#     dropped_locationPeriod_id <- c(dropped_locationPeriod_id, dropped)
-#   }
+dropped_locationPeriod_id <- c()
+dropped_OC_UID <- c()
+for (years in sum_obs2$year){
+  list1 <- unique(raw_data[raw_data$year == years, ]$locationPeriod_id)
+  list2 <- unique(taxonomy_data[taxonomy_data$year == years, ]$location_period_id)
+  if(length(setdiff(list2, list1)) == 0){
+    dropped_locationPeriod_id <- c(dropped_locationPeriod_id, "0")
+  }else{
+    dropped <- paste(setdiff(list2, list1), collapse = ', ')
+    dropped_locationPeriod_id <- c(dropped_locationPeriod_id, dropped)
+  }
   
-#   list1 <- unique(raw_data[raw_data$year == years, ]$OC_UID)
-#   list2 <- unique(taxonomy_data[taxonomy_data$year == years, ]$observation_collection_id)
-#   if(length(setdiff(list2, list1)) == 0){
-#     dropped_OC_UID <- c(dropped_OC_UID, "0")
-#   }else{
-#     dropped <- paste(setdiff(list2, list1), collapse = ', ')
-#     dropped_OC_UID <- c(dropped_OC_UID, dropped)
-#   }
-# }
-# sum_obs$dropped_locationPeriod_id <- dropped_locationPeriod_id
-# sum_obs$dropped_OC_UID <- dropped_OC_UID
+  list1 <- unique(raw_data[raw_data$year == years, ]$OC_UID)
+  list2 <- unique(taxonomy_data[taxonomy_data$year == years, ]$observation_collection_id)
+  if(length(setdiff(list2, list1)) == 0){
+    dropped_OC_UID <- c(dropped_OC_UID, "0")
+  }else{
+    dropped <- paste(setdiff(list2, list1), collapse = ', ')
+    dropped_OC_UID <- c(dropped_OC_UID, dropped)
+  }
+}
+sum_obs$dropped_locationPeriod_id <- dropped_locationPeriod_id
+sum_obs$dropped_OC_UID <- dropped_OC_UID
 
-# sum_obs <- sum_obs %>% 
-#   select(year, num_observations, num_cases, num_locationPeriod_id, dropped_locationPeriod_id, num_OC_UID, dropped_OC_UID)
+sum_obs <- sum_obs %>% 
+  select(year, num_observations, num_cases, num_locationPeriod_id, dropped_locationPeriod_id, num_OC_UID, dropped_OC_UID)
 
-# sum_obs %>%
-#   kableExtra::kable(col.names = c("Year", "#dropped observations", "#dropped cases", "#dropped location-periods", 
-#                                   "dropped location-periods", "#dropped observation collections", "dropped observation collections")) %>%
-#   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
-#   kableExtra::kable_paper(full_width = F)
+sum_obs %>%
+  kableExtra::kable(col.names = c("Year", "#dropped observations", "#dropped cases", "#dropped location-periods", 
+                                  "dropped location-periods", "#dropped observation collections", "dropped observation collections")) %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+  kableExtra::kable_paper(full_width = F)
 
-# rm(sum_obs)
-# rm(sum_obs1)
-# rm(sum_obs2)
+rm(sum_obs)
+rm(sum_obs1)
+rm(sum_obs2)
 
 ```
 
