@@ -1,5 +1,4 @@
 echo "What is the name of the user?"
-# read USERNAME
 USERNAME=$1
 run_psql(){
   echo $1

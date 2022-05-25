@@ -1,9 +1,9 @@
 ---
 title: "Data and Model Outputs Report"
 output: html_document
-params: 
-  cholera_directory: "~/cholera-mapping-pipeline"
-  config: "/Analysis/configs/config.yml"
+params:
+  cholera_directory: "/home/app/cmp/"
+  config_filename: "/home/app/cmp/Analysis/R/test_config.yml"
   drop_nodata_years: TRUE
   admin_level_for_summary_table: '1'
   args: 'myarg'

@@ -12,18 +12,18 @@ check_time_res <- function(res_time) {
     err_message <- "Time resolution should be specified as a string in the from '<n> <period>' where n is the number of time units of period <period>. Example: '1 year'."
 
     parts <- stringr::str_split(res_time, " ")[[1]]
-    if (length(parts) != 2) 
+    if (length(parts) != 2)
         stop(err_message)
 
     n_units <- as.numeric(parts[1])
-    if (is.na(n_units)) 
+    if (is.na(n_units))
         stop(paste(err_message, "[Units not valid]"))
 
     allowed_time_periods <- c("month", "year")
-    allowed_time_periods <- c(allowed_time_periods, paste0(allowed_time_periods, 
+    allowed_time_periods <- c(allowed_time_periods, paste0(allowed_time_periods,
         "s"))
     time_period <- parts[2]
-    if (!(time_period %in% allowed_time_periods)) 
+    if (!(time_period %in% allowed_time_periods))
         stop(paste(err_message, "[Time period not valid]"))
 
     # Standardize to always have an s at the end
@@ -43,7 +43,7 @@ check_time_res <- function(res_time) {
 #' @return case column if valid
 #' @export
 check_case_definition <- function(case_col) {
-    if (!(case_col %in% c("suspected", "confirmed"))) 
+    if (!(case_col %in% c("suspected", "confirmed")))
         stop("Cholera case definition not in allowed options (suspected or confirmed).")
 
     cat("-- Running with valid case defitinion: '", case_col, "'\n", sep = "")
@@ -63,24 +63,24 @@ check_case_definition <- function(case_col) {
 #'
 #' @return return
 #' @export
-check_model_date_range <- function(start_time, end_time, time_change_func, aggregate_to_start, 
+check_model_date_range <- function(start_time, end_time, time_change_func, aggregate_to_start,
     aggregate_to_end) {
 
-    if (any(c(!lubridate::is.Date(start_time), !lubridate::is.Date(end_time)))) 
+    if (any(c(!lubridate::is.Date(start_time), !lubridate::is.Date(end_time))))
         stop("Start and end times need to be in date format")
 
-    if (start_time > end_time) 
+    if (start_time > end_time)
         stop("Start time is after end time")
 
     model_TL <- aggregate_to_start(time_change_func(start_time))
     model_TR <- aggregate_to_end(time_change_func(end_time))
 
     if (start_time != model_TL | end_time != model_TR) {
-        warning("--- User-defined modeling time range does not cover the whole range", 
-            "as defined with the time resoltion: \n user-defined range:\t", start_time, 
+        warning("--- User-defined modeling time range does not cover the whole range",
+            "as defined with the time resoltion: \n user-defined range:\t", start_time,
             " - ", end_time, "\n ", "model range:\t\t", model_TL, " - ", model_TR)
     } else {
-        cat("---- Running with model date range:", as.character(model_TL), "-", as.character(model_TR), 
+        cat("---- Running with model date range:", as.character(model_TL), "-", as.character(model_TR),
             "\n")
     }
 }
@@ -96,12 +96,12 @@ check_model_date_range <- function(start_time, end_time, time_change_func, aggre
 #' @export
 check_covariate_choices <- function(covar_choices, available_choices) {
 
-    if (any(purrr::map_lgl(covar_choices, ~!(. %in% available_choices)))) 
-        stop("Covariate choices [", stringr::str_c(setdiff(covar_choices, available_choices), 
-            collapse = ", "), "] not available. \n", "Choose among: [", stringr::str_c(available_choices, 
+    if (any(purrr::map_lgl(covar_choices, ~!(. %in% available_choices))))
+        stop("Covariate choices [", stringr::str_c(setdiff(covar_choices, available_choices),
+            collapse = ", "), "] not available. \n", "Choose among: [", stringr::str_c(available_choices,
             collapse = ", "), "]")
 
-    cat("---- Running with covariates:", stringr::str_c(covar_choices, collapse = ", "), 
+    cat("---- Running with covariates:", stringr::str_c(covar_choices, collapse = ", "),
         "\n")
 
     return(covar_choices)
@@ -118,10 +118,10 @@ check_covariate_choices <- function(covar_choices, available_choices) {
 #' @export
 check_stan_model <- function(stan_model_path, stan_dir) {
 
-    if (!file.exists(stan_model_path)) 
-        stop("Could not find stan model. Choose among:\n", stringr::str_c(dir(stan_dir), 
+    if (!file.exists(stan_model_path))
+        stop("Could not find stan model. Choose among:\n", stringr::str_c(dir(stan_dir),
             collapse = "\n"))
-    cat("---- Running with stan model:", stringr::str_replace(stan_model_path, stan_dir, 
+    cat("---- Running with stan model:", stringr::str_replace(stan_model_path, stan_dir,
         ""), "\n")
 
     return(stan_model_path)
@@ -159,17 +159,17 @@ check_set_tfrac <- function(set_tfrac) {
 #' @param aggregate_to_end function to get the last date of a time slices
 #' @return a dataframe left and right bounds of the modeling time slices
 #' @export
-modeling_time_slices <- function(start_time, end_time, res_time, time_change_func, 
+modeling_time_slices <- function(start_time, end_time, res_time, time_change_func,
     aggregate_to_start, aggregate_to_end) {
 
     left_bounds <- seq.Date(start_time, end_time, by = res_time)
     left_bounds <- aggregate_to_start(time_change_func(left_bounds))
     right_bounds <- aggregate_to_end(time_change_func(left_bounds))
 
-    time_slices <- tibble::tibble(TL = left_bounds[left_bounds <= end_time], TR = right_bounds[right_bounds <= 
+    time_slices <- tibble::tibble(TL = left_bounds[left_bounds <= end_time], TR = right_bounds[right_bounds <=
         end_time])
 
-    cat("-- Model consists of", nrow(time_slices), "time slices of duration", res_time, 
+    cat("-- Model consists of", nrow(time_slices), "time slices of duration", res_time,
         ":\n")
     print(time_slices)
     cat("\n")
@@ -180,12 +180,12 @@ config_checks <- list()
 config_checks[["stan"]] <- list()
 config_checks[["stan"]][["directory"]] <- function(value, config) {
     if (length(value) != 1) {
-        warning(paste("config[['stan']][['ncores']] should be of length 1, but is of length", 
+        warning(paste("config[['stan']][['ncores']] should be of length 1, but is of length",
             length(value), "with value", value))
         return(FALSE)
     }
     if (!(dir.exists(value))) {
-        warning(paste("config[['stan']][['directory']] should be a directory containing stan files, but is", 
+        warning(paste("config[['stan']][['directory']] should be a directory containing stan files, but is",
             value))
         return(FALSE)
     }
@@ -193,7 +193,7 @@ config_checks[["stan"]][["directory"]] <- function(value, config) {
 }
 config_checks[["stan"]][["recompile"]] <- function(value, config) {
     if (length(value) != 1) {
-        warning(paste("config[['stan']][['recompile']] should be of length 1, but is of length", 
+        warning(paste("config[['stan']][['recompile']] should be of length 1, but is of length",
             length(value), "with value", value))
         return(FALSE)
     }
@@ -209,7 +209,7 @@ config_checks[["stan"]][["recompile"]] <- function(value, config) {
 }
 config_checks[["stan"]][["niter"]] <- function(value, config) {
     if (length(value) != 1) {
-        warning(paste("config[['stan']][['niter']] should be of length 1, but is of length", 
+        warning(paste("config[['stan']][['niter']] should be of length 1, but is of length",
             length(value), "with value", value))
         return(FALSE)
     }
@@ -225,7 +225,7 @@ config_checks[["stan"]][["niter"]] <- function(value, config) {
 }
 config_checks[["stan"]][["ncores"]] <- function(value, config) {
     if (length(value) != 1) {
-        warning(paste("config[['stan']][['ncores']] should be of length 1, but is of length", 
+        warning(paste("config[['stan']][['ncores']] should be of length 1, but is of length",
             length(value), "with value", value))
         return(FALSE)
     }
@@ -241,7 +241,7 @@ config_checks[["stan"]][["ncores"]] <- function(value, config) {
 }
 config_checks[["stan"]][["nchain"]] <- function(value, config) {
     if (length(value) != 1) {
-        warning(paste("config[['stan']][['nchain']] should be of length 1, but is of length", 
+        warning(paste("config[['stan']][['nchain']] should be of length 1, but is of length",
             length(value), "with value", value))
         return(FALSE)
     }
@@ -255,11 +255,45 @@ config_checks[["stan"]][["nchain"]] <- function(value, config) {
     }
     return(TRUE)
 }
+config_checks[["stan"]][["beta_sigma_scale"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['stan']][['beta_sigma_scale']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['stan']][['beta_sigma_scale']] is NA")
+        return(FALSE)
+    }
+    if (!is.numeric(value)) {
+        warning("config[['stan']][['beta_sigma_scale']] should be numeric, but is",
+            value)
+        return(FALSE)
+    }
+    return(TRUE)
+}
+config_checks[["stan"]][["sigma_eta_scale"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['stan']][['sigma_eta_scale']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['stan']][['sigma_eta_scale']] is NA")
+        return(FALSE)
+    }
+    if (!is.numeric(value)) {
+        warning("config[['stan']][['sigma_eta_scale']] should be numeric, but is",
+            value)
+        return(FALSE)
+    }
+    return(TRUE)
+}
 
 config_checks[["initial_values"]] <- list()
 config_checks[["initial_values"]][["warmup"]] <- function(value, config) {
     if (length(value) != 1) {
-        warning(paste("config[['initial_values']][['warmup']] should be of length 1, but is of length", 
+        warning(paste("config[['initial_values']][['warmup']] should be of length 1, but is of length",
             length(value), "with value", value))
         return(FALSE)
     }
@@ -268,7 +302,99 @@ config_checks[["initial_values"]][["warmup"]] <- function(value, config) {
         return(FALSE)
     }
     if (!is.logical(value)) {
-        warning("config[['initial_values']][['warmup']] should be logical, but is", 
+        warning("config[['initial_values']][['warmup']] should be logical, but is",
+            value)
+        return(FALSE)
+    }
+    return(TRUE)
+}
+
+config_checks[["processing"]] <- list()
+config_checks[["processing"]][["reorder_adjacency_matrix"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['processing']][['reorder_adjacency_matrix']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['processing']][['reorder_adjacency_matrix']] is NA")
+        return(FALSE)
+    }
+    if (!is.logical(value)) {
+        warning("config[['processing']][['reorder_adjacency_matrix']] should be logical, but is",
+            value)
+        return(FALSE)
+    }
+    return(TRUE)
+}
+config_checks[["processing"]][["remove_overlaps"]] <- list()
+config_checks[["processing"]][["remove_overlaps"]][["preform"]] <- function(value,
+    config) {
+    if (length(value) != 1) {
+        warning(paste("config[['processing']][['remove_overlaps']][['perform']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['processing']][['remove_overlaps']][['perform']] is NA")
+        return(FALSE)
+    }
+    if (!is.logical(value)) {
+        warning("config[['processing']][['remove_overlaps']][['perform']] should be logical, but is",
+            value)
+        return(FALSE)
+    }
+    return(TRUE)
+}
+config_checks[["processing"]][["aggregate"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['processing']][['aggregate']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['processing']][['aggregate']] is NA")
+        return(FALSE)
+    }
+    if (!is.logical(value)) {
+        warning("config[['processing']][['aggregate']] should be logical, but is",
+            value)
+        return(FALSE)
+    }
+    return(TRUE)
+}
+config_checks[["processing"]][["censor_incomplete_observations"]] <- list()
+config_checks[["processing"]][["censor_incomplete_observations"]][["perform"]] <- function(value,
+    config) {
+    if (length(value) != 1) {
+        warning(paste("config[['processing']][['censor_incomplete_observations']][['perform']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['processing']][['censor_incomplete_observations']][['perform']] is NA")
+        return(FALSE)
+    }
+    if (!is.logical(value)) {
+        warning("config[['processing']][['censor_incomplete_observations']][['perform']] should be logical, but is",
+            value)
+        return(FALSE)
+    }
+    return(TRUE)
+}
+config_checks[["processing"]][["censor_incomplete_observations"]][["threshold"]] <- function(value,
+    config) {
+    if (length(value) != 1) {
+        warning(paste("config[['processing']][['censor_incomplete_observations']][['threshold']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['processing']][['censor_incomplete_observations']][['threshold']] is NA")
+        return(FALSE)
+    }
+    if (!is.numeric(value)) {
+        warning("config[['processing']][['censor_incomplete_observations']][['threshold']] should be numeric, but is",
             value)
         return(FALSE)
     }
@@ -287,11 +413,11 @@ check_config <- function(config, checks = config_checks, original_config = confi
     for (field_name in names(checks)) {
         if (class(checks[[field_name]]) == "list") {
             if (class(config[[field_name]]) %in% c("NULL", "list")) {
-                subconfig_valid <- check_config(config[[field_name]], checks[[field_name]], 
+                subconfig_valid <- check_config(config[[field_name]], checks[[field_name]],
                   original_config)
                 config_is_valid <- config_is_valid && subconfig_valid
             } else {
-                warning(paste("config field", field_name, "should be a list, but was of type", 
+                warning(paste("config field", field_name, "should be a list, but was of type",
                   class(config[[field_name]]), "with value", config[[field_name]]))
                 config_is_valid <- FALSE
             }
@@ -317,11 +443,30 @@ config_defaults[["initial_values"]][["warmup"]] <- function(config) {
     return(TRUE)
 }
 
+config_defaults[["processing"]] <- list()
+config_defaults[["processing"]][["aggregate"]] <- function(config) {
+    return(TRUE)
+}
+config_defaults[["processing"]][["reorder_adjacency_matrix"]] <- list()
+config_defaults[["processing"]][["reorder_adjacency_matrix"]][["perform"]] <- function(config) {
+    return(TRUE)
+}
+config_defaults[["processing"]][["remove_overlaps"]] <- function(config) {
+    return(TRUE)
+}
+config_defaults[["processing"]][["censor_incomplete_observations"]] <- list()
+config_defaults[["processing"]][["censor_incomplete_observations"]][["perform"]] <- function(config) {
+    return(TRUE)
+}
+config_defaults[["processing"]][["censor_incomplete_observations"]][["threshold"]] <- function(config) {
+    return(0.95)
+}
+
 config_defaults[["stan"]] <- list()
 config_defaults[["stan"]][["nchain"]] <- function(config) {
     return(pmax(config[["stan"]][["ncores"]], 2))
 }
-config_defaults[["stan"]][["nccores"]] <- function(config) {
+config_defaults[["stan"]][["ncores"]] <- function(config) {
     return(2)
 }
 config_defaults[["stan"]][["recompile"]] <- function(config) {
@@ -329,6 +474,12 @@ config_defaults[["stan"]][["recompile"]] <- function(config) {
 }
 config_defaults[["stan"]][["directory"]] <- function(config) {
     return(rprojroot::find_root_file("Analysis/Stan", criterion = rprojroot::has_file(".choldir")))
+}
+config_defaults[["stan"]][["beta_sigma_scale"]] <- function(config) {
+    return(1)
+}
+config_defaults[["stan"]][["sigma_eta_scale"]] <- function(config) {
+    return(5)
 }
 
 #' @name complete_config
@@ -341,10 +492,10 @@ complete_config <- function(config, defaults = config_defaults, original_config 
     for (field_name in names(defaults)) {
         if (class(defaults[[field_name]]) == "list") {
             if (!(class(config[[field_name]]) %in% c("NULL", "list"))) {
-                stop(paste("config field", field_name, "should be a list, but was of type", 
+                stop(paste("config field", field_name, "should be a list, but was of type",
                   class(config[[field_name]]), "with value", config[[field_name]]))
             }
-            config[[field_name]] <- complete_config(config[[field_name]], defaults[[field_name]], 
+            config[[field_name]] <- complete_config(config[[field_name]], defaults[[field_name]],
                 original_config)
         } else if (is.null(config[[field_name]])) {
             config[[field_name]] <- defaults[[field_name]](original_config)

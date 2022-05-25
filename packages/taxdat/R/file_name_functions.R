@@ -15,12 +15,12 @@ make_grid_filename <- function(cholera_directory, map_name, config = NULL) {
                 filename <- config[["file_names"]][["output_directory"]]
             }
             if ("observations_filename" %in% names(config[["file_names"]])) {
-                return(paste(filename, config[["file_names"]][["observations_filename"]], 
+                return(paste(filename, config[["file_names"]][["observations_filename"]],
                   sep = "/"))
             }
         }
     }
-    paste(cholera_directory, "/Analysis/", "data/", map_name, ".grid", ".rdata", 
+    paste(cholera_directory, "/Analysis/", "data/", map_name, ".grid", ".rdata",
         sep = "")
 }
 
@@ -32,12 +32,12 @@ make_observations_filename <- function(cholera_directory, map_name, config = NUL
                 filename <- config[["file_names"]][["output_directory"]]
             }
             if ("observations_filename" %in% names(config[["file_names"]])) {
-                return(paste(filename, config[["file_names"]][["observations_filename"]], 
+                return(paste(filename, config[["file_names"]][["observations_filename"]],
                   sep = "/"))
             }
         }
     }
-    paste(cholera_directory, "/Analysis/", "data/", map_name, ".preprocess", ".rdata", 
+    paste(cholera_directory, "/Analysis/", "data/", map_name, ".preprocess", ".rdata",
         sep = "")
 }
 
@@ -53,7 +53,7 @@ make_observations_filename <- function(cholera_directory, map_name, config = NUL
 #' @return a string with the covariate file name
 #' @export
 
-make_covar_filename <- function(cholera_directory, map_name, covariate_name_part, 
+make_covar_filename <- function(cholera_directory, map_name, covariate_name_part,
     config = NULL) {
     if (!is.null(config)) {
         if ("file_names" %in% names(config)) {
@@ -62,12 +62,12 @@ make_covar_filename <- function(cholera_directory, map_name, covariate_name_part
                 filename <- config[["file_names"]][["output_directory"]]
             }
             if ("covariate_filename" %in% names(config[["file_names"]])) {
-                return(paste(filename, config[["file_names"]][["covariate_filename"]], 
+                return(paste(filename, config[["file_names"]][["covariate_filename"]],
                   sep = "/"))
             }
         }
     }
-    paste(cholera_directory, "/Analysis/", "data/", map_name, ".", covariate_name_part, 
+    paste(cholera_directory, "/Analysis/", "data/", map_name, ".", covariate_name_part,
         ".covar", ".rdata", sep = "")
 }
 
@@ -83,7 +83,7 @@ make_covar_filename <- function(cholera_directory, map_name, covariate_name_part
 #' @return a string with the Stan input file name
 #' @export
 
-make_stan_input_filename <- function(cholera_directory, map_name, covariate_name_part, 
+make_stan_input_filename <- function(cholera_directory, map_name, covariate_name_part,
     config, config_dict) {
 
     if ("file_names" %in% names(config)) {
@@ -92,7 +92,7 @@ make_stan_input_filename <- function(cholera_directory, map_name, covariate_name
             filename <- config[["file_names"]][["output_directory"]]
         }
         if ("stan_input_filename" %in% names(config[["file_names"]])) {
-            return(paste(filename, config[["file_names"]][["stan_input_filename"]], 
+            return(paste(filename, config[["file_names"]][["stan_input_filename"]],
                 sep = "/"))
         }
     }
@@ -111,7 +111,7 @@ make_stan_input_filename <- function(cholera_directory, map_name, covariate_name
     to_add <- stringr::str_replace_all(to_add, "FALSE", "F")
     to_add <- stringr::str_replace_all(to_add, "NULL", "N")
 
-    paste(cholera_directory, "/Analysis/", "data/", map_name, ".", covariate_name_part, 
+    paste(cholera_directory, "/Analysis/", "data/", map_name, ".", covariate_name_part,
         ".", to_add, ".stan_input", ".rdata", sep = "")
 }
 
@@ -127,7 +127,7 @@ make_stan_input_filename <- function(cholera_directory, map_name, covariate_name
 #' @return a string with the Stan output file name
 #' @export
 
-make_initial_values_filename <- function(cholera_directory, map_name, covariate_name_part, 
+make_initial_values_filename <- function(cholera_directory, map_name, covariate_name_part,
     config, config_dict) {
 
     if ("file_names" %in% names(config)) {
@@ -136,7 +136,7 @@ make_initial_values_filename <- function(cholera_directory, map_name, covariate_
             filename <- config[["file_names"]][["output_directory"]]
         }
         if ("initial_values_filename" %in% names(config[["file_names"]])) {
-            return(paste(filename, config[["file_names"]][["initial_values_filename"]], 
+            return(paste(filename, config[["file_names"]][["initial_values_filename"]],
                 sep = "/"))
         }
     }
@@ -147,13 +147,13 @@ make_initial_values_filename <- function(cholera_directory, map_name, covariate_
             filename <- config[["file_names"]][["output_directory"]]
         }
         if ("stan_output_filename" %in% names(config[["file_names"]])) {
-            return(paste(filename, config[["file_names"]][["stan_output_filename"]], 
+            return(paste(filename, config[["file_names"]][["stan_output_filename"]],
                 sep = "/"))
         }
     }
 
     # Get stan input filename
-    base_filename <- make_stan_input_filename(cholera_directory, map_name, covariate_name_part, 
+    base_filename <- make_stan_input_filename(cholera_directory, map_name, covariate_name_part,
         config, config_dict)
     # Base part of output filename
     base_filename <- stringr::str_remove(base_filename, "stan_input\\.rdata")
@@ -191,7 +191,7 @@ make_initial_values_filename <- function(cholera_directory, map_name, covariate_
 #' @return a string with the Stan output file name
 #' @export
 
-make_stan_output_filename <- function(cholera_directory, map_name, covariate_name_part, 
+make_stan_output_filename <- function(cholera_directory, map_name, covariate_name_part,
     config, config_dict) {
 
     if ("file_names" %in% names(config)) {
@@ -200,13 +200,13 @@ make_stan_output_filename <- function(cholera_directory, map_name, covariate_nam
             filename <- config[["file_names"]][["output_directory"]]
         }
         if ("stan_output_filename" %in% names(config[["file_names"]])) {
-            return(paste(filename, config[["file_names"]][["stan_output_filename"]], 
+            return(paste(filename, config[["file_names"]][["stan_output_filename"]],
                 sep = "/"))
         }
     }
 
     # Get stan input filename
-    base_filename <- make_initial_values_filename(cholera_directory, map_name, covariate_name_part, 
+    base_filename <- make_initial_values_filename(cholera_directory, map_name, covariate_name_part,
         config, config_dict)
     # Base part of output filename
     base_filename <- stringr::str_remove(base_filename, "initial_values\\.rdata")
@@ -225,7 +225,7 @@ make_stan_output_filename <- function(cholera_directory, map_name, covariate_nam
     }
 
     # Add stan filename and iterations
-    to_add <- paste0(to_add, "-model:", stringr::str_remove(config$stan$model, "\\.stan"))
+    to_add <- paste0(to_add, "-model_", stringr::str_remove(config$stan$model, "\\.stan"))
     to_add <- paste0(to_add, "-niter", config$stan$niter)
 
     to_add <- stringr::str_replace_all(to_add, "TRUE", "T")
@@ -248,9 +248,9 @@ make_stan_output_filename <- function(cholera_directory, map_name, covariate_nam
 #' @return a string with the map output file name
 #' @export
 
-make_map_output_filename <- function(cholera_directory, map_name, covariate_name_part, 
+make_map_output_filename <- function(cholera_directory, map_name, covariate_name_part,
     stan_model, niter) {
-    paste(cholera_directory, "/Analysis/", "output/", map_name, ".", covariate_name_part, 
+    paste(cholera_directory, "/Analysis/", "output/", map_name, ".", covariate_name_part,
         ".", stan_model, ".", niter, ".pdf", sep = "")
 }
 
@@ -274,8 +274,8 @@ make_map_name <- function(config, .f = NULL) {
     # Suspected or confirmed cases
     suspected_or_confirmed <- suppressMessages(check_case_definition(config$case_definition))
 
-    map_name <- paste(paste(config$countries_name, collapse = "-"), stringr::str_replace(res_time, 
-        " ", "_"), paste(start_time, end_time, sep = "-"), paste(res_space, "km", 
+    map_name <- paste(paste(config$countries_name, collapse = "-"), stringr::str_replace(res_time,
+        " ", "_"), paste(start_time, end_time, sep = "-"), paste(res_space, "km",
         sep = ""), suspected_or_confirmed, sep = "_")
 
     return(map_name)
@@ -292,7 +292,7 @@ make_map_name <- function(config, .f = NULL) {
 get_filenames <- function(config, cholera_directory) {
     # Covariate names
     if ("file_names" %in% names(config)) {
-        file_names <- setNames(paste(cholera_directory, config$file_names, sep = "/"), 
+        file_names <- setNames(paste(cholera_directory, config$file_names, sep = "/"),
             names(config$file_names))
         relative_files_exist <- sapply(file_names, file.exists)
         absolute_files_exist <- sapply(config$file_names, file.exists)
@@ -308,7 +308,7 @@ get_filenames <- function(config, cholera_directory) {
     covariate_dict <- yaml::read_yaml(paste0(cholera_directory, "/Layers/covariate_dictionary.yml"))
     all_covariate_choices <- names(covariate_dict)
     short_covariate_choices <- purrr::map_chr(covariate_dict, "abbr")
-    covariate_choices <- check_covariate_choices(covar_choices = config$covariate_choices, 
+    covariate_choices <- check_covariate_choices(covar_choices = config$covariate_choices,
         available_choices = all_covariate_choices)
     short_covariates <- short_covariate_choices[covariate_choices]
     covariate_name_part <- paste(short_covariates, collapse = "-")
@@ -317,28 +317,28 @@ get_filenames <- function(config, cholera_directory) {
     # Load dictionary of configuration options
     config_dict <- yaml::read_yaml(paste0(cholera_directory, "/Analysis/configs/config_dictionary.yml"))
 
-    preprocessed_grid_fname <- make_observations_filename(cholera_directory = cholera_directory, 
+    preprocessed_grid_fname <- make_observations_filename(cholera_directory = cholera_directory,
         map_name = map_name)
 
-    preprocessed_data_fname <- make_observations_filename(cholera_directory = cholera_directory, 
+    preprocessed_data_fname <- make_observations_filename(cholera_directory = cholera_directory,
         map_name = map_name)
 
-    preprocessed_covar_fname <- make_covar_filename(cholera_directory = cholera_directory, 
+    preprocessed_covar_fname <- make_covar_filename(cholera_directory = cholera_directory,
         map_name = map_name, covariate_name_part = covariate_name_part)
 
-    stan_input_fname <- make_stan_input_filename(cholera_directory = cholera_directory, 
-        map_name = map_name, covariate_name_part = covariate_name_part, config = config, 
+    stan_input_fname <- make_stan_input_filename(cholera_directory = cholera_directory,
+        map_name = map_name, covariate_name_part = covariate_name_part, config = config,
         config_dict = config_dict)
 
-    initial_values_fname <- make_initial_values_filename(cholera_directory = cholera_directory, 
-        map_name = map_name, covariate_name_part = covariate_name_part, config = config, 
+    initial_values_fname <- make_initial_values_filename(cholera_directory = cholera_directory,
+        map_name = map_name, covariate_name_part = covariate_name_part, config = config,
         config_dict = config_dict)
 
-    stan_output_fname <- make_stan_output_filename(cholera_directory = cholera_directory, 
-        map_name = map_name, covariate_name_part = covariate_name_part, config = config, 
+    stan_output_fname <- make_stan_output_filename(cholera_directory = cholera_directory,
+        map_name = map_name, covariate_name_part = covariate_name_part, config = config,
         config_dict = config_dict)
 
-    rc <- list(grid = preprocessed_grid_fname, data = preprocessed_data_fname, covar = preprocessed_covar_fname, 
+    rc <- list(grid = preprocessed_grid_fname, data = preprocessed_data_fname, covar = preprocessed_covar_fname,
         stan_input = stan_input_fname, initial_values = initial_values_fname, stan_output = stan_output_fname)
     return(rc)
 }
