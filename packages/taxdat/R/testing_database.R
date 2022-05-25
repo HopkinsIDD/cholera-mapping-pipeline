@@ -1009,8 +1009,6 @@ lookup_location_ids <- function(psql_connection, qualified_names) {
 
     location_name_and_ids <- DBI::dbGetQuery(conn = psql_connection, glue::glue_sql(.con = psql_connection,
         "SELECT qualified_name, id FROM locations where qualified_name in ({qualified_names*})"))
-    DBI::dbGetQuery(conn = psql_connection, glue::glue_sql(.con = psql_connection,
-        "SELECT qualified_name, id FROM locations where qualified_name in ({location_period_df[[\"qualified_name\"]]*})"))[["id"]]
     location_name_changer <- setNames(location_name_and_ids[["id"]], location_name_and_ids[["qualified_name"]])
     return(location_name_changer[qualified_names])
 }
@@ -1079,6 +1077,8 @@ insert_testing_shapefiles <- function(psql_connection, shape_df, create_location
         shape_df[, c("location_id", "start_date", "end_date")])
     shape_df[["box"]] <- sf::st_as_sfc(sf::st_bbox(shape_df[["geom"]]))
     names(shape_df)[names(shape_df) == "geom"] <- "shape"
+    sf::st_geometry(shape_df) <- "shape"
+    srid <- sf::st_crs(shape_df)$epsg
     if (is.na(srid)) {
         srid <- 4326
         sf::st_crs(shape_df) <- srid
