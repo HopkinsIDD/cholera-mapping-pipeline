@@ -20,6 +20,7 @@ project_to_groups <- function(df, grouping_columns, base_df = df) {
 get_unique_columns_by_group <- function(df, grouping_columns, skip_columns = grouping_columns) {
     rc <- df %>%
         as.data.frame() %>%
+        dplyr::ungroup() %>%
         dplyr::group_by(!!!rlang::syms(grouping_columns)) %>%
         dplyr::summarize_all(~1 == length(unique(.))) %>%
         dplyr::ungroup() %>%
@@ -145,7 +146,7 @@ do_censoring <- function(case_data, colnames, unique_column_names = c("loctime")
                 }
                 underestimate$new_observation_id <- .y$observation_id
                 overestimate$new_observation_id <- .y$observation_id + max_observation_id
-                .x <- bind_rows(underestimate, overestimate)
+                .x <- dplyr::bind_rows(underestimate, overestimate)
             }
             return(.x)
         }) %>%
@@ -169,8 +170,10 @@ do_censoring <- function(case_data, colnames, unique_column_names = c("loctime")
 #' @export
 reorder_adjacency_matrix <- function(adjacency_frame, element_bias, id_cols = c("id_1",
     "id_2")) {
+
     ## element_bias <- covar_cube %>% dplyr::filter(t == min(t)) %>%
     ## mutate(bias = x - y) %>% .[['bias']]
+
     N <- length(element_bias)
 
     element_changer <- setNames(seq_len(N), seq_len(N)[order(element_bias)])

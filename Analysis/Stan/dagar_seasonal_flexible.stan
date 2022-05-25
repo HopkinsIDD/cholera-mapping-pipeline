@@ -57,6 +57,7 @@ data {
   int<lower=0, upper=1> use_rho_prior;
 
   // If time slice effect pass indicator function for years without data
+  int debug;
 }
 
 transformed data {
@@ -134,10 +135,30 @@ transformed parameters {
 
   // log-rates without time-slice effects
   log_lambda =  w[map_smooth_grid] + log_meanrate + covar * betas;
+  if (debug) {
+    for (i in 1:N) {
+      if (log_lambda[i] < -1000) {
+        print("log_lambda is 0 at index ", i)
+        print("dagar prior is ", w[map_smooth_grid[i]], " at index ", i)
+        print("log mean rate is ", log_meanrate, " at index ", i)
+        print("covariate contribution is ", (covar * betas)[i], " at index ", i)
+      }
+    }
+  }
 
   // Add time slice effects
 
   grid_cases = exp(log_lambda + logpop);
+
+  if (debug) {
+    for (i in 1:N) {
+      if (grid_cases[i] == 0) {
+        print("grid cases is 0 at index ", i)
+        print("log_lambda is ", log_lambda[i], " at index ", i)
+        print("logpop is ", logpop[i], " at index ", i)
+      }
+    }
+  }
 
   //calculate the expected number of cases by location
 
@@ -145,8 +166,24 @@ transformed parameters {
   for(i in 1:L){
     location_cases[i] = 0;
   }
+
   for(i in 1:K2){
     location_cases[map_loc_grid_loc[i] ] += grid_cases[map_loc_grid_grid[i] ] * map_loc_grid_sfrac[i] ;
+    if (debug) {
+      if (is_nan(location_cases[map_loc_grid_loc[i]])) {
+        print("location : ", map_loc_grid_loc[i])
+        print("grid_cases : ", grid_cases[map_loc_grid_grid[i] ])
+        print("sfrac : ", map_loc_grid_sfrac[i])
+      }
+    }
+  }
+
+  if (debug) {
+    for (i in 1:L) {
+      if (location_cases[i] == 0) {
+        print("location cases is 0 at index ", i)
+      }
+    }
   }
 
   //first initialize to 0
@@ -164,6 +201,14 @@ transformed parameters {
   }
   //w_sum = sum(w);
   std_dev = std_dev_w * sqrt(vec_var);
+
+  if (debug) {
+    for (i in 1:M) {
+      if (modeled_cases[i] == 0) {
+        print("modeled cases is 0 at index ", i)
+      }
+    }
+  }
 }
 
 model {
@@ -173,15 +218,27 @@ model {
   for(i in 1:smooth_grid_N){
     target += normal_lpdf(w[i] | t_rowsum[i], std_dev[i]);
   }
+  if (debug) {
+    print("dagar", target())
+  }
 
   // prior on regression coefficients
   betas ~ normal(0,beta_sigma_scale);
+  if (debug) {
+    print("betas", target())
+  }
 
   // prior on rho if provided
   if (use_rho_prior == 1) {
     rho ~ beta(5,1.5);
+    if (debug) {
+      print("rho", target())
+    }
   }
   log_std_dev_w ~ normal(0,1);
+  if (debug) {
+    print("dagar std", target())
+  }
 
 
   if (do_censoring == 1) {
@@ -189,6 +246,9 @@ model {
     if (M_full > 0) {
       // data model for estimated rates for full time slice observations
       target += poisson_lpmf(y[ind_full]| modeled_cases[ind_full]);
+      if (debug) {
+        print("full obs", target())
+      }
     }
 
     if (M_right > 0) {
@@ -215,15 +275,25 @@ model {
         }
       }
       target += sum(lp_censored);
+
+      if (debug) {
+        print("right censored obs", target())
+      }
     }
   } else {
     if (use_weights == 1) {
       //data model for estimated rates
       for(i in 1:M){
         target += poisson_lpmf(y[i] | modeled_cases[i])/weights[i];
+        if (debug) {
+          print("weighted obs", target())
+        }
       }
     } else {
       target += poisson_lpmf(y | modeled_cases);
+      if (debug) {
+        print("unweighted obs", target())
+      }
     }
   }
 }

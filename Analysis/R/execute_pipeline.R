@@ -215,7 +215,7 @@ covar_cube <- DBI::dbGetQuery(conn = conn_pg, glue::glue_sql(.con = conn_pg, "SE
        {config[[\"general\"]][[\"time_scale\"]]}
     )")) %>%
     dplyr::filter(!is.na(value)) %>%
-    tidyr::pivot_wider(names_from = covariate_name, values_from = value)
+    tidyr::pivot_wider(names_from = covariate_name, values_from = value, values_fn = sum)
 print("Pulled covariates")
 
 
@@ -271,8 +271,8 @@ if (config[["processing"]][["aggregate"]]) {
     observation_data_aggregated <- taxdat::aggregate_case_data(temporally_linked_observations,
         taxdat::get_unique_columns_by_group(temporally_linked_observations, grouping_columns = c("observation_collection_id",
             "temporal_location_id"), skip_columns = c("observation_collection_id",
-            "location_period_id", "shape", cases_column)), columns_to_sum_over = c("tfrac",
-            cases_column))
+            "location_period_id", "shape", cases_column, "time_left", "time_right",
+            "tfrac", "observation_id")), columns_to_sum_over = c("tfrac", cases_column))
 
 
     observation_data <- sf::st_as_sf(taxdat::project_to_groups(observation_data_aggregated,
@@ -328,54 +328,75 @@ if (config[["processing"]][["censor_incomplete_observations"]][["perform"]]) {
 if (!all(is.na(observation_data[[paste0(cases_column, "_R")]]) | is.na(observation_data[[cases_column]])) &&
     !all(is.na(observation_data[[cases_column]]) | is.na(observation_data[[paste0(cases_column,
         "_L")]])) && !all(is.na(observation_data[[paste0(cases_column, "_R")]]) |
-    is.na(observation_data[[paste0(cases_column, "_L")]])) | any(is.na(observation_data[[paste0(cases_column,
-    "_R")]]) & is.na(observation_data[[cases_column]]) & is.na(observation_data[[paste0(cases_column,
-    "_L")]]))) {
-    stop(paste0("All observations should have exactly one observation from ", cases_column,
+    is.na(observation_data[[paste0(cases_column, "_L")]]))) {
+    stop(paste0("All observations should have at most one observation from ", cases_column,
         "_R ", cases_column, " ", cases_column, "_L by this point in processing."))
 }
 
-print("Reindexing")
+if (any(is.na(observation_data[[paste0(cases_column, "_R")]]) & is.na(observation_data[[cases_column]]) &
+    is.na(observation_data[[paste0(cases_column, "_L")]]))) {
+    warning(paste0("All observations should have exactly one observation from ",
+        cases_column, "_R ", cases_column, " ", cases_column, "_L by this point in processing."))
+}
 
+## Replace me with a config call
+potential_covariate_names <- colnames(as.data.frame(covar_cube)[, -c(1:6), drop = FALSE])
+covariate_names <- potential_covariate_names
+
+for (covariate in covariate_names) {
+    covar_cube <- covar_cube[!is.na(covar_cube[, covariate]), ]
+}
 covariate_covered_grid_ids <- covar_cube %>%
-    dplyr::filter(!is.na(id), !is.na(t), population > 0) %>%
+    dplyr::filter(!is.na(id), !is.na(t), population >= 1) %>%
     dplyr::group_by(id) %>%
     dplyr::summarize(count = length(t)) %>%
     dplyr::filter(count == max(count)) %>%
     .$id
+covar_cube <- covar_cube %>%
+    dplyr::filter(id %in% covariate_covered_grid_ids)
 
-non_na_temporal_location_grid_mapping <- dplyr::filter(temporal_location_grid_mapping,
-    !is.na(temporal_location_id), !is.na(spatial_grid_id))
 
-shapefile_covered_grid_ids <- unique(non_na_temporal_location_grid_mapping$spatial_grid_id)
-shapefile_covered_grid_ids <- shapefile_covered_grid_ids[!is.na(shapefile_covered_grid_ids)]
-fully_covered_grid_ids <- covariate_covered_grid_ids[covariate_covered_grid_ids %in%
-    shapefile_covered_grid_ids]
+print("Reindexing")
 
-grid_covered_temporal_location_grid_mapping <- non_na_temporal_location_grid_mapping %>%
-    dplyr::filter(spatial_grid_id %in% fully_covered_grid_ids)
+fully_covered_indices <- as.data.frame(observation_data)[, c("observation_id"), drop = FALSE] %>%
+    dplyr::full_join(observation_temporal_location_mapping[, c("observation_id",
+        "temporal_location_id")]) %>%
+    dplyr::full_join(temporal_location_grid_mapping[, c("temporal_location_id", "spatial_grid_id",
+        "t")]) %>%
+    dplyr::full_join(as.data.frame(covar_cube)[, c("id", "t")], by = c(spatial_grid_id = "id",
+        t = "t")) %>%
+    dplyr::group_by(spatial_grid_id) %>%
+    dplyr::group_modify(function(.x, .y) {
+        .x$unique_time_slices <- length(unique(dplyr::filter(.x, !is.na(observation_id),
+            !is.na(temporal_location_id), !is.na(t))$t))
+        return(.x)
+    }) %>%
+    dplyr::filter(!is.na(observation_id), !is.na(temporal_location_id), !is.na(spatial_grid_id),
+        !is.na(t), unique_time_slices == max(unique_time_slices))
+## TODO : We may want to do something different here when filtering.  Right
+## now, we are filtering out places with 0 pop at any time for all time, even
+## if all other covariates are present.  This seems like potentially a mistake.
 
-grid_covered_temporal_location_ids <- unique(grid_covered_temporal_location_grid_mapping$temporal_location_id)
-
-temporal_location_covered_observation_temporal_location_mapping <- observation_temporal_location_mapping %>%
-    dplyr::filter(temporal_location_id %in% grid_covered_temporal_location_ids)
-fully_covered_temporal_location_ids <- grid_covered_temporal_location_ids
-
-fully_covered_observation_ids <- unique(temporal_location_covered_observation_temporal_location_mapping$observation_id)
+fully_covered_grid_ids <- unique(fully_covered_indices$spatial_grid_id)
+fully_covered_temporal_location_ids <- unique(fully_covered_indices$temporal_location_id)
+fully_covered_observation_ids <- unique(fully_covered_indices$observation_id)
+fully_covered_ts <- unique(fully_covered_indices$t)
 
 ## Actually doing filtering here
 
 covar_cube <- covar_cube %>%
-    dplyr::filter(id %in% fully_covered_grid_ids) %>%
+    dplyr::filter(id %in% fully_covered_grid_ids, t %in% fully_covered_ts) %>%
     reindex("id", "updated_id") %>%
+    reindex("t", "updated_t") %>%
     dplyr::add_rownames() %>%
     dplyr::mutate(spacetime_grid_id = as.numeric(rowname)) %>%
     dplyr::select(-rowname)
 
 spatial_grid_and_time_to_spacetime_grid_changer <- setNames(covar_cube$spacetime_grid_id,
-    paste(covar_cube$updated_id, covar_cube$t, sep = "_"))
+    paste(covar_cube$updated_id, covar_cube$updated_t, sep = "_"))
 
 grid_changer <- setNames(sort(unique(covar_cube$updated_id)), sort(unique(covar_cube$id)))
+t_changer <- setNames(sort(unique(covar_cube$updated_t)), sort(unique(covar_cube$t)))
 if (!all(grid_changer[as.character(covar_cube$id)] == covar_cube$updated_id)) {
     stop("There is a problem with computing the updated grid indices")
 }
@@ -411,15 +432,14 @@ if (!all(observation_changer[as.character(observation_data$observation_id)] == o
 
 observation_temporal_location_mapping <- observation_temporal_location_mapping %>%
     dplyr::mutate(updated_observation_id = observation_changer[as.character(observation_id)],
-        updated_temporal_location_id = temporal_location_changer[as.character(temporal_location_id)],
-        ) %>%
+        updated_temporal_location_id = temporal_location_changer[as.character(temporal_location_id)]) %>%
     dplyr::filter(!is.na(updated_observation_id), !is.na(updated_temporal_location_id))
 
 temporal_location_grid_mapping <- temporal_location_grid_mapping %>%
-    dplyr::mutate(updated_spatial_grid_id = grid_changer[as.character(spatial_grid_id)],
-        updated_temporal_location_id = temporal_location_changer[as.character(temporal_location_id)],
+    dplyr::mutate(updated_temporal_location_id = temporal_location_changer[as.character(temporal_location_id)],
+        updated_spatial_grid_id = grid_changer[as.character(spatial_grid_id)], updated_t = t_changer[as.character(t)],
         spacetime_grid_id = spatial_grid_and_time_to_spacetime_grid_changer[paste(updated_spatial_grid_id,
-            t, sep = "_")]) %>%
+            updated_t, sep = "_")]) %>%
     dplyr::filter(!is.na(updated_spatial_grid_id), !is.na(updated_temporal_location_id),
         !is.na(spacetime_grid_id))
 
@@ -450,10 +470,9 @@ library(rstan)
 
 ## INITIAL VALUES
 
+
 if (config[["initial_values"]][["warmup"]]) {
     print("Starting gam warmup")
-    covariate_names <- colnames(as.data.frame(covar_cube)[, -c(1:6, ncol(covar_cube) -
-        1, ncol(covar_cube))])
     initial_values_df <- observation_data %>%
         dplyr::inner_join(observation_temporal_location_mapping) %>%
         dplyr::inner_join(temporal_location_grid_mapping, by = c("temporal_location_id",
@@ -488,9 +507,9 @@ if (config[["initial_values"]][["warmup"]]) {
             dplyr::summarize(value = mean(value)) %>%
             dplyr::arrange(spatial_id)
 
-        return(list(betas = rnorm(length(coef(gam_fit)[covariate_names]), coef(gam_fit)[covariate_names]),
-            eta = rnorm(length(coef(gam_fit)["obs_year"]), coef(gam_fit)["obs_year"]),
-            w = rnorm(nrow(w_df), w_df$value)))
+        return(list(betas = as.array(rnorm(length(coef(gam_fit)[covariate_names]),
+            coef(gam_fit)[covariate_names])), eta = as.array(rnorm(length(coef(gam_fit)["obs_year"]),
+            coef(gam_fit)["obs_year"])), w = as.array(rnorm(nrow(w_df), w_df$value))))
     })
 
     covar_cube[["covariate_contribution"]] <- covariate_effect
@@ -519,8 +538,12 @@ stan_model_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, co
 
 options(mc.cores = config[["stan"]][["ncores"]])
 
-standardize = function(x) (x - mean(x))/sd(x)
-standardize_covar = function(M) cbind(M[, 1], apply(M[, -1, drop = F], 2, standardize))
+standardize = function(x) {
+    return((x - mean(x))/sd(x - mean(x)))
+}
+standardize_covar = function(M) {
+    return(apply(M, 2, standardize))
+}
 
 print("Creating stan data")
 stan_data <- list(N = nrow(covar_cube), N_edges = nrow(grid_adjacency), smooth_grid_N = length(unique(covar_cube$updated_id)),
@@ -545,7 +568,8 @@ stan_data <- list(N = nrow(covar_cube), N_edges = nrow(grid_adjacency), smooth_g
     ncovar = length(covariate_names), beta_sigma_scale = config[["stan"]][["beta_sigma_scale"]],
     sigma_eta_scale = config[["stan"]][["sigma_eta_scale"]], use_weights = FALSE,
     use_rho_prior = TRUE, do_censoring = (0 != (sum(!is.na(observation_data[[paste0(cases_column,
-        "_L")]])) + sum(!is.na(observation_data[[paste0(cases_column, "_R")]])))))
+        "_L")]])) + sum(!is.na(observation_data[[paste0(cases_column, "_R")]])))),
+    debug = FALSE)
 
 print("Finished creating stan data")
 

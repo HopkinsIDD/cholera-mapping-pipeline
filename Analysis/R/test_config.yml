@@ -6,7 +6,7 @@ general:
   height_in_km: 2.0
   time_scale: year
 stan:
-  directory: /home/app/test/Analysis/Stan
+  directory: /home/app/cmp/Analysis/Stan
   ncores: 1.0
   model: dagar_seasonal_flexible.stan
   niter: 10000.0
@@ -18,8 +18,8 @@ case_definition: suspected
 covariate_choices: ~
 data_source: sql
 file_names:
-  stan_output: /home/app/test/Analysis/output/test.stan_output.rdata
-  stan_input: /home/app/test/Analysis/output/test.stan_input.rdata
+  stan_output: /home/app/cmp/Analysis/output/test.stan_output.rdata
+  stan_input: /home/app/cmp/Analysis/output/test.stan_input.rdata
 processing:
   aggregate: yes
   remove_overlaps: yes
