@@ -39,6 +39,15 @@ data {
   int <lower=0, upper=L> map_loc_grid_loc[K2]; // the location side of the mapping from locations to gridcells
   int <lower=0, upper=N> map_loc_grid_grid[K2]; // the gridcell side of the mapping from locations to gridcells
   
+  // For output summaries
+  int <lower=0> L_output; // number of location periods (space and time)
+  int <lower=L_output> K1_output; // the length of the mapping of observations to location periods and times
+  int <lower=L_output> K2_output; // the length of the mapping of location periods to gridcells
+  int <lower=0, upper=M> map_output_obs_loctime_obs[K1_output]; // The observation side of the mapping from observations to location/times
+  int <lower=0, upper=L> map_output_obs_loctime_loc[K1_output]; // The location side of the mapping from observations to location/times
+  int <lower=0, upper=L> map_output_loc_grid_loc[K2_output]; // the location side of the mapping from locations to gridcells
+  int <lower=0, upper=N> map_output_loc_grid_grid[K2_output]; // the gridcell side of the mapping from locations to gridcells
+  
   int <lower=0,upper=smooth_grid_N> map_smooth_grid[N]; //vector with repeating smooth_grid_N indexes repeating 1:N
   
   // Covariate stuff
@@ -60,6 +69,7 @@ data {
   int<lower=0, upper=1> use_rho_prior;
   int<lower=0, upper=1> use_pop_weight; 
   real<lower=0> pop_weight[K2 * use_pop_weight];
+  real<lower=0> pop_weight_output[K2_output * use_pop_weight];
   
   // If time slice effect pass indicator function for years without data
   vector<lower=0, upper=1>[N*do_time_slice_effect] has_data_year;
@@ -72,6 +82,7 @@ transformed data {
   real<lower=0> weights[M*(1-do_censoring)*use_weights]; //a function of the expected offset for each observation used to downwight the likelihood
   real log_meanrate = log(meanrate);
   real <lower=1> pop_loctimes[L]; // pre-computed population in each location period
+  real <lower=1> pop_loctimes_output[L_output]; // pre-computed population in each location period
   
   for(i in 1:N){
     logpop[i] = log(pop[i]);
@@ -83,6 +94,14 @@ transformed data {
   
   for (i in 1:K2) {
     pop_loctimes[map_loc_grid_loc[i]] += pop[map_loc_grid_grid[i]];
+  }
+  
+  for (i in 1:L_output) {
+    pop_loctimes_output[i] = 0;
+  }
+  
+  for (i in 1:K2_output) {
+    pop_loctimes_output[map_output_loc_grid_loc[i]] += pop[map_output_loc_grid_grid[i]];
   }
   
   // Compute observation likelihood weights 
@@ -118,6 +137,9 @@ generated quantities {
   real log_lik[M]; // log-likelihood of observations
   vector[N] log_lambda; //local log rate
   vector<lower=0>[L] location_cases; //cases modeled in each (temporal) location.
+  vector<lower=0>[L] location_cases_output; //cases modeled in each (temporal) location.
+  vector<lower=0>[L] location_rates_output; //cases modeled in each (temporal) location.
+  
   vector<lower=0>[N] grid_cases; //cases modeled in each gridcell and time point.
   vector[T*do_time_slice_effect] eta; // yearly random effects
   real<lower=0> modeled_cases[M]; //expected number of cases for each observation
@@ -151,6 +173,22 @@ generated quantities {
     } else {
       location_cases[map_loc_grid_loc[i]] += grid_cases[map_loc_grid_grid[i]];
     }
+  }
+  
+  // Output cases
+  for(i in 1:L_output){
+    location_cases_output[i] = 0;
+  }
+  for(i in 1:K2_output){
+    if (use_pop_weight == 1) {
+      location_cases_output[map_output_loc_grid_loc[i]] += grid_cases[map_output_loc_grid_grid[i]] * pop_weight_output[map_output_loc_grid_grid[i]];
+    } else {
+      location_cases_output[map_output_loc_grid_loc[i]] += grid_cases[map_output_loc_grid_grid[i]];
+    }
+  }
+  
+  for(i in 1:L_output){
+    location_rates_output[i] = location_cases_output[i]/pop_loctimes_output[i];
   }
   
   //first initialize to 0

@@ -1299,6 +1299,194 @@ get_pop_weights <- function(res_space,
   return(pop_weights)
 }
 
+
+#' Get country admin units
+#' Pulls the admin units based on the iso3 code using rgeoboundaries
+#' @param iso_code 
+#' @param admin_level 
+#'
+#' @return an sf object
+#' @export
+#'
+get_country_admin_units <- function(iso_code, 
+                                    admin_level = 1) {
+  library(sf)
+  
+  if (iso_code == "ZNZ" & admin_level == 1){
+    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
+  } else if (iso_code == "ZNZ"){
+    stop('Sorry, currently ZNZ only has the admin 1 level shape files available to use, please try again. ')
+  } else{
+    if (admin_level == 1){
+      boundary_sf <- rgeoboundaries::gb_adm1(iso_code)
+    }else if (admin_level == 2){
+      boundary_sf <- rgeoboundaries::gb_adm2(iso_code)
+      warning('The current admin level is set at 2. ')
+    }else if (admin_level == 3){
+      boundary_sf <- rgeoboundaries::gb_adm3(iso_code)
+      warning('The current admin level is set at 3. ')
+    }else{
+      stop('Error: the current admin level is unnecessarily high or invalid, 
+    please check and change the parameters for the country data report before running again. ')
+    }
+  }
+  
+  sf::st_geometry(boundary_sf) <- "geom"
+  
+  boundary_sf <- boundary_sf %>% 
+    dplyr::rename(location_period_id = shapeID)
+  
+  return(boundary_sf)
+}
+
+
+#' Get all country admin units
+#' Gets admin 1 to 3 units for given country
+#' 
+#' @param iso_code 
+#'
+#' @return
+#' @export
+#'
+get_multi_country_admin_units <- function(iso_code,
+                                          admin_levels = 1:3,
+                                          lps = shapefiles) {
+  
+  if (iso_code == "testing") {
+    # If testing run return the same shapefiles as the ones on location periods
+    shapefiles
+  } else {
+    purrr::map_df(admin_levels, 
+                  ~ get_country_admin_units(iso_code = iso_code, 
+                                            admin_level = .) %>% 
+                    dplyr::rename(admin_level = shapeType)
+    )
+  }
+}
+
+
+#' @title make location periods table name
+#' @name make_output_locationperiods_table_name
+#' @description makes the table name for the requested location periods
+#'
+#' @param dbuser database username
+#' @param map_name A string representing a somewhat unique name for this run
+#'
+#' @return the table name
+#' @export
+make_output_locationperiods_table_name <- function(dbuser, map_name) {
+  md5hash <- digest::digest(stringr::str_c(dbuser, "_", map_name, algo = "md5"))
+  cat("-- MD5 hash for location periods table is:", md5hash, "\n")
+  glue::glue("location_periods_output_{md5hash}")
+}
+
+#' @title make grid centroids table name
+#' @name make_grid_centroids_table_name
+#' @description makes the table name for the centroids of the computation grid
+#' corresponding to the requested location periods
+#'
+#' @param dbuser database username
+#' @param map_name A string representing a somewhat unique name for this run
+#'
+#' @return the table name
+#' @export
+make_output_grid_centroids_table_name <- function(dbuser, map_name) {
+  md5hash <- digest::digest(stringr::str_c(dbuser, "_", map_name, algo = "md5"))
+  glue::glue("grid_cntrds_output_{md5hash}")
+}
+
+#' @title make grid intersections table name
+#' @name make_grid_intersections_table_name
+#' @description makes the table name for the centroids of the computation grid
+#' corresponding to the requested location periods
+#'
+#' @param dbuser database username
+#' @param map_name A string representing a somewhat unique name for this run
+#'
+#' @return the table name
+#' @export
+make_output_grid_intersections_table_name <- function(dbuser, map_name) {
+  md5hash <- digest::digest(stringr::str_c(dbuser, "_", map_name, algo = "md5"))
+  glue::glue("grid_intersections_output_{md5hash}")
+}
+
+#' Get country isocode
+#' Uses the config to get the iso code(s)
+#' @param config 
+#'
+#' @export
+#'
+get_country_isocode <- function(config) {
+  if (all(grepl("testing", config$countries))) {
+    # Testing runs
+    return("testing")
+  } else {
+    return(as.character(stringr::str_extract(config$name, "[A-Z]{3}")))
+  }
+}
+
+
+#' Make location periods dictionary
+#' Dictionary between location periods and grid cells. Also compute the population
+#' weighted fractions for partial coverage
+#'
+#' @param conn_pg 
+#' @param lp_name 
+#' @param intersections_table 
+#' @param cntrd_table 
+#' @param res_space 
+#' @param sf_grid 
+#'
+#' @export
+#'
+make_location_periods_dict <- function(conn_pg,
+                                       lp_name,
+                                       intersections_table,
+                                       cntrd_table,
+                                       res_space,
+                                       sf_grid
+) {
+  
+  location_periods_table <- paste0(lp_name, "_dict")
+  
+  # Get the dictionary of location periods to pixel ids
+  location_periods_dict <- DBI::dbReadTable(conn_pg, location_periods_table)
+  
+  # Join the location periods dictionary with pixel ids
+  location_periods_dict <- dplyr::inner_join(location_periods_dict,
+                                             as.data.frame(sf_grid) %>%
+                                               dplyr::select(-geom)) %>%
+    # arrange(location_period_id, id, t) %>%
+    dplyr::mutate(upd_long_id = grid_changer[as.character(long_id)]) %>%
+    dplyr::filter(!is.na(upd_long_id))
+  
+  # Create a unique location period id which also accounts for the modeling time slice
+  location_periods_dict <- location_periods_dict %>%
+    dplyr::distinct(location_period_id, t) %>%
+    dplyr::mutate(loctime_id = dplyr::row_number()) %>%
+    dplyr::inner_join(location_periods_dict)
+  
+  pop_weights <- taxdat::get_pop_weights(res_space = res_space,
+                                         cntrd_table = cntrd_table,
+                                         intersections_table = intersections_table,
+                                         lp_table = lp_name,
+                                         conn_pg = conn_pg)
+  
+  location_periods_dict <- location_periods_dict %>% 
+    dplyr::left_join(pop_weights,
+                     by = c("location_period_id","rid", "x", "y", "t")) %>% 
+    dplyr::mutate(pop_weight = ifelse(is.na(pop_weight), 1, pop_weight))
+  
+  # Stop if anything missing
+  if (any(is.na(location_periods_dict$pop_weights))) {
+    u_lps_missing <- unique(location_periods_dict$location_period_id[is.na(location_periods_dict$pop_weights)]) 
+    stop("Missing pop_weights for ", length(u_lps_missing), " location periods:\n",
+         str_c(u_lps_missing, collaspe = " - "))
+  }
+  
+  return(location_periods_dict)
+}
+
 # Modifications of the gdalUtils package ---------------------------------------
 
 # align_raster, gdalinfo and gdal_cmd_builder were modified so as to allow for
