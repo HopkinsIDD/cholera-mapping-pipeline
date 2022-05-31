@@ -238,6 +238,21 @@ plot_model_fidelity_tfrac_adjusted_by_year(data_fidelity = cache[["data_fidelity
 plot_model_fidelity_tfrac_unadjusted(data_fidelity = cache[["data_fidelity"]],case_raster = cache[["case_raster"]],render = T)
 ```
 
+```{r datafidelity5, fig.cap=capFig("Observation vs. modeled_cases"),fig.height=8,fig.width=10}
+data_fidelity<-cache[["data_fidelity"]]
+if(!is.null(data_fidelity)){
+  plt <- ggplot2::ggplot(data_fidelity[[1]]) +
+    ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = chains)) +
+    ggplot2::geom_abline(intercept = 0, slope = 1) +
+    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(data_fidelity[[1]][,3:4])), ylim = c(0, max(data_fidelity[[1]][,3:4]))) +
+    ggplot2::theme_bw()
+  plt
+} else{
+  warning("data_fidelity is NULL")
+}
+
+```
+
 **Stan trace plots:**
 ```{r traceplots, fig.height=8, fig.width=10, fig.cap=capFig("Stan trace plots")}
 plot_chain_convergence(cache=cache,name="model.rand")
