@@ -166,7 +166,7 @@ option_list <- list(optparse::make_option(c("-c", "--config"), action = "store",
         "--postgres_database_name"), action = "store", default = Sys.getenv("CHOLERA_POSTGRES_DATABASE",
         "cholera_covariates"), type = "character", help = "Postgres database name"),
     optparse::make_option(c("-p", "--postgres_database_port"), action = "store",
-        default = Sys.getenv("CHOLERA_POSTGRES_PORT", "cholera_covariates"), type = "character",
+        default = Sys.getenv("CHOLERA_POSTGRES_PORT", 5435), type = "character",
         help = "Postgres database port"), optparse::make_option(c("-u", "--postgres_database_user"),
         action = "store", default = Sys.getenv("USER", "app"), type = "character",
         help = "Postgres database user"))
