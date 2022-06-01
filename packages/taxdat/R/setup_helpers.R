@@ -180,7 +180,7 @@ config_checks <- list()
 config_checks[["stan"]] <- list()
 config_checks[["stan"]][["directory"]] <- function(value, config) {
     if (length(value) != 1) {
-        warning(paste("config[['stan']][['ncores']] should be of length 1, but is of length",
+        warning(paste("config[['stan']][['directory']] should be of length 1, but is of length",
             length(value), "with value", value))
         return(FALSE)
     }

@@ -17,7 +17,7 @@ if (interactive_run == "TRUE") {
     })
 }
 
-### Libraries
+### Libraries TODO : Update this list
 if (Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE)) {
     base_search <- search()
 
@@ -158,17 +158,19 @@ plot_energy <- function(stan_model, par = "all") {
 ### Command Line Options
 option_list <- list(optparse::make_option(c("-c", "--config"), action = "store",
     default = Sys.getenv("CHOLERA_CONFIG", "config.yml"), type = "character", help = "Model run configuration file"),
-    optparse::make_option(c("-d", "--cholera_covariates_directory"), action = "store",
-        default = Sys.getenv("CHOLERA_COVARIATES_DIRECTORY", "Layers"), type = "character",
-        help = "Covariate directory"), optparse::make_option(c("-d", "--cholera_pipeline_directory"),
-        action = "store", default = Sys.getenv("CHOLERA_PIPELINE_DIRECTORY", "."),
-        type = "character", help = "Pipeline directory"), optparse::make_option(c("-d",
-        "--cholera_output_directory"), action = "store", default = Sys.getenv("CHOLERA_OUTPUT_DIRECTORY",
-        "Analysis/data"), type = "character", help = "Output directory"), optparse::make_option(c("-p",
+    optparse::make_option(c("-d", "--cholera_pipeline_directory"), action = "store",
+        default = Sys.getenv("CHOLERA_PIPELINE_DIRECTORY", "."), type = "character",
+        help = "Pipeline directory"), optparse::make_option(c("-o", "--cholera_output_directory"),
+        action = "store", default = Sys.getenv("CHOLERA_OUTPUT_DIRECTORY", "Analysis/data"),
+        type = "character", help = "Output directory"), optparse::make_option(c("-D",
         "--postgres_database_name"), action = "store", default = Sys.getenv("CHOLERA_POSTGRES_DATABASE",
         "cholera_covariates"), type = "character", help = "Postgres database name"),
-    optparse::make_option(c("--postgres_database_user"), action = "store", default = Sys.getenv("USER",
-        "app"), type = "character", help = "Postgres database user"))
+    optparse::make_option(c("-p", "--postgres_database_port"), action = "store",
+        default = Sys.getenv("CHOLERA_POSTGRES_PORT", "cholera_covariates"), type = "character",
+        help = "Postgres database port"), optparse::make_option(c("-u", "--postgres_database_user"),
+        action = "store", default = Sys.getenv("USER", "app"), type = "character",
+        help = "Postgres database user"))
+
 
 opt <- optparse::parse_args((optparse::OptionParser(option_list = option_list)))
 
@@ -185,7 +187,8 @@ if (!taxdat::check_config(config)) {
 
 
 ### Setup postgres
-conn_pg <- taxdat::connect_to_db(dbname = opt$postgres_database_name, dbuser = opt$postgres_database_user)
+conn_pg <- taxdat::connect_to_db(dbname = opt$postgres_database_name, dbuser = opt$postgres_database_user,
+    port = opt$postgres_database_port)
 
 cases_column <- "suspected_cases"
 ## Observations
@@ -265,6 +268,7 @@ print("Starting processing")
 
 observation_data.bak <- observation_data
 observation_temporal_location_mapping.bak <- observation_temporal_location_mapping
+
 if (config[["processing"]][["aggregate"]]) {
     print("Aggregating")
     temporally_linked_observations <- observation_data %>%
@@ -348,12 +352,15 @@ covariate_names <- potential_covariate_names
 for (covariate in covariate_names) {
     covar_cube <- covar_cube[!is.na(covar_cube[, covariate]), ]
 }
+
+# This is still in discussion
 covariate_covered_grid_ids <- covar_cube %>%
     dplyr::filter(!is.na(id), !is.na(t), population >= 1) %>%
     dplyr::group_by(id) %>%
     dplyr::summarize(count = length(t)) %>%
     dplyr::filter(count == max(count)) %>%
     .$id
+
 covar_cube <- covar_cube %>%
     dplyr::filter(id %in% covariate_covered_grid_ids)
 
@@ -459,6 +466,8 @@ if (config[["processing"]][["reorder_adjacency_matrix"]][["perform"]]) {
 }
 
 
+
+
 ### Construct some additional parameters based on the above Define relevent
 ### directories Name the output file
 
@@ -483,7 +492,8 @@ if (config[["initial_values"]][["warmup"]]) {
         dplyr::group_by(updated_observation_id) %>%
         dplyr::group_modify(function(.x, .y) {
             .x[[paste("raw", cases_column, sep = "_")]] <- .x[[cases_column]]
-            .x[[cases_column]] <- .x[[cases_column]] * .x$population/sum(.x$population)
+            .x[[cases_column]] <- .x[[cases_column]] * .x$population * .x$sfrac/sum(.x$population *
+                .x$sfrac)
             return(.x)
         }) %>%
         dplyr::mutate(log_y = log(y), gam_offset = log_y)
