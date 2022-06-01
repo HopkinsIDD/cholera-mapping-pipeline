@@ -10,8 +10,8 @@
 #' @title Connect to database
 #' @description Connects to the postgres/postgis cholera_covariates database
 #' @return db connection object
-connect_to_db <- function(dbuser, dbname) {
-    DBI::dbConnect(RPostgres::Postgres(), dbname = dbname, user = dbuser)
+connect_to_db <- function(dbuser, dbname, port = 5432) {
+    DBI::dbConnect(RPostgres::Postgres(), dbname = dbname, user = dbuser, port = port)
 }
 
 #' @title Make covariate alias
