@@ -238,7 +238,7 @@ plot_model_fidelity_tfrac_adjusted_by_year(data_fidelity = cache[["data_fidelity
 plot_model_fidelity_tfrac_unadjusted(data_fidelity = cache[["data_fidelity"]],case_raster = cache[["case_raster"]],render = T)
 ```
 
-```{r datafidelity5, fig.cap=capFig("Observation vs. modeled_cases"),fig.height=8,fig.width=10}
+```{r datafidelity5, fig.cap=capFig("Observation vs. modeled_cases by chains"),fig.height=8,fig.width=10}
 data_fidelity<-cache[["data_fidelity"]]
 if(!is.null(data_fidelity)){
   plt <- ggplot2::ggplot(data_fidelity) +
