@@ -203,15 +203,12 @@ if (!("params" %in% ls())) {
 **Data input:**
 
 ```{r load data}
-
 # Load data directory
 config <- yaml::read_yaml(params$config_filename)
 
 file_names <- taxdat::get_filenames(config, params$cholera_directory)
 stan_input <- taxdat::read_file_of_type(file_names[['stan_input']], "stan_input")
-#load("C:/IDD/Cholera/cholera-mapping-pipeline/Analysis/output/test1.stan_input.rdata")
 sf_cases_resized <- stan_input$observation_data
-#load("C:/IDD/Cholera/cholera-mapping-pipeline/Analysis/output/test1.stan_output.rdata")
 model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
 
 niter_per_chain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__', chain_num=1))[1]
@@ -296,7 +293,6 @@ if(all(params$Loc_with_inconsistent_data=="no")){
       .$gg%>%gridExtra::grid.arrange(grobs=.,nrow=1)
    
 }
-  #plt
 ```
 
 ```{r areadjustedmap, fig.height=5, fig.width=10, fig.cap="Figure 2. Area adjusted average observed case counts by time adjusted for time fraction cases/(year * kilometer)"}
@@ -313,24 +309,34 @@ taxdat::plot_area_adjusted_observed_cases(
 
 ## Covariates
 
-```{r covars, fig.height=5, fig.width=8, fig.cap="Figure 3.1 Covariate rasters in modeling process"}
+```{r covars, fig.height=5, fig.width=12, fig.cap="Figure 3.1 Covariate rasters in modeling process"}
 #taxdat::plot_raster_covariates(covar_data_filename = file_names["covar"], render = T)
 
         loc_sf<-stan_input$observation_data[,colnames(stan_input$observation_data)%in%c("shape","location_name")]
         covar_grid<-merge(stan_input$temporal_location_grid_mapping,stan_input$covar_cube,by=c("spacetime_grid_id","x","y","rid","t"))
         pltdata<-merge(covar_grid,loc_sf,by.x="qualified_name",by.y="location_name")
         pltdata<-sf::st_as_sf(pltdata)
-        pltdata$t<-as.factor(pltdata$t)
-        levels(pltdata$t)<-1:nlevels(pltdata$t)
+        
+        if(length(unique(pltdata$t))>1){
+        pltdata[which(pltdata$t==1),]$t="2000"
+        pltdata[which(pltdata$t==2),]$t="2001" 
+        }else{
+         pltdata[which(pltdata$t==1),]$t="2000"
+        }
 
-        pltdata_dummy <- tidyr::gather(dplyr::filter(pltdata, t == 1& !qualified_name == "1" ), one_of(colnames(pltdata)[stringr::str_detect(colnames(pltdata),"covariate|pop")]),key = "covars", value = "value")%>%subset(!covars=="covariate_contribution")
- 
+        pltdata$t<-as.factor(pltdata$t)
+        #levels(pltdata$t)<-1:nlevels(pltdata$t)
+
+        pltdata_dummy <- tidyr::gather(dplyr::filter(pltdata, !qualified_name == "1" ), one_of(colnames(pltdata)[stringr::str_detect(colnames(pltdata),"covariate|pop")]),key = "covars", value = "value")%>%subset(!covars=="covariate_contribution")
+
+
+      
      pltdata_dummy%>%group_by(covars)%>%
       do(gg={
         ggplot(.,ggplot2::aes(fill = value, color = value)) + ggplot2::geom_sf()+
           ggplot2::facet_wrap(~covars)+
           ggplot2::scale_fill_viridis_c(aesthetics = c("colour", "fill"),
-                                        guide = ggplot2::guide_colorbar(title = "Covariate at time 1"),
+                                        guide = ggplot2::guide_colorbar(title = "Covariates in\nmodeling process"),
                                         option = "B", na.value = "white") + 
           ggplot2::theme_bw() + 
           ggplot2::facet_wrap(~t)+
@@ -342,7 +348,7 @@ taxdat::plot_area_adjusted_observed_cases(
       
 ```
 
-``` {r covars_data_simulation, fig.height=5, fig.width=8, fig.cap="Figure 3.2. Non-population covariate rasters in data simulation process"}
+``` {r covars_data_simulation, fig.height=5, fig.width=12, fig.cap="Figure 3.2. Non-population covariate rasters in data simulation process"}
 #plot the unused covariates
 data_simulation_covs <- readRDS(params$Cov_data_simulation_filename)
 
@@ -350,12 +356,20 @@ covdata<-as.data.frame(do.call(rbind, data_simulation_covs[2:(length(data_simula
   mutate(value=covariate,covariate=paste("Covariate",rep(2:length(data_simulation_covs),each=nrow(data_simulation_covs[[1]]))))# Convert list to data frame columns
 covdata<-sf::st_as_sf(covdata)
 
+        if(length(unique(covdata$t))>1){
+        covdata[which(covdata$t==1),]$t="2000"
+        covdata[which(covdata$t==2),]$t="2001" 
+        }else{
+         covdata[which(covdata$t==1),]$t="2000"
+
+        }
+     
    covdata%>%group_by(covariate)%>%
        do(gg={
         ggplot(.,ggplot2::aes(fill = value, color = value)) + ggplot2::geom_sf()+
              ggplot2::facet_wrap(~covariate)+
           ggplot2::scale_fill_viridis_c(aesthetics = c("colour", "fill"),
-                                        guide = ggplot2::guide_colorbar(title = "Cvariates in data simulation"),
+                                        guide = ggplot2::guide_colorbar(title = "Non-population \ncovariates in\ndata simulation"),
                                         option = "B", na.value = "white") + 
           ggplot2::theme_bw() + 
           ggplot2::facet_wrap(~t)+
@@ -383,7 +397,7 @@ pre_case_raster <- taxdat::get_case_raster(
     loc_sf<-stan_input$observation_data[,colnames(stan_input$observation_data)%in%c("shape","location_name")]
     covar_grid<-merge(stan_input$temporal_location_grid_mapping%>%subset(!qualified_name==1),stan_input$covar_cube,by=c("spacetime_grid_id","x","y","rid","t"))
     empty_raster<-merge(covar_grid,loc_sf,by.x="qualified_name",by.y="location_name")%>%select("updated_id","x","y","qualified_name","shape","t")
-    
+    empty_raster$t<-as.numeric(empty_raster$t)
     case_raster<-merge(pre_case_raster,empty_raster,by=c("x","y","t","updated_id"))
   
     case_raster<-sf::st_as_sf(case_raster)
@@ -409,7 +423,15 @@ if (!is.null(case_raster)) {
  case_raster_case <- case_raster %>% dplyr::select(dplyr::contains("modeled cases"),t,shape) %>% 
    tidyr::gather(dplyr::contains("iterations: Chain"),key = "chain", value = "value") %>% 
    dplyr::mutate(chain = stringr::str_replace(chain,"modeled cases", ""))
+ 
+     if(length(unique(case_raster_case$t))>1){
+        case_raster_case[which(case_raster_case$t==1),]$t="2000"
+        case_raster_case[which(case_raster_case$t==2),]$t="2001" 
+        }else{
+        case_raster_case[which(case_raster_case$t==1),]$t="2000"
 
+        }
+     
 plt <- ggplot2::ggplot()
 plt <- plt +
   ggplot2::geom_sf(
@@ -440,6 +462,14 @@ if(!is.null(case_raster)){
   
   case_raster_rate$t<-as.numeric(case_raster_rate$t)
   
+  if(length(unique(case_raster_rate$t))>1){
+        case_raster_rate[which(case_raster_rate$t==1),]$t="2000"
+        case_raster_rate[which(case_raster_rate$t==2),]$t="2001" 
+        }else{
+        case_raster_rate[which(case_raster_rate$t==1),]$t="2000"
+
+        }
+    
     plt <- ggplot2::ggplot()
     plt <- plt +
     ggplot2::geom_sf(
@@ -514,7 +544,7 @@ if(!is.null(data_fidelity)){
  plt <- ggplot2::ggplot(data_fidelity[[1]]) +
       ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = chains)) +
       ggplot2::geom_abline(intercept = 0, slope = 1) +
-      ggplot2::coord_fixed(ratio = 1, xlim = c(1, max(data_fidelity[[1]][,3:4])), ylim = c(1, max(data_fidelity[[1]][,3:4]))) +
+      ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(data_fidelity[[1]][,3:4])), ylim = c(0, max(data_fidelity[[1]][,3:4]))) +
       ggplot2::theme_bw()
  plt
  
