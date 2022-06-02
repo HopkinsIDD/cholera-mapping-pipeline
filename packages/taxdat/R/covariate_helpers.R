@@ -1444,7 +1444,8 @@ make_location_periods_dict <- function(conn_pg,
                                        intersections_table,
                                        cntrd_table,
                                        res_space,
-                                       sf_grid
+                                       sf_grid,
+                                       grid_changer
 ) {
   
   location_periods_table <- paste0(lp_name, "_dict")
