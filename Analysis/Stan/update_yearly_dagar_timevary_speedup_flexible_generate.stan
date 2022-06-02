@@ -41,11 +41,12 @@ data {
   
   // For output summaries
   int <lower=0> L_output; // number of location periods (space and time)
+  int <lower=0> M_output; // number of location periods (space and time)
   int <lower=L_output> K1_output; // the length of the mapping of observations to location periods and times
   int <lower=L_output> K2_output; // the length of the mapping of location periods to gridcells
-  int <lower=0, upper=M> map_output_obs_loctime_obs[K1_output]; // The observation side of the mapping from observations to location/times
-  int <lower=0, upper=L> map_output_obs_loctime_loc[K1_output]; // The location side of the mapping from observations to location/times
-  int <lower=0, upper=L> map_output_loc_grid_loc[K2_output]; // the location side of the mapping from locations to gridcells
+  int <lower=0, upper=M_output> map_output_obs_loctime_obs[K1_output]; // The observation side of the mapping from observations to location/times
+  int <lower=0, upper=L_output> map_output_obs_loctime_loc[K1_output]; // The location side of the mapping from observations to location/times
+  int <lower=0, upper=L_output> map_output_loc_grid_loc[K2_output]; // the location side of the mapping from locations to gridcells
   int <lower=0, upper=N> map_output_loc_grid_grid[K2_output]; // the gridcell side of the mapping from locations to gridcells
   
   int <lower=0,upper=smooth_grid_N> map_smooth_grid[N]; //vector with repeating smooth_grid_N indexes repeating 1:N
