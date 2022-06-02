@@ -8,7 +8,7 @@
 #' @export 
 get_stan_parameters <- function(config,
                                 sigma_eta_scale = 5,
-                                beta_sigma_scale = 10,
+                                beta_sigma_scale = 1,
                                 warmup = T,
                                 covar_warmup = T,
                                 time_effect = F,

@@ -40,6 +40,7 @@ package_list <- c(
   "odbc",
   "optparse",
   "parallel",
+  "posterior",
   "purrr",
   "RCurl",
   "R.utils",
@@ -448,6 +449,7 @@ for(t_idx in 1:length(all_test_idx)){
     recompile <- FALSE
   }
   
+  ## Step 6: Run the generated quantities
   print(file_names[["stan_genquant"]])
   if(file.exists(file_names[["stan_genquant"]])){
     print("Data already modeled, skipping")
