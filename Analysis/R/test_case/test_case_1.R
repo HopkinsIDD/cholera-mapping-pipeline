@@ -239,6 +239,7 @@ covariates_table<-data.frame(
   Model_covariates=c(TRUE,TRUE,FALSE))
 
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2,seed = my_seed)
+my_seed <- .GlobalEnv$.Random.seed
 
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
 test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
@@ -251,8 +252,8 @@ test_covariates <- create_multiple_test_covariates(test_raster = test_raster, nc
                                                    radiating = covariates_table$radiating[1:2], 
                                                    constant = covariates_table$constant[1:2],
                                                    seed = my_seed)
-
 my_seed <- .GlobalEnv$.Random.seed
+
 min_time_left <- query_time_left
 max_time_right <- query_time_right
 covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates, 
@@ -270,6 +271,7 @@ test_covariates_observation <- create_multiple_test_covariates(test_raster = tes
                                                                radiating = covariates_table$radiating[1:2], 
                                                                constant = covariates_table$constant[1:2],
                                                                seed = my_seed)
+my_seed <- .GlobalEnv$.Random.seed
 
 test_covariates3_observation <- create_multiple_test_covariates(test_raster = test_raster_observation, ncovariates = 2,
                                                                 nonspatial = covariates_table$nonspatial[c(1,3)],
@@ -284,7 +286,6 @@ test_covariates3_observation <- create_multiple_test_covariates(test_raster = te
 test_covariates_observation_final<-test_covariates_observation
 test_covariates_observation_final[[3]]<-test_covariates3_observation[[2]]
 
-my_seed <- .GlobalEnv$.Random.seed
 min_time_left <- query_time_left
 max_time_right <- query_time_right
 covariate_raster_funs_observation <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates_observation, 
@@ -410,5 +411,5 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                 Observations_with_inconsistent_data=config$Observations_with_inconsistent_data,
                                 Loc_with_inconsistent_data=config$Loc_with_inconsistent_data,
                                 Cov_data_simulation_filename=config$Cov_data_simulation_filename),
-                  output_file="Country data report test case 1 updated"
+                  output_file="Country data report test case 1 updated 2"
 )
