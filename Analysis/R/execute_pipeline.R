@@ -187,17 +187,13 @@ if (!taxdat::check_config(config)) {
 
 
 ### Setup postgres
-conn_pg <- taxdat::connect_to_
-(
-name = opt$postgres_database_name, 
-user = opt$postgres_database_user,
+conn_pg <- taxdat::connect_to_db(dbname = opt$postgres_database_name, dbuser = opt$postgres_database_user,
     port = opt$postgres_database_port)
 
 cases_column <- "suspected_cases"
 ## Observations
 print("Starting")
-observation_data <- DBI::
-GetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
+observation_data <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
     "SELECT *
      FROM pull_observation_data(
        {config[[\"general\"]][[\"location_name\"]]},
@@ -212,8 +208,7 @@ GetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
 print("Pulled observation data")
 
 ## Covariates
-covar_cube <- DBI::
-GetQuery(conn = conn_pg, glue::glue_sql(.con = conn_pg, "SELECT *
+covar_cube <- DBI::dbGetQuery(conn = conn_pg, glue::glue_sql(.con = conn_pg, "SELECT *
      FROM pull_covar_cube(
        {config[[\"general\"]][[\"location_name\"]]},
        {config[[\"general\"]][[\"start_date\"]]},
@@ -228,8 +223,7 @@ print("Pulled covariates")
 
 
 
-grid_adjacency <- DBI::
-GetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
+grid_adjacency <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
     "SELECT * FROM pull_grid_adjacency(
       {config[[\"general\"]][[\"location_name\"]]},
        {config[[\"general\"]][[\"width_in_km\"]]},
@@ -237,8 +231,7 @@ GetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
     )"))
 print("Pulled adjacency matrix")
 
-observation_temporal_location_mapping <- DBI::
-GetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
+observation_temporal_location_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
     "SELECT * FROM pull_observation_location_period_map(
       {config[[\"general\"]][[\"location_name\"]]},
        {config[[\"general\"]][[\"start_date\"]]},
@@ -249,8 +242,7 @@ GetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
 
 print("Pulled observation-location map")
 
-temporal_location_grid_mapping <- DBI::
-GetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
+temporal_location_grid_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
     "SELECT * FROM pull_location_period_grid_map(
       {config[[\"general\"]][[\"location_name\"]]},
        {config[[\"general\"]][[\"start_date\"]]},
