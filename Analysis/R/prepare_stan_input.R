@@ -9,7 +9,6 @@
 #' @param ncore
 #' @param res_time
 #' @param res_space
-#' @param iso_code
 #' @param time_slices
 #' @param cases_column
 #' @param sf_cases
@@ -26,6 +25,7 @@ prepare_stan_input <- function(
     smooth_covariate_number_timesteps,
     ncore,
     res_time,
+    res_space,
     time_slices,
     cases_column,
     sf_cases,
@@ -536,7 +536,7 @@ prepare_stan_input <- function(
   output_cntrds_table <- taxdat::make_output_grid_centroids_table_name(dbuser = dbuser,
                                                                        map_name = map_name)
   
-  
+  conn_pg <- taxdat::connect_to_db(dbuser)
   output_location_periods_table <- taxdat::make_location_periods_dict(
     conn_pg = conn_pg,
     lp_name = output_lp_name,
@@ -545,10 +545,11 @@ prepare_stan_input <- function(
     res_space = res_space,
     sf_grid = sf_grid)
   
-  
   # Make fake data to compute output location periods mappings
   fake_output_obs <- output_location_periods_table %>% 
-    dplyr::full_join(time_slices, by = character())
+    dplyr::inner_join(time_slices %>% dplyr::mutate(t = dplyr::row_number())) %>% 
+    dplyr::distinct(location_period_id, TL, TR) %>% 
+    dplyr::rename(locationPeriod_id = location_period_id)
   
   ind_mapping_output <- taxdat::get_space_time_ind_speedup(
     df = fake_output_obs, 
@@ -559,6 +560,7 @@ prepare_stan_input <- function(
     do_parallel = F)
   
   # Set data for output in stan object
+  stan_data$M_output <- nrow(fake_output_obs)
   stan_data$map_output_obs_loctime_obs <- as.array(ind_mapping_output$map_obs_loctime_obs)
   stan_data$map_output_obs_loctime_loc <- as.array(ind_mapping_output$map_obs_loctime_loc)
   stan_data$map_output_loc_grid_loc <- as.array(ind_mapping_output$map_loc_grid_loc)

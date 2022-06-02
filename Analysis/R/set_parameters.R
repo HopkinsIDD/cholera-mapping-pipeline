@@ -404,7 +404,6 @@ for(t_idx in 1:length(all_test_idx)){
       ncore = ncore,
       res_time = res_time,
       res_space = res_space,
-      iso_code = taxdat::get_iso_code(config),
       time_slices = time_slices,
       smooth_covariate_number_timesteps = smooth_covariate_number_timesteps,
       cases_column = cases_column,

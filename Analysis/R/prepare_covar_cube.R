@@ -137,11 +137,12 @@ prepare_covar_cube <- function(
   intersections_table <- taxdat::make_grid_intersections_table_name(dbuser = dbuser, map_name = map_name)
   
   location_periods_dict <- taxdat::make_location_periods_dict(conn_pg = conn_pg,
-                                                               lp_name = lp_name,
-                                                               intersections_table = intersections_table,
-                                                               cntrd_table = cntrd_table,
-                                                               res_space = res_space,
-                                                               sf_grid = sf_grid)
+                                                              lp_name = lp_name,
+                                                              intersections_table = intersections_table,
+                                                              cntrd_table = cntrd_table,
+                                                              res_space = res_space,
+                                                              sf_grid = sf_grid,
+                                                              grid_changer = grid_changer)
   
   cat("**** FINISHED EXTRACTING COVARITE CUBE OF DIMENSINONS", paste0(dim(covar_cube), collapse = "x"), "[n_pix x n_time x n_covar] \n")
   
