@@ -244,7 +244,7 @@ covariates_table<-data.frame(
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2,seed = my_seed)
 
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 1, test_extent = test_extent)
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2,
                                                    nonspatial = covariates_table$nonspatial[1:2],
                                                    nontemporal = covariates_table$nontemporal[1:2],
@@ -262,7 +262,7 @@ covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate
                                                                                       min_time_left, max_time_right)
 
 #covariates that make the observations
-test_raster_observation <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
+test_raster_observation <- create_test_raster(nrows = 10, ncols = 10, nlayers = 1, test_extent = test_extent)
 
 test_covariates_observation <- create_multiple_test_covariates(test_raster = test_raster_observation, ncovariates = 2,
                                                                nonspatial = covariates_table$nonspatial[1:2],
