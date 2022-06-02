@@ -236,7 +236,10 @@ if (any(sf::st_is_empty(sf_cases))) {
 sf_cases$TL <- lubridate::ymd(sf_cases$TL)
 sf_cases$TR <- lubridate::ymd(sf_cases$TR)
 
-save(sf_cases, full_grid_name, file = file_names[["data"]])
+save(sf_cases, 
+     full_grid_name, 
+     output_shapefiles, 
+     file = file_names[["data"]])
 
 # close database
 DBI::dbDisconnect(conn_pg)
