@@ -582,5 +582,6 @@ prepare_stan_input <- function(
   return(list(stan_data = stan_data,
               sf_cases_resized = sf_cases_resized,
               sf_grid = sf_grid,
-              smooth_grid  = smooth_grid))
+              smooth_grid  = smooth_grid,
+              fake_output_obs = fake_output_obs))
 }
