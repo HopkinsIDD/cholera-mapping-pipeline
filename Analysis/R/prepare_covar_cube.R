@@ -136,7 +136,7 @@ prepare_covar_cube <- function(
   # Add population 1km weights
   intersections_table <- taxdat::make_grid_intersections_table_name(dbuser = dbuser, map_name = map_name)
   
-  location_periods_table <- taxdat::make_location_periods_dict(conn_pg = conn_pg,
+  location_periods_dict <- taxdat::make_location_periods_dict(conn_pg = conn_pg,
                                                                lp_name = lp_name,
                                                                intersections_table = intersections_table,
                                                                cntrd_table = cntrd_table,
