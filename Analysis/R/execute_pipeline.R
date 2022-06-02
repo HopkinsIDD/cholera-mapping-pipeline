@@ -187,13 +187,17 @@ if (!taxdat::check_config(config)) {
 
 
 ### Setup postgres
-conn_pg <- taxdat::connect_to_db(dbname = opt$postgres_database_name, dbuser = opt$postgres_database_user,
+conn_pg <- taxdat::connect_to_
+(
+name = opt$postgres_database_name, 
+user = opt$postgres_database_user,
     port = opt$postgres_database_port)
 
 cases_column <- "suspected_cases"
 ## Observations
 print("Starting")
-observation_data <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
+observation_data <- DBI::
+GetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
     "SELECT *
      FROM pull_observation_data(
        {config[[\"general\"]][[\"location_name\"]]},
@@ -208,7 +212,8 @@ observation_data <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.
 print("Pulled observation data")
 
 ## Covariates
-covar_cube <- DBI::dbGetQuery(conn = conn_pg, glue::glue_sql(.con = conn_pg, "SELECT *
+covar_cube <- DBI::
+GetQuery(conn = conn_pg, glue::glue_sql(.con = conn_pg, "SELECT *
      FROM pull_covar_cube(
        {config[[\"general\"]][[\"location_name\"]]},
        {config[[\"general\"]][[\"start_date\"]]},
@@ -223,7 +228,8 @@ print("Pulled covariates")
 
 
 
-grid_adjacency <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
+grid_adjacency <- DBI::
+GetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
     "SELECT * FROM pull_grid_adjacency(
       {config[[\"general\"]][[\"location_name\"]]},
        {config[[\"general\"]][[\"width_in_km\"]]},
@@ -231,7 +237,8 @@ grid_adjacency <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.co
     )"))
 print("Pulled adjacency matrix")
 
-observation_temporal_location_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
+observation_temporal_location_mapping <- DBI::
+GetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
     "SELECT * FROM pull_observation_location_period_map(
       {config[[\"general\"]][[\"location_name\"]]},
        {config[[\"general\"]][[\"start_date\"]]},
@@ -242,7 +249,8 @@ observation_temporal_location_mapping <- DBI::dbGetQuery(conn = conn_pg, stateme
 
 print("Pulled observation-location map")
 
-temporal_location_grid_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
+temporal_location_grid_mapping <- DBI::
+GetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
     "SELECT * FROM pull_location_period_grid_map(
       {config[[\"general\"]][[\"location_name\"]]},
        {config[[\"general\"]][[\"start_date\"]]},
@@ -577,10 +585,9 @@ stan_data <- list(N = nrow(covar_cube), N_edges = nrow(grid_adjacency), smooth_g
     tfrac = as.array(rep(1, times = nrow(observation_temporal_location_mapping))),
     map_loc_grid_loc = as.array(cast_to_int32(temporal_location_grid_mapping$updated_temporal_location_id)),
     map_loc_grid_grid = as.array(cast_to_int32(temporal_location_grid_mapping$spacetime_grid_id)),
-    map_loc_grid_sfrac = as.array(temporal_location_grid_mapping$sfrac), as.array(cast_to_int32(temporal_location_grid_mapping$updated_spatial_grid_id)),
-    map_smooth_grid = as.array(cast_to_int32(covar_cube$updated_id)), rho = 0.999,
-    covar = standardize_covar(as.matrix(as.data.frame(covar_cube)[, covariate_names])),
-    ncovar = length(covariate_names), beta_sigma_scale = config[["stan"]][["beta_sigma_scale"]],
+    map_loc_grid_sfrac = as.array(temporal_location_grid_mapping$sfrac), map_smooth_grid = as.array(cast_to_int32(covar_cube$updated_id)),
+    rho = 0.999, covar = standardize_covar(as.matrix(as.data.frame(covar_cube)[,
+        covariate_names])), ncovar = length(covariate_names), beta_sigma_scale = config[["stan"]][["beta_sigma_scale"]],
     sigma_eta_scale = config[["stan"]][["sigma_eta_scale"]], use_weights = FALSE,
     use_rho_prior = TRUE, do_censoring = (0 != (sum(!is.na(observation_data[[paste0(cases_column,
         "_L")]])) + sum(!is.na(observation_data[[paste0(cases_column, "_R")]])))),

@@ -604,71 +604,31 @@ RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint
       on
         location_periods.location_period_id = shapes.location_period_id
   LEFT JOIN
+    grids.resized_spatial_grid_pixels as spatial_grid
+      ON
+        st_intersects(shapes.shape, spatial_grid.centroid)
+  LEFT JOIN
     shape_resized_spatial_grid_populations
       ON
         shape_resized_spatial_grid_populations.shape_id = shapes.id
-  LEFT JOIN
-    grids.resized_spatial_grid_pixels as spatial_grid
-      ON
-        shape_resized_spatial_grid_populations.grid_id = spatial_grid.id
+        AND shape_resized_spatial_grid_populations.grid_id = spatial_grid.id
   FULL JOIN
     resize_temporal_grid(time_scale) as temporal_grid
       ON
-        shape_resized_spatial_grid_populations.time_left <= temporal_grid.time_midpoint AND
-        shape_resized_spatial_grid_populations.time_right >= temporal_grid.time_midpoint
+        (
+          shape_resized_spatial_grid_populations.time_left <= temporal_grid.time_midpoint AND
+          shape_resized_spatial_grid_populations.time_right >= temporal_grid.time_midpoint
+        ) OR
+        shape_resized_spatial_grid_populations.grid_id is NULL
   WHERE
     spatial_grid.width = width_in_km AND
     spatial_grid.height = height_in_km AND
     temporal_grid.time_midpoint <= end_date AND
     temporal_grid.time_midpoint >= start_date AND
     (
-      (shape_resized_spatial_grid_populations.grid_population > 0) OR
+      (shape_resized_spatial_grid_populations.grid_population >= 1) OR
       (shape_resized_spatial_grid_populations.intersection_population IS NULL)
     )
-  $$ LANGUAGE SQL;
-"
-    function_query_alt <- "
-create or replace function pull_location_period_grid_map(location_name text, start_date date, end_date date, width_in_km int, height_in_km int, time_scale text)
-RETURNS TABLE(location_period_id bigint, shape_id bigint, spatial_grid_id bigint, rid int, x int, y int, t bigint, sfrac double precision) AS $$
-WITH
-  observation_location_period_map as (select distinct location_period_id from pull_observation_location_period_map(location_name, start_date, end_date, 'year'))
-SELECT
-    observation_location_period_map.location_period_id,
-    shapes.id as shape_id,
-    spatial_grid.id as spatial_grid_id,
-    spatial_grid.rid,
-    spatial_grid.x,
-    spatial_grid.y,
-    temporal_grid.id as t,
-    CASE WHEN shape_resized_spatial_grid_populations.intersection_population IS NOT NULL THEN shape_resized_spatial_grid_populations.intersection_population / shape_resized_spatial_grid_populations.grid_population
-         WHEN shape_resized_spatial_grid_populations.intersection_population IS NULL THEN 1
-    END as sfrac
-FROM
-  observation_location_period_map
-LEFT JOIN
-  shapes
-    ON
-      observation_location_period_map.location_period_id = shapes.location_period_id
-LEFT JOIN
-  shape_resized_spatial_grid_populations
-    ON
-      observation_location_period_map.location_period_id = shape_resized_spatial_grid_populations.location_period_id AND
-      shapes.id = shape_resized_spatial_grid_populations.shape_id
-LEFT JOIN
-  grids.resized_spatial_grid_pixels as spatial_grid
-    ON
-      shape_resized_spatial_grid_populations.grid_id = spatial_grid.id OR
-      st_contains(shapes.shape, spatial_grid.centroid)
-FULL JOIN
-  resize_temporal_grid('year') as temporal_grid
-    ON
-      shape_resized_spatial_grid_populations.time_left <= temporal_grid.time_midpoint AND
-      shape_resized_spatial_grid_populations.time_right >= temporal_grid.time_midpoint
-  WHERE
-    spatial_grid.width = width_in_km AND
-    spatial_grid.height = height_in_km AND
-    temporal_grid.time_midpoint <= end_date AND
-    temporal_grid.time_midpoint >= start_date
   $$ LANGUAGE SQL;
 "
 
@@ -746,6 +706,30 @@ WHERE
     temporal_grid.time_midpoint >= start_date AND
     temporal_grid.time_midpoint <= end_date
 $$ LANGUAGE SQL;
+"
+
+    function_query_alt <- "
+SELECT
+  *
+FROM
+  filter_resized_spatial_grid_pixels_to_location('1', 1, 1) as grid_pixels
+INNER JOIN
+  resized_covariates
+    ON
+      grid_pixels.id = resized_covariates.grid_id
+      AND grid_pixels.rid = resized_covariates.grid_rid
+INNER JOIN
+  resize_temporal_grid('year') as temporal_grid
+    ON
+      resized_covariates.time_left <= temporal_grid.time_midpoint AND
+      resized_covariates.time_right >= temporal_grid.time_midpoint
+WHERE
+    temporal_grid.time_midpoint >= '2000-01-01' AND
+    temporal_grid.time_midpoint <= '2001-12-31'
+    AND grid_pixels.id = 98 AND
+    temporal_grid.id = 1 AND
+    covariate_name = 'population'
+;
 "
 
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
@@ -1436,7 +1420,7 @@ FROM locations inner join location_periods on locations.id = location_periods.lo
 create_shape_resized_spatial_grid_map_view <- function(psql_connection) {
     add_query <- "
 CREATE MATERIALIZED VIEW IF NOT EXISTS shape_resized_spatial_grid_map_view AS(
-SELECT  l.qualified_name, l.location_period_id as location_period_id, l.shape_id, p.id as grid_id, ST_Intersection(p.polygon, l.geom) as intersection_geom, l.geom as grid_geom
+SELECT  l.qualified_name, l.location_period_id as location_period_id, l.shape_id, p.id as grid_id, ST_Intersection(p.polygon, l.geom) as intersection_geom, p.polygon as grid_geom
 FROM
   grids.resized_spatial_grid_pixels p,
   shapes_with_names l
@@ -1485,7 +1469,8 @@ WHERE
 
 create_resized_covariates_view <- function(psql_connection) {
     add_query <- "
-CREATE MATERIALIZED VIEW resized_covariates as (select
+CREATE MATERIALIZED VIEW resized_covariates as (
+select
   resized_spatial_grid_pixels.rid as grid_rid,
   resized_spatial_grid_pixels.id as grid_id,
   all_covariates.covariate_name,
@@ -1499,6 +1484,8 @@ inner join
   covariate_grid_map
     on
       resized_spatial_grid_pixels.rid = covariate_grid_map.grid_rid
+      AND resized_spatial_grid_pixels.height = covariate_grid_map.height
+      AND resized_spatial_grid_pixels.width = covariate_grid_map.width
 inner join
   covariates.all_covariates
     on
