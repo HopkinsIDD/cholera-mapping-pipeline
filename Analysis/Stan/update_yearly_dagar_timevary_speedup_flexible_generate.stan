@@ -138,8 +138,8 @@ generated quantities {
   real log_lik[M]; // log-likelihood of observations
   vector[N] log_lambda; //local log rate
   vector<lower=0>[L] location_cases; //cases modeled in each (temporal) location.
-  vector<lower=0>[L] location_cases_output; //cases modeled in each (temporal) location.
-  vector<lower=0>[L] location_rates_output; //cases modeled in each (temporal) location.
+  vector<lower=0>[L_output] location_cases_output; //cases modeled in each (temporal) location.
+  vector<lower=0>[L_output] location_rates_output; //cases modeled in each (temporal) location.
   
   vector<lower=0>[N] grid_cases; //cases modeled in each gridcell and time point.
   vector[T*do_time_slice_effect] eta; // yearly random effects
