@@ -162,7 +162,11 @@ plot_pop_by_admin(cache=cache,cholera_directory=params$cholera_directory,config=
 #### Other covariates
 **Covariate rasters:**
 ```{r covars, fig.height=5, fig.width=10, fig.cap=capFig("Covariate rasters")}
+if(length(dimnames(cache[["covar_cube"]])[[3]])>=2){
 plot_raster_covariates(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
+}else{
+  warning("no covariates")
+}
 ```
 
 ### Output maps
