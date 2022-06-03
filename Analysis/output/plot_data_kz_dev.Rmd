@@ -7,8 +7,8 @@ output:
     toc_float: true
   pdf_document: default
 params:
-  config: "Analysis/configs/production_tests/Dev_nocovar/2015_2019_country/config_AGO_2015_2019.yml"
-  cholera_directory: "/home/kaiyuezou/mapping_pipeline/dev_production/cholera-mapping-pipeline"
+  config: "Analysis/configs/production_tests/Dev_nocovar/2015_2019_country/config_AGO_2015_2019.yml" #change this parameter accordingly 
+  cholera_directory: "/home/kaiyuezou/mapping_pipeline/dev_production/cholera-mapping-pipeline" #change this parameter accordingly 
   local_output_dir: "" #this is the absolute directory of model output if a folder other than "data" is used to store the output 
   credential_directory: ""
   args: 'run-comparison'
@@ -50,6 +50,7 @@ params:
 ### 02/23/2022 New updates -- fixed the comparison table 3.  
 ### 05/11/2022 New updates -- added new table and plotted dropped observations 
 ### 05/13/2022 New updates -- added back table 5 to distinguish partially and fully dropped observation collections 
+### 06/3/2022 New updates -- fixed some small error related to taxonomy data
 
 ```
 
@@ -262,7 +263,7 @@ sum_obs1 <- sf::st_drop_geometry(raw_data) %>%
             num_locationPeriod_id = length(unique(locationPeriod_id)), 
             num_OC_UID = length(unique(OC_UID)))
 
-sum_obs2 <- taxonomy_data %>% 
+sum_obs2 <- sf::st_drop_geometry(taxonomy_data_ori) %>% 
   mutate(OC_UID = observation_collection_id, 
          locationPeriod_id = location_period_id, 
          year = lubridate::year(time_left)) %>% 
@@ -296,7 +297,7 @@ dropped_locationPeriod_id <- c()
 dropped_OC_UID <- c()
 for (years in sum_obs2$year){
   list1 <- unique(raw_data[raw_data$year == years, ]$locationPeriod_id)
-  list2 <- unique(taxonomy_data[taxonomy_data$year == years, ]$location_period_id)
+  list2 <- unique(taxonomy_data_ori[taxonomy_data_ori$year == years, ]$location_period_id)
   if(length(setdiff(list2, list1)) == 0){
     dropped_locationPeriod_id <- c(dropped_locationPeriod_id, "0")
   }else{
@@ -305,7 +306,7 @@ for (years in sum_obs2$year){
   }
   
   list1 <- unique(raw_data[raw_data$year == years, ]$OC_UID)
-  list2 <- unique(taxonomy_data[taxonomy_data$year == years, ]$observation_collection_id)
+  list2 <- unique(taxonomy_data_ori[taxonomy_data_ori$year == years, ]$observation_collection_id)
   if(length(setdiff(list2, list1)) == 0){
     dropped_OC_UID <- c(dropped_OC_UID, "0")
   }else{
