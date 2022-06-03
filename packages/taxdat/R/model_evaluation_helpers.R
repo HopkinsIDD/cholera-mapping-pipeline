@@ -512,15 +512,17 @@ plot_model_fidelity <- function(data_fidelity,
 #' @name plot_model_fidelity_tfrac_adjusted
 #' @title plot_model_fidelity_tfrac_adjusted
 #' @description add
-#' @param data_fidelity data_fidelity object
-#' @param case_raster case_raster object
+#' @param cache 
+#' @param cholera_directory
+#' @param config
 #' @param render default is TRUE
 #' @return ggplot object with modeled vs actual cases by observation
-plot_model_fidelity_tfrac_adjusted <- function(data_fidelity,
-                                               case_raster,
-                                               render = T){
-  comparison <- data_fidelity
-  rate_raster <- case_raster
+plot_model_fidelity_tfrac_adjusted <- unction(cache,cholera_directory,config,
+                                              render = T){
+  cache[["data_fidelity"]]<-get_data_fidelity(cache=cache,cholera_directory=cholera_directory,config=config)
+  comparison <-  cache[["data_fidelity"]]
+  cache[["case_raster"]] <-get_case_raster(cache=cache,config=config,cholera_directory=cholera_directory)
+  rate_raster <- cache[["case_raster"]]
   
   plt <- ggplot2::ggplot(comparison %>% 
                            dplyr::filter(!stringr::str_detect(censoring, 'tfrac'))) +
@@ -541,15 +543,17 @@ plot_model_fidelity_tfrac_adjusted <- function(data_fidelity,
 #' @name plot_model_fidelity_tfrac_converted
 #' @title plot_model_fidelity_tfrac_converted
 #' @description add
-#' @param data_fidelity data_fidelity object
-#' @param case_raster case_raster object
+#' @param cache 
+#' @param cholera_directory
+#' @param config
 #' @param render default is TRUE
 #' @return ggplot object with modeled vs actual cases by observation
-plot_model_fidelity_tfrac_converted <- function(data_fidelity,
-                                                case_raster,
-                                                render = T){
-  comparison <- data_fidelity
-  rate_raster <- case_raster
+plot_model_fidelity_tfrac_converted <- unction(cache,cholera_directory,config,
+                                               render = T){
+  cache[["data_fidelity"]]<-get_data_fidelity(cache=cache,cholera_directory=cholera_directory,config=config)
+  comparison <-  cache[["data_fidelity"]]
+  cache[["case_raster"]] <-get_case_raster(cache=cache,config=config,cholera_directory=cholera_directory)
+  rate_raster <- cache[["case_raster"]]
   
   plt <- ggplot2::ggplot(comparison %>% 
                            dplyr::filter(stringr::str_detect(censoring, 'tfrac'))) +
@@ -569,15 +573,18 @@ plot_model_fidelity_tfrac_converted <- function(data_fidelity,
 #' @name plot_model_fidelity_tfrac_adjusted_by_year
 #' @title plot_model_fidelity_tfrac_adjusted_by_year
 #' @description add
-#' @param data_fidelity data_fidelity object
-#' @param case_raster case_raster object
+#' @param cache 
+#' @param cholera_directory
+#' @param config
 #' @param render default is TRUE
 #' @return ggplot object with modeled vs actual cases by observation
-plot_model_fidelity_tfrac_adjusted_by_year <- function(data_fidelity,
-                                                       case_raster,
-                                                       render = T){
-  comparison <- data_fidelity
-  rate_raster <- case_raster
+plot_model_fidelity_tfrac_adjusted_by_year <- unction(cache,cholera_directory,config,
+                                                      render = T){
+  cache[["data_fidelity"]]<-get_data_fidelity(cache=cache,cholera_directory=cholera_directory,config=config)
+  comparison <-  cache[["data_fidelity"]]
+  cache[["case_raster"]] <-get_case_raster(cache=cache,config=config,cholera_directory=cholera_directory)
+  rate_raster <- cache[["case_raster"]]
+  
   
   plt <- ggplot2::ggplot(comparison  %>% 
                            dplyr::filter(!stringr::str_detect(censoring, 'tfrac'))) +
@@ -597,15 +604,17 @@ plot_model_fidelity_tfrac_adjusted_by_year <- function(data_fidelity,
 #' @name plot_model_fidelity_tfrac_unadjusted
 #' @title plot_model_fidelity_tfrac_unadjusted
 #' @description add
-#' @param data_fidelity data_fidelity object
-#' @param case_raster case_raster object
+#' @param cache 
+#' @param cholera_directory
+#' @param config
 #' @param render default is TRUE
 #' @return ggplot object with modeled vs actual cases by observation
-plot_model_fidelity_tfrac_unadjusted <- function(data_fidelity,
-                                                 case_raster,
+plot_model_fidelity_tfrac_unadjusted <- function(cache,cholera_directory,config,
                                                  render = T){
-  comparison <- data_fidelity
-  rate_raster <- case_raster
+  cache[["data_fidelity"]]<-get_data_fidelity(cache=cache,cholera_directory=cholera_directory,config=config)
+  comparison <-  cache[["data_fidelity"]]
+  cache[["case_raster"]] <-get_case_raster(cache=cache,config=config,cholera_directory=cholera_directory)
+  rate_raster <- cache[["case_raster"]]
   
   plt <- ggplot2::ggplot(comparison%>% 
                            dplyr::filter(!stringr::str_detect(censoring, 'tfrac'))) +
@@ -615,6 +624,37 @@ plot_model_fidelity_tfrac_unadjusted <- function(data_fidelity,
     ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[,3:4])), ylim = c(0, max(comparison[,3:4]))) +
     ggplot2::theme_bw() +
     ggplot2::facet_wrap(~censoring, ncol = 2)
+  
+  if (render) {
+    plt
+  }
+}
+
+#' @export
+#' @name plot_model_fidelity_by_chain
+#' @title plot_model_fidelity_by_chain
+#' @description add
+#' @param cache 
+#' @param cholera_directory
+#' @param config
+#' @param render default is TRUE
+#' @return ggplot object with modeled vs actual cases by chain
+plot_model_fidelity_by_chain <- function(cache,cholera_directory,config,
+                                         render = T){
+  cache[["data_fidelity"]]<-get_data_fidelity(cache=cache,cholera_directory=cholera_directory,config=config)
+  data_fidelity <-  cache[["data_fidelity"]]
+  
+  data_fidelity$chain=as.factor(data_fidelity$chain)
+  if(!is.null(data_fidelity)){
+    plt <- ggplot2::ggplot(data_fidelity) +
+      ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = chain)) +
+      ggplot2::geom_abline(intercept = 0, slope = 1) +
+      ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(data_fidelity[,3:4])), ylim = c(0, max(data_fidelity[,3:4]))) +
+      ggplot2::theme_bw()
+    plt
+  } else{
+    warning("data_fidelity is NULL")
+  }
   
   if (render) {
     plt
