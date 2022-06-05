@@ -223,41 +223,6 @@ get_mean_case_raster_in_sf_no_cache <- function(output_cache){
 #' @name get_mean_case_raster_in_sf
 get_mean_case_raster_in_sf <- cache_fun_results("modeled_cases_mean_raster", get_mean_case_raster_in_sf_no_cache, overwrite = T) 
 
-# general stitch function
-#' @export
-#' @name stitch_caches
-#' @title stitch_caches
-#' @description general stitch function that can take different combination function calls 
-#' @param output_cache cached output
-#' @param name name of the field in the cached output that will be updated 
-#' @param input_caches cached configs
-#' @param initial_value initial values 
-#' @param combination_function specific function than can stitch cached output 
-#' @return  cached output 
-stitch_caches_no_cache <- function(
-  output_cache,
-  name,
-  input_caches,
-  initial_value = list(type = "first", value = NULL),
-  combination_function = function(x,y,...) {return(x + y)},
-  ...
-  ){
-  if (initial_value$type == "first") {
-    output_cache[[paste0(name, "_config")]] <- input_caches[[1]]
-    input_caches <- input_caches[-1]
-  } else if (initial_value$type == "fixed") {
-    output_cache[[paste0(name, "_config")]] <- initial_value$value
-  }
-  
-  combination_function(output_cache, name, ...) 
-  
-  return(invisible())
-}
-
-#' @export
-#' @name stitch_caches
-stitch_caches <- cache_fun_results("modeled_cases",stitch_caches_no_cache, overwrite = T) #this may be problematic
-
 #  a specific stitch function that can stack model output from different year together 
 #' @export
 #' @name stack_case_rate_raster_in_sf
