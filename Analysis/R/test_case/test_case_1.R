@@ -8,7 +8,7 @@ dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
 conn_pg <- taxdat::connect_to_db(dbuser, dbname)
 DBI::dbClearResult(DBI::dbSendQuery(conn = conn_pg, "SET client_min_messages TO WARNING;"))
 
-my_seed <- c(10403, 624, 105045778, 1207077739, 2042172336, -219892751, -768060162, 
+my_seed <- c(10404, 625, 105045778, 1207077739, 2042172336, -219892751, -768060162, 
              -2006256281, -1585201540, -978856627, -1568163926, -1028934365, 1356190728, 1795633769, 
              1153151766, 1165788831, 2116870228, 833087301, 829928258, 1681319387, -277008544, 
              1376178145, -672930770, 1480724183, 377343276, 861177917, -304533030, -1337000557, 
@@ -411,5 +411,5 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                 Observations_with_inconsistent_data=config$Observations_with_inconsistent_data,
                                 Loc_with_inconsistent_data=config$Loc_with_inconsistent_data,
                                 Cov_data_simulation_filename=config$Cov_data_simulation_filename),
-                  output_file="Country data report test case 1 updated 2"
+                  output_file="Country data report test case 1 updated"
 )
