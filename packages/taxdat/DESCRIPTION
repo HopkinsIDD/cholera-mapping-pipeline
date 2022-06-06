@@ -11,7 +11,9 @@ License: GPL (>= 2)
 Depends: R (>= 3.4),ISOcodes,magrittr, dplyr, tidyr, igraph
 Suggests: readxl, sf, sp, raster, rgdal, testthat, knitr, rmarkdown
 RoxygenNote: 7.1.2
-Collate:
+VignetteBuilder: knitr
+Collate: 
+    'aggregation.R'
     'color_scale.R'
     'config_helpers.R'
     'covariate_helpers.R'
@@ -26,6 +28,7 @@ Collate:
     'setup_helpers.R'
     'pull_data_helpers.R'
     'model_evaluation_helpers.R'
+    'plot_cache_function.R'
     'plot_map.R'
     'plotting_mockup.R'
     'run_stan_helpers.R'
