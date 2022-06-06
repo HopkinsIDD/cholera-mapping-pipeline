@@ -524,7 +524,7 @@ prepare_stan_input <- function(
   stan_data$map_full_grid <- full_grid$upd_id
   
   
-  # Prepare data for output summaries ---------------------------------------
+  # Data for output summaries ---------------------------------------
   # Set user-specific name for location_periods table to use
   output_lp_name <- taxdat::make_output_locationperiods_table_name(dbuser = dbuser, map_name = map_name)
   
