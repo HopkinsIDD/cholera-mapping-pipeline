@@ -41,7 +41,7 @@ aggregate_case_data <- function(case_data, unique_column_names = c("loctime"), c
         dplyr::group_by(!!!rlang::syms(unique_column_names), observation_collection_id,
             location_period_id) %>%
         dplyr::group_modify(function(.x, .y) {
-            cat("iter", unlist(.y), "\n")
+            # cat('iter', unlist(.y), '\n')
             if (nrow(.x) <= 1) {
                 .x %>%
                   dplyr::select(time_left, time_right, !!!rlang::syms(columns_to_sum_over)) %>%
