@@ -72,9 +72,11 @@ data {
   real<lower=0> pop_weight[K2 * use_pop_weight];
   real<lower=0> pop_weight_output[K2_output * use_pop_weight];
   
+  
   // If time slice effect pass indicator function for years without data
   vector<lower=0, upper=1>[N*do_time_slice_effect] has_data_year;
   matrix[N*do_time_slice_effect + 2 * (do_time_slice_effect != 1), T*do_time_slice_effect + 2*(do_time_slice_effect != 1)] mat_grid_time; // The time side of the mapping from locations/times to grid (2x2 in case of missing just so it's easy to create)
+  
 }
 
 transformed data {
@@ -133,18 +135,21 @@ parameters {
   // Covariate stuff
   vector[ncovar] betas;
 }
+
 generated quantities {
   real<lower=0> tfrac_modeled_cases[M]; //expected number of cases for each observation
+  real<lower=0> modeled_cases[M]; //expected number of cases for each observation
   real log_lik[M]; // log-likelihood of observations
+  vector[N] grid_cases; //cases modeled in each gridcell and time point.
   vector[N] log_lambda; //local log rate
   vector<lower=0>[L] location_cases; //cases modeled in each (temporal) location.
   vector<lower=0>[L_output] location_cases_output; //cases modeled in each (temporal) location.
   vector<lower=0>[L_output] location_rates_output; //cases modeled in each (temporal) location.
   
-  vector<lower=0>[N] grid_cases; //cases modeled in each gridcell and time point.
-  vector[T*do_time_slice_effect] eta; // yearly random effects
-  real<lower=0> modeled_cases[M]; //expected number of cases for each observation
+  vector[T*do_time_slice_effect] eta; // yearly random effects\\
   
+  
+  // ---- Part A: Grid-level rates and cases ----
   if (do_time_slice_effect == 1) {
     for(i in 1:T) {
       // scale yearly random effects
@@ -153,7 +158,12 @@ generated quantities {
   }
   
   // log-rates without time-slice effects
-  log_lambda =  w[map_smooth_grid] + log_meanrate + covar * betas;
+  log_lambda =  w[map_smooth_grid] + log_meanrate;
+  
+  // covariates if applicable
+  if (ncovar > 1) {
+    log_lambda += covar * betas;
+  }
   
   // Add time slice effects
   if (do_time_slice_effect == 1) {
@@ -162,12 +172,12 @@ generated quantities {
   
   grid_cases = exp(log_lambda + logpop);
   
-  //calculate the expected number of cases by location
-  
+  // ----  Part B: Modeled number of cases for observed location-periods ----
   // calculate number of cases for each location
   for(i in 1:L){
     location_cases[i] = 0;
   }
+  
   for(i in 1:K2){
     if (use_pop_weight == 1) {
       location_cases[map_loc_grid_loc[i]] += grid_cases[map_loc_grid_grid[i]] * pop_weight[map_loc_grid_grid[i]];
@@ -176,7 +186,31 @@ generated quantities {
     }
   }
   
-  // Output cases
+  // B.1: Modeled cases as used in observation model (depends on censoring)
+  for (i in 1:M) {
+    modeled_cases[i] = 0;
+  }
+  
+  //now accumulate
+  for (i in 1:K1) {
+    if (do_censoring == 1) {
+      modeled_cases[map_obs_loctime_obs[i]] += location_cases[map_obs_loctime_loc[i]];
+    } else {
+      modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
+    }
+  }
+  
+  // B.2: Modeled cases accounting for tfrac (for reporting)
+  for (i in 1:M) {
+    tfrac_modeled_cases[i] = 0;
+  }
+  //now accumulate
+  for (i in 1:K1) {
+    tfrac_modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
+  }
+  
+  // ---- Part C: Modeled number of cases for output summary location-periods ----
+  
   for(i in 1:L_output){
     location_cases_output[i] = 0;
   }
@@ -192,29 +226,7 @@ generated quantities {
     location_rates_output[i] = location_cases_output[i]/pop_loctimes_output[i];
   }
   
-  //first initialize to 0
-  for (i in 1:M) {
-    modeled_cases[i] = 0;
-  }
-  
-  //now accumulate
-  for (i in 1:K1) {
-    if (do_censoring == 1) {
-      modeled_cases[map_obs_loctime_obs[i]] += location_cases[map_obs_loctime_loc[i]];
-    } else {
-      modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
-    }
-  }
-  
-  // first initialize to 0
-  for (i in 1:M) {
-    tfrac_modeled_cases[i] = 0;
-  }
-  //now accumulate
-  for (i in 1:K1) {
-    tfrac_modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
-  }
-  
+  // ---- Part D: Log-likelihoods ----
   if (do_censoring == 0) {
     for (i in 1:M) {
       log_lik[i] = poisson_lpmf(y[i] | modeled_cases[i]);

@@ -40,6 +40,7 @@ package_list <- c(
   "odbc",
   "optparse",
   "parallel",
+  "posterior",
   "purrr",
   "RCurl",
   "R.utils",
@@ -227,6 +228,10 @@ stan_dir <- paste0(cholera_directory, '/Analysis/Stan/')
 stan_model <- config$stan$model
 stan_model_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, stan_model, sep=''),
                                             stan_dir = stan_dir)
+# Generated quantities
+stan_genquant <- config$stan$genquant
+stan_genquant_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, stan_genquant, sep=''),
+                                               stan_dir = stan_dir)
 
 # Should we be using a lower-triangular adjacency matrix
 # (this needs to be the case for the DAGAR model)
@@ -451,6 +456,20 @@ for(t_idx in 1:length(all_test_idx)){
     warning("Skipping stan model in accordance with the environment variable CHOLERA_SKIP_STAN.")
   } else {
     source(paste(cholera_directory,'Analysis','R','run_stan_model.R',sep='/'))
+    recompile <- FALSE
+  }
+  
+  ## Step 6: Run the generated quantities
+  print(file_names[["stan_genquant"]])
+  if(file.exists(file_names[["stan_genquant"]])){
+    print("Data already modeled, skipping")
+    warning("Data already modeled, skipping")
+    readRDS(file_names[["stan_genquant"]])
+  } else if (Sys.getenv("CHOLERA_SKIP_STAN","FALSE") == "TRUE") {
+    print("Skipping stan model in accordance with the environment variable CHOLERA_SKIP_STAN.")
+    warning("Skipping stan model in accordance with the environment variable CHOLERA_SKIP_STAN.")
+  } else {
+    source(paste(cholera_directory,'Analysis','R','run_stan_genquant.R',sep='/'))
     recompile <- FALSE
   }
   
