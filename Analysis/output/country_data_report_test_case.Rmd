@@ -556,11 +556,10 @@ if(!is.null(data_fidelity)){
 
 ```{r traceplots, fig.height=8, fig.width=10, fig.cap="Figure 7. Stan trace plots"}
 if(!is.null(model.rand)){
-  ## No eta in the model right now
-  ## taxdat::plot_chain_convergence(file_names[["stan_output"]], pars =  c("rho", "betas", "log_std_dev_w", "eta"), render = T)
-  taxdat::plot_chain_convergence(file_names[["stan_output"]], pars =  c("rho", "betas", "log_std_dev_w"), render = T)
+# No eta in the model right now
+# taxdat::plot_chain_convergence(file_names[["stan_output"]], pars =  c("rho", "betas", "log_std_dev_w", "eta"), render = T)
+ taxdat::plot_chain_convergence(file_names[["stan_output"]], pars =  c("rho", "betas", "log_std_dev_w"), render = T)
 }
-
 ```
 
 
