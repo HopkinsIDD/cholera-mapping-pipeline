@@ -517,7 +517,7 @@ plot_model_fidelity <- function(data_fidelity,
 #' @param config
 #' @param render default is TRUE
 #' @return ggplot object with modeled vs actual cases by observation
-plot_model_fidelity_tfrac_adjusted <- unction(cache,cholera_directory,config,
+plot_model_fidelity_tfrac_adjusted <- function(cache,cholera_directory,config,
                                               render = T){
   cache[["data_fidelity"]]<-get_data_fidelity(cache=cache,cholera_directory=cholera_directory,config=config)
   comparison <-  cache[["data_fidelity"]]
@@ -578,7 +578,7 @@ plot_model_fidelity_tfrac_converted <- function(cache,cholera_directory,config,
 #' @param config
 #' @param render default is TRUE
 #' @return ggplot object with modeled vs actual cases by observation
-plot_model_fidelity_tfrac_adjusted_by_year <- unction(cache,cholera_directory,config,
+plot_model_fidelity_tfrac_adjusted_by_year <- function(cache,cholera_directory,config,
                                                       render = T){
   cache[["data_fidelity"]]<-get_data_fidelity(cache=cache,cholera_directory=cholera_directory,config=config)
   comparison <-  cache[["data_fidelity"]]
