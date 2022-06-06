@@ -261,6 +261,7 @@ disjoint_set_sf_cases=disjoint_set_sf_cases%>%rename(cases=suspected_cases)%>%mu
   #   render = T
   # )
 disjoint_set_sf_cases<-disjoint_set_sf_cases%>%mutate(lon=map_dbl(shape,~sf::st_centroid(.x)[[1]]),lat=map_dbl(shape,~sf::st_centroid(.x)[[2]]))
+disjoint_set_sf_cases$cases=ifelse(disjoint_set_sf_cases$cases==0,exp(-5),disjoint_set_sf_cases$cases)
 
 plt <- ggplot2::ggplot()
 
@@ -269,7 +270,7 @@ if(all(params$Loc_with_inconsistent_data=="no")){
       do(gg={
         ggplot(.,ggplot2::aes(fill = cases))+
           ggplot2::geom_sf() +
-          taxdat::color_scale(type = "case", use_case = "ggplot map", use_log = FALSE)+
+          taxdat::color_scale(type = "case", use_case = "ggplot map", use_log = TRUE)+
     ggplot2::labs(fill="Average cases by location period")+
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom")+
@@ -284,7 +285,7 @@ if(all(params$Loc_with_inconsistent_data=="no")){
           ggplot2::geom_sf() +
           ggplot2::geom_point(data=disjoint_set_sf_cases%>%subset(location_name%in%params$Loc_with_inconsistent_data),
                         aes(x=lon,y=lat),shape=8)+
-    taxdat::color_scale(type = "case", use_case = "ggplot map", use_log = FALSE)+
+    taxdat::color_scale(type = "case", use_case = "ggplot map", use_log = TRUE)+
     ggplot2::labs(fill="Average cases by location period",shape="Locations with \ninconsistent data")+
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom")+
@@ -300,6 +301,7 @@ if(all(params$Loc_with_inconsistent_data=="no")){
 # cache[["area_adjusted_observed_polygon_cases_disjoint_aggregated"]]<-disjoint_set_sf_cases
 # plot_sf_with_fill(cache = cache, name = "area_adjusted_observed_polygon_cases_disjoint_aggregated",
 #         color_scale_type = "cases", fill_column = "area_adjusted_suspected_cases")
+disjoint_set_sf_cases$area_adjusted_cases=ifelse(disjoint_set_sf_cases$area_adjusted_cases==0,exp(-5),disjoint_set_sf_cases$area_adjusted_cases)
 taxdat::plot_area_adjusted_observed_cases(
   disjoint_set_sf_cases,
   render = T
@@ -430,14 +432,14 @@ if (!is.null(case_raster)) {
         case_raster_case[which(case_raster_case$t==1),]$t="2000"
 
         }
-
+case_raster_case$value=ifelse(case_raster_case$value==0,exp(-5),case_raster_case$value)
 plt <- ggplot2::ggplot()
 plt <- plt +
   ggplot2::geom_sf(
     data = case_raster_case,
     ggplot2::aes(fill = value
     ),color="black",size=0.05) +
-  taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
+  taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = TRUE)+
   ggplot2::labs(fill="Incidence\n [cases/year]")+
   ggplot2::theme_bw() +
   ggplot2::theme(legend.position = "bottom") +
