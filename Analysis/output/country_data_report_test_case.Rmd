@@ -221,8 +221,7 @@ cases_chains <- apply(stan_output$grid_cases, c(3,2), mean)
 ```{r disjoint set sf cases}
 #disjoint_set_sf_cases <- taxdat::get_disjoint_set_sf_cases(stan_input_filename = file_names[["stan_input"]])
 disjoint_set_sf_cases<-sf::st_as_sf(stan_input$observation_data)
-disjoint_set_sf_cases=disjoint_set_sf_cases%>%rename(cases=suspected_cases)%>%mutate(area=as.numeric(sf::st_area(disjoint_set_sf_cases))/1000/1000,area_adjusted_cases=cases/area)
-
+disjoint_set_sf_cases=disjoint_set_sf_cases%>%rename(cases=suspected_cases)%>%mutate(area=as.numeric(sf::st_area(disjoint_set_sf_cases)),area_adjusted_cases=cases/area)
 
     disjoint_set_sf_cases <- dplyr::arrange(disjoint_set_sf_cases, 
         -area)
