@@ -543,7 +543,8 @@ prepare_stan_input <- function(
     intersections_table = output_intersections_table,
     cntrd_table = output_cntrds_table,
     res_space = res_space,
-    sf_grid = sf_grid)
+    sf_grid = sf_grid,
+    grid_changer = grid_changer)
   
   # Make fake data to compute output location periods mappings
   fake_output_obs <- output_location_periods_table %>% 
