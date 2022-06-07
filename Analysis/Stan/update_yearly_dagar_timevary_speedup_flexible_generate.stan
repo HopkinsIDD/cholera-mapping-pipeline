@@ -106,7 +106,7 @@ transformed data {
   }
   
   for (i in 1:K2_output) {
-    pop_loctimes_output[map_output_loc_grid_loc[i]] += pop[map_output_loc_grid_grid[i]];
+    pop_loctimes_output[map_output_loc_grid_loc[i]] += pop[map_output_loc_grid_grid[i]] * pop_weight[map_output_loc_grid_grid[i]];
   }
   
   // Compute observation likelihood weights 
