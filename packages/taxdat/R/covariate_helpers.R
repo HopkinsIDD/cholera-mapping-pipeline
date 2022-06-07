@@ -1336,6 +1336,14 @@ get_country_admin_units <- function(iso_code,
   boundary_sf <- boundary_sf %>% 
     dplyr::rename(location_period_id = shapeID)
   
+  # Combine into multipolygons
+  boundary_sf <- sf::st_cast(boundary_sf, "MULTIPOLYGON")
+  boundary_sf <- boundary_sf %>% 
+    dplyr::group_by(shapeName) %>% 
+    dplyr::summarise(location_period_id = stringr::str_c(location_period_id, 
+                                                         collapse = "_"),
+                     shapeType = shapeType[1])
+  
   return(boundary_sf)
 }
 
