@@ -1295,9 +1295,7 @@ get_pop_weights <- function(res_space,
                   # Get time slice information to join to location periods dict
                   band = stringr::str_extract(name, "[0-9]+") %>% as.numeric(),
                   t = purrr::map_dbl(band, ~ which(pop_1km_bands$ind == .))) %>% 
-    dplyr::select(-name, -band) %>% 
-    # Keep only values of pop_weight > 1e-5
-    dplyr::filter(pop_weight > 1e-5)
+    dplyr::select(-name, -band) 
   
   
   return(pop_weights)
@@ -1490,7 +1488,9 @@ make_location_periods_dict <- function(conn_pg,
   location_periods_dict <- location_periods_dict %>% 
     dplyr::left_join(pop_weights,
                      by = c("location_period_id","rid", "x", "y", "t")) %>% 
-    dplyr::mutate(pop_weight = ifelse(is.na(pop_weight), 1, pop_weight))
+    dplyr::mutate(pop_weight = ifelse(is.na(pop_weight), 0, pop_weight)) %>% 
+    # Keep only values of pop_weight > 1e-5
+    dplyr::filter(pop_weight > 1e-5)
   
   # Stop if anything missing
   if (any(is.na(location_periods_dict$pop_weights))) {
