@@ -1280,7 +1280,9 @@ get_pop_weights <- function(res_space,
   pop_weights <- dplyr::full_join(
     pop_1km_intersections %>% 
       tidyr::pivot_longer(cols = dplyr::contains("values"),
-                          values_to = "pop_1km"), 
+                          values_to = "pop_1km") %>% 
+      # Fill with 0s where populations are NA due to very small overlap
+      dplyr::mutate(pop_1km = ifelse(is.na(pop_1km), 0, pop_1km)), 
     pop_grid %>% 
       tidyr::pivot_longer(cols = dplyr::contains("values"),
                           values_to = "pop_grid"),
@@ -1293,7 +1295,9 @@ get_pop_weights <- function(res_space,
                   # Get time slice information to join to location periods dict
                   band = stringr::str_extract(name, "[0-9]+") %>% as.numeric(),
                   t = purrr::map_dbl(band, ~ which(pop_1km_bands$ind == .))) %>% 
-    dplyr::select(-name, -band)
+    dplyr::select(-name, -band) %>% 
+    # Keep only values of pop_weight > 1e-5
+    dplyr::filter(pop_weight > 1e-5)
   
   
   return(pop_weights)
