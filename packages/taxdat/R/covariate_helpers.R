@@ -1488,7 +1488,7 @@ make_location_periods_dict <- function(conn_pg,
   location_periods_dict <- location_periods_dict %>% 
     dplyr::left_join(pop_weights,
                      by = c("location_period_id","rid", "x", "y", "t")) %>% 
-    dplyr::mutate(pop_weight = ifelse(is.na(pop_weight), 0, pop_weight))
+    dplyr::mutate(pop_weight = ifelse(is.na(pop_weight), 1, pop_weight))
   
   # Stop if anything missing
   if (any(is.na(location_periods_dict$pop_weights))) {
