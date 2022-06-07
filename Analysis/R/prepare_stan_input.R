@@ -552,6 +552,7 @@ prepare_stan_input <- function(
     dplyr::distinct(location_period_id, TL, TR) %>% 
     dplyr::rename(locationPeriod_id = location_period_id)
   
+  # Mapping from fake observations to location-periods 
   ind_mapping_output <- taxdat::get_space_time_ind_speedup(
     df = fake_output_obs, 
     lp_dict = output_location_periods_table,
@@ -559,6 +560,10 @@ prepare_stan_input <- function(
     res_time = res_time,
     n_cpus = ncore,
     do_parallel = F)
+  
+  # Space-only location periods
+  output_lps_space <- fake_output_obs %>% 
+    dplyr::distinct(locationPeriod_id)
   
   # Set data for output in stan object
   stan_data$M_output <- nrow(fake_output_obs)
@@ -571,6 +576,9 @@ prepare_stan_input <- function(
   stan_data$K1_output <- length(stan_data$map_output_obs_loctime_obs)
   stan_data$K2_output <- length(stan_data$map_output_loc_grid_loc)
   stan_data$L_output <- length(ind_mapping_output$u_loctimes)
+  stan_data$L_output_space <- nrow(output_lps_space)
+  stan_data$map_output_loctime_loc <- purrr::map_dbl(fake_output_obs$locationPeriod_id, 
+                                                     ~ which(output_lps_space$locationPeriod_id == .))
   
   if (stan_params$use_pop_weight) {
     stan_data$pop_weight_output <- ind_mapping_output$u_loc_grid_weights

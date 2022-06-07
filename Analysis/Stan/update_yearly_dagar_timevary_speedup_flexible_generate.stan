@@ -41,6 +41,7 @@ data {
   
   // For output summaries
   int <lower=0> L_output; // number of location periods (space and time)
+  int <lower=0> L_output_space; // number of location periods (space and time)
   int <lower=0> M_output; // number of location periods (space and time)
   int <lower=L_output> K1_output; // the length of the mapping of observations to location periods and times
   int <lower=L_output> K2_output; // the length of the mapping of location periods to gridcells
@@ -48,6 +49,7 @@ data {
   int <lower=0, upper=L_output> map_output_obs_loctime_loc[K1_output]; // The location side of the mapping from observations to location/times
   int <lower=0, upper=L_output> map_output_loc_grid_loc[K2_output]; // the location side of the mapping from locations to gridcells
   int <lower=0, upper=N> map_output_loc_grid_grid[K2_output]; // the gridcell side of the mapping from locations to gridcells
+  int <lower=0, upper=L_output_space> map_output_loctime_loc[L_output]; // Map from space x time location ids to space only location
   
   int <lower=0,upper=smooth_grid_N> map_smooth_grid[N]; //vector with repeating smooth_grid_N indexes repeating 1:N
   
@@ -144,7 +146,9 @@ generated quantities {
   vector[N] log_lambda; //local log rate
   vector<lower=0>[L] location_cases; //cases modeled in each (temporal) location.
   vector<lower=0>[L_output] location_cases_output; //cases modeled in each (temporal) location.
-  vector<lower=0>[L_output] location_rates_output; //cases modeled in each (temporal) location.
+  vector<lower=0>[L_output] location_rates_output; //rates modeled in each (temporal) location.
+  vector<lower=0>[L_output_space] location_total_cases_output; //cases modeled in each location across time slices.
+  vector<lower=0>[L_output_space] location_total_rates_output; //rates modeled in each location  across time slices.
   
   vector[T*do_time_slice_effect] eta; // yearly random effects\\
   
@@ -214,11 +218,36 @@ generated quantities {
   for(i in 1:L_output){
     location_cases_output[i] = 0;
   }
+  
+  for(i in 1:L_output_space){
+    location_total_cases_output[i] = 0;
+  }
+  
   for(i in 1:K2_output){
     if (use_pop_weight == 1) {
       location_cases_output[map_output_loc_grid_loc[i]] += grid_cases[map_output_loc_grid_grid[i]] * pop_weight_output[map_output_loc_grid_grid[i]];
     } else {
       location_cases_output[map_output_loc_grid_loc[i]] += grid_cases[map_output_loc_grid_grid[i]];
+    }
+  }
+  
+  {
+    // This block computes the total cases and mean rates across time
+    real tot_loc_pop[L_output_space]; // store the total exposed population across time slices
+    
+    for (i in 1:L_output_space) {
+      tot_loc_pop[i] = 0;
+    }
+    
+    // Compute total cases and total exposed population
+    for (i in 1:L_output) {
+      location_total_cases_output[map_output_loctime_loc[i]] += location_cases_output[i];
+      tot_loc_pop[map_output_loctime_loc[i]] += pop_loctimes_output[i];
+    }
+    
+    // Compute mean rates
+    for (i in 1:L_output_space) {
+      location_total_rates_output[i] = location_total_cases_output[i]/tot_loc_pop[i];
     }
   }
   
