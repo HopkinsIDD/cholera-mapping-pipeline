@@ -1317,7 +1317,9 @@ get_country_admin_units <- function(iso_code,
   } else if (iso_code == "ZNZ"){
     stop('Sorry, currently ZNZ only has the admin 1 level shape files available to use, please try again. ')
   } else{
-    if (admin_level == 1){
+    if (admin_level == 0){
+      boundary_sf <- rgeoboundaries::gb_adm0(iso_code)
+    }else if (admin_level == 1){
       boundary_sf <- rgeoboundaries::gb_adm1(iso_code)
     }else if (admin_level == 2){
       boundary_sf <- rgeoboundaries::gb_adm2(iso_code)
@@ -1357,7 +1359,7 @@ get_country_admin_units <- function(iso_code,
 #' @export
 #'
 get_multi_country_admin_units <- function(iso_code,
-                                          admin_levels = 1:3,
+                                          admin_levels = 0:2,
                                           lps = shapefiles) {
   
   if (iso_code == "testing") {
