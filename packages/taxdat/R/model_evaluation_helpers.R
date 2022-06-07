@@ -198,7 +198,7 @@ plot_area_adjusted_observed_cases <- function(
       data = disjoint_set_sf_cases,
       ggplot2::aes(fill = area_adjusted_cases)
     ) +
-    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
+    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = TRUE)+
     ggplot2::labs(fill="Area-adjusted cases")+
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom") +
