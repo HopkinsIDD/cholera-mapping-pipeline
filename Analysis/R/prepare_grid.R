@@ -92,7 +92,7 @@ prepare_grid <- function(
     r <- raster::stack(master_grid_filename)
     if (!is.null(aoi$extent)) {
       cat(paste("Cropping",master_grid_filename, "to", "[", stringr::str_c(c("xmin:", ", xmax:", ", ymin:", ", ymax:"), as.vector(aoi$extent)), "]\n"))
-      r <- raster::crop(master_grid_filename, aoi$extent)
+      r <- raster::crop(r, aoi$extent)
     }
     master_grid_filename <- gsub('.tif$', paste0('.cropped.',aoi_name, '.tif'), master_grid_filename)
     raster::writeRaster(x = r, filename = master_grid_filename)
