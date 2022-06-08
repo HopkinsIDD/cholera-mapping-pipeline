@@ -55,6 +55,6 @@ jobs:
           Rscript Analysis/R/prepare_grid_cmd.R -d ./ -u root -r 1 -i TRUE -a KEN
           Rscript Analysis/R/prepare_covariates_cmd.R -d ./Layers -u root -r 1 -t '1 years' -i TRUE -p FALSE -n 1 -o TRUE -x FALSE -m TRUE -c p -g 'public.grid_1_1' -a KEN
           cd test
-	  export PRODUCTION_RUN=FALSE
+          export PRODUCTION_RUN=FALSE
           Rscript run_tests.R
         shell: bash
