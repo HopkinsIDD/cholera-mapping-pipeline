@@ -94,7 +94,7 @@ prepare_grid <- function(
       cat(paste("Cropping",master_grid_filename, "to", "[", stringr::str_c(c("xmin:", ", xmax:", ", ymin:", ", ymax:"), as.vector(aoi_extent)), "]\n"))
       r <- raster::crop(master_grid_filename, aoi$extent)
     }
-    master_grid_filename <- gsub('.tif$', paste0('.cropped.',aoi_name, '.tif'))
+    master_grid_filename <- gsub('.tif$', paste0('.cropped.',aoi_name, '.tif'), master_grid_filename)
     raster::writeRaster(x = r, filename = master_grid_filename)
 
     r2psql_cmd <- glue::glue("raster2pgsql -s EPSGS:4326 -I -t auto -d {master_grid_filename}  grids.master_grid |
