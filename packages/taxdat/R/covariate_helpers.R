@@ -795,7 +795,7 @@ get_temporal_bands <- function(model_time_slices, covar_TL_seq, covar_TR_seq) {
 
   ind_vec <- unlist(ind_vec)
 
-  pring("checkpoint 1")
+  print("checkpoint 1")
   return(list(ind = ind_vec, tl = covar_TL_seq[ind_vec], tr = covar_TR_seq[ind_vec]))
 }
 
