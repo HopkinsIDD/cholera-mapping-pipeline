@@ -795,6 +795,7 @@ get_temporal_bands <- function(model_time_slices, covar_TL_seq, covar_TR_seq) {
 
   ind_vec <- unlist(ind_vec)
 
+  pring("checkpoint 1")
   return(list(ind = ind_vec, tl = covar_TL_seq[ind_vec], tr = covar_TR_seq[ind_vec]))
 }
 
@@ -1256,11 +1257,14 @@ get_pop_weights <- function(res_space,
           FROM covariates.metadata
           WHERE covariate = 'pop_1_years_1_1'",
                    .con = conn_pg))
+  print(covar_date_metadata)
+  warning("remove me and the lines above")
 
   # Define the left and right bounds of the temporal slices covered by the covariates
   covar_TL_seq <- seq.Date(as.Date(covar_date_metadata$first_tl[1]),
                            as.Date(covar_date_metadata$last_tl[1]),
                            by = res_time)
+  print("checkpoint 2")
   covar_TR_seq <- aggregate_to_end(time_change_func(covar_TL_seq))
 
   pop_1km_bands <- get_temporal_bands(model_time_slices = time_slices,
