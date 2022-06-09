@@ -3,7 +3,7 @@ aoi: "KEN"
 countries: "Kenya"
 countries_name: KEN
 start_time: '2001-01-01'
-end_time: '2001-12-31'
+end_time: '2002-12-31'
 res_time: 1 years
 res_space: 20
 smoothing_period: 1
