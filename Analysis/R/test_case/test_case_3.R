@@ -346,7 +346,6 @@ config <- list(
     end_date = as.character(max_time_right),
     width_in_km = 1,
     height_in_km = 1,
-    # smoothing_period = 1,
     time_scale = "year",
     covariates = unique(sapply(covariate_raster_funs, function(x){x$name}))
   ),
