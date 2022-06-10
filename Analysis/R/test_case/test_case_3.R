@@ -339,23 +339,30 @@ taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raste
 config_filename <- "/home/app/cmp/Analysis/R/config_test_case_3.yml"
 
 ## Put your config stuff in here
-config <- list(general = list(location_name = all_dfs$location_df$qualified_name[[1]], 
-                              start_date = as.character(min_time_left), end_date = as.character(max_time_right), 
-                              width_in_km = 1, height_in_km = 1, time_scale = "year"), 
-               stan = list(directory = rprojroot::find_root_file(criterion = ".choldir", "Analysis", "Stan"),
-                           ncores = 4,
-                           model = "dagar_seasonal.stan",#model
-                           niter = 4000,
-                           recompile = TRUE), 
-               name = "test_1", 
-               taxonomy = "taxonomy-working/working-entry1", 
-               smoothing_period = 1, 
-               case_definition = "suspected", 
-               covariate_choices = raster_df$name, 
-               data_source = "sql", 
-               ingest_covariates="no",
-               file_names = list(stan_output = rprojroot::find_root_file(criterion = ".choldir","Analysis", "output", "test3.stan_output.rdata"), 
-                                 stan_input = rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", "test3.stan_input.rdata")),
+config <- list(
+  general = list(
+    location_name = all_dfs$location_df$qualified_name[[1]],
+    start_date = as.character(min_time_left),
+    end_date = as.character(max_time_right),
+    width_in_km = 1,
+    height_in_km = 1,
+    # smoothing_period = 1,
+    time_scale = "year",
+    covariates = unique(sapply(covariate_raster_funs, function(x){x$name}))
+  ),
+  stan = list(
+    directory = rprojroot::find_root_file(criterion = ".choldir", "Analysis", "Stan"),
+    ncores = 4,
+    model = "dagar_seasonal_flexible.stan",#model
+    niter = 4000,
+    recompile = TRUE
+  ),
+  file_names = list(
+    stan_input = rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", "test3.stan_input.rdata"),
+    stan_output = rprojroot::find_root_file(criterion = ".choldir","Analysis", "output", "test3.stan_output.rdata")
+  ),
+  test_metadata = list(
+               name = "test_1",
                nrows=10,
                ncols=10,
                data_type="Grid data",
@@ -365,19 +372,19 @@ config <- list(general = list(location_name = all_dfs$location_df$qualified_name
                randomize=TRUE,
                ncovariates=nrow(covariates_table),
                single_year_run=ifelse(lubridate::year(query_time_right)-lubridate::year(query_time_left)==0,"yes","no"),
-               iteration=4000,
                nonspatial = covariates_table$nonspatial,
                nontemporal = covariates_table$nontemporal,
                spatially_smooth = covariates_table$spatially_smooth,
                temporally_smooth = covariates_table$temporally_smooth,
                polygonal = covariates_table$polygonal,
-               radiating = covariates_table$radiating, 
+               radiating = covariates_table$radiating,
                constant = covariates_table$constant,
                Data_simulation_covariates=covariates_table$Data_simulation_covariates,
                Model_covariates=covariates_table$Model_covariates,
                Observations_with_inconsistent_data=paste0("Nationally reported data is ",all_dfs$observations_df[which(all_dfs$observations_df$qualified_name=="1"),]$suspected_cases/sum(all_dfs$observations_df[grep("1::",all_dfs$observations_df$qualified_name),]$suspected_cases)," times of the cases reported at the subnational level."),
                Loc_with_inconsistent_data="-",
                Cov_data_simulation_filename="/home/app/cmp/Analysis/output/test_case_3_data_simulation_covariates.rdata"
+  )
 )
 
 yaml::write_yaml(x = config, file = config_filename)
@@ -403,7 +410,7 @@ rmarkdown::render(rprojroot::find_root_file(criterion = ".choldir", "Analysis", 
                                 spatially_smooth = covariates_table$spatially_smooth,
                                 temporally_smooth = covariates_table$temporally_smooth,
                                 polygonal = covariates_table$polygonal,
-                                radiating = covariates_table$radiating, 
+                                radiating = covariates_table$radiating,
                                 constant = covariates_table$constant,
                                 Data_simulation_covariates=config$Data_simulation_covariates,
                                 Model_covariates=config$Model_covariates,

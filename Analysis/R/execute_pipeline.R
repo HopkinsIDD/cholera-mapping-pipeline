@@ -547,7 +547,7 @@ if (config[["initial_values"]][["warmup"]]) {
         rc <- list(betas = as.array(rnorm(length(coef(gam_fit)[covariate_names]),
             coef(gam_fit)[covariate_names])), eta = as.array(rnorm(length(coef(gam_fit)["obs_year"]),
             coef(gam_fit)["obs_year"])), w = as.array(rnorm(nrow(w_df), w_df[["value"]])))
-        return()
+        return(rc)
     })
 
     covar_cube[["covariate_contribution"]] <- covariate_effect
