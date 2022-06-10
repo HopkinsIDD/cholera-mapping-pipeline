@@ -2,8 +2,6 @@
 title: "Country data report"
 output: html_document
 params:
-  #cholera_directory: "/home/app/cmp/"
-  #config_filename: "/home/app/cmp/Analysis/R/test1_config.yml"
   cholera_directory: "C:/IDD/Cholera/cholera-mapping-pipeline/Analysis/output"
   config_filename: "C:/IDD/Cholera/cholera-mapping-pipeline/Analysis/R/test1_config.yml"
   drop_nodata_years: TRUE
@@ -28,8 +26,9 @@ params:
   Model_covariates: c(TRUE,TRUE,FALSE)
   Observations_with_inconsistent_data: "no"
   Loc_with_inconsistent_data: "no"
-  #Cov_data_simulation_filename: "/home/app/cmp/Analysis/output/test_case_1_data_simulation_covariates.rdata"
   Cov_data_simulation_filename: "C:/IDD/Cholera/cholera-mapping-pipeline/Analysis/output/test_case_1_data_simulation_covariates.rdata"
+  test_true_grid_case_filename: "/home/app/cmp/Analysis/output/test_case_1_true_grid_cases.rdata"
+
 ---
 
 ```{r setup, include=FALSE, dev="CairoPNG"}
@@ -50,6 +49,8 @@ library(ggplot2)
 library(kableExtra)
 library(taxdat)
 library(sf)
+library(reshape2)
+library(data.table)
 
 if (!("params" %in% ls())) {
   params <- list(
@@ -112,7 +113,8 @@ if (!("params" %in% ls())) {
   "Model_covariates",
   "Locations with inconsistent data\n (compared to the country level)",
   "Loc with inconsistent data",
-  "Cov_data_simulation_filename"
+  "Cov_data_simulation_filename",
+  "test_true_grid_case_filename"
 )
 
  data.frame(parameter=rownames(params_table)[c(1:11,23)],params_table[c(1:11,23),1])%>%
@@ -324,13 +326,9 @@ taxdat::plot_area_adjusted_observed_cases(
         }else{
          pltdata[which(pltdata$t==1),]$t="2000"
         }
-
         pltdata$t<-as.factor(pltdata$t)
-        #levels(pltdata$t)<-1:nlevels(pltdata$t)
 
         pltdata_dummy <- tidyr::gather(dplyr::filter(pltdata, !qualified_name == "1" ), one_of(colnames(pltdata)[stringr::str_detect(colnames(pltdata),"covariate|pop")]),key = "covars", value = "value")%>%subset(!covars=="covariate_contribution")
-
-
 
      pltdata_dummy%>%group_by(covars)%>%
       do(gg={
@@ -552,6 +550,28 @@ if(!is.null(data_fidelity)){
 } else{
   warning("data_fidelity is NULL")
 }
+
+```
+
+```{r true and modeled gridded cases, fig.cap="Figure 7. Observations vs. modeled gridded cases", fig.height=6, fig.width=6}
+ covar_cube <- stan_input$covar_cube
+ covar_cube[,paste("cases", "chain", seq_len(ncol(cases_chains)), sep = "_")] <- cases_chains
+ modeled_grid_case<-covar_cube#%>%select(x,y,t,cases_chain_1,cases_chain_2,cases_chain_3,cases_chain_4)
+ modeled_grid_case$geometry <- sf::st_as_sfc(modeled_grid_case$geometry)
+ modeled_grid_case <- sf::st_as_sf(modeled_grid_case)
+ 
+ true_grid_case<-readRDS(config$test_true_grid_case_filename)#%>%select(row,col,cases,t)#%>%rename(x=row,y=col)
+ 
+ wide_modeled_true_grid_cases<-data.frame(sf::st_join(st_centroid(true_grid_case),modeled_grid_case) %>% dplyr::filter(t.x == t.y))%>%select(x,y,cases_chain_1,cases_chain_2,cases_chain_3,cases_chain_4,cases)
+ 
+ long_modeled_grid_case <- data.frame(melt(wide_modeled_true_grid_cases, id.vars = c("x","y","cases"), variable.name = "chains"))%>%rename("modeled grid cases"=value,"true grid cases"=cases)
+
+ plt <- ggplot2::ggplot(long_modeled_grid_case) +
+      ggplot2::geom_point(ggplot2::aes(y = `modeled grid cases`, x = `true grid cases`, col = chains)) +
+      ggplot2::geom_abline(intercept = 0, slope = 1) +
+      ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(long_modeled_grid_case[,3])), ylim = c(0, max(long_modeled_grid_case[,5]))) +
+      ggplot2::theme_bw()
+ plt
 
 ```
 
