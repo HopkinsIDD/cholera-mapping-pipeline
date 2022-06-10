@@ -1588,7 +1588,7 @@ inner join
 #' @export
 #' @name cast_to_int32
 #' @title cast_to_int32
-#' @description For casting int64 to 32 bit integers since R is bad at dealing with them
+#' @description For casting int64 to 32 bit integers since R is bad at dealing with them mostly
 #' @param x A 64 bit integer (see bit64)
 #' @return A number equal to x
 cast_to_int32 <- function(x) {
