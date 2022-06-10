@@ -11,7 +11,8 @@ project_to_groups <- function(df, grouping_columns, base_df = df) {
     rc <- df %>%
         as.data.frame() %>%
         dplyr::group_by(!!!rlang::syms(grouping_columns)) %>%
-        dplyr::summarize_at(.vars = unique_columns_by_group, .funs = ~unique(.))
+        dplyr::summarize_at(.vars = unique_columns_by_group, .funs = ~unique(.),
+            .groups = "drop")
     return(rc)
 }
 
@@ -22,9 +23,9 @@ get_unique_columns_by_group <- function(df, grouping_columns, skip_columns = gro
         as.data.frame() %>%
         dplyr::ungroup() %>%
         dplyr::group_by(!!!rlang::syms(grouping_columns)) %>%
-        dplyr::summarize_all(~1 == length(unique(.))) %>%
+        dplyr::summarize_all(~1 == length(unique(.)), .groups = "drop") %>%
         dplyr::ungroup() %>%
-        dplyr::summarize_all(all)
+        dplyr::summarize_all(all, .groups = "drop")
     rc <- names(rc)[!sapply(as.logical(rc), isFALSE)]
     rc <- rc[!(rc %in% skip_columns)]
     return(rc)
@@ -80,8 +81,7 @@ aggregate_case_data <- function(case_data, unique_column_names = c("loctime"), c
                   sum(duration) - 1, dplyr::across(columns_to_sum_over, ~sum(., na.rm = TRUE)),
                   unique_observation_ids = paste(sort(unique(sprintf(paste0("%0",
                     ceiling(log(max(case_data$observation_id))/log(10)), "d"), as.integer(observation_id)))),
-                    collapse = " ")) %>%
-                dplyr::ungroup() %>%
+                    collapse = " "), .groups = "drop") %>%
                 dplyr::select(-set)
             return(.x[!duplicated(.x), ])
         }) %>%

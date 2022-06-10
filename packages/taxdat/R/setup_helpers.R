@@ -1,5 +1,6 @@
 #' @include file_name_functions.R
 
+
 #' @title Check time resolution
 #' @description Checks whether the time resolution input is valid
 #'
@@ -177,6 +178,134 @@ modeling_time_slices <- function(start_time, end_time, res_time, time_change_fun
 }
 
 config_checks <- list()
+config_checks[["general"]] <- list()
+config_checks[["general"]][["location_name"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['general']][['location_name']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['general']][['location_name']] is NA")
+        return(FALSE)
+    }
+    if (!is.character(value)) {
+        warning(paste("config[['general']][['location_name']] should be character, but is",
+            value, "of mode", mode(value)))
+        return(FALSE)
+    }
+    return(TRUE)
+}
+config_checks[["general"]][["time_scale"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['general']][['time_scale']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['general']][['time_scale']] is NA")
+        return(FALSE)
+    }
+    if (!is.character(value)) {
+        warning(paste("config[['general']][['time_scale']] should be character, but is",
+            value, "of mode", mode(value)))
+        return(FALSE)
+    }
+    if (!value %in% c("year", "month")) {
+        warning(paste("config[['general']][['time_scale']] should be either 'year' or 'month', but is instead",
+            value))
+    }
+    return(TRUE)
+}
+config_checks[["general"]][["start_date"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['general']][['start_date']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['general']][['start_date']] is NA")
+        return(FALSE)
+    }
+    if (!is.character(value)) {
+        warning(paste("config[['general']][['start_date']] should be character, but is",
+            value, "of mode", mode(value)))
+        return(FALSE)
+    }
+    if (is.na(lubridate::ymd(value))) {
+        warning(paste("config[['general']][['start_date']] should be a date which can be parsed by lubridate::ymd",
+            "but is instead", value))
+    }
+    return(TRUE)
+}
+config_checks[["general"]][["end_date"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['general']][['end_date']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['general']][['end_date']] is NA")
+        return(FALSE)
+    }
+    if (!is.character(value)) {
+        warning(paste("config[['general']][['end_date']] should be character, but is",
+            value, "of mode", mode(value)))
+        return(FALSE)
+    }
+    if (is.na(lubridate::ymd(value))) {
+        warning(paste("config[['general']][['end_date']] should be a date which can be parsed by lubridate::ymd",
+            "but is instead", value))
+    }
+    return(TRUE)
+}
+config_checks[["general"]][["width_in_km"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['general']][['width_in_km']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['general']][['width_in_km']] is NA")
+        return(FALSE)
+    }
+    if (!is.numeric(value)) {
+        warning("config[['general']][['width_in_km']] should be numeric, but is",
+            value)
+        return(FALSE)
+    }
+    return(TRUE)
+}
+config_checks[["general"]][["height_in_km"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['general']][['height_in_km']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['general']][['height_in_km']] is NA")
+        return(FALSE)
+    }
+    if (!is.numeric(value)) {
+        warning("config[['general']][['height_in_km']] should be numeric, but is",
+            value)
+        return(FALSE)
+    }
+    return(TRUE)
+}
+config_checks[["general"]][["covariates"]] <- function(value, config) {
+    if (!is.character(value)) {
+        warning(paste("config[['file_names']][['covariates']] should be character, but is",
+            value, "of mode", mode(value)))
+        return(FALSE)
+    }
+    if (any(is.na(value))) {
+        warning("config[['file_names']][['covariates']] is NA at least once")
+        return(FALSE)
+    }
+    return(TRUE)
+}
+
 config_checks[["stan"]] <- list()
 config_checks[["stan"]][["directory"]] <- function(value, config) {
     if (length(value) != 1) {
@@ -289,6 +418,34 @@ config_checks[["stan"]][["sigma_eta_scale"]] <- function(value, config) {
     }
     return(TRUE)
 }
+config_checks[["stan"]][["model"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['stan']][['model']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['stan']][['model']] is NA")
+        return(FALSE)
+    }
+    if (!is.character(value)) {
+        warning(paste("config[['stan']][['model']] should be character, but is",
+            value, "of mode", mode(value)))
+        return(FALSE)
+    }
+    if (!file.exists(file.path(config[["stan"]][["directory"]], value))) {
+        warning(paste("config[['stan']][['model']] should be a path to a file, but",
+            value, "is not a file"))
+        return(FALSE)
+    }
+    tryCatch({
+        cmdstanr::cmdstan_model(file.path(config[["stan"]][["directory"]], value))
+        return(TRUE)
+    }, error = function(e) {
+        warning(paste("Could not compile the stan model", value, "with the above error message(s)"))
+    })
+    return(FALSE)
+}
 
 config_checks[["initial_values"]] <- list()
 config_checks[["initial_values"]][["warmup"]] <- function(value, config) {
@@ -302,15 +459,17 @@ config_checks[["initial_values"]][["warmup"]] <- function(value, config) {
         return(FALSE)
     }
     if (!is.logical(value)) {
-        warning("config[['initial_values']][['warmup']] should be logical, but is",
-            value)
+        warning(paste("config[['initial_values']][['warmup']] should be logical, but is",
+            value, "of mode", mode(value)))
         return(FALSE)
     }
     return(TRUE)
 }
 
 config_checks[["processing"]] <- list()
-config_checks[["processing"]][["reorder_adjacency_matrix"]] <- function(value, config) {
+config_checks[["processing"]][["reorder_adjacency_matrix"]] <- list()
+config_checks[["processing"]][["reorder_adjacency_matrix"]][["perform"]] <- function(value,
+    config) {
     if (length(value) != 1) {
         warning(paste("config[['processing']][['reorder_adjacency_matrix']] should be of length 1, but is of length",
             length(value), "with value", value))
@@ -321,14 +480,14 @@ config_checks[["processing"]][["reorder_adjacency_matrix"]] <- function(value, c
         return(FALSE)
     }
     if (!is.logical(value)) {
-        warning("config[['processing']][['reorder_adjacency_matrix']] should be logical, but is",
-            value)
+        warning(paste("config[['processing']][['reorder_adjacency_matrix']] should be logical, but is",
+            value, "of mode", mode(value)))
         return(FALSE)
     }
     return(TRUE)
 }
 config_checks[["processing"]][["remove_overlaps"]] <- list()
-config_checks[["processing"]][["remove_overlaps"]][["preform"]] <- function(value,
+config_checks[["processing"]][["remove_overlaps"]][["perform"]] <- function(value,
     config) {
     if (length(value) != 1) {
         warning(paste("config[['processing']][['remove_overlaps']][['perform']] should be of length 1, but is of length",
@@ -340,8 +499,8 @@ config_checks[["processing"]][["remove_overlaps"]][["preform"]] <- function(valu
         return(FALSE)
     }
     if (!is.logical(value)) {
-        warning("config[['processing']][['remove_overlaps']][['perform']] should be logical, but is",
-            value)
+        warning(paste("config[['processing']][['remove_overlaps']][['perform']] should be logical, but is",
+            value, "of mode", mode(value)))
         return(FALSE)
     }
     return(TRUE)
@@ -357,8 +516,8 @@ config_checks[["processing"]][["aggregate"]] <- function(value, config) {
         return(FALSE)
     }
     if (!is.logical(value)) {
-        warning("config[['processing']][['aggregate']] should be logical, but is",
-            value)
+        warning(paste("config[['processing']][['aggregate']] should be logical, but is",
+            value, "of mode", mode(value)))
         return(FALSE)
     }
     return(TRUE)
@@ -376,8 +535,8 @@ config_checks[["processing"]][["censor_incomplete_observations"]][["perform"]] <
         return(FALSE)
     }
     if (!is.logical(value)) {
-        warning("config[['processing']][['censor_incomplete_observations']][['perform']] should be logical, but is",
-            value)
+        warning(paste("config[['processing']][['censor_incomplete_observations']][['perform']] should be logical, but is",
+            value, "of mode", mode(value)))
         return(FALSE)
     }
     return(TRUE)
@@ -394,13 +553,80 @@ config_checks[["processing"]][["censor_incomplete_observations"]][["threshold"]]
         return(FALSE)
     }
     if (!is.numeric(value)) {
-        warning("config[['processing']][['censor_incomplete_observations']][['threshold']] should be numeric, but is",
-            value)
+        warning(paste("config[['processing']][['censor_incomplete_observations']][['threshold']] should be numeric, but is",
+            value, "of mode", mode(value)))
         return(FALSE)
     }
     return(TRUE)
 }
 
+config_checks[["file_names"]] <- list()
+config_checks[["file_names"]][["stan_input"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['file_names']][['stan_input']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['file_names']][['stan_input']] is NA")
+        return(FALSE)
+    }
+    if (!is.character(value)) {
+        warning(paste("config[['file_names']][['stan_input']] should be character, but is",
+            value, "of mode", mode(value)))
+        return(FALSE)
+    }
+    if (!dir.exists(dirname(value))) {
+        warning(paste("config[['file_names']][['stan_input']] should be a path to a file in an existing directory, but",
+            value, "implies a directory of", dirname(value), "which does not exist"))
+        return(FALSE)
+    }
+    if (!(tolower(tools::file_ext(value)) == "rdata")) {
+        warning(paste("config[['file_names']][['stan_input']] should be an rdata file, but is actually",
+            value, "with extension", tools::file_ext(value)))
+        return(FALSE)
+    }
+    if (sum(value == config$file_names) > 1) {
+        warning(paste("config[['file_names']][['stan_output']] should be a unique file name, but",
+            value, "appears more than once"))
+        return(FALSE)
+    }
+
+    return(TRUE)
+}
+config_checks[["file_names"]][["stan_output"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['file_names']][['stan_output']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['file_names']][['stan_output']] is NA")
+        return(FALSE)
+    }
+    if (!is.character(value)) {
+        warning(paste("config[['file_names']][['stan_output']] should be character, but is",
+            value, "of mode", mode(value)))
+        return(FALSE)
+    }
+    if (!dir.exists(dirname(value))) {
+        warning(paste("config[['file_names']][['stan_output']] should be a path to a file in an existing directory, but",
+            value, "implies a directory of", dirname(value), "which does not exist"))
+        return(FALSE)
+    }
+    if (!(tolower(tools::file_ext(value)) == "rdata")) {
+        warning(paste("config[['file_names']][['stan_output']] should be an rdata file, but is actually",
+            value, "with extension", tools::file_ext(value)))
+        return(FALSE)
+    }
+    if (sum(value == config$file_names) > 1) {
+        warning(paste("config[['file_names']][['stan_output']] should be a unique file name, but",
+            value, "appears more than once"))
+        return(FALSE)
+    }
+
+    return(TRUE)
+}
 
 #' @name check_config
 #' @description Check the config to make sure the fields are valid
@@ -408,16 +634,18 @@ config_checks[["processing"]][["censor_incomplete_observations"]][["threshold"]]
 #' @param config_checks A named list of checks, where each element is either a named list of checks, or a function which takes the field value and the config.  The function should return TRUE if the config is valid, or FALSE and emit a warning if the config is invalid.
 #' @param original_config In case of recursion, the original config this was part of.  This is what is passed to the functions in the defaults
 #' @export
-check_config <- function(config, checks = config_checks, original_config = config) {
+check_config <- function(config, checks = config_checks, original_config = config,
+    name_prefix = NULL, no_check_fields = c("test_metadata")) {
     config_is_valid <- TRUE
     for (field_name in names(checks)) {
         if (class(checks[[field_name]]) == "list") {
             if (class(config[[field_name]]) %in% c("NULL", "list")) {
                 subconfig_valid <- check_config(config[[field_name]], checks[[field_name]],
-                  original_config)
+                  original_config, paste0(name_prefix, ifelse(is.null(name_prefix),
+                    "", "::"), field_name))
                 config_is_valid <- config_is_valid && subconfig_valid
             } else {
-                warning(paste("config field", field_name, "should be a list, but was of type",
+                warning(paste("config field", paste0(name_prefix, field_name), "should be a list, but was of type",
                   class(config[[field_name]]), "with value", config[[field_name]]))
                 config_is_valid <- FALSE
             }
@@ -428,8 +656,9 @@ check_config <- function(config, checks = config_checks, original_config = confi
     }
     if (!all(names(config) %in% names(checks))) {
         missing_fields <- names(config)[!(names(config) %in% names(checks))]
+        missing_fields <- missing_fields[!(missing_fields %in% no_check_fields)]
         for (field in missing_fields) {
-            warning(paste(field, "is not a known config field, and is unused"))
+            warning(paste(paste0(name_prefix, field), "is not a known config field, and is unused"))
             config_is_valid <- FALSE
         }
     }
@@ -451,7 +680,8 @@ config_defaults[["processing"]][["reorder_adjacency_matrix"]] <- list()
 config_defaults[["processing"]][["reorder_adjacency_matrix"]][["perform"]] <- function(config) {
     return(TRUE)
 }
-config_defaults[["processing"]][["remove_overlaps"]] <- function(config) {
+config_defaults[["processing"]][["remove_overlaps"]] <- list()
+config_defaults[["processing"]][["remove_overlaps"]][["perform"]] <- function(config) {
     return(TRUE)
 }
 config_defaults[["processing"]][["censor_incomplete_observations"]] <- list()
@@ -463,11 +693,11 @@ config_defaults[["processing"]][["censor_incomplete_observations"]][["threshold"
 }
 
 config_defaults[["stan"]] <- list()
-config_defaults[["stan"]][["nchain"]] <- function(config) {
-    return(pmax(config[["stan"]][["ncores"]], 2))
-}
 config_defaults[["stan"]][["ncores"]] <- function(config) {
     return(2)
+}
+config_defaults[["stan"]][["nchain"]] <- function(config) {
+    return(pmax(config[["stan"]][["ncores"]], 2))
 }
 config_defaults[["stan"]][["recompile"]] <- function(config) {
     return(TRUE)
