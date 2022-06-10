@@ -11,8 +11,7 @@ project_to_groups <- function(df, grouping_columns, base_df = df) {
     rc <- df %>%
         as.data.frame() %>%
         dplyr::group_by(!!!rlang::syms(grouping_columns)) %>%
-        dplyr::summarize_at(.vars = unique_columns_by_group, .funs = ~unique(.),
-            .groups = "drop")
+        dplyr::summarize_at(.vars = unique_columns_by_group, .funs = ~unique(.))
     return(rc)
 }
 
@@ -23,9 +22,9 @@ get_unique_columns_by_group <- function(df, grouping_columns, skip_columns = gro
         as.data.frame() %>%
         dplyr::ungroup() %>%
         dplyr::group_by(!!!rlang::syms(grouping_columns)) %>%
-        dplyr::summarize_all(~1 == length(unique(.)), .groups = "drop") %>%
+        dplyr::summarize_all(~1 == length(unique(.))) %>%
         dplyr::ungroup() %>%
-        dplyr::summarize_all(all, .groups = "drop")
+        dplyr::summarize_all(all)
     rc <- names(rc)[!sapply(as.logical(rc), isFALSE)]
     rc <- rc[!(rc %in% skip_columns)]
     return(rc)
