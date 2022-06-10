@@ -50,9 +50,9 @@ jobs:
           Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
           pwd
           Rscript Analysis/R/prepare_grid_cmd.R -d ./ -u root -r 1 -i TRUE -a KEN
+          Rscript Analysis/R/prepare_grid_cmd.R -d ./ -u root -r 20 -i TRUE -a KEN
           Rscript Analysis/R/prepare_covariates_cmd.R -d ./Layers -u root -r 1 -t '1 years' -i TRUE -p FALSE -n 1 -o TRUE -x FALSE -m TRUE -c p -g 'public.grid_1_1' -a KEN
-          # Rscript Analysis/R/prepare_grid_cmd.R -d ./ -u root -r 20 -i TRUE -a KEN
-          # Rscript Analysis/R/prepare_covariates_cmd.R -d ./Layers -u root -r 20 -t '1 years' -i TRUE -p FALSE -n 1 -o TRUE -x FALSE -m TRUE -c p -g 'public.grid_20_20' -a KEN
+          Rscript Analysis/R/prepare_covariates_cmd.R -d ./Layers -u root -r 20 -t '1 years' -i TRUE -p FALSE -n 1 -o TRUE -x FALSE -m TRUE -c p,dw -g 'public.grid_20_20' -a KEN
         shell: bash
       - name: Run integration tests
         env:

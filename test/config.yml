@@ -13,8 +13,8 @@ covariate_choices:
  - dist_to_water
 data_source: api
 ovrt_metadata_table: no
-ingest_covariates: yes
-ingest_new_covariates: yes
+ingest_covariates: no
+ingest_new_covariates: no
 censoring: no
 aggregate: no
 time_effect: yes
