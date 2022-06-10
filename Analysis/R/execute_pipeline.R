@@ -541,7 +541,7 @@ if (config[["initial_values"]][["warmup"]]) {
         coef(gam_fit)[covariate_names])
 
     initial_betas <- coef(gam_fit)[covariate_names]
-    initial_eta <- coef(gam_fit)["obs_year"]
+    # initial_eta <- coef(gam_fit)['obs_year']
 
     initial_values_list <- lapply(seq_len(config[["stan"]][["nchain"]]), function(chain) {
         w_df <- dplyr::tibble(value = gam_predict - covariate_effect, spatial_id = covar_cube[["updated_id"]]) %>%
@@ -549,9 +549,11 @@ if (config[["initial_values"]][["warmup"]]) {
             dplyr::summarize(value = mean(value)) %>%
             dplyr::arrange(spatial_id)
 
+        ## eta = as.array(rnorm(length(coef(gam_fit)['obs_year']),
+        ## coef(gam_fit)['obs_year']))
+
         rc <- list(betas = as.array(rnorm(length(coef(gam_fit)[covariate_names]),
-            coef(gam_fit)[covariate_names])), eta = as.array(rnorm(length(coef(gam_fit)["obs_year"]),
-            coef(gam_fit)["obs_year"])), w = as.array(rnorm(nrow(w_df), w_df[["value"]])))
+            coef(gam_fit)[covariate_names])), w = as.array(rnorm(nrow(w_df), w_df[["value"]])))
         return(rc)
     })
 
@@ -625,17 +627,56 @@ save(stan_input, file = config[["file_names"]][["stan_input"]])
 print("Finished saving model input")
 
 print("Running STAN")
+## Fix me : make sure this works
+chol_model <- cmdstanr::cmdstan_model(stan_model_path, quiet = FALSE, force_recompile = F)
+
+## FIX ME : add seed to config FIX ME : Split warmup and sampling iterations
+## into two arguments
 start_time <- Sys.time()
-model.rand <- rstan::stan(file = stan_model_path, data = stan_data, chains = config[["stan"]][["nchain"]],
-    iter = config[["stan"]][["niter"]], pars = c("b", "t_rowsum", "vec_var"), include = FALSE,
-    control = list(max_treedepth = 15), refresh = config[["stan"]][["niter"]] * 0.1,
-    init = initial_values_list)
+cmdstan_fit <- chol_model$sample(seed = 1234, data = stan_data, chains = config[["stan"]][["nchain"]],
+    parallel_chains = config[["stan"]][["ncores"]], iter_warmup = config[["stan"]][["niter"]]/2,
+    iter_sampling = config[["stan"]][["niter"]]/2, max_treedepth = 15, init = initial_values_list,
+    sig_figs = 14, save_warmup = F, refresh = config[["stan"]][["niter"]] * 0.01)
 end_time <- Sys.time()
-print("Finished runing STAN")
+
+## start_time <- Sys.time() model.rand <- rstan::stan(file = stan_model_path,
+## data = stan_data, chains = config[['stan']][['nchain']], iter =
+## config[['stan']][['niter']], pars = c('b', 't_rowsum', 'vec_var'), include =
+## FALSE, control = list(max_treedepth = 15), refresh = 0) end_time <-
+## Sys.time()
 
 elapsed_time <- end_time - start_time
 
-# Save output
-print("Saving output")
-save(model.rand, elapsed_time, file = config[["file_names"]][["stan_output"]])
-print("Finished saving output")
+# FIX ME : don't use model.rand Save output Consider just using the cmdstanr
+# output directly
+save(cmdstan_fit, elapsed_time, file = config[["file_names"]][["stan_output"]])
+
+## Run generated quantities This is just an example: we would really do the
+## non-CT_WORLD root locations here:
+if (config[["generated"]][["perform"]]) {
+    full_temporal_location_grid_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(.con = conn_pg,
+        "SELECT * FROM pull_location_period_grid_map(
+      {config[[\"generated\"]][[\"location_name\"]]},
+       {config[[\"generated\"]][[\"start_date\"]]},
+       {config[[\"generated\"]][[\"end_date\"]]},
+       {config[[\"generated\"]][[\"width_in_km\"]]},
+       {config[[\"generated\"]][[\"height_in_km\"]]},
+       {config[[\"generated\"]][[\"time_scale\"]]}
+    )")) %>%
+        dplyr::mutate(temporal_location_id = paste(location_period_id, t, sep = "_")) %>%
+        dplyr::mutate(updated_temporal_location_id = temporal_location_changer[as.character(temporal_location_id)],
+            updated_spatial_grid_id = grid_changer[as.character(spatial_grid_id)],
+            updated_t = t_changer[as.character(t)], spacetime_grid_id = spatial_grid_and_time_to_spacetime_grid_changer[paste(updated_spatial_grid_id,
+                updated_t, sep = "_")])
+
+    updated_stan_data <- stan_data
+    updated_stan_data$map_loc_grid_sfrac <- as.array(temporal_location_grid_mapping[["sfrac"]])
+    updated_stan_data$map_loc_grid_grid <- as.array(cast_to_int32(temporal_location_grid_mapping[["spacetime_grid_id"]]))
+    updated_stan_data$map_loc_grid_loc <- as.array(cast_to_int32(temporal_location_grid_mapping[["updated_temporal_location_id"]]))
+    updated_stan_data$K2 <- nrow(temporal_location_grid_mapping)
+
+    # cmdstan_draws <- posterior::as_draws(model.rand)
+    chol_gen <- chol_gen_model$generate_quantities(fitted_params = stan_fit, data = updated_stan_data,
+        parallel_chains = config[["stan"]][["nchain"]])
+    chol_gen$save_object(file = config[["file_names"]][["generated_quantities"]])
+}

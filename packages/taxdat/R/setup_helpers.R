@@ -587,7 +587,7 @@ config_checks[["file_names"]][["stan_input"]] <- function(value, config) {
         return(FALSE)
     }
     if (sum(value == config$file_names) > 1) {
-        warning(paste("config[['file_names']][['stan_output']] should be a unique file name, but",
+        warning(paste("config[['file_names']][['stan_input']] should be a unique file name, but",
             value, "appears more than once"))
         return(FALSE)
     }
@@ -625,6 +625,172 @@ config_checks[["file_names"]][["stan_output"]] <- function(value, config) {
         return(FALSE)
     }
 
+    return(TRUE)
+}
+config_checks[["file_names"]][["generated_quantities"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['file_names']][['generated_quantities']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['file_names']][['generated_quantities']] is NA")
+        return(FALSE)
+    }
+    if (!is.character(value)) {
+        warning(paste("config[['file_names']][['generated_quantities']] should be character, but is",
+            value, "of mode", mode(value)))
+        return(FALSE)
+    }
+    if (!dir.exists(dirname(value))) {
+        warning(paste("config[['file_names']][['generated_quantities']] should be a path to a file in an existing directory, but",
+            value, "implies a directory of", dirname(value), "which does not exist"))
+        return(FALSE)
+    }
+    if (!(tolower(tools::file_ext(value)) == "rdata")) {
+        warning(paste("config[['file_names']][['generated_quantities']] should be an rdata file, but is actually",
+            value, "with extension", tools::file_ext(value)))
+        return(FALSE)
+    }
+    if (sum(value == config$file_names) > 1) {
+        warning(paste("config[['file_names']][['generated_quantities']] should be a unique file name, but",
+            value, "appears more than once"))
+        return(FALSE)
+    }
+
+    return(TRUE)
+}
+
+config_checks[["generated"]] <- list()
+config_checks[["generated"]][["location_name"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['generated']][['location_name']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['generated']][['location_name']] is NA")
+        return(FALSE)
+    }
+    if (!is.character(value)) {
+        warning(paste("config[['generated']][['location_name']] should be character, but is",
+            value, "of mode", mode(value)))
+        return(FALSE)
+    }
+    return(TRUE)
+}
+config_checks[["generated"]][["time_scale"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['generated']][['time_scale']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['generated']][['time_scale']] is NA")
+        return(FALSE)
+    }
+    if (!is.character(value)) {
+        warning(paste("config[['generated']][['time_scale']] should be character, but is",
+            value, "of mode", mode(value)))
+        return(FALSE)
+    }
+    if (!value %in% c("year", "month")) {
+        warning(paste("config[['generated']][['time_scale']] should be either 'year' or 'month', but is instead",
+            value))
+    }
+    return(TRUE)
+}
+config_checks[["generated"]][["start_date"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['generated']][['start_date']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['generated']][['start_date']] is NA")
+        return(FALSE)
+    }
+    if (!is.character(value)) {
+        warning(paste("config[['generated']][['start_date']] should be character, but is",
+            value, "of mode", mode(value)))
+        return(FALSE)
+    }
+    if (is.na(lubridate::ymd(value))) {
+        warning(paste("config[['generated']][['start_date']] should be a date which can be parsed by lubridate::ymd",
+            "but is instead", value))
+    }
+    return(TRUE)
+}
+config_checks[["generated"]][["end_date"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['generated']][['end_date']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['generated']][['end_date']] is NA")
+        return(FALSE)
+    }
+    if (!is.character(value)) {
+        warning(paste("config[['generated']][['end_date']] should be character, but is",
+            value, "of mode", mode(value)))
+        return(FALSE)
+    }
+    if (is.na(lubridate::ymd(value))) {
+        warning(paste("config[['generated']][['end_date']] should be a date which can be parsed by lubridate::ymd",
+            "but is instead", value))
+    }
+    return(TRUE)
+}
+config_checks[["generated"]][["width_in_km"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['generated']][['width_in_km']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['generated']][['width_in_km']] is NA")
+        return(FALSE)
+    }
+    if (!is.numeric(value)) {
+        warning("config[['generated']][['width_in_km']] should be numeric, but is",
+            value)
+        return(FALSE)
+    }
+    return(TRUE)
+}
+config_checks[["generated"]][["height_in_km"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['generated']][['height_in_km']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['generated']][['height_in_km']] is NA")
+        return(FALSE)
+    }
+    if (!is.numeric(value)) {
+        warning("config[['generated']][['height_in_km']] should be numeric, but is",
+            value)
+        return(FALSE)
+    }
+    return(TRUE)
+}
+config_checks[["generated"]][["perform"]] <- function(value, config) {
+    if (length(value) != 1) {
+        warning(paste("config[['generated']][['perform']] should be of length 1, but is of length",
+            length(value), "with value", value))
+        return(FALSE)
+    }
+    if (is.na(value)) {
+        warning("config[['generated']][['perform']] is NA")
+        return(FALSE)
+    }
+    if (!is.logical(value)) {
+        warning(paste("config[['generated']][['perform']] should be logical, but is",
+            value, "of mode", mode(value)))
+        return(FALSE)
+    }
     return(TRUE)
 }
 
@@ -711,6 +877,43 @@ config_defaults[["stan"]][["beta_sigma_scale"]] <- function(config) {
 config_defaults[["stan"]][["sigma_eta_scale"]] <- function(config) {
     return(5)
 }
+
+config_defaults[["generated"]] <- list()
+config_defaults[["generated"]][["perform"]] <- function(config) {
+    return(FALSE)
+}
+config_defaults[["generated"]][["location_name"]] <- function(config) {
+    return(config[["general"]][["location_name"]])
+}
+config_defaults[["generated"]][["start_date"]] <- function(config) {
+    return(config[["general"]][["start_date"]])
+}
+config_defaults[["generated"]][["end_date"]] <- function(config) {
+    return(config[["general"]][["end_date"]])
+}
+config_defaults[["generated"]][["width_in_km"]] <- function(config) {
+    return(config[["general"]][["width_in_km"]])
+}
+config_defaults[["generated"]][["height_in_km"]] <- function(config) {
+    return(config[["general"]][["height_in_km"]])
+}
+config_defaults[["generated"]][["time_scale"]] <- function(config) {
+    return(config[["general"]][["time_scale"]])
+}
+
+config_defaults[["file_names"]] <- list()
+config_defaults[["file_names"]][["stan_input"]] <- function(config) {
+    return(paste0(paste(unlist(config[["general"]]), collapse = "_"), ".stan_input.Rdata"))
+}
+config_defaults[["file_names"]][["stan_output"]] <- function(config) {
+    return(paste0(paste(c(unlist(config[["general"]]), gsub(".*[/]", "", unlist(config[["stan"]]))),
+        collapse = "_"), ".stan_output.Rdata"))
+}
+config_defaults[["file_names"]][["generated_quantities"]] <- function(config) {
+    return(paste0(paste(c(unlist(config[["general"]]), gsub(".*[/]", "", unlist(config[["stan"]])),
+        unlist(config[["generated"]])), collapse = "_"), ".generated_quantities.Rdata"))
+}
+
 
 #' @name complete_config
 #' @description Makes default values in the config explicit recursively
