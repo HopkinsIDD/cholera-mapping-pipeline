@@ -1,0 +1,73 @@
+general:
+  location_name: '1'
+  start_date: '2000-01-01'
+  end_date: '2001-12-31'
+  width_in_km: 1.0
+  height_in_km: 1.0
+  time_scale: year
+stan:
+  directory: /home/app/cmp/Analysis/Stan
+  ncores: 4.0
+  model: dagar_seasonal.stan
+  niter: 4000.0
+  recompile: yes
+name: test_1
+taxonomy: taxonomy-working/working-entry1
+smoothing_period: 1.0
+case_definition: suspected
+covariate_choices: ~
+data_source: sql
+ingest_covariates: 'no'
+file_names:
+  stan_output: /home/app/cmp/Analysis/output/test4.stan_output.rdata
+  stan_input: /home/app/cmp/Analysis/output/test4.stan_input.rdata
+nrows: 10.0
+ncols: 10.0
+data_type: Grid data
+oc_type: '-'
+polygon_type: Fake polygon
+polygon_coverage: 97%
+randomize: yes
+ncovariates: 3
+single_year_run: 'no'
+iteration: 4000.0
+nonspatial:
+- no
+- no
+- yes
+nontemporal:
+- no
+- no
+- no
+spatially_smooth:
+- yes
+- yes
+- yes
+temporally_smooth:
+- no
+- no
+- no
+polygonal:
+- yes
+- yes
+- yes
+radiating:
+- no
+- no
+- no
+constant:
+- yes
+- no
+- no
+Data_simulation_covariates:
+- yes
+- yes
+- yes
+Model_covariates:
+- yes
+- yes
+- no
+Observations_with_inconsistent_data: Nationally reported data is 3 times of the cases
+  reported at the subnational level.
+Loc_with_inconsistent_data: '-'
+Cov_data_simulation_filename: /home/app/cmp/Analysis/output/test_case_4_data_simulation_covariates.rdata

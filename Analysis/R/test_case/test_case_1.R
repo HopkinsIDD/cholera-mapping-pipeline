@@ -8,7 +8,7 @@ dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
 conn_pg <- taxdat::connect_to_db(dbuser, dbname)
 DBI::dbClearResult(DBI::dbSendQuery(conn = conn_pg, "SET client_min_messages TO WARNING;"))
 
-my_seed <- c(10403, 624, 105045778, 1207077739, 2042172336, -219892751, -768060162,
+my_seed <- c(10404, 625, 105045778, 1207077739, 2042172336, -219892751, -768060162,
     -2006256281, -1585201540, -978856627, -1568163926, -1028934365, 1356190728, 1795633769,
     1153151766, 1165788831, 2116870228, 833087301, 829928258, 1681319387, -277008544,
     1376178145, -672930770, 1480724183, 377343276, 861177917, -304533030, -1337000557,
@@ -235,6 +235,7 @@ covariates_table <- data.frame(nonspatial = c(FALSE, FALSE, TRUE), nontemporal =
 
 test_covariates <- create_multiple_test_covariates(test_raster = test_raster, ncovariates = 2,
     seed = my_seed)
+my_seed <- .GlobalEnv$.Random.seed
 
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
 test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
@@ -243,8 +244,8 @@ test_covariates <- create_multiple_test_covariates(test_raster = test_raster, nc
     spatially_smooth = covariates_table$spatially_smooth[1:2], temporally_smooth = covariates_table$temporally_smooth[1:2],
     polygonal = covariates_table$polygonal[1:2], radiating = covariates_table$radiating[1:2],
     constant = covariates_table$constant[1:2], seed = my_seed)
-
 my_seed <- .GlobalEnv$.Random.seed
+
 min_time_left <- query_time_left
 max_time_right <- query_time_right
 covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates,
@@ -259,6 +260,7 @@ test_covariates_observation <- create_multiple_test_covariates(test_raster = tes
     spatially_smooth = covariates_table$spatially_smooth[1:2], temporally_smooth = covariates_table$temporally_smooth[1:2],
     polygonal = covariates_table$polygonal[1:2], radiating = covariates_table$radiating[1:2],
     constant = covariates_table$constant[1:2], seed = my_seed)
+my_seed <- .GlobalEnv$.Random.seed
 
 test_covariates3_observation <- create_multiple_test_covariates(test_raster = test_raster_observation,
     ncovariates = 2, nonspatial = covariates_table$nonspatial[c(1, 3)], nontemporal = covariates_table$nontemporal[c(1,
@@ -269,7 +271,6 @@ test_covariates3_observation <- create_multiple_test_covariates(test_raster = te
 test_covariates_observation_final <- test_covariates_observation
 test_covariates_observation_final[[3]] <- test_covariates3_observation[[2]]
 
-my_seed <- .GlobalEnv$.Random.seed
 min_time_left <- query_time_left
 max_time_right <- query_time_right
 covariate_raster_funs_observation <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(test_covariates_observation,

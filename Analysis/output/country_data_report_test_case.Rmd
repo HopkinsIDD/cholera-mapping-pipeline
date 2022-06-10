@@ -2,8 +2,6 @@
 title: "Country data report"
 output: html_document
 params:
-  #cholera_directory: "/home/app/cmp/"
-  #config_filename: "/home/app/cmp/Analysis/R/test1_config.yml"
   cholera_directory: "C:/IDD/Cholera/cholera-mapping-pipeline/Analysis/output"
   config_filename: "C:/IDD/Cholera/cholera-mapping-pipeline/Analysis/R/test1_config.yml"
   drop_nodata_years: TRUE
@@ -28,8 +26,9 @@ params:
   Model_covariates: c(TRUE,TRUE,FALSE)
   Observations_with_inconsistent_data: "no"
   Loc_with_inconsistent_data: "no"
-  #Cov_data_simulation_filename: "/home/app/cmp/Analysis/output/test_case_1_data_simulation_covariates.rdata"
   Cov_data_simulation_filename: "C:/IDD/Cholera/cholera-mapping-pipeline/Analysis/output/test_case_1_data_simulation_covariates.rdata"
+  test_true_grid_case_filename: "/home/app/cmp/Analysis/output/test_case_1_true_grid_cases.rdata"
+
 ---
 
 ```{r setup, include=FALSE, dev="CairoPNG"}
@@ -50,6 +49,8 @@ library(ggplot2)
 library(kableExtra)
 library(taxdat)
 library(sf)
+library(reshape2)
+library(data.table)
 
 if (!("params" %in% ls())) {
   params <- list(
@@ -112,7 +113,8 @@ if (!("params" %in% ls())) {
   "Model_covariates",
   "Locations with inconsistent data\n (compared to the country level)",
   "Loc with inconsistent data",
-  "Cov_data_simulation_filename"
+  "Cov_data_simulation_filename",
+  "test_true_grid_case_filename"
 )
 
  data.frame(parameter=rownames(params_table)[c(1:11,23)],params_table[c(1:11,23),1])%>%
@@ -221,8 +223,7 @@ cases_chains <- apply(stan_output$grid_cases, c(3,2), mean)
 ```{r disjoint set sf cases}
 #disjoint_set_sf_cases <- taxdat::get_disjoint_set_sf_cases(stan_input_filename = file_names[["stan_input"]])
 disjoint_set_sf_cases<-sf::st_as_sf(stan_input$observation_data)
-disjoint_set_sf_cases=disjoint_set_sf_cases%>%rename(cases=suspected_cases)%>%mutate(area=as.numeric(sf::st_area(disjoint_set_sf_cases))/1000/1000,area_adjusted_cases=cases/area)
-
+disjoint_set_sf_cases=disjoint_set_sf_cases%>%rename(cases=suspected_cases)%>%mutate(area=as.numeric(sf::st_area(disjoint_set_sf_cases)),area_adjusted_cases=cases/area)
 
     disjoint_set_sf_cases <- dplyr::arrange(disjoint_set_sf_cases,
         -area)
@@ -262,6 +263,7 @@ disjoint_set_sf_cases=disjoint_set_sf_cases%>%rename(cases=suspected_cases)%>%mu
   #   render = T
   # )
 disjoint_set_sf_cases<-disjoint_set_sf_cases%>%mutate(lon=map_dbl(shape,~sf::st_centroid(.x)[[1]]),lat=map_dbl(shape,~sf::st_centroid(.x)[[2]]))
+disjoint_set_sf_cases$cases=ifelse(disjoint_set_sf_cases$cases==0,exp(-5),disjoint_set_sf_cases$cases)
 
 plt <- ggplot2::ggplot()
 
@@ -270,7 +272,7 @@ if(all(params$Loc_with_inconsistent_data=="no")){
       do(gg={
         ggplot(.,ggplot2::aes(fill = cases))+
           ggplot2::geom_sf() +
-          taxdat::color_scale(type = "case", use_case = "ggplot map", use_log = FALSE)+
+          taxdat::color_scale(type = "case", use_case = "ggplot map", use_log = TRUE)+
     ggplot2::labs(fill="Average cases by location period")+
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom")+
@@ -285,7 +287,7 @@ if(all(params$Loc_with_inconsistent_data=="no")){
           ggplot2::geom_sf() +
           ggplot2::geom_point(data=disjoint_set_sf_cases%>%subset(location_name%in%params$Loc_with_inconsistent_data),
                         aes(x=lon,y=lat),shape=8)+
-    taxdat::color_scale(type = "case", use_case = "ggplot map", use_log = FALSE)+
+    taxdat::color_scale(type = "case", use_case = "ggplot map", use_log = TRUE)+
     ggplot2::labs(fill="Average cases by location period",shape="Locations with \ninconsistent data")+
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom")+
@@ -301,6 +303,7 @@ if(all(params$Loc_with_inconsistent_data=="no")){
 # cache[["area_adjusted_observed_polygon_cases_disjoint_aggregated"]]<-disjoint_set_sf_cases
 # plot_sf_with_fill(cache = cache, name = "area_adjusted_observed_polygon_cases_disjoint_aggregated",
 #         color_scale_type = "cases", fill_column = "area_adjusted_suspected_cases")
+disjoint_set_sf_cases$area_adjusted_cases=ifelse(disjoint_set_sf_cases$area_adjusted_cases==0,exp(-5),disjoint_set_sf_cases$area_adjusted_cases)
 taxdat::plot_area_adjusted_observed_cases(
   disjoint_set_sf_cases,
   render = T
@@ -323,13 +326,9 @@ taxdat::plot_area_adjusted_observed_cases(
         }else{
          pltdata[which(pltdata$t==1),]$t="2000"
         }
-
         pltdata$t<-as.factor(pltdata$t)
-        #levels(pltdata$t)<-1:nlevels(pltdata$t)
 
         pltdata_dummy <- tidyr::gather(dplyr::filter(pltdata, !qualified_name == "1" ), one_of(colnames(pltdata)[stringr::str_detect(colnames(pltdata),"covariate|pop")]),key = "covars", value = "value")%>%subset(!covars=="covariate_contribution")
-
-
 
      pltdata_dummy%>%group_by(covars)%>%
       do(gg={
@@ -431,14 +430,14 @@ if (!is.null(case_raster)) {
         case_raster_case[which(case_raster_case$t==1),]$t="2000"
 
         }
-
+case_raster_case$value=ifelse(case_raster_case$value==0,exp(-5),case_raster_case$value)
 plt <- ggplot2::ggplot()
 plt <- plt +
   ggplot2::geom_sf(
     data = case_raster_case,
     ggplot2::aes(fill = value
     ),color="black",size=0.05) +
-  taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
+  taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = TRUE)+
   ggplot2::labs(fill="Incidence\n [cases/year]")+
   ggplot2::theme_bw() +
   ggplot2::theme(legend.position = "bottom") +
@@ -554,13 +553,34 @@ if(!is.null(data_fidelity)){
 
 ```
 
+```{r true and modeled gridded cases, fig.cap="Figure 7. Observations vs. modeled gridded cases", fig.height=6, fig.width=6}
+ covar_cube <- stan_input$covar_cube
+ covar_cube[,paste("cases", "chain", seq_len(ncol(cases_chains)), sep = "_")] <- cases_chains
+ modeled_grid_case<-covar_cube#%>%select(x,y,t,cases_chain_1,cases_chain_2,cases_chain_3,cases_chain_4)
+ modeled_grid_case$geometry <- sf::st_as_sfc(modeled_grid_case$geometry)
+ modeled_grid_case <- sf::st_as_sf(modeled_grid_case)
+ 
+ true_grid_case<-readRDS(config$test_true_grid_case_filename)#%>%select(row,col,cases,t)#%>%rename(x=row,y=col)
+ 
+ wide_modeled_true_grid_cases<-data.frame(sf::st_join(st_centroid(true_grid_case),modeled_grid_case) %>% dplyr::filter(t.x == t.y))%>%select(x,y,cases_chain_1,cases_chain_2,cases_chain_3,cases_chain_4,cases)
+ 
+ long_modeled_grid_case <- data.frame(melt(wide_modeled_true_grid_cases, id.vars = c("x","y","cases"), variable.name = "chains"))%>%rename("modeled grid cases"=value,"true grid cases"=cases)
+
+ plt <- ggplot2::ggplot(long_modeled_grid_case) +
+      ggplot2::geom_point(ggplot2::aes(y = `modeled grid cases`, x = `true grid cases`, col = chains)) +
+      ggplot2::geom_abline(intercept = 0, slope = 1) +
+      ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(long_modeled_grid_case[,3])), ylim = c(0, max(long_modeled_grid_case[,5]))) +
+      ggplot2::theme_bw()
+ plt
+
+```
+
 ```{r traceplots, fig.height=8, fig.width=10, fig.cap="Figure 7. Stan trace plots"}
 if(!is.null(model.rand)){
-  ## No eta in the model right now
-  ## taxdat::plot_chain_convergence(file_names[["stan_output"]], pars =  c("rho", "betas", "log_std_dev_w", "eta"), render = T)
-  taxdat::plot_chain_convergence(file_names[["stan_output"]], pars =  c("rho", "betas", "log_std_dev_w"), render = T)
+# No eta in the model right now
+# taxdat::plot_chain_convergence(file_names[["stan_output"]], pars =  c("rho", "betas", "log_std_dev_w", "eta"), render = T)
+ taxdat::plot_chain_convergence(file_names[["stan_output"]], pars =  c("rho", "betas", "log_std_dev_w"), render = T)
 }
-
 ```
 
 
