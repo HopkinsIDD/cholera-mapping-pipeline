@@ -5,14 +5,21 @@
 # Control Variables: Preamble
 # ------------------------------------------------------------------------------------------------------------
 
+suppress_warning <- function(expr, warning_pattern) {
+    withCallingHandlers(expr, warning = function(w) {
+        if (grepl(warning_pattern, w$message)) {
+            invokeRestart("muffleWarning")
+        }
+    })
+}
 
 
 ### Set Error Handling
 interactive_run <- Sys.getenv("INTERACTIVE_RUN", "FALSE")
 if (interactive_run == "TRUE") {
-    options(warn = 1, error = recover)
+    options(warn = max(1, options("warn")$warn), error = recover)
 } else if (interactive_run == "FALSE") {
-    options(warn = 1, error = function(...) {
+    options(warn = max(1, options("warn")$warn), error = function(...) {
         quit(..., status = 2)
     })
 }
@@ -59,7 +66,7 @@ if (Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE)) {
     }
 
     for (x in rev(sort(which(!(search() %in% base_search))))) {
-        detach(pos = x, force = T)
+        suppress_warning(detach(pos = x, force = T), "may no longer work correctly")
     }
 }
 
@@ -75,8 +82,12 @@ reindex <- function(df, index_column, new_index_column = index_column) {
     index_column <- rlang::sym(index_column)
     new_index_column <- rlang::sym(new_index_column)
     df %>%
-        dplyr::mutate(`:=`(!!new_index_column, dplyr::group_indices(., !!index_column))) %>%
+        dplyr::group_by(!!index_column) %>%
+        dplyr::mutate(`:=`(!!new_index_column, dplyr::cur_group_id())) %>%
+        dplyr::ungroup() %>%
         return
+    # df %>% dplyr::mutate(`:=`(!!new_index_column, dplyr::group_indices(.,
+    # !!index_column))) %>% return
 }
 
 cast_to_int32 <- function(x) {
@@ -152,13 +163,6 @@ plot_energy <- function(stan_model, par = "all") {
     return(pairs(apply(rc, 3, c)))
 }
 
-suppress_warning <- function(expr, warning_pattern) {
-    withCallingHandlers(expr, warning = function(w) {
-        if (grepl(warning_pattern, w$message)) {
-            invokeRestart("muffleWarning")
-        }
-    })
-}
 
 ## Inputs
 ## --------------------------------------------------------------------------------------------------------------
@@ -421,7 +425,7 @@ covar_cube <- covar_cube %>%
     dplyr::filter(id %in% fully_covered_grid_ids, t %in% fully_covered_ts) %>%
     reindex("id", "updated_id") %>%
     reindex("t", "updated_t") %>%
-    dplyr::add_rownames() %>%
+    tibble::rownames_to_column() %>%
     dplyr::mutate(spacetime_grid_id = as.numeric(rowname)) %>%
     dplyr::select(-rowname)
 
@@ -514,7 +518,7 @@ if (config[["initial_values"]][["warmup"]]) {
             "location_period_id", "updated_observation_id")) %>%
         dplyr::inner_join(temporal_location_grid_mapping, by = c("temporal_location_id",
             "t")) %>%
-        dplyr::inner_join(covar_cube, by = c("x", "y", "t", "spacetime_grid_id")) %>%
+        dplyr::inner_join(as.data.frame(covar_cube), by = c("x", "y", "t", "spacetime_grid_id")) %>%
         dplyr::group_by(updated_observation_id) %>%
         dplyr::group_modify(function(.x, .y) {
             .x[[paste("raw", cases_column, sep = "_")]] <- .x[[cases_column]]
