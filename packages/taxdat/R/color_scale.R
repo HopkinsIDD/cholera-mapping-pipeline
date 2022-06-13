@@ -98,6 +98,7 @@ color_scale <- function(type = "cases", use_case = "leaflet", use_log = FALSE) {
   } else if (type %in% c("covariate")) {
     colors <- scales::viridis_pal(alpha = 1, begin = 0, end = 1, direction = 1)(5)
     if (use_log) {
+      warning("Using a log transform of the covariates is strange")
       transform <- scales::log10_trans()
     } else {
       transform <- scales::identity_trans()

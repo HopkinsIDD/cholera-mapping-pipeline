@@ -13,7 +13,7 @@ knitr::opts_chunk$set(
   cache.lazy = FALSE,
   echo = FALSE,
   dev="CairoPNG",
-  error = TRUE,
+  error = FALSE,
   fig.align = "center",
   message = TRUE,
   warning = TRUE
@@ -143,34 +143,35 @@ taxdat::plot_raster_covariates(cache=cache,cholera_directory=params$cholera_dire
 ### Output maps
 ```{r analysisyears}
 # taxdat::get_obs_year(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-taxdat::get_elapsed_time(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
+# taxdat::get_elapsed_time(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
 
 ```{r importcase}
-cache[["case_raster"]] <-get_case_raster(cache=cache,config=config,cholera_directory=cholera_directory)
-cache[["disaggregated_rate_sf"]]<-get_disaggregated_rates_sf(
-                                                cache=cache,config=params$config,
-                                                cholera_directory=params$cholera_directory)
+# cache[["case_raster"]] <-get_case_raster(cache=cache,config=config,cholera_directory=cholera_directory)
+# cache[["disaggregated_rate_sf"]]<-get_disaggregated_rates_sf(
+#                                                 cache=cache,config=params$config,
+#                                                 cholera_directory=params$cholera_directory)
+#
+# cache[["disaggregated_case_sf"]]<-get_disaggregated_cases_sf (
+#                                                 cache=cache,config=params$config,
+#                                                 cholera_directory=params$cholera_directory)
+#
+# config_file<-yaml::read_yaml(paste0(params$cholera_directory,params$config))
+# analysis_years <- lubridate::year(config_file$start_time):lubridate::year(config_file$end_time)
+# obs_years <- min(lubridate::year(cache[["sf_cases_resized"]]$TL)):max(lubridate::year(cache[["sf_cases_resized"]]$TR))
 
-cache[["disaggregated_case_sf"]]<-get_disaggregated_cases_sf (
-                                                cache=cache,config=params$config,
-                                                cholera_directory=params$cholera_directory)
 
-config_file<-yaml::read_yaml(paste0(params$cholera_directory,params$config))
-analysis_years <- lubridate::year(config_file$start_time):lubridate::year(config_file$end_time)
-obs_years <- min(lubridate::year(cache[["sf_cases_resized"]]$TL)):max(lubridate::year(cache[["sf_cases_resized"]]$TR))
-
-  if(all(analysis_years %in% obs_years)){
-    message("All analysis years are represented by OCs.")
-  } else{
-    drop_year_ix <- which(!analysis_years %in% obs_years)
-    message(paste(paste(analysis_years[drop_year_ix], collapse = ", "), "are not represented in OCs"))
-    if(params$drop_nodata_years){
-      message(paste("Dropping", paste(analysis_years[drop_year_ix], collapse = ", "), "from case_raster"))
-      case_raster <- dplyr::filter(case_raster, !(t %in% drop_year_ix))
-    }
+get_dropped_years(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
+if(length(cache[["dropped_years"]]) == 0){
+  message("All modeled years are represented by OCs.")
+} else {
+  message(paste(paste(cache[["dropped_years"]], collapse = ", "), "are not represented in OCs"))
+  if(params$drop_nodata_years){
+    message(paste("Dropping", paste(cache[["dropped_years"]], collapse = ", "), "from case_raster"))
+    ## case_raster <- dplyr::filter(case_raster, !(t %in% drop_year_ix))
   }
+}
 ```
 
 #### Modeled cases
