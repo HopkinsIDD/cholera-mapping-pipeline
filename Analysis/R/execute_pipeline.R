@@ -315,30 +315,18 @@ temporal_location_grid_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = gl
 )) %>%
   dplyr::mutate(temporal_location_id = paste(location_period_id, t, sep = "_"))
 
-boundary_polygon <- sf::st_sf(geometry = sf::st_as_sfc(DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(
-  .con = conn_pg,
-  "
-SELECT
-  shapes.shape
-FROM
-  locations
-INNER JOIN
-  location_periods
-    ON
-      locations.id = location_periods.location_id
-INNER JOIN
-  shapes
-    ON
-      location_periods.id = shapes.location_period_id
-WHERE
-locations.qualified_name = {config[[\"general\"]][[\"location_name\"]]}
-"
-))[["shape"]]))
-
-minimal_grid_population <- rpostgis::pgGetRast(conn = conn_pg, name = c("covariates", "all_covariates"), rast = "rast", boundary = sf::st_bbox(boundary_polygon), clauses = " AND covariate_name = 'population'") %>%
-  stars::st_as_stars()
-
 print("Pulled location-grid map")
+
+minimal_grid_populations <- cache$covar_cube %>%
+  dplyr::select(population, geometry) %>%
+  stars::st_as_stars()
+# minimal_grid_population <- rpostgis::pgGetRast(conn = conn_pg, name = c("covariates", "all_covariates"), rast = "rast", boundary = sf::st_bbox(boundary_polygon), clauses = " AND covariate_name = 'population'") %>%
+#   stars::st_as_stars()sf::st_sf(geometry = sf::st_as_sfc(DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(
+
+print("Pulled minimal-grid population")
+
+
+
 
 unique_temporal_location_ids <- unique(c(
   observation_temporal_location_mapping[["temporal_location_id"]],
@@ -813,7 +801,7 @@ elapsed_time <- end_time - start_time
 
 # FIX ME : don't use model.rand Save output Consider just using the cmdstanr
 # output directly
-save(cmdstan_fit, elapsed_time, file = config[["file_names"]][["stan_output"]])
+cmdstan_fit$save_object(file = config[["file_names"]][["stan_output"]])
 
 ## Run generated quantities This is just an example: we would really do the
 ## non-CT_WORLD root locations here:
