@@ -84,7 +84,7 @@ transformed data {
   }
   
   for (i in 1:K2) {
-    pop_loctimes[map_loc_grid_loc[i]] += pop[map_loc_grid_grid[i]] * pop_weight[map_loc_grid_grid[i]];
+    pop_loctimes[map_loc_grid_loc[i]] += pop[map_loc_grid_grid[i]] * pop_weight[i];
   }
   
   // Compute observation likelihood weights 
@@ -157,7 +157,7 @@ generated quantities {
     }
     for(i in 1:K2){
       if (use_pop_weight == 1) {
-        location_cases[map_loc_grid_loc[i]] += grid_cases[map_loc_grid_grid[i]] * pop_weight[map_loc_grid_grid[i]];
+        location_cases[map_loc_grid_loc[i]] += grid_cases[map_loc_grid_grid[i]] * pop_weight[i];
       } else {
         location_cases[map_loc_grid_loc[i]] += grid_cases[map_loc_grid_grid[i]];
       }
