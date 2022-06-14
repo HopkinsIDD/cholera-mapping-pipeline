@@ -1274,7 +1274,7 @@ get_pop_weights <- function(res_space,
   query <- glue::glue_sql("
       SELECT g.location_period_id, g.rid, g.x, g.y, {`{DBI::SQL(
       paste0(
-        paste0('(ST_SummaryStats(St_Union(ST_Clip(rast,', {pop_1km_bands$ind}, ', geom, true)), 1, true)).sum as values_', {pop_1km_bands$ind}),
+        paste0('sum((ST_SummaryStats(ST_Clip(rast,', {pop_1km_bands$ind}, ', geom, true), 1, true)).sum) as values_', {pop_1km_bands$ind}),
         collapse = ','))}`}
       FROM covariates.pop_1_years_1_1 r, {`{DBI::SQL(intersections_table)}`} g
       WHERE ST_Intersects(rast, geom)
