@@ -317,7 +317,7 @@ temporal_location_grid_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = gl
 
 print("Pulled location-grid map")
 
-minimal_grid_populations <- cache$covar_cube %>%
+minimal_grid_populations <- covar_cube %>%
   dplyr::select(population, geometry) %>%
   stars::st_as_stars()
 # minimal_grid_population <- rpostgis::pgGetRast(conn = conn_pg, name = c("covariates", "all_covariates"), rast = "rast", boundary = sf::st_bbox(boundary_polygon), clauses = " AND covariate_name = 'population'") %>%
