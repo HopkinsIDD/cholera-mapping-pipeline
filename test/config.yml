@@ -3,7 +3,7 @@ aoi: "KEN"
 countries: "Kenya"
 countries_name: KEN
 start_time: '2001-01-01'
-end_time: '2001-12-31'
+end_time: '2002-12-31'
 res_time: 1 years
 res_space: 20
 smoothing_period: 1
@@ -12,9 +12,9 @@ covariate_choices:
  - pop
  - dist_to_water
 data_source: api
-ovrt_metadata_table: yes
-ingest_covariates: yes
-ingest_new_covariates: yes
+ovrt_metadata_table: no
+ingest_covariates: no
+ingest_new_covariates: no
 censoring: no
 aggregate: no
 time_effect: yes
