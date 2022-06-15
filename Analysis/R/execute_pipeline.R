@@ -317,16 +317,33 @@ temporal_location_grid_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = gl
 
 print("Pulled location-grid map")
 
-minimal_grid_populations <- covar_cube %>%
+boundary_polygon <- sf::st_sf(geometry = sf::st_as_sfc(DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(
+  .con = conn_pg,
+  "
+SELECT
+  shapes.shape
+FROM
+  locations
+INNER JOIN
+  location_periods
+    ON
+      locations.id = location_periods.location_id
+INNER JOIN
+  shapes
+    ON
+      location_periods.id = shapes.location_period_id
+WHERE
+locations.qualified_name = {config[[\"general\"]][[\"location_name\"]]}
+"
+))[["shape"]]))
+print("Pulled boundary polygon")
+
+minimal_grid_population <- covar_cube %>%
   dplyr::select(population, geometry) %>%
   stars::st_as_stars()
-# minimal_grid_population <- rpostgis::pgGetRast(conn = conn_pg, name = c("covariates", "all_covariates"), rast = "rast", boundary = sf::st_bbox(boundary_polygon), clauses = " AND covariate_name = 'population'") %>%
-#   stars::st_as_stars()sf::st_sf(geometry = sf::st_as_sfc(DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(
 
+warning("Minimal-grid population is the same resolution as covar_cube")
 print("Pulled minimal-grid population")
-
-
-
 
 unique_temporal_location_ids <- unique(c(
   observation_temporal_location_mapping[["temporal_location_id"]],
