@@ -23,5 +23,6 @@ use_weights: no
 stan:
   ncores: 4
   model: update_yearly_dagar_timevary_speedup_flexible.stan
+  model: update_yearly_dagar_timevary_speedup_flexible_generate.stan
   niter: 100
   recompile: yes
