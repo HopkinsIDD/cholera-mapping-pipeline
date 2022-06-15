@@ -12,7 +12,7 @@ plot_DroppedData_table <- function(config, cache, cholera_directory) {
   get_sf_cases_resized(
     name="sf_cases_resized",
     cache=cache,
-    config = paste0(cholera_directory, config),
+    config = config,
     cholera_directory =cholera_directory)
 
   obs_stats <- tibble::as_tibble(cache[["sf_cases_resized"]])

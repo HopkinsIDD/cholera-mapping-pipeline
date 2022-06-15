@@ -29,6 +29,7 @@ function_cache <- new.env()
 #' @description to cache the output of the function
 #' @param name the name of the output that is going to be cached
 #' @param fun the function that will generate the output
+#' @param cache the place where the function output will be cached
 #' @param overwrite whether to overwrite the current environment
 #' @return
 cache_fun_results_new <- function(name, fun, cache, overwrite = FALSE, ...) {
@@ -37,11 +38,11 @@ cache_fun_results_new <- function(name, fun, cache, overwrite = FALSE, ...) {
     }
     function_cache[[name]] <- TRUE
 
-    return(function(name, fun, cache, ...) {
+    return(function(cache, ...) {
         if (name %in% names(cache)) {
             return(invisible())
         }
-        fun(name, cache, ...)
+        cache[[name]] <- fun(name, cache, ...)
         return(invisible())
     })
     

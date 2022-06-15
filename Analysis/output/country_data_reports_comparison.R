@@ -33,6 +33,7 @@ library(sf)
 library(raster)
 library(stars)
 library(taxdat)
+library(gridExtra)
 sf::sf_use_s2(FALSE)
 
 ### other new packages (mainly for "rgeoboundaries")
@@ -94,23 +95,124 @@ params$old_runs <- FALSE
 
 
 ```{r include=FALSE, message=FALSE}
-# 1. function that can stitch and cache two configs
+# 1. functions that can cache and stitch two configs
+cache1 <- new.env()
+cache2 <- new.env()
 comparison_cache <- new.env()
-stitch_configs(output_cache = comparison_cache, input_caches = list(list(paste0(params$cholera_directory, params$config1), paste0(params$cholera_directory, params$config2))))
 
-```
+get_config(cache = cache1, config = params$config1, cholera_directory = params$cholera_directory)
+get_config(cache = cache2, config = params$config2, cholera_directory = params$cholera_directory)
 
-```{r include=FALSE, message=FALSE}
+stitch_configs(output_cache = comparison_cache, input_caches = list(cache1, cache2))
+
 # 2. function that can read in and stitch the needed output for comparison purposes 
-#GAM input and output
+#GAM input and output √
 #table 1 and table 2
 #covariate 
 #table 4 
 #more...(including comparing two configs)
-stitch_GAM_input(output_cache = comparison_cache, input_caches = list(list(params$config1, params$config2)), cholera_directory = params$cholera_directory)
+#needs to change the scale of the figs to original 
+
+## GAM input and output
+taxdat::get_initial_values(name = "initial_values_data", cache = cache1, 
+  config = params$config1, cholera_directory = params$cholera_directory)
+taxdat::get_initial_values(name = "initial_values_data", cache = cache2, 
+  config = params$config2, cholera_directory = params$cholera_directory)
+
+cache1[["gam_output_df"]] <- get_gam_values_no_cache(cache = cache1, config = params$config1, cholera_directory = params$cholera_directory)
+cache2[["gam_output_df"]] <- get_gam_values_no_cache(cache = cache2, config = params$config2, cholera_directory = params$cholera_directory)
+
+stitch_gam_input(output_cache = comparison_cache, input_caches = list(cache1, cache2))
+stitch_gam_output(output_cache = comparison_cache, input_caches = list(cache1, cache2))
 
 
 ```
+
+
+**Observations input for the GAM model:**
+```{r gam input of cases, fig.height=5, fig.width=10, fig.cap=capFig("Observations input for the GAM model (cases)")}
+plot_gam_fit_input_cases_stitched(cache = comparison_cache)
+```
+```{r gam input of rates, fig.height=5, fig.width=10, fig.cap=capFig("Observations input for the GAM model (rates)")}
+plot_gam_fit_input_rates_stitched(cache = comparison_cache)
+```
+
+**Observations output of the GAM model:**
+```{r gam output of cases, fig.height=25, fig.width=10, fig.cap=capFig("Observations input for the GAM model (cases)")}
+plot_gam_fit_output_cases_stitched(cache = comparison_cache)
+```
+```{r gam output of rates, fig.height=25, fig.width=10, fig.cap=capFig("Observations input for the GAM model (rates)")}
+plot_gam_fit_output_rates_stitched(cache = comparison_cache)
+```
+
+
+```{r include=FALSE, message=FALSE}
+# Try looking at the plot
+pdf("/home/kaiyuezou/mapping_pipeline/New_Dev/cholera-mapping-pipeline/Analysis/output/gam_output_rates.pdf", height = 25, width = 10)
+plot1
+dev.off()
+
+```
+
+
+```{r include=FALSE, message=FALSE}
+# 2. function that can read in and stitch the needed output for comparison purposes 
+#GAM input and output √
+#table 1 and table 2
+#covariate 
+#table 4 
+#more...(including comparing two configs)
+#needs to change the scale of the figs to original 
+stitch_GAM_input(output_cache = comparison_cache, input_caches = list(list(params$config1, params$config2)), cholera_directory = params$cholera_directory)
+stitch_GAM_output(output_cache = comparison_cache, input_caches = list(list(params$config1, params$config2)), cholera_directory = params$cholera_directory)
+
+stitch_GAM_input_figure(output_cache = comparison_cache)
+stitch_GAM_output_figure(output_cache = comparison_cache)
+
+stitch_used_data_table(output_cache = comparison_cache, input_caches = list(list(params$config1, params$config2)), cholera_directory = params$cholera_directory)
+# gridExtra::grid.arrange(comparison_cache$GAM_input_figure$fig_cases1, comparison_cache$GAM_input_figure$fig_cases2, ncol = 2) #this step plots 
+# gridExtra::grid.arrange(comparison_cache$GAM_input_figure$fig_rates1, comparison_cache$GAM_input_figure$fig_rates2, ncol = 2) #this step plots
+
+```
+
+
+### GAM Input
+**Observations input comparison for the GAM model:**
+```{r gam input of cases,fig.height=5, fig.width=10, fig.cap=capFig("Observations input comparison for the GAM model (cases)")}
+  gridExtra::grid.arrange(comparison_cache$GAM_input_figure$fig_cases1, comparison_cache$GAM_input_figure$fig_cases2, ncol = 2) #this step plots
+```
+
+```{r gam input of rates,fig.height=5, fig.width=10, fig.cap=capFig("Observations input comparison of the GAM model (rates)")}
+  gridExtra::grid.arrange(comparison_cache$GAM_input_figure$fig_rates1, comparison_cache$GAM_input_figure$fig_rates2, ncol = 2) #this step plots
+```
+
+### GAM Output
+**Observations output comparison of the GAM model:**
+```{r gam output of cases,fig.height=25, fig.width=10, fig.cap=capFig("Observations output for the GAM model (cases)")}
+  comparison_cache$GAM_output_figure$fig_cases1$facet$params$ncol <- 1
+  comparison_cache$GAM_output_figure$fig_cases2$facet$params$ncol <- 1
+  gridExtra::grid.arrange(comparison_cache$GAM_output_figure$fig_cases1, comparison_cache$GAM_output_figure$fig_cases2, ncol = 2) #this step plots
+```
+
+```{r gam output of rates,fig.height=25, fig.width=10, fig.cap=capFig("Observations output for the GAM model (rates)")}
+  comparison_cache$GAM_output_figure$fig_rates1$facet$params$ncol <- 1
+  comparison_cache$GAM_output_figure$fig_rates2$facet$params$ncol <- 1
+  gridExtra::grid.arrange(comparison_cache$GAM_output_figure$fig_rates1, comparison_cache$GAM_output_figure$fig_rates2, ncol = 2) #this step plots
+```
+
+
+```{r include=FALSE, message=FALSE}
+# Try looking at the plot
+pdf("/home/kaiyuezou/mapping_pipeline/New_Dev/cholera-mapping-pipeline/Analysis/output/gam_figures.pdf")
+gridExtra::grid.arrange(comparison_cache$GAM_input_figure$fig_cases1, comparison_cache$GAM_input_figure$fig_cases2, ncol = 2)
+gridExtra::grid.arrange(comparison_cache$GAM_input_figure$fig_rates1, comparison_cache$GAM_input_figure$fig_rates2, ncol = 2)
+gridExtra::grid.arrange(comparison_cache$GAM_output_figure$fig_cases1, comparison_cache$GAM_output_figure$fig_cases2, ncol = 2)
+gridExtra::grid.arrange(comparison_cache$GAM_output_figure$fig_rates1, comparison_cache$GAM_output_figure$fig_rates2, ncol = 2)
+dev.off()
+
+```
+
+
 
 
 
@@ -153,7 +255,7 @@ get_sf_grid(name="sf_grid",config = params$config,cache=cache,cholera_directory 
 ```{r include=FALSE, message=FALSE}
 # Try looking at the plot
 pdf("/home/kaiyuezou/mapping_pipeline/New_Dev/cholera-mapping-pipeline/Analysis/output/gam_input_case.pdf")
-a 
+gridExtra::grid.arrange(comparison_cache$GAM_input_figure$fig_cases1, comparison_cache$GAM_input_figure$fig_cases1, ncol = 2) #this step plots 
 dev.off()
 
 ```
