@@ -80,16 +80,71 @@ stack_gam_output_as_in_df_no_cache <- function(name = "gam_output_df", cache, in
 stack_gam_output_as_in_df <- cache_fun_results_new(name = "gam_output_df", fun = stack_gam_output_as_in_df_no_cache, cache = output_cache, overwrite = T)
 
 
+stitch_used_data_table <- function(output_cache, input_caches){
+  stitch_caches(
+                name = "used_data_table", 
+                output_cache = output_cache, 
+                input_caches = input_caches,
+                initial_value = list(type = 'first'), 
+                combination_function = intersperse_used_data_table_as_in_df
+  )
+
+}
+
+intersperse_used_data_table_as_in_df_no_cache <- function(name = "used_data_table", cache, input_cache, ...){
+  df1 <- cache[[paste0(name, "_initialized")]]
+  df2 <- input_cache[[1]][[name]]
+  intersperse_df <- rbind(df1 %>% mutate(stitch_source = 1), df2 %>% mutate(stitch_source = 2)) %>% arrange(year) 
+  intersperse_df_aesthetic <- intersperse_df %>%
+    dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
+    # dplyr::rename(year=year, `Observations`=n_obs, `Suspected cases`=n_cases, `Location periods`=n_lp, `Observation collections`=n_OCs)%>%
+    kableExtra::kable(col.names = c("year", "# observations", "# suspected cases", "# location periods", "# observation collections", "table source")) %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+    kableExtra::kable_paper(full_width = T) %>%
+    kableExtra::row_spec(nrow(intersperse_df), bold = T)
+  
+  rm("used_data_table_initialized", envir = cache)
+  return(intersperse_df_aesthetic)
+}
+#' @export
+#' @name intersperse_used_data_table_as_in_df
+intersperse_used_data_table_as_in_df <- cache_fun_results_new(name = "used_data_table", fun = intersperse_used_data_table_as_in_df_no_cache, cache = output_cache, overwrite = T)
 
 
-a <- plyr::rbind.fill(cache1$initial_values_data$gam_fit_input %>% mutate(source = 1), cache2$initial_values_data$gam_fit_input %>% mutate(source = 2))
+stitch_dropped_data_table <- function(output_cache, input_caches){
+  stitch_caches(
+                name = "dropped_data_table", 
+                output_cache = output_cache, 
+                input_caches = input_caches,
+                initial_value = list(type = 'first'), 
+                combination_function = intersperse_dropped_data_table_as_in_df
+  )
+
+}
+
+intersperse_dropped_data_table_as_in_df_no_cache <- function(name = "dropped_data_table", cache, input_cache, ...){
+  df1 <- cache[[paste0(name, "_initialized")]]
+  df2 <- input_cache[[1]][[name]]
+  intersperse_df <- rbind(df1 %>% mutate(stitch_source = 1), df2 %>% mutate(stitch_source = 2)) %>% arrange(year) 
+  intersperse_df_aesthetic <- intersperse_df %>%
+    dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
+    # dplyr::rename(year=year, `Observations`=n_obs, `Suspected cases`=n_cases, `Location periods`=n_lp, `Observation collections`=n_OCs)%>%
+    kableExtra::kable(col.names = c("year", "# dropped observations", "# dropped suspected cases", "# dropped location periods",  
+      "dropped location periods", "# dropped  observation collections",  "dropped observation collections", "table source")) %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+    kableExtra::kable_paper(full_width = F) %>%
+    kableExtra::row_spec(nrow(intersperse_df), bold = T)
+  
+  rm("dropped_data_table_initialized", envir = cache)
+  return(intersperse_df_aesthetic)
+}
+#' @export
+#' @name intersperse_dropped_data_table_as_in_df
+intersperse_dropped_data_table_as_in_df <- cache_fun_results_new(name = "dropped_data_table", fun = intersperse_dropped_data_table_as_in_df_no_cache, cache = output_cache, overwrite = T)
 
 
 
-a <- rbind(cache1$initial_values_data$gam_fit_input %>% mutate(source = 1), cache2$initial_values_data$gam_fit_input %>% mutate(source = 2))
 
-a <- dplyr::left_join(cache1$initial_values_data$gam_fit_input, 
-  (cache2$initial_values_data$gam_fit_input %>% select(ind, sx, sy, y) %>% rename(y2)), by = c("ind", ))
 
 
 

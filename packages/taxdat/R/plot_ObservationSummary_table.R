@@ -6,8 +6,9 @@
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment
 #' @param cholera_directory  the directory of cholera mapping pipeline folder
+#' @param aesthetic whether to use the kableExtra package to return a kable object
 #' @return table with observation statistic summary
-plot_ObservationSummary_table <- function(config, cache, cholera_directory) {
+plot_ObservationSummary_table <- function(config, cache, cholera_directory, aesthetic = TRUE) {
   
   get_sf_cases_resized(
     name="sf_cases_resized",
@@ -30,13 +31,18 @@ plot_ObservationSummary_table <- function(config, cache, cholera_directory) {
                          u_OCs  = paste(sort(unique(OC_UID)), collapse = ",")
   )
   
-obs_stats %>%
-    dplyr::select(-dplyr::contains("u_")) %>%
-    dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
-    dplyr::rename(year=year, `Observations`=n_obs, `Suspected cases`=n_cases, `Location periods`=n_lp, `Observation collections`=n_OCs)%>%
-    kableExtra::kable(col.names = c("year", "# observations", "# suspected cases", "# location periods", "# observation collections")) %>%
-    kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
-    kableExtra::kable_paper(full_width = T) %>%
-    kableExtra::row_spec(nrow(obs_stats), bold = T)
+  if(aesthetic){
+    obs_stats %>%
+      dplyr::select(-dplyr::contains("u_")) %>%
+      dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
+      dplyr::rename(year=year, `Observations`=n_obs, `Suspected cases`=n_cases, `Location periods`=n_lp, `Observation collections`=n_OCs)%>%
+      kableExtra::kable(col.names = c("year", "# observations", "# suspected cases", "# location periods", "# observation collections")) %>%
+      kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+      kableExtra::kable_paper(full_width = T) %>%
+      kableExtra::row_spec(nrow(obs_stats), bold = T)
+  }else{
+    obs_stats %>%
+      dplyr::select(-dplyr::contains("u_"))
+  }
 
 }

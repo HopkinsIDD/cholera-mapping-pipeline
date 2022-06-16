@@ -107,11 +107,11 @@ stitch_configs(output_cache = comparison_cache, input_caches = list(cache1, cach
 
 # 2. function that can read in and stitch the needed output for comparison purposes 
 #GAM input and output √
-#table 1 and table 2
+#table 1 and table 2 √
 #covariate 
 #table 4 
 #more...(including comparing two configs)
-#needs to change the scale of the figs to original 
+#needs to change the scale of the figs to original (is it possible?)
 
 ## GAM input and output
 taxdat::get_initial_values(name = "initial_values_data", cache = cache1, 
@@ -125,6 +125,15 @@ cache2[["gam_output_df"]] <- get_gam_values_no_cache(cache = cache2, config = pa
 stitch_gam_input(output_cache = comparison_cache, input_caches = list(cache1, cache2))
 stitch_gam_output(output_cache = comparison_cache, input_caches = list(cache1, cache2))
 
+## table 1 and table 2
+cache1$used_data_table <- plot_ObservationSummary_table(config = params$config1, cache = cache1, cholera_directory = params$cholera_directory, aesthetic = FALSE)
+cache2$used_data_table <- plot_ObservationSummary_table(config = params$config2, cache = cache2, cholera_directory = params$cholera_directory, aesthetic = FALSE)
+
+cache1$dropped_data_table <- plot_DroppedData_table(config = params$config1, cache = cache1, cholera_directory = params$cholera_directory, aesthetic = FALSE)
+cache2$dropped_data_table <- plot_DroppedData_table(config = params$config2, cache = cache2, cholera_directory = params$cholera_directory, aesthetic = FALSE)
+
+stitch_used_data_table(output_cache = comparison_cache, input_caches = list(cache1, cache2))
+stitch_dropped_data_table(output_cache = comparison_cache, input_caches = list(cache1, cache2))
 
 ```
 
@@ -143,6 +152,17 @@ plot_gam_fit_output_cases_stitched(cache = comparison_cache)
 ```
 ```{r gam output of rates, fig.height=25, fig.width=10, fig.cap=capFig("Observations input for the GAM model (rates)")}
 plot_gam_fit_output_rates_stitched(cache = comparison_cache)
+```
+
+
+**Table 1. Data used within the model by comparison between two runs:**
+```{r echo = FALSE}
+comparison_cache$used_data_table
+```
+
+**Table 2. Data dropped from the model by comparison between two runs:**
+```{r echo=FALSE}
+comparison_cache$dropped_data_table
 ```
 
 
