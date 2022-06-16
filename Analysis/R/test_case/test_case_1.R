@@ -387,7 +387,7 @@ config <- list(general = list(
   "Analysis", "output", "test1.stan_input.rdata"
 ), stan_output = rprojroot::find_root_file(
   criterion = ".choldir",
-  "Analysis", "output", "test1.stan_output.rdata"
+  "Analysis", "output", "test1.stan_output.rds"
 )), test_metadata = list(
   name = "test_1",
   nrows = 10, ncols = 10, data_type = "Grid data", oc_type = "-", polygon_type = "Fake polygon",

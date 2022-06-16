@@ -586,6 +586,11 @@ create_pull_location_period_grid_map_function <- function(psql_connection) {
   function_query <- "
 create or replace function pull_location_period_grid_map(location_name text, start_date date, end_date date, width_in_km int, height_in_km int, time_scale text)
 RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint, shape_id bigint, spatial_grid_id bigint, rid int, x int, y int, t bigint, sfrac double precision) AS $$
+  WITH
+    grid_radius as (
+      SELECT LEAST(ABS(st_scalex(rast)),ABS(st_scaley(rast))) AS radius
+      FROM grids.master_spatial_grid
+    )
   SELECT
     location_periods.qualified_name as qualified_name,
     location_periods.location_id as location_id,
@@ -600,7 +605,11 @@ RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint
          WHEN shape_resized_spatial_grid_populations.intersection_population IS NULL THEN 1
     END as sfrac
   FROM
+    grid_radius
+  LEFT JOIN
     filter_location_periods(location_name) as location_periods
+      ON
+        1 = 1
   LEFT JOIN
     shapes
       on
@@ -608,7 +617,7 @@ RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint
   LEFT JOIN
     grids.resized_spatial_grid_pixels as spatial_grid
       ON
-        st_intersects(shapes.shape, spatial_grid.centroid)
+        st_intersects(shapes.shape, st_buffer(spatial_grid.polygon, -.5 * grid_radius.radius))
   LEFT JOIN
     shape_resized_spatial_grid_populations
       ON

@@ -338,11 +338,32 @@ locations.qualified_name = {config[[\"general\"]][[\"location_name\"]]}
 ))[["shape"]]))
 print("Pulled boundary polygon")
 
-minimal_grid_population <- covar_cube %>%
-  dplyr::select(population, geometry) %>%
-  stars::st_as_stars()
+minimal_grid_population <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(
+  .con = conn_pg,
+  "
+SELECT
+  rid,
+  temporal_grid.id as t,
+  rast
+FROM
+  covariates.all_covariates
+INNER JOIN
+  resize_temporal_grid({config[[\"general\"]][[\"time_scale\"]]}) as temporal_grid
+    ON
+      covariates.all_covariates.time_left <= temporal_grid.time_midpoint
+      AND covariates.all_covariates.time_right >= temporal_grid.time_midpoint
+WHERE
+  time_midpoint >= {config[[\"general\"]][[\"start_date\"]]}
+  AND time_midpoint <= {config[[\"general\"]][[\"end_date\"]]}
+  AND covariate_name = 'population'
+"
+)) %>% dplyr::mutate(
+  rast = lapply(rast, function(x) {
+    class(x) <- "pq_raster"
+    stars::st_as_stars(taxdat:::as.raster.pq_raster(x))
+  })
+)
 
-warning("Minimal-grid population is the same resolution as covar_cube")
 print("Pulled minimal-grid population")
 
 unique_temporal_location_ids <- unique(c(
