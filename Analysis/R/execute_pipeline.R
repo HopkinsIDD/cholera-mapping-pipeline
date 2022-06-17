@@ -646,9 +646,10 @@ if (!all(observation_changer[as.character(observation_data[["observation_id"]])]
 observation_temporal_location_mapping <- observation_temporal_location_mapping %>%
   dplyr::mutate(
     updated_observation_id = observation_changer[as.character(observation_id)],
-    updated_temporal_location_id = temporal_location_changer[as.character(temporal_location_id)]
+    updated_temporal_location_id = temporal_location_changer[as.character(temporal_location_id)],
+    updated_t = t_changer[as.character(t)]
   ) %>%
-  dplyr::filter(!is.na(updated_observation_id), !is.na(updated_temporal_location_id))
+  dplyr::filter(!is.na(updated_observation_id), !is.na(updated_temporal_location_id), !is.na(updated_t))
 
 temporal_location_grid_mapping <- temporal_location_grid_mapping %>%
   dplyr::mutate(
@@ -845,7 +846,7 @@ stan_data <- list(
     "_R"
   )]]))), ind_full = as.array(which(!is.na(observation_data[[cases_column]]))),
   ind_left = as.array(which(!is.na(observation_data[[paste0(cases_column, "_L")]]))),
-  T = cast_to_int32(max(observation_temporal_location_mapping[["t"]])), y = as.array(pmax(pmin(observation_data[[cases_column]],
+  T = cast_to_int32(max(observation_temporal_location_mapping[["updated_t"]])), y = as.array(pmax(pmin(observation_data[[cases_column]],
     observation_data[[paste0(cases_column, "_R")]],
     na.rm = TRUE
   ), observation_data[[paste0(
