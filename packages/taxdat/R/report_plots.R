@@ -41,9 +41,22 @@ plot_model_fidelity <- function(cache,
                                   return(x)
                                 },
                                 scale = "sqrt") {
-  max_value <- max(unlist(cache[[name]][, c("modeled_cases", "observed_cases")]))
-  plt <- ggplot(cache[[name]]) +
-    ggplot2::geom_point(ggplot2::aes(y = inv_tfrac_function(`modeled_cases`), x = tfrac_function(`observed_cases`), col = chain)) +
+  max_value <-
+    cache[[name]] %>%
+    dplyr::mutate(
+      modeled_cases = inv_tfrac_function(modeled_cases, tfrac),
+      observed_cases = tfrac_function(observed_cases, tfrac)
+    ) %>%
+    summarize(max_value = max(c(observed_cases, modeled_cases))) %>%
+    .$max_value
+
+  plt <- cache[[name]] %>%
+    dplyr::mutate(
+      modeled_cases = inv_tfrac_function(modeled_cases, tfrac),
+      observed_cases = tfrac_function(observed_cases, tfrac)
+    ) %>%
+    ggplot() +
+    ggplot2::geom_point(ggplot2::aes(y = modeled_cases, x = observed_cases, col = chain)) +
     ggplot2::geom_abline(intercept = 0, slope = 1) +
     ggplot2::coord_fixed(ratio = 1, xlim = c(1, max_value), ylim = c(1, max_value)) +
     taxdat::plot_theme() +
@@ -53,6 +66,7 @@ plot_model_fidelity <- function(cache,
   } else if (scale == "log") {
     plt <- plt + scale_x_log10() + scale_y_log10()
   }
+  return(plt)
 }
 
 

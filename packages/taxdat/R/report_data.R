@@ -423,8 +423,8 @@ get_data_fidelity_df_no_cache <- function(config, cache, cholera_directory) {
   get_stan_input(config = config, cache = cache, cholera_directory = cholera_directory)
   cache[["modeled_cases_mean_by_chain"]] %>%
     dplyr::mutate(
-      observed_cases = cache[["stan_input"]][["stan_data"]][["y"]][updated_observation_id],
-      tfrac = cache[["stan_input"]][["stan_data"]][["tfrac"]][updated_observation_id],
+      observed_cases = cache[["stan_input"]][["stan_data"]][["y"]][as.numeric(updated_observation_id)],
+      tfrac = cache[["stan_input"]][["stan_data"]][["tfrac"]][as.numeric(updated_observation_id)],
       censored = ifelse(
         updated_observation_id %in% cache[["stan_input"]][["stan_data"]][["ind_full"]],
         "uncensored",
