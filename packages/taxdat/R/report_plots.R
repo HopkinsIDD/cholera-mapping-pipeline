@@ -9,14 +9,18 @@
 #' @param color_scale the color scale of the plot
 #' @param fill_column the column name to fill the raster
 #' @return ggplot object
-plot_sf_with_fill <- function(cache, name, color_scale_type, fill_column, facet_column = "set", geometry_column = "geometry", color_scale_use_log = NA) {
+plot_sf_with_fill <- function(cache, name, color_scale_type, fill_column, facet_column = "set", geometry_column = "geometry", color_scale_use_log = NA, include_borders = TRUE) {
   if (is.na(color_scale_use_log)) {
     color_scale_use_log <- ifelse(color_scale_type %in% c("population"), TRUE, FALSE)
   }
   sf_object <- cache[[name]]
-  plot <- ggplot2::ggplot() +
-    ggplot2::geom_sf(data = sf_object, ggplot2::aes_string(geometry = geometry_column, fill = fill_column)) +
-    taxdat::color_scale(type = color_scale_type, use_case = "ggplot map", use_log = color_scale_use_log) +
+  plot <- ggplot2::ggplot()
+  if (include_borders) {
+    plot <- plot + ggplot2::geom_sf(data = sf_object, ggplot2::aes_string(geometry = geometry_column, fill = fill_column))
+  } else {
+    plot <- plot + ggplot2::geom_sf(data = sf_object, ggplot2::aes_string(geometry = geometry_column, fill = fill_column), color = NA)
+  }
+  plot <- plot + taxdat::color_scale(type = color_scale_type, use_case = "ggplot map", use_log = color_scale_use_log) +
     taxdat::map_theme()
   if (!is.null(facet_column)) {
     plot <- plot +
@@ -245,7 +249,8 @@ plot_disaggregated_modeled_cases_time_varying <- function(config, cache, cholera
 
   plot <- plot_sf_with_fill(
     cache = cache, name = "grid_cases_mean_disaggregated",
-    color_scale_type = "cases", fill_column = "cases", facet_column = "t", geometry_column = "geometry"
+    color_scale_type = "cases", fill_column = "cases", facet_column = "t", geometry_column = "geometry",
+    include_borders = FALSE
   ) +
     ggplot2::geom_sf(data = cache[["boundary_polygon"]], fill = NA, color = "black", size = 0.05)
 
