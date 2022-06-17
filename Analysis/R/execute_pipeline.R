@@ -728,6 +728,19 @@ if (config[["initial_values"]][["warmup"]]) {
       .x[[paste("raw", cases_column, sep = "_")]] <- .x[[cases_column]]
       .x[[cases_column]] <- .x[[cases_column]] * .x[["population"]] * .x[["sfrac"]] / sum(.x[["population"]] *
         .x[["sfrac"]])
+      .x[[paste("sfrac_adjusted_", cases_column, sep = "_")]] <- .x[[cases_column]]
+      .x[[paste0(cases_column, "_L")]] <- .x[[paste0(cases_column, "_L")]] * .x[["population"]] / .x[["tfrac"]] * .x[["sfrac"]] / sum(.x[["population"]] *
+        .x[["sfrac"]])
+      .x[[paste0(cases_column, "_R")]] <- .x[[paste0(cases_column, "_R")]] * .x[["population"]] / .x[["tfrac"]] * .x[["sfrac"]] / sum(.x[["population"]] *
+        .x[["sfrac"]])
+      .x[[cases_column]] <- mapply(
+        r = .x[[paste0(cases_column, "_R")]],
+        m = .x[[cases_column]],
+        l = .x[[paste0(cases_column, "_L")]],
+        function(r, m, l) {
+          return(median(c(r, m, l), na.rm = TRUE))
+        }
+      )
       return(.x)
     }) %>%
     dplyr::mutate(log_y = log(y), gam_offset = log_y)
@@ -745,13 +758,22 @@ if (config[["initial_values"]][["warmup"]]) {
     include_time_slice_effect = config[["stan"]][["do_time_slice"]][["perform"]]
   )
 
-  gam_fit <- mgcv::gam(gam_formula, family = "gaussian", data = initial_values_df)
-  gam_predict <- mgcv::predict.gam(gam_fit, covar_cube)
+  gam_fit <- mgcv::gam(
+    gam_formula,
+    family = "gaussian",
+    data = initial_values_df,
+    drop.unused.levels = FALSE,
+  )
+  gam_predict <- mgcv::predict.gam(
+    gam_fit,
+    covar_cube
+  )
+
   covariate_effect <- as.vector(as.matrix(as.data.frame(covar_cube)[, covariate_names]) %*%
     coef(gam_fit)[covariate_names])
 
   initial_betas <- coef(gam_fit)[covariate_names]
-  # initial_eta <- coef(gam_fit)['obs_year']
+  initial_etas <- c(0, coef(gam_fit)[grepl("^as.factor.t.", names(coef(gam_fit)))])
 
   initial_values_list <- lapply(seq_len(config[["stan"]][["nchain"]]), function(chain) {
     w_df <- dplyr::tibble(value = gam_predict - covariate_effect, spatial_id = covar_cube[["updated_id"]]) %>%
@@ -759,13 +781,19 @@ if (config[["initial_values"]][["warmup"]]) {
       dplyr::summarize(value = mean(value)) %>%
       dplyr::arrange(spatial_id)
 
-    ## eta = as.array(rnorm(length(coef(gam_fit)['obs_year']),
-    ## coef(gam_fit)['obs_year']))
-
-    rc <- list(betas = as.array(rnorm(
-      length(coef(gam_fit)[covariate_names]),
-      coef(gam_fit)[covariate_names]
-    )), w = as.array(rnorm(nrow(w_df), w_df[["value"]])))
+    rc <- list(
+      betas = as.array(rnorm(
+        length(coef(gam_fit)[covariate_names]),
+        coef(gam_fit)[covariate_names],
+        sqrt(var(coef(gam_fit)[covariate_names]))
+      )),
+      etas = as.array(rnorm(
+        length(initial_etas),
+        initial_etas,
+        sqrt(var(initial_etas))
+      )),
+      w = as.array(rnorm(nrow(w_df), w_df[["value"]]))
+    )
     return(rc)
   })
 
