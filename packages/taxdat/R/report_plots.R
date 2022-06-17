@@ -220,6 +220,12 @@ plot_time_varying_pop_raster <- function(config, cache, cholera_directory) {
 #' @return ggplot object with covariate raster
 plot_raster_covariates <- function(config, cache, cholera_directory) {
   warning("This function needs to be changed to get the standardization in")
+
+  get_config(config = config, cache = cache, cholera_directory = cholera_directory)
+  if (length(cache[["config"]][["general"]][["covariates"]]) == 0) {
+    return(invisible(NULL))
+  }
+
   aggregate_covar_cube_covariates(config = config, cache = cache, cholera_directory = cholera_directory)
 
   return(plot_sf_with_fill(cache, "covar_cube_covariates_aggregated", color_scale_type = "covariate", fill_column = "value", facet_column = "name", geometry_column = "geom"))
