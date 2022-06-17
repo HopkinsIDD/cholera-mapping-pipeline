@@ -92,7 +92,7 @@ as.raster.pq_raster <- function(x) {
     ipY = "float64",
     skewX = "float64",
     skewY = "float64",
-    srid = "uint32",
+    srid = "int32",
     width = "uint16",
     height = "uint16"
   )

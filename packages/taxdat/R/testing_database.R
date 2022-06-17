@@ -621,6 +621,7 @@ RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint
     AND spatial_grid.width = width_in_km
     AND spatial_grid.height = height_in_km
     AND (shape_resized_spatial_grid_populations.intersection_population IS NOT NULL)
+    AND (shape_resized_spatial_grid_populations.grid_population > 0)
   $$ LANGUAGE SQL;
 "
 
