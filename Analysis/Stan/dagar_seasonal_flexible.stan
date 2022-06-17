@@ -51,6 +51,10 @@ data {
   // Options
   // Censoring of cases with tfracs bellow threshold
   int<lower=0, upper=1> do_censoring;
+  // Random effect for each time slice
+  int<lower=0, upper=1> do_time_slice_effect;
+  // Autocorrelation between time slice random effects
+  int<lower=0, upper=1> do_time_slice_effect_autocor;
   // Weight likelihoods by expected number of cases
   int<lower=0, upper=1> use_weights;
   // Prior for high values of rho
@@ -58,6 +62,8 @@ data {
 
   // If time slice effect pass indicator function for years without data
   int debug;
+  vector<lower=0, upper=1>[N*do_time_slice_effect] has_data_year;
+  matrix[N*do_time_slice_effect + 2 * (do_time_slice_effect != 1), T*do_time_slice_effect + 2*(do_time_slice_effect != 1)] mat_grid_time; // The time side of the mapping from locations/times to grid (2x2 in case of missing just so it's easy to create)
 }
 
 transformed data {
@@ -65,7 +71,7 @@ transformed data {
   real small_N = .001 * smooth_grid_N;
   real<lower=0> weights[M*(1-do_censoring)*use_weights]; //a function of the expected offset for each observation used to downwight the likelihood
   real log_meanrate = log(meanrate);
-  real <lower=0> pop_loctimes[L]; // pre-computed population in each location period
+  real <lower=1> pop_loctimes[L]; // pre-computed population in each location period
 
   for(i in 1:N){
     logpop[i] = log(pop[i]);
@@ -94,118 +100,121 @@ transformed data {
 }
 
 parameters {
+  //real beta0; //the intercept
 
   real <lower=0, upper=1> rho; // Spatial correlation parameter
   real log_std_dev_w; // Precision of the spatial effects
 
   vector[smooth_grid_N] w; // Spatial Random Effect
 
+  vector[T*do_time_slice_effect] eta_tilde; // yearly random effects
+  real <lower=0> sigma_eta_tilde[do_time_slice_effect];
 
   // Covariate stuff
   vector[ncovar] betas;
 }
 
 transformed parameters {
-  vector[N] log_lambda; //local log rate
-  vector[smooth_grid_N] b; //
-  vector[smooth_grid_N] vec_var; //
-  vector[smooth_grid_N] t_rowsum; // only the rowsum of t is used
-  vector[smooth_grid_N] std_dev; // Rescaled std_dev by std_dev_w
-  vector<lower=0>[L] location_cases; //cases modeled in each (temporal) location.
-  vector<lower=0>[N] grid_cases; //cases modeled in each gridcell and time point.
 
-  // real w_sum;
-
+  vector[T*do_time_slice_effect] eta; // yearly random effects
   real<lower=0> modeled_cases[M]; //expected number of cases for each observation
   real<lower=0> std_dev_w;
+  vector[N] grid_cases; //cases modeled in each gridcell and time point.
 
+  {
+    vector[L] location_cases; //cases modeled in each (temporal) location.
+    vector[N] log_lambda; //local log rate
 
-  std_dev_w = exp(log_std_dev_w);
-
-  // Construct w
-  vec_var = (1 - rho * rho) ./ (1 + (1. * diag - 1) * rho * rho);
-  b = rho ./ (1 + (diag - 1) * rho * rho );
-  // Linear in number of edges
-  for(i in 1:smooth_grid_N){
-    t_rowsum[i] = 0;
-  }
-  for(i in 1:N_edges){
-    t_rowsum[node1[i] ] += w[node2[i] ] * b[ node1[i] ];
-  }
-
-  // log-rates without time-slice effects
-  log_lambda =  w[map_smooth_grid] + log_meanrate + covar * betas;
-  if (debug) {
-    for (i in 1:N) {
-      if (log_lambda[i] < -1000) {
-        print("log_lambda is 0 at index ", i)
-        print("dagar prior is ", w[map_smooth_grid[i]], " at index ", i)
-        print("log mean rate is ", log_meanrate, " at index ", i)
-        print("covariate contribution is ", (covar * betas)[i], " at index ", i)
+    if (do_time_slice_effect == 1) {
+      for(i in 1:T) {
+        // scale yearly random effects
+        eta[i] = sigma_eta_scale * sigma_eta_tilde[1] * eta_tilde[i];
       }
     }
-  }
 
-  // Add time slice effects
+    std_dev_w = exp(log_std_dev_w);
 
-  grid_cases = exp(log_lambda + logpop);
 
-  if (debug) {
-    for (i in 1:N) {
-      if (grid_cases[i] == 0) {
-        print("grid cases is 0 at index ", i)
-        print("log_lambda is ", log_lambda[i], " at index ", i)
-        print("logpop is ", logpop[i], " at index ", i)
-      }
+    // log-rates without time-slice effects
+    log_lambda =  w[map_smooth_grid] + log_meanrate;
+
+    // covariates if applicable
+    if (ncovar > 1) {
+      log_lambda += covar * betas;
     }
-  }
-
-  //calculate the expected number of cases by location
-
-  // calculate number of cases for each location
-  for(i in 1:L){
-    location_cases[i] = 0;
-  }
-
-  for(i in 1:K2){
-    location_cases[map_loc_grid_loc[i] ] += grid_cases[map_loc_grid_grid[i] ] * map_loc_grid_sfrac[i] ;
     if (debug) {
-      if (is_nan(location_cases[map_loc_grid_loc[i]])) {
-        print("location : ", map_loc_grid_loc[i])
-        print("grid_cases : ", grid_cases[map_loc_grid_grid[i] ])
-        print("sfrac : ", map_loc_grid_sfrac[i])
+      for (i in 1:N) {
+        if (log_lambda[i] < -1000) {
+          print("log_lambda is 0 at index ", i);
+          print("dagar prior is ", w[map_smooth_grid[i]], " at index ", i);
+          print("log mean rate is ", log_meanrate, " at index ", i);
+          print("covariate contribution is ", (covar * betas)[i], " at index ", i);
+        }
       }
     }
-  }
 
-  if (debug) {
-    for (i in 1:L) {
-      if (location_cases[i] == 0) {
-        print("location cases is 0 at index ", i)
+    // Add time slice effects
+    if (do_time_slice_effect == 1) {
+      log_lambda += (mat_grid_time * eta) .* has_data_year;
+    }
+
+    grid_cases = exp(log_lambda + logpop);
+
+    if (debug) {
+      for (i in 1:N) {
+        if (grid_cases[i] == 0) {
+          print("grid cases is 0 at index ", i);
+          print("log_lambda is ", log_lambda[i], " at index ", i);
+          print("logpop is ", logpop[i], " at index ", i);
+        }
       }
     }
-  }
 
-  //first initialize to 0
-  for (i in 1:M) {
-    modeled_cases[i] = 0;
-  }
+    //calculate the expected number of cases by location
 
-  //now accumulate
-  for (i in 1:K1) {
-    if (do_censoring == 1) {
-      modeled_cases[map_obs_loctime_obs[i]] += location_cases[map_obs_loctime_loc[i]];
-    } else {
-      modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i] ];
+    // calculate number of cases for each location
+    for(i in 1:L){
+      location_cases[i] = 0;
     }
-  }
-  //w_sum = sum(w);
-  std_dev = std_dev_w * sqrt(vec_var);
 
-  if (debug) {
+    for(i in 1:K2){
+      location_cases[map_loc_grid_loc[i]] += grid_cases[map_loc_grid_grid[i]] * map_loc_grid_sfrac[i];
+      if (debug) {
+        if (is_nan(location_cases[map_loc_grid_loc[i]])) {
+          print("location : ", map_loc_grid_loc[i]);
+          print("grid_cases : ", grid_cases[map_loc_grid_grid[i] ]);
+          print("sfrac : ", map_loc_grid_sfrac[i]);
+        }
+      }
+    }
+
+    if (debug) {
+      for (i in 1:L) {
+        if (location_cases[i] == 0) {
+          print("location cases is 0 at index ", i);
+        }
+      }
+    }
+
+    //first initialize to 0
     for (i in 1:M) {
-      if (modeled_cases[i] == 0) {
-        print("modeled cases is 0 at index ", i)
+      modeled_cases[i] = 0;
+    }
+
+    //now accumulate
+    for (i in 1:K1) {
+      if (do_censoring == 1) {
+        modeled_cases[map_obs_loctime_obs[i]] += location_cases[map_obs_loctime_loc[i]];
+      } else {
+        modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i] ];
+      }
+    }
+
+    if (debug) {
+      for (i in 1:M) {
+        if (modeled_cases[i] == 0) {
+          print("modeled cases is 0 at index ", i);
+        }
       }
     }
   }
@@ -213,33 +222,72 @@ transformed parameters {
 
 model {
 
-  // NOTE:  no prior on phi_raw, it is used to construct phi
-  // the following computes the prior on phi on the unit scale with std_dev = 1
-  for(i in 1:smooth_grid_N){
-    target += normal_lpdf(w[i] | t_rowsum[i], std_dev[i]);
-  }
-  if (debug) {
-    print("dagar", target())
+  {
+    vector[smooth_grid_N] b; //
+    vector[smooth_grid_N] vec_var; //
+    vector[smooth_grid_N] std_dev; // Rescaled std_dev by std_dev_w
+    vector[smooth_grid_N] t_rowsum; // only the rowsum of t is used
+
+    // Construct w
+    b = rho ./ (1 + (diag - 1) * rho * rho );
+    vec_var = (1 - rho * rho) ./ (1 + (1. * diag - 1) * rho * rho);
+    std_dev = std_dev_w * sqrt(vec_var);
+
+    // Linear in number of edges
+    for(i in 1:smooth_grid_N){
+      t_rowsum[i] = 0;
+    }
+    for(i in 1:N_edges){
+      t_rowsum[node1[i] ] += w[node2[i] ] * b[ node1[i] ];
+    }
+
+    // NOTE:  no prior on phi_raw, it is used to construct phi
+    // the following computes the prior on phi on the unit scale with std_dev = 1
+    w ~ normal(t_rowsum, std_dev);
+    if (debug) {
+      print("dagar", target());
+    }
   }
 
   // prior on regression coefficients
   betas ~ normal(0,beta_sigma_scale);
   if (debug) {
-    print("betas", target())
+    print("betas", target());
   }
 
   // prior on rho if provided
   if (use_rho_prior == 1) {
     rho ~ beta(5,1.5);
     if (debug) {
-      print("rho", target())
+      print("rho", target());
     }
   }
-  log_std_dev_w ~ normal(0,1);
-  if (debug) {
-    print("dagar std", target())
+
+  if (do_time_slice_effect == 1) {
+    // prior on the time_slice random effects
+    // For the autocorrelated model sigma is the sd of the increments in the random effects
+    sigma_eta_tilde ~ std_normal();
+    
+    if (do_time_slice_effect_autocor == 1) {
+      real tau = 1/(sigma_eta_tilde[1] * sigma_eta_scale)^2; // precision of the increments of the time-slice random effects
+      // Autocorrelation on yearly random effects with 0-sum constraint 
+      // The increments of the time-slice random effects are assumed to have mean 0
+      // and variance 1/tau
+      // Sorbye and Rue (2014) https://doi.org/10.1016/j.spasta.2013.06.004
+      target += (T-1.0)/2.0 * log(tau) - tau/2 * (dot_self(eta[2:T] - eta[1:(T-1)]));
+      sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraint
+    } else {
+      eta_tilde ~ std_normal();
+    }
+    if (debug) {
+      print("etas", target());
+    }
   }
 
+  log_std_dev_w ~ normal(0,1);
+  if (debug) {
+    print("dagar std", target());
+  }
 
   if (do_censoring == 1) {
 
@@ -247,7 +295,7 @@ model {
       // data model for estimated rates for full time slice observations
       target += poisson_lpmf(y[ind_full]| modeled_cases[ind_full]);
       if (debug) {
-        print("full obs", target())
+        print("full obs", target());
       }
     }
 
@@ -277,7 +325,11 @@ model {
       target += sum(lp_censored);
 
       if (debug) {
-        print("right censored obs", target())
+        print("right censored obs", target());
+      }
+      // add a 0-centered prior on the censored cases
+      for (idx in ind_right) {
+        modeled_cases[idx] ~ cauchy(0, 2);
       }
     }
   } else {
@@ -286,53 +338,28 @@ model {
       for(i in 1:M){
         target += poisson_lpmf(y[i] | modeled_cases[i])/weights[i];
         if (debug) {
-          print("weighted obs", target())
+          print("weighted obs", target());
         }
       }
     } else {
       target += poisson_lpmf(y | modeled_cases);
       if (debug) {
-        print("unweighted obs", target())
+        print("unweighted obs", target());
       }
     }
   }
 }
 
 generated quantities {
-  real<lower=0> tfrac_modeled_cases[M]; //expected number of cases for each observation
-  real log_lik[M]; // log-likelihood of observations
+  vector<lower=0>[L] location_cases; //cases modeled in each (temporal) location.
+  
+    
+  // calculate number of cases for each location
+  for(i in 1:L){
+    location_cases[i] = 0;
+  }
+  for(i in 1:K2){
+    location_cases[map_loc_grid_loc[i]] += grid_cases[map_loc_grid_grid[i]] * map_loc_grid_sfrac[i];
+  }
 
-  // first initialize to 0
-  for (i in 1:M) {
-    tfrac_modeled_cases[i] = 0;
-  }
-  //now accumulate
-  for (i in 1:K1) {
-    tfrac_modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
-  }
-
-  if (do_censoring == 0) {
-    for (i in 1:M) {
-      log_lik[i] = poisson_lpmf(y[i] | modeled_cases[i]);
-    }
-  } else {
-    // full observations
-    for (i in 1:M_full) {
-      log_lik[ind_full[i]] = poisson_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]]);
-    }
-    // rigth-censored observations
-    for(i in 1:M_right){
-      real lpmf;
-      lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
-      // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
-      if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
-        real lls[2];
-        lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
-        lls[2] = lpmf;
-        log_lik[ind_right[i]] = log_sum_exp(lls);
-      } else {
-        log_lik[ind_right[i]] = lpmf;
-      }
-    }
-  }
 }
