@@ -10,7 +10,7 @@ Encoding: UTF-8
 License: GPL (>= 2)
 Depends: R (>= 3.4),ISOcodes,magrittr, dplyr, tidyr, igraph
 Suggests: readxl, sf, sp, raster, rgdal, testthat, knitr, rmarkdown
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.0
 VignetteBuilder: knitr
 Collate: 
     'aggregation.R'
@@ -28,6 +28,7 @@ Collate:
     'setup_helpers.R'
     'pull_data_helpers.R'
     'model_evaluation_helpers.R'
+    'pq_raster2raster.R'
     'report_cache.R'
     'report_data.R'
     'report_plots.R'

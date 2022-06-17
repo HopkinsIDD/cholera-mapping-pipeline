@@ -338,11 +338,56 @@ locations.qualified_name = {config[[\"general\"]][[\"location_name\"]]}
 ))[["shape"]]))
 print("Pulled boundary polygon")
 
-minimal_grid_population <- covar_cube %>%
-  dplyr::select(population, geometry) %>%
-  stars::st_as_stars()
 
-warning("Minimal-grid population is the same resolution as covar_cube")
+start_time <- Sys.time()
+minimal_grid_population <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(
+  .con = conn_pg,
+  "
+SELECT
+  rid,
+  temporal_grid.id as t,
+  rast
+FROM
+  locations
+INNER JOIN
+  location_periods
+    ON
+      locations.id = location_periods.location_id
+INNER JOIN
+  shapes
+    ON
+      location_periods.id = shapes.location_period_id
+INNER JOIN
+  covariates.all_covariates
+    ON
+      st_intersects(shapes.shape, st_envelope(rast))
+INNER JOIN
+  resize_temporal_grid({config[[\"general\"]][[\"time_scale\"]]}) as temporal_grid
+    ON
+      covariates.all_covariates.time_left <= temporal_grid.time_midpoint
+      AND covariates.all_covariates.time_right >= temporal_grid.time_midpoint
+WHERE
+  time_midpoint >= {config[[\"general\"]][[\"start_date\"]]}
+  AND time_midpoint <= {config[[\"general\"]][[\"end_date\"]]}
+  AND covariate_name = 'population'
+  AND locations.qualified_name = {config[[\"general\"]][[\"location_name\"]]}
+"
+))
+end_time <- Sys.time()
+elapsed_time <- end_time - start_time
+print(paste("SQL Pull for minimal grid population ran in", elapsed_time))
+
+start_time <- Sys.time()
+minimal_grid_population <- minimal_grid_population %>% dplyr::mutate(
+  rast = lapply(rast, function(x) {
+    class(x) <- "pq_raster"
+    stars::st_as_stars(taxdat:::as.raster.pq_raster(x))
+  })
+)
+end_time <- Sys.time()
+elapsed_time <- end_time - start_time
+print(paste("conversion for minimal grid population ran in", elapsed_time))
+
 print("Pulled minimal-grid population")
 
 unique_temporal_location_ids <- unique(c(
@@ -601,9 +646,10 @@ if (!all(observation_changer[as.character(observation_data[["observation_id"]])]
 observation_temporal_location_mapping <- observation_temporal_location_mapping %>%
   dplyr::mutate(
     updated_observation_id = observation_changer[as.character(observation_id)],
-    updated_temporal_location_id = temporal_location_changer[as.character(temporal_location_id)]
+    updated_temporal_location_id = temporal_location_changer[as.character(temporal_location_id)],
+    updated_t = t_changer[as.character(t)]
   ) %>%
-  dplyr::filter(!is.na(updated_observation_id), !is.na(updated_temporal_location_id))
+  dplyr::filter(!is.na(updated_observation_id), !is.na(updated_temporal_location_id), !is.na(updated_t))
 
 temporal_location_grid_mapping <- temporal_location_grid_mapping %>%
   dplyr::mutate(
@@ -632,6 +678,21 @@ if (config[["processing"]][["reorder_adjacency_matrix"]][["perform"]]) {
     "updated_id_2"
   ))
   print("Finished reordering adjacency matrix")
+}
+
+
+## Make some things for stan data involving etas
+## NB: this fails: sapply(sort(unique(covar_cube$t)), function(x){x == covar_cube$t})
+if (config[["stan"]][["do_time_slice"]][["perform"]]) {
+  tmp <- as.character(covar_cube$t)
+  tmp2 <- as.character(sort(unique(covar_cube$t)))
+  mat_grid_time <- sapply(tmp2, function(x) {
+    x == tmp
+  })
+  has_data_year <- rep(1, times = nrow(covar_cube))
+} else {
+  mat_grid_time <- matrix(0, 2, 2)
+  has_data_year <- integer(0)
 }
 
 
@@ -668,6 +729,19 @@ if (config[["initial_values"]][["warmup"]]) {
       .x[[paste("raw", cases_column, sep = "_")]] <- .x[[cases_column]]
       .x[[cases_column]] <- .x[[cases_column]] * .x[["population"]] * .x[["sfrac"]] / sum(.x[["population"]] *
         .x[["sfrac"]])
+      .x[[paste("sfrac_adjusted_", cases_column, sep = "_")]] <- .x[[cases_column]]
+      .x[[paste0(cases_column, "_L")]] <- .x[[paste0(cases_column, "_L")]] * .x[["population"]] / .x[["tfrac"]] * .x[["sfrac"]] / sum(.x[["population"]] *
+        .x[["sfrac"]])
+      .x[[paste0(cases_column, "_R")]] <- .x[[paste0(cases_column, "_R")]] * .x[["population"]] / .x[["tfrac"]] * .x[["sfrac"]] / sum(.x[["population"]] *
+        .x[["sfrac"]])
+      .x[[cases_column]] <- mapply(
+        r = .x[[paste0(cases_column, "_R")]],
+        m = .x[[cases_column]],
+        l = .x[[paste0(cases_column, "_L")]],
+        function(r, m, l) {
+          return(median(c(r, m, l), na.rm = TRUE))
+        }
+      )
       return(.x)
     }) %>%
     dplyr::mutate(log_y = log(y), gam_offset = log_y)
@@ -677,17 +751,30 @@ if (config[["initial_values"]][["warmup"]]) {
     dplyr::summarize(.groups = "drop") %>%
     nrow()
   gam_formula <- taxdat::get_gam_formula(
-    cases_column_name = cases_column, covariate_names = covariate_names,
-    max_knots = number_of_gridcells - 1
+    cases_column_name = cases_column,
+    include_spatial_smoothing = TRUE,
+    include_covariates = length(covariate_names) > 0,
+    covariate_names = covariate_names,
+    max_knots = number_of_gridcells - 1,
+    include_time_slice_effect = config[["stan"]][["do_time_slice"]][["perform"]]
   )
 
-  gam_fit <- mgcv::gam(gam_formula, family = "gaussian", data = initial_values_df)
-  gam_predict <- mgcv::predict.gam(gam_fit, covar_cube)
+  gam_fit <- mgcv::gam(
+    gam_formula,
+    family = "gaussian",
+    data = initial_values_df,
+    drop.unused.levels = FALSE,
+  )
+  gam_predict <- mgcv::predict.gam(
+    gam_fit,
+    covar_cube
+  )
+
   covariate_effect <- as.vector(as.matrix(as.data.frame(covar_cube)[, covariate_names]) %*%
     coef(gam_fit)[covariate_names])
 
   initial_betas <- coef(gam_fit)[covariate_names]
-  # initial_eta <- coef(gam_fit)['obs_year']
+  initial_etas <- c(0, coef(gam_fit)[grepl("^as.factor.t.", names(coef(gam_fit)))])
 
   initial_values_list <- lapply(seq_len(config[["stan"]][["nchain"]]), function(chain) {
     w_df <- dplyr::tibble(value = gam_predict - covariate_effect, spatial_id = covar_cube[["updated_id"]]) %>%
@@ -695,13 +782,19 @@ if (config[["initial_values"]][["warmup"]]) {
       dplyr::summarize(value = mean(value)) %>%
       dplyr::arrange(spatial_id)
 
-    ## eta = as.array(rnorm(length(coef(gam_fit)['obs_year']),
-    ## coef(gam_fit)['obs_year']))
-
-    rc <- list(betas = as.array(rnorm(
-      length(coef(gam_fit)[covariate_names]),
-      coef(gam_fit)[covariate_names]
-    )), w = as.array(rnorm(nrow(w_df), w_df[["value"]])))
+    rc <- list(
+      betas = as.array(rnorm(
+        length(coef(gam_fit)[covariate_names]),
+        coef(gam_fit)[covariate_names],
+        sqrt(var(coef(gam_fit)[covariate_names]))
+      )),
+      etas = as.array(rnorm(
+        length(initial_etas),
+        initial_etas,
+        sqrt(var(initial_etas))
+      )),
+      w = as.array(rnorm(nrow(w_df), w_df[["value"]]))
+    )
     return(rc)
   })
 
@@ -753,7 +846,7 @@ stan_data <- list(
     "_R"
   )]]))), ind_full = as.array(which(!is.na(observation_data[[cases_column]]))),
   ind_left = as.array(which(!is.na(observation_data[[paste0(cases_column, "_L")]]))),
-  T = cast_to_int32(max(observation_temporal_location_mapping[["t"]])), y = as.array(pmax(pmin(observation_data[[cases_column]],
+  T = cast_to_int32(max(observation_temporal_location_mapping[["updated_t"]])), y = as.array(pmax(pmin(observation_data[[cases_column]],
     observation_data[[paste0(cases_column, "_R")]],
     na.rm = TRUE
   ), observation_data[[paste0(
@@ -776,6 +869,10 @@ stan_data <- list(
     cases_column,
     "_L"
   )]])) + sum(!is.na(observation_data[[paste0(cases_column, "_R")]])))),
+  do_time_slice_effect = config[["stan"]][["do_time_slice"]][["perform"]],
+  do_time_slice_effect_autocor = config[["stan"]][["do_time_slice"]][["autocorrelated_prior"]],
+  has_data_year = has_data_year,
+  mat_grid_time = mat_grid_time,
   debug = FALSE
 )
 
@@ -804,7 +901,7 @@ cmdstan_fit <- chol_model$sample(
   seed = 1234, data = stan_data, chains = config[["stan"]][["nchain"]],
   parallel_chains = config[["stan"]][["ncores"]], iter_warmup = config[["stan"]][["niter"]] / 2,
   iter_sampling = config[["stan"]][["niter"]] / 2, max_treedepth = 15, init = initial_values_list,
-  sig_figs = 14, save_warmup = F, refresh = config[["stan"]][["niter"]] * 0.01
+  sig_figs = 14, save_warmup = F, refresh = max(1, floor(config[["stan"]][["niter"]] * 0.01))
 )
 end_time <- Sys.time()
 

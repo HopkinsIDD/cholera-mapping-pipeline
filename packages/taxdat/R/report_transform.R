@@ -74,7 +74,7 @@ aggregate_to_location_period <- function(sf_object, aggregation_function, groupi
     sf::st_as_sf() %>%
     return()
 }
-#' @export
+
 #' @name aggregate_observed_polygon_cases_disjoint_no_cache
 #' @title aggregate_observed_polygon_cases_disjoint_no_cache
 #' @description get observed cases by polygon (location periods)
@@ -97,7 +97,6 @@ aggregate_observed_polygon_cases_disjoint <- cache_fun_results(
   aggregate_observed_polygon_cases_disjoint_no_cache
 )
 
-#' @export
 #' @name aggregate_observed_polygon_cases_disjoint_aggregated_no_cache
 #' @title aggregate_observed_polygon_cases_disjoint_aggregated_no_cache
 #' @description get modeled cases mean by polygon (location periods)
@@ -130,8 +129,6 @@ aggregate_observed_polygon_cases_disjoint_aggregated <- cache_fun_results(
   aggregate_observed_polygon_cases_disjoint_aggregated_no_cache
 )
 
-
-#' @export
 #' @name aggregate_observed_polygon_cases_disjoint_counted_no_cache
 #' @title aggregate_observed_polygon_cases_disjoint_counted_no_cache
 #' @description get modeled cases mean by polygon (location periods)
@@ -164,7 +161,6 @@ aggregate_observed_polygon_cases_disjoint_counted <- cache_fun_results(
   aggregate_observed_polygon_cases_disjoint_counted_no_cache
 )
 
-#' @export
 #' @name aggregate_covar_cube_covariates_no_cache
 #' @title aggregate_covar_cube_covariates_no_cache
 #' @description get modeled cases mean by polygon (location periods)
@@ -192,4 +188,120 @@ aggregate_covar_cube_covariates_no_cache <- function(config, cache, cholera_dire
 aggregate_covar_cube_covariates <- cache_fun_results(
   "covar_cube_covariates_aggregated",
   aggregate_covar_cube_covariates_no_cache
+)
+
+#' @name disaggregate_grid_cases_mean_no_cache
+#' @title disaggregate_grid_cases_mean_no_cache
+#' @description get modeled cases mean by polygon (location periods)
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
+#' @return modeled cases disaggregated to minimal grid scale
+disaggregate_grid_cases_mean_no_cache <- function(config, cache, cholera_directory) {
+  get_minimal_grid_population(config = config, cache = cache, cholera_directory = cholera_directory)
+  get_mean_rates_sf(config = config, cache = cache, cholera_directory = cholera_directory)
+
+  rc <- list()
+  counter <- 1
+  for (this_t in unique(cache[["mean_rates_sf"]]$t)) {
+    local_mean_rates_sf <- cache[["mean_rates_sf"]] %>% dplyr::filter(t == this_t)
+    for (pop_tile_idx in which(cache[["minimal_grid_population"]]$t == this_t)) {
+      this_pop <- cache[["minimal_grid_population"]][["rast"]][[pop_tile_idx]]
+      this_rates <- stars::st_rasterize(local_mean_rates_sf, template = this_pop)
+      rc[[counter]] <- (this_rates * this_pop) %>%
+        sf::st_as_sf() %>%
+        dplyr::rename(cases = rates) %>%
+        dplyr::mutate(t = this_t) %>%
+        sf::st_as_sf()
+      counter <- counter + 1
+    }
+  }
+  return(do.call(what = rbind, rc))
+}
+
+#' @export
+#' @name disaggregate_grid_cases_mean
+disaggregate_grid_cases_mean <- cache_fun_results(
+  "grid_cases_mean_disaggregated",
+  disaggregate_grid_cases_mean_no_cache
+)
+
+#' @export
+#' @name aggregate_stan_array
+#' @title aggregate_stan_array
+#' @description get modeled cases mean by polygon (location periods)
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
+#' @return modeled cases disaggregated to minimal grid scale
+aggregate_stan_array <- function(stan_array, aggregation_function, facet_by_chain = FALSE, ...) {
+  if (!"draws_array" %in% class(stan_array)) {
+    stop("This function operates on stan draws arrays")
+  }
+
+  dims_to_facet <- seq_len(length(dim(stan_array)))[-1]
+  if (!facet_by_chain) {
+    dims_to_facet <- dims_to_facet[-1]
+  }
+
+  return(apply(X = stan_array, MARGIN = dims_to_facet, FUN = aggregation_function, ...))
+}
+
+#' @name aggregate_grid_cases_mean_no_cache
+#' @title aggregate_grid_cases_mean_no_cache
+#' @description get modeled cases mean by polygon (location periods)
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
+#' @return modeled cases disaggregated to minimal grid scale
+aggregate_grid_cases_mean_no_cache <- function(config, cache, cholera_directory) {
+  get_grid_cases(config = config, cache = cache, cholera_directory = cholera_directory)
+  aggregate_stan_array(
+    cache[["grid_cases"]],
+    aggregation_function = mean,
+    facet_by_chain = FALSE,
+    na.rm = FALSE
+  )
+}
+
+#' @export
+#' @name aggregate_grid_cases_mean
+aggregate_grid_cases_mean <- cache_fun_results(
+  "grid_cases_mean",
+  aggregate_grid_cases_mean_no_cache
+)
+
+#' @name aggregate_modeled_cases_mean_by_chain_no_cache
+#' @title aggregate_modeled_cases_mean_by_chain_no_cache
+#' @description get modeled cases mean by polygon (location periods)
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
+#' @return modeled cases disaggregated to minimal grid scale
+aggregate_modeled_cases_mean_by_chain_no_cache <- function(config, cache, cholera_directory) {
+  get_modeled_cases(config = config, cache = cache, cholera_directory = cholera_directory)
+  get_config(config = config, cache = cache, cholera_directory = cholera_directory)
+  aggregate_stan_array(
+    cache[["modeled_cases"]],
+    aggregation_function = mean,
+    facet_by_chain = TRUE,
+    na.rm = FALSE
+  ) %>%
+    t() %>%
+    as.data.frame() %>%
+    tibble::rownames_to_column() %>%
+    dplyr::mutate(updated_observation_id = gsub("modeled_cases\\[", "", gsub("]", "", rowname))) %>%
+    tidyr::pivot_longer(
+      names_to = "chain",
+      values_to = "modeled_cases",
+      cols = as.character(seq_len(cache[["config"]][["stan"]][["nchain"]]))
+    ) %>%
+    dplyr::select(updated_observation_id, chain, modeled_cases)
+}
+
+#' @export
+#' @name aggregate_modeled_cases_mean_by_chain
+aggregate_modeled_cases_mean_by_chain <- cache_fun_results(
+  "modeled_cases_mean_by_chain",
+  aggregate_modeled_cases_mean_by_chain_no_cache
 )

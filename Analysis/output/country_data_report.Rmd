@@ -71,26 +71,6 @@ cache<-new.env()
 
 ## Cholera input data
 
-### GAM Input
-**Observations input for the GAM model:**
-```{r gam input of cases,fig.height=5, fig.width=10, fig.cap=capFig("Observations input for the GAM model (cases)")}
-taxdat::plot_gam_fit_input_cases(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-```
-
-```{r gam input of rates,fig.height=5, fig.width=10, fig.cap=capFig("Observations input of the GAM model (rates)")}
-taxdat::plot_gam_fit_input_rates(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-```
-
-### GAM Output
-**Observations output of the GAM model:**
-```{r gam output of cases,fig.height=5, fig.width=10, fig.cap=capFig("Observations output for the GAM model (cases)")}
-taxdat::plot_gam_fit_output_cases(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-```
-
-```{r gam output of rates,fig.height=5, fig.width=10, fig.cap=capFig("Observations output for the GAM model (rates)")}
-taxdat::plot_gam_fit_output_rates(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-```
-
 **Table 1. Data used within the model:**
 ```{r echo = FALSE}
 taxdat::table_observation_summary(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
@@ -120,6 +100,7 @@ taxdat::plot_area_adjusted_observed_cases(config=params$config,cache=cache,chole
 ```{r obsmap, fig.height=5, fig.width=10, fig.cap=capFig("Number of observations by unique observed location periods.")}
 taxdat::plot_raw_observations(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
 ```
+
 ### Covariates
 
 #### Population
@@ -140,28 +121,29 @@ warning("Removed this plot for now")
 taxdat::plot_raster_covariates(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
 ```
 
-### Output maps
-```{r analysisyears}
-# taxdat::get_obs_year(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-# taxdat::get_elapsed_time(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
+### GAM Input
+**Observations input for the GAM model:**
+```{r gam input of cases,fig.height=5, fig.width=10, fig.cap=capFig("Observations input for the GAM model (cases)")}
+taxdat::plot_gam_fit_input_cases(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
+```{r gam input of rates,fig.height=5, fig.width=10, fig.cap=capFig("Observations input of the GAM model (rates)")}
+taxdat::plot_gam_fit_input_rates(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
+```
+
+### GAM Output
+**Observations output of the GAM model:**
+```{r gam output of cases,fig.height=5, fig.width=10, fig.cap=capFig("Observations output for the GAM model (cases)")}
+taxdat::plot_gam_fit_output_cases(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
+```
+
+```{r gam output of rates,fig.height=5, fig.width=10, fig.cap=capFig("Observations output for the GAM model (rates)")}
+taxdat::plot_gam_fit_output_rates(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
+```
+
+### Output maps
 
 ```{r importcase}
-# cache[["case_raster"]] <-get_case_raster(cache=cache,config=config,cholera_directory=cholera_directory)
-# cache[["disaggregated_rate_sf"]]<-get_disaggregated_rates_sf(
-#                                                 cache=cache,config=params$config,
-#                                                 cholera_directory=params$cholera_directory)
-#
-# cache[["disaggregated_case_sf"]]<-get_disaggregated_cases_sf (
-#                                                 cache=cache,config=params$config,
-#                                                 cholera_directory=params$cholera_directory)
-#
-# config_file<-yaml::read_yaml(paste0(params$cholera_directory,params$config))
-# analysis_years <- lubridate::year(config_file$start_time):lubridate::year(config_file$end_time)
-# obs_years <- min(lubridate::year(cache[["sf_cases_resized"]]$TL)):max(lubridate::year(cache[["sf_cases_resized"]]$TR))
-
-
 get_dropped_years(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 if(length(cache[["dropped_years"]]) == 0){
   message("All modeled years are represented by OCs.")
@@ -177,69 +159,81 @@ if(length(cache[["dropped_years"]]) == 0){
 #### Modeled cases
 **Modeled cases raster by time slices:**
 ```{r caserast, fig.cap=capFig("Modeled cases"), fig.height=5, fig.width=10}
-plot_disaggregated_modeled_cases_time_varying(disaggregated_case_sf=cache[["disaggregated_case_sf"]])
+plot_disaggregated_modeled_cases_time_varying(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
 **Table 4. Modeled cases by admin level and time:**
 ```{r echo = FALSE}
-plot_cases_by_admin(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
+warning("Skipping this one for now, since it should be done via sfrac")
+# table_cases_by_admin(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 ```
 
 #### Modeled incidence rates
 **Modeled incidence rates raster by time slices:**
 ```{r raterast, fig.cap=capFig("Modeled rates by time"), fig.height=5, fig.width=10}
-plot_modeled_rates_time_varying(disaggregated_rate_sf=cache[["disaggregated_rate_sf"]], render = T)
+plot_modeled_rates_time_varying(
+  config = params$config,
+  cache = cache,
+  cholera_directory = params$cholera_directory
+)
 ```
 
 **Table 5. Modeled population-weighted incidence rates by admin level and time:**
 ```{r echo = FALSE}
-plot_incidence_by_admin(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
+warning("Skipping this one since it should be done via sfrac")
+# plot_incidence_by_admin(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 ```
 
 ### Validation
-```{r import_modelfidel}
-cache[["data_fidelity"]]<-get_data_fidelity(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
-```
 
 **Actual observations versus modeled cases scatter plot:**
 ```{r datafidelity1, fig.cap=capFig("Observations vs. modeled cases"), fig.height=10, fig.width=10}
-plot_model_fidelity_tfrac_adjusted(data_fidelity = cache[["data_fidelity"]],case_raster = cache[["case_raster"]],render = T)
+plot_model_fidelity_tfrac_adjusted(
+  config = params$config,
+  cache = cache,
+  cholera_directory = params$cholera_directory
+)
 ```
 
 ```{r datafidelity3, fig.cap=capFig("Observations vs. modeled cases (tfrac adjusted)"), fig.height=15, fig.width=10}
-plot_model_fidelity_tfrac_adjusted_by_year(data_fidelity = cache[["data_fidelity"]],case_raster = cache[["case_raster"]],render = T)
+warning("Took this one out because it's a bit harder and I was rushing")
+# plot_model_fidelity_tfrac_adjusted_by_year(data_fidelity = cache[["data_fidelity"]],case_raster = cache[["case_raster"]],render = T)
 ```
 
 ```{r datafidelity4, fig.cap=capFig("Observations vs. modeled cases"), fig.height=8, fig.width=10}
-plot_model_fidelity_tfrac_unadjusted(data_fidelity = cache[["data_fidelity"]],case_raster = cache[["case_raster"]],render = T)
+warning("Took this one out because it was identical to the adjusted figure. Must be missing something")
+# plot_model_fidelity_tfrac_unadjusted(data_fidelity = cache[["data_fidelity"]],case_raster = cache[["case_raster"]],render = T)
 ```
 
 **Stan trace plots:**
 ```{r traceplots, fig.height=8, fig.width=10, fig.cap=capFig("Stan trace plots")}
-plot_chain_convergence(cache=cache,name="model.rand")
+taxdat::plot_stan_parameter_traceplot(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
 **Parameter posteriors:**
 ```{r params, fig.height=6, fig.width=6, fig.cap=capFig("Parameter posteriors")}
-plot_MCMCpars(name="model.rand",cache=cache)
+taxdat::plot_stan_parameter_violin(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
 **Gelman-Rubin Rhat:**
 ```{r rhat, fig.height=5, fig.width=10, fig.cap=capFig("Gelman-Rubin Rhat")}
-plot_Rhat(name="model.rand",cache)
+plot_rhat(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
 **Table 6. Observed and estimates of WHO annual cholera reports:**
 ```{r WHO output, fig.height=510, fig.width=10, fig.cap = "comparison with WHO Output"}
-plot_WHOcomparison_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
+warning("Skipping this figure for now since I'm not sure what it means for new pipeline")
+# plot_WHOcomparison_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
 
 **Table 7. Estimated cases by chain and time slice:**
 ```{r cases_chain_table, fig.width=10, fig.cap = "Sum of grid cases by chain and year"}
-plot_modeled_cases_by_chain_time (config=params$config, cache=cache, cholera_directory=params$cholera_directory)
+warning("Coming back to this later")
+# plot_modeled_cases_by_chain_time (config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
 
 ```{r full country modeled cases, fig.cap = "comparison with WHO Output"}
-  total_cases <- cache[["modeled_cases"]] %>% apply(3, mean) %>% sum()
+  warning("This is a weird thing to print")
+  total_cases <- sum(cache[["grid_cases_mean"]])
   print(paste("There are",format(round(total_cases), big.mark=","),"total cases"))
 ```

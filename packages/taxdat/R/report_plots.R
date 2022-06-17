@@ -26,6 +26,51 @@ plot_sf_with_fill <- function(cache, name, color_scale_type, fill_column, facet_
 }
 
 #' @export
+#' @name plot_model_fidelity
+#' @title plot_model_fidelity
+#' @description add
+#' @param data_fidelity data_fidelity object
+#' @param render default is TRUE
+#' @return ggplot object with modeled vs actual cases by observation
+plot_model_fidelity <- function(cache,
+                                name,
+                                tfrac_function = function(x, tfrac) {
+                                  return(x)
+                                },
+                                inv_tfrac_function = function(x, tfrac) {
+                                  return(x)
+                                },
+                                scale = "sqrt") {
+  max_value <-
+    cache[[name]] %>%
+    dplyr::mutate(
+      modeled_cases = inv_tfrac_function(modeled_cases, tfrac),
+      observed_cases = tfrac_function(observed_cases, tfrac)
+    ) %>%
+    summarize(max_value = max(c(observed_cases, modeled_cases))) %>%
+    .$max_value
+
+  plt <- cache[[name]] %>%
+    dplyr::mutate(
+      modeled_cases = inv_tfrac_function(modeled_cases, tfrac),
+      observed_cases = tfrac_function(observed_cases, tfrac)
+    ) %>%
+    ggplot() +
+    ggplot2::geom_point(ggplot2::aes(y = modeled_cases, x = observed_cases, col = chain)) +
+    ggplot2::geom_abline(intercept = 0, slope = 1) +
+    ggplot2::coord_fixed(ratio = 1, xlim = c(1, max_value), ylim = c(1, max_value)) +
+    taxdat::plot_theme() +
+    ggplot2::facet_wrap(~censored)
+  if (scale == "sqrt") {
+    plt <- plt + scale_x_sqrt() + scale_y_sqrt()
+  } else if (scale == "log") {
+    plt <- plt + scale_x_log10() + scale_y_log10()
+  }
+  return(plt)
+}
+
+
+#' @export
 #' @name plot_gam_fit_input_cases
 #' @title plot_gam_fit_input_cases
 #' @description plot the rasters with gam fitted input cases
@@ -175,6 +220,12 @@ plot_time_varying_pop_raster <- function(config, cache, cholera_directory) {
 #' @return ggplot object with covariate raster
 plot_raster_covariates <- function(config, cache, cholera_directory) {
   warning("This function needs to be changed to get the standardization in")
+
+  get_config(config = config, cache = cache, cholera_directory = cholera_directory)
+  if (length(cache[["config"]][["general"]][["covariates"]]) == 0) {
+    return(invisible(NULL))
+  }
+
   aggregate_covar_cube_covariates(config = config, cache = cache, cholera_directory = cholera_directory)
 
   return(plot_sf_with_fill(cache, "covar_cube_covariates_aggregated", color_scale_type = "covariate", fill_column = "value", facet_column = "name", geometry_column = "geom"))
@@ -190,34 +241,96 @@ plot_raster_covariates <- function(config, cache, cholera_directory) {
 #' @return ggplot object with modeled cases map
 plot_disaggregated_modeled_cases_time_varying <- function(config, cache, cholera_directory) {
   get_boundary_polygon(config = config, cache = cache, cholera_directory = cholera_directory)
+  disaggregate_grid_cases_mean(config = config, cache = cache, cholera_directory = cholera_directory)
 
-  boundary <- get[["config"]][["general"]][["location_name"]]
+  plot <- plot_sf_with_fill(
+    cache = cache, name = "grid_cases_mean_disaggregated",
+    color_scale_type = "cases", fill_column = "cases", facet_column = "t", geometry_column = "geometry"
+  ) +
+    ggplot2::geom_sf(data = cache[["boundary_polygon"]], fill = NA, color = "black", size = 0.05)
 
-  if (as.character(stringr::str_extract(params$config, "[A-Z]{3}")) == "ZNZ") {
-    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in%
-      c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
-  } else {
-    boundary_sf <- rgeoboundaries::gb_adm0(as.character(stringr::str_extract(params$config, "[A-Z]{3}")))
-  }
+  return(plot)
+}
 
-  plt <- ggplot2::ggplot()
-  plt <- ggplot2::ggplot() +
-    ggplot2::geom_sf(
-      data = disaggregated_case_sf,
-      ggplot2::aes(fill = value), color = NA, size = 0.00001
-    ) +
-    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = TRUE) +
-    ggplot2::geom_sf(data = boundary_sf, fill = NA, color = "black", size = 0.05) +
-    ggplot2::labs(fill = "Incidence\n [cases/year]") +
-    ggplot2::theme_bw() +
-    ggplot2::theme(legend.position = "bottom") +
-    ggplot2::theme(legend.text = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1)) +
-    ggplot2::facet_wrap(~t, ncol = length(unique(disaggregated_case_sf$t)))
+#' @export
+#' @name plot_disaggregated_modeled_cases_time_varying
+#' @title plot_disaggregated_modeled_cases_time_varying
+#' @description add
+#' @param config File path to the config
+#' @param cache the cache environment
+#' @param cholera_directory Directory of cholera-mapping-pipeline
+#' @return ggplot object with modeled cases map
+plot_modeled_rates_time_varying <- function(config, cache, cholera_directory) {
+  get_boundary_polygon(config = config, cache = cache, cholera_directory = cholera_directory)
+  aggregate_grid_cases_mean(config = config, cache = cache, cholera_directory = cholera_directory)
 
-  if (!is.null(plot_file)) {
-    ggplot2::ggsave(plt, plot_file, width = width, heigth = height)
-  }
-  if (render) {
-    plt
-  }
+  plot <- plot_sf_with_fill(
+    cache = cache, name = "mean_rates_sf",
+    color_scale_type = "rates", fill_column = "rates", facet_column = "t", geometry_column = "geometry"
+  ) +
+    ggplot2::geom_sf(data = cache[["boundary_polygon"]], fill = NA, color = "black", size = 0.05)
+
+  return(plot)
+}
+
+#' @export
+plot_model_fidelity_tfrac_adjusted <- function(config, cache, cholera_directory) {
+  get_data_fidelity_df(config = config, cache = cache, cholera_directory = cholera_directory)
+  return(plot_model_fidelity(cache, "data_fidelity_df", scale = "fixed"))
+}
+
+#' @export
+plot_model_fidelity_tfrac_unadjusted <- function(config, cache, cholera_directory) {
+  get_data_fidelity_df(config = config, cache = cache, cholera_directory = cholera_directory)
+  return(plot_model_fidelity(cache, "data_fidelity_df", scale = "fixed"))
+}
+
+#' @export
+plot_stan_parameter_traceplot <- function(config, cache, cholera_directory) {
+  get_stan_parameters_of_interest(config = config, cache = cache, cholera_directory = cholera_directory)
+  get_stan_parameter_draws(config = config, cache = cache, cholera_directory = cholera_directory)
+
+  plt <- cache$stan_parameter_draws %>%
+    reshape2::melt() %>%
+    dplyr::mutate(chain = as.factor(chain)) %>%
+    ggplot2::ggplot() +
+    ggplot2::geom_line(ggplot2::aes(x = iteration, y = value, col = chain, group = chain)) +
+    ggplot2::facet_wrap(~variable, scales = "free") +
+    taxdat::plot_theme()
+  return(plt)
+}
+
+#' @export
+plot_stan_parameter_violin <- function(config, cache, cholera_directory) {
+  get_stan_parameters_of_interest(config = config, cache = cache, cholera_directory = cholera_directory)
+  get_stan_parameter_draws(config = config, cache = cache, cholera_directory = cholera_directory)
+
+  plt <- cache$stan_parameter_draws %>%
+    reshape2::melt() %>%
+    dplyr::mutate(chain = as.factor(chain)) %>%
+    ggplot2::ggplot() +
+    ggplot2::geom_violin(ggplot2::aes(x = variable, y = value)) +
+    # ggplot2::facet_wrap(~variable, scales = "free") +
+    taxdat::plot_theme()
+  return(plt)
+}
+
+#' @export
+plot_rhat <- function(config, cache, cholera_directory) {
+  get_cmdstan_fit(config = config, cache = cache, cholera_directory = cholera_directory)
+  get_rhat_threshold(config = config, cache = cache, cholera_directory = cholera_directory)
+  percent_above <- cache$cmdstan_fit$summary(variables = "modeled_cases", "rhat") %>%
+    dplyr::summarize(percent_above = mean(rhat > cache[["rhat_threshold"]]))
+
+  plt <- cache$cmdstan_fit$summary(variables = "modeled_cases", "rhat") %>%
+    dplyr::mutate(variable = as.numeric(gsub("^modeled_cases.", "", gsub("]$", "", variable)))) %>%
+    ggplot() +
+    ggplot2::geom_point(ggplot2::aes(x = variable, y = rhat)) +
+    scale_y_continuous(trans = "log10") +
+    ggplot2::xlab("Observation") +
+    ggplot2::ggtitle(glue::glue("Fraction above threshold: {format(round(percent_above*100, 2))}%")) +
+    ggplot2::geom_hline(yintercept = cache[["rhat_threshold"]], col = "red") +
+    taxdat::plot_theme()
+
+  return(plt)
 }

@@ -583,8 +583,8 @@ create or replace function pull_observation_data(location_name text, start_date 
 
 create_pull_location_period_grid_map_function <- function(psql_connection) {
   # TODO This function needs work
-  function_query <- "
-create or replace function pull_location_period_grid_map(location_name text, start_date date, end_date date, width_in_km int, height_in_km int, time_scale text)
+  function_query_boundary <- "
+create or replace function pull_location_period_grid_map_boundary(location_name text, start_date date, end_date date, width_in_km int, height_in_km int, time_scale text)
 RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint, shape_id bigint, spatial_grid_id bigint, rid int, x int, y int, t bigint, sfrac double precision) AS $$
   SELECT
     location_periods.qualified_name as qualified_name,
@@ -596,9 +596,49 @@ RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint
     spatial_grid.x,
     spatial_grid.y,
     temporal_grid.id as t,
-    CASE WHEN shape_resized_spatial_grid_populations.intersection_population IS NOT NULL THEN shape_resized_spatial_grid_populations.intersection_population / shape_resized_spatial_grid_populations.grid_population
-         WHEN shape_resized_spatial_grid_populations.intersection_population IS NULL THEN 1
-    END as sfrac
+    shape_resized_spatial_grid_populations.intersection_population / shape_resized_spatial_grid_populations.grid_population
+  FROM
+    filter_location_periods(location_name) as location_periods
+  LEFT JOIN
+    shapes
+      on
+        location_periods.location_period_id = shapes.location_period_id
+  LEFT JOIN
+    shape_resized_spatial_grid_populations
+      on
+        shapes.id = shape_resized_spatial_grid_populations.shape_id
+  LEFT JOIN
+    grids.resized_spatial_grid_pixels as spatial_grid
+      ON
+        shape_resized_spatial_grid_populations.grid_id = spatial_grid.id
+  FULL JOIN
+    resize_temporal_grid(time_scale) as temporal_grid
+      ON
+        (temporal_grid.time_midpoint >= shape_resized_spatial_grid_populations.time_left) AND (temporal_grid.time_midpoint <= shape_resized_spatial_grid_populations.time_right)
+  WHERE
+    temporal_grid.time_midpoint <= end_date
+    AND temporal_grid.time_midpoint >= start_date
+    AND spatial_grid.width = width_in_km
+    AND spatial_grid.height = height_in_km
+    AND (shape_resized_spatial_grid_populations.intersection_population IS NOT NULL)
+    AND (shape_resized_spatial_grid_populations.grid_population > 0)
+  $$ LANGUAGE SQL;
+"
+
+  function_query_interior <- "
+create or replace function pull_location_period_grid_map_interior(location_name text, start_date date, end_date date, width_in_km int, height_in_km int, time_scale text)
+RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint, shape_id bigint, spatial_grid_id bigint, rid int, x int, y int, t bigint, sfrac double precision) AS $$
+  SELECT
+    location_periods.qualified_name as qualified_name,
+    location_periods.location_id as location_id,
+    location_periods.location_period_id as location_period_id,
+    shapes.id as shape_id,
+    spatial_grid.id as spatial_grid_id,
+    spatial_grid.rid,
+    spatial_grid.x,
+    spatial_grid.y,
+    temporal_grid.id as t,
+    1.::double precision as sfrac
   FROM
     filter_location_periods(location_name) as location_periods
   LEFT JOIN
@@ -608,32 +648,36 @@ RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint
   LEFT JOIN
     grids.resized_spatial_grid_pixels as spatial_grid
       ON
-        st_intersects(shapes.shape, spatial_grid.centroid)
-  LEFT JOIN
-    shape_resized_spatial_grid_populations
-      ON
-        shape_resized_spatial_grid_populations.shape_id = shapes.id
-        AND shape_resized_spatial_grid_populations.grid_id = spatial_grid.id
+        st_intersects(shapes.shape,spatial_grid.centroid)
   FULL JOIN
     resize_temporal_grid(time_scale) as temporal_grid
       ON
-        (
-          shape_resized_spatial_grid_populations.time_left <= temporal_grid.time_midpoint AND
-          shape_resized_spatial_grid_populations.time_right >= temporal_grid.time_midpoint
-        ) OR
-        shape_resized_spatial_grid_populations.grid_id is NULL
+        1=1
   WHERE
-    spatial_grid.width = width_in_km AND
-    spatial_grid.height = height_in_km AND
-    temporal_grid.time_midpoint <= end_date AND
-    temporal_grid.time_midpoint >= start_date AND
-    (
-      (shape_resized_spatial_grid_populations.grid_population >= 1) OR
-      (shape_resized_spatial_grid_populations.intersection_population IS NULL)
-    )
+    temporal_grid.time_midpoint <= end_date
+    AND temporal_grid.time_midpoint >= start_date
+    AND spatial_grid.width = width_in_km
+    AND spatial_grid.height = height_in_km
   $$ LANGUAGE SQL;
 "
 
+  function_query <- "
+create or replace function pull_location_period_grid_map(location_name text, start_date date, end_date date, width_in_km int, height_in_km int, time_scale text)
+RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint, shape_id bigint, spatial_grid_id bigint, rid int, x int, y int, t bigint, sfrac double precision) AS $$
+SELECT
+  qualified_name, location_id, location_period_id, shape_id, spatial_grid_id, rid, x, y, t, min(sfrac)
+FROM (
+  SELECT * FROM pull_location_period_grid_map_interior(location_name, start_date, end_date, width_in_km, height_in_km, time_scale)
+    UNION ALL
+  SELECT * FROM pull_location_period_grid_map_boundary(location_name, start_date, end_date, width_in_km, height_in_km, time_scale)
+) AS tmp
+GROUP BY
+  qualified_name, location_id, location_period_id, shape_id, spatial_grid_id, rid, x, y, t
+;
+  $$ LANGUAGE SQL;
+"
+  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query_interior))
+  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query_boundary))
   DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
   invisible(NULL)
 }
