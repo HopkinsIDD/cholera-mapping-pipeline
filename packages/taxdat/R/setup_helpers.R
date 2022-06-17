@@ -491,6 +491,49 @@ config_checks[["stan"]][["sigma_eta_scale"]] <- function(value, config) {
   }
   return(TRUE)
 }
+config_checks[["stan"]][["do_time_slice"]] <- list()
+config_checks[["stan"]][["do_time_slice"]][["perform"]] <- function(value, config) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['do_time_slice']][['perform']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['do_time_slice']][['perform']] is NA")
+    return(FALSE)
+  }
+  if (!is.logical(value)) {
+    warning(
+      "config[['stan']][['do_time_slice']][['perform']] should be logical, but is",
+      value
+    )
+    return(FALSE)
+  }
+  return(TRUE)
+}
+config_checks[["stan"]][["do_time_slice"]][["autocorrelated_prior"]] <- function(value, config) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['do_time_slice']][['autocorrelated_prior']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['do_time_slice']][['autocorrelated_prior']] is NA")
+    return(FALSE)
+  }
+  if (!is.logical(value)) {
+    warning(
+      "config[['stan']][['do_time_slice']][['autocorrelated_prior']] should be logical, but is",
+      value
+    )
+    return(FALSE)
+  }
+  return(TRUE)
+}
 config_checks[["stan"]][["model"]] <- function(value, config) {
   if (length(value) != 1) {
     warning(paste(
@@ -1051,6 +1094,13 @@ config_defaults[["stan"]][["beta_sigma_scale"]] <- function(config) {
 }
 config_defaults[["stan"]][["sigma_eta_scale"]] <- function(config) {
   return(5)
+}
+config_defaults[["stan"]][["do_time_slice"]] <- list()
+config_defaults[["stan"]][["do_time_slice"]][["perform"]] <- function(config) {
+  return(TRUE)
+}
+config_defaults[["stan"]][["do_time_slice"]][["autocorrelated_prior"]] <- function(config) {
+  return(FALSE)
 }
 
 config_defaults[["generated"]] <- list()

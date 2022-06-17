@@ -51,6 +51,10 @@ data {
   // Options
   // Censoring of cases with tfracs bellow threshold
   int<lower=0, upper=1> do_censoring;
+  // Random effect for each time slice
+  int<lower=0, upper=1> do_time_slice_effect;
+  // Autocorrelation between time slice random effects
+  int<lower=0, upper=1> do_time_slice_effect_autocor;
   // Weight likelihoods by expected number of cases
   int<lower=0, upper=1> use_weights;
   // Prior for high values of rho
@@ -58,6 +62,8 @@ data {
 
   // If time slice effect pass indicator function for years without data
   int debug;
+  vector<lower=0, upper=1>[N*do_time_slice_effect] has_data_year;
+  matrix[N*do_time_slice_effect + 2 * (do_time_slice_effect != 1), T*do_time_slice_effect + 2*(do_time_slice_effect != 1)] mat_grid_time; // The time side of the mapping from locations/times to grid (2x2 in case of missing just so it's easy to create)
 }
 
 transformed data {
@@ -101,6 +107,8 @@ parameters {
 
   vector[smooth_grid_N] w; // Spatial Random Effect
 
+  vector[T*do_time_slice_effect] eta_tilde; // yearly random effects
+  real <lower=0> sigma_eta_tilde[do_time_slice_effect];
 
   // Covariate stuff
   vector[ncovar] betas;
@@ -108,6 +116,7 @@ parameters {
 
 transformed parameters {
 
+  vector[T*do_time_slice_effect] eta; // yearly random effects
   real<lower=0> modeled_cases[M]; //expected number of cases for each observation
   real<lower=0> std_dev_w;
   vector[N] grid_cases; //cases modeled in each gridcell and time point.
@@ -116,7 +125,12 @@ transformed parameters {
     vector[L] location_cases; //cases modeled in each (temporal) location.
     vector[N] log_lambda; //local log rate
 
-    // real w_sum;
+    if (do_time_slice_effect == 1) {
+      for(i in 1:T) {
+        // scale yearly random effects
+        eta[i] = sigma_eta_scale * sigma_eta_tilde[1] * eta_tilde[i];
+      }
+    }
 
     std_dev_w = exp(log_std_dev_w);
 
@@ -140,6 +154,9 @@ transformed parameters {
     }
 
     // Add time slice effects
+    if (do_time_slice_effect == 1) {
+      log_lambda += (mat_grid_time * eta) .* has_data_year;
+    }
 
     grid_cases = exp(log_lambda + logpop);
 
@@ -245,6 +262,28 @@ model {
       print("rho", target());
     }
   }
+
+  if (do_time_slice_effect == 1) {
+    // prior on the time_slice random effects
+    // For the autocorrelated model sigma is the sd of the increments in the random effects
+    sigma_eta_tilde ~ std_normal();
+    
+    if (do_time_slice_effect_autocor == 1) {
+      real tau = 1/(sigma_eta_tilde[1] * sigma_eta_scale)^2; // precision of the increments of the time-slice random effects
+      // Autocorrelation on yearly random effects with 0-sum constraint 
+      // The increments of the time-slice random effects are assumed to have mean 0
+      // and variance 1/tau
+      // Sorbye and Rue (2014) https://doi.org/10.1016/j.spasta.2013.06.004
+      target += (T-1.0)/2.0 * log(tau) - tau/2 * (dot_self(eta[2:T] - eta[1:(T-1)]));
+      sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraint
+    } else {
+      eta_tilde ~ std_normal();
+    }
+    if (debug) {
+      print("etas", target());
+    }
+  }
+
   log_std_dev_w ~ normal(0,1);
   if (debug) {
     print("dagar std", target());

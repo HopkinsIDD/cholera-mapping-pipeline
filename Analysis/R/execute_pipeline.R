@@ -656,6 +656,21 @@ if (config[["processing"]][["reorder_adjacency_matrix"]][["perform"]]) {
 }
 
 
+## Make some things for stan data involving etas
+## NB: this fails: sapply(sort(unique(covar_cube$t)), function(x){x == covar_cube$t})
+if (config[["stan"]][["do_time_slice"]][["perform"]]) {
+  tmp <- as.character(covar_cube$t)
+  tmp2 <- as.character(sort(unique(covar_cube$t)))
+  mat_grid_time <- sapply(tmp2, function(x) {
+    x == tmp
+  })
+  has_data_year <- rep(1, times = nrow(covar_cube))
+} else {
+  mat_grid_time <- matrix(0, 2, 2)
+  has_data_year <- integer(0)
+}
+
+
 
 
 ### Construct some additional parameters based on the above Define relevent
@@ -698,8 +713,12 @@ if (config[["initial_values"]][["warmup"]]) {
     dplyr::summarize(.groups = "drop") %>%
     nrow()
   gam_formula <- taxdat::get_gam_formula(
-    cases_column_name = cases_column, covariate_names = covariate_names,
-    max_knots = number_of_gridcells - 1
+    cases_column_name = cases_column,
+    include_spatial_smoothing = TRUE,
+    include_covariates = length(covariate_names) > 0,
+    covariate_names = covariate_names,
+    max_knots = number_of_gridcells - 1,
+    include_time_slice_effect = config[["stan"]][["do_time_slice"]][["perform"]]
   )
 
   gam_fit <- mgcv::gam(gam_formula, family = "gaussian", data = initial_values_df)
@@ -797,6 +816,10 @@ stan_data <- list(
     cases_column,
     "_L"
   )]])) + sum(!is.na(observation_data[[paste0(cases_column, "_R")]])))),
+  do_time_slice_effect = config[["stan"]][["do_time_slice"]][["perform"]],
+  do_time_slice_effect_autocor = config[["stan"]][["do_time_slice"]][["autocorrelated_prior"]],
+  has_data_year = has_data_year,
+  mat_grid_time = mat_grid_time,
   debug = FALSE
 )
 
@@ -825,7 +848,7 @@ cmdstan_fit <- chol_model$sample(
   seed = 1234, data = stan_data, chains = config[["stan"]][["nchain"]],
   parallel_chains = config[["stan"]][["ncores"]], iter_warmup = config[["stan"]][["niter"]] / 2,
   iter_sampling = config[["stan"]][["niter"]] / 2, max_treedepth = 15, init = initial_values_list,
-  sig_figs = 14, save_warmup = F, refresh = config[["stan"]][["niter"]] * 0.01
+  sig_figs = 14, save_warmup = F, refresh = max(1, floor(config[["stan"]][["niter"]] * 0.01))
 )
 end_time <- Sys.time()
 
