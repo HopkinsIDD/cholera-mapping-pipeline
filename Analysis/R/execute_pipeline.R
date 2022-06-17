@@ -338,6 +338,8 @@ locations.qualified_name = {config[[\"general\"]][[\"location_name\"]]}
 ))[["shape"]]))
 print("Pulled boundary polygon")
 
+
+start_time <- Sys.time()
 minimal_grid_population <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(
   .con = conn_pg,
   "
@@ -346,7 +348,19 @@ SELECT
   temporal_grid.id as t,
   rast
 FROM
+  locations
+INNER JOIN
+  location_periods
+    ON
+      locations.id = location_periods.location_id
+INNER JOIN
+  shapes
+    ON
+      location_periods.id = shapes.location_period_id
+INNER JOIN
   covariates.all_covariates
+    ON
+      st_intersects(shapes.shape, st_envelope(rast))
 INNER JOIN
   resize_temporal_grid({config[[\"general\"]][[\"time_scale\"]]}) as temporal_grid
     ON
@@ -356,13 +370,23 @@ WHERE
   time_midpoint >= {config[[\"general\"]][[\"start_date\"]]}
   AND time_midpoint <= {config[[\"general\"]][[\"end_date\"]]}
   AND covariate_name = 'population'
+  AND locations.qualified_name = {config[[\"general\"]][[\"location_name\"]]}
 "
-)) %>% dplyr::mutate(
+))
+end_time <- Sys.time()
+elapsed_time <- end_time - start_time
+print(paste("SQL Pull for minimal grid population ran in", elapsed_time))
+
+start_time <- Sys.time()
+minimal_grid_population <- minimal_grid_population %>% dplyr::mutate(
   rast = lapply(rast, function(x) {
     class(x) <- "pq_raster"
     stars::st_as_stars(taxdat:::as.raster.pq_raster(x))
   })
 )
+end_time <- Sys.time()
+elapsed_time <- end_time - start_time
+print(paste("conversion for minimal grid population ran in", elapsed_time))
 
 print("Pulled minimal-grid population")
 
