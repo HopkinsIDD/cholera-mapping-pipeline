@@ -108,7 +108,7 @@ stitch_configs(output_cache = comparison_cache, input_caches = list(cache1, cach
 # 2. function that can read in and stitch the needed output for comparison purposes 
 #GAM input and output √
 #table 1 and table 2 √
-#covariate 
+#covariate √
 #table 4 
 #more...(including comparing two configs)
 #needs to change the scale of the figs to original (is it possible?)
@@ -134,6 +134,25 @@ cache2$dropped_data_table <- plot_DroppedData_table(config = params$config2, cac
 
 stitch_used_data_table(output_cache = comparison_cache, input_caches = list(cache1, cache2))
 stitch_dropped_data_table(output_cache = comparison_cache, input_caches = list(cache1, cache2))
+
+## the covariates side by side comparison 
+get_covar_cube(name = "covar_cube", config = params$config1, cache = cache1, cholera_directory = params$cholera_directory)
+get_sf_grid(name = "sf_grid", config = params$config1, cache = cache1, cholera_directory = params$cholera_directory)
+
+get_covar_cube(name = "covar_cube", config = params$config2, cache = cache2, cholera_directory = params$cholera_directory)
+get_sf_grid(name = "sf_grid", config = params$config2, cache = cache2, cholera_directory = params$cholera_directory)
+
+stitch_covar_cube(output_cache = comparison_cache, input_caches = list(cache1, cache2))
+stitch_sf_grid(output_cache = comparison_cache, input_caches = list(cache1, cache2))
+
+## the case raster comparison
+cache1[["disaggregated_case_sf"]] <- get_disaggregated_cases_sf(
+                                                cache = cache1, config = params$config1,
+                                                cholera_directory = params$cholera_directory)
+cache2[["disaggregated_case_sf"]] <- get_disaggregated_cases_sf(
+                                                cache = cache2, config = params$config2,
+                                                cholera_directory = params$cholera_directory)                                                
+stitch_disaggregated_case_sf(output_cache = comparison_cache, input_caches = list(cache1, cache2))
 
 ```
 
@@ -166,10 +185,47 @@ comparison_cache$dropped_data_table
 ```
 
 
+### Covariates
+
+#### Population
+**Population raster by time slices:**
+```{r pop, fig.height=25, fig.width=10, fig.cap=capFig("Population density")}
+plot_time_varying_pop_raster_stitched(cache = comparison_cache, config=params$config1, cholera_directory = params$cholera_directory) #the config can be either one 
+```
+
+#### Other covariates
+**Covariate rasters:**
+```{r covars, fig.height=25, fig.width=10, fig.cap=capFig("Covariate rasters")}
+plot1 <- plot_raster_covariates_sidebyside_comparison(cache = cache1, cholera_directory = params$cholera_directory, config = params$config1)
+plot2 <- plot_raster_covariates_sidebyside_comparison(cache = cache2, cholera_directory = params$cholera_directory, config = params$config2)
+gridExtra::grid.arrange(plot1, plot2, ncol = 2, left = "covariates from config1", right = "covariates from config2")
+rm(plot1, plot2)
+```
+
+#### Modeled cases
+**Modeled cases raster by time slices:**
+```{r caserast, fig.cap=capFig("Modeled cases"), fig.height=25, fig.width=10}
+plot_disaggregated_modeled_cases_time_varying_stitched(disaggregated_case_sf = comparison_cache[["disaggregated_case_sf"]], 
+  country_iso = as.character(stringr::str_extract(params$config1, "[A-Z]{3}")), diff_only = FALSE)
+```
+
+**Cases difference raster by time slices:**
+```{r caserast, fig.cap=capFig("Modeled cases difference"), fig.height=10, fig.width=10}
+plot_disaggregated_modeled_cases_time_varying_stitched(disaggregated_case_sf = comparison_cache[["disaggregated_case_sf"]], 
+  country_iso = as.character(stringr::str_extract(params$config1, "[A-Z]{3}")), diff_only = TRUE)
+```
+
+
 ```{r include=FALSE, message=FALSE}
 # Try looking at the plot
-pdf("/home/kaiyuezou/mapping_pipeline/New_Dev/cholera-mapping-pipeline/Analysis/output/gam_output_rates.pdf", height = 25, width = 10)
+pdf("/home/kaiyuezou/mapping_pipeline/New_Dev/cholera-mapping-pipeline/Analysis/output/case_2X2.pdf", height = 25, width = 10)
+# gridExtra::grid.arrange(plot1, plot2, ncol = 2)
 plot1
+dev.off()
+
+pdf("/home/kaiyuezou/mapping_pipeline/New_Dev/cholera-mapping-pipeline/Analysis/output/case_diff.pdf", height = 25, width = 10)
+# gridExtra::grid.arrange(plot1, plot2, ncol = 2)
+plot2
 dev.off()
 
 ```

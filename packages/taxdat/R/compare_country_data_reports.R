@@ -143,6 +143,160 @@ intersperse_dropped_data_table_as_in_df_no_cache <- function(name = "dropped_dat
 intersperse_dropped_data_table_as_in_df <- cache_fun_results_new(name = "dropped_data_table", fun = intersperse_dropped_data_table_as_in_df_no_cache, cache = output_cache, overwrite = T)
 
 
+stitch_covar_cube <- function(output_cache, input_caches){
+  stitch_caches(
+                name = "covar_cube", 
+                output_cache = output_cache, 
+                input_caches = input_caches,
+                initial_value = list(type = 'first'), 
+                combination_function = overlay_covar_cube_as_in_array
+  )
+
+}
+
+overlay_covar_cube_as_in_array_no_cache <- function(name = "covar_cube", cache, input_cache, ...){
+  array1 <- cache[[paste0(name, "_initialized")]]
+  array2 <- input_cache[[1]][[name]]
+  if(any(dim(array1) != dim(array2))){
+    if(dim(array1)[1] != dim(array2)[1] | dim(array1)[2] != dim(array2)[2]){
+      stop("The covar cube from two runs differ in terms of more than just the number of covariates. ")
+    }
+
+    if(dim(array1)[3] < dim(array2)[3]){
+      NA_array <- array(NA, dim = c( dim(array2)[1], dim(array2)[2], dim(array2)[3] - dim(array1)[3] ))
+      array1 <- abind(array1, NA_array, along = 3)
+    }else{
+      NA_array <- array(NA, dim = c( dim(array1)[1], dim(array1)[2], dim(array1)[3] - dim(array2)[3] ))
+      array2 <- abind(array2, NA_array, along = 3)
+    }
+
+  }
+  array <- abind(array1, array2, along = 1)
+  
+  rm("covar_cube_initialized", envir = cache)
+  return(array)
+}
+#' @export
+#' @name overlay_covar_cube_as_in_array
+overlay_covar_cube_as_in_array <- cache_fun_results_new(name = "covar_cube", fun = overlay_covar_cube_as_in_array_no_cache, cache = output_cache, overwrite = T)
+
+
+stitch_sf_grid <- function(output_cache, input_caches){
+  stitch_caches(
+                name = "sf_grid", 
+                output_cache = output_cache, 
+                input_caches = input_caches,
+                initial_value = list(type = 'first'), 
+                combination_function = stack_sf_grid_as_in_sf
+  )
+
+}
+
+stack_sf_grid_as_in_sf_no_cache <- function(name = "sf_grid", cache, input_cache, ...){
+  sf1 <- cache[[paste0(name, "_initialized")]]
+  sf2 <- input_cache[[1]][[name]]
+  stacked_sf <- rbind(sf1 %>% mutate(stitch_source = 1), sf2 %>% mutate(stitch_source = 2)) 
+  
+  rm("sf_grid_initialized", envir = cache)
+  return(stacked_sf)
+}
+#' @export
+#' @name stack_sf_grid_as_in_sf
+stack_sf_grid_as_in_sf <- cache_fun_results_new(name = "sf_grid", fun = stack_sf_grid_as_in_sf_no_cache, cache = output_cache, overwrite = T)
+
+
+stitch_disaggregated_case_sf <- function(output_cache, input_caches){
+  stitch_caches(
+                name = "disaggregated_case_sf", 
+                output_cache = output_cache, 
+                input_caches = input_caches,
+                initial_value = list(type = 'first'), 
+                combination_function = stack_disaggregated_case_as_in_sf
+  )
+
+}
+
+stack_disaggregated_case_as_in_sf_no_cache <- function(name = "disaggregated_case_sf", cache, input_cache, ...){
+  sf1 <- cache[[paste0(name, "_initialized")]]
+  sf2 <- input_cache[[1]][[name]]
+
+  stacked_sf <- rbind(sf1 %>% mutate(stitch_source = "1"), sf2 %>% mutate(stitch_source = "2"))
+  sf2_nogeo <- sf2 %>% st_drop_geometry() %>% rename(value2 = value)
+  diff_sf <- left_join(sf1, sf2_nogeo, by = c("t", "id")) %>% mutate(value = value - value2, stitch_source = "diff") %>% dplyr::select(- value2)
+  stacked_sf <- rbind(stacked_sf, diff_sf)
+  rm(diff_sf)
+
+  rm("disaggregated_case_sf_initialized", envir = cache)
+  return(stacked_sf)
+}
+#' @export
+#' @name stack_disaggregated_case_as_in_sf
+stack_disaggregated_case_as_in_sf <- cache_fun_results_new(name = "disaggregated_case_sf", fun = stack_disaggregated_case_as_in_sf_no_cache, cache = output_cache, overwrite = T)
+
+
+#' @export
+#' @name plot_disaggregated_modeled_cases_time_varying_stitched
+#' @title plot_disaggregated_modeled_cases_time_varying_stitched
+#' @description add
+#' @param disaggregated_case_sf disaggregated case raster object
+#' @param country_iso the iso code of the country
+#' @param render default is TRUE
+#' @param plot_file default is NULL
+#' @param width plot width
+#' @param height plot height
+#' @param diff_only whether or not plot the diff col only 
+#' @return ggplot object with modeled cases map
+plot_disaggregated_modeled_cases_time_varying_stitched <- function( disaggregated_case_sf,
+                                                                    country_iso, 
+                                                                    render = T,
+                                                                    plot_file = NULL,
+                                                                    width = NULL,
+                                                                    height = NULL, 
+                                                                    diff_only = FALSE){
+
+  if(country_iso == "ZNZ"){
+    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+                                                    c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
+  }else{
+    boundary_sf <- rgeoboundaries::gb_adm0(country_iso)
+  }
+
+  plt <- ggplot2::ggplot()
+  if(!diff_only){
+    plt <-   ggplot2::ggplot() +
+      ggplot2::geom_sf(
+        data = disaggregated_case_sf %>% filter(stitch_source != "diff"),
+        ggplot2::aes(fill = value),color=NA,size=0.00001)+
+      taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = TRUE)+
+      ggplot2::geom_sf(data=boundary_sf,fill=NA,color="black",size=0.05)+
+      ggplot2::labs(fill="Incidence\n [cases/year]")+
+      ggplot2::theme_bw() +
+      ggplot2::theme(legend.position = "bottom") +
+      ggplot2::theme(legend.text =  ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))+
+      ggplot2::facet_wrap(t ~ stitch_source, ncol = 2) 
+  }else{
+    plt <-   ggplot2::ggplot() +
+      ggplot2::geom_sf(
+        data = disaggregated_case_sf %>% filter(stitch_source == "diff"),
+        ggplot2::aes(fill = value),color=NA,size=0.00001)+
+      taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
+      ggplot2::geom_sf(data=boundary_sf,fill=NA,color="black",size=0.05)+
+      ggplot2::labs(fill="Incidence\n [cases/year]")+
+      ggplot2::theme_bw() +
+      ggplot2::theme(legend.position = "bottom") +
+      ggplot2::theme(legend.text =  ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))+
+      ggplot2::facet_wrap(~ t) 
+  }
+
+  if (!is.null(plot_file)) {
+    ggplot2::ggsave(plt, plot_file, width = width , heigth = height)
+  }
+  if(render) {
+    plt
+  }
+}
+
+
 
 
 
