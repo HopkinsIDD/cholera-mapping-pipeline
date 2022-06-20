@@ -112,6 +112,7 @@ parameters {
   
   // Covariate stuff
   vector[ncovar] betas;
+  real alpha;    // intercept of log-lambdas
 }
 
 transformed parameters {
@@ -119,6 +120,7 @@ transformed parameters {
   vector[T*do_time_slice_effect] eta; // yearly random effects
   real<lower=0> modeled_cases[M]; //expected number of cases for each observation
   real<lower=0> std_dev_w;
+  real mean_w = mean(w);;    // this is the mean of the spatial random effect (for diganostic use only)
   
   {
     vector[L] location_cases; //cases modeled in each (temporal) location.
@@ -134,9 +136,8 @@ transformed parameters {
     
     std_dev_w = exp(log_std_dev_w);
     
-    
     // log-rates without time-slice effects
-    log_lambda =  w[map_smooth_grid] + log_meanrate;
+    log_lambda =  w[map_smooth_grid] + log_meanrate + alpha;
     
     // covariates if applicable
     if (ncovar > 1) {
@@ -197,13 +198,17 @@ model {
       t_rowsum[i] = 0;
     }
     for(i in 1:N_edges){
-      t_rowsum[node1[i] ] += w[node2[i] ] * b[ node1[i] ];
+      t_rowsum[node1[i] ] += w[node2[i]] * b[node1[i]];
     }
     
     // NOTE:  no prior on phi_raw, it is used to construct phi
     // the following computes the prior on phi on the unit scale with std_dev = 1
     target += normal_lpdf(w | t_rowsum, std_dev);
   }
+  
+  
+  // Prior on the intercept
+  alpha ~ normal(0, 5);
   
   // prior on regression coefficients
   target += normal_lpdf(betas| 0, beta_sigma_scale);
