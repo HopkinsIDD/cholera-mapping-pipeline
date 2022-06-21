@@ -177,7 +177,7 @@ aggregate_covar_cube_covariates_no_cache <- function(config, cache, cholera_dire
     aggregation_function = function(cases, time_left, time_right) {
       mean(cases)
     },
-    grouping_columns = c("name", "id"),
+    grouping_columns = c("name", "id","t"),
     case_column = "value",
     time_columns = c("t", "t")
   ))
