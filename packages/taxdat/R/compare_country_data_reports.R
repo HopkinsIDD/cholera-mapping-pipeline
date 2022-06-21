@@ -297,226 +297,223 @@ plot_disaggregated_modeled_cases_time_varying_stitched <- function( disaggregate
 }
 
 
+plot_modeled_cases_scatter_plot_by_grids_stitched <- function(cache){
+  df1 <- cache$disaggregated_case_sf %>% 
+    sf::st_drop_geometry() %>% 
+    filter(stitch_source == "1") %>% 
+    rename(value1 = value) %>% 
+    dplyr::select(- stitch_source)
 
+  df2 <- cache$disaggregated_case_sf %>% 
+    sf::st_drop_geometry() %>% 
+    filter(stitch_source == "2") %>% 
+    rename(value2 = value) %>% 
+    dplyr::select(- stitch_source)
 
+  clean_df <- left_join(df1, df2, by = c("t", "id"))
+  rm(df1, df2)
 
+  plt <- clean_df %>%
+    ggplot(aes(x = value1, y = value2)) + 
+    geom_point(
+        color="#69b3a2",
+        alpha=0.5,
+        size=1) +
+    theme_minimal() + 
+    coord_fixed(ratio = 1) + 
+    geom_abline(intercept = 0, slope = 1) +
+    facet_wrap( ~ t)
 
-
-
-
-
-
-
-stitch_configs <- function(output_cache, input_caches){
-  stitch_caches(output_cache, 
-                name = "configs", 
-                input_caches, 
-                combination_function = stack_configs_as_in_lists, 
-                combination_function_name = "stack_configs_as_in_lists")
+  return(plt)
 }
 
-stack_configs_as_in_lists_no_cache <- function(name = "configs",
-                                              output_cache,
-                                              ...){
-  config1 <- yaml::read_yaml(output_cache[[paste0(name, "_input")]][[1]])
-  config2 <- yaml::read_yaml(output_cache[[paste0(name, "_input")]][[2]])
-  output_cache[[name]]$config1 <- config1
-  output_cache[[name]]$config2 <- config2
-  rm("configs_input", envir = output_cache)
+
+plot_modeled_cases_scatter_plot_by_admin_stitched <- function(cache, country_iso, admin_level = 1, district_name = FALSE, label_threshold = 0.1){
+  df1 <- cache$disaggregated_case_sf %>% 
+    filter(stitch_source == "1") %>% 
+    rename(value1 = value) %>% 
+    dplyr::select(- stitch_source)
+
+  df2 <- cache$disaggregated_case_sf %>% 
+    filter(stitch_source == "2") %>% 
+    rename(value2 = value) %>% 
+    dplyr::select(- stitch_source)
   
-}
-#' @export
-#' @name stack_configs_as_in_lists
-stack_configs_as_in_lists <- cache_fun_results_new(name = "configs", fun = stack_configs_as_in_lists_no_cache, cache = output_cache, overwrite = T)
+  shapefiles <- eval(parse(text = paste0("gb_adm", admin_level, "(country_iso)")))
+  for(i in 1:nrow(shapefiles)){
+    district_shapefile <- shapefiles[i, ]
+    district_idx_vector <- sf::st_intersects(sf::st_centroid(df1), district_shapefile, sparse = FALSE)
+    df1_dist <- df1[district_idx_vector, ] %>% sf::st_drop_geometry() 
+    df2_dist <- df2[district_idx_vector, ] %>% sf::st_drop_geometry() 
 
-
-
-stitch_GAM_input <- function(output_cache, input_caches, ...){
-  stitch_caches(output_cache, 
-                name = "initial_values_data", 
-                input_caches, 
-                combination_function = stack_GAM_input, 
-                combination_function_name = "stack_GAM_input", 
-                ...)
-}
-
-stack_GAM_input_no_cache <- function(name = "initial_values_data", 
-                                    output_cache,
-                                    cholera_directory){
-  config1 <- output_cache[[paste0(name, "_input")]][[1]]
-  config2 <- output_cache[[paste0(name, "_input")]][[2]]
-
-  taxdat::get_initial_values(name="initial_values_data1",cache=output_cache,config = config1,cholera_directory = cholera_directory)
-  taxdat::get_initial_values(name="initial_values_data2",cache=output_cache,config = config2,cholera_directory = cholera_directory)
-  output_cache[[name]]$initial_values_data1 <- output_cache$initial_values_data1
-  output_cache[[name]]$initial_values_data2 <- output_cache$initial_values_data2
-
-  # output_cache[[paste0(name, "_input")]] <- NULL
-  rm("initial_values_data_input", envir = output_cache)
-  rm("initial_values_data1", envir = output_cache)
-  rm("initial_values_data2", envir = output_cache)
+    if(!exists("dist_df")){
+      dist_df <- left_join(df1_dist, df2_dist, by = c("t", "id")) %>% mutate(district = district_shapefile$shapeName)
+    }else{
+      dist_df_tmp <- left_join(df1_dist, df2_dist, by = c("t", "id")) %>% mutate(district = district_shapefile$shapeName)
+      dist_df <- rbind(dist_df, dist_df_tmp)
+      rm(dist_df_tmp)
+    }
+  }
   
+  dist_df <- dist_df %>% 
+    group_by(t, district) %>%
+    summarise(value1 = sum(value1, na.rm = TRUE), value2 = sum(value2, na.rm = TRUE))
+  rm(df1, df1_dist, df2, df2_dist)
+
+  plt <- dist_df %>%
+    ggplot(aes(x = value1, y = value2)) + 
+    geom_point(
+        color="#69b3a2",
+        alpha=0.5,
+        size=1) +
+    {if(district_name) ggrepel::geom_text_repel(aes(label = ifelse(abs(value1-value2) >= label_threshold * value1, as.character(district), '')), 
+                                                max.overlaps = Inf, size = 2)} + 
+    theme_minimal() + 
+    coord_fixed(ratio = 1) + 
+    geom_abline(intercept = 0, slope = 1) +
+    facet_wrap( ~ t)
+
+  return(plt)
+}
+
+
+stitch_data_fidelity <- function(output_cache, input_caches){
+  stitch_caches(
+                name = "data_fidelity", 
+                output_cache = output_cache, 
+                input_caches = input_caches,
+                initial_value = list(type = 'first'), 
+                combination_function = merge_data_fidelity_as_in_df
+  )
+
+}
+
+merge_data_fidelity_as_in_df_no_cache <- function(name = "data_fidelity", cache, input_cache, ...){
+  df1 <- cache[[paste0(name, "_initialized")]] %>% rename(modeled_cases1 = `modeled cases`)
+  df2 <- input_cache[[1]][[name]] %>% rename(modeled_cases2 = `modeled cases`) %>% dplyr::select(chain, variable, modeled_cases2)
+
+  merged_df <- left_join(df1, df2, by = c("chain", "variable"))
+
+  rm("data_fidelity_initialized", envir = cache)
+  return(merged_df)
 }
 #' @export
-#' @name stack_GAM_input
-stack_GAM_input <- cache_fun_results_new(name = "initial_values_data", fun = stack_GAM_input_no_cache, cache = output_cache, overwrite = T)
+#' @name merge_data_fidelity_as_in_df
+merge_data_fidelity_as_in_df <- cache_fun_results_new(name = "data_fidelity", fun = merge_data_fidelity_as_in_df_no_cache, cache = output_cache, overwrite = T)
 
 
+plot_modeled_cases_scatter_plot_by_oc_uid_stitched <- function(cache){
+  plt <- cache$data_fidelity %>%
+    ggplot(aes(x = modeled_cases1, y = modeled_cases2, color = oc_uid)) + 
+    geom_point(size=1) +
+    theme_minimal() + 
+    coord_fixed(ratio = 1) + 
+    geom_abline(intercept = 0, slope = 1) +
+    facet_wrap( ~ chain)
 
-stitch_GAM_input_figure <- function(output_cache, input_caches, ...){
-  stitch_caches(output_cache, 
-                name = "GAM_input_figure", 
-                input_caches = NULL, 
-                combination_function = stack_GAM_input_figure, 
-                combination_function_name = "stack_GAM_input_figure", 
-                ...)
+  return(plt)
 }
 
-stack_GAM_input_figure_no_cache <- function(name = "GAM_input_figure", 
-                                    output_cache,
-                                    ...){
-  fig_cases1 <- plot_gam_fit_input_cases(name="initial_values_data1", cache = output_cache$initial_values_data)
-  fig_cases2 <- plot_gam_fit_input_cases(name="initial_values_data2", cache = output_cache$initial_values_data)
-  fig_rates1 <- plot_gam_fit_input_rates(name="initial_values_data1", cache = output_cache$initial_values_data)
-  fig_rates2 <- plot_gam_fit_input_rates(name="initial_values_data2", cache = output_cache$initial_values_data)
 
-  output_cache[[name]]$fig_cases1 <- fig_cases1
-  output_cache[[name]]$fig_cases2 <- fig_cases2
-  output_cache[[name]]$fig_rates1 <- fig_rates1
-  output_cache[[name]]$fig_rates2 <- fig_rates2
+stitch_admin_case_summary_table <- function(output_cache, input_caches){
+  stitch_caches(
+                name = "admin_case_summary_table", 
+                output_cache = output_cache, 
+                input_caches = input_caches,
+                initial_value = list(type = 'first'), 
+                combination_function = merge_admin_case_summary_table_as_in_df
+  )
 
-  rm(fig_cases1, fig_cases2, fig_rates1, fig_rates2)  
+}
+
+merge_admin_case_summary_table_as_in_df_no_cache <- function(name = "admin_case_summary_table", cache, input_cache, ...){
+  df1 <- cache[[paste0(name, "_initialized")]] 
+  df2 <- input_cache[[1]][[name]] 
+  merged_df <- left_join(df1, df2, by = c("adminlevel"))
+
+  for(name in names(df1)[names(df1) != "adminlevel"]){
+    merged_df[[name]] <- merged_df[[paste0(name, ".x")]] - merged_df[[paste0(name, ".y")]]
+  }
+  merged_df <- merged_df[, (names(merged_df) %in% names(df1))]
+
+  stacked_df <- rbind(df1 %>% mutate(stitch_source = "1"), df2 %>% mutate(stitch_source = "2"))
+  df <- rbind(stacked_df, merged_df %>% mutate(stitch_source = "diff"))
+
+  rm(df1, df2, merged_df, stacked_df)
+  return(df)
 }
 #' @export
-#' @name stack_GAM_input_figure
-stack_GAM_input_figure <- cache_fun_results_new(name = "GAM_input_figure", fun = stack_GAM_input_figure_no_cache, cache = output_cache, overwrite = T)
+#' @name merge_admin_case_summary_table_as_in_df
+merge_admin_case_summary_table_as_in_df <- cache_fun_results_new(name = "admin_case_summary_table", fun = merge_admin_case_summary_table_as_in_df_no_cache, cache = output_cache, overwrite = T)
 
 
-
-stitch_GAM_output <- function(output_cache, input_caches, ...){
-  stitch_caches(output_cache, 
-                name = "gam_output_df", 
-                input_caches, 
-                combination_function = stack_GAM_output, 
-                combination_function_name = "stack_GAM_output", 
-                ...)
-}
-
-stack_GAM_output_no_cache <- function(name = "gam_output_df", 
-                                    output_cache,
-                                    cholera_directory){
-  config1 <- output_cache[[paste0(name, "_input")]][[1]]
-  config2 <- output_cache[[paste0(name, "_input")]][[2]]
-
-  output_cache[[name]]$gam_output_df1 <- get_gam_values_no_cache(config = config1, cholera_directory = cholera_directory, cache = output_cache, name = "initial_values_data1")
-  output_cache[[name]]$gam_output_df2 <- get_gam_values_no_cache(config = config2, cholera_directory = cholera_directory, cache = output_cache, name = "initial_values_data2")
-
-  rm("gam_output_df_input", envir = output_cache)
-  if(!"stan_input1" %in% names(output_cache$stan_input) & !"stan_input2" %in% names(output_cache$stan_input)){
-    rm("stan_input", envir = output_cache)
+plot_cases_by_admin_stitched <- function(cache, type){
+  if(type == "intersperse"){
+    admin_case_table <- cache$admin_case_summary_table %>%
+      filter(stitch_source != "diff") %>% 
+      dplyr::arrange(adminlevel, stitch_source) 
+    admin_case_table %>% 
+      dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
+      kableExtra::kable(col.names = c('Admin Level', names(cache$admin_case_summary_table)[!names(cache$admin_case_summary_table) %in% c("adminlevel", "mean_across_years", "stitch_source")], 
+        'Mean across Years', "Stitch Source")) %>%
+      kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+      kableExtra::kable_paper(full_width = F) %>%
+      kableExtra::row_spec(nrow(admin_case_table), bold = T)
+  }else if(type == "difference"){
+    admin_case_table <- cache$admin_case_summary_table %>%
+      filter(stitch_source == "diff") %>% 
+      dplyr::select(- stitch_source) 
+    admin_case_table %>% 
+      dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
+      kableExtra::kable(col.names = c('Admin Level', names(cache$admin_case_summary_table)[!names(cache$admin_case_summary_table) %in% c("adminlevel", "mean_across_years", "stitch_source")], 
+        'Mean across Years')) %>%
+      kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+      kableExtra::kable_paper(full_width = F) %>%
+      kableExtra::row_spec(nrow(admin_case_table), bold = T)
+  }else{
+    stop("Wrong type input for the plot_cases_by_admin_stitched function. ")
   }
 }
-#' @export
-#' @name stack_GAM_output
-stack_GAM_output <- cache_fun_results_new(name = "gam_output_df", fun = stack_GAM_output_no_cache, cache = output_cache, overwrite = T)
 
 
-stitch_GAM_output_figure <- function(output_cache, input_caches, ...){
-  stitch_caches(output_cache, 
-                name = "GAM_output_figure", 
-                input_caches = NULL, 
-                combination_function = stack_GAM_output_figure, 
-                combination_function_name = "stack_GAM_output_figure", 
-                ...)
+plot_AIC_BIC_comparison_table <- function(cache1, cache2){
+  AIC1 <- AIC(cache1$initial_values_data$gam_fit_output)
+  BIC1 <- BIC(cache1$initial_values_data$gam_fit_output)
+  AIC2 <- AIC(cache2$initial_values_data$gam_fit_output)
+  BIC2 <- BIC(cache2$initial_values_data$gam_fit_output)
+  table <- tibble::tibble(source = c(1, 2), AIC = c(AIC1, AIC2), BIC = c(BIC1, BIC2))
+  table %>% 
+    kableExtra::kable(col.names = c("Source", "AIC", "BIC")) %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+    kableExtra::kable_paper(full_width = F) %>%
+    kableExtra::row_spec(0, bold = T)
 }
 
-stack_GAM_output_figure_no_cache <- function(name = "GAM_output_figure", 
-                                    output_cache,
-                                    ...){
-  fig_cases1 <- plot_gam_fit_output_cases(name="gam_output_df1", cache = output_cache$gam_output_df)
-  fig_cases2 <- plot_gam_fit_output_cases(name="gam_output_df2", cache = output_cache$gam_output_df)
-  fig_rates1 <- plot_gam_fit_output_rates(name="gam_output_df1", cache = output_cache$gam_output_df)
-  fig_rates2 <- plot_gam_fit_output_rates(name="gam_output_df2", cache = output_cache$gam_output_df)
 
-  output_cache[[name]]$fig_cases1 <- fig_cases1
-  output_cache[[name]]$fig_cases2 <- fig_cases2
-  output_cache[[name]]$fig_rates1 <- fig_rates1
-  output_cache[[name]]$fig_rates2 <- fig_rates2
+plot_config_comparison_table(cache){
+  for(name in names(cache$config)){
+    if(is.null(cache$config[[name]])){
+      cache$config[[name]] <- "NULL"
+    }
+    if(is.na(cache$config[[name]])){
+      cache$config[[name]] <- "NA"
+    }
+  }
 
-  rm(fig_cases1, fig_cases2, fig_rates1, fig_rates2)  
+  names <- names(cache$config)[!grepl("_2", names(cache$config))]
+  config_table <- tibble(item = as.character(), source1 = as.character(), source2 = as.character(), diff = as.character())
+
+  for(name in names){
+    config_table <- config_table %>% 
+      add_row(item = name, source1 = as.character(cache$config[[name]]), source2 = as.character(cache$config[[paste0(name, "_2")]]))
+  }
+  config_table <- config_table %>% 
+    mutate(diff = ifelse(source1 == source2, "", "√"))
+
+  config_table %>% 
+    kableExtra::kable(col.names = c("Config Item", "Source 1", "Source 2", "Whether Different")) %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+    kableExtra::kable_paper(full_width = F) %>%
+    kableExtra::row_spec(0, bold = T)
 }
-#' @export
-#' @name stack_GAM_output_figure
-stack_GAM_output_figure <- cache_fun_results_new(name = "GAM_output_figure", fun = stack_GAM_output_figure_no_cache, cache = output_cache, overwrite = T)
 
-
-stitch_used_data_table <- function(output_cache, input_caches, ...){
-  stitch_caches(output_cache, 
-                name = "used_data_table", 
-                input_caches, 
-                combination_function = stack_used_data_table, 
-                combination_function_name = "stack_used_data_table", 
-                ...)
-}
-
-stack_used_data_table_no_cache <- function(name = "used_data_table", 
-                                    output_cache,
-                                    cholera_directory){
-  config1 <- output_cache[[paste0(name, "_input")]][[1]]
-  config2 <- output_cache[[paste0(name, "_input")]][[2]]
-
-  used_table1 <- plot_ObservationSummary_table(config = config1, cache = output_cache, cholera_directory = cholera_directory)
-  if(!"stan_input1" %in% names(output_cache$stan_input) & !"stan_input2" %in% names(output_cache$stan_input)){
-    rm("stan_input", envir = output_cache)
-  }
-  if(!"sf_cases_resized1" %in% names(output_cache$sf_cases_resized) & !"sf_cases_resized2" %in% names(output_cache$sf_cases_resized)){
-    rm("sf_cases_resized", envir = output_cache)
-  }
-
-  used_table2 <- plot_ObservationSummary_table(config = config2, cache = output_cache, cholera_directory = cholera_directory)
-  if(!"stan_input1" %in% names(output_cache$stan_input) & !"stan_input2" %in% names(output_cache$stan_input)){
-    rm("stan_input", envir = output_cache)
-  }
-  if(!"sf_cases_resized1" %in% names(output_cache$sf_cases_resized) & !"sf_cases_resized2" %in% names(output_cache$sf_cases_resized)){
-    rm("sf_cases_resized", envir = output_cache)
-  }
-
-  output_cache[[name]]$used_data_table1 <- used_table1
-  output_cache[[name]]$used_data_table2 <- used_table2
-
-  rm("used_data_table_input", envir = output_cache)
-  rm(config1, config2, used_table1, used_table2)  
-}
-#' @export
-#' @name stack_GAM_output_figure
-stack_used_data_table <- cache_fun_results_new(name = "used_data_table", fun = stack_used_data_table_no_cache, cache = output_cache, overwrite = T)
-
-
-
-used_table <- plot_ObservationSummary_table(config = params$config1, cache = comparison_cache, cholera_directory = params$cholera_directory)
-dropped_table <- plot_DroppedData_table(config = params$config1, cache = comparison_cache, cholera_directory = params$cholera_directory)
-
-# get_gam_values_no_cache(config = params$config1, cholera_directory = params$cholera_directory, cache = comparison_cache, name = "initial_values_data1")
-# stitch_GAMs(output_cache = comparison_cache, input_caches = list(list(params$config1, params$config2)))
-# taxdat::get_initial_values(name="initial_values_data",cache=comparison_cache,config = params$config1,cholera_directory = params$cholera_directory)
-# taxdat::get_initial_values(name="initial_values_data1",cache=comparison_cache,config = params$config1,cholera_directory = params$cholera_directory)
-# taxdat::get_initial_values(name="initial_values_data2",cache=comparison_cache,config = params$config1,cholera_directory = params$cholera_directory)
-
-
-
-# plot_stitched_figures_side_by_side <- function(name, cache, name2, name3 = NULL){
-#   # name3 check
-#   if(!is.null(name3)){stop("Not developed yet. ")}
-
-#   # testing
-#   fig_vector <- gridExtra::grid.arrange(cache[[name]][[paste0(name2[1], "1")]], cache[[name]][[paste0(name2[2], "2")]], ncol = 2)
-#   return(fig_vector)
-
-#   # plot two figs side by side 
-#   fig_vector <- c()
-#   for(names in name2){
-#     fig_vector <- c(fig_vector, gridExtra::grid.arrange(cache[[name]][[paste0(names, "1")]], cache[[name]][[paste0(names, "2")]], ncol = 2))
-#   }
-  
-#   return(fig_vector)
-# }

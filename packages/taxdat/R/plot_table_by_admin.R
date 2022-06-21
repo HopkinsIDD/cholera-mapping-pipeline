@@ -108,9 +108,16 @@ if(nrow(cache[["sf_grid"]]) == prod(dim(pop_layer))){
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment
 #' @param cholera_directory  the directory of cholera mapping pipeline folder
+#' @param admin_level_for_summary_table admin level
+#' @param aesthetic whether to return the kable object
 #' @return table
-plot_cases_by_admin <- function(cache, config, cholera_directory){
-  config<-yaml::read_yaml(paste0(cholera_directory,config))
+plot_cases_by_admin <- function(cache, config, cholera_directory, admin_level_for_summary_table = 1, aesthetic = TRUE){
+  params <- new.env()
+  params$config <- config
+  params$cholera_directory <- cholera_directory
+  params$admin_level_for_summary_table <- admin_level_for_summary_table
+  config_file <- yaml::read_yaml(paste0(params$cholera_directory, params$config))
+  
   ### Clean up the sf dataset
   cache[["disaggregated_rate_sf"]]<-get_disaggregated_rates_sf(
     cache=cache,config=params$config,cholera_directory=params$cholera_directory)
@@ -179,12 +186,18 @@ plot_cases_by_admin <- function(cache, config, cholera_directory){
   admin_case_table <- admin_case_table %>% 
     mutate_if(is.numeric, round, digits=4)
   
-  admin_case_table %>%
-    dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
-    kableExtra::kable(col.names = c('Admin Level', year_list, 'Mean across Years')) %>%
-    kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
-    kableExtra::kable_paper(full_width = F) %>%
-    kableExtra::row_spec(nrow(admin_case_table), bold = T)
+  if(!aesthetic){
+    return(admin_case_table)
+  }else{
+    admin_case_table <- admin_case_table %>%
+      dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
+      kableExtra::kable(col.names = c('Admin Level', year_list, 'Mean across Years')) %>%
+      kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+      kableExtra::kable_paper(full_width = F) %>%
+      kableExtra::row_spec(nrow(admin_case_table), bold = T)
+    return(admin_case_table)
+  }
+  
 }
 
 #' @export
