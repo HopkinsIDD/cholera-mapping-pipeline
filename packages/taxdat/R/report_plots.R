@@ -228,7 +228,7 @@ plot_raster_covariates <- function(config, cache, cholera_directory) {
 
   aggregate_covar_cube_covariates(config = config, cache = cache, cholera_directory = cholera_directory)
 
-  return(plot_sf_with_fill(cache, "covar_cube_covariates_aggregated", color_scale_type = "covariate", fill_column = "value", facet_column = "name", geometry_column = "geom"))
+  return(plot_sf_with_fill(cache, "covar_cube_covariates_aggregated", color_scale_type = "covariate", fill_column = "value", facet_column = c("name","t"), geometry_column = "geom"))
 }
 
 #' @export
