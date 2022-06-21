@@ -1,3 +1,11 @@
+#' @name get_config_no_cache
+#' @title get_config_no_cache
+#' @description get_config_no_cache
+#' @param name name of the cache
+#' @param cache cache to save the object
+#' @param config relative path to config
+#' @param cholera_directory absolute path to the cholera project directory
+#' @return the config file
 get_config_no_cache <- function(name = "config", cache, config, cholera_directory){
   config <- yaml::read_yaml(paste0(cholera_directory, config))
   return(config)
@@ -6,6 +14,13 @@ get_config_no_cache <- function(name = "config", cache, config, cholera_director
 #' @name get_config
 get_config <- cache_fun_results_new(name = "config", fun = get_config_no_cache, cache = cache, overwrite = T)
 
+#' @export
+#' @name stitch_configs
+#' @title stitch_configs
+#' @description stitch configs together
+#' @param output_cache output cache that will save the stitched object
+#' @param input_caches two separate cache that have the input objects
+#' @return the stitched object saved in the output cache
 stitch_configs <- function(output_cache, input_caches){
   stitch_caches(
                 name = "config", 
@@ -17,6 +32,13 @@ stitch_configs <- function(output_cache, input_caches){
 
 }
 
+#' @name stack_configs_as_in_lists_no_cache
+#' @title stack_configs_as_in_lists_no_cache
+#' @description stack_configs_as_in_lists_no_cache
+#' @param name name of the object saved in both output cache and input cache
+#' @param cache output cache that will save the stitched object
+#' @param input_cache cache that has the input object
+#' @return the stitched object
 stack_configs_as_in_lists_no_cache <- function(name = "config", cache, input_cache, ...){
   
   config1 <- cache[[paste0(name, "_initialized")]]
@@ -30,7 +52,13 @@ stack_configs_as_in_lists_no_cache <- function(name = "config", cache, input_cac
 #' @name stack_configs_as_in_lists
 stack_configs_as_in_lists <- cache_fun_results_new(name = "config", fun = stack_configs_as_in_lists_no_cache, cache = output_cache, overwrite = T)
 
-
+#' @export
+#' @name stitch_gam_input
+#' @title stitch_gam_input
+#' @description stitch_gam_input
+#' @param output_cache output cache that will save the stitched object
+#' @param input_caches two separate cache that have the input objects
+#' @return the stitched object saved in the output cache
 stitch_gam_input <- function(output_cache, input_caches){
   stitch_caches(
                 name = "initial_values_data", 
@@ -42,6 +70,13 @@ stitch_gam_input <- function(output_cache, input_caches){
 
 }
 
+#' @name stack_gam_input_as_in_df_no_cache
+#' @title stack_gam_input_as_in_df_no_cache
+#' @description stack_gam_input_as_in_df_no_cache
+#' @param name name of the object saved in both output cache and input cache
+#' @param cache output cache that will save the stitched object
+#' @param input_cache cache that has the input object
+#' @return the stitched object
 stack_gam_input_as_in_df_no_cache <- function(name = "initial_values_data", cache, input_cache, ...){
   df1 <- cache[[paste0(name, "_initialized")]]$gam_fit_input
   df2 <- input_cache[[1]][[name]]$gam_fit_input
@@ -55,7 +90,13 @@ stack_gam_input_as_in_df_no_cache <- function(name = "initial_values_data", cach
 #' @name stack_gam_input_as_in_df
 stack_gam_input_as_in_df <- cache_fun_results_new(name = "initial_values_data", fun = stack_gam_input_as_in_df_no_cache, cache = output_cache, overwrite = T)
 
-
+#' @export
+#' @name stitch_gam_output
+#' @title stitch_gam_output
+#' @description stitch_gam_output
+#' @param output_cache output cache that will save the stitched object
+#' @param input_caches two separate cache that have the input objects
+#' @return the stitched object saved in the output cache
 stitch_gam_output <- function(output_cache, input_caches){
   stitch_caches(
                 name = "gam_output_df", 
@@ -67,6 +108,13 @@ stitch_gam_output <- function(output_cache, input_caches){
 
 }
 
+#' @name stack_gam_output_as_in_df_no_cache
+#' @title stack_gam_output_as_in_df_no_cache
+#' @description stack_gam_output_as_in_df_no_cache
+#' @param name name of the object saved in both output cache and input cache
+#' @param cache output cache that will save the stitched object
+#' @param input_cache cache that has the input object
+#' @return the stitched object
 stack_gam_output_as_in_df_no_cache <- function(name = "gam_output_df", cache, input_cache, ...){
   df1 <- cache[[paste0(name, "_initialized")]]
   df2 <- input_cache[[1]][[name]]
@@ -79,7 +127,13 @@ stack_gam_output_as_in_df_no_cache <- function(name = "gam_output_df", cache, in
 #' @name stack_gam_output_as_in_df
 stack_gam_output_as_in_df <- cache_fun_results_new(name = "gam_output_df", fun = stack_gam_output_as_in_df_no_cache, cache = output_cache, overwrite = T)
 
-
+#' @export
+#' @name stitch_used_data_table
+#' @title stitch_used_data_table
+#' @description stitch_used_data_table
+#' @param output_cache output cache that will save the stitched object
+#' @param input_caches two separate cache that have the input objects
+#' @return the stitched object saved in the output cache
 stitch_used_data_table <- function(output_cache, input_caches){
   stitch_caches(
                 name = "used_data_table", 
@@ -91,13 +145,19 @@ stitch_used_data_table <- function(output_cache, input_caches){
 
 }
 
+#' @name intersperse_used_data_table_as_in_df_no_cache
+#' @title intersperse_used_data_table_as_in_df_no_cache
+#' @description intersperse_used_data_table_as_in_df_no_cache
+#' @param name name of the object saved in both output cache and input cache
+#' @param cache output cache that will save the stitched object
+#' @param input_cache cache that has the input object
+#' @return the stitched object
 intersperse_used_data_table_as_in_df_no_cache <- function(name = "used_data_table", cache, input_cache, ...){
   df1 <- cache[[paste0(name, "_initialized")]]
   df2 <- input_cache[[1]][[name]]
   intersperse_df <- rbind(df1 %>% mutate(stitch_source = 1), df2 %>% mutate(stitch_source = 2)) %>% arrange(year) 
   intersperse_df_aesthetic <- intersperse_df %>%
     dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
-    # dplyr::rename(year=year, `Observations`=n_obs, `Suspected cases`=n_cases, `Location periods`=n_lp, `Observation collections`=n_OCs)%>%
     kableExtra::kable(col.names = c("year", "# observations", "# suspected cases", "# location periods", "# observation collections", "table source")) %>%
     kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
     kableExtra::kable_paper(full_width = T) %>%
@@ -110,7 +170,13 @@ intersperse_used_data_table_as_in_df_no_cache <- function(name = "used_data_tabl
 #' @name intersperse_used_data_table_as_in_df
 intersperse_used_data_table_as_in_df <- cache_fun_results_new(name = "used_data_table", fun = intersperse_used_data_table_as_in_df_no_cache, cache = output_cache, overwrite = T)
 
-
+#' @export
+#' @name stitch_dropped_data_table
+#' @title stitch_dropped_data_table
+#' @description stitch_dropped_data_table
+#' @param output_cache output cache that will save the stitched object
+#' @param input_caches two separate cache that have the input objects
+#' @return the stitched object saved in the output cache
 stitch_dropped_data_table <- function(output_cache, input_caches){
   stitch_caches(
                 name = "dropped_data_table", 
@@ -122,13 +188,19 @@ stitch_dropped_data_table <- function(output_cache, input_caches){
 
 }
 
+#' @name intersperse_dropped_data_table_as_in_df_no_cache
+#' @title intersperse_dropped_data_table_as_in_df_no_cache
+#' @description intersperse_dropped_data_table_as_in_df_no_cache
+#' @param name name of the object saved in both output cache and input cache
+#' @param cache output cache that will save the stitched object
+#' @param input_cache cache that has the input object
+#' @return the stitched object
 intersperse_dropped_data_table_as_in_df_no_cache <- function(name = "dropped_data_table", cache, input_cache, ...){
   df1 <- cache[[paste0(name, "_initialized")]]
   df2 <- input_cache[[1]][[name]]
   intersperse_df <- rbind(df1 %>% mutate(stitch_source = 1), df2 %>% mutate(stitch_source = 2)) %>% arrange(year) 
   intersperse_df_aesthetic <- intersperse_df %>%
     dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
-    # dplyr::rename(year=year, `Observations`=n_obs, `Suspected cases`=n_cases, `Location periods`=n_lp, `Observation collections`=n_OCs)%>%
     kableExtra::kable(col.names = c("year", "# dropped observations", "# dropped suspected cases", "# dropped location periods",  
       "dropped location periods", "# dropped  observation collections",  "dropped observation collections", "table source")) %>%
     kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
@@ -142,7 +214,13 @@ intersperse_dropped_data_table_as_in_df_no_cache <- function(name = "dropped_dat
 #' @name intersperse_dropped_data_table_as_in_df
 intersperse_dropped_data_table_as_in_df <- cache_fun_results_new(name = "dropped_data_table", fun = intersperse_dropped_data_table_as_in_df_no_cache, cache = output_cache, overwrite = T)
 
-
+#' @export
+#' @name stitch_covar_cube
+#' @title stitch_covar_cube
+#' @description stitch_covar_cube
+#' @param output_cache output cache that will save the stitched object
+#' @param input_caches two separate cache that have the input objects
+#' @return the stitched object saved in the output cache
 stitch_covar_cube <- function(output_cache, input_caches){
   stitch_caches(
                 name = "covar_cube", 
@@ -154,6 +232,13 @@ stitch_covar_cube <- function(output_cache, input_caches){
 
 }
 
+#' @name overlay_covar_cube_as_in_array_no_cache
+#' @title overlay_covar_cube_as_in_array_no_cache
+#' @description overlay_covar_cube_as_in_array_no_cache
+#' @param name name of the object saved in both output cache and input cache
+#' @param cache output cache that will save the stitched object
+#' @param input_cache cache that has the input object
+#' @return the stitched object
 overlay_covar_cube_as_in_array_no_cache <- function(name = "covar_cube", cache, input_cache, ...){
   array1 <- cache[[paste0(name, "_initialized")]]
   array2 <- input_cache[[1]][[name]]
@@ -180,7 +265,13 @@ overlay_covar_cube_as_in_array_no_cache <- function(name = "covar_cube", cache, 
 #' @name overlay_covar_cube_as_in_array
 overlay_covar_cube_as_in_array <- cache_fun_results_new(name = "covar_cube", fun = overlay_covar_cube_as_in_array_no_cache, cache = output_cache, overwrite = T)
 
-
+#' @export
+#' @name stitch_sf_grid
+#' @title stitch_sf_grid
+#' @description stitch_sf_grid
+#' @param output_cache output cache that will save the stitched object
+#' @param input_caches two separate cache that have the input objects
+#' @return the stitched object saved in the output cache
 stitch_sf_grid <- function(output_cache, input_caches){
   stitch_caches(
                 name = "sf_grid", 
@@ -192,6 +283,13 @@ stitch_sf_grid <- function(output_cache, input_caches){
 
 }
 
+#' @name stack_sf_grid_as_in_sf_no_cache
+#' @title stack_sf_grid_as_in_sf_no_cache
+#' @description stack_sf_grid_as_in_sf_no_cache
+#' @param name name of the object saved in both output cache and input cache
+#' @param cache output cache that will save the stitched object
+#' @param input_cache cache that has the input object
+#' @return the stitched object
 stack_sf_grid_as_in_sf_no_cache <- function(name = "sf_grid", cache, input_cache, ...){
   sf1 <- cache[[paste0(name, "_initialized")]]
   sf2 <- input_cache[[1]][[name]]
@@ -204,7 +302,13 @@ stack_sf_grid_as_in_sf_no_cache <- function(name = "sf_grid", cache, input_cache
 #' @name stack_sf_grid_as_in_sf
 stack_sf_grid_as_in_sf <- cache_fun_results_new(name = "sf_grid", fun = stack_sf_grid_as_in_sf_no_cache, cache = output_cache, overwrite = T)
 
-
+#' @export
+#' @name stitch_disaggregated_case_sf
+#' @title stitch_disaggregated_case_sf
+#' @description stitch_disaggregated_case_sf
+#' @param output_cache output cache that will save the stitched object
+#' @param input_caches two separate cache that have the input objects
+#' @return the stitched object saved in the output cache
 stitch_disaggregated_case_sf <- function(output_cache, input_caches){
   stitch_caches(
                 name = "disaggregated_case_sf", 
@@ -216,6 +320,13 @@ stitch_disaggregated_case_sf <- function(output_cache, input_caches){
 
 }
 
+#' @name stack_disaggregated_case_as_in_sf_no_cache
+#' @title stack_disaggregated_case_as_in_sf_no_cache
+#' @description stack_disaggregated_case_as_in_sf_no_cache
+#' @param name name of the object saved in both output cache and input cache
+#' @param cache output cache that will save the stitched object
+#' @param input_cache cache that has the input object
+#' @return the stitched object
 stack_disaggregated_case_as_in_sf_no_cache <- function(name = "disaggregated_case_sf", cache, input_cache, ...){
   sf1 <- cache[[paste0(name, "_initialized")]]
   sf2 <- input_cache[[1]][[name]]
@@ -233,11 +344,10 @@ stack_disaggregated_case_as_in_sf_no_cache <- function(name = "disaggregated_cas
 #' @name stack_disaggregated_case_as_in_sf
 stack_disaggregated_case_as_in_sf <- cache_fun_results_new(name = "disaggregated_case_sf", fun = stack_disaggregated_case_as_in_sf_no_cache, cache = output_cache, overwrite = T)
 
-
 #' @export
 #' @name plot_disaggregated_modeled_cases_time_varying_stitched
 #' @title plot_disaggregated_modeled_cases_time_varying_stitched
-#' @description add
+#' @description plot modeled case rasters the stitched version 
 #' @param disaggregated_case_sf disaggregated case raster object
 #' @param country_iso the iso code of the country
 #' @param render default is TRUE
@@ -263,7 +373,7 @@ plot_disaggregated_modeled_cases_time_varying_stitched <- function( disaggregate
 
   plt <- ggplot2::ggplot()
   if(!diff_only){
-    plt <-   ggplot2::ggplot() +
+    plt <- ggplot2::ggplot() +
       ggplot2::geom_sf(
         data = disaggregated_case_sf %>% filter(stitch_source != "diff"),
         ggplot2::aes(fill = value),color=NA,size=0.00001)+
@@ -275,7 +385,7 @@ plot_disaggregated_modeled_cases_time_varying_stitched <- function( disaggregate
       ggplot2::theme(legend.text =  ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))+
       ggplot2::facet_wrap(t ~ stitch_source, ncol = 2) 
   }else{
-    plt <-   ggplot2::ggplot() +
+    plt <- ggplot2::ggplot() +
       ggplot2::geom_sf(
         data = disaggregated_case_sf %>% filter(stitch_source == "diff"),
         ggplot2::aes(fill = value),color=NA,size=0.00001)+
@@ -296,7 +406,12 @@ plot_disaggregated_modeled_cases_time_varying_stitched <- function( disaggregate
   }
 }
 
-
+#' @export
+#' @name plot_modeled_cases_scatter_plot_by_grids_stitched
+#' @title plot_modeled_cases_scatter_plot_by_grids_stitched
+#' @description plot_modeled_cases_scatter_plot_by_grids_stitched
+#' @param cache output cache that has the needed data
+#' @return the ggplot object
 plot_modeled_cases_scatter_plot_by_grids_stitched <- function(cache){
   df1 <- cache$disaggregated_case_sf %>% 
     sf::st_drop_geometry() %>% 
@@ -327,7 +442,16 @@ plot_modeled_cases_scatter_plot_by_grids_stitched <- function(cache){
   return(plt)
 }
 
-
+#' @export
+#' @name plot_modeled_cases_scatter_plot_by_admin_stitched
+#' @title plot_modeled_cases_scatter_plot_by_admin_stitched
+#' @description plot_modeled_cases_scatter_plot_by_admin_stitched
+#' @param cache output cache that has the needed data
+#' @param country_iso country code
+#' @param admin_level at which level the scatter plot will be based on
+#' @param district_name whether to put district names as labels on the scatter plot
+#' @param label_threshold label the point with its district name if the relative discrepancy goes beyound a certain threshold
+#' @return the ggplot object
 plot_modeled_cases_scatter_plot_by_admin_stitched <- function(cache, country_iso, admin_level = 1, district_name = FALSE, label_threshold = 0.1){
   df1 <- cache$disaggregated_case_sf %>% 
     filter(stitch_source == "1") %>% 
@@ -376,7 +500,13 @@ plot_modeled_cases_scatter_plot_by_admin_stitched <- function(cache, country_iso
   return(plt)
 }
 
-
+#' @export
+#' @name stitch_data_fidelity
+#' @title stitch_data_fidelity
+#' @description stitch_data_fidelity
+#' @param output_cache output cache that will save the stitched object
+#' @param input_caches two separate cache that have the input objects
+#' @return the stitched object saved in the output cache
 stitch_data_fidelity <- function(output_cache, input_caches){
   stitch_caches(
                 name = "data_fidelity", 
@@ -388,6 +518,13 @@ stitch_data_fidelity <- function(output_cache, input_caches){
 
 }
 
+#' @name merge_data_fidelity_as_in_df_no_cache
+#' @title merge_data_fidelity_as_in_df_no_cache
+#' @description merge_data_fidelity_as_in_df_no_cache
+#' @param name name of the object saved in both output cache and input cache
+#' @param cache output cache that will save the stitched object
+#' @param input_cache cache that has the input object
+#' @return the stitched object
 merge_data_fidelity_as_in_df_no_cache <- function(name = "data_fidelity", cache, input_cache, ...){
   df1 <- cache[[paste0(name, "_initialized")]] %>% rename(modeled_cases1 = `modeled cases`)
   df2 <- input_cache[[1]][[name]] %>% rename(modeled_cases2 = `modeled cases`) %>% dplyr::select(chain, variable, modeled_cases2)
@@ -401,7 +538,12 @@ merge_data_fidelity_as_in_df_no_cache <- function(name = "data_fidelity", cache,
 #' @name merge_data_fidelity_as_in_df
 merge_data_fidelity_as_in_df <- cache_fun_results_new(name = "data_fidelity", fun = merge_data_fidelity_as_in_df_no_cache, cache = output_cache, overwrite = T)
 
-
+#' @export
+#' @name plot_modeled_cases_scatter_plot_by_oc_uid_stitched
+#' @title plot_modeled_cases_scatter_plot_by_oc_uid_stitched
+#' @description plot_modeled_cases_scatter_plot_by_oc_uid_stitched
+#' @param cache output cache that has the needed data
+#' @return the ggplot object
 plot_modeled_cases_scatter_plot_by_oc_uid_stitched <- function(cache){
   plt <- cache$data_fidelity %>%
     ggplot(aes(x = modeled_cases1, y = modeled_cases2, color = oc_uid)) + 
@@ -414,7 +556,13 @@ plot_modeled_cases_scatter_plot_by_oc_uid_stitched <- function(cache){
   return(plt)
 }
 
-
+#' @export
+#' @name stitch_admin_case_summary_table
+#' @title stitch_admin_case_summary_table
+#' @description stitch_admin_case_summary_table
+#' @param output_cache output cache that will save the stitched object
+#' @param input_caches two separate cache that have the input objects
+#' @return the stitched object saved in the output cache
 stitch_admin_case_summary_table <- function(output_cache, input_caches){
   stitch_caches(
                 name = "admin_case_summary_table", 
@@ -426,6 +574,13 @@ stitch_admin_case_summary_table <- function(output_cache, input_caches){
 
 }
 
+#' @name merge_admin_case_summary_table_as_in_df_no_cache
+#' @title merge_admin_case_summary_table_as_in_df_no_cache
+#' @description merge_admin_case_summary_table_as_in_df_no_cache
+#' @param name name of the object saved in both output cache and input cache
+#' @param cache output cache that will save the stitched object
+#' @param input_cache cache that has the input object
+#' @return the stitched object
 merge_admin_case_summary_table_as_in_df_no_cache <- function(name = "admin_case_summary_table", cache, input_cache, ...){
   df1 <- cache[[paste0(name, "_initialized")]] 
   df2 <- input_cache[[1]][[name]] 
@@ -446,8 +601,14 @@ merge_admin_case_summary_table_as_in_df_no_cache <- function(name = "admin_case_
 #' @name merge_admin_case_summary_table_as_in_df
 merge_admin_case_summary_table_as_in_df <- cache_fun_results_new(name = "admin_case_summary_table", fun = merge_admin_case_summary_table_as_in_df_no_cache, cache = output_cache, overwrite = T)
 
-
-plot_cases_by_admin_stitched <- function(cache, type){
+#' @export
+#' @name plot_cases_by_admin_table_stitched
+#' @title plot_cases_by_admin_table_stitched
+#' @description plot_cases_by_admin_table_stitched
+#' @param cache output cache that has the needed data
+#' @param type if it's intersperse, then tables from different sources will be interweaved for comparison; if it's difference, then only the difference between two runs will be shown 
+#' @return the kable object
+plot_cases_by_admin_table_stitched <- function(cache, type){
   if(type == "intersperse"){
     admin_case_table <- cache$admin_case_summary_table %>%
       filter(stitch_source != "diff") %>% 
@@ -471,11 +632,17 @@ plot_cases_by_admin_stitched <- function(cache, type){
       kableExtra::kable_paper(full_width = F) %>%
       kableExtra::row_spec(nrow(admin_case_table), bold = T)
   }else{
-    stop("Wrong type input for the plot_cases_by_admin_stitched function. ")
+    stop("Wrong type input for the plot_cases_by_admin_table_stitched function. ")
   }
 }
 
-
+#' @export
+#' @name plot_AIC_BIC_comparison_table
+#' @title plot_AIC_BIC_comparison_table
+#' @description plot_AIC_BIC_comparison_table
+#' @param cache1 cache from run 1
+#' @param cache2 cache from run 2
+#' @return the kable object
 plot_AIC_BIC_comparison_table <- function(cache1, cache2){
   AIC1 <- AIC(cache1$initial_values_data$gam_fit_output)
   BIC1 <- BIC(cache1$initial_values_data$gam_fit_output)
@@ -489,19 +656,25 @@ plot_AIC_BIC_comparison_table <- function(cache1, cache2){
     kableExtra::row_spec(0, bold = T)
 }
 
-
-plot_config_comparison_table(cache){
+#' @export
+#' @name plot_config_comparison_table
+#' @title plot_config_comparison_table
+#' @description plot_config_comparison_table
+#' @param configs the list that has the config pathways from two runs 
+#' @param cache cache that has the config content
+#' @return the kable object
+plot_config_comparison_table <- function(configs, cache){
   for(name in names(cache$config)){
     if(is.null(cache$config[[name]])){
       cache$config[[name]] <- "NULL"
     }
-    if(is.na(cache$config[[name]])){
+    if(all(is.na(cache$config[[name]]))){
       cache$config[[name]] <- "NA"
     }
   }
 
   names <- names(cache$config)[!grepl("_2", names(cache$config))]
-  config_table <- tibble(item = as.character(), source1 = as.character(), source2 = as.character(), diff = as.character())
+  config_table <- tibble(item = "Config File Name", source1 = configs[[1]], source2 = configs[[2]], diff = " ")
 
   for(name in names){
     config_table <- config_table %>% 
@@ -516,4 +689,3 @@ plot_config_comparison_table(cache){
     kableExtra::kable_paper(full_width = F) %>%
     kableExtra::row_spec(0, bold = T)
 }
-

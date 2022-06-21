@@ -64,7 +64,7 @@ plot_time_varying_pop_raster_stitched <- function(cache, config, cholera_directo
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom",
                    legend.text = ggplot2::element_text(angle = 45,hjust = 1, vjust = 1))+
-    facet_wrap(stitch_source ~ t, ncol = 2)
+    facet_wrap(t ~ stitch_source, ncol = 2)
   
   return(plot)
 }
