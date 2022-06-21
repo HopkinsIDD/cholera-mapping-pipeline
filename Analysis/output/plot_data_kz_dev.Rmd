@@ -329,6 +329,7 @@ sum_obs %>%
 rm(sum_obs)
 rm(sum_obs1)
 rm(sum_obs2)
+rm(taxonomy_data_ori)
 
 ```
 
