@@ -358,6 +358,7 @@ stack_disaggregated_case_as_in_sf <- cache_fun_results_new(name = "disaggregated
 #' @return ggplot object with modeled cases map
 plot_disaggregated_modeled_cases_time_varying_stitched <- function( disaggregated_case_sf,
                                                                     country_iso, 
+                                                                    year_vector, 
                                                                     render = T,
                                                                     plot_file = NULL,
                                                                     width = NULL,
@@ -370,6 +371,11 @@ plot_disaggregated_modeled_cases_time_varying_stitched <- function( disaggregate
   }else{
     boundary_sf <- rgeoboundaries::gb_adm0(country_iso)
   }
+
+  disaggregated_case_sf <- disaggregated_case_sf %>% 
+    mutate(t = as.numeric(t))
+  disaggregated_case_sf <- disaggregated_case_sf %>%   
+    mutate(t = t + (min(year_vector) - min(disaggregated_case_sf$t)))
 
   plt <- ggplot2::ggplot()
   if(!diff_only){
@@ -411,16 +417,23 @@ plot_disaggregated_modeled_cases_time_varying_stitched <- function( disaggregate
 #' @title plot_modeled_cases_scatter_plot_by_grids_stitched
 #' @description plot_modeled_cases_scatter_plot_by_grids_stitched
 #' @param cache output cache that has the needed data
+#' @param year_vector modeled years
 #' @return the ggplot object
-plot_modeled_cases_scatter_plot_by_grids_stitched <- function(cache){
+plot_modeled_cases_scatter_plot_by_grids_stitched <- function(cache, year_vector, coord_fixed = TRUE){
+  cache$disaggregated_case_sf$t <- as.numeric(cache$disaggregated_case_sf$t)
+  
   df1 <- cache$disaggregated_case_sf %>% 
     sf::st_drop_geometry() %>% 
+    # mutate(t = as.numeric(t)) %>% 
+    mutate(t = t + (min(year_vector) - min(cache$disaggregated_case_sf$t))) %>% 
     filter(stitch_source == "1") %>% 
     rename(value1 = value) %>% 
     dplyr::select(- stitch_source)
 
   df2 <- cache$disaggregated_case_sf %>% 
     sf::st_drop_geometry() %>% 
+    # mutate(t = as.numeric(t)) %>% 
+    mutate(t = t + (min(year_vector) - min(cache$disaggregated_case_sf$t))) %>% 
     filter(stitch_source == "2") %>% 
     rename(value2 = value) %>% 
     dplyr::select(- stitch_source)
@@ -430,14 +443,16 @@ plot_modeled_cases_scatter_plot_by_grids_stitched <- function(cache){
 
   plt <- clean_df %>%
     ggplot(aes(x = value1, y = value2)) + 
+    geom_abline(intercept = 0, slope = 1, size = 0.2) +
     geom_point(
         color="#69b3a2",
         alpha=0.5,
         size=1) +
+    labs(x = "Modeled cases from model 1 (grid level)", y = "Modeled cases from model 2 (grid level)") + 
     theme_minimal() + 
-    coord_fixed(ratio = 1) + 
-    geom_abline(intercept = 0, slope = 1) +
-    facet_wrap( ~ t)
+    {if(coord_fixed) coord_fixed(ratio = 1)} + 
+    {if(coord_fixed) facet_wrap( ~ t) else facet_wrap( ~ t, scales = "free")}
+    
 
   return(plt)
 }
@@ -452,13 +467,17 @@ plot_modeled_cases_scatter_plot_by_grids_stitched <- function(cache){
 #' @param district_name whether to put district names as labels on the scatter plot
 #' @param label_threshold label the point with its district name if the relative discrepancy goes beyound a certain threshold
 #' @return the ggplot object
-plot_modeled_cases_scatter_plot_by_admin_stitched <- function(cache, country_iso, admin_level = 1, district_name = FALSE, label_threshold = 0.1){
+plot_modeled_cases_scatter_plot_by_admin_stitched <- function(cache, country_iso, admin_level = 1, district_name = FALSE, label_threshold = 0.1, year_vector, coord_fixed = TRUE){
+  cache$disaggregated_case_sf$t <- as.numeric(cache$disaggregated_case_sf$t)
+  
   df1 <- cache$disaggregated_case_sf %>% 
+    mutate(t = t + (min(year_vector) - min(cache$disaggregated_case_sf$t))) %>% 
     filter(stitch_source == "1") %>% 
     rename(value1 = value) %>% 
     dplyr::select(- stitch_source)
 
   df2 <- cache$disaggregated_case_sf %>% 
+    mutate(t = t + (min(year_vector) - min(cache$disaggregated_case_sf$t))) %>% 
     filter(stitch_source == "2") %>% 
     rename(value2 = value) %>% 
     dplyr::select(- stitch_source)
@@ -486,16 +505,20 @@ plot_modeled_cases_scatter_plot_by_admin_stitched <- function(cache, country_iso
 
   plt <- dist_df %>%
     ggplot(aes(x = value1, y = value2)) + 
+    geom_abline(intercept = 0, slope = 1, size = 0.2) +
+    geom_abline(intercept = 0, slope = 1 + label_threshold, size = 0.1, color = "pink") +
+    geom_abline(intercept = 0, slope = 1 - label_threshold, size = 0.1, color = "pink") +
     geom_point(
         color="#69b3a2",
         alpha=0.5,
         size=1) +
+    labs(x = "Modeled cases from model 1 (admin level)", y = "Modeled cases from model 2 (admin level)") + 
     {if(district_name) ggrepel::geom_text_repel(aes(label = ifelse(abs(value1-value2) >= label_threshold * value1, as.character(district), '')), 
                                                 max.overlaps = Inf, size = 2)} + 
     theme_minimal() + 
-    coord_fixed(ratio = 1) + 
-    geom_abline(intercept = 0, slope = 1) +
-    facet_wrap( ~ t)
+    {if(coord_fixed) coord_fixed(ratio = 1)} + 
+    {if(coord_fixed) facet_wrap( ~ t) else facet_wrap( ~ t, scales = "free")}
+    
 
   return(plt)
 }
@@ -546,12 +569,14 @@ merge_data_fidelity_as_in_df <- cache_fun_results_new(name = "data_fidelity", fu
 #' @return the ggplot object
 plot_modeled_cases_scatter_plot_by_oc_uid_stitched <- function(cache){
   plt <- cache$data_fidelity %>%
+    mutate(chain = paste0("chain", chain)) %>% 
     ggplot(aes(x = modeled_cases1, y = modeled_cases2, color = oc_uid)) + 
+    facet_wrap( ~ chain) +
     geom_point(size=1) +
     theme_minimal() + 
     coord_fixed(ratio = 1) + 
-    geom_abline(intercept = 0, slope = 1) +
-    facet_wrap( ~ chain)
+    geom_abline(intercept = 0, slope = 1, size = 0.2) +
+    labs(x = "Modeled cases from model 1 (OC level)", y = "Modeled cases from model 2 (OC level)")
 
   return(plt)
 }
@@ -610,16 +635,20 @@ merge_admin_case_summary_table_as_in_df <- cache_fun_results_new(name = "admin_c
 #' @return the kable object
 plot_cases_by_admin_table_stitched <- function(cache, type){
   if(type == "intersperse"){
+    adminlevels <- unique(cache$admin_case_summary_table$adminlevel)
+    adminlevels <- sort(adminlevels[adminlevels!="Total"])
+    adminlevels <- c(adminlevels, "Total")
+
     admin_case_table <- cache$admin_case_summary_table %>%
       filter(stitch_source != "diff") %>% 
-      dplyr::arrange(adminlevel, stitch_source) 
+      dplyr::arrange(factor(adminlevel, levels = adminlevels), stitch_source) 
     admin_case_table %>% 
       dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
       kableExtra::kable(col.names = c('Admin Level', names(cache$admin_case_summary_table)[!names(cache$admin_case_summary_table) %in% c("adminlevel", "mean_across_years", "stitch_source")], 
         'Mean across Years', "Stitch Source")) %>%
       kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
       kableExtra::kable_paper(full_width = F) %>%
-      kableExtra::row_spec(nrow(admin_case_table), bold = T)
+      kableExtra::row_spec((nrow(admin_case_table)-1):nrow(admin_case_table), bold = T)
   }else if(type == "difference"){
     admin_case_table <- cache$admin_case_summary_table %>%
       filter(stitch_source == "diff") %>% 

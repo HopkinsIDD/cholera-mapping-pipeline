@@ -102,8 +102,9 @@ plot_gam_fit_output_cases <- function(name="gam_output_df",cache) {
 #' @name name the name of the dataset (initial values)
 #' @name cache the cache environment
 #' @return ggplot object
-plot_gam_fit_output_cases_stitched <- function(name="gam_output_df", cache) {
+plot_gam_fit_output_cases_stitched <- function(name = "gam_output_df", cache, year_vector){
   cache[[name]] %>%
+    mutate( t = t + (min(year_vector) - min(cache[[name]]$t)) ) %>% 
     ggplot() +
     geom_tile(aes(x = sx, y = sy, fill =y)) +
     taxdat::map_theme() +
@@ -136,8 +137,9 @@ plot_gam_fit_output_rates <- function(name="gam_output_df",cache) {
 #' @name name the name of the dataset (initial values)
 #' @name cache the cache environment
 #' @return ggplot object
-plot_gam_fit_output_rates_stitched <- function(name="gam_output_df",cache) {
+plot_gam_fit_output_rates_stitched <- function(name = "gam_output_df", cache, year_vector){
   cache[[name]] %>%
+    mutate( t = t + (min(year_vector) - min(cache[[name]]$t)) ) %>% 
     ggplot() +
     geom_tile(aes(x = sx, y = sy, fill =lambda)) +
     taxdat::map_theme() +

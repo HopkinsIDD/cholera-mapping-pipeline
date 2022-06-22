@@ -33,7 +33,6 @@ library(taxdat)
 library(sf)
 library(raster)
 library(stars)
-library(taxdat)
 library(gridExtra)
 sf::sf_use_s2(FALSE)
 
@@ -87,8 +86,13 @@ capFig = function(x){
 ```
 
 
-# Mapping results summary for `r stringr::str_extract(params$config, "[A-Z]{3}")` and period `r stringr::str_extract(params$config, "[0-9]{4}_[0-9]{4}")`
+# Mapping results summary for `r stringr::str_extract(params$config1, "[A-Z]{3}")` and period `r stringr::str_extract(params$config1, "[0-9]{4}_[0-9]{4}")`
 ```{r include=FALSE, message=FALSE}
+## Some parameters
+country_iso = as.character(stringr::str_extract(params$config1, "[A-Z]{3}"))
+year_string <- stringr::str_extract(params$config1, "[0-9]{4}_[0-9]{4}")
+year_vector <- as.numeric(stringr::str_extract(stringr::str_extract(year_string, "[0-9]{4}_"), "[0-9]{4}")):as.numeric(stringr::str_extract(stringr::str_extract(year_string, "_[0-9]{4}"), "[0-9]{4}"))
+
 ## Initialize the cache 
 cache1 <- new.env()
 cache2 <- new.env()
@@ -98,7 +102,7 @@ comparison_cache <- new.env()
 get_config(cache = cache1, config = params$config1, cholera_directory = params$cholera_directory)
 get_config(cache = cache2, config = params$config2, cholera_directory = params$cholera_directory)
 
-taxdat::stitch_configs(output_cache = comparison_cache, input_caches = list(cache1, cache2))
+stitch_configs(output_cache = comparison_cache, input_caches = list(cache1, cache2))
 
 ## GAM input and output
 taxdat::get_initial_values(name = "initial_values_data", cache = cache1, 
@@ -146,12 +150,12 @@ cache1[["data_fidelity"]] <- get_data_fidelity(cache = cache1, cholera_directory
 cache2[["data_fidelity"]] <- get_data_fidelity(cache = cache2, cholera_directory = params$cholera_directory, config = params$config2)
 stitch_data_fidelity(output_cache = comparison_cache, input_caches = list(cache1, cache2))
 
-## Table 4 comparison
-cache1[["admin_case_summary_table"]] <- plot_cases_by_admin(cache = cache1, config = params$config1, cholera_directory = params$cholera_directory, 
+## Cases by admin comparison
+cache1[["admin_case_summary_table"]] <- taxdat::plot_cases_by_admin(cache = cache1, config = params$config1, cholera_directory = params$cholera_directory, 
   admin_level_for_summary_table = params$admin_level_for_summary_table, aesthetic = FALSE)
-cache2[["admin_case_summary_table"]] <- plot_cases_by_admin(cache = cache2, config = params$config2, cholera_directory = params$cholera_directory, 
+cache2[["admin_case_summary_table"]] <- taxdat::plot_cases_by_admin(cache = cache2, config = params$config2, cholera_directory = params$cholera_directory, 
   admin_level_for_summary_table = params$admin_level_for_summary_table, aesthetic = FALSE) 
-stitch_admin_case_summary_table(output_cache = comparison_cache, input_caches = list(cache1, cache2))
+taxdat::stitch_admin_case_summary_table(output_cache = comparison_cache, input_caches = list(cache1, cache2))
 
 ```
 
@@ -171,10 +175,10 @@ plot_gam_fit_input_rates_stitched(cache = comparison_cache)
 
 **Observations output of the GAM model:**
 ```{r gam output of cases, fig.height=25, fig.width=10, fig.cap=capFig("Observations input for the GAM model (cases)")}
-plot_gam_fit_output_cases_stitched(cache = comparison_cache)
+plot_gam_fit_output_cases_stitched(cache = comparison_cache, year_vector = year_vector)
 ```
 ```{r gam output of rates, fig.height=25, fig.width=10, fig.cap=capFig("Observations input for the GAM model (rates)")}
-plot_gam_fit_output_rates_stitched(cache = comparison_cache)
+plot_gam_fit_output_rates_stitched(cache = comparison_cache, year_vector = year_vector)
 ```
 
 **Table 2. Data used within the model by comparison between two runs:**
@@ -191,7 +195,7 @@ comparison_cache$dropped_data_table
 #### Population
 **Population raster by time slices:**
 ```{r pop, fig.height=25, fig.width=10, fig.cap=capFig("Population density")}
-plot_time_varying_pop_raster_stitched(cache = comparison_cache, config=params$config1, cholera_directory = params$cholera_directory) #the config can be either one 
+taxdat::plot_time_varying_pop_raster_stitched(cache = comparison_cache, config = params$config1, cholera_directory = params$cholera_directory) #the config can be either one 
 ```
 
 #### Other covariates
@@ -207,39 +211,46 @@ rm(plot1, plot2)
 **Modeled cases raster by time slices:**
 ```{r caserast1, fig.cap=capFig("Modeled cases"), fig.height=25, fig.width=10}
 plot_disaggregated_modeled_cases_time_varying_stitched(disaggregated_case_sf = comparison_cache[["disaggregated_case_sf"]], 
-  country_iso = as.character(stringr::str_extract(params$config1, "[A-Z]{3}")), diff_only = FALSE)
+  country_iso = country_iso, year_vector = year_vector, diff_only = FALSE)
 ```
 
 **Cases difference raster by time slices:**
 ```{r caserast2, fig.cap=capFig("Modeled cases difference"), fig.height=10, fig.width=10}
 plot_disaggregated_modeled_cases_time_varying_stitched(disaggregated_case_sf = comparison_cache[["disaggregated_case_sf"]], 
-  country_iso = as.character(stringr::str_extract(params$config1, "[A-Z]{3}")), diff_only = TRUE)
+  country_iso = country_iso, year_vector = year_vector, diff_only = TRUE)
 ```
 
 **Modeled cases comparison by grids:**
-```{r caserast3, fig.cap=capFig("Modeled cases grid comparison"), fig.height=10, fig.width=10}
-plot_modeled_cases_scatter_plot_by_grids_stitched(cache = comparison_cache)
+```{r caserast3, fig.cap=capFig("Modeled cases grid comparison (fixed coordinates scale)"), fig.height=10, fig.width=10}
+plot_modeled_cases_scatter_plot_by_grids_stitched(cache = comparison_cache, year_vector = year_vector, coord_fixed = TRUE)
+```
+```{r caserast4, fig.cap=capFig("Modeled cases grid comparison (free scales)"), fig.height=10, fig.width=10}
+plot_modeled_cases_scatter_plot_by_grids_stitched(cache = comparison_cache, year_vector = year_vector, coord_fixed = FALSE)
 ```
 
 **Modeled cases comparison by admin1:**
-```{r caserast4, fig.cap=capFig("Modeled cases admin comparison"), fig.height=10, fig.width=10}
-country_iso = as.character(stringr::str_extract(params$config1, "[A-Z]{3}"))
-plot_modeled_cases_scatter_plot_by_admin_stitched(cache = comparison_cache, country_iso = country_iso, admin_level = 1, district_name = TRUE, label_threshold = 0.1)
+```{r caserast5, fig.cap=capFig("Modeled cases admin comparison (fixed coordinates scale)"), fig.height=10, fig.width=10}
+plot_modeled_cases_scatter_plot_by_admin_stitched(cache = comparison_cache, country_iso = country_iso, admin_level = 1, district_name = TRUE, label_threshold = 0.1, 
+  year_vector = year_vector, coord_fixed = TRUE)
+```
+```{r caserast6, fig.cap=capFig("Modeled cases admin comparison (free scales)"), fig.height=10, fig.width=10}
+plot_modeled_cases_scatter_plot_by_admin_stitched(cache = comparison_cache, country_iso = country_iso, admin_level = 1, district_name = TRUE, label_threshold = 0.1, 
+  year_vector = year_vector, coord_fixed = FALSE)
 ```
 
 **Modeled cases comparison by oc_uid:**
-```{r caserast5, fig.cap=capFig("Modeled cases observation comparison"), fig.height=25, fig.width=10}
+```{r caserast7, fig.cap=capFig("Modeled cases observation comparison"), fig.height=25, fig.width=10}
 plot_modeled_cases_scatter_plot_by_oc_uid_stitched(cache = comparison_cache)
 ```
 
 **Table 4. Modeled cases stacked from different sources by admin level and time:**
 ```{r echo = FALSE}
-plot_cases_by_admin_table_stitched(cache = comparison_cache, type = "intersperse")
+taxdat::plot_cases_by_admin_table_stitched(cache = comparison_cache, type = "intersperse")
 ```
 
 **Table 5. Modeled cases difference by admin level and time:**
 ```{r echo = FALSE}
-plot_cases_by_admin_table_stitched(cache = comparison_cache, type = "difference")
+taxdat::plot_cases_by_admin_table_stitched(cache = comparison_cache, type = "difference")
 ```
 
 **Table 6. BIC and AIC Comparison Table:**
