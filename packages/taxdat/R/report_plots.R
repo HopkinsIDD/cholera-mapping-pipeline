@@ -232,6 +232,31 @@ plot_raster_covariates <- function(config, cache, cholera_directory) {
 }
 
 #' @export
+#' @name plot_raster_covariates_datagen
+#' @title plot_raster_covariates_datagen
+#' @description add
+#' @param config File path to the config
+#' @param cache the cache environment
+#' @param cholera_directory Directory of cholera-mapping-pipeline
+#' @return ggplot object with covariate raster
+plot_raster_covariates_datagen <- function(config, cache, cholera_directory) {
+  warning("This function needs to be changed to get the standardization in")
+  
+  get_config(config = config, cache = cache, cholera_directory = cholera_directory)
+  if (length(cache[["config"]][["test_metadata"]]) == 0) {
+    return(invisible(NULL))
+  }
+  
+  data_simulation_covs<-readRDS(cache[["config"]][["test_metadata"]][["Cov_data_simulation_filename"]])
+  
+  cache[["data_simulation_covs"]]<-as.data.frame(do.call(rbind, data_simulation_covs[2:(length(data_simulation_covs))])) %>%
+    mutate(value=covariate,covariate=paste("Covariate",rep(2:length(data_simulation_covs),each=nrow(data_simulation_covs[[1]]))))# Convert list to data frame columns
+  cache[["data_simulation_covs"]]<-sf::st_as_sf(cache[["data_simulation_covs"]])
+  
+  return(plot_sf_with_fill(cache, "data_simulation_covs", color_scale_type = "covariate", fill_column = "value", facet_column = c("covariate","t"), geometry_column = "geometry"))
+}
+
+#' @export
 #' @name plot_disaggregated_modeled_cases_time_varying
 #' @title plot_disaggregated_modeled_cases_time_varying
 #' @description add
