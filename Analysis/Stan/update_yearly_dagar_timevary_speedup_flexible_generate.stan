@@ -136,6 +136,8 @@ parameters {
   
   // Covariate stuff
   vector[ncovar] betas;
+  real alpha;    // intercept of log-lambdas
+  
 }
 
 generated quantities {
@@ -162,7 +164,7 @@ generated quantities {
   }
   
   // log-rates without time-slice effects
-  log_lambda =  w[map_smooth_grid] + log_meanrate;
+  log_lambda =  w[map_smooth_grid] + log_meanrate + alpha;
   
   // covariates if applicable
   if (ncovar > 1) {
