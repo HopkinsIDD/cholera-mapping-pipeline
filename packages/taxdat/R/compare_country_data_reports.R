@@ -620,6 +620,7 @@ merge_admin_case_summary_table_as_in_df_no_cache <- function(name = "admin_case_
   df <- rbind(stacked_df, merged_df %>% mutate(stitch_source = "diff"))
 
   rm(df1, df2, merged_df, stacked_df)
+  rm("admin_case_summary_table_initialized", envir = cache)
   return(df)
 }
 #' @export
@@ -717,4 +718,115 @@ plot_config_comparison_table <- function(configs, cache){
     kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
     kableExtra::kable_paper(full_width = F) %>%
     kableExtra::row_spec(0, bold = T)
+}
+
+#' @export
+#' @name stitch_who_data_comparison_table
+#' @title stitch_who_data_comparison_table
+#' @description stitch_who_data_comparison_table
+#' @param output_cache output cache that will save the stitched object
+#' @param input_caches two separate cache that have the input objects
+#' @return the stitched object saved in the output cache
+stitch_who_data_comparison_table <- function(output_cache, input_caches){
+  stitch_caches(
+                name = "who_data_comparison_table", 
+                output_cache = output_cache, 
+                input_caches = input_caches,
+                initial_value = list(type = 'first'), 
+                combination_function = stack_who_data_comparison_table
+  )
+
+}
+
+#' @name stack_who_data_comparison_table
+#' @title stack_who_data_comparison_table
+#' @description stack_who_data_comparison_table
+#' @param name name of the object saved in both output cache and input cache
+#' @param cache output cache that will save the stitched object
+#' @param input_cache cache that has the input object
+#' @return the stitched object
+stack_who_data_comparison_table_no_cache <- function(name = "who_data_comparison_table", cache, input_cache, ...){
+  df1 <- cache[[paste0(name, "_initialized")]] 
+  df2 <- input_cache[[1]][[name]] 
+  stacked_df <- rbind(df1 %>% mutate(stitch_source = "1"), df2 %>% mutate(stitch_source = "2"))
+
+  rm(df1, df2)
+  rm("who_data_comparison_table_initialized", envir = cache)
+  return(stacked_df)
+}
+#' @export
+#' @name stack_who_data_comparison_table
+stack_who_data_comparison_table <- cache_fun_results_new(name = "who_data_comparison_table", fun = stack_who_data_comparison_table_no_cache, cache = output_cache, overwrite = T)
+
+#' @include plot_cache_function.R
+#' @export
+#' @name plot_WHOcomparison_table_stitched
+#' @title plot_WHOcomparison_table_stitched
+#' @description plot the polygon with modeled cases
+#' @param cache the cached environment
+#' @return table with who comparison statistics
+plot_WHOcomparison_table_stitched <- function(cache){
+  who_annual_cases_from_db <- cache$who_data_comparison_table %>%
+        as.data.frame() %>%
+        dplyr::arrange(TL, stitch_source) %>% 
+        dplyr::select(OC_UID, TL, TR, observed, modeled, stitch_source) %>%
+        dplyr::mutate_if(is.numeric, function(x) {format(round(x) , big.mark=",")}) %>%
+        kableExtra::kable(col.names = c("OC id", "start time", "end time", "# Observed cases", "# Modeled Cases", "Model Source")) %>%
+        kableExtra::kable_styling(bootstrap_options = c("striped"))
+
+}
+
+#' @export
+#' @name stitch_case_by_chain_time_table
+#' @title stitch_case_by_chain_time_table
+#' @description stitch_case_by_chain_time_table
+#' @param output_cache output cache that will save the stitched object
+#' @param input_caches two separate cache that have the input objects
+#' @return the stitched object saved in the output cache
+stitch_case_by_chain_time_table <- function(output_cache, input_caches){
+  stitch_caches(
+                name = "case_by_chain_time_table", 
+                output_cache = output_cache, 
+                input_caches = input_caches,
+                initial_value = list(type = 'first'), 
+                combination_function = stack_case_by_chain_time_table_as_in_tb
+  )
+
+}
+
+#' @name stack_case_by_chain_time_table_as_in_tb
+#' @title stack_case_by_chain_time_table_as_in_tb
+#' @description stack_case_by_chain_time_table_as_in_tb
+#' @param name name of the object saved in both output cache and input cache
+#' @param cache output cache that will save the stitched object
+#' @param input_cache cache that has the input object
+#' @return the stitched object
+stack_case_by_chain_time_table_as_in_tb_no_cache <- function(name = "case_by_chain_time_table", cache, input_cache, ...){
+  df1 <- cache[[paste0(name, "_initialized")]] 
+  df2 <- input_cache[[1]][[name]] 
+  stacked_df <- rbind(df1 %>% mutate(stitch_source = "1"), df2 %>% mutate(stitch_source = "2"))
+
+  rm(df1, df2)
+  rm("case_by_chain_time_table_initialized", envir = cache)
+  return(stacked_df)
+}
+#' @export
+#' @name stack_case_by_chain_time_table_as_in_tb
+stack_case_by_chain_time_table_as_in_tb <- cache_fun_results_new(name = "case_by_chain_time_table", fun = stack_case_by_chain_time_table_as_in_tb_no_cache, cache = output_cache, overwrite = T)
+
+#' @include plot_cache_function.R
+#' @export
+#' @name plot_modeled_cases_by_chain_time_stitched
+#' @title plot_modeled_cases_by_chain_time_stitched
+#' @description plot the polygon with modeled cases
+#' @param cache the cached environment
+#' @return table with modeled cases by time and chain
+plot_modeled_cases_by_chain_time_stitched <- function(cache) {
+  nchain <- cache$nchain
+
+  cache$case_by_chain_time_table %>% 
+    dplyr::arrange(t, stitch_source) %>% 
+    kableExtra::kable(col.names = c("Time Slice", paste("Chain", 1:nchain), "Model Source")) %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped"))
+
 }

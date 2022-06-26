@@ -157,6 +157,21 @@ cache2[["admin_case_summary_table"]] <- taxdat::plot_cases_by_admin(cache = cach
   admin_level_for_summary_table = params$admin_level_for_summary_table, aesthetic = FALSE) 
 taxdat::stitch_admin_case_summary_table(output_cache = comparison_cache, input_caches = list(cache1, cache2))
 
+## WHO cases table
+cache1[["who_data_comparison_table"]] <- plot_WHOcomparison_table(config = params$config1, cache = cache1, 
+  cholera_directory = params$cholera_directory, aesthetic = FALSE)
+cache2[["who_data_comparison_table"]] <- plot_WHOcomparison_table(config = params$config2, cache = cache2, 
+  cholera_directory = params$cholera_directory, aesthetic = FALSE)
+stitch_who_data_comparison_table(output_cache = comparison_cache, input_caches = list(cache1, cache2))
+
+## The cases by chain table
+cache1[["case_by_chain_time_table"]] <- plot_modeled_cases_by_chain_time(config = params$config1, cache = cache1, 
+  cholera_directory = params$cholera_directory, aesthetic = FALSE)
+cache2[["case_by_chain_time_table"]] <- plot_modeled_cases_by_chain_time(config = params$config2, cache = cache2, 
+  cholera_directory = params$cholera_directory, aesthetic = FALSE)
+comparison_cache[["nchain"]] <- cache1[["nchain"]] #either config works
+stitch_case_by_chain_time_table(output_cache = comparison_cache, input_caches = list(cache1, cache2))
+
 ```
 
 
@@ -256,4 +271,14 @@ taxdat::plot_cases_by_admin_table_stitched(cache = comparison_cache, type = "dif
 **Table 6. BIC and AIC Comparison Table:**
 ```{r echo = FALSE}
 plot_AIC_BIC_comparison_table(cache1 = cache1, cache2 = cache2)
+```
+
+**Table 7. Observed and estimates of WHO annual cholera reports:**
+```{r echo = FALSE}
+plot_WHOcomparison_table_stitched(cache = comparison_cache)
+```
+
+**Table 8. Estimated cases by chain and time slice:**
+```{r echo = FALSE}
+plot_modeled_cases_by_chain_time_stitched(cache = comparison_cache)
 ```
