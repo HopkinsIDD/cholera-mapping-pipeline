@@ -69,6 +69,70 @@ cache<-new.env()
 
 # Mapping results summary for `r stringr::str_extract(params$config, "[A-Z]{3}")` and period `r stringr::str_extract(params$config, "[0-9]{4}_[0-9]{4}")`
 
+
+``` {r echo=FALSE}
+get_config(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
+
+if(!is.null(cache[["config"]][["test_metadata"]])){
+ params_table=data.frame(do.call(rbind,cache[["config"]][["test_metadata"]]))
+ row.names(params_table)=c( 
+  "test case 1",
+  "Grid by rows",
+  "Grid by cols",
+  "Data",
+  "OC",
+  "Polygon",
+  "Proportion of grids observed",
+  "Randomize",
+  "Number of covariates",
+  "Single_year_run",
+  "\u00A0\u00A0\u00A0Spatially-varied layers",
+  "\u00A0\u00A0\u00A0Temporally-varied layers",
+  "\u00A0\u00A0\u00A0Spatially smoothed",
+  "\u00A0\u00A0\u00A0Temporally smoothed",
+  "\u00A0\u00A0\u00A0Polygonal layer",
+  "\u00A0\u00A0\u00A0Radiating layer",
+  "Constant",
+  "Data_simulation_covariates",
+  "Model_covariates",
+  "Locations with inconsistent data\n (compared to the country level)",
+  "Loc with inconsistent data",
+  "Cov_data_simulation_filename",
+  "test_true_grid_case_filename"
+)
+
+ data.frame(parameter=rownames(params_table)[c(1:10,20:23)],params_table[c(1:10,20:23),1])%>%
+  kableExtra::kable(col.names = c("Parameter","Values"),
+                    caption = "Table 1. Parameters")%>%
+    kableExtra::kable_styling(bootstrap_options = c("striped"))
+}else {
+  return(invisible(NULL))
+}
+```
+
+``` {r echo=FALSE}
+if(!is.null(cache[["config"]][["test_metadata"]])){
+   covar=data.frame(t(params_table[c(11:19),]))
+  rownames(covar)=paste("Covariate",1:ncol(params_table))
+  rownames(covar)[1]="Population"
+  covar%>%
+  kableExtra::kable(col.names = c(
+  "Spatially-varied layers",
+  "Temporally-varied layers",
+  "Spatially smoothed",
+  "Temporally smoothed",
+  "Polygonal layer",
+  "Radiating layer",
+  "Constant",
+  "Data simulation covariates",
+  "Model covariates"),
+  caption = "Table 2. Covariates")%>%
+    kableExtra::kable_styling(bootstrap_options = c("striped"))
+}else{
+  return(invisible(NULL))
+}
+```
+
 ## Cholera input data
 
 **Table 1. Data used within the model:**
@@ -121,6 +185,10 @@ warning("Removed this plot for now")
 taxdat::plot_raster_covariates(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
 ```
 
+``` {r covars_data_simulation, fig.height=5, fig.width=10, fig.cap=capFig("Non-population covariate rasters in data simulation process")}
+taxdat::plot_raster_covariates_datagen(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
+```
+
 ### GAM Input
 **Observations input for the GAM model:**
 ```{r gam input of cases,fig.height=5, fig.width=10, fig.cap=capFig("Observations input for the GAM model (cases)")}
@@ -151,7 +219,6 @@ if(length(cache[["dropped_years"]]) == 0){
   message(paste(paste(cache[["dropped_years"]], collapse = ", "), "are not represented in OCs"))
   if(params$drop_nodata_years){
     message(paste("Dropping", paste(cache[["dropped_years"]], collapse = ", "), "from case_raster"))
-    ## case_raster <- dplyr::filter(case_raster, !(t %in% drop_year_ix))
   }
 }
 ```
@@ -195,6 +262,14 @@ plot_model_fidelity_tfrac_adjusted(
 )
 ```
 
+``` {r datafidelity2, fig.cap=capFig("True vs. modeled grid cases"), fig.height=10, fig.width=10}
+plot_true_modeled_grid_cases (
+  config = params$config,
+  cache = cache,
+  cholera_directory = params$cholera_directory
+)
+```
+
 ```{r datafidelity3, fig.cap=capFig("Observations vs. modeled cases (tfrac adjusted)"), fig.height=15, fig.width=10}
 warning("Took this one out because it's a bit harder and I was rushing")
 # plot_model_fidelity_tfrac_adjusted_by_year(data_fidelity = cache[["data_fidelity"]],case_raster = cache[["case_raster"]],render = T)
@@ -228,8 +303,7 @@ warning("Skipping this figure for now since I'm not sure what it means for new p
 
 **Table 7. Estimated cases by chain and time slice:**
 ```{r cases_chain_table, fig.width=10, fig.cap = "Sum of grid cases by chain and year"}
-warning("Coming back to this later")
-# plot_modeled_cases_by_chain_time (config=params$config, cache=cache, cholera_directory=params$cholera_directory)
+table_modeled_cases_by_chain_time(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
 
 ```{r full country modeled cases, fig.cap = "comparison with WHO Output"}
