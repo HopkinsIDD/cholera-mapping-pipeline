@@ -71,6 +71,45 @@ plot_model_fidelity <- function(cache,
 
 
 #' @export
+#' @name plot_true_modeled_grid_cases
+#' @title plot_true_modeled_grid_cases
+#' @description add
+#' @param data_fidelity data_fidelity object
+#' @param render default is TRUE
+#' @return ggplot object with modeled vs actual cases by observation
+plot_true_modeled_grid_cases <- function(cache,cholera_directory,config) {
+  aggregate_grid_cases_mean_by_chain(config = config, cache = cache, cholera_directory = cholera_directory)
+  get_covar_cube(config = config, cache = cache, cholera_directory = cholera_directory)
+  cache[["covar_cube"]][,paste("cases", "chain", seq_len(ncol(cache[["grid_cases_mean_by_chain"]])), sep = "_")] <- cache[["grid_cases_mean_by_chain"]]
+  cache[["covar_cube"]]<- sf::st_as_sf( cache[["covar_cube"]])
+  
+  get_config(config = config, cache = cache, cholera_directory = cholera_directory)
+  true_grid_case<-readRDS(cache[["config"]][["test_metadata"]][["test_true_grid_case_filename"]])
+  
+  wide_modeled_true_grid_cases<-data.frame(sf::st_join(st_centroid(true_grid_case),cache[["covar_cube"]]) %>% dplyr::filter(t.x == t.y))%>%dplyr::select(observed,x,y,cases_chain_1,cases_chain_2,cases_chain_3,cases_chain_4,cases)
+  
+  long_modeled_grid_case <- data.frame(reshape2::melt(wide_modeled_true_grid_cases, id.vars = c("x","y","cases","observed"), variable.name = "chains"))%>%rename("modeled grid cases"=value,"true grid cases"=cases)
+  long_modeled_grid_case$observed<-as.factor(long_modeled_grid_case$observed)
+  if(!cache[["config"]][["test_metadata"]][["polygon_coverage"]]=="100%"){
+    plt <- ggplot2::ggplot(long_modeled_grid_case) +
+      ggplot2::geom_point(ggplot2::aes(y = `modeled grid cases`, x = `true grid cases`, col = chains)) +
+      ggplot2::geom_abline(intercept = 0, slope = 1) +
+      ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(long_modeled_grid_case[,3])), ylim = c(0, max(long_modeled_grid_case[,6]))) +
+      ggplot2::facet_wrap(~observed)+
+      ggplot2::theme_bw()
+  }else{
+    plt <- ggplot2::ggplot(long_modeled_grid_case) +
+      ggplot2::geom_point(ggplot2::aes(y = `modeled grid cases`, x = `true grid cases`, col = chains)) +
+      ggplot2::geom_abline(intercept = 0, slope = 1) +
+      ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(long_modeled_grid_case[,3])), ylim = c(0, max(long_modeled_grid_case[,6]))) +
+      ggplot2::theme_bw()
+  }
+  
+  return(plt)
+}
+
+
+#' @export
 #' @name plot_gam_fit_input_cases
 #' @title plot_gam_fit_input_cases
 #' @description plot the rasters with gam fitted input cases
