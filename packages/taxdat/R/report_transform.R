@@ -271,6 +271,31 @@ aggregate_grid_cases_mean <- cache_fun_results(
   aggregate_grid_cases_mean_no_cache
 )
 
+#' @name aggregate_grid_cases_mean_by_chain_no_cache
+#' @title aggregate_grid_cases_mean_by_chain_no_cache
+#' @description get modeled cases mean by polygon (location periods)
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
+#' @return modeled cases disaggregated to minimal grid scale
+aggregate_grid_cases_mean_by_chain_no_cache <- function(config, cache, cholera_directory) {
+  get_grid_cases(config = config, cache = cache, cholera_directory = cholera_directory)
+  t(aggregate_stan_array(
+    cache[["grid_cases"]],
+    aggregation_function = mean,
+    facet_by_chain = TRUE,
+    na.rm = FALSE
+  ))
+}
+
+#' @export
+#' @name aggregate_grid_cases_mean_by_chain
+aggregate_grid_cases_mean_by_chain <- cache_fun_results(
+  "grid_cases_mean_by_chain",
+  aggregate_grid_cases_mean_by_chain_no_cache
+)
+
+
 #' @name aggregate_modeled_cases_mean_by_chain_no_cache
 #' @title aggregate_modeled_cases_mean_by_chain_no_cache
 #' @description get modeled cases mean by polygon (location periods)
