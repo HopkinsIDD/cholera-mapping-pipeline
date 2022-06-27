@@ -9,7 +9,7 @@ conn_pg <- taxdat::connect_to_db(dbuser, dbname)
 DBI::dbClearResult(DBI::dbSendQuery(conn = conn_pg, "SET client_min_messages TO WARNING;"))
 
 my_seed <- c(
-  10403, 624, 105045778, 1207077739, 2042172336, -219892751, -768060162,
+  10404, 625, 105045778, 1207077739, 2042172336, -219892751, -768060162,
   -2006256281, -1585201540, -978856627, -1568163926, -1028934365, 1356190728, 1795633769,
   1153151766, 1165788831, 2116870228, 833087301, 829928258, 1681319387, -277008544,
   1376178145, -672930770, 1480724183, 377343276, 861177917, -304533030, -1337000557,
@@ -356,6 +356,15 @@ all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$
   all_dfs$observations_df$qualified_name
 ), ]$suspected_cases) * 3
 
+test_true_grid_cases<-test_underlying_distribution$mean
+
+#label grids that is observed
+observed_polygon_id<-c(unique(data.frame(sf::st_join(st_centroid(test_true_grid_cases),sf::st_as_sf(all_dfs$observations_df)))%>%subset(is.na(location)==F)%>%subset(!qualified_name=="1")%>%dplyr::select(id)))
+observed_test_true_grid_cases<-test_true_grid_cases%>%subset(id%in%observed_polygon_id$id)
+test_true_grid_cases<-test_true_grid_cases%>%mutate(observed=ifelse(id%in%observed_polygon_id$id,"Observed grid cells","Unobserved grid cells"))
+
+saveRDS(test_true_grid_cases,"/home/app/cmp/Analysis/output/test_case_3_true_grid_cases.rdata")
+
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
 setup_testing_database(conn_pg, drop = TRUE)
@@ -388,7 +397,7 @@ config <- list(general = list(
   criterion = ".choldir",
   "Analysis", "output", "test3.stan_output.rds"
 )), test_metadata = list(
-  name = "test_1",
+  name = "test_3",
   nrows = 10, ncols = 10, data_type = "Grid data", oc_type = "-", polygon_type = "Fake polygon",
   polygon_coverage = "100%", randomize = TRUE, ncovariates = nrow(covariates_table),
   single_year_run = ifelse(lubridate::year(query_time_right) - lubridate::year(query_time_left) ==
@@ -400,29 +409,22 @@ config <- list(general = list(
     "Nationally reported data is ",
     all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$suspected_cases / sum(all_dfs$observations_df[grep("1::", all_dfs$observations_df$qualified_name), ]$suspected_cases), " times of the cases reported at the subnational level."
   ),
-  Loc_with_inconsistent_data = "-", Cov_data_simulation_filename = "/home/app/cmp/Analysis/output/test_case_3_data_simulation_covariates.rdata"
+  Loc_with_inconsistent_data = "-", Cov_data_simulation_filename = "/home/app/cmp/Analysis/output/test_case_3_data_simulation_covariates.rdata",test_true_grid_case_filename="/home/app/cmp/Analysis/output/test_case_3_true_grid_cases.rdata"
 ))
 
 yaml::write_yaml(x = config, file = config_filename)
 
 Sys.setenv(CHOLERA_CONFIG = config_filename)
 source(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "R", "execute_pipeline.R"))
-rmarkdown::render(rprojroot::find_root_file(
-  criterion = ".choldir", "Analysis", "output",
-  "country_data_report_test_case.Rmd"
-),
-params = list(
-  config_filename = config_filename,
-  cholera_directory = "~/cmp/", drop_nodata_years = TRUE, nrows = config$nrows,
-  ncols = config$ncols, data_type = config$data_type, oc_type = config$oc_type,
-  polygon_type = config$polygon_type, polygon_coverage = config$polygon_coverage,
-  randomize = config$randomize, ncovariates = config$ncovariates, single_year_run = config$single_year_run,
-  iteration = config$iteration, nonspatial = covariates_table$nonspatial, nontemporal = covariates_table$nontemporal,
-  spatially_smooth = covariates_table$spatially_smooth, temporally_smooth = covariates_table$temporally_smooth,
-  polygonal = covariates_table$polygonal, radiating = covariates_table$radiating,
-  constant = covariates_table$constant, Data_simulation_covariates = config$Data_simulation_covariates,
-  Model_covariates = config$Model_covariates, Observations_with_inconsistent_data = config$Observations_with_inconsistent_data,
-  Loc_with_inconsistent_data = config$Loc_with_inconsistent_data, Cov_data_simulation_filename = config$Cov_data_simulation_filename
-),
-output_file = "Country data report test case 3 updated"
+rmarkdown::render(
+  rprojroot::find_root_file(
+    criterion = ".choldir", "Analysis", "output",
+    "country_data_report.Rmd"
+  ),
+  params = list(
+    cholera_directory = "~/cmp/",
+    config = config_filename,
+    drop_nodata_years = TRUE
+  ),
+  output_file = "test_case_3_country_data_report"
 )
