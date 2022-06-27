@@ -25,7 +25,7 @@ separate_by_overlap <- function(sf_object, name_column = "location_period_id") {
   unique_geometries[["area"]] <- sf::st_area(unique_geometries)
   unique_geometries <- unique_geometries %>%
     dplyr::arrange(-area)
-  overlaps <- sf::st_relate(unique_geometries, unique_geometries, "2********")
+  overlaps <- sf::st_intersects(unique_geometries, st_buffer(unique_geometries, -0.5 / 120))
 
   non_overlaps <- lapply(overlaps, setdiff, x = seq_len(nrow(unique_geometries)))
 
