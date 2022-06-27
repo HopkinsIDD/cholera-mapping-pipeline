@@ -179,17 +179,25 @@ plot_energy <- function(stan_model, par = "all") {
   return(pairs(apply(rc, 3, c)))
 }
 
-check_data <- function(observation_data) {
+check_data <- function(data) {
   no_errors <- TRUE
-  observation_data_df <- as.data.frame(observation_data)
-  observation_data_df %>%
-    dplyr::filter(!(is.na(suspected_cases))) %>%
-    dplyr::group_by(substr(time_left, 1, 4)) %>%
-    dplyr::summarise(n = sum(suspected_cases)) %>%
-    nrow() -> result
-  if (result == 0) {
-    no_errors <- FALSE
-    warning("Lack of enough data to start processing")
+  if ("observation_data" == deparse(substitute(data))) {
+    data_df <- as.data.frame(data)
+    data_df %>%
+      dplyr::filter(!(is.na(suspected_cases))) %>%
+      dplyr::group_by(substr(time_left, 1, 4)) %>%
+      dplyr::summarise(n = sum(suspected_cases)) %>%
+      nrow() -> result
+    if (result <= 0) {
+      no_errors <- FALSE
+      warning("Lack of enough data to start processing")
+    }
+  } else if ("grid_adjacency" == deparse(substitute(data))) {
+    result <- nrow(grid_adjacency)
+    if (result == 0) {
+      no_errors <- FALSE
+      warning("Error in grid_adjacency")
+    }
   }
   if (!(no_errors)) {
     stop("At least one error which we cannot recover from occured. See above warnings for details")
@@ -628,7 +636,7 @@ if (!all(grid_changer[as.character(covar_cube[["id"]])] == covar_cube[["updated_
 grid_adjacency <- grid_adjacency %>%
   dplyr::mutate(updated_id_1 = grid_changer[as.character(id_1)], updated_id_2 = grid_changer[as.character(id_2)]) %>%
   dplyr::filter(!is.na(updated_id_1), !is.na(updated_id_2))
-
+check_data(grid_adjacency)
 temporal_location_changer <- setNames(
   seq_len(length(fully_covered_temporal_location_ids)),
   fully_covered_temporal_location_ids
