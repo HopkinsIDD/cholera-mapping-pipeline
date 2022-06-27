@@ -290,7 +290,7 @@ aggregate_modeled_cases_mean_by_chain_no_cache <- function(config, cache, choler
     t() %>%
     as.data.frame() %>%
     tibble::rownames_to_column() %>%
-    dplyr::mutate(updated_observation_id = gsub("modeled_cases\\[", "", gsub("]", "", rowname))) %>%
+    dplyr::mutate(updated_observation_id = as.numeric(gsub("modeled_cases\\[", "", gsub("]", "", rowname)))) %>%
     tidyr::pivot_longer(
       names_to = "chain",
       values_to = "modeled_cases",
