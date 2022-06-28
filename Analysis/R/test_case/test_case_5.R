@@ -358,6 +358,14 @@ all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$
   all_dfs$observations_df$qualified_name
 ), ]$suspected_cases)
 
+test_true_grid_cases<-test_underlying_distribution$mean
+#label grids that is observed
+observed_polygon_id<-c(unique(data.frame(sf::st_join(st_centroid(test_true_grid_cases),sf::st_as_sf(all_dfs$observations_df)))%>%subset(is.na(location)==F)%>%subset(!qualified_name=="1")%>%dplyr::select(id)))
+observed_test_true_grid_cases<-test_true_grid_cases%>%subset(id%in%observed_polygon_id$id)
+test_true_grid_cases<-test_true_grid_cases%>%mutate(observed=ifelse(id%in%observed_polygon_id$id,"Observed grid cells","Unobserved grid cells"))
+
+saveRDS(test_true_grid_cases,"/home/app/cmp/Analysis/output/test_case_5_true_grid_cases.rdata")
+
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
 setup_testing_database(conn_pg, drop = TRUE)
