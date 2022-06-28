@@ -402,7 +402,7 @@ config <- list(general = list(
 )), test_metadata = list(
   name = "test_4",
   nrows = 10, ncols = 10, data_type = "Grid data", oc_type = "-", polygon_type = "Fake polygon",
-  polygon_coverage = "97%", randomize = TRUE, ncovariates = nrow(covariates_table),
+  polygon_coverage = "90%", randomize = TRUE, ncovariates = nrow(covariates_table),
   single_year_run = ifelse(lubridate::year(query_time_right) - lubridate::year(query_time_left) ==
     0, "yes", "no"), nonspatial = covariates_table$nonspatial, nontemporal = covariates_table$nontemporal,
   spatially_smooth = covariates_table$spatially_smooth, temporally_smooth = covariates_table$temporally_smooth,
