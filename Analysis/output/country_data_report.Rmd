@@ -76,7 +76,7 @@ get_config(cache=cache,config=params$config,cholera_directory=params$cholera_dir
 if(!is.null(cache[["config"]][["test_metadata"]])){
  params_table=data.frame(do.call(rbind,cache[["config"]][["test_metadata"]]))
  row.names(params_table)=c( 
-  "test case 1",
+  "test case",
   "Grid by rows",
   "Grid by cols",
   "Data",
