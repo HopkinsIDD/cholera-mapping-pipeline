@@ -388,6 +388,15 @@ prepare_stan_input <- function(
   stan_data$map_loc_grid_grid <- as.array(ind_mapping_resized$map_loc_grid_grid)
   stan_data$u_loctime <- ind_mapping_resized$u_loctimes
   
+  # Add 1km population fraction
+  stan_data$use_pop_weight <- stan_params$use_pop_weight
+  
+  if (stan_params$use_pop_weight) {
+    stan_data$pop_weight <- ind_mapping_resized$u_loc_grid_weights
+  } else {
+    stan_data$pop_weight <- array(data = 0, dim = 0)
+  }
+  
   y_tfrac <- tibble::tibble(tfrac = stan_data$tfrac, 
                             map_obs_loctime_obs = stan_data$map_obs_loctime_obs) %>% 
     dplyr::group_by(map_obs_loctime_obs) %>% 
@@ -417,29 +426,29 @@ prepare_stan_input <- function(
   stan_data$M_right <- length(stan_data$ind_right)
   stan_data$censoring_inds <- censoring_inds
   
-  bad_data <- as.data.frame(sf_cases)[
-    !(seq_len(nrow(sf_cases)) %in% non_na_obs_resized),
-    c('id','TL','TR',cases_column,'valid','attributes.location_period_id')
-  ]
-  if (nrow(bad_data) > 0) {
-    cat(paste(
-      "The following observations were thrown out because they did not cover any gridcells\n ",
-      "id,TL,TR,cases,valid,location_period_id\n ",
-      paste(
-        bad_data$id,
-        bad_data$TL,
-        bad_data$TR,
-        bad_data[[cases_column]],
-        bad_data$valid,
-        bad_data$attributes.location_period_id,
-        sep=',',
-        collapse='\n  '
-      ),
-      "\n"
-    ))
-  } else {
-    cat("All observations cover modeling grid cells, none were dropped \n")
-  }
+  # bad_data <- as.data.frame(sf_cases)[
+  #   !(seq_len(nrow(sf_cases)) %in% non_na_obs_resized),
+  #   c('id','TL','TR',cases_column,'valid','attributes.location_period_id')
+  # ]
+  # if (nrow(bad_data) > 0) {
+  #   cat(paste(
+  #     "The following observations were thrown out because they did not cover any gridcells\n ",
+  #     "id,TL,TR,cases,valid,location_period_id\n ",
+  #     paste(
+  #       bad_data$id,
+  #       bad_data$TL,
+  #       bad_data$TR,
+  #       bad_data[[cases_column]],
+  #       bad_data$valid,
+  #       bad_data$attributes.location_period_id,
+  #       sep=',',
+  #       collapse='\n  '
+  #     ),
+  #     "\n"
+  #   ))
+  # } else {
+  #   cat("All observations cover modeling grid cells, none were dropped \n")
+  # }
   
   stan_data$K1 <- length(stan_data$map_obs_loctime_obs)
   stan_data$K2 <- length(stan_data$map_loc_grid_loc)
