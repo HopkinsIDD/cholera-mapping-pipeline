@@ -235,7 +235,8 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change covariates
-##nontemporal:ture (varying in time)
+##nontemporal:ture (varying in time) 
+#temporal-smoother: smooth across time (correlated)
 ##nonspatial:
 ##independent_covariate
 covariates_table <- data.frame(
