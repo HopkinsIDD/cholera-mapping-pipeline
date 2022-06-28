@@ -288,7 +288,6 @@ test_covariates_observation <- create_multiple_test_covariates(
 )
 my_seed <- .GlobalEnv$.Random.seed
 
-
 min_time_left <- query_time_left
 max_time_right <- query_time_right
 covariate_raster_funs_observation <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(
@@ -327,7 +326,6 @@ all_dfs$observations_df=NULL
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
 setup_testing_database(conn_pg, drop = TRUE)
-taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raster_funs)
 
 ## NOTE: Change me if you want to run the report locally config_filename <-
 ## paste(tempfile(), 'yml', sep = '.')
