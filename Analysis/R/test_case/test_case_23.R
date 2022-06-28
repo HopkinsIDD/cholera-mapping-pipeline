@@ -237,8 +237,8 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
 ## Change covariates
 covariates_table <- data.frame(
   nonspatial = c(FALSE, FALSE, TRUE,FALSE), 
-  nontemporal = c(FALSE,FALSE, FALSE,FALSE), 
-  spatially_smooth = c(TRUE, TRUE, TRUE,TRUE), 
+  nontemporal = c(FALSE,FALSE, FALSE,TRUE), 
+  spatially_smooth = c(TRUE, TRUE, TRUE,FALSE), 
   temporally_smooth = c(FALSE,FALSE, FALSE,TRUE), 
   polygonal = c(TRUE, TRUE, TRUE,TRUE), 
   radiating = c(FALSE, FALSE, FALSE,FALSE),
@@ -279,10 +279,10 @@ test_raster_observation <- create_test_raster(
 
 test_covariates_observation <- create_multiple_test_covariates(
   test_raster = test_raster_observation,
-  ncovariates = 2, nonspatial = covariates_table$nonspatial[1:2], nontemporal = covariates_table$nontemporal[1:2],
-  spatially_smooth = covariates_table$spatially_smooth[1:2], temporally_smooth = covariates_table$temporally_smooth[1:2],
-  polygonal = covariates_table$polygonal[1:2], radiating = covariates_table$radiating[1:2],
-  constant = covariates_table$constant[1:2], seed = my_seed
+  ncovariates = 3, nonspatial = covariates_table$nonspatial[c(1:2,4)], nontemporal = covariates_table$nontemporal[c(1:2,4)],
+  spatially_smooth = covariates_table$spatially_smooth[c(1:2,4)], temporally_smooth = covariates_table$temporally_smooth[c(1:2,4)],
+  polygonal = covariates_table$polygonal[c(1:2,4)], radiating = covariates_table$radiating[c(1:2,4)],
+  constant = covariates_table$constant[c(1:2,4)], seed = my_seed
 )
 my_seed <- .GlobalEnv$.Random.seed
 
@@ -301,7 +301,7 @@ test_covariates3_observation <- create_multiple_test_covariates(
 )
 
 test_covariates_observation_final <- test_covariates_observation
-test_covariates_observation_final[[3]] <- test_covariates3_observation[[2]]
+test_covariates_observation_final[[4]] <- test_covariates3_observation[[2]]
 
 min_time_left <- query_time_left
 max_time_right <- query_time_right
@@ -314,10 +314,10 @@ covariate3_raster_funs_observation <- taxdat:::convert_simulated_covariates_to_t
   min_time_left, max_time_right
 )
 
-covariate3_raster_funs_observation[[3]]$name <- "covariate3"
-covariate3_raster_funs_observation[[4]]$name <- "covariate3"
-covariate_raster_funs_observation[[5]] <- covariate3_raster_funs_observation[[3]]
-covariate_raster_funs_observation[[6]] <- covariate3_raster_funs_observation[[4]]
+covariate3_raster_funs_observation[[3]]$name <- "covariate4"
+covariate3_raster_funs_observation[[4]]$name <- "covariate4"
+covariate_raster_funs_observation[[7]] <- covariate3_raster_funs_observation[[3]]
+covariate_raster_funs_observation[[8]] <- covariate3_raster_funs_observation[[4]]
 
 ## save additional covariates in the data generation process for country data
 ## report
@@ -332,9 +332,6 @@ test_underlying_distribution <- create_underlying_distribution(
   seed = my_seed
 )
 my_seed <- .GlobalEnv$.Random.seed
-
-test_true_grid_cases<-test_underlying_distribution$mean
-saveRDS(test_true_grid_cases,"/home/app/cmp/Analysis/output/test_case_23_true_grid_cases.rdata")
 
 test_observations <- observe_polygons(
   test_polygons = dplyr::mutate(all_dfs$shapes_df,
@@ -357,6 +354,14 @@ all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$
   "1::",
   all_dfs$observations_df$qualified_name
 ), ]$suspected_cases)
+
+test_true_grid_cases<-test_underlying_distribution$mean
+#label grids that is observed
+observed_polygon_id<-c(unique(data.frame(sf::st_join(st_centroid(test_true_grid_cases),sf::st_as_sf(all_dfs$observations_df)))%>%subset(is.na(location)==F)%>%subset(!qualified_name=="1")%>%dplyr::select(id)))
+observed_test_true_grid_cases<-test_true_grid_cases%>%subset(id%in%observed_polygon_id$id)
+test_true_grid_cases<-test_true_grid_cases%>%mutate(observed=ifelse(id%in%observed_polygon_id$id,"Observed grid cells","Unobserved grid cells"))
+
+saveRDS(test_true_grid_cases,"/home/app/cmp/Analysis/output/test_case_23_true_grid_cases.rdata")
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
