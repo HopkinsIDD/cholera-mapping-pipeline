@@ -772,7 +772,7 @@ if (config[["initial_values"]][["warmup"]]) {
     include_covariates = length(covariate_names) > 0,
     covariate_names = covariate_names,
     max_knots = number_of_gridcells - 1,
-    include_time_slice_effect = config[["stan"]][["do_time_slice"]][["perform"]]
+    include_time_slice_effect = config[["stan"]][["do_time_slice"]][["perform"]] && (length(unique(covar_cube$updated_t)) > 1)
   )
 
   gam_fit <- mgcv::gam(
