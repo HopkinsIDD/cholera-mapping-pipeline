@@ -25,7 +25,7 @@ separate_by_overlap <- function(sf_object, name_column = "location_period_id") {
   unique_geometries[["area"]] <- sf::st_area(unique_geometries)
   unique_geometries <- unique_geometries %>%
     dplyr::arrange(-area)
-  overlaps <- sf::st_relate(unique_geometries, unique_geometries, "2********")
+  overlaps <- sf::st_intersects(unique_geometries, st_buffer(unique_geometries, -0.5 / 120))
 
   non_overlaps <- lapply(overlaps, setdiff, x = seq_len(nrow(unique_geometries)))
 
@@ -290,7 +290,7 @@ aggregate_modeled_cases_mean_by_chain_no_cache <- function(config, cache, choler
     t() %>%
     as.data.frame() %>%
     tibble::rownames_to_column() %>%
-    dplyr::mutate(updated_observation_id = gsub("modeled_cases\\[", "", gsub("]", "", rowname))) %>%
+    dplyr::mutate(updated_observation_id = as.numeric(gsub("modeled_cases\\[", "", gsub("]", "", rowname)))) %>%
     tidyr::pivot_longer(
       names_to = "chain",
       values_to = "modeled_cases",
