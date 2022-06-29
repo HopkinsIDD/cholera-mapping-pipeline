@@ -802,7 +802,6 @@ if (config[["initial_values"]][["warmup"]]) {
       betas = as.array(rnorm(
         length(coef(gam_fit)[covariate_names]),
         coef(gam_fit)[covariate_names],
-        sqrt(var(coef(gam_fit)[covariate_names]))
       )),
       etas = as.array(rnorm(
         length(initial_etas),
