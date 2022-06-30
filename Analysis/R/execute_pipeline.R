@@ -179,7 +179,23 @@ plot_energy <- function(stan_model, par = "all") {
   return(pairs(apply(rc, 3, c)))
 }
 
-
+check_data <- function(observation_data) {
+  no_errors <- TRUE
+  observation_data_df <- as.data.frame(observation_data)
+  observation_data_df %>%
+    dplyr::filter(!(is.na(suspected_cases))) %>%
+    dplyr::group_by(substr(time_left, 1, 4)) %>%
+    dplyr::summarise(n = sum(suspected_cases)) %>%
+    nrow() -> result
+  if (result == 0) {
+    no_errors <- FALSE
+    warning("Lack of enough data to start processing")
+  }
+  if (!(no_errors)) {
+    stop("At least one error which we cannot recover from occured. See above warnings for details")
+  }
+  invisible(NULL)
+}
 ## Inputs
 ## --------------------------------------------------------------------------------------------------------------
 
@@ -403,7 +419,7 @@ temporal_location_grid_mapping[["temporal_location_id"]] <- bit64::as.integer64(
   temporal_location_grid_mapping[["temporal_location_id"]],
   unique_temporal_location_ids
 ))
-
+check_data(observation_data)
 print("Starting processing")
 # Intermediate operations like aggregation and overlap removal
 
@@ -756,7 +772,7 @@ if (config[["initial_values"]][["warmup"]]) {
     include_covariates = length(covariate_names) > 0,
     covariate_names = covariate_names,
     max_knots = number_of_gridcells - 1,
-    include_time_slice_effect = config[["stan"]][["do_time_slice"]][["perform"]]
+    include_time_slice_effect = config[["stan"]][["do_time_slice"]][["perform"]] && (length(unique(covar_cube$updated_t)) > 1)
   )
 
   gam_fit <- mgcv::gam(
@@ -786,7 +802,6 @@ if (config[["initial_values"]][["warmup"]]) {
       betas = as.array(rnorm(
         length(coef(gam_fit)[covariate_names]),
         coef(gam_fit)[covariate_names],
-        sqrt(var(coef(gam_fit)[covariate_names]))
       )),
       etas = as.array(rnorm(
         length(initial_etas),
