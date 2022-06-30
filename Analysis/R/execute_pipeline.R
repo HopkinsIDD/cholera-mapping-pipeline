@@ -86,6 +86,8 @@ if (Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE)) {
 
 library(magrittr)
 library(bit64)
+# s2 has different ideas about geometry validity than postgis does
+sf::sf_use_s2(FALSE)
 
 
 ## Functions to move to taxdat later
