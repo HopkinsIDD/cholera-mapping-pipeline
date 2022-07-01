@@ -132,8 +132,8 @@ as.raster.pq_raster <- function(x) {
       ## pix_size + 2 : band number
       ## pix_size + 3 + : null terminated file name string for file to read
     } else {
-      return(raster::raster(
-        nrows = header$width, ncols = header$height, xmn = header$ipX, ymx = header$ipY, xmx = header$ipX + header$width * header$scaleX, ymn = header$ipY + header$height * header$scaleY,
+      rc <- raster::raster(
+        nrows = header$height, ncols = header$width, xmn = header$ipX, ymx = header$ipY, xmx = header$ipX + header$width * header$scaleX, ymn = header$ipY + header$height * header$scaleY,
         vals = readBin(
           con = raw_pq_rast_bands[pix_size + 1 + seq_len(header$width * header$height * pix_size)],
           what = get_mode(pixtype)[[1]],
@@ -142,7 +142,9 @@ as.raster.pq_raster <- function(x) {
           n = header$width * header$height,
           endian = header$endiannes
         )
-      ))
+      )
+      rc[rc == nodata_value] <- NA
+      return(rc)
     }
   }
 }

@@ -395,6 +395,7 @@ get_modeled_cases <- cache_fun_results(name = "modeled_cases", fun = get_modeled
 get_mean_rates_sf_no_cache <- function(config, cache, cholera_directory) {
   get_minimal_grid_population(config = config, cache = cache, cholera_directory = cholera_directory)
   aggregate_grid_cases_mean(config = config, cache = cache, cholera_directory = cholera_directory)
+  get_covar_cube(config = config, cache = cache, cholera_directory = cholera_directory)
   mean_rates_sf <- sf::st_sf(
     rates = cache[["grid_cases_mean"]] / cache[["covar_cube"]][["population"]],
     t = cache[["covar_cube"]][["t"]],
@@ -402,6 +403,7 @@ get_mean_rates_sf_no_cache <- function(config, cache, cholera_directory) {
   )
   return(return(mean_rates_sf))
 }
+
 ## cache the results
 #' @export
 #' @name get_mean_rates_sf
