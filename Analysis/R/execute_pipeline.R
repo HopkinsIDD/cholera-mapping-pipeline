@@ -965,8 +965,8 @@ if (config[["generated"]][["perform"]]) {
   updated_stan_data$K2 <- nrow(temporal_location_grid_mapping)
 
   # cmdstan_draws <- posterior::as_draws(model.rand)
-  chol_gen <- chol_gen_model$generate_quantities(
-    fitted_params = stan_fit, data = updated_stan_data,
+  chol_gen <- chol_model$generate_quantities(
+    fitted_params = cmdstan_fit, data = updated_stan_data,
     parallel_chains = config[["stan"]][["nchain"]]
   )
   chol_gen$save_object(file = config[["file_names"]][["generated_quantities"]])
