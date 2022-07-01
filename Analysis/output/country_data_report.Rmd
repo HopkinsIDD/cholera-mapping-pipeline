@@ -209,6 +209,19 @@ taxdat::plot_gam_fit_output_cases(config = params$config, cache = cache, cholera
 taxdat::plot_gam_fit_output_rates(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
+### True underlying distribution maps
+#### Ture underlying distribution of cases
+**True grid cases raster by time slices:**
+```{r underlying distribution of cases,fig.cap=capFig("True underlying distribution of cases"), fig.height=5, fig.width=10}
+plot_true_grid_cases(config=params$config,cholera_directory=params$cholera_directory,cache=cache)
+```
+
+#### Ture underlying distribution of incidece rates
+**True grid incidence raster by time slices:**
+```{r underlying distribution of incidence rates,fig.cap=capFig("True underlying distribution of rates"), fig.height=5, fig.width=10}
+plot_true_grid_rates(config=params$config,cholera_directory=params$cholera_directory,cache=cache)
+```
+
 ### Output maps
 
 ```{r importcase}
