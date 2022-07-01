@@ -800,20 +800,23 @@ if (config[["initial_values"]][["warmup"]]) {
       dplyr::summarize(value = mean(value)) %>%
       dplyr::arrange(spatial_id)
 
-    rc <- list(
-      betas = as.array(rnorm(
+    rc <- list(w = as.array(rnorm(nrow(w_df), w_df[["value"]])))
+    if (length(covariate_names) > 0) {
+      rc$betas <- as.array(rnorm(
         length(coef(gam_fit)[covariate_names]),
         coef(gam_fit)[covariate_names],
-      )),
-      etas = as.array(rnorm(
+      ))
+    }
+    if (config[["stan"]][["do_time_slice"]][["perform"]] && (length(unique(covar_cube$updated_t)) > 1)) {
+      rc$etas <- as.array(rnorm(
         length(initial_etas),
         initial_etas,
         sqrt(var(initial_etas))
-      )),
-      w = as.array(rnorm(nrow(w_df), w_df[["value"]]))
-    )
+      ))
+    }
     return(rc)
   })
+
 
   covar_cube[["covariate_contribution"]] <- covariate_effect
   covar_cube[["spatial_smoothing_term"]] <- gam_predict - covariate_effect
