@@ -60,7 +60,7 @@ plot_model_fidelity <- function(cache,
       observed_cases = tfrac_function(observed_cases, tfrac)
     ) %>%
     ggplot() +
-    ggplot2::geom_point(ggplot2::aes(y = modeled_cases, x = observed_cases, col = chain)) +
+    ggplot2::geom_point(ggplot2::aes(y = modeled_cases, x = observed_cases, col = chain,shape=spatial_scale)) +
     ggplot2::geom_abline(intercept = 0, slope = 1) +
     ggplot2::coord_fixed(ratio = 1, xlim = c(1, max_value), ylim = c(1, max_value)) +
     taxdat::plot_theme() +
@@ -94,18 +94,21 @@ plot_true_modeled_grid_cases <- function(cache,cholera_directory,config) {
   
   long_modeled_grid_case <- data.frame(reshape2::melt(wide_modeled_true_grid_cases, id.vars = c("x","y","cases","observed"), variable.name = "chains"))%>%rename("modeled grid cases"=value,"true grid cases"=cases)
   long_modeled_grid_case$observed<-as.factor(long_modeled_grid_case$observed)
+  
+  max_value<-max(long_modeled_grid_case[,c(3,6)])
+  
   if(!cache[["config"]][["test_metadata"]][["polygon_coverage"]]=="100%"){
     plt <- ggplot2::ggplot(long_modeled_grid_case) +
       ggplot2::geom_point(ggplot2::aes(y = `modeled grid cases`, x = `true grid cases`, col = chains)) +
       ggplot2::geom_abline(intercept = 0, slope = 1) +
-      ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(long_modeled_grid_case[,3])), ylim = c(0, max(long_modeled_grid_case[,6]))) +
+      ggplot2::coord_fixed(ratio = 1, xlim = c(0, max_value), ylim = c(0, max_value)) +
       ggplot2::facet_wrap(~observed)+
       ggplot2::theme_bw()
   }else{
     plt <- ggplot2::ggplot(long_modeled_grid_case) +
       ggplot2::geom_point(ggplot2::aes(y = `modeled grid cases`, x = `true grid cases`, col = chains)) +
       ggplot2::geom_abline(intercept = 0, slope = 1) +
-      ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(long_modeled_grid_case[,3])), ylim = c(0, max(long_modeled_grid_case[,6]))) +
+      ggplot2::coord_fixed(ratio = 1, xlim = c(0, max_value), ylim = c(0, max_value)) +
       ggplot2::theme_bw()
   }
   
@@ -340,6 +343,26 @@ plot_modeled_rates_time_varying <- function(config, cache, cholera_directory) {
     ggplot2::geom_sf(data = cache[["boundary_polygon"]], fill = NA, color = "black", size = 0.05)
 
   return(plot)
+}
+
+#' @export
+#' @name plot_true_grid_cases
+#' @param config
+#' @param cholera_directory
+#' @param cache
+plot_true_grid_cases <- function(config,cache,cholera_directory){
+  get_sf_grid_data(config = config, cache = cache, cholera_directory = cholera_directory)
+  return(plot_sf_with_fill(cache, "true_grid_data", color_scale_type = "cases", fill_column = "cases", geometry_column = "geometry", facet_column = "t"))
+}
+
+#' @export
+#' @name plot_true_grid_rates
+#' @param config
+#' @param cholera_directory
+#' @param cache
+plot_true_grid_rates <- function(config,cache,cholera_directory){
+  get_sf_grid_data(config = config, cache = cache, cholera_directory = cholera_directory)
+  return(plot_sf_with_fill(cache, "true_grid_data", color_scale_type = "rates", fill_column = "rate", geometry_column = "geometry", facet_column = "t"))
 }
 
 #' @export
