@@ -9,10 +9,11 @@
 #' @return the name of the grid
 #'
 prepare_grid <- function(
-  dbuser,
-  cholera_directory,
-  res_space,
-  ingest = T
+    dbuser,
+    cholera_directory,
+    res_space,
+    ingest = T,
+    aoi_name = 'raw'
 ) {
 
   # Preamble ---------------------------------------------------------------------
@@ -30,6 +31,21 @@ prepare_grid <- function(
 
   # Other objects
   conn_pg <- taxdat::connect_to_db(dbuser)
+
+  # Area of interest (for cropping rasters pre-ingestion)
+  # This is mostly for testing purposes
+  aois <- list(
+    list(name = "raw", extent = NULL),
+    list(name = "SSD", extent = raster::extent(23, 37, 3, 13)),   # SSD
+    list(name = "KEN", extent = raster::extent(33, 42, -5.2, 5)),   # Kenya
+    list(name = "SSA", extent = raster::extent(-18.8, 52.6, -35.4, 28))   # SSA
+  )
+  aoi_names <- purrr::map_chr(aois, "name")
+  if (!(aoi_name %in% aoi_names)) {
+    stop("Area of interest ", aoi_name, " not among pre-defined areas (", stringr::str_c(aoi_names, collapse = ","), ")")
+  } else {
+    aoi <- aois[[which(aoi_name == aoi_names)]]
+  }
 
   # Process grid ------------------------------------------------------------------
 
@@ -54,7 +70,11 @@ prepare_grid <- function(
       "_1km_Aggregated.tif"
     )
 
-    master_grid_filename <- paste0("Layers/pop/ppp_", 2020, "_1km_Aggregated.tif")
+    if (!dir.exists("Layers/pop_old")) {
+      dir.create("Layers/pop_old")
+    }
+
+    master_grid_filename <- paste0("Layers/pop_old/ppp_", 2020, "_1km_Aggregated.tif")
 
     cat("---- Couldn't find master grid, importing it from", master_grid_filename, "\n")
 
@@ -68,6 +88,15 @@ prepare_grid <- function(
       stop("The file doesn't exists, try pulling it with git-lfs")
     }
 
+    ## Adding cropping to aoi:
+    r <- raster::stack(master_grid_filename)
+    if (!is.null(aoi$extent)) {
+      cat(paste("Cropping",master_grid_filename, "to", "[", stringr::str_c(c("xmin:", ", xmax:", ", ymin:", ", ymax:"), as.vector(aoi$extent)), "]\n"))
+      r <- raster::crop(r, aoi$extent)
+    }
+    master_grid_filename <- gsub('.tif$', paste0('.cropped.',aoi_name, '.tif'), master_grid_filename)
+    raster::writeRaster(x = r, filename = master_grid_filename)
+
     r2psql_cmd <- glue::glue("raster2pgsql -s EPSGS:4326 -I -t auto -d {master_grid_filename}  grids.master_grid |
                      psql -d cholera_covariates")
     err <- system(r2psql_cmd)
@@ -77,6 +106,7 @@ prepare_grid <- function(
 
     update_query <- "UPDATE grids.master_grid SET rast = ST_Reclass(rast, 1, '[0-1000000]:1', '32BF', 0);"
     DBI::dbClearResult(DBI::dbSendStatement(conn_pg, update_query))
+    DBI::dbClearResult(DBI::dbSendStatement(conn_pg, "UPDATE grids.master_grid SET rast = ST_SetBandNoDataValue(rast,1, NULL);"))
     DBI::dbClearResult(DBI::dbSendStatement(conn_pg, "SELECT AddRasterConstraints('grids'::name, 'master_grid'::name, 'rast'::name);"))
   }
 
@@ -101,9 +131,9 @@ prepare_grid <- function(
 
     # Aggregate
     taxdat::gdalwarp2(ref_grid, tmp_rast,
-              tr = c(res_x, res_y) * km_to_deg,
-              t_srs = "EPSG:4326",
-              s_srs = "EPSG:4326")
+                      tr = c(res_x, res_y) * km_to_deg,
+                      t_srs = "EPSG:4326",
+                      s_srs = "EPSG:4326")
     # Write to database
     r2psql_cmd <- glue::glue(
       "raster2pgsql -s EPSGS:4326 -I -C -t auto -d {tmp_rast} {grid_name} | psql -d cholera_covariates"

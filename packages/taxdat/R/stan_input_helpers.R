@@ -319,6 +319,12 @@ get_space_time_ind_speedup <- function(df,
     map_loc_grid_grid <- c(map_loc_grid_grid, cell_ind)
   }
   
+  # Get set of population 1km weights
+  u_loc_grid_weights <- purrr::map_dbl(
+    1:length(map_loc_grid_loc),
+    ~ with(lp_dict, pop_weight[upd_long_id == map_loc_grid_grid[.] & 
+                           loctime_id == u_loctimes[map_loc_grid_loc[.]]]))
+  
   # Adjust location period mapping ids to reindexed ids
   map_obs_loctime_loc <- u_loctimes_ind[as.character(map_obs_loctime_loc)]
   
@@ -329,5 +335,6 @@ get_space_time_ind_speedup <- function(df,
               map_loc_grid_grid = map_loc_grid_grid,
               u_loctimes = u_loctimes,
               u_loctimes_ind = u_loctimes_ind,
+              u_loc_grid_weights = u_loc_grid_weights,
               tfrac = tfrac))
 }

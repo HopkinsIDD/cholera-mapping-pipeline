@@ -426,4 +426,4 @@ if (str_detect(params$config_directory, "negbinom")) {
     theme_bw() +
     labs(x = "Aggregation parameter")
 }
-
+```

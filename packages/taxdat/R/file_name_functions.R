@@ -154,7 +154,7 @@ make_initial_values_filename <- function(cholera_directory,
   }
   
   # Modeling configs
-  for (par in c("censoring", "time_effect", "time_effect_autocorr", "use_weights", "use_rho_prior")) {
+  for (par in c("censoring", "time_effect", "time_effect_autocorr", "use_weights", "use_rho_prior", "use_pop_weight", "beta_sigma_scale")) {
     if(!is.null(stan_pars[[par]])) {
       to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, stan_pars[[par]])
     } else {
@@ -232,6 +232,66 @@ make_stan_output_filename <- function(cholera_directory,
   paste0(base_filename, to_add, ".stan_output.rdata")
 }
 
+#' @title Make Stan output filename
+#' @name make_stan_output_filename
+#' @description Make string for Stan output Rdata file name
+#'
+#' @param cholera_directory cholera mapping directory
+#' @param map_name map name
+#' @param covariate_name_part name of covariate
+#' @param config configuration file
+#' @param config_dict dictionary of configuration options
+#' @return a string with the Stan output file name
+#' @export
+
+make_stan_genquant_filename <- function(cholera_directory,
+                                        map_name,
+                                        covariate_name_part,
+                                        config,
+                                        config_dict) {
+  
+  if ("file_names" %in% names(config)) {
+    filename <- paste(cholera_directory, "Analysis", "data", sep = "/")
+    if ("output_directory" %in% names(config[["file_names"]])) {
+      filename <- config[["file_names"]][["output_directory"]]
+    }
+    if ("stan_genquant_filename" %in% names(config[["file_names"]])) {
+      return(paste(filename, config[["file_names"]][["stan_genquant_filename"]], sep = "/"))
+    }
+  }
+  
+  # Get stan input filename
+  base_filename <- make_initial_values_filename(cholera_directory,
+                                                map_name,
+                                                covariate_name_part,
+                                                config,
+                                                config_dict)
+  # Base part of output filename
+  base_filename <- stringr::str_remove(base_filename, "initial_values\\.rdata")
+  
+  # Get stan parameters
+  stan_pars <- get_stan_parameters(config)
+  
+  # Modeling configs
+  to_add <- "mc"
+  for (par in names(stan_pars)) {
+    if(!is.null(stan_pars[[par]])) {
+      to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, stan_pars[[par]])
+    } else {
+      to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, "NULL")
+    }
+  }
+  
+  # Add stan filename and iterations
+  to_add <- paste0(to_add, "-model:", stringr::str_remove(config$stan$model, "\\.stan"))
+  to_add <- paste0(to_add, "-niter", config$stan$niter)
+  
+  to_add <- stringr::str_replace_all(to_add, "TRUE", "T")
+  to_add <- stringr::str_replace_all(to_add, "FALSE", "F")
+  to_add <- stringr::str_replace_all(to_add, "NULL", "N")
+  
+  paste0(base_filename, to_add, ".stan_genquant.rds")
+}
 
 #' @title Make map output filename
 #' @name make_map_output_filename
@@ -306,14 +366,20 @@ make_map_name <- function(config, .f = NULL) {
 #' @export
 
 get_filenames <- function (config, cholera_directory) {
-  # Covariate names
-  covariate_dict <- yaml::read_yaml(paste0(cholera_directory, "/Layers/covariate_dictionary.yml"))
-  all_covariate_choices <- names(covariate_dict)
-  short_covariate_choices <- purrr::map_chr(covariate_dict, "abbr")
-  covariate_choices <- check_covariate_choices(covar_choices = config$covariate_choices,
-                                               available_choices = all_covariate_choices)
-  short_covariates <- short_covariate_choices[covariate_choices]
-  covariate_name_part <- paste(short_covariates, collapse = "-")
+  
+  if (is.null(config$covariate_choices)) {
+    covariate_name_part <- "nocovar"
+  } else {
+    # Covariate names
+    covariate_dict <- yaml::read_yaml(paste0(cholera_directory, "/Layers/covariate_dictionary.yml"))
+    all_covariate_choices <- names(covariate_dict)
+    short_covariate_choices <- purrr::map_chr(covariate_dict, "abbr")
+    covariate_choices <- check_covariate_choices(covar_choices = config$covariate_choices,
+                                                 available_choices = all_covariate_choices)
+    short_covariates <- short_covariate_choices[covariate_choices]
+    covariate_name_part <- paste(short_covariates, collapse = '-')
+  }
+  
   map_name <- make_map_name(config)
   
   # Load dictionary of configuration options
@@ -344,16 +410,25 @@ get_filenames <- function (config, cholera_directory) {
                                                  config = config,
                                                  config_dict = config_dict)
   
+  stan_genquant_fname <- make_stan_genquant_filename(cholera_directory = cholera_directory,
+                                                     map_name = map_name,
+                                                     covariate_name_part = covariate_name_part,
+                                                     config = config,
+                                                     config_dict = config_dict)
+  
   rc <- list(
     data = preprocessed_data_fname,
     covar = preprocessed_covar_fname,
     stan_input = stan_output_fname,
     initial_values = initial_values_fname,
-    stan_output = stan_output_fname
+    stan_output = stan_output_fname,
+    stan_genquant = stan_genquant_fname
   )
+  
   rc <- setNames(c(preprocessed_data_fname, preprocessed_covar_fname,
-                   stan_input_fname, initial_values_fname, stan_output_fname), c("data", "covar",
-                                                                                 "stan_input", "initial_values", "stan_output"))
+                   stan_input_fname, initial_values_fname, stan_output_fname,
+                   stan_genquant_fname), 
+                 c("data", "covar", "stan_input", "initial_values", "stan_output", "stan_genquant"))
   return(rc)
 }
 

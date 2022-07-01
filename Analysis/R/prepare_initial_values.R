@@ -72,9 +72,11 @@ df <- purrr::map_dfr(
     sx <- coord_frame$x[ind]
     sy <- coord_frame$y[ind]
     
-    beta_mat <- stan_data$covar[ind, ] %>% 
-      matrix(ncol = stan_data$ncovar) %>% 
-      magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar))
+    if (stan_data$ncovar > 0) {
+      beta_mat <- stan_data$covar[ind, ] %>% 
+        matrix(ncol = stan_data$ncovar) %>% 
+        magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar))
+    }
     
     year_mat <- mat_grid_time[ind, ] %>%
       matrix(ncol = ncol(mat_grid_time)) %>%
@@ -93,7 +95,13 @@ df <- purrr::map_dfr(
                      ey = pop*stan_data$meanrate,
                      tfrac = tfrac_vec,
                      censored = stan_data$censoring_inds[i]) %>%
-        cbind(beta_mat) %>% 
+        {
+          if (stan_data$ncovar > 0) {
+            cbind(., beta_mat) 
+          } else {
+            .
+          }
+        } %>% 
         cbind(year_mat)
     )
   }
@@ -119,9 +127,7 @@ covar_warmup <- stan_params$covar_warmup
 stan_data$sigma_eta_scale <- stan_params$sigma_eta_scale
 
 # Add scale of prior on the sd of regression coefficients
-if (stan_data$ncovar >= 1) {
-  stan_data$beta_sigma_scale <- stan_params$beta_sigma_scale
-}
+stan_data$beta_sigma_scale <- stan_params$beta_sigma_scale
 
 
 if (warmup) {
@@ -164,10 +170,16 @@ if (warmup) {
     cbind(mat_grid_time[indall, ] %>% 
             tibble::as_tibble() %>%
             magrittr::set_colnames(paste0("year_", 1:ncol(mat_grid_time)))) %>% 
-    # Extract the covariates
-    cbind(stan_data$covar[indall, ] %>% 
-            matrix(ncol = stan_data$ncovar) %>% 
-            magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar)))
+    { 
+      if(stan_data$ncovar > 0) {
+        # Extract the covariates
+        cbind(., stan_data$covar[indall, ] %>% 
+                matrix(ncol = stan_data$ncovar) %>% 
+                magrittr::set_colnames(paste0("beta_", 1:stan_data$ncovar)))
+      } else {
+        .
+      }
+    }
   
   # Predict log(lambda) for the reference year with covariates
   y_pred_mean <- mgcv::predict.gam(gam_fit, predict_df)
