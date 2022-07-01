@@ -206,18 +206,23 @@ disaggregate_grid_cases_mean_no_cache <- function(config, cache, cholera_directo
   for (this_t in unique(cache[["mean_rates_sf"]]$t)) {
     local_mean_rates_sf <- cache[["mean_rates_sf"]] %>% dplyr::filter(t == this_t)
     for (pop_tile_idx in which(cache[["minimal_grid_population"]]$t == this_t)) {
-      this_pop <- cache[["minimal_grid_population"]][["rast"]][[pop_tile_idx]]
-      this_rates <- stars::st_rasterize(local_mean_rates_sf, template = this_pop)
-      rc[[counter]] <- (this_rates * this_pop) %>%
+      rc[[counter]] <- (
+        stars::st_rasterize(local_mean_rates_sf, template = cache[["minimal_grid_population"]][["rast"]][[pop_tile_idx]] * NA) *
+          cache[["minimal_grid_population"]][["rast"]][[pop_tile_idx]]
+      ) %>%
         sf::st_as_sf() %>%
         dplyr::rename(cases = rates) %>%
         dplyr::mutate(t = this_t) %>%
         sf::st_as_sf()
+      rc[[counter]] <- rc[[counter]][
+        sf::st_intersects(sf::st_union(cache[["boundary_polygon"]]), sf::st_centroid(rc[[counter]]))[[1]],
+      ]
       counter <- counter + 1
     }
   }
-  return(do.call(what = rbind, rc))
+  return(do.call(what = dplyr::bind_rows, rc))
 }
+
 
 #' @export
 #' @name disaggregate_grid_cases_mean

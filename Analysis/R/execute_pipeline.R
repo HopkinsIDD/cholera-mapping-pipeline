@@ -86,6 +86,8 @@ if (Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE)) {
 
 library(magrittr)
 library(bit64)
+# s2 has different ideas about geometry validity than postgis does
+sf::sf_use_s2(FALSE)
 
 
 ## Functions to move to taxdat later
@@ -798,20 +800,23 @@ if (config[["initial_values"]][["warmup"]]) {
       dplyr::summarize(value = mean(value)) %>%
       dplyr::arrange(spatial_id)
 
-    rc <- list(
-      betas = as.array(rnorm(
+    rc <- list(w = as.array(rnorm(nrow(w_df), w_df[["value"]])))
+    if (length(covariate_names) > 0) {
+      rc$betas <- as.array(rnorm(
         length(coef(gam_fit)[covariate_names]),
         coef(gam_fit)[covariate_names],
-      )),
-      etas = as.array(rnorm(
+      ))
+    }
+    if (config[["stan"]][["do_time_slice"]][["perform"]] && (length(unique(covar_cube$updated_t)) > 1)) {
+      rc$etas <- as.array(rnorm(
         length(initial_etas),
         initial_etas,
         sqrt(var(initial_etas))
-      )),
-      w = as.array(rnorm(nrow(w_df), w_df[["value"]]))
-    )
+      ))
+    }
     return(rc)
   })
+
 
   covar_cube[["covariate_contribution"]] <- covariate_effect
   covar_cube[["spatial_smoothing_term"]] <- gam_predict - covariate_effect
@@ -963,8 +968,8 @@ if (config[["generated"]][["perform"]]) {
   updated_stan_data$K2 <- nrow(temporal_location_grid_mapping)
 
   # cmdstan_draws <- posterior::as_draws(model.rand)
-  chol_gen <- chol_gen_model$generate_quantities(
-    fitted_params = stan_fit, data = updated_stan_data,
+  chol_gen <- chol_model$generate_quantities(
+    fitted_params = cmdstan_fit, data = updated_stan_data,
     parallel_chains = config[["stan"]][["nchain"]]
   )
   chol_gen$save_object(file = config[["file_names"]][["generated_quantities"]])

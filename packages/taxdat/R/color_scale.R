@@ -21,10 +21,18 @@ color_scale <- function(type = "cases", use_case = "leaflet", use_log = FALSE) {
       transform <- scales::identity_trans()
     }
 
-    limits <- c(exp(-5), NA)
+    if (use_log) {
+      limits <- c(exp(-5), NA)
+    } else {
+      limits <- c(0, NA)
+    }
   } else if (type %in% c("rate", "rates")) {
     colors <- c("blue", "white", "red")
-    limits <- c(1e-7, 1e-1) # 1e-2 to 1e4 on cases per 1e5
+    if (use_log) {
+      limits <- c(1e-7, 1e-1) # 1e-2 to 1e4 on cases per 1e5
+    } else {
+      limits <- c(0, 1e-1)
+    }
     breaks <- function(x) {
       logscale_x <- log(x * 1e5) / log(10)
       return(10^seq(floor(logscale_x[1]), ceiling(logscale_x[2]), by = 1) / 1e5)
