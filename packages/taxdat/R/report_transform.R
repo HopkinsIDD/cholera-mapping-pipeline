@@ -170,7 +170,7 @@ aggregate_observed_polygon_cases_disjoint_counted <- cache_fun_results(
 #' @return modeled cases mean by location periods
 aggregate_covar_cube_covariates_no_cache <- function(config, cache, cholera_directory) {
   get_covar_cube(config = config, cache = cache, cholera_directory = cholera_directory)
-  get_config(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
+  get_config(config = config, cache = cache, cholera_directory = cholera_directory)
 
   return(aggregate_to_location_period(
     sf_object = tidyr::pivot_longer(cache[["covar_cube"]], cache[["config"]][["general"]][["covariates"]]),
