@@ -171,12 +171,40 @@ DBI::dbClearResult(DBI::dbSendStatement(
   glue::glue_sql("CREATE TABLE {`{DBI::SQL(location_periods_table)}`} AS (
                   SELECT location_period_id , b.rid, b.x, b.y
                   FROM {`{DBI::SQL(lp_name)}`} a
-                  JOIN {`{DBI::SQL(paste0(full_grid_name, '_centroids'))}`} b
-                  ON ST_Within(b.geom, a.geom)
+                  JOIN {`{DBI::SQL(paste0(full_grid_name, '_polys'))}`} b
+                  ON ST_Intersects(b.geom, a.geom)
                 );",
                  .con = conn_pg
   )
 ))
+
+# Create table of spatial intersections between grid polygons and shapefile
+# borders to compute population-weighted fractions
+intersections_table <- taxdat::make_grid_intersections_table_name(dbuser = dbuser, map_name = map_name)
+
+DBI::dbClearResult(DBI::dbSendStatement(
+  conn_pg,
+  glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(intersections_table)}`};",
+                 .con = conn_pg)
+))
+DBI::dbClearResult(DBI::dbSendStatement(
+  conn_pg,
+  glue::glue_sql("CREATE TABLE {`{DBI::SQL(intersections_table)}`} AS (
+                  SELECT location_period_id , b.rid, b.x, b.y, ST_Intersection(b.geom, a.geom) as geom,
+                  g.geom as grid_centroid
+                  FROM {`{DBI::SQL(lp_name)}`} a
+                  JOIN {`{DBI::SQL(paste0(full_grid_name, '_polys'))}`} b
+                  ON ST_Intersects(b.geom, ST_Boundary(a.geom)) OR ST_CoveredBy(a.geom, b.geom)
+                  JOIN {`{DBI::SQL(paste0(full_grid_name, '_centroids'))}`} g
+                  ON b.rid = g.rid AND b.x = g.x AND b.y = g.y
+                );",
+                 .con = conn_pg
+  )
+))
+
+# Create spatial index
+DBI::dbClearResult(DBI::dbSendStatement(conn_pg, glue::glue_sql("CREATE INDEX  {`{DBI::SQL(paste0(lp_name, 'intersections__idx'))}`} ON  {`{DBI::SQL(intersections_table)}`} USING GIST(geom);", .con = conn_pg)))
+DBI::dbClearResult(DBI::dbSendStatement(conn_pg, glue::glue_sql("VACUUM ANALYZE {`{DBI::SQL(intersections_table)}`};", .con = conn_pg)))
 
 # Get the dictionary of location periods to pixel ids
 cntrd_table <- taxdat::make_grid_centroids_table_name(dbuser = dbuser, map_name = map_name)
@@ -191,9 +219,11 @@ DBI::dbClearResult(DBI::dbSendStatement(
   glue::glue_sql(
     "CREATE TABLE {`{DBI::SQL(cntrd_table)}`} AS (
         SELECT DISTINCT g.*
-        FROM {`{DBI::SQL(paste0(full_grid_name, '_centroids'))}`} g
+        FROM {`{DBI::SQL(paste0(full_grid_name, '_polys'))}`} p
         JOIN {`{DBI::SQL(lp_name)}`} l
-        ON ST_Intersects(g.geom, l.geom)
+        ON ST_Intersects(p.geom, l.geom)
+        JOIN {`{DBI::SQL(paste0(full_grid_name, '_centroids'))}`} g
+        ON p.rid = g.rid AND p.x = g.x AND p.y = g.y
       );", .con = conn_pg
   )
 ))

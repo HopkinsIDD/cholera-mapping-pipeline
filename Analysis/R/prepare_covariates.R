@@ -92,7 +92,6 @@ prepare_covariates <- function(
     aoi <- aois[[which(aoi_name == aoi_names)]]
   }
 
-  print("CHECKPOINT A")
   if (ovrt_metadata_table) {
     # Recreate the metadata table
     DBI::dbClearResult(DBI::dbSendStatement(conn_pg, "DROP TABLE IF EXISTS covariates.metadata;"))
@@ -113,7 +112,6 @@ prepare_covariates <- function(
                   );"))
 
   }
-  print("CHECKPOINT B")
 
   for (covarit in covar_toingest_list) {
 
@@ -130,10 +128,8 @@ prepare_covariates <- function(
       stop(glue::glue("Couldn't find {covarit$type} covariate '{covarit$alias}' at temporal resolution of: {res_time}, and spatial resolution of: {res_x}x{res_y}km. The covariate needs to be preprocessed and ingested by an authorized users."))
 
 
-    print(paste("CHECKPOINT C", paste(covarit, collapse = "::")))
     covarit$dir <- paste(cholera_covariates_directory, covarit$dir, sep="/")
     if (!any(covar_in_db) | ovrt_covar) {
-      print(paste("CHECKPOINT D", paste(covarit, collapse = "::")))
       taxdat::ingest_covariate(conn = conn_pg,
                       covar_name = covarit$name,
                       covar_dir = covarit$dir,
@@ -161,12 +157,9 @@ prepare_covariates <- function(
       covar_schema <- names(covar_in_db)[covar_in_db]
       cat("---- Found pre-computed ", covar_alias, " in schema '", covar_schema, "'\n", sep = "")
     }
-    print(paste("CHECKPOINT E",paste(covarit,collapse='::')))
 
 
-    print(paste("CHECKPOINT F",paste(covarit,collapse='::')))
     if (redo_metadata) {
-      print(paste("CHECKPOINT G",paste(covarit,collapse='::')))
       taxdat::write_metadata(conn = conn_pg,
                     covar_dir = covarit$dir,
                     covar_type = covarit$type,
@@ -178,11 +171,9 @@ prepare_covariates <- function(
                     time_aggregator = covarit$time_aggregator,
                     dbuser = dbuser)
     }
-    print(paste("CHECKPOINT H",paste(covarit,collapse='::')))
 
     covar_list <- c(covar_list, stringr::str_c(covar_schema, covar_alias, sep = "."))
   }
-  print(paste("CHECKPOINT I"))
 
   # Write covariate names to file
   covar_list_file <- paste0("covar_list_", Sys.getenv("USER"), ".txt")
