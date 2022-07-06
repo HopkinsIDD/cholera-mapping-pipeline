@@ -180,16 +180,16 @@ plot_energy <- function(stan_model, par = "all") {
 
   return(pairs(apply(rc, 3, c)))
 }
-
 check_data <- function(observation_data) {
   no_errors <- TRUE
-  observation_data_df <- as.data.frame(observation_data)
-  observation_data_df %>%
+  data_df <- as.data.frame(observation_data)
+  data_df %>%
     dplyr::filter(!(is.na(suspected_cases))) %>%
     dplyr::group_by(substr(time_left, 1, 4)) %>%
     dplyr::summarise(n = sum(suspected_cases)) %>%
     nrow() -> result
-  if (result == 0) {
+  nrow_grid <- nrow(grid_adjacency)
+  if (result <= 1) {
     no_errors <- FALSE
     warning("Lack of enough data to start processing")
   }
@@ -421,6 +421,7 @@ temporal_location_grid_mapping[["temporal_location_id"]] <- bit64::as.integer64(
   temporal_location_grid_mapping[["temporal_location_id"]],
   unique_temporal_location_ids
 ))
+print(nrow(observation_data))
 check_data(observation_data)
 print("Starting processing")
 # Intermediate operations like aggregation and overlap removal

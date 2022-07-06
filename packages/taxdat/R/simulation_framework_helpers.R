@@ -674,6 +674,8 @@ observe_gridcells <- function(underlying_distribution = create_underlying_distri
 #' @param nonlinear_covariates Not used
 #' @param min_time_left The first time associated with an observation
 #' @param max_time_right The last time associated with an observation
+#' @param observation_time_left censored left time
+#' @param observation_time_right censored right time
 #' @param seed A random seed
 observe_polygons <- function(test_polygons = create_test_layered_polygons(), test_covariates = create_multiple_test_covariates(polygons = test_polygons),
     underlying_distribution = create_underlying_distribution(covariates = test_covariates),
@@ -682,6 +684,7 @@ observe_polygons <- function(test_polygons = create_test_layered_polygons(), tes
     polygon_proportion_observed = 1, polygon_observation_rates = rep(1, times = nrow(test_polygons)),
     polygon_observation_idx = NA, polygon_size_bias = TRUE, nonlinear_covariates = FALSE,
     min_time_left = lubridate::ymd("2000-01-01"), max_time_right = lubridate::ymd("2001-01-01"),
+    observation_time_left=min_time_left,observation_time_right=max_time_right,
     do_temporal_subset = FALSE, seed) {
     seed <- get_or_set_seed(seed)
     observed_grid <- observe_gridcells(underlying_distribution = underlying_distribution,
@@ -702,10 +705,18 @@ observe_polygons <- function(test_polygons = create_test_layered_polygons(), tes
             if (do_temporal_subset) {
                 minmax <- sort(sample(nlayers, 2, replace = TRUE))
             }
-            time_bounds <- (max_time_right - min_time_left) * (minmax - c(1, 0))/nlayers +
-                lubridate::as_datetime(min_time_left)
-            time_bounds <- as.Date(time_bounds)
+            
+            #update the dates of censored observations
+            dates <- seq.Date(min_time_left, max_time_right, length.out = nlayers+1)
+            underlying_distribution_dates <- data.frame(time_left = dates, time_right = lead(dates))[seq(length(dates)-1),]
+            
+            if(!observation_time_right==max_time_right | !observation_time_left==min_time_left){
+                minmax <- c(which(observation_time_left <= underlying_distribution_dates$time_left)[1], which(observation_time_right <= underlying_distribution_dates$time_right)[1])            
+            }
+            
             tfrac <- (minmax[2] - minmax[1] + 1)/(nlayers)
+            time_bounds <-c(underlying_distribution_dates$time_left[minmax[1]],underlying_distribution_dates$time_right[minmax[2]])             
+
             .y$tmin <- minmax[1]
             .y$tmax <- minmax[2]
             .x <- cbind(.x, .y)

@@ -1427,7 +1427,7 @@ convert_test_covariate_funs_to_simulation_covariates <- function(covariate_creat
       covar = list(x$fun())
     )
   }) %>%
-    do.call(what = bind_rows) %>%
+    do.call(what = dplyr::bind_rows) %>%
     dplyr::group_by(name) %>%
     summarize(covar = list(do.call(what = bind_rows, mapply(
       SIMPLIFY = FALSE,
