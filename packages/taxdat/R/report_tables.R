@@ -195,3 +195,45 @@ table_population_by_admin <- function(config, cache, cholera_directory) {
     kableExtra::kable_paper(full_width = F) %>%
     kableExtra::row_spec(nrow(admin_pop_table), bold = T)
 }
+
+
+#' @export
+#' @name table_modeled_cases_by_chain_time
+#' @title table_modeled_cases_by_chain_time
+#' @description plot the polygon with modeled cases
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
+#' @return table with modeled cases by time and chain
+table_modeled_cases_by_chain_time <- function(config, cache, cholera_directory) {
+  aggregate_grid_cases_mean_by_chain(config = config, cache = cache, cholera_directory = cholera_directory)
+  get_covar_cube(config = config, cache = cache, cholera_directory = cholera_directory)
+  cache[["covar_cube"]] <- cache[["covar_cube"]] %>%
+    dplyr::ungroup() %>%
+    dplyr::select(t,id)
+  cache[["covar_cube"]][,paste("cases", "chain", seq_len(ncol(cache[["grid_cases_mean_by_chain"]])), sep = "_")] <- cache[["grid_cases_mean_by_chain"]]
+
+  get_modeled_years(config = config, cache = cache, cholera_directory = cholera_directory)
+  get_analysis_years(config = config, cache = cache, cholera_directory = cholera_directory)
+  get_dropped_years(config = config, cache = cache, cholera_directory = cholera_directory)
+
+  if(params$drop_nodata_years  & !all(cache[["modeled_years"]] %in% cache[["analysis_years"]])){
+    drop_year_ix <- which(!cache[["modeled_years"]] %in% cache[["analysis_years"]])
+    message(paste("Dropping", paste(cache[["modeled_years"]][drop_year_ix], collapse = ", "), "from cases_chains"))
+    cache[["covar_cube"]] <- dplyr::filter(cache[["covar_cube"]], !(t %in% drop_year_ix))
+  }
+  
+  sf_grid_wider <- sf::st_drop_geometry(cache[["covar_cube"]])
+  
+  by_years <- sf_grid_wider %>%
+    dplyr::group_by(t) %>%
+    dplyr::summarise(dplyr::across(dplyr::contains("cases_chain"), sum)) %>%
+    dplyr::mutate(t = as.character(t))
+  mai <- by_years %>%
+    dplyr::summarise(dplyr::across(dplyr::contains("cases_chain"), mean)) %>%
+    dplyr::mutate(t = "mean annual cases")
+  
+  dplyr::bind_rows(by_years, mai) %>%
+    kableExtra::kable(col.names = c("time slice", paste("chain", 1:cache[["config"]][["stan"]][["nchain"]]))) %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped"))
+}
