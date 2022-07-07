@@ -322,7 +322,7 @@ covariate_raster_funs_observation[[6]] <- covariate3_raster_funs_observation[[4]
 
 ## save additional covariates in the data generation process for country data
 ## report
-saveRDS(test_covariates_observation_final, "/home/app/cmp/Analysis/output/test_case_18_data_simulation_covariates.rdata")
+saveRDS(test_covariates_observation_final, "/home/app/cmp/Analysis/output/SYC_error_data_simulation_covariates.rdata")
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change observations
@@ -354,7 +354,7 @@ all_dfs$observations_df <- test_observations %>%
 all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$suspected_cases <- sum(all_dfs$observations_df[grep(
   "1::",
   all_dfs$observations_df$qualified_name
-), ]$suspected_cases) * 3
+), ]$suspected_cases) 
 
 test_true_grid_cases<-test_underlying_distribution$mean
 
@@ -363,7 +363,7 @@ observed_polygon_id<-c(unique(data.frame(sf::st_join(st_centroid(test_true_grid_
 observed_test_true_grid_cases<-test_true_grid_cases%>%subset(id%in%observed_polygon_id$id)
 test_true_grid_cases<-test_true_grid_cases%>%mutate(observed=ifelse(id%in%observed_polygon_id$id,"Observed grid cells","Unobserved grid cells"))
 
-saveRDS(test_true_grid_cases,"/home/app/cmp/Analysis/output/test_case_18_true_grid_cases.rdata")
+saveRDS(test_true_grid_cases,"/home/app/cmp/Analysis/output/SYC_error_true_grid_cases.rdata")
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
@@ -372,7 +372,7 @@ taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raste
 
 ## NOTE: Change me if you want to run the report locally config_filename <-
 ## paste(tempfile(), 'yml', sep = '.')
-config_filename <- "/home/app/cmp/Analysis/R/config_test_case_18.yml"
+config_filename <- "/home/app/cmp/Analysis/R/config_SYC_error.yml"
 
 ## Put your config stuff in here
 config <- list(general = list(
@@ -392,12 +392,12 @@ config <- list(general = list(
   recompile = TRUE
 ), file_names = list(stan_input = rprojroot::find_root_file(
   criterion = ".choldir",
-  "Analysis", "output", "test18.stan_input.rdata"
+  "Analysis", "output", "SYC_error.stan_input.rdata"
 ), stan_output = rprojroot::find_root_file(
   criterion = ".choldir",
-  "Analysis", "output", "test18.stan_output.rds"
+  "Analysis", "output", "SYC_error.stan_output.rds"
 )), test_metadata = list(
-  name = "test_18",
+  name = "SYC_error",
   nrows = 5, ncols = 5, data_type = "Grid data", oc_type = "-", polygon_type = "Fake polygon",
   polygon_coverage = "100%", randomize = TRUE, ncovariates = nrow(covariates_table),
   single_year_run = ifelse(lubridate::year(query_time_right) - lubridate::year(query_time_left) ==
@@ -409,10 +409,11 @@ config <- list(general = list(
     "Nationally reported data is ",
     all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$suspected_cases / sum(all_dfs$observations_df[grep("1::", all_dfs$observations_df$qualified_name), ]$suspected_cases), " times of the cases reported at the subnational level."
   ),
-  Loc_with_inconsistent_data = "-", Cov_data_simulation_filename = "/home/app/cmp/Analysis/output/test_case_18_data_simulation_covariates.rdata",test_true_grid_case_filename="/home/app/cmp/Analysis/output/test_case_18_true_grid_cases.rdata"
+  Loc_with_inconsistent_data = "-", Cov_data_simulation_filename = "/home/app/cmp/Analysis/output/SYC_error_data_simulation_covariates.rdata",test_true_grid_case_filename="/home/app/cmp/Analysis/output/SYC_error_true_grid_cases.rdata"
 ))
 
 yaml::write_yaml(x = config, file = config_filename)
 
 Sys.setenv(CHOLERA_CONFIG = config_filename)
+
 source(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "R", "execute_pipeline.R"))
