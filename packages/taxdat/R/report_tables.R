@@ -58,7 +58,7 @@ table_dropped_data <- function(config, cache, cholera_directory) {
   obs_stats <- dplyr::group_by(obs_stats, year)
   obs_stats <- dplyr::summarize(obs_stats,
     n_obs = dplyr::n(),
-    n_cases = sum(attributes.fields.suspected_cases),
+    n_cases = sum(suspected_cases),
     n_lp = length(unique(location_period_id)),
     u_lps = paste(sort(unique(location_period_id)), collapse = ","),
     n_OCs = length(unique(observation_collection_id)),
@@ -67,7 +67,7 @@ table_dropped_data <- function(config, cache, cholera_directory) {
 
   used_obs_stats <- obs_stats[order(obs_stats$year), ]
   # get all obs_stats
-  all_obs_stats <- tibble::as_tibble(cache[["sf_cases_resized"]])
+  all_obs_stats <- tibble::as_tibble(cache[["observation_data"]])
   all_obs_stats <- dplyr::mutate(all_obs_stats, year = lubridate::year(time_left))
   alldf <- tibble::as_tibble(all_obs_stats)
   alldf <- dplyr::mutate(alldf, year = "all")
@@ -75,7 +75,7 @@ table_dropped_data <- function(config, cache, cholera_directory) {
   all_obs_stats <- dplyr::group_by(all_obs_stats, year)
   all_obs_stats <- dplyr::summarize(all_obs_stats,
     n_obs = dplyr::n(),
-    n_cases = sum(attributes.fields.suspected_cases),
+    n_cases = sum(suspected_cases),
     n_lp = length(unique(location_period_id)),
     u_lps = paste(sort(unique(location_period_id)), collapse = ","),
     n_OCs = length(unique(observation_collection_id)),
