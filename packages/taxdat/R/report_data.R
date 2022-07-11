@@ -449,6 +449,7 @@ get_data_fidelity_df_no_cache <- function(config, cache, cholera_directory) {
   
   if(any(cache[["stan_input"]][["observation_data"]]$location_name==1)){
     sCh_national= data.frame(cache[["stan_input"]][["observation_data"]]%>%filter(location_name==1))%>%dplyr::select(suspected_cases)
+    cache[["modeled_cases_mean_by_chain"]]$spatial_scale=NA
     cache[["modeled_cases_mean_by_chain"]]$spatial_scale=ifelse( cache[["modeled_cases_mean_by_chain"]]$observed_cases==sCh_national$suspected_cases,"National level","Sub-national level")
   }
   

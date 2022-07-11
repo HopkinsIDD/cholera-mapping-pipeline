@@ -54,7 +54,7 @@ plot_model_fidelity <- function(cache,
     summarize(max_value = max(c(observed_cases, modeled_cases))) %>%
     .$max_value
 
-if(!"spatial_scale"%in%colnames(cache[[name]])){
+if(any(colnames(cache[[name]])=="spatial_scale")){
   plt <- cache[[name]] %>%
     dplyr::mutate(
       modeled_cases = inv_tfrac_function(modeled_cases, tfrac),
