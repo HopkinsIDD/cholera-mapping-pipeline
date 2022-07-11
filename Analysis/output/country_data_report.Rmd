@@ -142,7 +142,7 @@ taxdat::table_observation_summary(config=params$config, cache=cache, cholera_dir
 
 **Table 2. Data dropped from the model:**
 ```{r echo=FALSE}
-taxdat::table_observation_summary(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
+#taxdat::table_dropped_data(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
 
 ```{r disjoint set sf cases, message=FALSE}
