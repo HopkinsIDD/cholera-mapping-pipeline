@@ -5,10 +5,12 @@ on:
     branches:
       - master
       - dev
+      - new_pipeline
   pull_request:
     branches:
       - master
       - dev
+      - new_pipeline
 
 jobs:
   unit-tests:
