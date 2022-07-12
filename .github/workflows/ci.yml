@@ -21,6 +21,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          user: app
+          path: /home/app/cholera-mapping-pipeline
+          lfs: false
+          token: ${{ secrets.PERSONAL_TOKEN }}
       - name: Checkout Analysis/configs
         uses: actions/checkout@v3
         with:
