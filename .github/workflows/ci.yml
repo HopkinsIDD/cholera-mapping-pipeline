@@ -32,6 +32,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: HopkinsIDD/cholera-covariates
+          ref: for_testing
           path: Layers/
           lfs: true
           token: ${{ secrets.PERSONAL_TOKEN }}
@@ -43,6 +44,18 @@ jobs:
           setwd("packages/taxdat")
           devtools::test(stop_on_failure=TRUE)
         shell: Rscript {0}
+      - name: Ingest Covariates
+        run: |
+          service postgresql start
+          bash grant_cholera_database.sh root
+          export USER=root
+          Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
+          pwd
+          Rscript Analysis/R/prepare_grid_cmd.R -d ./ -u root -r 1 -i TRUE -a KEN
+          Rscript Analysis/R/prepare_grid_cmd.R -d ./ -u root -r 20 -i TRUE -a KEN
+          Rscript Analysis/R/prepare_covariates_cmd.R -d ./Layers -u root -r 1 -t '1 years' -i TRUE -p FALSE -n 1 -o FALSE -x TRUE -m TRUE -c p -g 'public.grid_1_1' -a KEN
+          Rscript Analysis/R/prepare_covariates_cmd.R -d ./Layers -u root -r 20 -t '1 years' -i TRUE -p FALSE -n 1 -o FALSE -x FALSE -m TRUE -c p,dw -g 'public.grid_20_20' -a KEN
+        shell: bash
       - name: Run integration tests (old)
         env:
           CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
@@ -50,8 +63,8 @@ jobs:
         run: |
           service postgresql start
           bash grant_cholera_database.sh root
-          Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
           export USER=root
+          Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
           cd test
           Rscript run_tests.R
         shell: bash
@@ -61,10 +74,9 @@ jobs:
           CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
         run: |
           service postgresql start
-          sudo -u postgres psql cholera_covariates -c "drop schema covariates cascade;"
           bash grant_cholera_database.sh root
-          Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
           export USER=root
+          Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
           cd tests
           Rscript testthat.R
         shell: bash
