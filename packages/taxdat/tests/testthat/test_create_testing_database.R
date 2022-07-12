@@ -13,6 +13,7 @@ test_that("Create locations table works", {
       skip(paste("Could not connect to database", dbname, "as user", dbuser))
     }
   )
+
   expect_error({})
 
   expect_error(
