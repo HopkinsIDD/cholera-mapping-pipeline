@@ -366,6 +366,29 @@ get_grid_cases_no_cache <- function(config, cache, cholera_directory) {
 #' @return None. Instead stores the value in the provided cache
 get_grid_cases <- cache_fun_results(name = "grid_cases", fun = get_grid_cases_no_cache)
 
+
+#' @name get_sf_grid_data_no_cache
+#' @description load sf_grid_cases/incidence
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
+#' @return grid_cases
+get_sf_grid_data_no_cache <- function(config, cache, cholera_directory) {
+  get_config(config = config, cache = cache, cholera_directory = cholera_directory)
+  true_grid_data<-readRDS(cache[["config"]][["test_metadata"]][["test_true_grid_case_filename"]])
+  return(true_grid_data)
+}
+## cache the results
+#' @export
+#' @name get_sf_grid_data
+#' @description load stan data rdata
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
+#' @return None. Instead stores the value in the provided cache
+get_sf_grid_data <- cache_fun_results(name = "true_grid_data", fun = get_sf_grid_data_no_cache)
+
+
 #' @name get_modeled_cases_no_cache
 #' @description load modeled_casesrdata
 #' @param config config file that contains the parameter information
@@ -423,10 +446,12 @@ get_mean_rates_sf <- cache_fun_results(name = "mean_rates_sf", fun = get_mean_ra
 get_data_fidelity_df_no_cache <- function(config, cache, cholera_directory) {
   aggregate_modeled_cases_mean_by_chain(config = config, cache = cache, cholera_directory = cholera_directory)
   get_stan_input(config = config, cache = cache, cholera_directory = cholera_directory)
+  sCh_national= data.frame(cache[["stan_input"]][["observation_data"]]%>%filter(location_name==1))%>%dplyr::select(suspected_cases)
   cache[["modeled_cases_mean_by_chain"]] %>%
     dplyr::mutate(
       observed_cases = cache[["stan_input"]][["stan_data"]][["y"]][as.numeric(updated_observation_id)],
       tfrac = cache[["stan_input"]][["stan_data"]][["tfrac"]][as.numeric(updated_observation_id)],
+      spatial_scale=ifelse(observed_cases==sCh_national$suspected_cases,"National level","Sub-national level"),
       censored = ifelse(
         updated_observation_id %in% cache[["stan_input"]][["stan_data"]][["ind_full"]],
         "uncensored",

@@ -60,7 +60,7 @@ plot_model_fidelity <- function(cache,
       observed_cases = tfrac_function(observed_cases, tfrac)
     ) %>%
     ggplot() +
-    ggplot2::geom_point(ggplot2::aes(y = modeled_cases, x = observed_cases, col = chain)) +
+    ggplot2::geom_point(ggplot2::aes(y = modeled_cases, x = observed_cases, col = chain,shape=spatial_scale)) +
     ggplot2::geom_abline(intercept = 0, slope = 1) +
     ggplot2::coord_fixed(ratio = 1, xlim = c(1, max_value), ylim = c(1, max_value)) +
     taxdat::plot_theme() +
@@ -70,6 +70,48 @@ plot_model_fidelity <- function(cache,
   } else if (scale == "log") {
     plt <- plt + scale_x_log10() + scale_y_log10()
   }
+  return(plt)
+}
+
+
+#' @export
+#' @name plot_true_modeled_grid_cases
+#' @title plot_true_modeled_grid_cases
+#' @description add
+#' @param data_fidelity data_fidelity object
+#' @param render default is TRUE
+#' @return ggplot object with modeled vs actual cases by observation
+plot_true_modeled_grid_cases <- function(cache,cholera_directory,config) {
+  aggregate_grid_cases_mean_by_chain(config = config, cache = cache, cholera_directory = cholera_directory)
+  get_covar_cube(config = config, cache = cache, cholera_directory = cholera_directory)
+  cache[["covar_cube"]][,paste("cases", "chain", seq_len(ncol(cache[["grid_cases_mean_by_chain"]])), sep = "_")] <- cache[["grid_cases_mean_by_chain"]]
+  cache[["covar_cube"]]<- sf::st_as_sf( cache[["covar_cube"]])
+  
+  get_config(config = config, cache = cache, cholera_directory = cholera_directory)
+  true_grid_case<-readRDS(cache[["config"]][["test_metadata"]][["test_true_grid_case_filename"]])
+  
+  wide_modeled_true_grid_cases<-data.frame(sf::st_join(st_centroid(true_grid_case),cache[["covar_cube"]]) %>% dplyr::filter(t.x == t.y))%>%dplyr::select(observed,x,y,cases_chain_1,cases_chain_2,cases_chain_3,cases_chain_4,cases)
+  
+  long_modeled_grid_case <- data.frame(reshape2::melt(wide_modeled_true_grid_cases, id.vars = c("x","y","cases","observed"), variable.name = "chains"))%>%rename("modeled grid cases"=value,"true grid cases"=cases)
+  long_modeled_grid_case$observed<-as.factor(long_modeled_grid_case$observed)
+  
+  max_value<-max(long_modeled_grid_case[,c(3,6)])
+  
+  if(!cache[["config"]][["test_metadata"]][["polygon_coverage"]]=="100%"){
+    plt <- ggplot2::ggplot(long_modeled_grid_case) +
+      ggplot2::geom_point(ggplot2::aes(y = `modeled grid cases`, x = `true grid cases`, col = chains)) +
+      ggplot2::geom_abline(intercept = 0, slope = 1) +
+      ggplot2::coord_fixed(ratio = 1, xlim = c(0, max_value), ylim = c(0, max_value)) +
+      ggplot2::facet_wrap(~observed)+
+      ggplot2::theme_bw()
+  }else{
+    plt <- ggplot2::ggplot(long_modeled_grid_case) +
+      ggplot2::geom_point(ggplot2::aes(y = `modeled grid cases`, x = `true grid cases`, col = chains)) +
+      ggplot2::geom_abline(intercept = 0, slope = 1) +
+      ggplot2::coord_fixed(ratio = 1, xlim = c(0, max_value), ylim = c(0, max_value)) +
+      ggplot2::theme_bw()
+  }
+  
   return(plt)
 }
 
@@ -232,7 +274,32 @@ plot_raster_covariates <- function(config, cache, cholera_directory) {
 
   aggregate_covar_cube_covariates(config = config, cache = cache, cholera_directory = cholera_directory)
 
-  return(plot_sf_with_fill(cache, "covar_cube_covariates_aggregated", color_scale_type = "covariate", fill_column = "value", facet_column = "name", geometry_column = "geom"))
+  return(plot_sf_with_fill(cache, "covar_cube_covariates_aggregated", color_scale_type = "covariate", fill_column = "value", facet_column = c("name","t"), geometry_column = "geom"))
+}
+
+#' @export
+#' @name plot_raster_covariates_datagen
+#' @title plot_raster_covariates_datagen
+#' @description add
+#' @param config File path to the config
+#' @param cache the cache environment
+#' @param cholera_directory Directory of cholera-mapping-pipeline
+#' @return ggplot object with covariate raster
+plot_raster_covariates_datagen <- function(config, cache, cholera_directory) {
+  warning("This function needs to be changed to get the standardization in")
+  
+  get_config(config = config, cache = cache, cholera_directory = cholera_directory)
+  if (length(cache[["config"]][["test_metadata"]]) == 0) {
+    return(invisible(NULL))
+  }
+  
+  data_simulation_covs<-readRDS(cache[["config"]][["test_metadata"]][["Cov_data_simulation_filename"]])
+  
+  cache[["data_simulation_covs"]]<-as.data.frame(do.call(rbind, data_simulation_covs[2:(length(data_simulation_covs))])) %>%
+    mutate(value=covariate,covariate=paste("Covariate",rep(2:length(data_simulation_covs),each=nrow(data_simulation_covs[[1]]))))# Convert list to data frame columns
+  cache[["data_simulation_covs"]]<-sf::st_as_sf(cache[["data_simulation_covs"]])
+  
+  return(plot_sf_with_fill(cache, "data_simulation_covs", color_scale_type = "covariate", fill_column = "value", facet_column = c("covariate","t"), geometry_column = "geometry"))
 }
 
 #' @export
@@ -276,6 +343,26 @@ plot_modeled_rates_time_varying <- function(config, cache, cholera_directory) {
     ggplot2::geom_sf(data = cache[["boundary_polygon"]], fill = NA, color = "black", size = 0.05)
 
   return(plot)
+}
+
+#' @export
+#' @name plot_true_grid_cases
+#' @param config
+#' @param cholera_directory
+#' @param cache
+plot_true_grid_cases <- function(config,cache,cholera_directory){
+  get_sf_grid_data(config = config, cache = cache, cholera_directory = cholera_directory)
+  return(plot_sf_with_fill(cache, "true_grid_data", color_scale_type = "cases", fill_column = "cases", geometry_column = "geometry", facet_column = "t"))
+}
+
+#' @export
+#' @name plot_true_grid_rates
+#' @param config
+#' @param cholera_directory
+#' @param cache
+plot_true_grid_rates <- function(config,cache,cholera_directory){
+  get_sf_grid_data(config = config, cache = cache, cholera_directory = cholera_directory)
+  return(plot_sf_with_fill(cache, "true_grid_data", color_scale_type = "rates", fill_column = "rate", geometry_column = "geometry", facet_column = "t"))
 }
 
 #' @export
