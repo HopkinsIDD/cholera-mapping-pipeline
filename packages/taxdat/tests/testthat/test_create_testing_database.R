@@ -2,7 +2,7 @@
 test_that("Create locations table works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -13,6 +13,7 @@ test_that("Create locations table works", {
       skip(paste("Could not connect to database", dbname, "as user", dbuser))
     }
   )
+  expect_error({})
 
   expect_error(
     {
@@ -37,7 +38,7 @@ test_that("Create locations table works", {
 test_that("Create location_periods table works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -73,7 +74,7 @@ test_that("Create location_periods table works", {
 test_that("Create shapes table works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -110,7 +111,7 @@ test_that("Create shapes table works", {
 test_that("Create location_hierarchies table works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -146,7 +147,7 @@ test_that("Create location_hierarchies table works", {
 test_that("Create observation table works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -183,7 +184,7 @@ test_that("Create observation table works", {
 test_that("Create master_spatial_grid table works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -221,7 +222,7 @@ test_that("Create master_spatial_grid table works", {
 test_that("Create resized_spatial_grids table works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -257,7 +258,7 @@ test_that("Create resized_spatial_grids table works", {
 test_that("Create all_covariates table works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -292,7 +293,7 @@ test_that("Create all_covariates table works", {
 test_that("Create time_bounds table works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -327,7 +328,7 @@ test_that("Create time_bounds table works", {
 test_that("Create master_temporal_grid_view works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -357,7 +358,7 @@ test_that("Create master_temporal_grid_view works", {
 test_that("Create resized_spatial_grid_pixels_view works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -388,7 +389,7 @@ test_that("Create resized_spatial_grid_pixels_view works", {
 test_that("Create location_period_raster_map view works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -422,7 +423,7 @@ test_that("Create location_period_raster_map view works", {
 test_that("Create covariate_grid_map view works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -454,7 +455,7 @@ test_that("Create covariate_grid_map view works", {
 test_that("create_testing_base_database works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -483,7 +484,7 @@ test_that("create_testing_base_database works", {
 test_that("create_testing_additional_database works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -513,7 +514,7 @@ test_that("create_testing_additional_database works", {
 test_that("refresh_materialized_views works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -548,7 +549,7 @@ test_that("refresh_materialized_views works", {
 test_that("destroy_testing_database works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -576,7 +577,7 @@ test_that("destroy_testing_database works", {
 test_that("We can add locations to testing database", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -606,7 +607,7 @@ test_that("We can add locations to testing database", {
 test_that("We can add location_periods to testing database", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -643,7 +644,7 @@ test_that("We can add location_periods to testing database", {
 test_that("We can add shapefiles to testing database", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -685,7 +686,7 @@ test_that("We can add shapefiles to testing database", {
 test_that("We can add observations to testing database", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -753,7 +754,7 @@ test_that("We can add observations to testing database", {
 test_that("We can ingest spatial grids", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
@@ -797,7 +798,7 @@ test_that("We can ingest spatial grids", {
 test_that("Conversion between simulation framework formats and testing framework formats works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
+  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)

@@ -54,5 +54,5 @@ jobs:
           export USER=root
           Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
           cd tests
-          Rscript testthat.R
+          Rscript -e "testthat::test_dir('./', stop_on_failure=TRUE)"
         shell: bash
