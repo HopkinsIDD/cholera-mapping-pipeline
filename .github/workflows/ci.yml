@@ -20,16 +20,16 @@ jobs:
       options: --user app
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Checkout Analysis/configs
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: HopkinsIDD/cholera-configs
           path: Analysis/configs/
           lfs: false
           token: ${{ secrets.PERSONAL_TOKEN }}
       - name: Checkout Layers
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: HopkinsIDD/cholera-covariates
           ref: for_testing
