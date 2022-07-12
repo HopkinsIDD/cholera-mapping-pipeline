@@ -386,7 +386,7 @@ config <- list(general = list(
   directory = rprojroot::find_root_file(
     criterion = ".choldir",
     "Analysis", "Stan"
-  ), ncores = 4, model = "dagar_seasonal_flexible.stan", niter = 4000,
+  ), ncores = 4, model = "dagar_seasonal_flexible.stan", niter = as.integer(Sys.getenv("CHOLERA_TEST_ITERATION", 4000)),
   recompile = TRUE
 ), file_names = list(stan_input = rprojroot::find_root_file(
   criterion = ".choldir",
