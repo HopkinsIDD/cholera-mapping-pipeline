@@ -4,7 +4,7 @@ test_that("Writing covariates to postgres preserves dimension", {
 
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
-  skip_if_not(dbuser %in% c("app", "root")) ## Check for on docker
+  skip_if_not(dbuser == "app") ## Check for on docker
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
