@@ -56,5 +56,5 @@ jobs:
           service postgresql start
           sudo -u app Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
           cd tests
-          sudo -u app Rscript -e "options(error=function(){quit(status=2)}); testthat::test_dir('./', stop_on_failure=TRUE)"
+          sudo -u app Rscript -e "options(error=function(){quit(status=2)}); testthat::test_dir('./', reporter = testthat::FailReporter, stop_on_failure=TRUE)"
         shell: bash
