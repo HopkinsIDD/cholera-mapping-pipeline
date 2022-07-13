@@ -126,7 +126,7 @@ remove_overlapping_observations <- function(case_data, unique_column_names = c("
               start = .x$time_left[possible_container],
               end = .x$time_right[possible_container]
             )
-            if (lubridate::intersect(inner_interval, outer_interval) == inner_interval) {
+            if (!is.na(lubridate::intersect(inner_interval, outer_interval) == inner_interval)) {
               removed <- TRUE
               .x <- .x[other_indices, ]
             }
