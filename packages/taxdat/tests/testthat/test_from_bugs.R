@@ -1,6 +1,6 @@
 test_that("Writing covariates to postgres preserves dimension", {
   # covariate_file <- "data/resizing_raster.tif"
-  covariate_file <- "~/cmp/packages/taxdat/tests/testthat/data/resizing_raster.tif"
+  covariate_file <- "data/resizing_raster.tif"
 
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
@@ -11,7 +11,7 @@ test_that("Writing covariates to postgres preserves dimension", {
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
   expect_true(file.exists(covariate_file))
