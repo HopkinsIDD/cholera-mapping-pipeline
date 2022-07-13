@@ -44,9 +44,8 @@ jobs:
         shell: bash
       - name: Run taxdat tests
         run: |
-          su app
           cd packages/taxdat
-          Rscript -e "devtools::test(stop_on_failure=TRUE)"
+          sudo -u app Rscript -e "devtools::test(stop_on_failure=TRUE)"
         shell: bash
       - name: Run integration tests (new)
         env:
@@ -54,8 +53,7 @@ jobs:
           CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
         run: |
           service postgresql start
-          su app
-          Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
+          sudo -u app Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
           cd tests
-          Rscript -e "testthat::test_dir('./', stop_on_failure=TRUE)"
+          sudo -u app Rscript -e "testthat::test_dir('./', stop_on_failure=TRUE)"
         shell: bash
