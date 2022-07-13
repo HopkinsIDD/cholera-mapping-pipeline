@@ -155,7 +155,7 @@ do_censoring <- function(case_data, colnames, unique_column_names = c("loctime")
         underestimate <- .x
         for (colname in colnames) {
           underestimate[[paste0(colname, "_R")]] <- underestimate[[colname]]
-          overestimate[[paste0(colname, "_L")]] <- overestimate[[colname]][good_indices]
+          overestimate[[paste0(colname, "_L")]] <- overestimate[[colname]]
           overestimate[[colname]] <- as.numeric(NA)
           underestimate[[colname]] <- as.numeric(NA)
         }
