@@ -911,14 +911,14 @@ setup_testing_database_from_dataframes <- function(psql_connection, data_frame_l
 }
 
 drop_testing_database_functions <- function(psql_connection) {
-  drop_queries <- c(
-    "DROP FUNCTION resize_spatial_grid", "DROP FUNCTION lookup_location_period",
-    "DROP FUNCTION ingest_covariate", "DROP FUNCTION filter_resized_spatial_grid",
-    "DROP FUNCTION filter_resized_spatial_grid_pixels_to_location", "DROP FUNCTION pull_symmetric_grid_adjacency",
-    "DROP FUNCTION pull_observation_data", "DROP FUNCTION filter_location_periods",
-    "DROP FUNCTION resize_temporal_grid", "DROP FUNCTION pull_observation_location_period_map",
-    "DROP FUNCTION pull_location_period_grid_map"
-  )
+  drop_queries <- rev(c(
+    "DROP FUNCTION IF EXISTS resize_spatial_grid CASCADE", "DROP FUNCTION IF EXISTS lookup_location_period CASCADE",
+    "DROP FUNCTION IF EXISTS ingest_covariate CASCADE",
+    "DROP FUNCTION IF EXISTS filter_resized_spatial_grid_pixels_to_location CASCADE", "DROP FUNCTION IF EXISTS pull_symmetric_grid_adjacency CASCADE",
+    "DROP FUNCTION IF EXISTS pull_observation_data CASCADE", "DROP FUNCTION IF EXISTS filter_location_periods CASCADE",
+    "DROP FUNCTION IF EXISTS resize_temporal_grid CASCADE", "DROP FUNCTION IF EXISTS pull_observation_location_period_map CASCADE",
+    "DROP FUNCTION IF EXISTS pull_location_period_grid_map CASCADE", "DROP FUNCTION IF EXISTS resized_spatial_grid_pixels"
+  ))
 
   sapply(drop_queries, function(query) {
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, query))
@@ -941,6 +941,7 @@ destroy_testing_database <- function(psql_connection) {
     "DROP MATERIALIZED VIEW IF EXISTS grids.master_spatial_grid_centroids", "DROP MATERIALIZED VIEW IF EXISTS location_period_raster_map",
     "DROP MATERIALIZED VIEW IF EXISTS covariate_grid_map CASCADE", "DROP SCHEMA IF EXISTS covariates CASCADE", "DROP MATERIALIZED VIEW IF EXISTS shapes_with_names"
   )
+  drop_testing_database_functions(psql_connection)
   sapply(drop_query, function(query) {
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, query))
   })
