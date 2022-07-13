@@ -42,8 +42,11 @@ get_gam_values_no_cache <- function(
             magrittr::set_colnames(paste0("year_", 1:ncol(mat_grid_time)))) %>% 
     # Extract the covariates
     cbind(cache[["stan_input"]]$stan_data$covar %>% 
-            matrix(ncol = cache[["stan_input"]]$stan_data$ncovar) %>% 
-            magrittr::set_colnames(paste0("beta_", 1:cache[["stan_input"]]$stan_data$ncovar))) %>% 
+            matrix(nrow = nrow(cache[["stan_input"]]$stan_data$covar), ncol = cache[["stan_input"]]$stan_data$ncovar) %>% 
+            # magrittr::set_colnames(paste0("beta_", 1:cache[["stan_input"]]$stan_data$ncovar))
+            { if(cache[["stan_input"]]$stan_data$ncovar > 0)  magrittr::set_colnames(., paste0("beta_", 1:cache[["stan_input"]]$stan_data$ncovar))  else  . }
+            # { ifelse(cache[["stan_input"]]$stan_data$ncovar > 0, magrittr::set_colnames(., paste0("beta_", 1:cache[["stan_input"]]$stan_data$ncovar)), .) } 
+          ) %>% 
     tibble::as_tibble() %>% 
     mutate(logpop = log(cache[["stan_input"]]$stan_data$pop),
            logoffset = logpop + log(cache[["stan_input"]]$stan_data$meanrate))

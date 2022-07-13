@@ -7,17 +7,20 @@
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment
 #' @param cholera_directory  the directory of cholera mapping pipeline folder
+#' @param aesthetic whether to return the kable object
 #' @return table with modeled cases by time and chain
-plot_modeled_cases_by_chain_time <- function(config, cache, cholera_directory) {
+plot_modeled_cases_by_chain_time <- function(config, cache, cholera_directory, aesthetic = TRUE) {
   
-     get_stan_input(name="stan_input",cache=cache,config=config,cholera_directory=cholera_directory)
-     stan_input<-cache[["stan_input"]]
-     stan_input$sf_grid <- stan_input$sf_grid %>%
-      dplyr::ungroup() %>%
-      dplyr::select(t,id)
-     
-    get_stan_model_nchain(name="nchain",cache=cache,config=config,cholera_directory=cholera_directory)
-    nchain<-cache[["nchain"]] 
+    get_stan_input(name="stan_input",cache=cache,config=config,cholera_directory=cholera_directory)
+    stan_input<-cache[["stan_input"]]
+    stan_input$sf_grid <- stan_input$sf_grid %>%
+    dplyr::ungroup() %>%
+    dplyr::select(t,id)
+    
+    get_sf_cases_resized(name = "sf_cases_resized", cache = cache, config = config, cholera_directory = cholera_directory)
+    cache[["niter_per_chain"]] <- get_stan_model_niter_per_chain_no_cache(cache = cache,config = config,cholera_directory = cholera_directory)
+    cache$nchain <- get_stan_model_nchain_no_cache(config=config, cache=cache, cholera_directory=cholera_directory)
+    nchain <- cache$nchain
     cases_chains<-aggregate_modeled_cases_by_chain_gridtime_no_cache(
                                               config=config,cholera_directory=cholera_directory,
                                               cache=cache)
@@ -44,8 +47,13 @@ plot_modeled_cases_by_chain_time <- function(config, cache, cholera_directory) {
       dplyr::summarise(dplyr::across(dplyr::contains("cases_chain"), mean)) %>%
       dplyr::mutate(t = "mean annual cases")
     
-    dplyr::bind_rows(by_years, mai) %>%
-      kableExtra::kable(col.names = c("time slice", paste("chain", 1:nchain))) %>%
-      kableExtra::kable_styling(bootstrap_options = c("striped"))
+    tab <- dplyr::bind_rows(by_years, mai)
+    if(aesthetic){
+      tab %>% 
+        kableExtra::kable(col.names = c("time slice", paste("chain", 1:nchain))) %>%
+        kableExtra::kable_styling(bootstrap_options = c("striped"))
+    }else{
+      return(tab)
+    }
     
   }
