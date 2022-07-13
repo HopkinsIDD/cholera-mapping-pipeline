@@ -3,6 +3,11 @@ test_that("Create locations table works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
   skip_if_not(dbuser == "app") ## Check for on docker
+
+  conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
+  destroy_testing_database(conn_pg)
+  database_working <- TRUE
+
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
