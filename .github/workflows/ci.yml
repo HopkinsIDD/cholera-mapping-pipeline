@@ -22,14 +22,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          path: /home/app/cholera-mapping-pipeline
           lfs: false
           token: ${{ secrets.PERSONAL_TOKEN }}
       - name: Checkout Analysis/configs
         uses: actions/checkout@v3
         with:
           repository: HopkinsIDD/cholera-configs
-          path: /home/app/cholera-mapping-pipeline/Analysis/configs/
+          path: Analysis/configs/
           lfs: false
           token: ${{ secrets.PERSONAL_TOKEN }}
       - name: Checkout Layers
@@ -37,7 +36,7 @@ jobs:
         with:
           repository: HopkinsIDD/cholera-covariates
           ref: for_testing
-          path: /home/app/cholera-mapping-pipeline/Layers/
+          path: Layers/
           lfs: true
           token: ${{ secrets.PERSONAL_TOKEN }}
       - name: Set up Rprofile
@@ -55,8 +54,7 @@ jobs:
           CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
         run: |
           service postgresql start
-          bash grant_cholera_database.sh root
-          export USER=root
+          su app
           Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
           cd tests
           Rscript -e "testthat::test_dir('./', stop_on_failure=TRUE)"
