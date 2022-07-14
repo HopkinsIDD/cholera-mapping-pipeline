@@ -274,6 +274,7 @@ observation_data <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(
   sf::st_as_sf()
 print("Pulled observation data")
 
+
 ## Covariates
 covar_cube <- DBI::dbGetQuery(conn = conn_pg, glue::glue_sql(.con = conn_pg, "SELECT *
      FROM pull_covar_cube(
@@ -441,14 +442,14 @@ if (config[["processing"]][["aggregate"]]) {
       "location_period_id", "shape", cases_column, "time_left", "time_right",
       "tfrac", "observation_id"
     )),
-    columns_to_sum_over = c("tfrac", cases_column)
+    columns_to_sum_over = c("tfrac", cases_column), cases_column = cases_column
   )
-
 
   observation_data <- sf::st_as_sf(taxdat::project_to_groups(
     observation_data_aggregated,
     "observation_id", observation_data
   ))
+
   observation_temporal_location_mapping <- taxdat::project_to_groups(
     observation_data_aggregated,
     c("observation_id", "temporal_location_id"), observation_temporal_location_mapping
@@ -507,6 +508,7 @@ if (config[["processing"]][["censor_incomplete_observations"]][["perform"]]) {
     observation_data_censored,
     "observation_id", observation_data
   ))
+
   observation_temporal_location_mapping <- taxdat::project_to_groups(
     observation_data_censored,
     c("observation_id", "temporal_location_id"), observation_temporal_location_mapping
