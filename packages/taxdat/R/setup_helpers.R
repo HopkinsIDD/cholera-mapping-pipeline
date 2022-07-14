@@ -1128,18 +1128,18 @@ config_defaults[["generated"]][["time_scale"]] <- function(config) {
 
 config_defaults[["file_names"]] <- list()
 config_defaults[["file_names"]][["stan_input"]] <- function(config) {
-  return(paste0(paste(unlist(config[["general"]]), collapse = "_"), ".stan_input.Rdata"))
+  return(paste0(paste(unlist(config[["general"]]), collapse = "_"), ".stan_input.rdata"))
 }
 config_defaults[["file_names"]][["stan_output"]] <- function(config) {
   return(paste0(paste(c(unlist(config[["general"]]), gsub(".*[/]", "", unlist(config[["stan"]]))),
     collapse = "_"
-  ), ".stan_output.Rdata"))
+  ), ".stan_output.rds"))
 }
 config_defaults[["file_names"]][["generated_quantities"]] <- function(config) {
   return(paste0(paste(c(
     unlist(config[["general"]]), gsub(".*[/]", "", unlist(config[["stan"]])),
     unlist(config[["generated"]])
-  ), collapse = "_"), ".generated_quantities.Rdata"))
+  ), collapse = "_"), ".generated_quantities.rdata"))
 }
 
 

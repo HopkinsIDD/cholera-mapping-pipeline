@@ -6,17 +6,8 @@ general:
   height_in_km: 1
   time_scale: "year"
 stan:
-  directory: "../../Analysis/Stan"
+  directory: "../../../Analysis/Stan"
   ncores: 1
   model: 'dagar_seasonal.stan'
-  niter: 20
+  niter: 100
   recompile: TRUE
-file_names:
-  stan_output: "../../test.stan_output.Rdata"
-  stan_input: "../../test.stan_input.Rdata"
-name: 'test_basic'
-taxonomy: 'taxonomy-working/working-entry1'
-smoothing_period: 1
-case_definition: 'suspected'
-covariate_choices: ['dist_to_water','water_access']
-data_source: 'sql'

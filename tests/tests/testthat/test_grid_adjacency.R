@@ -47,12 +47,13 @@ test_that("setup works", {
     },
     NA
   )
+  shape_geom <- sf::st_sfc(sf::st_polygon(list(matrix(c(
+    0,
+    0, 0, 1, 1, 1, 1, 0, 0, 0
+  ), ncol = 2, byrow = TRUE))))
   shapes_df <- data.frame(
     qualified_name = "testlocation", start_date = "2000-01-01",
-    end_date = "2000-12-31", geom = sf::st_sfc(sf::st_polygon(list(matrix(c(
-      0,
-      0, 0, 1, 1, 1, 1, 0, 0, 0
-    ), ncol = 2, byrow = TRUE))))
+    end_date = "2000-12-31", geom = shape_geom
   )
   names(shapes_df)[[4]] <- "geom"
   expect_error(
@@ -70,6 +71,35 @@ test_that("setup works", {
   expect_error(
     {
       taxdat::ingest_spatial_grid(conn_pg, width = 1, height = 1)
+    },
+    NA
+  )
+  expect_error(
+    {
+      taxdat::refresh_materialized_views(conn_pg)
+    },
+    NA
+  )
+  expect_error(
+    {
+      pop_rast <- raster::raster(raster::extent(sf::st_bbox(sf::st_buffer(shape_geom, 1))), ncol = 100, nrow = 100, crs = 4326)
+      raster::values(pop_rast) <- 1:10000
+      taxdat::ingest_covariate_from_raster(
+        conn_pg,
+        covariate_name = "population",
+        covariate_raster = pop_rast,
+        time_left = "2000-01-01",
+        time_right = "2000-12-31",
+        overwrite = TRUE
+      )
+      taxdat::ingest_covariate_from_raster(
+        conn_pg,
+        covariate_name = "population",
+        covariate_raster = pop_rast,
+        time_left = "2001-01-01",
+        time_right = "2001-12-31",
+        overwrite = TRUE
+      )
     },
     NA
   )
