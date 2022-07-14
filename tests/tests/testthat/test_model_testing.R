@@ -31,22 +31,22 @@ testthat::test_that("Model testing is working", {
     },
     NA
   )
-  expect_error(
-    {
-      source("../../../Analysis/R/test_case/test_case_6.R")
-    },
-    NA
-  )
-  expect_error(
-    {
-      source("../../../Analysis/R/test_case/test_case_7.R")
-    },
-    NA
-  )
-  expect_error(
-    {
-      source("../../../Analysis/R/test_case/test_case_8.R")
-    },
-    NA
-  )
+  ###  expect_error(
+  ###    {
+  ###      source("../../../Analysis/R/test_case/test_case_6.R")
+  ###    },
+  ###    NA
+  ###  )
+  ###  expect_error(
+  ###    {
+  ###      source("../../../Analysis/R/test_case/test_case_7.R")
+  ###    },
+  ###    NA
+  ###  )
+  ###  expect_error(
+  ###    {
+  ###      source("../../../Analysis/R/test_case/test_case_8.R")
+  ###    },
+  ###    NA
+  ###  )
 })
