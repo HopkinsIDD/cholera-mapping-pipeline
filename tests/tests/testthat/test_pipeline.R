@@ -51,19 +51,24 @@ pop_raster <- rpostgis::pgGetRast(conn_pg, c("grids", "master_spatial_grid"))
 
 
 test_that("setup works", {
-  taxdat::setup_testing_database(conn_pg, drop = TRUE)
-  taxdat::insert_testing_locations(conn_pg, location_df)
-  taxdat::insert_testing_location_periods(conn_pg, location_period_df)
-  taxdat::insert_testing_shapefiles(conn_pg, shapes_df)
-  taxdat::refresh_materialized_views(conn_pg)
-  taxdat::ingest_spatial_grid(conn_pg, width = 1, height = 1)
-  taxdat::refresh_materialized_views(conn_pg)
-  taxdat::insert_testing_observations(conn_pg, observations_df)
-  taxdat::ingest_covariate_from_raster(
-    conn_pg, "population", pop_raster, lubridate::ymd("2000-01-01"),
-    lubridate::ymd("2001-12-31")
+  expect_error(
+    {
+      taxdat::setup_testing_database(conn_pg, drop = TRUE)
+      taxdat::insert_testing_locations(conn_pg, location_df)
+      taxdat::insert_testing_location_periods(conn_pg, location_period_df)
+      taxdat::insert_testing_shapefiles(conn_pg, shapes_df)
+      taxdat::refresh_materialized_views(conn_pg)
+      taxdat::ingest_spatial_grid(conn_pg, width = 1, height = 1)
+      taxdat::refresh_materialized_views(conn_pg)
+      taxdat::insert_testing_observations(conn_pg, observations_df)
+      taxdat::ingest_covariate_from_raster(
+        conn_pg, "population", pop_raster, lubridate::ymd("2000-01-01"),
+        lubridate::ymd("2001-12-31")
+      )
+      taxdat::refresh_materialized_views(conn_pg)
+    },
+    NA
   )
-  taxdat::refresh_materialized_views(conn_pg)
 })
 
 test_that("pull_observation_data runs successfully", {
@@ -162,7 +167,7 @@ test_that("pull_observation_data has the right size", {
 test_that("execute_pipeline.R runs successfully", {
   Sys.setenv(CHOLERA_CONFIG = rprojroot::find_root_file(
     criterion = ".choldir",
-    "tests", "testthat", "config.yml"
+    "tests", "tests", "testthat", "config.yml"
   ))
   expect_error(
     {

@@ -1,13 +1,7 @@
+
+
 ## Basic test to make sure that testing setup works
 context("Test 2 : Grid Adjacency")
-test_that("testing works", {
-  expect_error(
-    {
-      1 + 1
-    },
-    NA
-  )
-})
 
 dbuser <- Sys.getenv("USER", "app")
 dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
@@ -24,88 +18,60 @@ test_that("establishing postgres connection works", {
 
 
 test_that("setup works", {
-  conn_pg <- taxdat::connect_to_db(dbuser, dbname)
-  DBI::dbClearResult(DBI::dbSendQuery(conn = conn_pg, "SET client_min_messages TO WARNING;"))
   expect_error(
     {
-      taxdat::setup_testing_database(conn_pg, drop = TRUE)
-    },
-    NA
-  )
-  expect_error(
-    {
-      taxdat::insert_testing_locations(conn_pg, data.frame(qualified_name = "testlocation"))
-    },
-    NA
-  )
-  expect_error(
-    {
-      taxdat::insert_testing_location_periods(conn_pg, data.frame(
-        qualified_name = "testlocation",
-        start_date = "2000-01-01", end_date = "2000-12-31"
+      dbuser <- Sys.getenv("USER", "app")
+      dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
+
+      conn_pg <- taxdat::connect_to_db(dbuser, dbname)
+      DBI::dbClearResult(DBI::dbSendQuery(conn = conn_pg, "SET client_min_messages TO WARNING;"))
+
+      time_left <- lubridate::ymd("2000-01-01")
+      time_right <- lubridate::ymd("2001-12-31")
+
+      test_extent <- sf::st_bbox(c(xmin = 20, ymin = 0, xmax = 40, ymax = 20))
+      test_raster <- taxdat::create_test_raster(nrows = 10, ncols = 10, nlayers = 2, test_extent = test_extent)
+      test_polygons <- sf::st_make_valid(taxdat::create_test_layered_polygons(
+        test_raster = test_raster,
+        base_number = 1, n_layers = 2, factor = 10 * 10, snap = FALSE, randomize = FALSE
       ))
-    },
-    NA
-  )
-  shape_geom <- sf::st_sfc(sf::st_polygon(list(matrix(c(
-    0,
-    0, 0, 1, 1, 1, 1, 0, 0, 0
-  ), ncol = 2, byrow = TRUE))))
-  shapes_df <- data.frame(
-    qualified_name = "testlocation", start_date = "2000-01-01",
-    end_date = "2000-12-31", geom = shape_geom
-  )
-  names(shapes_df)[[4]] <- "geom"
-  expect_error(
-    {
-      taxdat::insert_testing_shapefiles(conn_pg, shapes_df)
-    },
-    NA
-  )
-  expect_error(
-    {
-      taxdat::refresh_materialized_views(conn_pg)
-    },
-    NA
-  )
-  expect_error(
-    {
-      taxdat::ingest_spatial_grid(conn_pg, width = 1, height = 1)
-    },
-    NA
-  )
-  expect_error(
-    {
-      taxdat::refresh_materialized_views(conn_pg)
-    },
-    NA
-  )
-  expect_error(
-    {
-      pop_rast <- raster::raster(raster::extent(sf::st_bbox(sf::st_buffer(shape_geom, 1))), ncol = 100, nrow = 100, crs = 4326)
-      raster::values(pop_rast) <- 1:10000
-      taxdat::ingest_covariate_from_raster(
-        conn_pg,
-        covariate_name = "population",
-        covariate_raster = pop_rast,
-        time_left = "2000-01-01",
-        time_right = "2000-12-31",
-        overwrite = TRUE
+
+      all_dfs <- list()
+      all_dfs$shapes_df <- test_polygons %>%
+        dplyr::mutate(
+          qualified_name = location, start_date = time_left,
+          end_date = time_right
+        )
+      names(all_dfs$shapes_df)[names(all_dfs$shapes_df) == "geometry"] <- "geom"
+      sf::st_geometry(all_dfs$shapes_df) <- "geom"
+      all_dfs$location_period_df <- all_dfs$shapes_df %>%
+        sf::st_drop_geometry()
+      all_dfs$location_df <- all_dfs$shapes_df %>%
+        sf::st_drop_geometry() %>%
+        dplyr::group_by(qualified_name) %>%
+        dplyr::summarize()
+      all_dfs$observations_df <- data.frame(
+        observation_collection_id = 1, time_left = time_left, time_right = time_right, qualified_name = "1", primary = TRUE, phantom = FALSE, suspected_cases = 0, deaths = NA, confirmed_cases = NA
       )
-      taxdat::ingest_covariate_from_raster(
-        conn_pg,
-        covariate_name = "population",
-        covariate_raster = pop_rast,
-        time_left = "2001-01-01",
-        time_right = "2001-12-31",
-        overwrite = TRUE
+
+      test_covariates <- taxdat::create_multiple_test_covariates(
+        test_raster = test_raster, ncovariates = 2,
+        nonspatial = c(FALSE, FALSE), nontemporal = c(FALSE, FALSE), spatially_smooth = c(
+          TRUE,
+          FALSE
+        ), temporally_smooth = c(FALSE, FALSE), polygonal = c(TRUE, TRUE), radiating = c(
+          FALSE,
+          FALSE
+        )
       )
-    },
-    NA
-  )
-  expect_error(
-    {
-      taxdat::refresh_materialized_views(conn_pg)
+      covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(
+        test_covariates,
+        time_left, time_right
+      )
+
+
+      taxdat::setup_testing_database(conn_pg, drop = TRUE)
+      taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raster_funs)
     },
     NA
   )
@@ -115,7 +81,7 @@ test_that("pull_grid_adjacency runs successfully", {
   conn_pg <- taxdat::connect_to_db(dbuser, dbname)
   expect_error(
     {
-      taxdat::pull_grid_adjacency(conn_pg, "testlocation", 1, 1)
+      taxdat::pull_grid_adjacency(conn_pg, "1", 1, 1)
     },
     NA
   )
@@ -125,7 +91,7 @@ test_that("pull_symmetric_grid_adjacency runs successfully", {
   conn_pg <- taxdat::connect_to_db(dbuser, dbname)
   expect_error(
     {
-      taxdat::pull_symmetric_grid_adjacency(conn_pg, "testlocation", 1, 1)
+      taxdat::pull_symmetric_grid_adjacency(conn_pg, "1", 1, 1)
     },
     NA
   )
@@ -134,7 +100,7 @@ test_that("pull_symmetric_grid_adjacency runs successfully", {
 test_that("pull_symmetric_grid_adjacency has the right size", {
   conn_pg <- taxdat::connect_to_db(dbuser, dbname)
   symmetric_grid_adjacency <- taxdat::pull_symmetric_grid_adjacency(
-    conn_pg, "testlocation",
+    conn_pg, "1",
     1, 1
   )
   symmetric_grid_size <- c(10, 10)
@@ -162,7 +128,7 @@ test_that("pull_symmetric_grid_adjacency has the right size", {
 
 test_that("pull_grid_adjacency has the right size", {
   conn_pg <- taxdat::connect_to_db(dbuser, dbname)
-  grid_adjacency <- taxdat::pull_grid_adjacency(conn_pg, "testlocation", 1, 1)
+  grid_adjacency <- taxdat::pull_grid_adjacency(conn_pg, "1", 1, 1)
   grid_size <- c(10, 10)
   grid_neighbors <- lapply(grid_size, function(x) {
     data.frame(neighbors = c("l", "r", "lr"), count = c(1, 1, x - 2))

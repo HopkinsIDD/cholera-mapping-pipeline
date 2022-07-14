@@ -1,7 +1,7 @@
 context("Test 4 : Simulation Framework")
 library(magrittr)
 all_data <- list()
-seed <- 12345
+seed <- as.integer(12345)
 
 nc <- 2 ## Number of covariates
 min_time_left <- lubridate::ymd("2000-01-01")
@@ -103,7 +103,7 @@ taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raste
 test_that("execute_pipeline.R runs successfully", {
   Sys.setenv(CHOLERA_CONFIG = rprojroot::find_root_file(
     criterion = ".choldir",
-    "tests", "testthat", "config_simulation.yml"
+    "tests", "tests", "testthat", "config_simulation.yml"
   ))
   expect_error(
     {
