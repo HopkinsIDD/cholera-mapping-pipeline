@@ -53,6 +53,7 @@ jobs:
           CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
           CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
         run: |
+          chown app:app -R ./
           service postgresql start
           sudo -u app Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
           cd tests
