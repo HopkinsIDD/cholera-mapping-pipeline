@@ -438,7 +438,7 @@ rmarkdown::render(
     "country_data_report.Rmd"
   ),
   params = list(
-    cholera_directory = "~/cmp/",
+    cholera_directory = rprojroot::find_root(criterion = ".choldir"),
     config = config_filename,
     drop_nodata_years = TRUE
   ),

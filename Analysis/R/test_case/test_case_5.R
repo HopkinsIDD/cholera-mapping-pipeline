@@ -321,7 +321,7 @@ covariate_raster_funs_observation[[3]] <- covariate3_raster_funs_observation[[2]
 
 ## save additional covariates in the data generation process for country data
 ## report
-rds_file <- file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_4_data_simulation_covariates.rds")
+rds_file <- file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_5_data_simulation_covariates.rds")
 if (!dir.exists(dirname(rds_file))) {
   dir.create(dirname(rds_file))
 }
@@ -433,7 +433,7 @@ rmarkdown::render(
     "country_data_report.Rmd"
   ),
   params = list(
-    cholera_directory = "~/cmp/",
+    cholera_directory = rprojroot::find_root(criterion = ".choldir"),
     config = config_filename,
     drop_nodata_years = TRUE
   ),
