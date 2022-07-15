@@ -381,6 +381,9 @@ taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raste
 ## NOTE: Change me if you want to run the report locally config_filename <-
 ## paste(tempfile(), 'yml', sep = '.')
 config_filename <- file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "configs", "config_test_case_3.yml")
+if (!dir.exists(dirname(config_filename))) {
+  dir.create(dirname(config_filename))
+}
 
 ## Put your config stuff in here
 config <- list(general = list(
@@ -417,7 +420,8 @@ config <- list(general = list(
     "Nationally reported data is ",
     all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$suspected_cases / sum(all_dfs$observations_df[grep("1::", all_dfs$observations_df$qualified_name), ]$suspected_cases), " times of the cases reported at the subnational level."
   ),
-  Loc_with_inconsistent_data = "-", Cov_data_simulation_filename = file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", ".rdata")
+  Loc_with_inconsistent_data = "-",
+  Cov_data_simulation_filename = file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_3_true_grid_cases.rdata")
 ))
 
 yaml::write_yaml(x = config, file = config_filename)
