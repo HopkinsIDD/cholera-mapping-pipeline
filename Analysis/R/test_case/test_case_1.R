@@ -323,7 +323,7 @@ covariate_raster_funs_observation[[6]] <- covariate3_raster_funs_observation[[4]
 
 ## save additional covariates in the data generation process for country data
 ## report
-saveRDS(test_covariates_observation_final, "/home/app/cmp/Analysis/output/test_case_1_data_simulation_covariates.rdata")
+saveRDS(test_covariates_observation_final, file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_1_data_simulation_covariates.rdata"))
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change observations
@@ -363,7 +363,7 @@ observed_polygon_id <- c(unique(data.frame(sf::st_join(st_centroid(test_true_gri
 observed_test_true_grid_cases <- test_true_grid_cases %>% subset(id %in% observed_polygon_id$id)
 test_true_grid_cases <- test_true_grid_cases %>% mutate(observed = ifelse(id %in% observed_polygon_id$id, "Observed grid cells", "Unobserved grid cells"))
 
-saveRDS(test_true_grid_cases, "/home/app/cmp/Analysis/output/test_case_1_true_grid_cases.rdata")
+saveRDS(test_true_grid_cases, file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_1_true_grid_cases.rdata"))
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
@@ -372,7 +372,7 @@ taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raste
 
 ## NOTE: Change me if you want to run the report locally config_filename <-
 ## paste(tempfile(), 'yml', sep = '.')
-config_filename <- "/home/app/cmp/Analysis/R/config_test_case_1.yml"
+config_filename <- file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "configs", "config_test_case_1.yml")
 
 ## Put your config stuff in here
 config <- list(general = list(
@@ -409,7 +409,7 @@ config <- list(general = list(
     "Nationally reported data is ",
     all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$suspected_cases / sum(all_dfs$observations_df[grep("1::", all_dfs$observations_df$qualified_name), ]$suspected_cases), " times of the cases reported at the subnational level."
   ),
-  Loc_with_inconsistent_data = "-", Cov_data_simulation_filename = "/home/app/cmp/Analysis/output/test_case_1_data_simulation_covariates.rdata", test_true_grid_case_filename = "/home/app/cmp/Analysis/output/test_case_1_true_grid_cases.rdata"
+  Loc_with_inconsistent_data = "-", Cov_data_simulation_filename = file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_1_true_grid_cases.rdata")
 ))
 
 yaml::write_yaml(x = config, file = config_filename)
