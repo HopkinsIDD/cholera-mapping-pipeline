@@ -322,7 +322,11 @@ covariate_raster_funs_observation[[6]] <- covariate3_raster_funs_observation[[4]
 
 ## save additional covariates in the data generation process for country data
 ## report
-saveRDS(test_covariates_observation_final, file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", ".rdata"))
+rds_file <- file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_2_data_simulation_covariates.rdata")
+if (!dir.exists(dirname(rds_file))) {
+  dir.create(dirname(rds_file))
+}
+saveRDS(test_covariates_observation_final, rds_file)
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change observations

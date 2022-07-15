@@ -322,7 +322,11 @@ covariate_raster_funs_observation[[6]] <- covariate3_raster_funs_observation[[4]
 
 ## save additional covariates in the data generation process for country data
 ## report
-saveRDS(test_covariates_observation_final, file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", ".rdata"))
+rds_file <- file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_3_data_simulation_covariates.rdata")
+if (!dir.exists(dirname(rds_file))) {
+  dir.create(dirname(rds_file))
+}
+saveRDS(test_covariates_observation_final, rds_file)
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change observations
@@ -363,7 +367,11 @@ observed_polygon_id <- c(unique(data.frame(sf::st_join(st_centroid(test_true_gri
 observed_test_true_grid_cases <- test_true_grid_cases %>% subset(id %in% observed_polygon_id$id)
 test_true_grid_cases <- test_true_grid_cases %>% mutate(observed = ifelse(id %in% observed_polygon_id$id, "Observed grid cells", "Unobserved grid cells"))
 
-saveRDS(test_true_grid_cases, file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", ".rdata"))
+rds_file <- file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_3_true_grid_cases.rdata")
+if (!dir.exists(dirname(rds_file))) {
+  dir.create(dirname(rds_file))
+}
+saveRDS(test_covariates_observation_final, rds_file)
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
