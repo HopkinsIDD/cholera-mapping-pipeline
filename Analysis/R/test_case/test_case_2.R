@@ -322,7 +322,7 @@ covariate_raster_funs_observation[[6]] <- covariate3_raster_funs_observation[[4]
 
 ## save additional covariates in the data generation process for country data
 ## report
-rds_file <- file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_2_data_simulation_covariates.rdata")
+rds_file <- file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_2_data_simulation_covariates.rds")
 if (!dir.exists(dirname(rds_file))) {
   dir.create(dirname(rds_file))
 }
@@ -370,11 +370,11 @@ observed_polygon_id <- c(unique(data.frame(sf::st_join(st_centroid(test_true_gri
 observed_test_true_grid_cases <- test_true_grid_cases %>% subset(id %in% observed_polygon_id$id)
 test_true_grid_cases <- test_true_grid_cases %>% mutate(observed = ifelse(id %in% observed_polygon_id$id, "Observed grid cells", "Unobserved grid cells"))
 
-rds_file <- file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_2_true_grid_cases.rdata")
+rds_file <- file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_2_true_grid_cases.rds")
 if (!dir.exists(dirname(rds_file))) {
   dir.create(dirname(rds_file))
 }
-saveRDS(test_covariates_observation_final, rds_file)
+saveRDS(test_true_grid_cases, rds_file)
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
@@ -424,8 +424,8 @@ config <- list(general = list(
     all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$suspected_cases / sum(all_dfs$observations_df[grep("1::", all_dfs$observations_df$qualified_name), ]$suspected_cases), " times of the cases reported at the subnational level."
   ),
   Loc_with_inconsistent_data = "-",
-  Cov_data_simulation_filename = file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_2_data_simulation_covariate.rdata"),
-  true_grid_case_file = file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_2_true_grid_cases.rdata")
+  Cov_data_simulation_filename = file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_2_data_simulation_covariates.rds"),
+  test_true_grid_case_filename = file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_2_true_grid_cases.rds")
 ))
 
 yaml::write_yaml(x = config, file = config_filename)
