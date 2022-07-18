@@ -22,8 +22,8 @@ plot_gam_fit_input_cases <- function(name="initial_values_data", cache) {
 #' @name plot_gam_fit_input_cases_stitched
 #' @title plot_gam_fit_input_cases_stitched
 #' @description plot the rasters with gam fitted input cases
-#' @name name the name of the dataset (initial values)
-#' @name cache the cache environment
+#' @param name the name of the dataset (initial values)
+#' @param cache the cache environment
 #' @return ggplot object
 plot_gam_fit_input_cases_stitched <- function(name = "initial_values_data", cache) {
    cache[[name]]$gam_fit_input %>%
@@ -61,8 +61,8 @@ plot_gam_fit_input_rates <- function(name="initial_values_data",cache) {
 #' @name plot_gam_fit_input_rates_stitched
 #' @title plot_gam_fit_input_rates_stitched
 #' @description plot the rasters with gam fitted input rates
-#' @name name the name of the dataset (initial values)
-#' @name cache the cache environment
+#' @param name the name of the dataset (initial values)
+#' @param cache the cache environment
 #' @return ggplot object
 plot_gam_fit_input_rates_stitched <- function(name = "initial_values_data", cache) {
   cache[[name]]$gam_fit_input %>%
@@ -99,8 +99,9 @@ plot_gam_fit_output_cases <- function(name="gam_output_df",cache) {
 #' @name plot_gam_fit_output_cases_stitched
 #' @title plot_gam_fit_output_cases_stitched
 #' @description plot the rasters with gam fitted output cases
-#' @name name the name of the dataset (initial values)
-#' @name cache the cache environment
+#' @param name the name of the dataset (initial values)
+#' @param cache the cache environment
+#' @param year_vector vector of years to plot 
 #' @return ggplot object
 plot_gam_fit_output_cases_stitched <- function(name = "gam_output_df", cache, year_vector){
   cache[[name]] %>%
@@ -134,8 +135,9 @@ plot_gam_fit_output_rates <- function(name="gam_output_df",cache) {
 #' @name plot_gam_fit_output_rates_stitched
 #' @title plot_gam_fit_input_rates_stitched
 #' @description plot the rasters with gam fitted output rates
-#' @name name the name of the dataset (initial values)
-#' @name cache the cache environment
+#' @param name the name of the dataset (initial values)
+#' @param cache the cache environment
+#' @param year_vector vector of years to plot 
 #' @return ggplot object
 plot_gam_fit_output_rates_stitched <- function(name = "gam_output_df", cache, year_vector){
   cache[[name]] %>%
@@ -148,6 +150,12 @@ plot_gam_fit_output_rates_stitched <- function(name = "gam_output_df", cache, ye
     ggplot2::facet_wrap(t~stitch_source, ncol = 2)
 }
 
+#' @export
+#' @name stitch_gam_input_with_gam_output_rate
+#' @title stitch_gam_input_with_gam_output_rate
+#' @description stitch gam input and gam output together (from the same pipeline model)
+#' @param output_cache the output cache
+#' @param input_caches the list of input caches 
 stitch_gam_input_with_gam_output_rate <- function(output_cache, input_caches){
   stitch_caches(
                 name = "gam_fit_input", 
@@ -159,6 +167,14 @@ stitch_gam_input_with_gam_output_rate <- function(output_cache, input_caches){
 
 }
 
+#' @export
+#' @name merge_gamoutput_to_gaminput_as_in_df_no_cache
+#' @title merge_gamoutput_to_gaminput_as_in_df_no_cache
+#' @description the actual merge function 
+#' @param name name of the object in the cache to use 
+#' @param cache cache environment 
+#' @param input_cache the input cache 
+#' @return merged object 
 merge_gamoutput_to_gaminput_as_in_df_no_cache <- function(name = "gam_fit_input", cache, input_cache, ...){
   # the name argument will not be used here because the output name will be different from the input name 
   df1 <- cache[[paste0("gam_fit_input", "_initialized")]] %>% dplyr::mutate(input_rate = y / pop, t = as.integer(obs_year))
@@ -174,6 +190,12 @@ merge_gamoutput_to_gaminput_as_in_df_no_cache <- function(name = "gam_fit_input"
 #' @name merge_gamoutput_to_gaminput_as_in_df
 merge_gamoutput_to_gaminput_as_in_df <- cache_fun_results_new(name = "gam_input_with_gam_output", fun = merge_gamoutput_to_gaminput_as_in_df_no_cache, cache = output_cache, overwrite = T)
 
+#' @export
+#' @name plot_gam_input_vs_output_rate_scatter_plot
+#' @title plot_gam_input_vs_output_rate_scatter_plot
+#' @description plot_gam_input_vs_output_rate_scatter_plot
+#' @param cache cache environment 
+#' @return ggplot object 
 plot_gam_input_vs_output_rate_scatter_plot <- function(cache){
   cache$gam_input_with_gam_output %>%
     ggplot(aes(x = input_rate, y = output_rate)) + 
@@ -190,6 +212,12 @@ plot_gam_input_vs_output_rate_scatter_plot <- function(cache){
     
 }
 
+#' @export
+#' @name stitch_gam_output_with_stan_output_rate
+#' @title stitch_gam_output_with_stan_output_rate
+#' @description stitch stan output and gam output together (from the same pipeline model)
+#' @param output_cache the output cache
+#' @param input_caches the list of input caches 
 stitch_gam_output_with_stan_output_rate <- function(output_cache, input_caches){
   stitch_caches(
                 name = "gam_output_df", 
@@ -201,6 +229,14 @@ stitch_gam_output_with_stan_output_rate <- function(output_cache, input_caches){
 
 }
 
+#' @export
+#' @name merge_gamoutput_to_gaminput_as_in_df_no_cache
+#' @title merge_gamoutput_to_gaminput_as_in_df_no_cache
+#' @description the actual merge function 
+#' @param name name of the object in the cache to use 
+#' @param cache cache environment 
+#' @param input_cache the input cache 
+#' @return merged object 
 merge_stanoutput_to_gamoutput_rate_as_in_sf_no_cache <- function(name, cache, input_cache, ...){
   # the name argument will not be used here because the output name will be different from the input name 
   sf <- cache$gam_output_df %>% dplyr::select(t, lambda) %>% rename(rate_gam = lambda)
@@ -215,6 +251,12 @@ merge_stanoutput_to_gamoutput_rate_as_in_sf_no_cache <- function(name, cache, in
 #' @name merge_stanoutput_to_gamoutput_rate_as_in_sf
 merge_stanoutput_to_gamoutput_rate_as_in_sf <- cache_fun_results_new(name = "gam_output_with_stan_output_rate", fun = merge_stanoutput_to_gamoutput_rate_as_in_sf_no_cache, cache = output_cache, overwrite = T)
 
+#' @export
+#' @name plot_stan_output_vs_gam_output_rate_scatter_plot
+#' @title plot_stan_output_vs_gam_output_rate_scatter_plot
+#' @description plot_stan_output_vs_gam_output_rate_scatter_plot
+#' @param cache cache environment 
+#' @return ggplot object 
 plot_stan_output_vs_gam_output_rate_scatter_plot <- function(cache){
   cache$gam_output_with_stan_output_rate %>%
     ggplot(aes(x = rate_gam, y = rate_stan)) + 
