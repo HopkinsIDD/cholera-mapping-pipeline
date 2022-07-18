@@ -148,3 +148,85 @@ plot_gam_fit_output_rates_stitched <- function(name = "gam_output_df", cache, ye
     ggplot2::facet_wrap(t~stitch_source, ncol = 2)
 }
 
+stitch_gam_input_with_gam_output_rate <- function(output_cache, input_caches){
+  stitch_caches(
+                name = "gam_fit_input", 
+                output_cache = output_cache, 
+                input_caches = input_caches,
+                initial_value = list(type = 'first'), 
+                combination_function = merge_gamoutput_to_gaminput_as_in_df
+  )
+
+}
+
+merge_gamoutput_to_gaminput_as_in_df_no_cache <- function(name = "gam_fit_input", cache, input_cache, ...){
+  # the name argument will not be used here because the output name will be different from the input name 
+  df1 <- cache[[paste0("gam_fit_input", "_initialized")]] %>% dplyr::mutate(input_rate = y / pop, t = as.integer(obs_year))
+  df2 <- input_cache[[1]] %>% dplyr::select(sx, sy, t, lambda) %>% rename(output_rate = lambda)
+
+  merged_df <- dplyr::left_join(df1, df2, by = c("sx", "sy", "t"))
+  rm(df1, df2)
+
+  rm("gam_fit_input_initialized", envir = cache)
+  return(merged_df)
+}
+#' @export
+#' @name merge_gamoutput_to_gaminput_as_in_df
+merge_gamoutput_to_gaminput_as_in_df <- cache_fun_results_new(name = "gam_input_with_gam_output", fun = merge_gamoutput_to_gaminput_as_in_df_no_cache, cache = output_cache, overwrite = T)
+
+plot_gam_input_vs_output_rate_scatter_plot <- function(cache){
+  cache$gam_input_with_gam_output %>%
+    ggplot(aes(x = input_rate, y = output_rate)) + 
+    # coord_trans(x="log10", y="log10") + 
+    geom_abline(intercept = 0, slope = 1, size = 0.2) +
+    geom_point(
+        color="#69b3a2",
+        alpha=0.5,
+        size=1) +
+    labs(x = "GAM input rates", y = "GAM output rates") + 
+    theme_minimal() + 
+    # coord_fixed(ratio = 1) + 
+    facet_wrap( ~ t, scales = "free")
+    
+}
+
+stitch_gam_output_with_stan_output_rate <- function(output_cache, input_caches){
+  stitch_caches(
+                name = "gam_output_df", 
+                output_cache = output_cache, 
+                input_caches = input_caches,
+                initial_value = list(type = 'first'), 
+                combination_function = merge_stanoutput_to_gamoutput_rate_as_in_sf
+  )
+
+}
+
+merge_stanoutput_to_gamoutput_rate_as_in_sf_no_cache <- function(name, cache, input_cache, ...){
+  # the name argument will not be used here because the output name will be different from the input name 
+  sf <- cache$gam_output_df %>% dplyr::select(t, lambda) %>% rename(rate_gam = lambda)
+  array <- apply(cache$modeled_rates, c(3), mean)
+  sf$rate_stan <- array
+  rm(array)
+  
+  rm("gam_output_df_initialized", envir = cache)
+  return(sf)
+}
+#' @export
+#' @name merge_stanoutput_to_gamoutput_rate_as_in_sf
+merge_stanoutput_to_gamoutput_rate_as_in_sf <- cache_fun_results_new(name = "gam_output_with_stan_output_rate", fun = merge_stanoutput_to_gamoutput_rate_as_in_sf_no_cache, cache = output_cache, overwrite = T)
+
+plot_stan_output_vs_gam_output_rate_scatter_plot <- function(cache){
+  cache$gam_output_with_stan_output_rate %>%
+    ggplot(aes(x = rate_gam, y = rate_stan)) + 
+    # coord_trans(x="log10", y="log10") + 
+    geom_abline(intercept = 0, slope = 1, size = 0.2) +
+    geom_point(
+        color="#69b3a2",
+        alpha=0.5,
+        size=1) +
+    labs(x = "GAM output rates", y = "Stan output rates") + 
+    theme_minimal() + 
+    # coord_fixed(ratio = 1) + 
+    facet_wrap( ~ t, scales = "free")
+    
+}

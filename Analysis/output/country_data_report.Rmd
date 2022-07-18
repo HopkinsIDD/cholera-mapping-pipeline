@@ -2,13 +2,31 @@
 title: "Country Data Report"
 output: html_document
 params: 
-  cholera_directory: "~/cholera-mapping-pipeline"
-  config: "/Analysis/configs/config.yml"
+  cholera_directory: "/home/kaiyuezou/mapping_pipeline/country_data_report_updates/cholera-mapping-pipeline"
+  config: "/Analysis/configs/production_tests/country_data_report_comparison_test/BEN/config_BEN_2015_2019_nocovar.yml"
   drop_nodata_years: TRUE
   admin_level_for_summary_table: '1'
   args: 'myarg'
   old_runs: FALSE
 ---
+```{r eval = FALSE, include = FALSE}
+# Set all the parameters for development purposes (need to comment them out when running the whole script)
+params <- new.env()
+params$cholera_directory <- "/home/kaiyuezou/mapping_pipeline/country_data_report_updates/cholera-mapping-pipeline"
+params$config <- "/Analysis/configs/production_tests/country_data_report_comparison_test/BEN/config_BEN_2015_2019_nocovar.yml"
+params$drop_nodata_years <- TRUE
+params$admin_level_for_summary_table <- '1'
+params$args <- 'myarg'
+params$old_runs <- FALSE
+
+# The updates to make
+##scatterplot of grid-cell GAM model output and Stan model output
+##scatterplot of observation GAM model output and Stan model output
+##also GAM input v.s GAM output
+##remember to use the stitch functions 
+
+```
+
 ```{r setup, include=FALSE, dev="CairoPNG",message=FALSE}
 library(knitr)
 knitr::opts_chunk$set(
@@ -117,6 +135,13 @@ plot_gam_fit_output_cases(name="gam_output_df",cache=cache)
   plot_gam_fit_output_rates(name="gam_output_df",cache=cache)
 ```
 
+### GAM Output v.s GAM Input Comparison
+**GAM Output v.s GAM Input Rates Scatterplot:**
+```{r gam output input rates comparison,fig.height=5, fig.width=10, fig.cap=capFig("GAM Output v.s GAM Input Rates")}
+stitch_gam_input_with_gam_output_rate(output_cache = cache, input_caches = list(cache$initial_values_data, cache$gam_output_df))
+plot_gam_input_vs_output_rate_scatter_plot(cache = cache) #this will output plots 
+```
+
 **Table 1. Data used within the model:**
 ```{r echo = FALSE}
   plot_ObservationSummary_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
@@ -201,6 +226,19 @@ obs_years <- min(lubridate::year(cache[["sf_cases_resized"]]$TL)):max(lubridate:
 **Modeled cases raster by time slices:**
 ```{r caserast, fig.cap=capFig("Modeled cases"), fig.height=5, fig.width=10}
 plot_disaggregated_modeled_cases_time_varying(disaggregated_case_sf=cache[["disaggregated_case_sf"]])
+```
+
+### Stan Output v.s GAM Output
+**Stan Output v.s GAM Output Rates by Time Slices:**
+```{r stangamrates, fig.cap=capFig("Stan Output v.s GAM Output Rates"), fig.height=5, fig.width=10}
+#need to use the fidelity plotting functions because the scales are settled there 
+stitch_gam_output_with_stan_output_rate(output_cache = cache, input_caches = list(cache$initial_values_data, cache$gam_output_df))
+plot_stan_output_vs_gam_output_rate_scatter_plot(cache = cache) #this will output plots 
+```
+
+**Stan Output v.s GAM Output Cases by Time Slices:**
+```{r stangamcates, fig.cap=capFig("Stan Output v.s GAM Output Cates"), fig.height=5, fig.width=10}
+#not done yet 
 ```
 
 **Table 4. Modeled cases by admin level and time:**
