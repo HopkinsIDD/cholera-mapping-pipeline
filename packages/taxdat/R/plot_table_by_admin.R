@@ -105,17 +105,25 @@ if(nrow(cache[["sf_grid"]]) == prod(dim(pop_layer))){
 #' @name plot_cases_by_admin
 #' @title plot_cases_by_admin
 #' @description add
-#' @param config config file that contains the parameter information
+#' @param config config file pathway
 #' @param cache the cached environment
 #' @param cholera_directory  the directory of cholera mapping pipeline folder
+#' @param admin_level_for_summary_table admin level
+#' @param aesthetic whether to return the kable object
 #' @return table
-plot_cases_by_admin <- function(cache, config, cholera_directory){
-  config<-yaml::read_yaml(paste0(cholera_directory,config))
+plot_cases_by_admin <- function(cache, config, cholera_directory, admin_level_for_summary_table = 1, aesthetic = TRUE){
+  params <- new.env()
+  params$config <- config
+  params$cholera_directory <- cholera_directory
+  params$admin_level_for_summary_table <- admin_level_for_summary_table
+  config_file <- yaml::read_yaml(paste0(params$cholera_directory, params$config))
+  
   ### Clean up the sf dataset
-  cache[["disaggregated_rate_sf"]]<-get_disaggregated_rates_sf(
-    cache=cache,config=params$config,cholera_directory=params$cholera_directory)
-
-  case_raster_admin<-cache[["disaggregated_rate_sf"]]
+  if(!"disaggregated_case_sf" %in% names(cache)){
+    cache[["disaggregated_case_sf"]]<-get_disaggregated_cases_sf(
+      cache=cache,config=params$config,cholera_directory=params$cholera_directory)
+  }
+  case_raster_admin<-cache[["disaggregated_case_sf"]]
   colnames(case_raster_admin)[stringr::str_detect(colnames(case_raster_admin),"modeled_case")] <- "value"
   
   iso_code <- as.character(stringr::str_extract(params$config, "[A-Z]{3}"))
@@ -179,12 +187,18 @@ plot_cases_by_admin <- function(cache, config, cholera_directory){
   admin_case_table <- admin_case_table %>% 
     mutate_if(is.numeric, round, digits=4)
   
-  admin_case_table %>%
-    dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
-    kableExtra::kable(col.names = c('Admin Level', year_list, 'Mean across Years')) %>%
-    kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
-    kableExtra::kable_paper(full_width = F) %>%
-    kableExtra::row_spec(nrow(admin_case_table), bold = T)
+  if(!aesthetic){
+    return(admin_case_table)
+  }else{
+    admin_case_table <- admin_case_table %>%
+      dplyr::mutate_if(is.numeric, function(x) {format(x , big.mark=",")}) %>%
+      kableExtra::kable(col.names = c('Admin Level', year_list, 'Mean across Years')) %>%
+      kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+      kableExtra::kable_paper(full_width = F) %>%
+      kableExtra::row_spec(nrow(admin_case_table), bold = T)
+    return(admin_case_table)
+  }
+  
 }
 
 #' @export
@@ -195,9 +209,13 @@ plot_cases_by_admin <- function(cache, config, cholera_directory){
 #' @param cache
 #' @param cholera_directory
 #' @return table
-plot_incidence_by_admin <- function(cache,config,cholera_directory){
+plot_incidence_by_admin <- function(cache,config,cholera_directory,admin_level_for_summary_table=1){
+  params <- new.env()
+  params$config <- config
+  params$cholera_directory <- cholera_directory
+  params$admin_level_for_summary_table <- admin_level_for_summary_table
+  config_file <- yaml::read_yaml(paste0(params$cholera_directory, params$config))
   
-  config<-yaml::read_yaml(paste0(cholera_directory,config))
   ### Clean up the sf dataset
   cache[["disaggregated_rate_sf"]]<-get_disaggregated_rates_sf(
     cache=cache,config=params$config,cholera_directory=params$cholera_directory)
@@ -243,7 +261,7 @@ plot_incidence_by_admin <- function(cache,config,cholera_directory){
     pop_layer[, x, 1]
   })))
   pltdata <- dplyr::bind_cols(sf_grid, covar)
-  analysis_years <- lubridate::year(config$start_time):lubridate::year(config$end_time)
+  analysis_years <- lubridate::year(config_file$start_time):lubridate::year(config_file$end_time)
   pltdata$t<- factor(pltdata$t, labels = analysis_years )
   pop_raster_data<-raster()
   for(layer in unique(pltdata$t)){
