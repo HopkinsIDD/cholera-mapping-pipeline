@@ -173,6 +173,25 @@ prepare_covar_cube <- function(
          str_c(u_lps_missing, collaspe = " - "))
   }
   
+  # Filter out pixels with pop_weight spatial fraction bellow threshold
+  # We hardcode the threshold to 1e-4 for now.
+  
+  # Get pixels with low sfrac
+  low_sfrac <- location_periods_dict  %>% 
+    dplyr::group_by(rid, x, y) %>% 
+    dplyr::slice_max(pop_weight) %>% 
+    dplyr::filter(pop_weight < 1e-4) %>% 
+    dplyr::inner_join(sf_grid %>% sf::st_drop_geometry())
+  
+  # Re-define grid cells to remove cells with low sf_frac
+  non_na_gridcells <- setdiff(non_na_gridcells, low_sfrac$long_id)
+  grid_changer <- setNames(seq_len(length(non_na_gridcells)), non_na_gridcells)
+  
+  # Drop from gridcells with low sfrac from location_periods_dict
+  location_periods_dict <- location_periods_dict %>% 
+    dplyr::filter(!(long_id %in% sfrac$long_id))
+  
+  
   cat("**** FINISHED EXTRACTING COVARITE CUBE OF DIMENSINONS", paste0(dim(covar_cube), collapse = "x"), "[n_pix x n_time x n_covar] \n")
   
   # close database
