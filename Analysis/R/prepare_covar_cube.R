@@ -133,45 +133,16 @@ prepare_covar_cube <- function(
   # Set user-specific name for location_periods table to use
   lp_name <- taxdat::make_locationperiods_table_name(dbuser = dbuser, map_name = map_name)
   
-  location_periods_table <- paste0(lp_name, "_dict")
-  
-  # Get the dictionary of location periods to pixel ids
-  location_periods_dict <- DBI::dbReadTable(conn_pg, location_periods_table)
-  
-  # Join the location periods dictionary with pixel ids
-  location_periods_dict <- dplyr::inner_join(location_periods_dict,
-                                             as.data.frame(sf_grid) %>%
-                                               dplyr::select(-geom)) %>%
-    # arrange(location_period_id, id, t) %>%
-    dplyr::mutate(upd_long_id = grid_changer[as.character(long_id)]) %>%
-    dplyr::filter(!is.na(upd_long_id))
-  
-  # Create a unique location period id which also accounts for the modeling time slice
-  location_periods_dict <- location_periods_dict %>%
-    dplyr::distinct(location_period_id, t) %>%
-    dplyr::mutate(loctime_id = dplyr::row_number()) %>%
-    dplyr::inner_join(location_periods_dict)
-  
   # Add population 1km weights
   intersections_table <- taxdat::make_grid_intersections_table_name(dbuser = dbuser, map_name = map_name)
   
-  pop_weights <- taxdat::get_pop_weights(res_space = res_space,
-                                         cntrd_table = cntrd_table,
-                                         intersections_table = intersections_table,
-                                         lp_table = lp_name,
-                                         conn_pg = conn_pg)
-  
-  location_periods_dict <- location_periods_dict %>% 
-    dplyr::left_join(pop_weights,
-                     by = c("location_period_id","rid", "x", "y", "t")) %>% 
-    dplyr::mutate(pop_weight = ifelse(is.na(pop_weight), 1, pop_weight))
-  
-  # Stop of anything missing
-  if (any(is.na(location_periods_dict$pop_weights))) {
-    u_lps_missing <- unique(location_periods_dict$location_period_id[is.na(location_periods_dict$pop_weights)]) 
-    stop("Missing pop_weights for ", length(u_lps_missing), " location periods:\n",
-         str_c(u_lps_missing, collaspe = " - "))
-  }
+  location_periods_dict <- taxdat::make_location_periods_dict(conn_pg = conn_pg,
+                                                              lp_name = lp_name,
+                                                              intersections_table = intersections_table,
+                                                              cntrd_table = cntrd_table,
+                                                              res_space = res_space,
+                                                              sf_grid = sf_grid,
+                                                              grid_changer = grid_changer)
   
   cat("**** FINISHED EXTRACTING COVARITE CUBE OF DIMENSINONS", paste0(dim(covar_cube), collapse = "x"), "[n_pix x n_time x n_covar] \n")
   

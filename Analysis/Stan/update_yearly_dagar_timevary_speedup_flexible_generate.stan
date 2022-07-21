@@ -39,6 +39,18 @@ data {
   int <lower=0, upper=L> map_loc_grid_loc[K2]; // the location side of the mapping from locations to gridcells
   int <lower=0, upper=N> map_loc_grid_grid[K2]; // the gridcell side of the mapping from locations to gridcells
   
+  // For output summaries
+  int <lower=0> L_output; // number of location periods (space and time)
+  int <lower=0> L_output_space; // number of location periods (space and time)
+  int <lower=0> M_output; // number of location periods (space and time)
+  int <lower=L_output> K1_output; // the length of the mapping of observations to location periods and times
+  int <lower=L_output> K2_output; // the length of the mapping of location periods to gridcells
+  int <lower=0, upper=M_output> map_output_obs_loctime_obs[K1_output]; // The observation side of the mapping from observations to location/times
+  int <lower=0, upper=L_output> map_output_obs_loctime_loc[K1_output]; // The location side of the mapping from observations to location/times
+  int <lower=0, upper=L_output> map_output_loc_grid_loc[K2_output]; // the location side of the mapping from locations to gridcells
+  int <lower=0, upper=N> map_output_loc_grid_grid[K2_output]; // the gridcell side of the mapping from locations to gridcells
+  int <lower=0, upper=L_output_space> map_output_loctime_loc[L_output]; // Map from space x time location ids to space only location
+  
   int <lower=0,upper=smooth_grid_N> map_smooth_grid[N]; //vector with repeating smooth_grid_N indexes repeating 1:N
   
   // Covariate stuff
@@ -60,6 +72,7 @@ data {
   int<lower=0, upper=1> use_rho_prior;
   int<lower=0, upper=1> use_pop_weight; 
   real<lower=0> pop_weight[K2 * use_pop_weight];
+  real<lower=0> pop_weight_output[K2_output * use_pop_weight];
   
   
   // If time slice effect pass indicator function for years without data
@@ -74,6 +87,7 @@ transformed data {
   real<lower=0> weights[M*(1-do_censoring)*use_weights]; //a function of the expected offset for each observation used to downwight the likelihood
   real log_meanrate = log(meanrate);
   real <lower=1> pop_loctimes[L]; // pre-computed population in each location period
+  real <lower=1> pop_loctimes_output[L_output]; // pre-computed population in each location period
   
   for(i in 1:N){
     logpop[i] = log(pop[i]);
@@ -84,7 +98,15 @@ transformed data {
   }
   
   for (i in 1:K2) {
-    pop_loctimes[map_loc_grid_loc[i]] += pop[map_loc_grid_grid[i]] * pop_weight[i];
+    pop_loctimes[map_loc_grid_loc[i]] += pop[map_loc_grid_grid[i]]  * pop_weight[i];
+  }
+  
+  for (i in 1:L_output) {
+    pop_loctimes_output[i] = 0;
+  }
+  
+  for (i in 1:K2_output) {
+    pop_loctimes_output[map_output_loc_grid_loc[i]] += pop[map_output_loc_grid_grid[i]] * pop_weight_output[i];
   }
   
   // Compute observation likelihood weights 
@@ -114,6 +136,8 @@ parameters {
   
   // Covariate stuff
   vector[ncovar] betas;
+  real alpha;    // intercept of log-lambdas
+  
 }
 
 generated quantities {
@@ -123,92 +147,138 @@ generated quantities {
   vector[N] grid_cases; //cases modeled in each gridcell and time point.
   vector[N] log_lambda; //local log rate
   vector<lower=0>[L] location_cases; //cases modeled in each (temporal) location.
-  vector[T*do_time_slice_effect] eta; // yearly random effects
+  vector<lower=0>[L_output] location_cases_output; //cases modeled in each (temporal) location.
+  vector<lower=0>[L_output] location_rates_output; //rates modeled in each (temporal) location.
+  vector<lower=0>[L_output_space] location_total_cases_output; //cases modeled in each location across time slices.
+  vector<lower=0>[L_output_space] location_total_rates_output; //rates modeled in each location  across time slices.
+  
+  vector[T*do_time_slice_effect] eta; // yearly random effects\\
+  
+  
+  // ---- Part A: Grid-level rates and cases ----
+  if (do_time_slice_effect == 1) {
+    for(i in 1:T) {
+      // scale yearly random effects
+      eta[i] = sigma_eta_scale * sigma_eta_tilde[1] * eta_tilde[i];
+    }
+  }
+  
+  // log-rates without time-slice effects
+  log_lambda =  w[map_smooth_grid] + log_meanrate + alpha;
+  
+  // covariates if applicable
+  if (ncovar > 1) {
+    log_lambda += covar * betas;
+  }
+  
+  // Add time slice effects
+  if (do_time_slice_effect == 1) {
+    log_lambda += (mat_grid_time * eta) .* has_data_year;
+  }
+  
+  grid_cases = exp(log_lambda + logpop);
+  
+  // ----  Part B: Modeled number of cases for observed location-periods ----
+  // calculate number of cases for each location
+  for(i in 1:L){
+    location_cases[i] = 0;
+  }
+  
+  for(i in 1:K2){
+    if (use_pop_weight == 1) {
+      location_cases[map_loc_grid_loc[i]] += grid_cases[map_loc_grid_grid[i]] * pop_weight[i];
+    } else {
+      location_cases[map_loc_grid_loc[i]] += grid_cases[map_loc_grid_grid[i]];
+    }
+  }
+  
+  // B.1: Modeled cases as used in observation model (depends on censoring)
+  for (i in 1:M) {
+    modeled_cases[i] = 0;
+  }
+  
+  //now accumulate
+  for (i in 1:K1) {
+    if (do_censoring == 1) {
+      modeled_cases[map_obs_loctime_obs[i]] += location_cases[map_obs_loctime_loc[i]];
+    } else {
+      modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
+    }
+  }
+  
+  // B.2: Modeled cases accounting for tfrac (for reporting)
+  for (i in 1:M) {
+    tfrac_modeled_cases[i] = 0;
+  }
+  //now accumulate
+  for (i in 1:K1) {
+    tfrac_modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
+  }
+  
+  // ---- Part C: Modeled number of cases for output summary location-periods ----
+  
+  for(i in 1:L_output){
+    location_cases_output[i] = 0;
+  }
+  
+  for(i in 1:L_output_space){
+    location_total_cases_output[i] = 0;
+  }
+  
+  for(i in 1:K2_output){
+    if (use_pop_weight == 1) {
+      location_cases_output[map_output_loc_grid_loc[i]] += grid_cases[map_output_loc_grid_grid[i]] * pop_weight_output[i];
+    } else {
+      location_cases_output[map_output_loc_grid_loc[i]] += grid_cases[map_output_loc_grid_grid[i]];
+    }
+  }
   
   {
+    // This block computes the total cases and mean rates across time
+    real tot_loc_pop[L_output_space]; // store the total exposed population across time slices
     
-    if (do_time_slice_effect == 1) {
-      for(i in 1:T) {
-        // scale yearly random effects
-        eta[i] = sigma_eta_scale * sigma_eta_tilde[1] * eta_tilde[i];
-      }
+    for (i in 1:L_output_space) {
+      tot_loc_pop[i] = 0;
     }
     
-    // log-rates without time-slice effects
-    log_lambda =  w[map_smooth_grid] + log_meanrate;
-    
-    // covariates if applicable
-    if (ncovar > 1) {
-      log_lambda += covar * betas;
+    // Compute total cases and total exposed population
+    for (i in 1:L_output) {
+      location_total_cases_output[map_output_loctime_loc[i]] += location_cases_output[i];
+      tot_loc_pop[map_output_loctime_loc[i]] += pop_loctimes_output[i];
     }
     
-    // Add time slice effects
-    if (do_time_slice_effect == 1) {
-      log_lambda += (mat_grid_time * eta) .* has_data_year;
+    // Compute mean rates
+    for (i in 1:L_output_space) {
+      location_total_rates_output[i] = location_total_cases_output[i]/tot_loc_pop[i];
     }
-    
-    grid_cases = exp(log_lambda + logpop);
-    
-    //calculate the expected number of cases by location
-    
-    // calculate number of cases for each location
-    for(i in 1:L){
-      location_cases[i] = 0;
-    }
-    for(i in 1:K2){
-      if (use_pop_weight == 1) {
-        location_cases[map_loc_grid_loc[i]] += grid_cases[map_loc_grid_grid[i]] * pop_weight[i];
-      } else {
-        location_cases[map_loc_grid_loc[i]] += grid_cases[map_loc_grid_grid[i]];
-      }
-    }
-    
-    //first initialize to 0
+  }
+  
+  for(i in 1:L_output){
+    location_rates_output[i] = location_cases_output[i]/pop_loctimes_output[i];
+  }
+  
+  // ---- Part D: Log-likelihoods ----
+  if (do_censoring == 0) {
     for (i in 1:M) {
-      modeled_cases[i] = 0;
+      log_lik[i] = poisson_lpmf(y[i] | modeled_cases[i]);
     }
-    
-    //now accumulate
-    for (i in 1:K1) {
-      if (do_censoring == 1) {
-        modeled_cases[map_obs_loctime_obs[i]] += location_cases[map_obs_loctime_loc[i]];
+  } else {
+    // full observations
+    for (i in 1:M_full) {
+      log_lik[ind_full[i]] = poisson_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]]);
+    }
+    // rigth-censored observations
+    for(i in 1:M_right){
+      real lpmf;
+      lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+      // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
+      if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
+        real lls[2];
+        lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+        lls[2] = lpmf;
+        log_lik[ind_right[i]] = log_sum_exp(lls);
       } else {
-        modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
-      }
-    }
-    //w_sum = sum(w);
-    
-    // first initialize to 0
-    for (i in 1:M) {
-      tfrac_modeled_cases[i] = 0;
-    }
-    //now accumulate
-    for (i in 1:K1) {
-      tfrac_modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
-    }
-    
-    if (do_censoring == 0) {
-      for (i in 1:M) {
-        log_lik[i] = poisson_lpmf(y[i] | modeled_cases[i]);
-      }
-    } else {
-      // full observations
-      for (i in 1:M_full) {
-        log_lik[ind_full[i]] = poisson_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]]);
-      }
-      // rigth-censored observations
-      for(i in 1:M_right){
-        real lpmf;
-        lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
-        // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
-        if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
-          real lls[2];
-          lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
-          lls[2] = lpmf;
-          log_lik[ind_right[i]] = log_sum_exp(lls);
-        } else {
-          log_lik[ind_right[i]] = lpmf;
-        }
+        log_lik[ind_right[i]] = lpmf;
       }
     }
   }
