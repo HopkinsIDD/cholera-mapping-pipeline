@@ -189,7 +189,7 @@ prepare_covar_cube <- function(
   
   # Drop from gridcells with low sfrac from location_periods_dict
   location_periods_dict <- location_periods_dict %>% 
-    dplyr::filter(!(long_id %in% sfrac$long_id))
+    dplyr::filter(!(long_id %in% low_sfrac$long_id))
   
   
   cat("**** FINISHED EXTRACTING COVARITE CUBE OF DIMENSINONS", paste0(dim(covar_cube), collapse = "x"), "[n_pix x n_time x n_covar] \n")
