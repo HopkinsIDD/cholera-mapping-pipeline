@@ -44,6 +44,7 @@ jobs:
         shell: bash
       - name: Run taxdat tests
         run: |
+          chown app:app -R ./
           service postgresql start
           cd packages/taxdat
           sudo -E -u app Rscript -e "devtools::test(stop_on_failure=TRUE)"
