@@ -2,8 +2,8 @@
 title: "gavi_processing_code"
 output: html_document
 params: 
-  cholera_directory: "/home/qulu/cmp_report"
-  config: "/Analysis/configs/Dec_2021_runs/KEN_2015_2019/config_KEN_2015_2019_censoring.yml"
+  cholera_directory: "~/cholera-mapping-pipeline"
+  config: "configs/config.yml"
   old_runs: FALSE
   single_year: FALSE
 ---
@@ -51,7 +51,6 @@ for (package in package_list) {
       library(package = package, character.only = T)
     }
   }
-  # detach(pos = which(grepl(package, search())))
 }
 ```
 
@@ -71,139 +70,122 @@ crop_to_shapefile <- function(raster, shapefile, snap) {
   return(raster_cropped)
 }
 
-#' @name get_disaggregated_rate_raster
-#' @title get_disaggregated_rate_raster
+#Generalize this function to different year?
+#' Get 2017 population
+#'
+#' @param sf_grid the sf_grid object from the stan_input file
+#'
+#' @return a new sf_grid object with a column for the 2017 population
+#'
+get_pop2017 <- function(sf_grid) {
+  # Connect to database
+  conn <- taxdat::connect_to_db(Sys.getenv("USER"))
+  
+  # Pul the 2017 population data
+  pop2017 <- rpostgis::pgGetRast(conn, 
+                                 name = c("covariates", "pop_1_years_20_20"), 
+                                 band =  which(2000:2020 == 2017))
+  
+  # Extract the values at the centroids of sf_grid
+  sf_grid$pop2017 <- raster::extract(pop2017, sf::st_centroid(sf_grid))
+  
+  DBI::dbDisconnect(conn)
+  
+  return(sf_grid)
+}
+
+#' @name get_rate_raster
+#' @title get_rate_raster
 #' @description get rate raster for each layer 
 #' @param preprocessed_data_filename
 #' @param covar_data_filename
 #' @param model_output_filenames
 #' @return rate_raster
-get_disaggregated_rate_raster <- function(covar_data_filename,
-                                          model_output_filenames,
-                                          stan_input_filenames,
-                                          if_single_year_run){
+get_rate_raster <- function(covar_data_filename,
+                            model_output_filenames,
+                            stan_input_filenames,
+                            if_single_year_run,
+                            res=c(0.1666667,0.1666667),
+                            starting_year=2015){
+  #load model output data
   covar_cube_output <- read_file_of_type(covar_data_filename, "covar_cube_output")
   rate_raster <- covar_cube_output$sf_grid
   non_na_gridcells <- taxdat::get_non_na_gridcells(covar_data_filename)
   rate_raster <- rate_raster[non_na_gridcells,]
-
   model.rand <- read_file_of_type(model_output_filenames, "model.rand")
-  modeled_rates <- exp(as.array(model.rand)[, , grepl("log_lambda",
-                                                      names(model.rand)), drop = FALSE])
-  modeled_rates_mean_by_grid_layer_tmp <- as.data.frame(t(apply(modeled_rates, c(1,3), mean)))%>%
-  mutate(id=seq_len(dim(modeled_rates)[3]))
+  niter_per_chain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__', chain_num=1))[1]
 
-  #subset years with obervations
+  # average modeled cases across chains
+  modeled_cases <- as.array(model.rand)[, , grepl("grid_case", names(model.rand)),drop=FALSE]
+  modeled_cases_mean_by_grid_layer_tmp <- as.data.frame(t(apply(modeled_cases, c(1,3), mean)))%>%
+  mutate(id=seq_len(dim(modeled_cases)[3]))
+
+  #subset years with obervations and remove years without obsevations (drop some years)
   stan_input <- read_file_of_type(stan_input_filenames, "stan_input")
   if(params$single_year==FALSE){
-  obs_years <- (nrow(modeled_rates_mean_by_grid_layer_tmp)/5)*((min(lubridate::year(stan_input$sf_cases_resized$TL)):max(lubridate::year(stan_input$sf_cases_resized$TR)))-2015)    
-  modeled_rates_mean_by_grid_layer<-data.frame()
-  for (row_idx in unique(obs_years)) {
-   tmp <- modeled_rates_mean_by_grid_layer_tmp[(row_idx+1):(row_idx+nrow(modeled_rates_mean_by_grid_layer_tmp)/5),]
-   modeled_rates_mean_by_grid_layer<-rbind(modeled_rates_mean_by_grid_layer,tmp)}
+    
+    obs_years <- (nrow(modeled_cases_mean_by_grid_layer_tmp)/length(unique(lubridate::year(stan_input$sf_cases_resized$TL),lubridate::year(stan_input$sf_cases_resized$TR))))*((unique(c(lubridate::year(stan_input$sf_cases_resized$TL),lubridate::year(stan_input$sf_cases_resized$TR))))-starting_year)
+    
+    modeled_cases_mean_by_grid_layer_tmp1<-data.frame()
+    for (row_idx in unique(obs_years)) {
+      
+      tmp <- modeled_cases_mean_by_grid_layer_tmp[(row_idx+1):(row_idx+nrow(modeled_cases_mean_by_grid_layer_tmp)/length(unique(lubridate::year(stan_input$sf_cases_resized$TL),lubridate::year(stan_input$sf_cases_resized$TR)))),1:niter_per_chain]
+      
+      if(length(modeled_cases_mean_by_grid_layer_tmp1)==0){
+        modeled_cases_mean_by_grid_layer_tmp1<-tmp
+      }else{
+      modeled_cases_mean_by_grid_layer_tmp1<-cbind(modeled_cases_mean_by_grid_layer_tmp1,tmp)}
+      }
+    modeled_cases_mean_by_grid_layer<-  modeled_cases_mean_by_grid_layer_tmp1
   }else{
-  modeled_rates_mean_by_grid_layer <- modeled_rates_mean_by_grid_layer_tmp
+    modeled_cases_mean_by_grid_layer_tmp1 <-  modeled_cases_mean_by_grid_layer_tmp
   }
-  
-  rate_raster <- merge(rate_raster[rate_raster$long_id%in%unique(modeled_rates_mean_by_grid_layer$id),],modeled_rates_mean_by_grid_layer,by.x="long_id",by.y="id")
 
-  colnames(rate_raster)[str_detect(colnames(rate_raster),".*[0-9].*")] <- paste0("layer",seq_len(dim(modeled_rates)[1]))
-  rate_raster <- rate_raster[,str_detect(colnames(rate_raster),".*[0-9].*")]
+  #estimate 2017 population data from the covariate database
+  stan_input <- read_file_of_type(stan_input_filenames, "stan_input")
+  pop_sf_grid<-stan_input$sf_grid
+  pop_sf_grid_2017<-get_pop2017(pop_sf_grid)
+
+  #combine the population estimates into case raster
+  modeled_cases_mean_by_grid_layer$pop2017<-pop_sf_grid_2017[1:nrow(modeled_cases_mean_by_grid_layer),]$pop2017
+
+  modeled_rates_mean_by_grid_layer<-modeled_cases_mean_by_grid_layer
+  modeled_rates_mean_by_grid_layer[str_detect(colnames(modeled_rates_mean_by_grid_layer),".*[0-9].*")] <- modeled_cases_mean_by_grid_layer[str_detect(colnames(modeled_cases_mean_by_grid_layer),".*[0-9].*")]/modeled_cases_mean_by_grid_layer$pop2017
+  modeled_rates_mean_by_grid_layer$id=1:nrow(modeled_rates_mean_by_grid_layer)
+
+  rate_raster <- merge(rate_raster[1:length(unique(rate_raster$geom)),],modeled_rates_mean_by_grid_layer,by="id")
+
+  colnames(rate_raster)[str_detect(colnames(rate_raster),".*[0-9].*")&!colnames(rate_raster)%in%"pop2017"] <-   paste0("layer",seq_len(length(unique(lubridate::year(stan_input$sf_cases_resized$TL),lubridate::year(stan_input$sf_cases_resized$TR)))*dim(modeled_cases)[1]))
+
+  rate_raster <- rate_raster[,str_detect(colnames(rate_raster),".*[0-9].*")&!colnames(rate_raster)%in%"pop2017"]
+
+  raster_2020<-raster::raster(rate_raster, res =res) 
   
-  disaggregated_rate_raster <- raster::raster(rate_raster, res = max(0.00833333, 0.00833333))
-  for (layer_idx in seq_len(ncol(rate_raster)-1)){
+ for (layer_idx in seq_len(ncol(rate_raster)-1)){
+
     layer_value <- rate_raster[,layer_idx]
-    single_layer <- raster::raster(rate_raster, res = max(0.00833333, 0.00833333))
-    single_disaggregated_rate_raster <- fasterize::fasterize(layer_value, single_layer, field = paste0("layer",layer_idx))
-    disaggregated_rate_raster <- stack(disaggregated_rate_raster,single_disaggregated_rate_raster)
+     
+    #empty raster
+    single_layer <- raster::raster(rate_raster, res =res)
+    #assign rate values into the raster
+    single_rate_raster_2020 <- fasterize::fasterize(layer_value, single_layer, field = paste0("layer",layer_idx))
+    
+    raster_2020 <- stack(raster_2020,single_rate_raster_2020)
+    rm(single_rate_raster_2020)
+    gc()
   }
-  names(disaggregated_rate_raster)<-colnames(rate_raster)[-ncol(rate_raster)]
+  names(raster_2020)<-colnames(rate_raster)[-ncol(rate_raster)]
 
-  if(if_single_year_run){
-#import all single-year data and stack the raster data
-## replace config file name with year 2016-2019
-year_with_config <- str_sub(params$config,-8,-5)
-
-if(iso_code=="AGO"){
-  year_list=c("2016","2017","2018")
-}else if(iso_code=="SDN"){
-  year_list=c("2016","2017","2018","2019")
-}else if(iso_code=="COG"){
-  year_list=c("2015","2016","2017","2019")#2018 stan output is incorrect
-}else if(iso_code=="TZA"){
-  year_list=c("2015","2019")#2019 shapefiles are different
-}else if(iso_code=="NER"){
-  year_list=c("2015")#try in small rasters
-}else if(iso_code=="COD"){
-  year_list=c("2015","2016")#try in small rasters
-}else{
-  year_list=c("2015","2016","2017","2018","2019")
-}
-additional_years <- year_list[!year_list%in%year_with_config]
-
-for(year_idx in additional_years){
-if(params$old_runs){
-new_config_name=str_replace_all(params$config,year_with_config,year_idx)
-config_tmp <- yaml::read_yaml(paste0(params$cholera_directory, new_config_name))
-file_names_tmp <- taxdat::get_filenames(config_tmp, params$cholera_directory)
-file_names_tmp<-update_filename_oldruns(filename=file_names_tmp,old_runs=params$old_runs)
-file_names_tmp[["stan_output"]] <- stringr::str_remove(file_names_tmp[["stan_output"]],"iv-wN-cwN-csF-teT-teaF-weF.")
-file_names_tmp[["stan_output"]] <- stringr::str_remove( file_names_tmp[["stan_output"]],"-F")
-}else{
-new_config_name=paste(paste0(c(strsplit(params$config,"/")[[1]][1:(length(strsplit(params$config,"/")[[1]])-1)]),collapse="/"),c(str_replace_all(strsplit(params$config,"/")[[1]][length(strsplit(params$config,"/")[[1]])],year_with_config,year_idx)),sep="/")
-config_tmp <- yaml::read_yaml(paste0(params$cholera_directory, new_config_name))
-file_names_tmp <- taxdat::get_filenames(config_tmp, params$cholera_directory)
-file_names_tmp<-update_filename_oldruns(filename=file_names_tmp,old_runs=params$old_runs)
-}
-
-covar_data_filename_tmp=file_names_tmp[["covar"]]
-model_output_filenames_tmp=file_names_tmp[["stan_output"]]
-covar_cube_output_tmp <- read_file_of_type(covar_data_filename_tmp, "covar_cube_output")
-rate_raster_tmp <- covar_cube_output_tmp$sf_grid
-non_na_gridcells_tmp <- taxdat::get_non_na_gridcells(covar_data_filename_tmp)
-rate_raster_tmp <- rate_raster_tmp[non_na_gridcells_tmp,]
-
-model.rand_tmp <- read_file_of_type(model_output_filenames_tmp, "model.rand")
-modeled_rates_tmp <- exp(as.array(model.rand_tmp)[, , grepl("log_lambda",
-                                                      names(model.rand_tmp)), drop = FALSE])
-modeled_rates_mean_by_grid_layer_tmp <- as.data.frame(t(apply(modeled_rates_tmp, c(1,3), mean)))%>%
-    mutate(id=seq_len(dim(modeled_rates_tmp)[3]))
-  
-rate_raster_tmp <- merge(rate_raster_tmp[rate_raster_tmp$long_id%in%unique(modeled_rates_mean_by_grid_layer_tmp$id),],modeled_rates_mean_by_grid_layer_tmp,by.x="long_id",by.y="id")
-
-colnames(rate_raster_tmp)[str_detect(colnames(rate_raster_tmp),".*[0-9].*")] <- paste0("layer",seq_len(dim(modeled_rates_tmp)[1]))
-rate_raster_tmp <- rate_raster_tmp[,str_detect(colnames(rate_raster_tmp),".*[0-9].*")]
- disaggregated_rate_raster_tmp <- raster::raster(rate_raster_tmp, res = max(0.00833333, 0.00833333))
-
-  for (layer_idx in seq_len(ncol(rate_raster_tmp)-1)){
-    layer_value <- rate_raster_tmp[,layer_idx]
-    single_layer <- raster::raster(rate_raster_tmp, res = max(0.00833333, 0.00833333))
-    single_disaggregated_rate_raster_tmp <- fasterize::fasterize(layer_value, single_layer, field = paste0("layer",layer_idx))
-    if(!extent(single_disaggregated_rate_raster_tmp)==extent(disaggregated_rate_raster_tmp)){
-      single_disaggregated_rate_raster_tmp <- extend(single_disaggregated_rate_raster_tmp,disaggregated_rate_raster_tmp,value=NA)
-      extent(single_disaggregated_rate_raster_tmp)=extent(disaggregated_rate_raster_tmp)
-   }
-    disaggregated_rate_raster_tmp <- stack(disaggregated_rate_raster_tmp,single_disaggregated_rate_raster_tmp)
-  }
-
-names(disaggregated_rate_raster_tmp)<-colnames(rate_raster_tmp)[-ncol(rate_raster_tmp)]
-disaggregated_rate_raster_tmp <- extend(disaggregated_rate_raster_tmp,disaggregated_rate_raster,value=NA)
-extent(disaggregated_rate_raster_tmp)=extent(disaggregated_rate_raster)
-disaggregated_rate_raster <- stack(disaggregated_rate_raster,disaggregated_rate_raster_tmp)
-
-}
-  }
-  return(disaggregated_rate_raster)
+  return(raster_2020)
 }
 
 #' @name aggregate_affected_pop_across_cells
 #' @title aggregate_affected_pop_across_cells: aggregate proportion of population living in each incidence group across cells for each layer
 #' @param pop_raster_cropped: 1*1 KM population raster cropped by crop_to_shapefile function
 #' @param rate_raster_cropped: 1*1 KM rate_raster (disaggregated from 20*20 KM rater raster) cropped by crop_to_shapefile function
-#' @param shapefile: country shapefile
 #' @param threshold_list: the threshold to determine mild/moderate/high incidence areas
 #' @return results_by_layer
-aggregate_affected_pop_across_cells <- function(pop_raster_cropped, rate_raster_cropped,shapefile,threshold_list){
+aggregate_affected_pop_across_cells <- function(pop_raster_cropped, rate_raster_cropped,threshold_list){
   threshold_list <- threshold_list[order(threshold_list,decreasing = T)]
   pop_prop<-as.data.frame(matrix(NA,nrow=1,ncol=length(unique(threshold_list))))
   names(pop_prop) <- paste0(">=",threshold_list)
@@ -231,9 +213,8 @@ aggregate_affected_pop_across_layers <- function(pop_prop,probability_cutoffs, i
   return(rbind(mean_values,probability_distribution))
 }
 
-#get_affected_pop
-#' @name get_affected_pop
-#' @title get_affected_pop
+#' @name get_pop_at_risk
+#' @title get_pop_at_risk
 #' @param pop_raster: 1*1 KM population raster
 #' @param rate_raster: 1*1 KM rate_raster (disaggregated from 20*20 KM rater raster)
 #' @param country_shp: country shapefile
@@ -243,9 +224,8 @@ aggregate_affected_pop_across_layers <- function(pop_prop,probability_cutoffs, i
 #' @param within_layer_aggregator: the function to aggregate cells within one layer
 #' @param across_layer_aggregator: the function to aggregate across layers
 #' @return 
-get_affected_pop <- function(pop_raster_cropped,
+get_pop_at_risk <- function(pop_raster_cropped,
                              rate_raster_cropped,
-                             shapefile,
                              threshold_list=c(0.001,0.0001,0.00001),
                              include_mean=TRUE,
                              calculate_disjoint_values = TRUE,
@@ -256,7 +236,6 @@ get_affected_pop <- function(pop_raster_cropped,
   for (layer_idx in seq_len(nlayers(rate_raster_cropped))) {
     results_by_layer[[layer_idx]] <- within_layer_aggregator(pop_raster_cropped=pop_raster_cropped,
                                                              rate_raster_cropped=rate_raster_cropped[[layer_idx]],
-                                                             shapefile=shapefile,
                                                              threshold_list=threshold_list)
  }
   pop_prop=do.call('rbind',results_by_layer)
@@ -267,47 +246,54 @@ get_affected_pop <- function(pop_raster_cropped,
 }
 ```
 
-```{r load data}
+```{r load data and running script}
 config <- yaml::read_yaml(paste0(params$cholera_directory, params$config))
 file_names <- taxdat::get_filenames(config, params$cholera_directory)
-file_names<-update_filename_oldruns(filename=file_names,old_runs=params$old_runs)
+#update the filenames for old runs
 if(params$old_runs){
  file_names[["stan_output"]] <- stringr::str_remove(file_names[["stan_output"]],"iv-wN-cwN-csF-teT-teaF-weF.")
  file_names[["stan_output"]] <- stringr::str_remove( file_names[["stan_output"]],"-F")
 }
 
+#shapefile imported
 iso_code <- as.character(stringr::str_extract(params$config, "[A-Z]{3}"))
 shapefile <- rgeoboundaries::gb_adm0(iso_code)
-pop_raster <- raster(paste0(params$cholera_directory,"/Layers/pop/2000_1km_Aggregated.tif"))
-pop_raster_cropped <- crop_to_shapefile(raster = pop_raster,shapefile = shapefile,snap="out")
 
-disaggregated_rate_raster <- get_disaggregated_rate_raster(covar_data_filename=file_names[["covar"]],
-                                                           model_output_filenames=file_names[["stan_output"]],
-                                                           stan_input_filenames=file_names[['stan_input']],
-                                                           if_single_year_run=params$single_year
-                                                           )
-#rate_raster_cropped <- crop_to_shapefile(raster = disaggregated_rate_raster,shapefile = shapefile,snap="out")
-rate_raster_cropped <- crop_to_shapefile(raster = disaggregated_rate_raster[[1]],shapefile = shapefile,snap="out")
+#rate raster
+rate_raster_2020 <- get_rate_raster(covar_data_filename=file_names[["covar"]],
+                                    model_output_filenames=file_names[["stan_output"]],
+                                    stan_input_filenames=file_names[['stan_input']],
+                                    if_single_year_run=params$single_year)
+rate_raster_2020_cropped <- crop_to_shapefile(raster = rate_raster_2020,shapefile = shapefile,snap="near")
+rm(rate_raster_2020)
+gc()
 
-for(i in seq_len(nlayers(disaggregated_rate_raster))[-1]){
-  tmp <- crop_to_shapefile(raster = disaggregated_rate_raster[[i]],shapefile = shapefile,snap="out")
-  rate_raster_cropped <- stack(rate_raster_cropped,tmp)
-}
+#pop raster
+stan_input <- read_file_of_type(file_names[['stan_input']], "stan_input")
+pop_sf_grid<-stan_input$sf_grid
+pop_sf_grid_2017<-get_pop2017(pop_sf_grid)
+pop_sf_grid_2017<-pop_sf_grid_2017[1:length(unique(pop_sf_grid_2017$geom)),]
+empty_pop_raster<-raster::raster(pop_sf_grid_2017, res =c(0.1666667,0.1666667)) 
 
-rm(disaggregated_rate_raster)
+#assign pop values into the raster
+pop_raster_2017 <- fasterize::fasterize(pop_sf_grid_2017, empty_pop_raster, field = "pop2017")
+
+pop_raster_2017_cropped<-  crop_to_shapefile(raster = pop_raster_2017,shapefile = shapefile,snap="near")
+
+rm(pop_raster_2017)
 gc()
 ```
 
 ```{r processing}
-table<-get_affected_pop(pop_raster_cropped=pop_raster_cropped,
-                             rate_raster_cropped=rate_raster_cropped,
-                             shapefile=shapefile,
-                             threshold_list=c(0.001,0.0001,0.00001),
-                             include_mean=TRUE,
-                             calculate_disjoint_values = TRUE,
-                             within_layer_aggregator=aggregate_affected_pop_across_cells,
-                             across_layer_aggregator=aggregate_affected_pop_across_layers,
-                             probability_cutoffs=c(0.025,0.5,0.975))
+table<-get_pop_at_risk(pop_raster_cropped=pop_raster_2017_cropped,
+                       rate_raster_cropped=rate_raster_2020_cropped,
+                       res=c(0.1666667,0.1666667),#20*20KM
+                       threshold_list=c(0.001,0.0001,0.00001),
+                       include_mean=TRUE,
+                       calculate_disjoint_values = TRUE,
+                       within_layer_aggregator=aggregate_affected_pop_across_cells,
+                       across_layer_aggregator=aggregate_affected_pop_across_layers,
+                       probability_cutoffs=c(0.025,0.5,0.975))
 
 if(params$single_year){
 year_list=str_sub(params$config,-8,-5)
@@ -316,6 +302,6 @@ year_list="2015_2019"
 }
 
 filename<-paste0("final_table",iso_code,year_list,".csv")
- write.csv(table,filename)
- kableExtra::kable(table)
+write.csv(table,filename)
+kableExtra::kable(table)
 ```
