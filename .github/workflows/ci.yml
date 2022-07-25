@@ -46,7 +46,7 @@ jobs:
         run: |
           service postgresql start
           cd packages/taxdat
-          sudo -u app Rscript -e "devtools::test(stop_on_failure=TRUE)"
+          sudo -E -u app Rscript -e "devtools::test(stop_on_failure=TRUE)"
         shell: bash
       - name: Run integration tests (new)
         env:
@@ -55,7 +55,7 @@ jobs:
         run: |
           chown app:app -R ./
           service postgresql start
-          sudo -u app Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
+          sudo -E -u app Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
           cd tests
-          sudo -u app Rscript -e "devtools::test(stop_on_failure=TRUE)"
+          sudo -E -u app Rscript -e "devtools::test(stop_on_failure=TRUE)"
         shell: bash
