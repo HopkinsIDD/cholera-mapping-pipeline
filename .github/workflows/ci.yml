@@ -45,6 +45,7 @@ jobs:
       - name: Run taxdat tests
         run: |
           chown app:app -R ./
+          chmod 777 -R ./
           service postgresql start
           cd packages/taxdat
           sudo -E -u app Rscript -e "devtools::test(stop_on_failure=TRUE)"
@@ -55,6 +56,7 @@ jobs:
           CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
         run: |
           chown app:app -R ./
+          chmod 777 -R ./
           service postgresql start
           export CHOLERA_POSTGRES_PORT=5432
           sudo -E -u app Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
