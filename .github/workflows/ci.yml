@@ -24,6 +24,11 @@ jobs:
         with:
           lfs: false
           token: ${{ secrets.PERSONAL_TOKEN }}
+      - name: Set up Rprofile
+        run: |
+          cp Docker.Rprofile $HOME/.Rprofile
+          cp -R /home/app/.cache $HOME/.cache
+        shell: bash
       - name: Checkout Analysis/configs
         uses: actions/checkout@v3
         with:
@@ -39,16 +44,17 @@ jobs:
           path: Layers/
           lfs: true
           token: ${{ secrets.PERSONAL_TOKEN }}
-      - name: Set up Rprofile
-        run: cp Docker.Rprofile $HOME/.Rprofile
-        shell: bash
       - name: Run taxdat tests
+        env:
+          CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
+          CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
         run: |
           chown app:app -R ./
           chmod 777 -R ./
           service postgresql start
+          service postgresql status
+          export CHOLERA_POSTGRES_PORT=5432
           cd packages/taxdat
-          Rscript -e "devtools::test(stop_on_failure=TRUE)"
           sudo -E -u app Rscript -e "devtools::test(stop_on_failure=TRUE)"
         shell: bash
       - name: Run integration tests (new)
