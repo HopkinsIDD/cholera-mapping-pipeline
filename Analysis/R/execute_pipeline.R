@@ -417,7 +417,6 @@ temporal_location_grid_mapping[["temporal_location_id"]] <- bit64::as.integer64(
   temporal_location_grid_mapping[["temporal_location_id"]],
   unique_temporal_location_ids
 ))
-
 check_data(observation_data)
 print("Starting processing")
 # Intermediate operations like aggregation and overlap removal

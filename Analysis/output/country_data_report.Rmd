@@ -185,7 +185,7 @@ warning("Removed this plot for now")
 taxdat::plot_raster_covariates(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
 ```
 
-``` {r covars_data_simulation, fig.height=5, fig.width=10, fig.cap=capFig("Non-population covariate rasters in data simulation process")}
+``` {r covars_data_simulation, fig.height=10, fig.width=10, fig.cap=capFig("Non-population covariate rasters in data simulation process")}
 taxdat::plot_raster_covariates_datagen(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
 ```
 

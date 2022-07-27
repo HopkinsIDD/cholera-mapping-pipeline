@@ -323,7 +323,11 @@ covariate_raster_funs_observation[[6]] <- covariate3_raster_funs_observation[[4]
 
 ## save additional covariates in the data generation process for country data
 ## report
-saveRDS(test_covariates_observation_final, "/home/app/cmp/Analysis/output/test_case_1_data_simulation_covariates.rdata")
+rds_file <- file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_1_data_simulation_covariates.rds")
+if (!dir.exists(dirname(rds_file))) {
+  dir.create(dirname(rds_file))
+}
+saveRDS(test_covariates_observation_final, rds_file)
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change observations
@@ -352,10 +356,7 @@ all_dfs$observations_df <- test_observations %>%
   )
 
 # overlapping observations with consistent case counts
-all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$suspected_cases <- sum(all_dfs$observations_df[grep(
-  "1::",
-  all_dfs$observations_df$qualified_name
-), ]$suspected_cases)
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$cases <- all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$cases
 
 test_true_grid_cases <- test_underlying_distribution$mean
 # label grids that is observed
@@ -363,7 +364,11 @@ observed_polygon_id <- c(unique(data.frame(sf::st_join(st_centroid(test_true_gri
 observed_test_true_grid_cases <- test_true_grid_cases %>% subset(id %in% observed_polygon_id$id)
 test_true_grid_cases <- test_true_grid_cases %>% mutate(observed = ifelse(id %in% observed_polygon_id$id, "Observed grid cells", "Unobserved grid cells"))
 
-saveRDS(test_true_grid_cases, "/home/app/cmp/Analysis/output/test_case_1_true_grid_cases.rdata")
+rds_file <- file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_1_true_grid_cases.rds")
+if (!dir.exists(dirname(rds_file))) {
+  dir.create(dirname(rds_file))
+}
+saveRDS(test_true_grid_cases, rds_file)
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
@@ -372,7 +377,10 @@ taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raste
 
 ## NOTE: Change me if you want to run the report locally config_filename <-
 ## paste(tempfile(), 'yml', sep = '.')
-config_filename <- "/home/app/cmp/Analysis/R/config_test_case_1.yml"
+config_filename <- file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "configs", "config_test_case_1.yml")
+if (!dir.exists(dirname(config_filename))) {
+  dir.create(dirname(config_filename))
+}
 
 ## Put your config stuff in here
 config <- list(general = list(
@@ -406,10 +414,11 @@ config <- list(general = list(
   polygonal = covariates_table$polygonal, radiating = covariates_table$radiating,
   constant = covariates_table$constant, Data_simulation_covariates = covariates_table$Data_simulation_covariates,
   Model_covariates = covariates_table$Model_covariates, Observations_with_inconsistent_data = paste0(
-    "Nationally reported data is ",
-    all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$suspected_cases / sum(all_dfs$observations_df[grep("1::", all_dfs$observations_df$qualified_name), ]$suspected_cases), " times of the cases reported at the subnational level."
+    "Nationally reported data is 1 times of the cases reported at the subnational level."
   ),
-  Loc_with_inconsistent_data = "-", Cov_data_simulation_filename = "/home/app/cmp/Analysis/output/test_case_1_data_simulation_covariates.rdata", test_true_grid_case_filename = "/home/app/cmp/Analysis/output/test_case_1_true_grid_cases.rdata"
+  Loc_with_inconsistent_data = "-",
+  Cov_data_simulation_filename = file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_1_data_simulation_covariates.rds"),
+  test_true_grid_case_filename = file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_1_true_grid_cases.rds")
 ))
 
 yaml::write_yaml(x = config, file = config_filename)
@@ -422,7 +431,7 @@ rmarkdown::render(
     "country_data_report.Rmd"
   ),
   params = list(
-    cholera_directory = "~/cmp/",
+    cholera_directory = rprojroot::find_root(criterion = ".choldir"),
     config = config_filename,
     drop_nodata_years = TRUE
   ),

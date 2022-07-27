@@ -148,20 +148,30 @@ CREATE MATERIALIZED VIEW grids.resized_spatial_grids AS
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
+#' @description Create a covariates schema for use in testing
+#' @name create_covariates_schema
+#' @title create_covariates_schema
+#' @param psql_connection a connection to a database made with dbConnect
+#' @param drop Whether to drop an existing table
+create_covariates_schema <- function(psql_connection, drop = FALSE) {
+  add_query <- "CREATE SCHEMA IF NOT EXISTS covariates;"
+  drop_query <- "DROP SCHEMA IF EXISTS covariates CASCADE;"
+  add_and_or_drop(psql_connection, add_query, drop_query, drop)
+}
 #' @description Create a all_covariates table for use in testing
 #' @name create_all_covariates_table
 #' @title create_all_covariates_table
 #' @param psql_connection a connection to a database made with dbConnect
 #' @param drop Whether to drop an existing table
 create_all_covariates_table <- function(psql_connection, drop = FALSE) {
-  schema_query <- "CREATE SCHEMA IF NOT EXISTS covariates;"
-  drop_query <- "DROP SCHEMA IF EXISTS covariates CASCADE;"
+  create_covariates_schema(psql_connection, drop = drop)
+  drop_query <- "DROP TABLE IF EXISTS covariates.all_covariates"
   add_query <- c(
     "CREATE TABLE covariates.all_covariates(covariate_name text, time_left date, time_right date, rid integer, rast raster);",
     "CREATE INDEX covariate_name_size_idx ON covariates.all_covariates(covariate_name, time_left, time_right, rid);"
   )
 
-  add_and_or_drop(psql_connection, c(schema_query, add_query), drop_query, drop)
+  add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
 #' @description Create a time_bounds table for use in testing
@@ -911,14 +921,14 @@ setup_testing_database_from_dataframes <- function(psql_connection, data_frame_l
 }
 
 drop_testing_database_functions <- function(psql_connection) {
-  drop_queries <- c(
-    "DROP FUNCTION resize_spatial_grid", "DROP FUNCTION lookup_location_period",
-    "DROP FUNCTION ingest_covariate", "DROP FUNCTION filter_resized_spatial_grid",
-    "DROP FUNCTION filter_resized_spatial_grid_pixels_to_location", "DROP FUNCTION pull_symmetric_grid_adjacency",
-    "DROP FUNCTION pull_observation_data", "DROP FUNCTION filter_location_periods",
-    "DROP FUNCTION resize_temporal_grid", "DROP FUNCTION pull_observation_location_period_map",
-    "DROP FUNCTION pull_location_period_grid_map"
-  )
+  drop_queries <- rev(c(
+    "DROP FUNCTION IF EXISTS resize_spatial_grid CASCADE", "DROP FUNCTION IF EXISTS lookup_location_period CASCADE",
+    "DROP FUNCTION IF EXISTS ingest_covariate CASCADE",
+    "DROP FUNCTION IF EXISTS filter_resized_spatial_grid_pixels_to_location CASCADE", "DROP FUNCTION IF EXISTS pull_symmetric_grid_adjacency CASCADE",
+    "DROP FUNCTION IF EXISTS pull_observation_data CASCADE", "DROP FUNCTION IF EXISTS filter_location_periods CASCADE",
+    "DROP FUNCTION IF EXISTS resize_temporal_grid CASCADE", "DROP FUNCTION IF EXISTS pull_observation_location_period_map CASCADE",
+    "DROP FUNCTION IF EXISTS pull_location_period_grid_map CASCADE", "DROP FUNCTION IF EXISTS resized_spatial_grid_pixels"
+  ))
 
   sapply(drop_queries, function(query) {
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, query))
@@ -941,6 +951,7 @@ destroy_testing_database <- function(psql_connection) {
     "DROP MATERIALIZED VIEW IF EXISTS grids.master_spatial_grid_centroids", "DROP MATERIALIZED VIEW IF EXISTS location_period_raster_map",
     "DROP MATERIALIZED VIEW IF EXISTS covariate_grid_map CASCADE", "DROP SCHEMA IF EXISTS covariates CASCADE", "DROP MATERIALIZED VIEW IF EXISTS shapes_with_names"
   )
+  drop_testing_database_functions(psql_connection)
   sapply(drop_query, function(query) {
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, query))
   })
@@ -1389,7 +1400,7 @@ convert_simulated_covariates_to_test_covariate_funs <- function(original_simulat
     max_time_index <- max(covariate$t)
     lapply(unique(covariate$t), function(time_index) {
       return(list(
-        name = ifelse(covariate_idx == 0, "population", paste("covariate",
+        name = ifelse(covariate_idx == 1, "population", paste("covariate",
           covariate_idx,
           sep = ""
         )),
