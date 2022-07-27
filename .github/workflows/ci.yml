@@ -53,7 +53,6 @@ jobs:
           service postgresql status
           export CHOLERA_POSTGRES_PORT=5432
           cd packages/taxdat
-          Rscript -e "devtools::test(stop_on_failure=TRUE)"
           sudo -E -u app Rscript -e "devtools::test(stop_on_failure=TRUE)"
         shell: bash
       - name: Run integration tests (new)
