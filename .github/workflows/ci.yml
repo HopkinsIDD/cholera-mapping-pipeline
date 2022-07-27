@@ -28,6 +28,7 @@ jobs:
         run: |
           cp Docker.Rprofile $HOME/.Rprofile
           cp /home/app/.cache $HOME/.cache
+        shell: bash
       - name: Checkout Analysis/configs
         uses: actions/checkout@v3
         with:
@@ -43,7 +44,6 @@ jobs:
           path: Layers/
           lfs: true
           token: ${{ secrets.PERSONAL_TOKEN }}
-        shell: bash
       - name: Run taxdat tests
         env:
           CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
