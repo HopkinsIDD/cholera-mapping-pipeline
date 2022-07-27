@@ -27,7 +27,7 @@ jobs:
       - name: Set up Rprofile
         run: |
           cp Docker.Rprofile $HOME/.Rprofile
-          cp /home/app/.cache $HOME/.cache
+          cp -R /home/app/.cache $HOME/.cache
         shell: bash
       - name: Checkout Analysis/configs
         uses: actions/checkout@v3
