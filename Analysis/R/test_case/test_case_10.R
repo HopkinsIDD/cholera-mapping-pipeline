@@ -357,14 +357,9 @@ all_dfs$observations_df <- test_observations %>%
     deaths = NA, confirmed_cases = NA
   )
 
-# overlapping observations with consistent case counts
-all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$suspected_cases <- sum(all_dfs$observations_df[grep(
-  "1::",
-  all_dfs$observations_df$qualified_name
-), ]$suspected_cases)
 # partially covered for certain polygons
-all_dfs$observations_df <- all_dfs$observations_df %>%
-  subset(!qualified_name %in% c("1::2", "1::10", "1::20","1::100","1::78","1::5","1::35","1::98","1::92","1::77"))
+all_dfs$observations_df <- all_dfs$observations_df %>% 
+  subset(!qualified_name %in% c("1::2", "1::10", "1::20","1::100","1::78","1::5","1::35","1::98","1::92","1::87"))
 
 test_true_grid_cases<-test_underlying_distribution$mean
 #label grids that is observed
@@ -408,7 +403,7 @@ config <- list(general = list(
 )), test_metadata = list(
   name = "test_10",
   nrows = 10, ncols = 10, data_type = "Grid data", oc_type = "-", polygon_type = "Fake polygon",
-  polygon_coverage = "100%", randomize = TRUE, ncovariates = nrow(covariates_table),
+  polygon_coverage = "90%", randomize = TRUE, ncovariates = nrow(covariates_table),
   single_year_run = ifelse(lubridate::year(query_time_right) - lubridate::year(query_time_left) ==
                              0, "yes", "no"), nonspatial = covariates_table$nonspatial, nontemporal = covariates_table$nontemporal,
   spatially_smooth = covariates_table$spatially_smooth, temporally_smooth = covariates_table$temporally_smooth,
