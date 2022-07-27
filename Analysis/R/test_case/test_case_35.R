@@ -355,10 +355,7 @@ all_dfs$observations_df <- test_observations %>%
   )
 
 # overlapping observations with consistent case counts
-all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$suspected_cases <- sum(all_dfs$observations_df[grep(
-  "1::",
-  all_dfs$observations_df$qualified_name
-), ]$suspected_cases)
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$cases<-all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$cases
 
 test_true_grid_cases<-test_underlying_distribution$mean
 
@@ -410,8 +407,7 @@ config <- list(general = list(
   polygonal = covariates_table$polygonal, radiating = covariates_table$radiating,
   constant = covariates_table$constant, Data_simulation_covariates = covariates_table$Data_simulation_covariates,
   Model_covariates = covariates_table$Model_covariates, Observations_with_inconsistent_data = paste0(
-    "Nationally reported data is ",
-    all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$suspected_cases / sum(all_dfs$observations_df[grep("1::", all_dfs$observations_df$qualified_name), ]$suspected_cases), " times of the cases reported at the subnational level."
+    "Nationally reported data is 1 times of the cases reported at the subnational level."
   ),
   Loc_with_inconsistent_data = "-", Cov_data_simulation_filename = "/home/app/cmp/Analysis/output/test_case_35_data_simulation_covariates.rdata",test_true_grid_case_filename="/home/app/cmp/Analysis/output/test_case_35_true_grid_cases.rdata"
 ))
