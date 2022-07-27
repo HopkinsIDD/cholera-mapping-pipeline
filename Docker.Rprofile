@@ -1,5 +1,5 @@
 cwd <- getwd()
 setwd("/home/app/")
 source("/home/app/renv/activate.R")
-cmdstanr::set_cmdstan_path("~/cmdstan")
+cmdstanr::set_cmdstan_path("/home/app/cmdstan")
 setwd(cwd)
