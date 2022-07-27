@@ -43,6 +43,9 @@ jobs:
         run: cp Docker.Rprofile $HOME/.Rprofile
         shell: bash
       - name: Run taxdat tests
+        env:
+          CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
+          CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
         run: |
           chown app:app -R ./
           chmod 777 -R ./
