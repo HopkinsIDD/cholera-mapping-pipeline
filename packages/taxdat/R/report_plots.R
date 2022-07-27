@@ -54,6 +54,7 @@ plot_model_fidelity <- function(cache,
     summarize(max_value = max(c(observed_cases, modeled_cases))) %>%
     .$max_value
 
+if(any(colnames(cache[[name]])=="spatial_scale")){
   plt <- cache[[name]] %>%
     dplyr::mutate(
       modeled_cases = inv_tfrac_function(modeled_cases, tfrac),
@@ -64,7 +65,21 @@ plot_model_fidelity <- function(cache,
     ggplot2::geom_abline(intercept = 0, slope = 1) +
     ggplot2::coord_fixed(ratio = 1, xlim = c(1, max_value), ylim = c(1, max_value)) +
     taxdat::plot_theme() +
+    ggplot2::facet_wrap(~censored)  
+}else{
+  plt <- cache[[name]] %>%
+    dplyr::mutate(
+      modeled_cases = inv_tfrac_function(modeled_cases, tfrac),
+      observed_cases = tfrac_function(observed_cases, tfrac)
+    ) %>%
+    ggplot() +
+    ggplot2::geom_point(ggplot2::aes(y = modeled_cases, x = observed_cases, col = chain)) +
+    ggplot2::geom_abline(intercept = 0, slope = 1) +
+    ggplot2::coord_fixed(ratio = 1, xlim = c(1, max_value), ylim = c(1, max_value)) +
+    taxdat::plot_theme() +
     ggplot2::facet_wrap(~censored)
+}
+
   if (scale == "sqrt") {
     plt <- plt + scale_x_sqrt() + scale_y_sqrt()
   } else if (scale == "log") {
