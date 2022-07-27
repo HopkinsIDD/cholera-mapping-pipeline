@@ -40,7 +40,9 @@ jobs:
           lfs: true
           token: ${{ secrets.PERSONAL_TOKEN }}
       - name: Set up Rprofile
-        run: cp Docker.Rprofile $HOME/.Rprofile
+        run: |
+          cp Docker.Rprofile $HOME/.Rprofile
+          cp /home/app/.cache $HOME/.cache
         shell: bash
       - name: Run taxdat tests
         env:
