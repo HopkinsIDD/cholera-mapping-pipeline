@@ -351,10 +351,7 @@ all_dfs$observations_df <- test_observations %>%
   )
 
 # overlapping observations with consistent case counts
-all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$suspected_cases <- sum(all_dfs$observations_df[grep(
-  "1::",
-  all_dfs$observations_df$qualified_name
-), ]$suspected_cases) * 3
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$cases <- all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$cases * 3
 # partially covered for certain polygons
 all_dfs$observations_df <- all_dfs$observations_df %>%
   subset(!qualified_name %in% c("1::2", "1::10", "1::20","1::100","1::78","1::5","1::35","1::98","1::92","1::77"))
