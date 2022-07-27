@@ -195,8 +195,10 @@ cov3_seed <- c(
 ) %>%
   as.integer()
 
-query_time_left <- lubridate::ymd("2000-01-01")
-query_time_right <- lubridate::ymd("2002-12-31")
+sim_time_left <- lubridate::ymd("2000-01-01")
+sim_time_right <- lubridate::ymd("2001-12-31")
+query_time_left <- c(lubridate::ymd("2000-01-01"), lubridate::ymd("2000-01-01"),lubridate::ymd("2000-01-01"))
+query_time_right <- c(lubridate::ymd("2000-05-30"), lubridate::ymd("2001-05-30"),lubridate::ymd("2001-12-31"))
 ## Pull data frames needed to create testing database from the api This doesn't
 ## pull covariates, but does pull everything else tryCatch({ all_dfs <-
 ## taxdat::create_testing_dfs_from_api( username
@@ -209,10 +211,8 @@ load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_obje
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change polygons
-all_dfs$shapes_df$start_date<-query_time_left
-all_dfs$shapes_df$end_date<-query_time_right
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 3, test_extent = test_extent)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 8, test_extent = test_extent)
 test_polygons <- sf::st_make_valid(create_test_layered_polygons(
   test_raster = test_raster,
   base_number = 1, n_layers = 2, factor = 10 * 10, snap = FALSE, randomize = TRUE,
@@ -239,8 +239,8 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
 ## Change covariates
 covariates_table <- data.frame(
   nonspatial = c(FALSE, FALSE, TRUE), nontemporal = c(
-    TRUE,
-    TRUE, TRUE
+    FALSE,
+    FALSE, FALSE
   ), spatially_smooth = c(TRUE, TRUE, TRUE), temporally_smooth = c(
     FALSE,
     FALSE, FALSE
@@ -255,9 +255,10 @@ test_covariates <- create_multiple_test_covariates(
   test_raster = test_raster, ncovariates = 2,
   seed = my_seed
 )
+my_seed <- .GlobalEnv$.Random.seed
 
 test_extent <- sf::st_bbox(all_dfs$shapes_df)
-test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 3, test_extent = test_extent)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = 8, test_extent = test_extent)
 test_covariates <- create_multiple_test_covariates(
   test_raster = test_raster, ncovariates = 2,
   nonspatial = covariates_table$nonspatial[1:2], nontemporal = covariates_table$nontemporal[1:2],
@@ -265,10 +266,10 @@ test_covariates <- create_multiple_test_covariates(
   polygonal = covariates_table$polygonal[1:2], radiating = covariates_table$radiating[1:2],
   constant = covariates_table$constant[1:2], seed = my_seed
 )
-
 my_seed <- .GlobalEnv$.Random.seed
-min_time_left <- query_time_left
-max_time_right <- query_time_right
+
+min_time_left <- sim_time_left
+max_time_right <- sim_time_right
 covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(
   test_covariates,
   min_time_left, max_time_right
@@ -276,7 +277,7 @@ covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate
 
 # covariates that make the observations
 test_raster_observation <- create_test_raster(
-  nrows = 10, ncols = 10, nlayers = 3,
+  nrows = 10, ncols = 10, nlayers = 8,
   test_extent = test_extent
 )
 
@@ -287,6 +288,7 @@ test_covariates_observation <- create_multiple_test_covariates(
   polygonal = covariates_table$polygonal[1:2], radiating = covariates_table$radiating[1:2],
   constant = covariates_table$constant[1:2], seed = my_seed
 )
+my_seed <- .GlobalEnv$.Random.seed
 
 test_covariates3_observation <- create_multiple_test_covariates(
   test_raster = test_raster_observation,
@@ -305,9 +307,8 @@ test_covariates3_observation <- create_multiple_test_covariates(
 test_covariates_observation_final <- test_covariates_observation
 test_covariates_observation_final[[3]] <- test_covariates3_observation[[2]]
 
-my_seed <- .GlobalEnv$.Random.seed
-min_time_left <- query_time_left
-max_time_right <- query_time_right
+min_time_left <- sim_time_left
+max_time_right <- sim_time_right
 covariate_raster_funs_observation <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(
   test_covariates_observation,
   min_time_left, max_time_right
@@ -317,16 +318,14 @@ covariate3_raster_funs_observation <- taxdat:::convert_simulated_covariates_to_t
   min_time_left, max_time_right
 )
 
-covariate3_raster_funs_observation[[4]]$name <- "covariate3"
-covariate3_raster_funs_observation[[5]]$name <- "covariate3"
-covariate3_raster_funs_observation[[6]]$name <- "covariate3"
-covariate_raster_funs_observation[[7]] <- covariate3_raster_funs_observation[[4]]
-covariate_raster_funs_observation[[8]] <- covariate3_raster_funs_observation[[5]]
-covariate_raster_funs_observation[[9]] <- covariate3_raster_funs_observation[[6]]
+for (layer in seq_len(8)) {
+  covariate3_raster_funs_observation[[layer + 8]]$name <- "covariate3"
+  covariate_raster_funs_observation[[layer + 2 * 8]] <- covariate3_raster_funs_observation[[layer + 8]]
+}
 
 ## save additional covariates in the data generation process for country data
 ## report
-saveRDS(test_covariates_observation_final, "/home/app/cmp/Analysis/output/test_case_36_data_simulation_covariates.rdata")
+saveRDS(test_covariates_observation_final, "/home/app/cmp/Analysis/output/test_case_42_data_simulation_covariates.rdata")
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change observations
@@ -338,13 +337,17 @@ test_underlying_distribution <- create_underlying_distribution(
 )
 my_seed <- .GlobalEnv$.Random.seed
 
-test_observations <- observe_polygons(
-  test_polygons = dplyr::mutate(all_dfs$shapes_df,
-                                location = qualified_name, geometry = geom
-  ), test_covariates = raster_df, underlying_distribution = test_underlying_distribution,
-  noise = FALSE, number_draws = 1, grid_proportion_observed = 1, polygon_proportion_observed = 1,
-  min_time_left = query_time_left, max_time_right = query_time_right, seed = my_seed
-)
+test_observations <- list()
+for (time_index in seq_len(length(query_time_left))) {
+  test_observations[[time_index]] <- observe_polygons(
+    test_polygons = dplyr::mutate(all_dfs$shapes_df,
+                                  location = qualified_name, geometry = geom
+    ), test_covariates = raster_df, underlying_distribution = test_underlying_distribution,
+    noise = FALSE, number_draws = 1, grid_proportion_observed = 1, polygon_proportion_observed = 1,
+    min_time_left = sim_time_left, max_time_right = sim_time_right, observation_time_left = query_time_left[[time_index]], observation_time_right = query_time_right[[time_index]], seed = my_seed
+  )
+}
+test_observations <- do.call(what = dplyr::bind_rows, test_observations)
 my_seed <- .GlobalEnv$.Random.seed
 
 all_dfs$observations_df <- test_observations %>%
@@ -355,20 +358,18 @@ all_dfs$observations_df <- test_observations %>%
   )
 
 # overlapping observations with consistent case counts
-all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$cases<-all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$cases
-
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$cases=all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$cases
 # partially covered for certain polygons
 all_dfs$observations_df <- all_dfs$observations_df %>%
   subset(!qualified_name %in% c("1::2", "1::10", "1::20","1::100","1::78","1::5","1::35","1::98","1::92","1::87"))
 
 test_true_grid_cases<-test_underlying_distribution$mean
-
 #label grids that is observed
 observed_polygon_id<-c(unique(data.frame(sf::st_join(st_centroid(test_true_grid_cases),sf::st_as_sf(all_dfs$observations_df)))%>%subset(is.na(location)==F)%>%subset(!qualified_name=="1")%>%dplyr::select(id)))
 observed_test_true_grid_cases<-test_true_grid_cases%>%subset(id%in%observed_polygon_id$id)
 test_true_grid_cases<-test_true_grid_cases%>%mutate(observed=ifelse(id%in%observed_polygon_id$id,"Observed grid cells","Unobserved grid cells"))
 
-saveRDS(test_true_grid_cases,"/home/app/cmp/Analysis/output/test_case_36_true_grid_cases.rdata")
+saveRDS(test_true_grid_cases,"/home/app/cmp/Analysis/output/test_case_42_true_grid_cases.rdata")
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
@@ -377,7 +378,7 @@ taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raste
 
 ## NOTE: Change me if you want to run the report locally config_filename <-
 ## paste(tempfile(), 'yml', sep = '.')
-config_filename <- "/home/app/cmp/Analysis/R/config_test_case_36.yml"
+config_filename <- "/home/app/cmp/Analysis/R/config_test_case_42.yml"
 
 ## Put your config stuff in here
 config <- list(general = list(
@@ -397,12 +398,12 @@ config <- list(general = list(
   recompile = TRUE
 ), file_names = list(stan_input = rprojroot::find_root_file(
   criterion = ".choldir",
-  "Analysis", "output", "test36.stan_input.rdata"
+  "Analysis", "output", "test42.stan_input.rdata"
 ), stan_output = rprojroot::find_root_file(
   criterion = ".choldir",
-  "Analysis", "output", "test36.stan_output.rds"
+  "Analysis", "output", "test42.stan_output.rds"
 )), test_metadata = list(
-  name = "test_36",
+  name = "test_42",
   nrows = 10, ncols = 10, data_type = "Grid data", oc_type = "-", polygon_type = "Fake polygon",
   polygon_coverage = "90%", randomize = TRUE, ncovariates = nrow(covariates_table),
   single_year_run = ifelse(lubridate::year(query_time_right) - lubridate::year(query_time_left) ==
@@ -411,9 +412,10 @@ config <- list(general = list(
   polygonal = covariates_table$polygonal, radiating = covariates_table$radiating,
   constant = covariates_table$constant, Data_simulation_covariates = covariates_table$Data_simulation_covariates,
   Model_covariates = covariates_table$Model_covariates, Observations_with_inconsistent_data = paste0(
-    "Nationally reported data is 1 times of the cases reported at the subnational level."
+    "Nationally reported data is 3 times of the cases reported at the subnational level."
   ),
-  Loc_with_inconsistent_data = "-", Cov_data_simulation_filename = "/home/app/cmp/Analysis/output/test_case_36_data_simulation_covariates.rdata",test_true_grid_case_filename="/home/app/cmp/Analysis/output/test_case_36_true_grid_cases.rdata"
+  Loc_with_inconsistent_data = "-", Cov_data_simulation_filename = "/home/app/cmp/Analysis/output/test_case_42_data_simulation_covariates.rdata",test_true_grid_case_filename="/home/app/cmp/Analysis/output/test_case_42_true_grid_cases.rdata"
+  
 ))
 
 yaml::write_yaml(x = config, file = config_filename)
@@ -430,5 +432,5 @@ rmarkdown::render(
     config = config_filename,
     drop_nodata_years = TRUE
   ),
-  output_file = "test_case_36_country_data_report"
+  output_file = "test_case_42_country_data_report"
 )

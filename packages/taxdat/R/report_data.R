@@ -446,12 +446,23 @@ get_mean_rates_sf <- cache_fun_results(name = "mean_rates_sf", fun = get_mean_ra
 get_data_fidelity_df_no_cache <- function(config, cache, cholera_directory) {
   aggregate_modeled_cases_mean_by_chain(config = config, cache = cache, cholera_directory = cholera_directory)
   get_stan_input(config = config, cache = cache, cholera_directory = cholera_directory)
-  sCh_national= data.frame(cache[["stan_input"]][["observation_data"]]%>%filter(location_name==1))%>%dplyr::select(suspected_cases)
+  
+  if(any(cache[["stan_input"]][["observation_data"]]$location_name==1)){
+    sCh_national= data.frame(cache[["stan_input"]][["observation_data"]]%>%filter(location_name==1))%>%dplyr::select(suspected_cases,suspected_cases_L,suspected_cases_R)
+    cache[["modeled_cases_mean_by_chain"]]$spatial_scale=NA
+    sCh_national=sCh_national%>%
+      dplyr::rowwise()%>%
+      mutate(nonna_cases=sum(suspected_cases,suspected_cases_R,suspected_cases_L,na.rm=T))
+    cache[["modeled_cases_mean_by_chain"]]=cache[["modeled_cases_mean_by_chain"]]%>%
+      mutate(observed_cases = cache[["stan_input"]][["stan_data"]][["y"]][as.numeric(updated_observation_id)],
+             spatial_scale=ifelse( observed_cases==sCh_national$nonna_cases,
+                                   "National level","Sub-national level"))
+  }
+  
   cache[["modeled_cases_mean_by_chain"]] %>%
     dplyr::mutate(
       observed_cases = cache[["stan_input"]][["stan_data"]][["y"]][as.numeric(updated_observation_id)],
       tfrac = cache[["stan_input"]][["stan_data"]][["tfrac"]][as.numeric(updated_observation_id)],
-      spatial_scale=ifelse(observed_cases==sCh_national$suspected_cases,"National level","Sub-national level"),
       censored = ifelse(
         updated_observation_id %in% cache[["stan_input"]][["stan_data"]][["ind_full"]],
         "uncensored",
