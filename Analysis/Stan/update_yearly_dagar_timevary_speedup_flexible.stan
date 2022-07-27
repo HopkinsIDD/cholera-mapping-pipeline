@@ -148,7 +148,12 @@ transformed parameters {
   }
   
   // log-rates without time-slice effects
-  log_lambda =  w[map_smooth_grid] + log_meanrate + covar * betas;
+  log_lambda =  w[map_smooth_grid] + log_meanrate;
+  
+  // covariates if applicable
+  if (ncovar > 1) {
+    log_lambda += covar * betas;
+  }
   
   // Add time slice effects
   if (do_time_slice_effect == 1) {
@@ -249,6 +254,12 @@ model {
         }
       }
       target += sum(lp_censored);
+      
+      // add a 0-centered prior on the censored cases
+      for (idx in ind_right) {
+        modeled_cases[idx] ~ cauchy(0, 2);
+      }
+      
     }
   } else {
     if (use_weights == 1) {

@@ -14,45 +14,59 @@ on:
 
 jobs:
   unit-tests:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     container:
-      image: docker://hopkinsidd/choleramappingpipeline:latest
+      image: docker://hopkinsidd/choleramappingpipeline:latest-dev
       options: --user root
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+        with:
+          lfs: false
+          token: ${{ secrets.PERSONAL_TOKEN }}
+      - name: Set up Rprofile
+        run: |
+          cp Docker.Rprofile $HOME/.Rprofile
+          cp -R /home/app/.cache $HOME/.cache
+        shell: bash
       - name: Checkout Analysis/configs
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: HopkinsIDD/cholera-configs
           path: Analysis/configs/
           lfs: false
           token: ${{ secrets.PERSONAL_TOKEN }}
       - name: Checkout Layers
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: HopkinsIDD/cholera-covariates
           ref: for_testing
           path: Layers/
           lfs: true
           token: ${{ secrets.PERSONAL_TOKEN }}
-      - name: Set up Rprofile
-        run: cp Docker.Rprofile $HOME/.Rprofile
-        shell: bash
       - name: Run taxdat tests
+        env:
+          CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
+          CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
         run: |
-          setwd("packages/taxdat")
-          devtools::test(stop_on_failure=TRUE)
-        shell: Rscript {0}
+          chown app:app -R ./
+          chmod 777 -R ./
+          service postgresql start
+          service postgresql status
+          export CHOLERA_POSTGRES_PORT=5432
+          cd packages/taxdat
+          sudo -E -u app Rscript -e "devtools::test(stop_on_failure=TRUE)"
+        shell: bash
       - name: Run integration tests (new)
         env:
           CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
           CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
         run: |
+          chown app:app -R ./
+          chmod 777 -R ./
           service postgresql start
-          bash grant_cholera_database.sh root
-          export USER=root
-          Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
+          export CHOLERA_POSTGRES_PORT=5432
+          sudo -E -u app Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
           cd tests
-          Rscript testthat.R
+          sudo -E -u app Rscript -e "devtools::test(stop_on_failure=TRUE)"
         shell: bash

@@ -3,14 +3,22 @@ test_that("Create locations table works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
   skip_if_not(dbuser == "app") ## Check for on docker
+
+  expect_error({
+    conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
+    destroy_testing_database(conn_pg)
+    database_working <- TRUE
+  }, NA)
+
   tryCatch(
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
       destroy_testing_database(conn_pg)
+
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
 
@@ -46,7 +54,7 @@ test_that("Create location_periods table works", {
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message, "with message", e$message))
     }
   )
 
@@ -83,7 +91,7 @@ test_that("Create shapes table works", {
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
 
@@ -119,7 +127,7 @@ test_that("Create location_hierarchies table works", {
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
 
@@ -156,7 +164,7 @@ test_that("Create observation table works", {
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
 
@@ -194,7 +202,7 @@ test_that("Create master_spatial_grid table works", {
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
 
@@ -226,11 +234,16 @@ test_that("Create resized_spatial_grids table works", {
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
       destroy_testing_database(conn_pg)
+      create_locations_table(conn_pg)
+      create_location_periods_table(conn_pg)
+      create_shapes_table(conn_pg)
+      create_master_spatial_grid_table(conn_pg)
       create_spatial_resolutions_table(conn_pg)
+      create_resize_spatial_grid_function(conn_pg)
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
 
@@ -265,7 +278,7 @@ test_that("Create all_covariates table works", {
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
 
@@ -300,7 +313,7 @@ test_that("Create time_bounds table works", {
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
 
@@ -336,7 +349,7 @@ test_that("Create master_temporal_grid_view works", {
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
 
@@ -362,12 +375,17 @@ test_that("Create resized_spatial_grid_pixels_view works", {
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
       destroy_testing_database(conn_pg)
+      create_locations_table(conn_pg)
+      create_location_periods_table(conn_pg)
+      create_shapes_table(conn_pg)
+      create_master_spatial_grid_table(conn_pg)
       create_spatial_resolutions_table(conn_pg)
+      create_resize_spatial_grid_function(conn_pg)
       create_resized_spatial_grids_view(conn_pg)
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
 
@@ -396,12 +414,14 @@ test_that("Create location_period_raster_map view works", {
       create_locations_table(conn_pg)
       create_location_periods_table(conn_pg)
       create_shapes_table(conn_pg)
+      create_master_spatial_grid_table(conn_pg)
       create_spatial_resolutions_table(conn_pg)
+      create_resize_spatial_grid_function(conn_pg)
       create_resized_spatial_grids_view(conn_pg)
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
 
@@ -427,13 +447,18 @@ test_that("Create covariate_grid_map view works", {
     {
       conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
       destroy_testing_database(conn_pg)
+      create_locations_table(conn_pg)
+      create_location_periods_table(conn_pg)
+      create_shapes_table(conn_pg)
+      create_master_spatial_grid_table(conn_pg)
       create_spatial_resolutions_table(conn_pg)
+      create_resize_spatial_grid_function(conn_pg)
       create_resized_spatial_grids_view(conn_pg)
       create_all_covariates_table(conn_pg)
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
 
@@ -462,7 +487,7 @@ test_that("create_testing_base_database works", {
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
 
@@ -492,7 +517,7 @@ test_that("create_testing_additional_database works", {
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
 
@@ -521,7 +546,7 @@ test_that("refresh_materialized_views works", {
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
 
@@ -556,7 +581,7 @@ test_that("destroy_testing_database works", {
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
   expect_error(
@@ -584,7 +609,7 @@ test_that("We can add locations to testing database", {
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
   destroy_testing_database(conn_pg)
@@ -614,7 +639,7 @@ test_that("We can add location_periods to testing database", {
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
   destroy_testing_database(conn_pg)
@@ -651,7 +676,7 @@ test_that("We can add shapefiles to testing database", {
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
   destroy_testing_database(conn_pg)
@@ -693,7 +718,7 @@ test_that("We can add observations to testing database", {
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
   destroy_testing_database(conn_pg)
@@ -761,7 +786,7 @@ test_that("We can ingest spatial grids", {
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
   destroy_testing_database(conn_pg)
@@ -805,7 +830,7 @@ test_that("Conversion between simulation framework formats and testing framework
       database_working <- TRUE
     },
     error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser))
+      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
     }
   )
   destroy_testing_database(conn_pg)
