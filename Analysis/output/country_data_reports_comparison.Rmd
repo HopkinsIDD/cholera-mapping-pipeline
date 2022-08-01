@@ -73,15 +73,15 @@ capFig = function(x){
 
 
 ```{r include=FALSE, message=FALSE}
-# Parameters to use for development purposes ************************************************************************************************************************
-params <- new.env() 
-params$cholera_directory <- "/home/kaiyuezou/mapping_pipeline/2016_2020_no_covariate_run/cholera-mapping-pipeline"
-params$config1 <- "/Analysis/configs/production_tests/2016_2020_covariate_selection/2016_2020_dist_to_water/2016_2020_country/config_AGO_2016_2020.yml"
-params$config2 <- "/Analysis/configs/production_tests/2016_2020_covariate_selection/2016_2020_no_covariate_run/2016_2020_country/config_AGO_2016_2020.yml"
-params$drop_nodata_years <- TRUE
-params$admin_level_for_summary_table <- '1'
-params$args <- 'myarg'
-params$old_runs <- FALSE
+# # Parameters to use for development purposes ************************************************************************************************************************
+# params <- new.env() 
+# params$cholera_directory <- "/home/kaiyuezou/mapping_pipeline/2016_2020_no_covariate_run/cholera-mapping-pipeline"
+# params$config1 <- "/Analysis/configs/production_tests/2016_2020_covariate_selection/2016_2020_dist_to_water/2016_2020_country/config_AGO_2016_2020.yml"
+# params$config2 <- "/Analysis/configs/production_tests/2016_2020_covariate_selection/2016_2020_no_covariate_run/2016_2020_country/config_AGO_2016_2020.yml"
+# params$drop_nodata_years <- TRUE
+# params$admin_level_for_summary_table <- '1'
+# params$args <- 'myarg'
+# params$old_runs <- FALSE
 
 # Whether or not to include the stan model output
 skip_stan <- FALSE
