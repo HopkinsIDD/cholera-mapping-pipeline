@@ -717,7 +717,8 @@ plot_config_comparison_table <- function(configs, cache){
     kableExtra::kable(col.names = c("Config Item", "Source 1", "Source 2", "Whether Different")) %>%
     kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
     kableExtra::kable_paper(full_width = F) %>%
-    kableExtra::row_spec(0, bold = T)
+    kableExtra::row_spec(0, bold = T) %>%
+    kableExtra::column_spec(2:3, width = "5cm")
 }
 
 #' @export

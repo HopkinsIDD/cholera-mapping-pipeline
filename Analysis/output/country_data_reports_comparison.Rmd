@@ -2,9 +2,9 @@
 title: "Country Data Reports Comparison"
 output: html_document
 params: 
-  cholera_directory: "/home/kaiyuezou/mapping_pipeline/New_Dev/cholera-mapping-pipeline"
-  config1: "/Analysis/configs/production_tests/country_data_report_comparison_test/BEN/config_BEN_2015_2019_covar.yml"
-  config2: "/Analysis/configs/production_tests/country_data_report_comparison_test/BEN/config_BEN_2015_2019_nocovar.yml"
+  cholera_directory: "/home/kaiyuezou/mapping_pipeline/2016_2020_no_covariate_run/cholera-mapping-pipeline"
+  config1: "/Analysis/configs/production_tests/2016_2020_covariate_selection/2016_2020_dist_to_water/2016_2020_country/config_AGO_2016_2020.yml"
+  config2: "/Analysis/configs/production_tests/2016_2020_covariate_selection/2016_2020_no_covariate_run/2016_2020_country/config_AGO_2016_2020.yml"
   drop_nodata_years: TRUE
   admin_level_for_summary_table: '1'
   args: 'myarg'
@@ -13,7 +13,7 @@ params:
 ```{r setup, include=FALSE, dev="CairoPNG",message=FALSE}
 library(knitr)
 knitr::opts_chunk$set(
-  cache=TRUE,
+  cache=FALSE,
   cache.lazy = FALSE,
   echo = FALSE,
   dev="CairoPNG",
@@ -73,15 +73,23 @@ capFig = function(x){
 
 
 ```{r include=FALSE, message=FALSE}
-# # Parameters to use for development purposes ************************************************************************************************************************
-# params <- new.env() 
-# params$cholera_directory <- "/home/kaiyuezou/mapping_pipeline/New_Dev/cholera-mapping-pipeline"
-# params$config1 <- "/Analysis/configs/production_tests/country_data_report_comparison_test/BEN/config_BEN_2015_2019_covar.yml"
-# params$config2 <- "/Analysis/configs/production_tests/country_data_report_comparison_test/BEN/config_BEN_2015_2019_nocovar.yml"
-# params$drop_nodata_years <- TRUE
-# params$admin_level_for_summary_table <- '1'
-# params$args <- 'myarg'
-# params$old_runs <- FALSE
+# Parameters to use for development purposes ************************************************************************************************************************
+params <- new.env() 
+params$cholera_directory <- "/home/kaiyuezou/mapping_pipeline/2016_2020_no_covariate_run/cholera-mapping-pipeline"
+params$config1 <- "/Analysis/configs/production_tests/2016_2020_covariate_selection/2016_2020_dist_to_water/2016_2020_country/config_AGO_2016_2020.yml"
+params$config2 <- "/Analysis/configs/production_tests/2016_2020_covariate_selection/2016_2020_no_covariate_run/2016_2020_country/config_AGO_2016_2020.yml"
+params$drop_nodata_years <- TRUE
+params$admin_level_for_summary_table <- '1'
+params$args <- 'myarg'
+params$old_runs <- FALSE
+
+# Whether or not to include the stan model output
+skip_stan <- FALSE
+if (Sys.getenv("CHOLERA_SKIP_STAN","FALSE") == "TRUE") {
+  print("Skipping stan model in accordance with the environment variable CHOLERA_SKIP_STAN.")
+  warning("Skipping stan model in accordance with the environment variable CHOLERA_SKIP_STAN.")
+  skip_stan <- TRUE
+}
 
 ```
 
@@ -135,7 +143,10 @@ get_sf_grid(name = "sf_grid", config = params$config2, cache = cache2, cholera_d
 
 stitch_covar_cube(output_cache = comparison_cache, input_caches = list(cache1, cache2))
 stitch_sf_grid(output_cache = comparison_cache, input_caches = list(cache1, cache2))
+```
 
+
+```{r eval=as.logical(!skip_stan), include=FALSE, message=FALSE}
 ## The case raster comparison
 cache1[["disaggregated_case_sf"]] <- get_disaggregated_cases_sf(
                                                 cache = cache1, config = params$config1,
@@ -222,49 +233,59 @@ gridExtra::grid.arrange(plot1, plot2, ncol = 2, left = "covariates from config1"
 rm(plot1, plot2)
 ```
 
+### GAM Output Comparison Scatter Plots 
+#### GAM cases output
+```{r gamscattercase, fig.cap=capFig("GAM output cases comparison"), fig.height=10, fig.width=10}
+plot_gam_cases_scatter_plot_stitched(cache = comparison_cache)
+```
+#### GAM rates output
+```{r gamscatterrate, fig.cap=capFig("GAM output rates comparison"), fig.height=10, fig.width=10}
+plot_gam_rates_scatter_plot_stitched(cache = comparison_cache)
+```
+
 ### Modeled cases
 **Modeled cases raster by time slices:**
-```{r caserast1, fig.cap=capFig("Modeled cases"), fig.height=25, fig.width=10}
+```{r caserast1, eval=as.logical(!skip_stan), fig.cap=capFig("Modeled cases"), fig.height=25, fig.width=10}
 plot_disaggregated_modeled_cases_time_varying_stitched(disaggregated_case_sf = comparison_cache[["disaggregated_case_sf"]], 
   country_iso = country_iso, year_vector = year_vector, diff_only = FALSE)
 ```
 
 **Cases difference raster by time slices:**
-```{r caserast2, fig.cap=capFig("Modeled cases difference"), fig.height=10, fig.width=10}
+```{r caserast2, eval=as.logical(!skip_stan), fig.cap=capFig("Modeled cases difference"), fig.height=10, fig.width=10}
 plot_disaggregated_modeled_cases_time_varying_stitched(disaggregated_case_sf = comparison_cache[["disaggregated_case_sf"]], 
   country_iso = country_iso, year_vector = year_vector, diff_only = TRUE)
 ```
 
 **Modeled cases comparison by grids:**
-```{r caserast3, fig.cap=capFig("Modeled cases grid comparison (fixed coordinates scale)"), fig.height=10, fig.width=10}
+```{r caserast3, eval=as.logical(!skip_stan), fig.cap=capFig("Modeled cases grid comparison (fixed coordinates scale)"), fig.height=10, fig.width=10}
 plot_modeled_cases_scatter_plot_by_grids_stitched(cache = comparison_cache, year_vector = year_vector, coord_fixed = TRUE)
 ```
-```{r caserast4, fig.cap=capFig("Modeled cases grid comparison (free scales)"), fig.height=10, fig.width=10}
+```{r caserast4, eval=as.logical(!skip_stan), fig.cap=capFig("Modeled cases grid comparison (free scales)"), fig.height=10, fig.width=10}
 plot_modeled_cases_scatter_plot_by_grids_stitched(cache = comparison_cache, year_vector = year_vector, coord_fixed = FALSE)
 ```
 
 **Modeled cases comparison by admin1:**
-```{r caserast5, fig.cap=capFig("Modeled cases admin comparison (fixed coordinates scale)"), fig.height=10, fig.width=10}
+```{r caserast5, eval=as.logical(!skip_stan), fig.cap=capFig("Modeled cases admin comparison (fixed coordinates scale)"), fig.height=10, fig.width=10}
 plot_modeled_cases_scatter_plot_by_admin_stitched(cache = comparison_cache, country_iso = country_iso, admin_level = 1, district_name = TRUE, label_threshold = 0.1, 
   year_vector = year_vector, coord_fixed = TRUE)
 ```
-```{r caserast6, fig.cap=capFig("Modeled cases admin comparison (free scales)"), fig.height=10, fig.width=10}
+```{r caserast6, eval=as.logical(!skip_stan), fig.cap=capFig("Modeled cases admin comparison (free scales)"), fig.height=10, fig.width=10}
 plot_modeled_cases_scatter_plot_by_admin_stitched(cache = comparison_cache, country_iso = country_iso, admin_level = 1, district_name = TRUE, label_threshold = 0.1, 
   year_vector = year_vector, coord_fixed = FALSE)
 ```
 
 **Modeled cases comparison by oc_uid:**
-```{r caserast7, fig.cap=capFig("Modeled cases observation comparison"), fig.height=25, fig.width=10}
+```{r caserast7, eval=as.logical(!skip_stan), fig.cap=capFig("Modeled cases observation comparison"), fig.height=25, fig.width=10}
 plot_modeled_cases_scatter_plot_by_oc_uid_stitched(cache = comparison_cache)
 ```
 
 **Table 4. Modeled cases stacked from different sources by admin level and time:**
-```{r echo = FALSE}
+```{r eval=as.logical(!skip_stan), echo = FALSE}
 taxdat::plot_cases_by_admin_table_stitched(cache = comparison_cache, type = "intersperse")
 ```
 
 **Table 5. Modeled cases difference by admin level and time:**
-```{r echo = FALSE}
+```{r eval=as.logical(!skip_stan), echo = FALSE}
 taxdat::plot_cases_by_admin_table_stitched(cache = comparison_cache, type = "difference")
 ```
 
@@ -274,11 +295,11 @@ plot_AIC_BIC_comparison_table(cache1 = cache1, cache2 = cache2)
 ```
 
 **Table 7. Observed and estimates of WHO annual cholera reports:**
-```{r echo = FALSE}
+```{r eval=as.logical(!skip_stan), echo = FALSE}
 plot_WHOcomparison_table_stitched(cache = comparison_cache)
 ```
 
 **Table 8. Estimated cases by chain and time slice:**
-```{r echo = FALSE}
+```{r eval=as.logical(!skip_stan), echo = FALSE}
 plot_modeled_cases_by_chain_time_stitched(cache = comparison_cache)
 ```
