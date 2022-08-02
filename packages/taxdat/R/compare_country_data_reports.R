@@ -711,10 +711,11 @@ plot_config_comparison_table <- function(configs, cache){
       add_row(item = name, source1 = as.character(cache$config[[name]]), source2 = as.character(cache$config[[paste0(name, "_2")]]))
   }
   config_table <- config_table %>% 
-    mutate(diff = ifelse(source1 == source2, "", "√"))
+    mutate(diff = ifelse(source1 == source2, "", "√")) %>%
+    select(item, diff, source1, source2)
 
   config_table %>% 
-    kableExtra::kable(col.names = c("Config Item", "Source 1", "Source 2", "Whether Different")) %>%
+    kableExtra::kable(col.names = c("Config Item", "Whether Different", "Source 1", "Source 2")) %>%
     kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
     kableExtra::kable_paper(full_width = F) %>%
     kableExtra::row_spec(0, bold = T) %>%

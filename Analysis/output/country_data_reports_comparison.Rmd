@@ -207,6 +207,14 @@ plot_gam_fit_output_cases_stitched(cache = comparison_cache, year_vector = year_
 plot_gam_fit_output_rates_stitched(cache = comparison_cache, year_vector = year_vector)
 ```
 
+**GAM model output scatter plot comparison:**
+```{r gamscattercase, fig.cap=capFig("GAM output cases comparison"), fig.height=10, fig.width=10}
+plot_gam_cases_scatter_plot_stitched(cache = comparison_cache)
+```
+```{r gamscatterrate, fig.cap=capFig("GAM output rates comparison"), fig.height=10, fig.width=10}
+plot_gam_rates_scatter_plot_stitched(cache = comparison_cache)
+```
+
 **Table 2. Data used within the model by comparison between two runs:**
 ```{r echo = FALSE}
 comparison_cache$used_data_table
@@ -216,6 +224,7 @@ comparison_cache$used_data_table
 ```{r echo=FALSE}
 comparison_cache$dropped_data_table
 ```
+
 
 ### Covariates
 #### Population
@@ -233,15 +242,6 @@ gridExtra::grid.arrange(plot1, plot2, ncol = 2, left = "covariates from config1"
 rm(plot1, plot2)
 ```
 
-### GAM Output Comparison Scatter Plots 
-#### GAM cases output
-```{r gamscattercase, fig.cap=capFig("GAM output cases comparison"), fig.height=10, fig.width=10}
-plot_gam_cases_scatter_plot_stitched(cache = comparison_cache)
-```
-#### GAM rates output
-```{r gamscatterrate, fig.cap=capFig("GAM output rates comparison"), fig.height=10, fig.width=10}
-plot_gam_rates_scatter_plot_stitched(cache = comparison_cache)
-```
 
 ### Modeled cases
 **Modeled cases raster by time slices:**
