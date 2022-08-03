@@ -416,6 +416,7 @@ temporal_location_grid_mapping[["temporal_location_id"]] <- bit64::as.integer64(
   temporal_location_grid_mapping[["temporal_location_id"]],
   unique_temporal_location_ids
 ))
+
 check_data(observation_data)
 print("Starting processing")
 # Intermediate operations like aggregation and overlap removal
@@ -969,3 +970,16 @@ if (config[["generated"]][["perform"]]) {
   )
   chol_gen$save_object(file = config[["file_names"]][["generated_quantities"]])
 }
+
+rmarkdown::render(
+  rprojroot::find_root_file(
+    criterion = ".choldir", "Analysis", "output",
+    "country_data_report.Rmd"
+  ),
+  params = list(
+    cholera_directory = rprojroot::find_root(criterion = ".choldir"),
+    config = opt[["config"]],
+    drop_nodata_years = TRUE
+  ),
+  output_file = config[["file_names"]][["report"]]
+)
