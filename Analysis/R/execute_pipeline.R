@@ -978,7 +978,7 @@ rmarkdown::render(
   ),
   params = list(
     cholera_directory = rprojroot::find_root(criterion = ".choldir"),
-    config = opt[["config"]],
+    config = paste0(opt[["config"]], ".complete"),
     drop_nodata_years = TRUE
   ),
   output_file = config[["file_names"]][["report"]]
