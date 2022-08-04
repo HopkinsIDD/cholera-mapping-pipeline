@@ -1227,9 +1227,9 @@ config_defaults[["file_names"]][["report"]] <- function(config) {
     collapse = "_"
   ), ".report.html")
   if (!file.exists(file_path)) {
-    file.create(normalizePath(file_path))
+    file.create(file_path)
   }
-  return(file_path)
+  return(normalizePath(file_path))
 }
 config_defaults[["file_names"]][["generated_quantities"]] <- function(config) {
   file_path <- paste0(paste(c(
