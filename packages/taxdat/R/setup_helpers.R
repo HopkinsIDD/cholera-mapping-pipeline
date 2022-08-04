@@ -750,6 +750,15 @@ config_checks[["file_names"]][["stan_input"]] <- function(value, config) {
     ))
     return(FALSE)
   }
+  if (normalizePath(value) != value) {
+    warning(paste(
+      "config[['file_names']][['stan_input']] should be a normalized path, but ",
+      value,
+      "normalizes to",
+      normalizePath(value)
+    ))
+    return(FALSE)
+  }
 
   return(TRUE)
 }
@@ -793,6 +802,67 @@ config_checks[["file_names"]][["stan_output"]] <- function(value, config) {
     ))
     return(FALSE)
   }
+  if (normalizePath(value) != value) {
+    warning(paste(
+      "config[['file_names']][['stan_output']] should be a normalized path, but ",
+      value,
+      "normalizes to",
+      normalizePath(value)
+    ))
+    return(FALSE)
+  }
+
+  return(TRUE)
+}
+config_checks[["file_names"]][["report"]] <- function(value, config) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['file_names']][['report']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['file_names']][['report']] is NA")
+    return(FALSE)
+  }
+  if (!is.character(value)) {
+    warning(paste(
+      "config[['file_names']][['report']] should be character, but is",
+      value, "of mode", mode(value)
+    ))
+    return(FALSE)
+  }
+  if (!dir.exists(dirname(value))) {
+    warning(paste(
+      "config[['file_names']][['report']] should be a path to a file in an existing directory, but",
+      value, "implies a directory of", dirname(value), "which does not exist"
+    ))
+    return(FALSE)
+  }
+  if (!(tolower(tools::file_ext(value)) == "html")) {
+    warning(paste(
+      "config[['file_names']][['report']] should be an html file, but is actually",
+      value, "with extension", tools::file_ext(value)
+    ))
+    return(FALSE)
+  }
+  if (sum(value == config$file_names) > 1) {
+    warning(paste(
+      "config[['file_names']][['report']] should be a unique file name, but",
+      value, "appears more than once"
+    ))
+    return(FALSE)
+  }
+  if (normalizePath(value) != value) {
+    warning(paste(
+      "config[['file_names']][['report']] should be a normalized path, but ",
+      value,
+      "normalizes to",
+      normalizePath(value)
+    ))
+    return(FALSE)
+  }
 
   return(TRUE)
 }
@@ -833,6 +903,15 @@ config_checks[["file_names"]][["generated_quantities"]] <- function(value, confi
     warning(paste(
       "config[['file_names']][['generated_quantities']] should be a unique file name, but",
       value, "appears more than once"
+    ))
+    return(FALSE)
+  }
+  if (normalizePath(value) != value) {
+    warning(paste(
+      "config[['file_names']][['generated_quantities']] should be a normalized path, but ",
+      value,
+      "normalizes to",
+      normalizePath(value)
     ))
     return(FALSE)
   }
@@ -1128,18 +1207,39 @@ config_defaults[["generated"]][["time_scale"]] <- function(config) {
 
 config_defaults[["file_names"]] <- list()
 config_defaults[["file_names"]][["stan_input"]] <- function(config) {
-  return(paste0(paste(unlist(config[["general"]]), collapse = "_"), ".stan_input.rdata"))
+  file_path <- paste0(paste(unlist(config[["general"]]), collapse = "_"), ".stan_input.rdata")
+  if (!file.exists(file_path)) {
+    file.create(file_path)
+  }
+  return(normalizePath(file_path))
 }
 config_defaults[["file_names"]][["stan_output"]] <- function(config) {
-  return(paste0(paste(c(unlist(config[["general"]]), gsub(".*[/]", "", unlist(config[["stan"]]))),
+  file_path <- paste0(paste(c(unlist(config[["general"]]), gsub(".*[/]", "", unlist(config[["stan"]]))),
     collapse = "_"
-  ), ".stan_output.rds"))
+  ), ".stan_output.rds")
+  if (!file.exists(file_path)) {
+    file.create(file_path)
+  }
+  return(normalizePath(file_path))
+}
+config_defaults[["file_names"]][["report"]] <- function(config) {
+  file_path <- paste0(paste(c(unlist(config[["general"]]), gsub(".*[/]", "", unlist(config[["stan"]]))),
+    collapse = "_"
+  ), ".report.html")
+  if (!file.exists(file_path)) {
+    file.create(file_path)
+  }
+  return(normalizePath(file_path))
 }
 config_defaults[["file_names"]][["generated_quantities"]] <- function(config) {
-  return(paste0(paste(c(
+  file_path <- paste0(paste(c(
     unlist(config[["general"]]), gsub(".*[/]", "", unlist(config[["stan"]])),
     unlist(config[["generated"]])
-  ), collapse = "_"), ".generated_quantities.rdata"))
+  ), collapse = "_"), ".generated_quantities.rdata")
+  if (!file.exists(file_path)) {
+    file.create(file_path)
+  }
+  return(normalizePath(file_path))
 }
 
 
