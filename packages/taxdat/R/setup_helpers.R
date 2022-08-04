@@ -1207,39 +1207,39 @@ config_defaults[["generated"]][["time_scale"]] <- function(config) {
 
 config_defaults[["file_names"]] <- list()
 config_defaults[["file_names"]][["stan_input"]] <- function(config) {
-  file_path <- normalizePath(paste0(paste(unlist(config[["general"]]), collapse = "_"), ".stan_input.rdata"))
+  file_path <- paste0(paste(unlist(config[["general"]]), collapse = "_"), ".stan_input.rdata")
   if (!file.exists(file_path)) {
     file.create(file_path)
   }
-  return(file_path)
+  return(normalizePath(file_path))
 }
 config_defaults[["file_names"]][["stan_output"]] <- function(config) {
-  file_path <- normalizePath(paste0(paste(c(unlist(config[["general"]]), gsub(".*[/]", "", unlist(config[["stan"]]))),
+  file_path <- paste0(paste(c(unlist(config[["general"]]), gsub(".*[/]", "", unlist(config[["stan"]]))),
     collapse = "_"
-  ), ".stan_output.rds"))
+  ), ".stan_output.rds")
   if (!file.exists(file_path)) {
     file.create(file_path)
   }
-  return(file_path)
+  return(normalizePath(file_path))
 }
 config_defaults[["file_names"]][["report"]] <- function(config) {
-  file_path <- normalizePath(paste0(paste(c(unlist(config[["general"]]), gsub(".*[/]", "", unlist(config[["stan"]]))),
+  file_path <- paste0(paste(c(unlist(config[["general"]]), gsub(".*[/]", "", unlist(config[["stan"]]))),
     collapse = "_"
-  ), ".report.html"))
+  ), ".report.html")
   if (!file.exists(file_path)) {
-    file.create(file_path)
+    file.create(normalizePath(file_path))
   }
   return(file_path)
 }
 config_defaults[["file_names"]][["generated_quantities"]] <- function(config) {
-  file_path <- normalizePath(paste0(paste(c(
+  file_path <- paste0(paste(c(
     unlist(config[["general"]]), gsub(".*[/]", "", unlist(config[["stan"]])),
     unlist(config[["generated"]])
-  ), collapse = "_"), ".generated_quantities.rdata"))
+  ), collapse = "_"), ".generated_quantities.rdata")
   if (!file.exists(file_path)) {
     file.create(file_path)
   }
-  return(file_path)
+  return(normalizePath(file_path))
 }
 
 
