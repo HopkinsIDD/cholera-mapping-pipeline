@@ -114,7 +114,7 @@ aggregate_observed_polygon_cases_disjoint_aggregated_no_cache <- function(config
   observed_polygon_cases_disjoint_aggregated <- aggregate_to_location_period(
     cache[["observed_polygon_cases_disjoint"]],
     aggregation_function = function(...) {
-      mean(normalize_cases_by_time(...))
+      mean(normalize_cases_by_time(...), na.rm = T)
     },
     grouping_columns = c("location_period_id", "set"),
     case_column = "suspected_cases"
@@ -177,7 +177,7 @@ aggregate_covar_cube_covariates_no_cache <- function(config, cache, cholera_dire
     aggregation_function = function(cases, time_left, time_right) {
       mean(cases)
     },
-    grouping_columns = c("name", "id","t"),
+    grouping_columns = c("name", "id", "t"),
     case_column = "value",
     time_columns = c("t", "t")
   ))
