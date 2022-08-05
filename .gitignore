@@ -21,9 +21,12 @@ Analysis/**/*.yml
 .Rhistory
 Analysis/configs/
 Layers/
+Analysis/Stan/*
+!Analysis/Stan/*.stan
 *.yml.complete
 *.pdf
 todo.org
 *.swp
-*.yml
+**.yml
 !tests/**/*.yml
+**.html

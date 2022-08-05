@@ -417,6 +417,7 @@ temporal_location_grid_mapping[["temporal_location_id"]] <- bit64::as.integer64(
   temporal_location_grid_mapping[["temporal_location_id"]],
   unique_temporal_location_ids
 ))
+
 check_data(observation_data)
 print("Starting processing")
 # Intermediate operations like aggregation and overlap removal
@@ -873,7 +874,7 @@ stan_data <- list(
   K1 = nrow(observation_temporal_location_mapping), K2 = nrow(temporal_location_grid_mapping),
   map_obs_loctime_obs = as.array(cast_to_int32(observation_temporal_location_mapping[["updated_observation_id"]])),
   map_obs_loctime_loc = as.array(cast_to_int32(observation_temporal_location_mapping[["updated_temporal_location_id"]])),
-  tfrac = as.array(rep(1, times = nrow(observation_temporal_location_mapping))),
+  tfrac = as.array(observation_temporal_location_mapping$tfrac),
   map_loc_grid_loc = as.array(cast_to_int32(temporal_location_grid_mapping[["updated_temporal_location_id"]])),
   map_loc_grid_grid = as.array(cast_to_int32(temporal_location_grid_mapping[["spacetime_grid_id"]])),
   map_loc_grid_sfrac = as.array(temporal_location_grid_mapping[["sfrac"]]), map_smooth_grid = as.array(cast_to_int32(covar_cube[["updated_id"]])),
@@ -971,3 +972,16 @@ if (config[["generated"]][["perform"]]) {
   )
   chol_gen$save_object(file = config[["file_names"]][["generated_quantities"]])
 }
+
+rmarkdown::render(
+  rprojroot::find_root_file(
+    criterion = ".choldir", "Analysis", "output",
+    "country_data_report.Rmd"
+  ),
+  params = list(
+    cholera_directory = rprojroot::find_root(criterion = ".choldir"),
+    config = paste0(opt[["config"]], ".complete"),
+    drop_nodata_years = TRUE
+  ),
+  output_file = config[["file_names"]][["report"]]
+)
