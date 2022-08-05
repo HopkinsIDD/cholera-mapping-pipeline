@@ -712,7 +712,7 @@ plot_config_comparison_table <- function(configs, cache){
   }
   config_table <- config_table %>% 
     mutate(diff = ifelse(source1 == source2, "", "√")) %>%
-    select(item, diff, source1, source2)
+    dplyr::select(item, diff, source1, source2)
 
   config_table %>% 
     kableExtra::kable(col.names = c("Config Item", "Whether Different", "Source 1", "Source 2")) %>%
