@@ -268,6 +268,15 @@ if(testing){
   all_test_idx <- as.numeric(NA)
 }
 
+# Set admin levels for which to compute summary statistics
+if (is.null(config$summary_admin_levels)) {
+  if (testing) {
+    config$summary_admin_levels <- NA
+  } else {
+    cat("-- Did not find specification for summary admin levels, setting to 1-2")
+    config$summary_admin_levels <- c(0, 1,2)
+  }
+}
 
 # - - - -
 # cholera_covariates database connection settings
@@ -399,6 +408,7 @@ for(t_idx in 1:length(all_test_idx)){
       cholera_directory = cholera_directory,
       ncore = ncore,
       res_time = res_time,
+      res_space = res_space,
       time_slices = time_slices,
       smooth_covariate_number_timesteps = smooth_covariate_number_timesteps,
       cases_column = cases_column,
