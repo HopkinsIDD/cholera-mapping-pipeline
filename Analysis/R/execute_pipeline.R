@@ -5,84 +5,16 @@
 # Control Variables: Preamble
 # ------------------------------------------------------------------------------------------------------------
 
-suppress_warning <- function(expr, warning_pattern) {
-  withCallingHandlers(expr, warning = function(w) {
-    if (grepl(warning_pattern, w$message)) {
-      invokeRestart("muffleWarning")
-    }
-  })
-}
 
 
 ### Set Error Handling
-interactive_run <- Sys.getenv("INTERACTIVE_RUN", "FALSE")
-if (interactive_run == "TRUE") {
-  options(warn = max(1, options("warn")$warn), error = recover)
-} else if (interactive_run == "FALSE") {
-  options(warn = max(1, options("warn")$warn), error = function(...) {
-    quit(..., status = 2)
-  })
-}
+taxdat::set_error_handling(is_interactive = Sys.getenv("INTERACTIVE_RUN", "FALSE"))
 
 ### Libraries TODO : Update this list
-if (Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE)) {
-  base_search <- search()
-
-  ## This is the list of packages required by this script: libxt-dev
-  package_list <- c(
-    "optparse", "DBI", "RPostgres", "sf", "magrittr", "dplyr",
-    "rstan", "xfun", "kableExtra", "MCMCvis"
-  )
-
-  for (package in package_list) {
-    if (!require(package = package, character.only = T)) {
-      utils::chooseCRANmirror(ind = 1)
-      install.packages(pkgs = package)
-      library(package = package, character.only = T)
-    }
-  }
-}
-
-# Set working directory to access taxdat properly
-
-if (Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE)) {
-  if (!require(taxdat)) {
-    previous_wd <- getwd()
-    try(
-      {
-        setwd(utils::getSrcDirectory())
-      },
-      silent = TRUE
-    )
-    try(
-      {
-        setwd(dirname(rstudioapi::getActiveDocumentContext()[["path"]]))
-      },
-      silent = TRUE
-    )
-
-    install.packages("packages/taxdat", type = "source", repos = NULL)
-    library(taxdat)
-
-    try(
-      {
-        setwd(utils::getSrcDirectory())
-      },
-      silent = TRUE
-    )
-    try(
-      {
-        setwd(dirname(rstudioapi::getActiveDocumentContext()[["path"]]))
-      },
-      silent = TRUE
-    )
-    setwd(previous_wd)
-  }
-
-  for (x in rev(sort(which(!(search() %in% base_search))))) {
-    suppress_warning(detach(pos = x, force = T), "may no longer work correctly")
-  }
-}
+taxdat::update_libraries(perform = Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE), package_list = c(
+  "optparse", "DBI", "RPostgres", "sf", "magrittr", "dplyr",
+  "rstan", "xfun", "kableExtra", "MCMCvis"
+))
 
 library(magrittr)
 library(bit64)
@@ -90,109 +22,7 @@ library(bit64)
 sf::sf_use_s2(FALSE)
 
 
-## Functions to move to taxdat later
-## --------------------------------------------------------------------------------------------------------------
 
-
-reindex <- function(df, index_column, new_index_column = index_column) {
-  index_column <- rlang::sym(index_column)
-  new_index_column <- rlang::sym(new_index_column)
-  df %>%
-    dplyr::group_by(!!index_column) %>%
-    dplyr::mutate(`:=`(!!new_index_column, dplyr::cur_group_id())) %>%
-    dplyr::ungroup() %>%
-    return()
-  # df %>% dplyr::mutate(`:=`(!!new_index_column, dplyr::group_indices(.,
-  # !!index_column))) %>% return
-}
-
-cast_to_int32 <- function(x) {
-  if (!is.integer(x)) {
-    rc <- as.integer(x)
-    if (all(rc == x)) {
-      return(rc)
-    }
-    stop(paste("Conversion failed", x[rc != x], "converted to", rc[rc != x]))
-  }
-  return(x)
-}
-
-plot_energy <- function(stan_model, par = "all") {
-  energy <- sapply(rstan::get_sampler_params(stan_model), function(x) {
-    x[, "energy__"]
-  })
-  leapfrog_iterations <- rstan::get_num_leapfrog_per_iteration(stan_model)
-
-  nchain <- stan_model@sim[["chains"]]
-  kept_per_chain <- sapply(stan_model@sim[["permutation"]], length)
-  if (!length(unique(kept_per_chain)) == 1) {
-    stop("This function assumes the same number of iterations are saved for each chain")
-  }
-  kept_per_chain <- unique(kept_per_chain)
-
-  if (!(isTRUE(par == "all") || all(par %in% c(stan_model@sim[["pars_oi"]], stan_model@sim[["fnames_oi"]])))) {
-    stop("Not all parameters are approporiate")
-  }
-  if (isTRUE(par == "all")) {
-    par <- stan_model@sim[["fnames_oi"]]
-  }
-  short_par <- par[par %in% stan_model@sim[["pars_oi"]]]
-  if (length(short_par) > 0) {
-    longform_pars <- stan_model@sim[["pars_oi"]][!(stan_model@sim[["pars_oi"]] %in%
-      stan_model@sim[["fnames_oi"]])]
-    short_par <- short_par[short_par %in% longform_pars]
-    par <- par[!(par %in% short_par)]
-    longform_pars <- stan_model@sim[["fnames_oi"]][!(stan_model@sim[["fnames_oi"]] %in%
-      stan_model@sim[["pars_oi"]])]
-    short_names <- gsub("\\[.*\\]", "", longform_pars)
-    short_par <- unlist(lapply(short_par, function(x) {
-      return(longform_pars[x == short_names])
-    }))
-    par <- c(par, short_par)
-  }
-
-  rc <- array(NA, c(kept_per_chain, nchain, length(par) + 2))
-  dimnames(rc) <- list(NULL, paste("chain", seq_len(nchain)), c(
-    par, "energy__",
-    "leapfrog_iterations__"
-  ))
-
-
-  indices_to_pull <- lapply(stan_model@sim[["permutation"]], function(x) {
-    x + stan_model@sim[["warmup"]]
-  })
-
-  counter <- 0
-  for (i in seq_len(nchain)) {
-    rc[, paste("chain", i), "energy__"] <- energy[indices_to_pull[[i]], i]
-    rc[, paste("chain", i), "leapfrog_iterations__"] <- leapfrog_iterations[counter +
-      seq_len(kept_per_chain)]
-    counter <- counter + kept_per_chain
-  }
-  params <- rstan::extract(stan_model, pars = par)
-  for (param in par) {
-    counter <- 0
-    for (i in seq_len(nchain)) {
-      rc[, paste("chain", i), param] <- params[[param]][counter + seq_len(kept_per_chain)]
-      counter <- counter + kept_per_chain
-    }
-  }
-
-  return(pairs(apply(rc, 3, c)))
-}
-
-check_data <- function(observation_data) {
-  no_errors <- TRUE
-  data_df <- as.data.frame(observation_data)
-  if (sum(!is.na(data_df$suspected_cases)) == 0) {
-    no_errors <- FALSE
-    warning("No non-NA cases observed")
-  }
-  if (!(no_errors)) {
-    stop("At least one error which we cannot recover from occured. See above warnings for details")
-  }
-  invisible(NULL)
-}
 ## Inputs
 ## --------------------------------------------------------------------------------------------------------------
 
@@ -417,12 +247,45 @@ temporal_location_grid_mapping[["temporal_location_id"]] <- bit64::as.integer64(
   unique_temporal_location_ids
 ))
 
-check_data(observation_data)
+taxdat::check_data(observation_data)
+
 print("Starting processing")
 # Intermediate operations like aggregation and overlap removal
 
 observation_data.bak <- observation_data
 observation_temporal_location_mapping.bak <- observation_temporal_location_mapping
+
+if (config[["processing"]][["average_inconsistent_duplicates"]]) {
+  print("Dealing with inconsistent duplicate observations")
+
+  local_unique_column_names <- taxdat::suppress_warning(
+    taxdat::get_unique_columns_by_group(dplyr::mutate(
+      observation_data,
+      time_left = as.character(time_left), time_right = as.character(time_right)
+    ), grouping_columns = c(
+      "observation_collection_id",
+      "location_period_id",
+      "time_left",
+      "time_right"
+    ), skip_columns = c(
+      "observation_collection_id",
+      "location_period_id",
+      "time_left",
+      "time_right",
+      cases_column,
+      "shape"
+    )), "coercing argument of type 'character' to logical"
+  )
+
+  observation_data_deduplicated <- taxdat::remove_inconsistent_duplicates(observation_data,
+    columns_to_mean_over = c(cases_column), local_unique_column_names
+  )
+
+
+  observation_data <- observation_data_deduplicated
+
+  print("Finished resolving inconsistent duplicates")
+}
 
 if (config[["processing"]][["aggregate"]]) {
   print("Aggregating")
@@ -606,8 +469,8 @@ fully_covered_ts <- unique(fully_covered_indices[["t"]])
 
 covar_cube <- covar_cube %>%
   dplyr::filter(id %in% fully_covered_grid_ids, t %in% fully_covered_ts) %>%
-  reindex("id", "updated_id") %>%
-  reindex("t", "updated_t") %>%
+  taxdat::reindex("id", "updated_id") %>%
+  taxdat::reindex("t", "updated_t") %>%
   tibble::rownames_to_column() %>%
   dplyr::mutate(spacetime_grid_id = as.numeric(rowname)) %>%
   dplyr::select(-rowname)
@@ -646,7 +509,7 @@ nneighbors[is.na(nneighbors)] <- 0
 
 observation_data <- observation_data %>%
   dplyr::filter(observation_id %in% fully_covered_observation_ids) %>%
-  reindex("observation_id", "updated_observation_id")
+  taxdat::reindex("observation_id", "updated_observation_id")
 
 observation_changer <- setNames(
   sort(unique(observation_data[["updated_observation_id"]])),
@@ -862,7 +725,7 @@ stan_data <- list(
     "_R"
   )]]))), ind_full = as.array(which(!is.na(observation_data[[cases_column]]))),
   ind_left = as.array(which(!is.na(observation_data[[paste0(cases_column, "_L")]]))),
-  T = cast_to_int32(max(observation_temporal_location_mapping[["updated_t"]])), y = as.array(pmax(pmin(observation_data[[cases_column]],
+  T = taxdat::cast_to_int32(max(observation_temporal_location_mapping[["updated_t"]])), y = as.array(pmax(pmin(observation_data[[cases_column]],
     observation_data[[paste0(cases_column, "_R")]],
     na.rm = TRUE
   ), observation_data[[paste0(
@@ -870,12 +733,12 @@ stan_data <- list(
     "_L"
   )]], na.rm = TRUE)), L = length(unique(observation_temporal_location_mapping[["updated_temporal_location_id"]])),
   K1 = nrow(observation_temporal_location_mapping), K2 = nrow(temporal_location_grid_mapping),
-  map_obs_loctime_obs = as.array(cast_to_int32(observation_temporal_location_mapping[["updated_observation_id"]])),
-  map_obs_loctime_loc = as.array(cast_to_int32(observation_temporal_location_mapping[["updated_temporal_location_id"]])),
+  map_obs_loctime_obs = as.array(taxdat::cast_to_int32(observation_temporal_location_mapping[["updated_observation_id"]])),
+  map_obs_loctime_loc = as.array(taxdat::cast_to_int32(observation_temporal_location_mapping[["updated_temporal_location_id"]])),
   tfrac = as.array(observation_temporal_location_mapping$tfrac),
-  map_loc_grid_loc = as.array(cast_to_int32(temporal_location_grid_mapping[["updated_temporal_location_id"]])),
-  map_loc_grid_grid = as.array(cast_to_int32(temporal_location_grid_mapping[["spacetime_grid_id"]])),
-  map_loc_grid_sfrac = as.array(temporal_location_grid_mapping[["sfrac"]]), map_smooth_grid = as.array(cast_to_int32(covar_cube[["updated_id"]])),
+  map_loc_grid_loc = as.array(taxdat::cast_to_int32(temporal_location_grid_mapping[["updated_temporal_location_id"]])),
+  map_loc_grid_grid = as.array(taxdat::cast_to_int32(temporal_location_grid_mapping[["spacetime_grid_id"]])),
+  map_loc_grid_sfrac = as.array(temporal_location_grid_mapping[["sfrac"]]), map_smooth_grid = as.array(taxdat::cast_to_int32(covar_cube[["updated_id"]])),
   rho = 0.999, covar = standardize_covar(as.matrix(as.data.frame(covar_cube)[
     ,
     covariate_names
@@ -959,8 +822,8 @@ if (config[["generated"]][["perform"]]) {
 
   updated_stan_data <- stan_data
   updated_stan_data$map_loc_grid_sfrac <- as.array(temporal_location_grid_mapping[["sfrac"]])
-  updated_stan_data$map_loc_grid_grid <- as.array(cast_to_int32(temporal_location_grid_mapping[["spacetime_grid_id"]]))
-  updated_stan_data$map_loc_grid_loc <- as.array(cast_to_int32(temporal_location_grid_mapping[["updated_temporal_location_id"]]))
+  updated_stan_data$map_loc_grid_grid <- as.array(taxdat::cast_to_int32(temporal_location_grid_mapping[["spacetime_grid_id"]]))
+  updated_stan_data$map_loc_grid_loc <- as.array(taxdat::cast_to_int32(temporal_location_grid_mapping[["updated_temporal_location_id"]]))
   updated_stan_data$K2 <- nrow(temporal_location_grid_mapping)
 
   # cmdstan_draws <- posterior::as_draws(model.rand)

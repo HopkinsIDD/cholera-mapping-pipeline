@@ -446,3 +446,68 @@ plot_rhat <- function(config, cache, cholera_directory) {
 
   return(plt)
 }
+
+# Leaving this here commented out for now
+### plot_energy <- function(stan_model, par = "all") {
+###   energy <- sapply(rstan::get_sampler_params(stan_model), function(x) {
+###     x[, "energy__"]
+###   })
+###   leapfrog_iterations <- rstan::get_num_leapfrog_per_iteration(stan_model)
+###
+###   nchain <- stan_model@sim[["chains"]]
+###   kept_per_chain <- sapply(stan_model@sim[["permutation"]], length)
+###   if (!length(unique(kept_per_chain)) == 1) {
+###     stop("This function assumes the same number of iterations are saved for each chain")
+###   }
+###   kept_per_chain <- unique(kept_per_chain)
+###
+###   if (!(isTRUE(par == "all") || all(par %in% c(stan_model@sim[["pars_oi"]], stan_model@sim[["fnames_oi"]])))) {
+###     stop("Not all parameters are approporiate")
+###   }
+###   if (isTRUE(par == "all")) {
+###     par <- stan_model@sim[["fnames_oi"]]
+###   }
+###   short_par <- par[par %in% stan_model@sim[["pars_oi"]]]
+###   if (length(short_par) > 0) {
+###     longform_pars <- stan_model@sim[["pars_oi"]][!(stan_model@sim[["pars_oi"]] %in%
+###       stan_model@sim[["fnames_oi"]])]
+###     short_par <- short_par[short_par %in% longform_pars]
+###     par <- par[!(par %in% short_par)]
+###     longform_pars <- stan_model@sim[["fnames_oi"]][!(stan_model@sim[["fnames_oi"]] %in%
+###       stan_model@sim[["pars_oi"]])]
+###     short_names <- gsub("\\[.*\\]", "", longform_pars)
+###     short_par <- unlist(lapply(short_par, function(x) {
+###       return(longform_pars[x == short_names])
+###     }))
+###     par <- c(par, short_par)
+###   }
+###
+###   rc <- array(NA, c(kept_per_chain, nchain, length(par) + 2))
+###   dimnames(rc) <- list(NULL, paste("chain", seq_len(nchain)), c(
+###     par, "energy__",
+###     "leapfrog_iterations__"
+###   ))
+###
+###
+###   indices_to_pull <- lapply(stan_model@sim[["permutation"]], function(x) {
+###     x + stan_model@sim[["warmup"]]
+###   })
+###
+###   counter <- 0
+###   for (i in seq_len(nchain)) {
+###     rc[, paste("chain", i), "energy__"] <- energy[indices_to_pull[[i]], i]
+###     rc[, paste("chain", i), "leapfrog_iterations__"] <- leapfrog_iterations[counter +
+###       seq_len(kept_per_chain)]
+###     counter <- counter + kept_per_chain
+###   }
+###   params <- rstan::extract(stan_model, pars = par)
+###   for (param in par) {
+###     counter <- 0
+###     for (i in seq_len(nchain)) {
+###       rc[, paste("chain", i), param] <- params[[param]][counter + seq_len(kept_per_chain)]
+###       counter <- counter + kept_per_chain
+###     }
+###   }
+###
+###   return(pairs(apply(rc, 3, c)))
+### }

@@ -197,7 +197,7 @@ modeling_time_slices <- function(start_time, end_time, res_time, time_change_fun
 
 config_checks <- list()
 config_checks[["general"]] <- list()
-config_checks[["general"]][["location_name"]] <- function(value, config) {
+config_checks[["general"]][["location_name"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['general']][['location_name']] should be of length 1, but is of length",
@@ -218,7 +218,7 @@ config_checks[["general"]][["location_name"]] <- function(value, config) {
   }
   return(TRUE)
 }
-config_checks[["general"]][["time_scale"]] <- function(value, config) {
+config_checks[["general"]][["time_scale"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['general']][['time_scale']] should be of length 1, but is of length",
@@ -245,7 +245,7 @@ config_checks[["general"]][["time_scale"]] <- function(value, config) {
   }
   return(TRUE)
 }
-config_checks[["general"]][["start_date"]] <- function(value, config) {
+config_checks[["general"]][["start_date"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['general']][['start_date']] should be of length 1, but is of length",
@@ -272,7 +272,7 @@ config_checks[["general"]][["start_date"]] <- function(value, config) {
   }
   return(TRUE)
 }
-config_checks[["general"]][["end_date"]] <- function(value, config) {
+config_checks[["general"]][["end_date"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['general']][['end_date']] should be of length 1, but is of length",
@@ -299,7 +299,7 @@ config_checks[["general"]][["end_date"]] <- function(value, config) {
   }
   return(TRUE)
 }
-config_checks[["general"]][["width_in_km"]] <- function(value, config) {
+config_checks[["general"]][["width_in_km"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['general']][['width_in_km']] should be of length 1, but is of length",
@@ -320,7 +320,7 @@ config_checks[["general"]][["width_in_km"]] <- function(value, config) {
   }
   return(TRUE)
 }
-config_checks[["general"]][["height_in_km"]] <- function(value, config) {
+config_checks[["general"]][["height_in_km"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['general']][['height_in_km']] should be of length 1, but is of length",
@@ -341,7 +341,7 @@ config_checks[["general"]][["height_in_km"]] <- function(value, config) {
   }
   return(TRUE)
 }
-config_checks[["general"]][["covariates"]] <- function(value, config) {
+config_checks[["general"]][["covariates"]] <- function(value, config, index) {
   if (is.null(value)) {
     return(TRUE)
   }
@@ -360,7 +360,7 @@ config_checks[["general"]][["covariates"]] <- function(value, config) {
 }
 
 config_checks[["stan"]] <- list()
-config_checks[["stan"]][["directory"]] <- function(value, config) {
+config_checks[["stan"]][["directory"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['stan']][['directory']] should be of length 1, but is of length",
@@ -377,7 +377,7 @@ config_checks[["stan"]][["directory"]] <- function(value, config) {
   }
   return(TRUE)
 }
-config_checks[["stan"]][["recompile"]] <- function(value, config) {
+config_checks[["stan"]][["recompile"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['stan']][['recompile']] should be of length 1, but is of length",
@@ -395,7 +395,7 @@ config_checks[["stan"]][["recompile"]] <- function(value, config) {
   }
   return(TRUE)
 }
-config_checks[["stan"]][["niter"]] <- function(value, config) {
+config_checks[["stan"]][["niter"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['stan']][['niter']] should be of length 1, but is of length",
@@ -413,7 +413,7 @@ config_checks[["stan"]][["niter"]] <- function(value, config) {
   }
   return(TRUE)
 }
-config_checks[["stan"]][["ncores"]] <- function(value, config) {
+config_checks[["stan"]][["ncores"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['stan']][['ncores']] should be of length 1, but is of length",
@@ -431,7 +431,7 @@ config_checks[["stan"]][["ncores"]] <- function(value, config) {
   }
   return(TRUE)
 }
-config_checks[["stan"]][["nchain"]] <- function(value, config) {
+config_checks[["stan"]][["nchain"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['stan']][['nchain']] should be of length 1, but is of length",
@@ -449,7 +449,7 @@ config_checks[["stan"]][["nchain"]] <- function(value, config) {
   }
   return(TRUE)
 }
-config_checks[["stan"]][["beta_sigma_scale"]] <- function(value, config) {
+config_checks[["stan"]][["beta_sigma_scale"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['stan']][['beta_sigma_scale']] should be of length 1, but is of length",
@@ -470,7 +470,7 @@ config_checks[["stan"]][["beta_sigma_scale"]] <- function(value, config) {
   }
   return(TRUE)
 }
-config_checks[["stan"]][["sigma_eta_scale"]] <- function(value, config) {
+config_checks[["stan"]][["sigma_eta_scale"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['stan']][['sigma_eta_scale']] should be of length 1, but is of length",
@@ -492,7 +492,7 @@ config_checks[["stan"]][["sigma_eta_scale"]] <- function(value, config) {
   return(TRUE)
 }
 config_checks[["stan"]][["do_time_slice"]] <- list()
-config_checks[["stan"]][["do_time_slice"]][["perform"]] <- function(value, config) {
+config_checks[["stan"]][["do_time_slice"]][["perform"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['stan']][['do_time_slice']][['perform']] should be of length 1, but is of length",
@@ -513,7 +513,7 @@ config_checks[["stan"]][["do_time_slice"]][["perform"]] <- function(value, confi
   }
   return(TRUE)
 }
-config_checks[["stan"]][["do_time_slice"]][["autocorrelated_prior"]] <- function(value, config) {
+config_checks[["stan"]][["do_time_slice"]][["autocorrelated_prior"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['stan']][['do_time_slice']][['autocorrelated_prior']] should be of length 1, but is of length",
@@ -534,7 +534,7 @@ config_checks[["stan"]][["do_time_slice"]][["autocorrelated_prior"]] <- function
   }
   return(TRUE)
 }
-config_checks[["stan"]][["model"]] <- function(value, config) {
+config_checks[["stan"]][["model"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['stan']][['model']] should be of length 1, but is of length",
@@ -573,7 +573,7 @@ config_checks[["stan"]][["model"]] <- function(value, config) {
 }
 
 config_checks[["initial_values"]] <- list()
-config_checks[["initial_values"]][["warmup"]] <- function(value, config) {
+config_checks[["initial_values"]][["warmup"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['initial_values']][['warmup']] should be of length 1, but is of length",
@@ -598,7 +598,7 @@ config_checks[["initial_values"]][["warmup"]] <- function(value, config) {
 config_checks[["processing"]] <- list()
 config_checks[["processing"]][["reorder_adjacency_matrix"]] <- list()
 config_checks[["processing"]][["reorder_adjacency_matrix"]][["perform"]] <- function(value,
-                                                                                     config) {
+                                                                                     config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['processing']][['reorder_adjacency_matrix']] should be of length 1, but is of length",
@@ -621,7 +621,7 @@ config_checks[["processing"]][["reorder_adjacency_matrix"]][["perform"]] <- func
 }
 config_checks[["processing"]][["remove_overlaps"]] <- list()
 config_checks[["processing"]][["remove_overlaps"]][["perform"]] <- function(value,
-                                                                            config) {
+                                                                            config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['processing']][['remove_overlaps']][['perform']] should be of length 1, but is of length",
@@ -642,7 +642,7 @@ config_checks[["processing"]][["remove_overlaps"]][["perform"]] <- function(valu
   }
   return(TRUE)
 }
-config_checks[["processing"]][["aggregate"]] <- function(value, config) {
+config_checks[["processing"]][["aggregate"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['processing']][['aggregate']] should be of length 1, but is of length",
@@ -663,9 +663,30 @@ config_checks[["processing"]][["aggregate"]] <- function(value, config) {
   }
   return(TRUE)
 }
+config_checks[["processing"]][["average_inconsistent_duplicates"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['processing']][['average_inconsistent_duplicates']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['processing']][['average_inconsistent_duplicates']] is NA")
+    return(FALSE)
+  }
+  if (!is.logical(value)) {
+    warning(paste(
+      "config[['processing']][['average_inconsistent_duplicates']] should be logical, but is",
+      value, "of mode", mode(value)
+    ))
+    return(FALSE)
+  }
+  return(TRUE)
+}
 config_checks[["processing"]][["censor_incomplete_observations"]] <- list()
 config_checks[["processing"]][["censor_incomplete_observations"]][["perform"]] <- function(value,
-                                                                                           config) {
+                                                                                           config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['processing']][['censor_incomplete_observations']][['perform']] should be of length 1, but is of length",
@@ -687,7 +708,7 @@ config_checks[["processing"]][["censor_incomplete_observations"]][["perform"]] <
   return(TRUE)
 }
 config_checks[["processing"]][["censor_incomplete_observations"]][["threshold"]] <- function(value,
-                                                                                             config) {
+                                                                                             config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['processing']][['censor_incomplete_observations']][['threshold']] should be of length 1, but is of length",
@@ -710,7 +731,7 @@ config_checks[["processing"]][["censor_incomplete_observations"]][["threshold"]]
 }
 
 config_checks[["file_names"]] <- list()
-config_checks[["file_names"]][["stan_input"]] <- function(value, config) {
+config_checks[["file_names"]][["stan_input"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['file_names']][['stan_input']] should be of length 1, but is of length",
@@ -762,7 +783,7 @@ config_checks[["file_names"]][["stan_input"]] <- function(value, config) {
 
   return(TRUE)
 }
-config_checks[["file_names"]][["stan_output"]] <- function(value, config) {
+config_checks[["file_names"]][["stan_output"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['file_names']][['stan_output']] should be of length 1, but is of length",
@@ -814,7 +835,7 @@ config_checks[["file_names"]][["stan_output"]] <- function(value, config) {
 
   return(TRUE)
 }
-config_checks[["file_names"]][["report"]] <- function(value, config) {
+config_checks[["file_names"]][["report"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['file_names']][['report']] should be of length 1, but is of length",
@@ -866,7 +887,7 @@ config_checks[["file_names"]][["report"]] <- function(value, config) {
 
   return(TRUE)
 }
-config_checks[["file_names"]][["generated_quantities"]] <- function(value, config) {
+config_checks[["file_names"]][["generated_quantities"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['file_names']][['generated_quantities']] should be of length 1, but is of length",
@@ -920,7 +941,7 @@ config_checks[["file_names"]][["generated_quantities"]] <- function(value, confi
 }
 
 config_checks[["generated"]] <- list()
-config_checks[["generated"]][["location_name"]] <- function(value, config) {
+config_checks[["generated"]][["location_name"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['generated']][['location_name']] should be of length 1, but is of length",
@@ -941,7 +962,7 @@ config_checks[["generated"]][["location_name"]] <- function(value, config) {
   }
   return(TRUE)
 }
-config_checks[["generated"]][["time_scale"]] <- function(value, config) {
+config_checks[["generated"]][["time_scale"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['generated']][['time_scale']] should be of length 1, but is of length",
@@ -968,7 +989,7 @@ config_checks[["generated"]][["time_scale"]] <- function(value, config) {
   }
   return(TRUE)
 }
-config_checks[["generated"]][["start_date"]] <- function(value, config) {
+config_checks[["generated"]][["start_date"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['generated']][['start_date']] should be of length 1, but is of length",
@@ -995,7 +1016,7 @@ config_checks[["generated"]][["start_date"]] <- function(value, config) {
   }
   return(TRUE)
 }
-config_checks[["generated"]][["end_date"]] <- function(value, config) {
+config_checks[["generated"]][["end_date"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['generated']][['end_date']] should be of length 1, but is of length",
@@ -1022,7 +1043,7 @@ config_checks[["generated"]][["end_date"]] <- function(value, config) {
   }
   return(TRUE)
 }
-config_checks[["generated"]][["width_in_km"]] <- function(value, config) {
+config_checks[["generated"]][["width_in_km"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['generated']][['width_in_km']] should be of length 1, but is of length",
@@ -1043,7 +1064,7 @@ config_checks[["generated"]][["width_in_km"]] <- function(value, config) {
   }
   return(TRUE)
 }
-config_checks[["generated"]][["height_in_km"]] <- function(value, config) {
+config_checks[["generated"]][["height_in_km"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['generated']][['height_in_km']] should be of length 1, but is of length",
@@ -1064,7 +1085,7 @@ config_checks[["generated"]][["height_in_km"]] <- function(value, config) {
   }
   return(TRUE)
 }
-config_checks[["generated"]][["perform"]] <- function(value, config) {
+config_checks[["generated"]][["perform"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
       "config[['generated']][['perform']] should be of length 1, but is of length",
@@ -1086,6 +1107,26 @@ config_checks[["generated"]][["perform"]] <- function(value, config) {
   return(TRUE)
 }
 
+config_checks[["seeds"]] <- list()
+config_checks[["seeds"]][["::"]] <- function(value, config, index) {
+  if (length(value) != 626) {
+    warning(paste0(
+      "config[['seeds']][[", index, "]] should be of length 626, but is of length ",
+      length(value)
+    ))
+    return(FALSE)
+  }
+  if (any(is.na(value))) {
+    warning(paste0("config[['seeds']][[", index, "]] has at least one NA"))
+    return(FALSE)
+  }
+  if (!is.numeric(value)) {
+    warning(paste0("config[['seeds']][[", index, "]] should be numeric but is", mode(value)))
+    return(FALSE)
+  }
+  return(TRUE)
+}
+
 #' @name check_config
 #' @description Check the config to make sure the fields are valid
 #' @param config The config to check
@@ -1093,9 +1134,27 @@ config_checks[["generated"]][["perform"]] <- function(value, config) {
 #' @param original_config In case of recursion, the original config this was part of.  This is what is passed to the functions in the defaults
 #' @export
 check_config <- function(config, checks = config_checks, original_config = config,
-                         name_prefix = NULL, no_check_fields = c("test_metadata")) {
+                         name_prefix = NULL, no_check_fields = c("test_metadata"), index = NULL) {
   config_is_valid <- TRUE
+  subconfig_valid <- TRUE
   for (field_name in names(checks)) {
+    if (field_name == "::") {
+      for (new_index in seq_len(length(config))) {
+        if (class(config[[field_name]]) %in% c("NULL", "list")) {
+          subconfig_valid <- check_config(
+            config[[new_index]], checks[[field_name]],
+            original_config, paste0(name_prefix, ifelse(is.null(name_prefix),
+              "", "::"
+            ), c(index, new_index)),
+            index = c(index, new_index)
+          )
+        } else {
+          subconfig_valid <- checks[[field_name]](config[[new_index]], original_config, c(index, new_index))
+        }
+        config_is_valid <- config_is_valid && subconfig_valid
+      }
+      next
+    }
     if (class(checks[[field_name]]) == "list") {
       if (class(config[[field_name]]) %in% c("NULL", "list")) {
         subconfig_valid <- check_config(
@@ -1107,21 +1166,25 @@ check_config <- function(config, checks = config_checks, original_config = confi
         config_is_valid <- config_is_valid && subconfig_valid
       } else {
         warning(paste(
-          "config field", paste0(name_prefix, field_name), "should be a list, but was of type",
+          "config field", paste0(name_prefix, ifelse(is.null(name_prefix),
+            "", "::"
+          ), field_name), "should be a list, but was of type",
           class(config[[field_name]]), "with value", config[[field_name]]
         ))
         config_is_valid <- FALSE
       }
     } else {
-      field_valid <- checks[[field_name]](config[[field_name]], original_config)
+      field_valid <- checks[[field_name]](config[[field_name]], original_config, index)
       config_is_valid <- config_is_valid && field_valid
     }
   }
-  if (!all(names(config) %in% names(checks))) {
+  if ((!all(names(config) %in% names(checks))) && (!all(names(checks) == "::"))) {
     missing_fields <- names(config)[!(names(config) %in% names(checks))]
     missing_fields <- missing_fields[!(missing_fields %in% no_check_fields)]
     for (field in missing_fields) {
-      warning(paste(paste0(name_prefix, field), "is not a known config field, and is unused"))
+      warning(paste(paste0(name_prefix, ifelse(is.null(name_prefix),
+        "", "::"
+      ), field), "is not a known config field, and is unused"))
       config_is_valid <- FALSE
     }
   }
@@ -1131,89 +1194,92 @@ check_config <- function(config, checks = config_checks, original_config = confi
 
 config_defaults <- list()
 config_defaults[["initial_values"]] <- list()
-config_defaults[["initial_values"]][["warmup"]] <- function(config) {
+config_defaults[["initial_values"]][["warmup"]] <- function(config, index) {
   return(TRUE)
 }
 
 config_defaults[["processing"]] <- list()
-config_defaults[["processing"]][["aggregate"]] <- function(config) {
+config_defaults[["processing"]][["aggregate"]] <- function(config, index) {
+  return(TRUE)
+}
+config_defaults[["processing"]][["average_inconsistent_duplicates"]] <- function(config, index) {
   return(TRUE)
 }
 config_defaults[["processing"]][["reorder_adjacency_matrix"]] <- list()
-config_defaults[["processing"]][["reorder_adjacency_matrix"]][["perform"]] <- function(config) {
+config_defaults[["processing"]][["reorder_adjacency_matrix"]][["perform"]] <- function(config, index) {
   return(TRUE)
 }
 config_defaults[["processing"]][["remove_overlaps"]] <- list()
-config_defaults[["processing"]][["remove_overlaps"]][["perform"]] <- function(config) {
+config_defaults[["processing"]][["remove_overlaps"]][["perform"]] <- function(config, index) {
   return(TRUE)
 }
 config_defaults[["processing"]][["censor_incomplete_observations"]] <- list()
-config_defaults[["processing"]][["censor_incomplete_observations"]][["perform"]] <- function(config) {
+config_defaults[["processing"]][["censor_incomplete_observations"]][["perform"]] <- function(config, index) {
   return(TRUE)
 }
-config_defaults[["processing"]][["censor_incomplete_observations"]][["threshold"]] <- function(config) {
+config_defaults[["processing"]][["censor_incomplete_observations"]][["threshold"]] <- function(config, index) {
   return(0.95)
 }
 
 config_defaults[["stan"]] <- list()
-config_defaults[["stan"]][["ncores"]] <- function(config) {
+config_defaults[["stan"]][["ncores"]] <- function(config, index) {
   return(2)
 }
-config_defaults[["stan"]][["nchain"]] <- function(config) {
+config_defaults[["stan"]][["nchain"]] <- function(config, index) {
   return(pmax(config[["stan"]][["ncores"]], 2))
 }
-config_defaults[["stan"]][["recompile"]] <- function(config) {
+config_defaults[["stan"]][["recompile"]] <- function(config, index) {
   return(TRUE)
 }
-config_defaults[["stan"]][["directory"]] <- function(config) {
+config_defaults[["stan"]][["directory"]] <- function(config, index) {
   return(rprojroot::find_root_file("Analysis/Stan", criterion = rprojroot::has_file(".choldir")))
 }
-config_defaults[["stan"]][["beta_sigma_scale"]] <- function(config) {
+config_defaults[["stan"]][["beta_sigma_scale"]] <- function(config, index) {
   return(1)
 }
-config_defaults[["stan"]][["sigma_eta_scale"]] <- function(config) {
+config_defaults[["stan"]][["sigma_eta_scale"]] <- function(config, index) {
   return(5)
 }
 config_defaults[["stan"]][["do_time_slice"]] <- list()
-config_defaults[["stan"]][["do_time_slice"]][["perform"]] <- function(config) {
+config_defaults[["stan"]][["do_time_slice"]][["perform"]] <- function(config, index) {
   return(TRUE)
 }
-config_defaults[["stan"]][["do_time_slice"]][["autocorrelated_prior"]] <- function(config) {
+config_defaults[["stan"]][["do_time_slice"]][["autocorrelated_prior"]] <- function(config, index) {
   return(FALSE)
 }
 
 config_defaults[["generated"]] <- list()
-config_defaults[["generated"]][["perform"]] <- function(config) {
+config_defaults[["generated"]][["perform"]] <- function(config, index) {
   return(FALSE)
 }
-config_defaults[["generated"]][["location_name"]] <- function(config) {
+config_defaults[["generated"]][["location_name"]] <- function(config, index) {
   return(config[["general"]][["location_name"]])
 }
-config_defaults[["generated"]][["start_date"]] <- function(config) {
+config_defaults[["generated"]][["start_date"]] <- function(config, index) {
   return(config[["general"]][["start_date"]])
 }
-config_defaults[["generated"]][["end_date"]] <- function(config) {
+config_defaults[["generated"]][["end_date"]] <- function(config, index) {
   return(config[["general"]][["end_date"]])
 }
-config_defaults[["generated"]][["width_in_km"]] <- function(config) {
+config_defaults[["generated"]][["width_in_km"]] <- function(config, index) {
   return(config[["general"]][["width_in_km"]])
 }
-config_defaults[["generated"]][["height_in_km"]] <- function(config) {
+config_defaults[["generated"]][["height_in_km"]] <- function(config, index) {
   return(config[["general"]][["height_in_km"]])
 }
-config_defaults[["generated"]][["time_scale"]] <- function(config) {
+config_defaults[["generated"]][["time_scale"]] <- function(config, index) {
   return(config[["general"]][["time_scale"]])
 }
 
 config_defaults[["file_names"]] <- list()
-config_defaults[["file_names"]][["stan_input"]] <- function(config) {
+config_defaults[["file_names"]][["stan_input"]] <- function(config, index) {
   file_path <- paste0(paste(unlist(config[["general"]]), collapse = "_"), ".stan_input.rdata")
   if (!file.exists(file_path)) {
     file.create(file_path)
   }
   return(normalizePath(file_path))
 }
-config_defaults[["file_names"]][["stan_output"]] <- function(config) {
+config_defaults[["file_names"]][["stan_output"]] <- function(config, index) {
   file_path <- paste0(paste(c(unlist(config[["general"]]), gsub(".*[/]", "", unlist(config[["stan"]]))),
     collapse = "_"
   ), ".stan_output.rds")
@@ -1222,7 +1288,7 @@ config_defaults[["file_names"]][["stan_output"]] <- function(config) {
   }
   return(normalizePath(file_path))
 }
-config_defaults[["file_names"]][["report"]] <- function(config) {
+config_defaults[["file_names"]][["report"]] <- function(config, index) {
   file_path <- paste0(paste(c(unlist(config[["general"]]), gsub(".*[/]", "", unlist(config[["stan"]]))),
     collapse = "_"
   ), ".report.html")
@@ -1231,7 +1297,7 @@ config_defaults[["file_names"]][["report"]] <- function(config) {
   }
   return(normalizePath(file_path))
 }
-config_defaults[["file_names"]][["generated_quantities"]] <- function(config) {
+config_defaults[["file_names"]][["generated_quantities"]] <- function(config, index) {
   file_path <- paste0(paste(c(
     unlist(config[["general"]]), gsub(".*[/]", "", unlist(config[["stan"]])),
     unlist(config[["generated"]])
@@ -1241,6 +1307,98 @@ config_defaults[["file_names"]][["generated_quantities"]] <- function(config) {
   }
   return(normalizePath(file_path))
 }
+config_defaults[["test_metadata"]] <- list()
+config_defaults[["test_metadata"]][["file_names"]] <- list()
+config_defaults[["test_metadata"]][["file_names"]][["simulation_covariates"]] <- function(config, index) {
+  file_path <- paste0(paste(c(
+    unlist(config[["general"]]), rlang::hash(config[["test_metadata"]]), rlang::hash(config[["seeds"]])
+  ), collapse = "_"), ".data_simulation_covariates.rdata")
+  if (!file.exists(file_path)) {
+    file.create(file_path)
+  }
+  return(normalizePath(file_path))
+}
+config_defaults[["test_metadata"]][["file_names"]][["true_grid_cases"]] <- function(config, index) {
+  file_path <- paste0(paste(c(
+    unlist(config[["general"]]), rlang::hash(config[["test_metadata"]]), rlang::hash(config[["seeds"]])
+  ), collapse = "_"), ".true_grid_cases.rdata")
+  if (!file.exists(file_path)) {
+    file.create(file_path)
+  }
+  return(normalizePath(file_path))
+}
+
+config_defaults[["test_metadata"]][["raster"]] <- list()
+config_defaults[["test_metadata"]][["raster"]][["nrow"]] <- function(config, index) {
+  return(10)
+}
+config_defaults[["test_metadata"]][["raster"]][["ncol"]] <- function(config, index) {
+  return(10)
+}
+config_defaults[["test_metadata"]][["raster"]][["nlayer"]] <- function(config, index) {
+  return(as.numeric(
+    lubridate::as.period(lubridate::interval(
+      config[["general"]][["start_date"]],
+      lubridate::ymd(config[["general"]][["end_date"]]) + 1
+    )),
+    units = config[["test_metadata"]][["raster"]][["units"]]
+  ))
+}
+config_defaults[["test_metadata"]][["covariates"]] <- list()
+config_defaults[["test_metadata"]][["covariates"]][["::"]] <- list()
+config_defaults[["test_metadata"]][["covariates"]][["::"]][["nonspatial"]] <- function(config, index) {
+  return(grepl("nonspatial", config[["test_metadata"]][["covariates"]][[index]][["template"]]))
+}
+config_defaults[["test_metadata"]][["covariates"]][["::"]][["nontemporal"]] <- function(config, index) {
+  return(grepl("nontemporal", config[["test_metadata"]][["covariates"]][[index]][["template"]]))
+}
+config_defaults[["test_metadata"]][["covariates"]][["::"]][["spatially_smooth"]] <- function(config, index) {
+  return(grepl("spatially_smooth", config[["test_metadata"]][["covariates"]][[index]][["template"]]))
+}
+config_defaults[["test_metadata"]][["covariates"]][["::"]][["temporally_smooth"]] <- function(config, index) {
+  return(grepl("temporally_smooth", config[["test_metadata"]][["covariates"]][[index]][["template"]]))
+}
+config_defaults[["test_metadata"]][["covariates"]][["::"]][["constant"]] <- function(config, index) {
+  return(grepl("constant", config[["test_metadata"]][["covariates"]][[index]][["template"]]))
+}
+config_defaults[["test_metadata"]][["covariates"]][["::"]][["polygonal"]] <- function(config, index) {
+  return(grepl("polygonal", config[["test_metadata"]][["covariates"]][[index]][["template"]]))
+}
+config_defaults[["test_metadata"]][["covariates"]][["::"]][["radiating"]] <- function(config, index) {
+  return(grepl("radiating", config[["test_metadata"]][["covariates"]][[index]][["template"]]))
+}
+config_defaults[["test_metadata"]][["grid_observation"]] <- list()
+config_defaults[["test_metadata"]][["grid_observation"]][["proportion_observed"]] <- function(config, index) {
+  return(1)
+}
+config_defaults[["test_metadata"]][["grid_observation"]][["number_draws"]] <- function(config, index) {
+  return(1)
+}
+config_defaults[["test_metadata"]][["grid_observation"]][["spatial_observation_bias"]] <- function(config, index) {
+  return(FALSE)
+}
+config_defaults[["test_metadata"]][["grid_observation"]][["temporal_observation_bias"]] <- function(config, index) {
+  return(FALSE)
+}
+config_defaults[["test_metadata"]][["grid_observation"]][["value_observation_bias"]] <- function(config, index) {
+  return(FALSE)
+}
+config_defaults[["test_metadata"]][["grid_observation"]][["noise"]] <- function(config, index) {
+  return(FALSE)
+}
+config_defaults[["test_metadata"]][["observations"]] <- list()
+config_defaults[["test_metadata"]][["observations"]][["time_ranges"]] <- list()
+config_defaults[["test_metadata"]][["observations"]][["time_ranges"]][["::"]] <- list()
+config_defaults[["test_metadata"]][["observations"]][["time_ranges"]][["::"]][["proportion_observed"]] <- function(config, index) {
+  return(1)
+}
+config_defaults[["test_metadata"]][["observations"]][["time_ranges"]][["::"]][["start_date"]] <- function(config, index) {
+  return(config[["general"]][["start_date"]])
+}
+config_defaults[["test_metadata"]][["observations"]][["time_ranges"]][["::"]][["end_date"]] <- function(config, index) {
+  return(config[["general"]][["end_date"]])
+}
+
 
 
 #' @name complete_config
@@ -1249,10 +1407,20 @@ config_defaults[["file_names"]][["generated_quantities"]] <- function(config) {
 #' @param defaults A named list of defaults, where each element is either a named list of defaults, or a function which takes the full config, and uses it to provide a default for that field
 #' @param original_config In case of recursion, the original config this was part of.  This is what is passed to the functions in the defaults
 #' @export
-complete_config <- function(config, defaults = config_defaults, original_config = config) {
+complete_config <- function(config, defaults = config_defaults, original_config = config, index = NULL) {
   for (field_name in names(defaults)) {
     if (class(defaults[[field_name]]) == "list") {
-      if (!(class(config[[field_name]]) %in% c("NULL", "list"))) {
+      # Special case for array like members
+      if (field_name == "::") {
+        for (new_index in seq_len(length(config))) {
+          config[[new_index]] <- complete_config(
+            config[[new_index]], defaults[[field_name]],
+            original_config,
+            index = c(index, new_index)
+          )
+        }
+        next
+      } else if (!(class(config[[field_name]]) %in% c("NULL", "list"))) {
         stop(paste(
           "config field", field_name, "should be a list, but was of type",
           class(config[[field_name]]), "with value", config[[field_name]]
@@ -1263,7 +1431,7 @@ complete_config <- function(config, defaults = config_defaults, original_config 
         original_config
       )
     } else if (is.null(config[[field_name]])) {
-      config[[field_name]] <- defaults[[field_name]](original_config)
+      config[[field_name]] <- defaults[[field_name]](original_config, index)
     }
   }
   return(config)

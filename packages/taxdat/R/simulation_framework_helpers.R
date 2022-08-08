@@ -4,13 +4,12 @@
 #' @title get_or_set_seed
 #' @description Set the seed to the given value (maybe) and return current seed
 get_or_set_seed <- function(seed) {
-    if (missing(seed)) {
-        rnorm(1, 1)
-        seed <- .Random.seed
-    }
-    .GlobalEnv$.Random.seed <- seed
-    return(.GlobalEnv$.Random.seed)
-
+  if (missing(seed)) {
+    rnorm(1, 1)
+    seed <- .Random.seed
+  }
+  .GlobalEnv$.Random.seed <- seed
+  return(.GlobalEnv$.Random.seed)
 }
 
 
@@ -20,10 +19,10 @@ get_or_set_seed <- function(seed) {
 #' @description Create an extent to use with modeling
 #' @param seed integer A seed to use for the randomly constructed portions of this object
 create_test_extent <- function(seed) {
-    seed <- get_or_set_seed(seed)
-    rc <- sf::st_bbox(c(xmin = 0, ymin = 0, xmax = 1, ymax = 1))
-    attr(rc, "seed") <- seed
-    return(rc)
+  seed <- get_or_set_seed(seed)
+  rc <- sf::st_bbox(c(xmin = 0, ymin = 0, xmax = 1, ymax = 1))
+  attr(rc, "seed") <- seed
+  return(rc)
 }
 
 
@@ -37,119 +36,127 @@ create_test_extent <- function(seed) {
 #' @param test_extent The extent the raster should cover.
 #' @param seed integer A seed to use for the randomly constructed portions of this object
 create_test_raster <- function(nrows = 8, ncols = 8, nlayers = 2, seed, test_extent = create_test_extent(seed)) {
-    seed <- get_or_set_seed(seed)
-    one_rc <- sf::st_sf(sf::st_make_grid(sf::st_as_sfc(test_extent), n = c(nrows,
-        ncols)))
-    # sf::st_crs(one_rc) <- ifelse( isTRUE(sf::st_crs(test_extent) != 0),
-    # sf::st_crs(test_extent), 4326)
-    sf::st_crs(one_rc) <- 4326
-    one_rc$id = seq_len(nrow(one_rc))
-    one_rc$col <- ((one_rc$row = one_rc$id - 1)%%nrows) + 1
-    one_rc$row <- ((one_rc$row = one_rc$id - 1)%/%nrows) + 1
-    rc <- list()
-    for (i in seq_len(nlayers)) {
-        rc[[i]] <- one_rc
-        rc[[i]]$t <- i
-    }
-    rc <- do.call(sf:::rbind.sf, rc)
-    attr(rc, "seed") <- seed
-    return(rc)
+  seed <- get_or_set_seed(seed)
+  one_rc <- sf::st_sf(sf::st_make_grid(sf::st_as_sfc(test_extent), n = c(
+    nrows,
+    ncols
+  )))
+  # sf::st_crs(one_rc) <- ifelse( isTRUE(sf::st_crs(test_extent) != 0),
+  # sf::st_crs(test_extent), 4326)
+  sf::st_crs(one_rc) <- 4326
+  one_rc$id <- seq_len(nrow(one_rc))
+  one_rc$col <- ((one_rc$row <- one_rc$id - 1) %% nrows) + 1
+  one_rc$row <- ((one_rc$row <- one_rc$id - 1) %/% nrows) + 1
+  rc <- list()
+  for (i in seq_len(nlayers)) {
+    rc[[i]] <- one_rc
+    rc[[i]]$t <- i
+  }
+  rc <- do.call(sf:::rbind.sf, rc)
+  attr(rc, "seed") <- seed
+  return(rc)
 }
 
 ## @name create_test_2d_polygons See create_test_polygons for details
 ## (dimension=2)
 create_test_2d_polygons <- function(test_raster = create_test_raster(), number = 1,
-    snap = FALSE, randomize = TRUE, seed) {
-    seed <- get_or_set_seed(seed)
+                                    snap = FALSE, randomize = TRUE, seed) {
+  seed <- get_or_set_seed(seed)
 
-    dims <- c(max(test_raster$row), max(test_raster$col))
-    test_points <- suppressWarnings(sf::st_centroid(test_raster))
-    if (randomize) {
-        sample_points <- sf::st_union(sample(sf::st_geometry(test_points[seq_len(prod(dims)),
-            ]), number))
-    } else {
-        grid <- split_into_factors(number, dims[1], dims[2])
-        gridsize <- dims/grid
-        grid_points <- tidyr::crossing(row = (seq_len(grid[1]) * gridsize[1]) - floor((gridsize[1]/2)),
-            col = (seq_len(grid[2]) * gridsize[2]) - floor((gridsize[2]/2)))
-        grid_points <- sf::st_as_sf(dplyr::left_join(grid_points, test_points))
-        sample_points <- sf::st_union(sf::st_geometry(grid_points))
-    }
-    test_voronoi <- suppressWarnings(sf::st_voronoi(sample_points))
-    test_polygons <- sf::st_cast(x = test_voronoi, do_split = T)
+  dims <- c(max(test_raster$row), max(test_raster$col))
+  test_points <- suppressWarnings(sf::st_centroid(test_raster))
+  if (randomize) {
+    sample_points <- sf::st_union(sample(sf::st_geometry(test_points[seq_len(prod(dims)), ]), number))
+  } else {
+    grid <- split_into_factors(number, dims[1], dims[2])
+    gridsize <- dims / grid
+    grid_points <- tidyr::crossing(
+      row = (seq_len(grid[1]) * gridsize[1]) - floor((gridsize[1] / 2)),
+      col = (seq_len(grid[2]) * gridsize[2]) - floor((gridsize[2] / 2))
+    )
+    grid_points <- sf::st_as_sf(dplyr::left_join(grid_points, test_points))
+    sample_points <- sf::st_union(sf::st_geometry(grid_points))
+  }
+  test_voronoi <- suppressWarnings(sf::st_voronoi(sample_points))
+  test_polygons <- sf::st_cast(x = test_voronoi, do_split = T)
 
-    test_boundary <- sf::st_as_sfc(sf::st_bbox(test_raster))
-    sf::st_crs(test_boundary) <- sf::st_crs(test_polygons)
-    if (!snap) {
-        valid_idx <- sf::st_is_valid(test_polygons)
-        test_polygons[!valid_idx] <- sf::st_make_valid(test_polygons[!valid_idx])
-        rc <- suppressWarnings(sf::st_intersection(test_boundary, test_polygons))
-        rc[sf::st_geometry_type(rc) != "POLYGON"] <- sf::st_collection_extract(rc[sf::st_geometry_type(rc) !=
-            "POLYGON"], "POLYGON")
-        attr(rc, "seed") <- seed
-        return(rc)
-    } else {
-        stop("Not yet implemented")
-    }
+  test_boundary <- sf::st_as_sfc(sf::st_bbox(test_raster))
+  sf::st_crs(test_boundary) <- sf::st_crs(test_polygons)
+  if (!snap) {
+    valid_idx <- sf::st_is_valid(test_polygons)
+    test_polygons[!valid_idx] <- sf::st_make_valid(test_polygons[!valid_idx])
+    rc <- suppressWarnings(sf::st_intersection(test_boundary, test_polygons))
+    rc[sf::st_geometry_type(rc) != "POLYGON"] <- sf::st_collection_extract(rc[sf::st_geometry_type(rc) !=
+      "POLYGON"], "POLYGON")
+    attr(rc, "seed") <- seed
+    return(rc)
+  } else {
+    stop("Not yet implemented")
+  }
 }
 
 ## @name create_test_lines See create_test_polygons for details (dimension=1)
 create_test_lines <- function(test_raster = create_test_raster(), number = 10, snap = FALSE,
-    randomize = TRUE, seed) {
-    seed <- get_or_set_seed(seed)
-    if (snap) {
-        stop("This functionality is not yet written.")
-    }
-    dims <- c(max(test_raster$row), max(test_raster$col))
-    test_points <- suppressWarnings(sf::st_centroid(test_raster))
-    original_crs <- sf::st_crs(test_points)
-    test_points <- sf::st_transform(test_points, crs = 32610)
-    if (randomize) {
-        sample_points <- sample(sf::st_geometry(test_points[seq_len(prod(dims)),
-            ]), number)
-        rc <- sf::st_sf(sample_points)
-        rc$idx <- seq_len(nrow(rc))
-        sample_points <- sf::st_union(sample_points)
-    } else {
-        stop("This functionality is not yet written")
-    }
-    test_voronoi <- sf::st_sf(sf::st_collection_extract(sf::st_voronoi(sample_points)))
-    test_voronoi$point_idx <- suppressWarnings(rc$idx[unlist(sf::st_intersects(test_voronoi,
-        rc))])
-    matches <- suppressWarnings(sf::st_sf(sf::st_intersection(test_voronoi)))
-    matches$dim <- sf::st_dimension(matches)
-    matches <- matches[matches$dim == 1, ]
-    matches$match_idx <- seq_len(nrow(matches))
-    matches$lhs <- sapply(matches$origins, function(x) {
-        x[[1]]
-    })
-    matches$lhs_point_idx <- test_voronoi$point_idx[matches$lhs]
-    matches$rhs <- sapply(matches$origins, function(x) {
-        x[[2]]
-    })
-    matches$rhs_point_idx <- test_voronoi$point_idx[matches$rhs]
-    matches$geometry <- sf::st_geometry(matches)
-    sf::st_geometry(matches) <- NULL
-    rc2 <- sf::st_cast(dplyr::summarize(dplyr::group_by(sf::st_as_sf(dplyr::rename(dplyr::left_join(dplyr::select(tibble::as_tibble(tidyr::gather(matches,
-        side, idx, lhs_point_idx, rhs_point_idx)), -geometry), rc), geometry = sample_points)),
-        match_idx)), "LINESTRING")
-    rc2 <- sf::st_transform(rc2, crs = original_crs)
-    keep_idx <- sample(nrow(rc2), rpois(1, nrow(rc)))
-    rc <- rc2[keep_idx, ]
-    attr(rc, "seed") <- seed
-    return(rc)
+                              randomize = TRUE, seed) {
+  seed <- get_or_set_seed(seed)
+  if (snap) {
+    stop("This functionality is not yet written.")
+  }
+  dims <- c(max(test_raster$row), max(test_raster$col))
+  test_points <- suppressWarnings(sf::st_centroid(test_raster))
+  original_crs <- sf::st_crs(test_points)
+  test_points <- sf::st_transform(test_points, crs = 32610)
+  if (randomize) {
+    sample_points <- sample(sf::st_geometry(test_points[seq_len(prod(dims)), ]), number)
+    rc <- sf::st_sf(sample_points)
+    rc$idx <- seq_len(nrow(rc))
+    sample_points <- sf::st_union(sample_points)
+  } else {
+    stop("This functionality is not yet written")
+  }
+  test_voronoi <- sf::st_sf(sf::st_collection_extract(sf::st_voronoi(sample_points)))
+  test_voronoi$point_idx <- suppressWarnings(rc$idx[unlist(sf::st_intersects(
+    test_voronoi,
+    rc
+  ))])
+  matches <- suppressWarnings(sf::st_sf(sf::st_intersection(test_voronoi)))
+  matches$dim <- sf::st_dimension(matches)
+  matches <- matches[matches$dim == 1, ]
+  matches$match_idx <- seq_len(nrow(matches))
+  matches$lhs <- sapply(matches$origins, function(x) {
+    x[[1]]
+  })
+  matches$lhs_point_idx <- test_voronoi$point_idx[matches$lhs]
+  matches$rhs <- sapply(matches$origins, function(x) {
+    x[[2]]
+  })
+  matches$rhs_point_idx <- test_voronoi$point_idx[matches$rhs]
+  matches$geometry <- sf::st_geometry(matches)
+  sf::st_geometry(matches) <- NULL
+  rc2 <- sf::st_cast(dplyr::summarize(dplyr::group_by(
+    sf::st_as_sf(dplyr::rename(dplyr::left_join(dplyr::select(tibble::as_tibble(tidyr::gather(
+      matches,
+      side, idx, lhs_point_idx, rhs_point_idx
+    )), -geometry), rc), geometry = sample_points)),
+    match_idx
+  )), "LINESTRING")
+  rc2 <- sf::st_transform(rc2, crs = original_crs)
+  keep_idx <- sample(nrow(rc2), rpois(1, nrow(rc)))
+  rc <- rc2[keep_idx, ]
+  attr(rc, "seed") <- seed
+  return(rc)
 }
 
 ## @name create_test_points See create_test_polygons for details (dimension=0)
 create_test_points <- function(test_raster = create_test_raster(), number = 10, snap = FALSE,
-    randomize = TRUE, seed) {
-    seed <- get_or_set_seed(seed)
-    test_points <- suppressWarnings(sf::st_centroid(test_raster))
-    original_crs <- sf::st_crs(test_points)
-    dims <- c(max(test_raster$row), max(test_raster$col))
-    test_points <- test_points[sample(prod(dims), number), ]
-    attr(test_points, "seed") <- seed
-    return(test_points)
+                               randomize = TRUE, seed) {
+  seed <- get_or_set_seed(seed)
+  test_points <- suppressWarnings(sf::st_centroid(test_raster))
+  original_crs <- sf::st_crs(test_points)
+  dims <- c(max(test_raster$row), max(test_raster$col))
+  test_points <- test_points[sample(prod(dims), number), ]
+  attr(test_points, "seed") <- seed
+  return(test_points)
 }
 
 
@@ -165,51 +172,62 @@ create_test_points <- function(test_raster = create_test_raster(), number = 10, 
 #' @param seed integer A seed to use for the randomly constructed portions of this object
 #' @export
 create_test_polygons <- function(test_raster = create_test_raster(), number = 10,
-    snap = FALSE, randomize = TRUE, dimension = 2, seed) {
-    seed <- get_or_set_seed(seed)
-    if (dimension == 2) {
-        return(create_test_2d_polygons(test_raster = test_raster, number = number,
-            snap = snap, randomize = randomize, seed = seed))
-    }
-    if (dimension == 1) {
-        return(create_test_lines(test_raster = test_raster, number = number, snap = snap,
-            randomize = randomize, seed = seed))
-    }
-    if (dimension == 0) {
-        return(create_test_points(test_raster = test_raster, number = number, snap = snap,
-            randomize = randomize, seed = seed))
-    }
+                                 snap = FALSE, randomize = TRUE, dimension = 2, seed) {
+  seed <- get_or_set_seed(seed)
+  if (dimension == 2) {
+    return(create_test_2d_polygons(
+      test_raster = test_raster, number = number,
+      snap = snap, randomize = randomize, seed = seed
+    ))
+  }
+  if (dimension == 1) {
+    return(create_test_lines(
+      test_raster = test_raster, number = number, snap = snap,
+      randomize = randomize, seed = seed
+    ))
+  }
+  if (dimension == 0) {
+    return(create_test_points(
+      test_raster = test_raster, number = number, snap = snap,
+      randomize = randomize, seed = seed
+    ))
+  }
 }
 
 
 make_layered_polygons_explicit <- function(test_polygons) {
-    n_polygon_layers <- length(names(test_polygons)[grepl("name", names(test_polygons))])
-    explicit_layered_polygons <- NULL
-    all_layer_names <- rlang::syms(paste("name", seq_len(n_polygon_layers), sep = "_"))
-    if (n_polygon_layers > 1) {
-        for (layer in seq_len(n_polygon_layers)) {
-            layer_names <- rlang::syms(paste("name", seq_len(layer), sep = "_"))
-            tmp <- dplyr::summarize(dplyr::group_by(test_polygons, !!!layer_names))
-            for (layer2 in seq_len(n_polygon_layers)) {
-                layer2_name <- rlang::sym(paste("name", layer2, sep = "_"))
-                if (!any(grepl(layer2_name, names(tmp)))) {
-                  tmp <- dplyr::mutate(tmp, `:=`(!!layer2_name, NA))
-                }
-            }
-            if (!is.null(explicit_layered_polygons)) {
-                explicit_layered_polygons <- rbind(explicit_layered_polygons, tmp[,
-                  c(paste("name", seq_len(n_polygon_layers), sep = "_"), "geometry")])
-            } else {
-                explicit_layered_polygons <- tmp[, c(paste("name", seq_len(n_polygon_layers),
-                  sep = "_"), "geometry")]
-            }
+  n_polygon_layers <- length(names(test_polygons)[grepl("name", names(test_polygons))])
+  explicit_layered_polygons <- NULL
+  all_layer_names <- rlang::syms(paste("name", seq_len(n_polygon_layers), sep = "_"))
+  if (n_polygon_layers > 1) {
+    for (layer in seq_len(n_polygon_layers)) {
+      layer_names <- rlang::syms(paste("name", seq_len(layer), sep = "_"))
+      tmp <- dplyr::summarize(dplyr::group_by(test_polygons, !!!layer_names))
+      for (layer2 in seq_len(n_polygon_layers)) {
+        layer2_name <- rlang::sym(paste("name", layer2, sep = "_"))
+        if (!any(grepl(layer2_name, names(tmp)))) {
+          tmp <- dplyr::mutate(tmp, `:=`(!!layer2_name, NA))
         }
-    } else {
-        explicit_layered_polygons <- test_polygons
+      }
+      if (!is.null(explicit_layered_polygons)) {
+        explicit_layered_polygons <- rbind(explicit_layered_polygons, tmp[
+          ,
+          c(paste("name", seq_len(n_polygon_layers), sep = "_"), "geometry")
+        ])
+      } else {
+        explicit_layered_polygons <- tmp[, c(paste("name", seq_len(n_polygon_layers),
+          sep = "_"
+        ), "geometry")]
+      }
     }
-    explicit_layered_polygons <- tidyr::unite(explicit_layered_polygons, "location",
-        !!!all_layer_names, sep = "::", na.rm = TRUE)
-    return(explicit_layered_polygons)
+  } else {
+    explicit_layered_polygons <- test_polygons
+  }
+  explicit_layered_polygons <- tidyr::unite(explicit_layered_polygons, "location",
+    !!!all_layer_names,
+    sep = "::", na.rm = TRUE
+  )
+  return(explicit_layered_polygons)
 }
 
 
@@ -226,191 +244,203 @@ make_layered_polygons_explicit <- function(test_polygons) {
 #' @param randomize boolean Whether to randomly generate the polygons (as opposed to uniformly)
 #' @param seed integer A seed to use for the randomly constructed portions of this object
 create_test_layered_polygons <- function(test_raster = create_test_raster(), base_number = 2,
-    n_layers = 3, factor = 2, snap = FALSE, randomize = TRUE, seed) {
-    seed <- get_or_set_seed(seed)
-    test_boundary <- sf::st_as_sfc(sf::st_bbox(test_raster), crs = sf::st_crs(test_raster))
-    sf::st_crs(test_boundary) <- sf::st_crs(test_raster)
-    layers <- list(`0` = sf::st_sf(geometry = test_boundary, name_0 = "0"))
-    rc <- sf::st_sf(geometry = layers[[1]])
-    smallest_layer <- sf::st_sf(geometry = create_test_polygons(test_raster = test_raster,
-        number = base_number * factor^(n_layers - 1), randomize = randomize, snap = snap,
-        dimension = 2, seed = seed))
-    smallest_layer[[paste("name", n_layers, sep = "_")]] <- seq_len(nrow(smallest_layer))
-    for (layer in rev(seq_len(n_layers - 1))) {
-        parent_name <- rlang::sym(paste("name", layer + 1, sep = "_"))
-        layer_name <- rlang::sym(paste("name", layer, sep = "_"))
-        previous_layer_names <- unique(smallest_layer[[parent_name]])
-        start_names <- sample(previous_layer_names, length(previous_layer_names)/factor)
-        smallest_layer[[layer_name]] <- 1 * NA
-        counter <- 1
-        for (name in start_names) {
-            smallest_layer[smallest_layer[[parent_name]] == name, paste(layer_name)] <- counter
-            counter <- counter + 1
-        }
-        ## While any are unclassified
-        while (any(is.na(smallest_layer[[layer_name]]))) {
-            tmp <- smallest_layer[!is.na(smallest_layer[[layer_name]]), ]
-            tmp$size <- table(tmp[[layer_name]])[tmp[[layer_name]]]
-            tmp_frame <- smallest_layer[is.na(smallest_layer[[layer_name]]), ]
-            intersections <- sf::st_intersects(tmp, tmp_frame)
-            tmp <- do.call(what = rbind, lapply(seq_len(length(intersections)), function(i) {
-                tibble::tibble(`:=`(!!layer_name, tmp[[layer_name]][i]), size = tmp[["size"]][[i]],
-                  intersections = intersections[[i]], parent_name = tmp_frame[[parent_name]][intersections])
-
-            }))
-            idx <- sample(seq_len(nrow(tmp)), 1, prob = 1/tmp$size)
-
-            smallest_layer[[layer_name]][smallest_layer[[parent_name]] == tmp[["parent_name"]][[idx]]] <- tmp[[layer_name]][[idx]]
-        }
-
+                                         n_layers = 3, factor = 2, snap = FALSE, randomize = TRUE, seed) {
+  seed <- get_or_set_seed(seed)
+  test_boundary <- sf::st_as_sfc(sf::st_bbox(test_raster), crs = sf::st_crs(test_raster))
+  sf::st_crs(test_boundary) <- sf::st_crs(test_raster)
+  layers <- list(`0` = sf::st_sf(geometry = test_boundary, name_0 = "0"))
+  rc <- sf::st_sf(geometry = layers[[1]])
+  smallest_layer <- sf::st_sf(geometry = create_test_polygons(
+    test_raster = test_raster,
+    number = base_number * factor^(n_layers - 1), randomize = randomize, snap = snap,
+    dimension = 2, seed = seed
+  ))
+  smallest_layer[[paste("name", n_layers, sep = "_")]] <- seq_len(nrow(smallest_layer))
+  for (layer in rev(seq_len(n_layers - 1))) {
+    parent_name <- rlang::sym(paste("name", layer + 1, sep = "_"))
+    layer_name <- rlang::sym(paste("name", layer, sep = "_"))
+    previous_layer_names <- unique(smallest_layer[[parent_name]])
+    start_names <- sample(previous_layer_names, length(previous_layer_names) / factor)
+    smallest_layer[[layer_name]] <- 1 * NA
+    counter <- 1
+    for (name in start_names) {
+      smallest_layer[smallest_layer[[parent_name]] == name, paste(layer_name)] <- counter
+      counter <- counter + 1
     }
-    smallest_layer <- make_layered_polygons_explicit(smallest_layer)
-    attr(smallest_layer, "seed") <- seed
-    return(smallest_layer)
+    ## While any are unclassified
+    while (any(is.na(smallest_layer[[layer_name]]))) {
+      tmp <- smallest_layer[!is.na(smallest_layer[[layer_name]]), ]
+      tmp$size <- table(tmp[[layer_name]])[tmp[[layer_name]]]
+      tmp_frame <- smallest_layer[is.na(smallest_layer[[layer_name]]), ]
+      intersections <- sf::st_intersects(tmp, tmp_frame)
+      tmp <- do.call(what = rbind, lapply(seq_len(length(intersections)), function(i) {
+        tibble::tibble(`:=`(!!layer_name, tmp[[layer_name]][i]),
+          size = tmp[["size"]][[i]],
+          intersections = intersections[[i]], parent_name = tmp_frame[[parent_name]][intersections]
+        )
+      }))
+      idx <- sample(seq_len(nrow(tmp)), 1, prob = 1 / tmp$size)
+
+      smallest_layer[[layer_name]][smallest_layer[[parent_name]] == tmp[["parent_name"]][[idx]]] <- tmp[[layer_name]][[idx]]
+    }
+  }
+  smallest_layer <- make_layered_polygons_explicit(smallest_layer)
+  attr(smallest_layer, "seed") <- seed
+  return(smallest_layer)
 }
 
 
 ## @name independent_covariate See create_test_covariate for details
 independent_covariate <- function(test_raster, spatially_variable, temporally_variable,
-    seed) {
-    seed <- get_or_set_seed(seed)
-    n_grid <- nrow(test_raster)
-    n_spatial <- max(test_raster$id)
-    default_val <- 0
-    if (n_spatial == 1) {
-        spatially_variable <- FALSE
-        # default_val <- 1
-    }
-    n_temporal <- max(test_raster$t)
-    if (n_temporal == 1) {
-        temporally_variable <- FALSE
-        # default_val <- 1
-    }
-    rc <- matrix(default_val, nrow = n_spatial, ncol = n_temporal)
+                                  seed) {
+  seed <- get_or_set_seed(seed)
+  n_grid <- nrow(test_raster)
+  n_spatial <- max(test_raster$id)
+  default_val <- 0
+  if (n_spatial == 1) {
+    spatially_variable <- FALSE
+    # default_val <- 1
+  }
+  n_temporal <- max(test_raster$t)
+  if (n_temporal == 1) {
+    temporally_variable <- FALSE
+    # default_val <- 1
+  }
+  rc <- matrix(default_val, nrow = n_spatial, ncol = n_temporal)
 
-    if (spatially_variable & temporally_variable) {
-        rc <- matrix(my_scale(rnorm(n_grid)), nrow = n_spatial, ncol = n_temporal)
-    } else if (spatially_variable) {
-        rc <- matrix(my_scale(rnorm(n_spatial)), nrow = n_spatial, ncol = n_temporal)
-    } else if (temporally_variable) {
-        rc <- matrix(my_scale(rnorm(n_temporal)), nrow = n_spatial, ncol = n_temporal,
-            byrow = TRUE)
-    }
-    attr(rc, "seed") <- seed
-    return(rc)
+  if (spatially_variable & temporally_variable) {
+    rc <- matrix(my_scale(rnorm(n_grid)), nrow = n_spatial, ncol = n_temporal)
+  } else if (spatially_variable) {
+    rc <- matrix(my_scale(rnorm(n_spatial)), nrow = n_spatial, ncol = n_temporal)
+  } else if (temporally_variable) {
+    rc <- matrix(my_scale(rnorm(n_temporal)),
+      nrow = n_spatial, ncol = n_temporal,
+      byrow = TRUE
+    )
+  }
+  attr(rc, "seed") <- seed
+  return(rc)
 }
 
 ## @name smoothed_covariate See create_test_covariate for details
 smoothed_covariate <- function(test_raster, spatially_variable, temporally_variable,
-    smoothing_function, rho, seed) {
-    seed <- get_or_set_seed(seed)
-    n_grid <- nrow(test_raster)
+                               smoothing_function, rho, seed) {
+  seed <- get_or_set_seed(seed)
+  n_grid <- nrow(test_raster)
 
-    n_spatial <- max(test_raster$id)
-    default_val <- 0
-    if (n_spatial == 1) {
-        spatially_variable <- FALSE
-        # default_val <- 1
-    }
-    n_temporal <- max(test_raster$t)
-    if (n_temporal == 1) {
-        temporally_variable <- FALSE
-        # default_val <- 1
-    }
+  n_spatial <- max(test_raster$id)
+  default_val <- 0
+  if (n_spatial == 1) {
+    spatially_variable <- FALSE
+    # default_val <- 1
+  }
+  n_temporal <- max(test_raster$t)
+  if (n_temporal == 1) {
+    temporally_variable <- FALSE
+    # default_val <- 1
+  }
 
-    dims <- c(max(test_raster$row), max(test_raster$col), max(test_raster$t))
-    rc <- matrix(default_val, nrow = n_spatial, ncol = n_temporal)
-    ## Construct adjacency matrix
+  dims <- c(max(test_raster$row), max(test_raster$col), max(test_raster$t))
+  rc <- matrix(default_val, nrow = n_spatial, ncol = n_temporal)
+  ## Construct adjacency matrix
+  if (spatially_variable & temporally_variable) {
+    arr <- array(NA, dims)
+  } else if (spatially_variable) {
+    arr <- array(NA, dims[seq_len(2)])
+  } else if (temporally_variable) {
+    arr <- array(NA, dims[3])
+  }
+  if (spatially_variable || temporally_variable) {
+    adjacency <- array_to_adjacency(arr)
+    centers <- array_to_centers(arr)
+    diagonal <- Matrix::Diagonal(nrow(adjacency), Matrix::rowSums(adjacency))
+
+    covariance <- diagonal - rho * adjacency
+
     if (spatially_variable & temporally_variable) {
-        arr <- array(NA, dims)
+      rc <- (matrix(my_scale(smoothing_function(
+        1, rep(0, n_grid), covariance,
+        centers
+      )), nrow = n_spatial, ncol = n_temporal))
     } else if (spatially_variable) {
-        arr <- array(NA, dims[seq_len(2)])
+      rc <- (matrix(my_scale(smoothing_function(
+        1, rep(0, n_spatial), covariance,
+        centers
+      )), nrow = n_spatial, ncol = n_temporal))
     } else if (temporally_variable) {
-        arr <- array(NA, dims[3])
+      rc <- (matrix(my_scale(smoothing_function(
+        1, rep(0, n_temporal), covariance,
+        centers
+      )), nrow = n_spatial, ncol = n_temporal, byrow = TRUE))
     }
-    if (spatially_variable || temporally_variable) {
-        adjacency <- array_to_adjacency(arr)
-        centers <- array_to_centers(arr)
-        diagonal <- Matrix::Diagonal(nrow(adjacency), Matrix::rowSums(adjacency))
-
-        covariance <- diagonal - rho * adjacency
-
-        if (spatially_variable & temporally_variable) {
-            rc <- (matrix(my_scale(smoothing_function(1, rep(0, n_grid), covariance,
-                centers)), nrow = n_spatial, ncol = n_temporal))
-        } else if (spatially_variable) {
-            rc <- (matrix(my_scale(smoothing_function(1, rep(0, n_spatial), covariance,
-                centers)), nrow = n_spatial, ncol = n_temporal))
-        } else if (temporally_variable) {
-            rc <- (matrix(my_scale(smoothing_function(1, rep(0, n_temporal), covariance,
-                centers)), nrow = n_spatial, ncol = n_temporal, byrow = TRUE))
-        }
-    }
-    attr(rc, "seed") <- seed
-    return(rc)
+  }
+  attr(rc, "seed") <- seed
+  return(rc)
 }
 
 ## @name polygonal_covariate See create_test_covariate for details
 polygonal_covariate <- function(test_raster, polygonal, polygons, seed) {
-    seed <- get_or_set_seed(seed)
+  seed <- get_or_set_seed(seed)
 
-    n_grid <- nrow(test_raster)
-    n_spatial <- max(test_raster$id)
-    n_temporal <- max(test_raster$t)
-    rc <- NULL
-    if (!polygonal) {
-        rc <- matrix(0, nrow = n_spatial, ncol = n_temporal)
-    } else {
-        polygonal_contribution <- rep(0, times = c(nrow(test_raster)))
-        tmp_names <- names(polygons)
-        tmp_names <- tmp_names[tmp_names != "geometry"]
-        for (name in tmp_names) {
-            polygons[[paste(name, "value", sep = "_")]] <- rnorm(nrow(polygons))
-            test_points <- suppressWarnings(sf::st_centroid(test_raster))
-            tmp <- sf::st_intersects(polygons, test_points)
-            for (p_idx in seq_len(nrow(polygons))) {
-                polygonal_contribution[tmp[[p_idx]]] <- polygonal_contribution[tmp[[p_idx]]] +
-                  polygons[[paste(name, "value", sep = "_")]][p_idx]
-            }
-        }
-        rc <- matrix(my_scale(polygonal_contribution), nrow = n_spatial, ncol = n_temporal)
+  n_grid <- nrow(test_raster)
+  n_spatial <- max(test_raster$id)
+  n_temporal <- max(test_raster$t)
+  rc <- NULL
+  if (!polygonal) {
+    rc <- matrix(0, nrow = n_spatial, ncol = n_temporal)
+  } else {
+    polygonal_contribution <- rep(0, times = c(nrow(test_raster)))
+    tmp_names <- names(polygons)
+    tmp_names <- tmp_names[tmp_names != "geometry"]
+    for (name in tmp_names) {
+      polygons[[paste(name, "value", sep = "_")]] <- rnorm(nrow(polygons))
+      test_points <- suppressWarnings(sf::st_centroid(test_raster))
+      tmp <- sf::st_intersects(polygons, test_points)
+      for (p_idx in seq_len(nrow(polygons))) {
+        polygonal_contribution[tmp[[p_idx]]] <- polygonal_contribution[tmp[[p_idx]]] +
+          polygons[[paste(name, "value", sep = "_")]][p_idx]
+      }
     }
+    rc <- matrix(my_scale(polygonal_contribution), nrow = n_spatial, ncol = n_temporal)
+  }
 
-    attr(rc, "seed") <- seed
-    return(rc)
+  attr(rc, "seed") <- seed
+  return(rc)
 }
 
 ## @name radiating_covariate See create_test_covariate for details
 radiating_covariate <- function(test_raster, radiating, radiating_polygons, radiating_means,
-    radiation_function, seed) {
-    seed <- get_or_set_seed(seed)
-    n_grid <- nrow(test_raster)
-    n_spatial <- max(test_raster$id)
-    n_temporal <- max(test_raster$t)
-    rc <- matrix(0, nrow = n_spatial, ncol = n_temporal)
-    if (radiating) {
-        raster_points <- suppressWarnings(sf::st_centroid(test_raster))
+                                radiation_function, seed) {
+  seed <- get_or_set_seed(seed)
+  n_grid <- nrow(test_raster)
+  n_spatial <- max(test_raster$id)
+  n_temporal <- max(test_raster$t)
+  rc <- matrix(0, nrow = n_spatial, ncol = n_temporal)
+  if (radiating) {
+    raster_points <- suppressWarnings(sf::st_centroid(test_raster))
 
-        radiation_contribution <- apply(sf::st_distance(raster_points, radiating_polygons),
-            1, function(distances) {
-                sum(radiation_function(mu = radiating_means, x = distances))
-            })
-        rc <- matrix(my_scale(radiation_contribution), nrow = n_spatial, ncol = n_temporal)
-    }
+    radiation_contribution <- apply(
+      sf::st_distance(raster_points, radiating_polygons),
+      1, function(distances) {
+        sum(radiation_function(mu = radiating_means, x = distances))
+      }
+    )
+    rc <- matrix(my_scale(radiation_contribution), nrow = n_spatial, ncol = n_temporal)
+  }
 
-    attr(rc, "seed") <- seed
-    return(rc)
+  attr(rc, "seed") <- seed
+  return(rc)
 }
 
 ## @name constant_covariate See create_test_covariate for details
 constant_covariate <- function(test_raster, constant, seed) {
-    seed <- get_or_set_seed(seed)
-    n_spatial <- max(test_raster$id)
-    n_temporal <- max(test_raster$t)
-    value <- ifelse(constant, 1, 0)
-    rc <- matrix(value, nrow = n_spatial, ncol = n_temporal)
-    attr(rc, "seed") <- seed
-    return(rc)
+  seed <- get_or_set_seed(seed)
+  n_spatial <- max(test_raster$id)
+  n_temporal <- max(test_raster$t)
+  value <- ifelse(constant, 1, 0)
+  rc <- matrix(value, nrow = n_spatial, ncol = n_temporal)
+  attr(rc, "seed") <- seed
+  return(rc)
 }
 
 
@@ -443,44 +473,54 @@ constant_covariate <- function(test_raster, constant, seed) {
 #' @param family character Currently unused
 #' @param seed integer A seed to use for the randomly constructed portions of this object
 create_test_covariate <- function(test_raster = create_test_raster(), nonspatial = TRUE,
-    nontemporal = TRUE, spatially_smooth = TRUE, temporally_smooth = TRUE, polygonal = TRUE,
-    radiating = TRUE, constant = FALSE, rho = 0.999999, smoothing_function = function(n,
-        mu, covariance, centers) {
-        return(my_scale(MASS::mvrnorm(n = n, mu = mu, Matrix::solve(covariance))))
-    }, polygons = create_test_layered_polygons(), radiation_function = function(x,
-        mu) {
-        mu * exp(-(x/10000)^2)
-    }, radiating_polygons = sf::st_sf(sf::st_union(create_test_polygons(dimension = 1))),
-    radiating_means = rnorm(nrow(radiating_polygons)), weights = c(1, 1, 1, 1, 1),
-    family = "Gaussian", seed) {
-    seed <- get_or_set_seed(seed)
-    if (family != "Gaussian") {
-        stop("This is not yet implemented")
-    }
+                                  nontemporal = TRUE, spatially_smooth = TRUE, temporally_smooth = TRUE, polygonal = TRUE,
+                                  radiating = TRUE, constant = FALSE, rho = 0.999999, smoothing_function = function(n,
+                                                                                                                    mu, covariance, centers) {
+                                    return(my_scale(MASS::mvrnorm(n = n, mu = mu, Matrix::solve(covariance))))
+                                  }, polygons = create_test_layered_polygons(), radiation_function = function(x,
+                                                                                                              mu) {
+                                    mu * exp(-(x / 10000)^2)
+                                  }, radiating_polygons = sf::st_sf(sf::st_union(create_test_polygons(dimension = 1))),
+                                  radiating_means = rnorm(nrow(radiating_polygons)), weights = c(1, 1, 1, 1, 1),
+                                  family = "Gaussian", seed) {
+  seed <- get_or_set_seed(seed)
+  if (family != "Gaussian") {
+    stop("This is not yet implemented")
+  }
 
-    n_grid <- nrow(test_raster)
-    n_spatial <- max(test_raster$id)
-    n_temporal <- max(test_raster$t)
+  n_grid <- nrow(test_raster)
+  n_spatial <- max(test_raster$id)
+  n_temporal <- max(test_raster$t)
 
-    ## Start at 0 and add covariates
-    test_raster[["covariate"]] <- 0
-    ## Add in covariates covariate functions return appropriately sized
-    ## matrices which are 0 if the covariate is not used
-    test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(independent_covariate(test_raster,
-        nonspatial, nontemporal, seed = seed) * weights[1])
-    test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(smoothed_covariate(test_raster,
-        spatially_smooth, temporally_smooth, smoothing_function, rho, seed = seed) *
-        weights[2])
-    test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(polygonal_covariate(test_raster,
-        polygonal, polygons, seed = seed) * weights[3])
-    test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(radiating_covariate(test_raster,
-        radiating, radiating_polygons, radiating_means, radiation_function, seed = seed) *
-        weights[4])
-    test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(constant_covariate(test_raster,
-        constant, seed = seed) * weights[5])
+  ## Start at 0 and add covariates
+  test_raster[["covariate"]] <- 0
+  ## Add in covariates covariate functions return appropriately sized
+  ## matrices which are 0 if the covariate is not used
+  test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(independent_covariate(test_raster,
+    nonspatial, nontemporal,
+    seed = seed
+  ) * weights[1])
+  test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(smoothed_covariate(test_raster,
+    spatially_smooth, temporally_smooth, smoothing_function, rho,
+    seed = seed
+  ) *
+    weights[2])
+  test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(polygonal_covariate(test_raster,
+    polygonal, polygons,
+    seed = seed
+  ) * weights[3])
+  test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(radiating_covariate(test_raster,
+    radiating, radiating_polygons, radiating_means, radiation_function,
+    seed = seed
+  ) *
+    weights[4])
+  test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(constant_covariate(test_raster,
+    constant,
+    seed = seed
+  ) * weights[5])
 
-    attr(test_raster, "seed") <- seed
-    return(test_raster)
+  attr(test_raster, "seed") <- seed
+  return(test_raster)
 }
 
 
@@ -508,42 +548,52 @@ create_test_covariate <- function(test_raster = create_test_raster(), nonspatial
 #' @param family character Currently unused
 #' @param seed integer A seed to use for the randomly constructed portions of this object
 create_multiple_test_covariates <- function(test_raster = create_test_raster(), ncovariates = 2,
-    nonspatial = c(FALSE, TRUE), nontemporal = c(FALSE, TRUE), spatially_smooth = c(FALSE,
-        TRUE), temporally_smooth = c(FALSE, TRUE), polygonal = c(FALSE, TRUE), radiating = c(TRUE,
-        TRUE), constant = c(TRUE, FALSE), rho = rep(0.999999, times = ncovariates),
-    polygons = create_test_layered_polygons(), radiating_polygons = list(create_test_polygons(dimension = 0,
-        number = 2), sf::st_union(create_test_polygons(dimension = 1))), smoothing_function = rep(list(function(n,
-        mu, covariance, centers) {
-        return(my_scale(MASS::mvrnorm(n = n, mu = mu, Matrix::solve(covariance))))
-    }), ncovariates), radiation_function = rep(list(function(x, mu) {
-        mu * exp(-(x/10000)^2)
-    }), ncovariates), radiating_means = list(rnorm(2), 1), weights = rep(list(c(0.3,
-        1, 1, 1, 1)), ncovariates), magnitude = rep(1, times = ncovariates), family = "Gaussian",
-    seed) {
-    seed <- get_or_set_seed(seed)
-    rc <- list()
-    for (idx in seq_len(ncovariates)) {
-        tmp <- create_test_covariate(test_raster = test_raster, nonspatial = nonspatial[idx],
-            nontemporal = nontemporal[idx], spatially_smooth = spatially_smooth[idx],
-            temporally_smooth = temporally_smooth[idx], polygonal = polygonal[idx],
-            radiating = radiating[[idx]], constant = constant[[idx]], rho = rho[idx],
-            polygons = polygons, smoothing_function = smoothing_function[[idx]],
-            radiation_function = radiation_function[[idx]], radiating_polygons = radiating_polygons[[idx]],
-            radiating_means = radiating_means[[idx]], weights = weights[[idx]], family = family,
-            seed = seed)
-        if (length(unique(as.vector(tmp[["covariate"]]))) > 1) {
-            tmp[["covariate"]] <- my_scale(tmp[["covariate"]]) * magnitude[idx]
-        } else {
-            tmp[["covariate"]] <- magnitude[idx]
-        }
-
-        tmp$geometry <- sf::st_geometry(tmp)
-        tmp <- sf::st_as_sf(sf::st_drop_geometry(tmp))
-        tmp$covariate <- as.numeric(tmp$covariate)
-        rc[[idx]] <- tmp
+                                            nonspatial = c(FALSE, TRUE), nontemporal = c(FALSE, TRUE), spatially_smooth = c(
+                                              FALSE,
+                                              TRUE
+                                            ), temporally_smooth = c(FALSE, TRUE), polygonal = c(FALSE, TRUE), radiating = c(
+                                              TRUE,
+                                              TRUE
+                                            ), constant = c(TRUE, FALSE), rho = rep(0.999999, times = ncovariates),
+                                            polygons = create_test_layered_polygons(), radiating_polygons = list(create_test_polygons(
+                                              dimension = 0,
+                                              number = 2
+                                            ), sf::st_union(create_test_polygons(dimension = 1))), smoothing_function = rep(list(function(n,
+                                                                                                                                          mu, covariance, centers) {
+                                              return(my_scale(MASS::mvrnorm(n = n, mu = mu, Matrix::solve(covariance))))
+                                            }), ncovariates), radiation_function = rep(list(function(x, mu) {
+                                              mu * exp(-(x / 10000)^2)
+                                            }), ncovariates), radiating_means = list(rnorm(2), 1), weights = rep(list(c(
+                                              0.3,
+                                              1, 1, 1, 1
+                                            )), ncovariates), magnitude = rep(1, times = ncovariates), family = "Gaussian",
+                                            seed) {
+  seed <- get_or_set_seed(seed)
+  rc <- list()
+  for (idx in seq_len(ncovariates)) {
+    tmp <- create_test_covariate(
+      test_raster = test_raster, nonspatial = nonspatial[idx],
+      nontemporal = nontemporal[idx], spatially_smooth = spatially_smooth[idx],
+      temporally_smooth = temporally_smooth[idx], polygonal = polygonal[idx],
+      radiating = radiating[[idx]], constant = constant[[idx]], rho = rho[idx],
+      polygons = polygons, smoothing_function = smoothing_function[[idx]],
+      radiation_function = radiation_function[[idx]], radiating_polygons = radiating_polygons[[idx]],
+      radiating_means = radiating_means[[idx]], weights = weights[[idx]], family = family,
+      seed = seed
+    )
+    if (length(unique(as.vector(tmp[["covariate"]]))) > 1) {
+      tmp[["covariate"]] <- my_scale(tmp[["covariate"]]) * magnitude[idx]
+    } else {
+      tmp[["covariate"]] <- magnitude[idx]
     }
-    attr(rc, "seed") <- seed
-    return(rc)
+
+    tmp$geometry <- sf::st_geometry(tmp)
+    tmp <- sf::st_as_sf(sf::st_drop_geometry(tmp))
+    tmp$covariate <- as.numeric(tmp$covariate)
+    rc[[idx]] <- tmp
+  }
+  attr(rc, "seed") <- seed
+  return(rc)
 }
 
 #' @export
@@ -555,54 +605,55 @@ create_multiple_test_covariates <- function(test_raster = create_test_raster(), 
 #' @param family The family of distribution to use (only Poisson supported for now)
 #' @param seed integer A seed to use for the randomly constructed portions of this object
 create_underlying_distribution <- function(covariates = create_multiple_test_covariates(),
-    normalization = function(x) {
-        if (length(unique(x[])) == 1) {
-            return(x * 0 + 1)
-        }
-        x <- exp(x)
-        x[] <- 0.1 * ((x[] - min(x[]))/(max(x[]) - min(x[])))
-        return(x)
-    }, family = "Poisson", seed) {
-    seed <- get_or_set_seed(seed)
-    offset <- 10^covariates[[1]][["covariate"]] + 1
-    offset[offset >= 2^(32)] <- 2^32 - 1
-    if (length(covariates) > 1) {
-        covariates <- covariates[-1]
-    } else {
-        covariates[[1]] <- covariates[[1]] * 0 + 1
+                                           normalization = function(x) {
+                                             if (length(unique(x[])) == 1) {
+                                               return(x * 0 + 1)
+                                             }
+                                             x <- exp(x)
+                                             x[] <- 0.1 * ((x[] - min(x[])) / (max(x[]) - min(x[])))
+                                             return(x)
+                                           }, family = "Poisson", seed) {
+  seed <- get_or_set_seed(seed)
+  offset <- 10^covariates[[1]][["covariate"]] + 1
+  offset[offset >= 2^(32)] <- 2^32 - 1
+  if (length(covariates) > 1) {
+    covariates <- covariates[-1]
+  } else {
+    covariates[[1]] <- covariates[[1]] * 0 + 1
+  }
+  if (length(covariates) <= 0) {
+    stop("Covariates should be a list of sf objects representing spacetime grids")
+  }
+  if (!all(sapply(covariates, function(x) {
+    nrow(x) == nrow(covariates[[1]])
+  }))) {
+    stop("All covariates must have the number of cells")
+  }
+  lambdas <- Reduce(function(x, y) {
+    return(x + y[["covariate"]])
+  }, covariates, init = covariates[[1]][["covariate"]] * 0)
+  lambdas <- normalization(lambdas)
+  tmp <- lambdas
+  lambdas <- covariates[[1]]
+  lambdas[["covariate"]] <- NULL
+  lambdas[["rate"]] <- tmp
+  lambdas[["cases"]] <- tmp * offset
+  cases <- offset * tmp
+  fun <- function(n) {
+    rc <- list()
+    all_poisson_draws <- matrix(ncol = n, rpois(n * length(cases), rep(cases[],
+      times = n
+    )))
+    for (i in seq_len(n)) {
+      rc[[i]] <- covariates[[1]]
+      rc[[i]][["cases"]] <- all_poisson_draws[, i]
+      rc[[i]][["draw"]] <- i
     }
-    if (length(covariates) <= 0) {
-        stop("Covariates should be a list of sf objects representing spacetime grids")
-    }
-    if (!all(sapply(covariates, function(x) {
-        nrow(x) == nrow(covariates[[1]])
-    }))) {
-        stop("All covariates must have the number of cells")
-    }
-    lambdas <- Reduce(function(x, y) {
-        return(x + y[["covariate"]])
-    }, covariates, init = covariates[[1]][["covariate"]] * 0)
-    lambdas <- normalization(lambdas)
-    tmp <- lambdas
-    lambdas <- covariates[[1]]
-    lambdas[["covariate"]] <- NULL
-    lambdas[["rate"]] <- tmp
-    lambdas[["cases"]] <- tmp * offset
-    cases <- offset * tmp
-    fun <- function(n) {
-        rc <- list()
-        all_poisson_draws <- matrix(ncol = n, rpois(n * length(cases), rep(cases[],
-            times = n)))
-        for (i in seq_len(n)) {
-            rc[[i]] <- covariates[[1]]
-            rc[[i]][["cases"]] <- all_poisson_draws[, i]
-            rc[[i]][["draw"]] <- i
-        }
-        return(do.call(sf:::rbind.sf, rc))
-    }
-    rc <- list(mean = lambdas, rcases = fun)
-    attr(rc, "seed") <- seed
-    return(rc)
+    return(do.call(sf:::rbind.sf, rc))
+  }
+  rc <- list(mean = lambdas, rcases = fun)
+  attr(rc, "seed") <- seed
+  return(rc)
 }
 
 #' @export
@@ -618,42 +669,46 @@ create_underlying_distribution <- function(covariates = create_multiple_test_cov
 #' @param noise Whether to add noise to the observations
 #' @param seed integer A seed to use for the randomly constructed portions of this object
 observe_gridcells <- function(underlying_distribution = create_underlying_distribution(),
-    proportion_observed = 1, number_draws = 1, spatial_observation_bias = TRUE, temporal_observation_bias = TRUE,
-    value_observation_bias = TRUE, noise = FALSE, seed) {
-    seed <- get_or_set_seed(seed)
-    if (noise) {
-        stop("This is not yet implemented")
-    }
-    results <- underlying_distribution$rcases(number_draws)
-    spatial_weights <- 0
-    value_weights <- 0
-    temporal_weights <- 0
+                              proportion_observed = 1, number_draws = 1, spatial_observation_bias = TRUE, temporal_observation_bias = TRUE,
+                              value_observation_bias = TRUE, noise = FALSE, seed) {
+  seed <- get_or_set_seed(seed)
+  if (noise) {
+    stop("This is not yet implemented")
+  }
+  results <- underlying_distribution$rcases(number_draws)
+  spatial_weights <- 0
+  value_weights <- 0
+  temporal_weights <- 0
 
-    if (value_observation_bias) {
-        value_weights <- (results$cases + 1)/sum(results$cases + 1)
-        value_weights <- as.vector(my_scale(value_weights))
-    }
-    if (temporal_observation_bias) {
-        temporal_weights <- create_test_covariate(test_raster = results, nonspatial = FALSE,
-            nontemporal = FALSE, spatially_smooth = FALSE, temporally_smooth = TRUE,
-            polygonal = FALSE, radiating = FALSE, constant = FALSE)[["covariate"]]
-        temporal_weights <- my_scale(temporal_weights)
-    }
-    if (spatial_observation_bias) {
-        spatial_weights <- create_test_covariate(test_raster = results, nonspatial = FALSE,
-            nontemporal = FALSE, spatially_smooth = TRUE, temporally_smooth = FALSE,
-            polygonal = FALSE, radiating = FALSE, constant = FALSE)[["covariate"]]
-        spatial_weights <- my_scale(spatial_weights)
-    }
-    n <- nrow(results)
-    n_samp <- rbinom(1, n, proportion_observed)
-    indices <- sample(seq_len(n), n - n_samp, prob = seq_len(n) * 0 + exp(spatial_weights +
-        value_weights + temporal_weights))
-    for (i in seq_len(number_draws)) {
-        results[indices, "cases"] <- NA
-    }
-    attr(results, "seed") <- seed
-    return(results)
+  if (value_observation_bias) {
+    value_weights <- (results$cases + 1) / sum(results$cases + 1)
+    value_weights <- as.vector(my_scale(value_weights))
+  }
+  if (temporal_observation_bias) {
+    temporal_weights <- create_test_covariate(
+      test_raster = results, nonspatial = FALSE,
+      nontemporal = FALSE, spatially_smooth = FALSE, temporally_smooth = TRUE,
+      polygonal = FALSE, radiating = FALSE, constant = FALSE
+    )[["covariate"]]
+    temporal_weights <- my_scale(temporal_weights)
+  }
+  if (spatial_observation_bias) {
+    spatial_weights <- create_test_covariate(
+      test_raster = results, nonspatial = FALSE,
+      nontemporal = FALSE, spatially_smooth = TRUE, temporally_smooth = FALSE,
+      polygonal = FALSE, radiating = FALSE, constant = FALSE
+    )[["covariate"]]
+    spatial_weights <- my_scale(spatial_weights)
+  }
+  n <- nrow(results)
+  n_samp <- rbinom(1, n, proportion_observed)
+  indices <- sample(seq_len(n), n - n_samp, prob = seq_len(n) * 0 + exp(spatial_weights +
+    value_weights + temporal_weights))
+  for (i in seq_len(number_draws)) {
+    results[indices, "cases"] <- NA
+  }
+  attr(results, "seed") <- seed
+  return(results)
 }
 
 #' @export
@@ -662,12 +717,9 @@ observe_gridcells <- function(underlying_distribution = create_underlying_distri
 #' @param test_polygons A set of polygons to (potentially) observe cases over
 #' @param test_covariates A set of covariates to create a distribution out of (not needed if underlying distribution is specified)
 #' @param underlying_distribution An underlying distribution of cases
-#' @param grid_proportion_observed What percentage of gridcells get observed by this process
+#' @param observed_grid The results of observe_gridcells
+#' @param grid_parameters Parameters to call observe_gridcells
 #' @param number_draws Number of independent draws from the underlying distribution present
-#' @param grid_spatial_observation_bias Whether grid observation is spatially correlated (see observe_gridcells)
-#' @param grid_spatial_observation_bias Whether grid observation is temporally correlated (see observe_gridcells)
-#' @param grid_spatial_observation_bias Whether grid observation is correlated to number of cases (see observe_gridcells)
-#' @param noise Whether or not to include observation noise at the gridcell level
 #' @param polygon_proportion_observed Percent of polygons observed (for each draw)
 #' @param polygon_observation_rates Not used
 #' @param polygon_size_bias Whether or not to sample larger polygons more frequently
@@ -678,78 +730,94 @@ observe_gridcells <- function(underlying_distribution = create_underlying_distri
 #' @param observation_time_right censored right time
 #' @param seed A random seed
 observe_polygons <- function(test_polygons = create_test_layered_polygons(), test_covariates = create_multiple_test_covariates(polygons = test_polygons),
-    underlying_distribution = create_underlying_distribution(covariates = test_covariates),
-    grid_proportion_observed = 1, number_draws = 1, grid_spatial_observation_bias = TRUE,
-    grid_temporal_observation_bias = TRUE, grid_value_observation_bias = TRUE, noise = FALSE,
-    polygon_proportion_observed = 1, polygon_observation_rates = rep(1, times = nrow(test_polygons)),
-    polygon_observation_idx = NA, polygon_size_bias = TRUE, nonlinear_covariates = FALSE,
-    min_time_left = lubridate::ymd("2000-01-01"), max_time_right = lubridate::ymd("2001-01-01"),
-    observation_time_left=min_time_left,observation_time_right=max_time_right,
-    do_temporal_subset = FALSE, seed) {
-    seed <- get_or_set_seed(seed)
-    observed_grid <- observe_gridcells(underlying_distribution = underlying_distribution,
-        proportion_observed = grid_proportion_observed, number_draws = number_draws,
-        spatial_observation_bias = grid_spatial_observation_bias, temporal_observation_bias = grid_temporal_observation_bias,
-        value_observation_bias = grid_value_observation_bias, noise = noise, seed = seed)
+                             underlying_distribution = create_underlying_distribution(covariates = test_covariates),
+                             observed_grid = NULL,
+                             grid_parameters = NULL,
+                             number_draws = 1,
+                             polygon_proportion_observed = 1, polygon_observation_rates = rep(1, times = nrow(test_polygons)),
+                             polygon_observation_idx = NA, polygon_size_bias = TRUE, nonlinear_covariates = FALSE,
+                             min_time_left = lubridate::ymd("2000-01-01"), max_time_right = lubridate::ymd("2001-01-01"),
+                             observation_time_left = min_time_left, observation_time_right = max_time_right,
+                             do_temporal_subset = FALSE, seed) {
+  if (is.null(observed_grid)) {
+    if (is.null(grid_parameters)) {
+      grid_parameters <- list()
+    }
+    if (!missing(seed) && is.null(grid_parameters[["seed"]])) {
+      warning("Setting the seed for observe polygons does not set it for observe_gridcells")
+    }
+    observed_grid <- do.call(what = observe_gridcells, args = grid_parameters)
+  } else if (!is.null(grid_parameters)) {
+    stop("Provide either an observed grid, or grid observation parameters but not both")
+  }
 
-    all_draws <- NULL
-    nlayers <- max(observed_grid$t)
-    minmax <- as.integer(c(NA, NA))
-    intersections <- suppressWarnings(sf::st_drop_geometry(sf::st_intersection(test_polygons,
-        suppressWarnings(sf::st_centroid(observed_grid)))))
+  seed <- get_or_set_seed(seed)
 
-    time_censored_observations <- intersections %>%
+  all_draws <- NULL
+  nlayers <- max(observed_grid$t)
+  minmax <- as.integer(c(NA, NA))
+  intersections <- suppressWarnings(sf::st_drop_geometry(sf::st_intersection(
+    test_polygons,
+    suppressWarnings(sf::st_centroid(observed_grid))
+  )))
+
+  time_censored_observations <- intersections %>%
+    dplyr::group_by(location, draw) %>%
+    dplyr::group_map(function(.x, .y) {
+      minmax <- c(1, nlayers)
+      if (do_temporal_subset) {
+        minmax <- sort(sample(nlayers, 2, replace = TRUE))
+      }
+
+      # update the dates of censored observations
+      dates <- seq.Date(min_time_left, max_time_right, length.out = nlayers + 1)
+      underlying_distribution_dates <- data.frame(time_left = dates, time_right = dplyr::lead(dates))[seq(length(dates) - 1), ]
+
+      if (!observation_time_right == max_time_right | !observation_time_left == min_time_left) {
+        minmax <- c(which(observation_time_left <= underlying_distribution_dates$time_left)[1], which(observation_time_right <= underlying_distribution_dates$time_right)[1])
+      }
+
+      tfrac <- (minmax[2] - minmax[1] + 1) / (nlayers)
+      time_bounds <- c(underlying_distribution_dates$time_left[minmax[1]], underlying_distribution_dates$time_right[minmax[2]])
+
+      .y$tmin <- minmax[1]
+      .y$tmax <- minmax[2]
+      .x <- cbind(.x, .y)
+      .x <- .x[(.x$t >= .x$tmin) & (.x$t <= .x$tmax), ]
+      .x <- .x %>%
         dplyr::group_by(location, draw) %>%
-        dplyr::group_map(function(.x, .y) {
-            minmax <- c(1, nlayers)
-            if (do_temporal_subset) {
-                minmax <- sort(sample(nlayers, 2, replace = TRUE))
-            }
-            
-            #update the dates of censored observations
-            dates <- seq.Date(min_time_left, max_time_right, length.out = nlayers+1)
-            underlying_distribution_dates <- data.frame(time_left = dates, time_right = lead(dates))[seq(length(dates)-1),]
-            
-            if(!observation_time_right==max_time_right | !observation_time_left==min_time_left){
-                minmax <- c(which(observation_time_left <= underlying_distribution_dates$time_left)[1], which(observation_time_right <= underlying_distribution_dates$time_right)[1])            
-            }
-            
-            tfrac <- (minmax[2] - minmax[1] + 1)/(nlayers)
-            time_bounds <-c(underlying_distribution_dates$time_left[minmax[1]],underlying_distribution_dates$time_right[minmax[2]])             
+        dplyr::summarize(
+          cases = sum(cases, na.rm = TRUE), tmin = unique(tmin),
+          tmax = unique(tmax),
+        )
+      .x$time_left <- time_bounds[1]
+      .x$time_right <- time_bounds[2]
+      .x$tfrac <- tfrac
+      return(.x)
+    }) %>%
+    do.call(what = rbind) %>%
+    dplyr::left_join(test_polygons) %>%
+    sf::st_as_sf()
 
-            .y$tmin <- minmax[1]
-            .y$tmax <- minmax[2]
-            .x <- cbind(.x, .y)
-            .x <- .x[(.x$t >= .x$tmin) & (.x$t <= .x$tmax), ]
-            .x <- .x %>%
-                dplyr::group_by(location, draw) %>%
-                dplyr::summarize(cases = sum(cases, na.rm = TRUE), tmin = unique(tmin),
-                  tmax = unique(tmax), )
-            .x$time_left <- time_bounds[1]
-            .x$time_right <- time_bounds[2]
-            .x$tfrac <- tfrac
-            return(.x)
-        }) %>%
-        do.call(what = rbind) %>%
-        dplyr::left_join(test_polygons) %>%
-        sf::st_as_sf()
-
-    time_censored_observations$weight <- 1
-    if (polygon_size_bias) {
-        time_censored_observations$weight <- time_censored_observations$weight *
-            as.numeric(sf::st_area(time_censored_observations))
-    }
-    if (all(is.na(polygon_observation_idx))) {
-        n_observed_observations <- rbinom(1, nrow(time_censored_observations), polygon_proportion_observed)
-        polygon_observation_idx <- sample(seq_len(nrow(time_censored_observations)),
-            n_observed_observations, prob = time_censored_observations$weight)
-    }
-    observed_observations <- sf::st_as_sf(time_censored_observations[polygon_observation_idx,
-        ] %>%
-        dplyr::select(location, draw, cases, tmin, tmax, time_left, time_right, tfrac,
-            geometry))
-    attr(observed_observations, "seed") <- seed
-    return(observed_observations)
+  time_censored_observations$weight <- 1
+  if (polygon_size_bias) {
+    time_censored_observations$weight <- time_censored_observations$weight *
+      as.numeric(sf::st_area(time_censored_observations))
+  }
+  if (all(is.na(polygon_observation_idx))) {
+    n_observed_observations <- rbinom(1, nrow(time_censored_observations), polygon_proportion_observed)
+    polygon_observation_idx <- sample(seq_len(nrow(time_censored_observations)),
+      n_observed_observations,
+      prob = time_censored_observations$weight
+    )
+  }
+  observed_observations <- sf::st_as_sf(time_censored_observations[polygon_observation_idx, ] %>%
+    dplyr::select(
+      location, draw, cases, tmin, tmax, time_left, time_right, tfrac,
+      geometry
+    ))
+  attr(observed_observations, "seed") <- seed
+  return(observed_observations)
 }
 
 #' @name create_standardized_test_data
@@ -804,74 +872,96 @@ observe_polygons <- function(test_polygons = create_test_layered_polygons(), tes
 #' @param seed integer A seed to use for the randomly constructed portions of this object
 #' @export
 create_standardized_test_data <- function(nrows = 8, ncols = 8, nlayers = 2, base_number = 4,
-    n_layers = 3, factor = 4, snap = FALSE, randomize = FALSE, ncovariates = 5, nonspatial = c(TRUE,
-        FALSE, FALSE, FALSE, FALSE), nontemporal = c(FALSE, TRUE, FALSE, FALSE, FALSE),
-    spatially_smooth = c(FALSE, FALSE, TRUE, TRUE, FALSE), temporally_smooth = c(FALSE,
-        FALSE, FALSE, TRUE, FALSE), polygonal = c(TRUE, FALSE, FALSE, FALSE, FALSE),
-    radiating = c(FALSE, TRUE, FALSE, FALSE, TRUE), constant = c(FALSE, FALSE, FALSE,
-        FALSE, FALSE), rho = rep(0.999999, times = ncovariates), radiating_polygons = list(NA,
-        create_test_polygons(dimension = 0, number = 2), NA, NA, sf::st_union(create_test_polygons(dimension = 1))),
-    radiation_function = rep(list(function(x, mu) {
-        mu * exp(-(x/10000)^2)
-    }), ncovariates), radiating_means = list(NA, rnorm(2), NA, NA, 1), smoothing_function = rep(list(function(n,
-        mu, covariance, centers) {
-        return(my_scale(MASS::mvrnorm(n = n, mu = mu, Matrix::solve(covariance))))
-    }), ncovariates), weights = rep(list(c(0.3, 1, 1, 1, 1)), ncovariates), magnitude = c(6,
-        rnorm(ncovariates - 1)), family = "Gaussian", normalization = function(x) {
-        if (length(unique(x[])) == 1) {
-            return(x * 0 + 1)
-        }
-        x <- exp(x)
-        x[] <- 0.1 * ((x[] - min(x[]))/(max(x[]) - min(x[])))
-        return(x)
-    }, grid_proportion_observed = 1, number_draws = 1, grid_spatial_observation_bias = TRUE,
-    grid_temporal_observation_bias = TRUE, grid_value_observation_bias = TRUE, noise = FALSE,
-    polygon_proportion_observed = 0.1, polygon_observation_rates = rep(1, times = nrow(test_polygons)),
-    polygon_observation_idx = NA, polygon_size_bias = TRUE, nonlinear_covariates = FALSE,
-    min_time_left = lubridate::ymd("2000-01-01"), max_time_right = lubridate::ymd("2001-01-01"),
-    seed) {
-    seed <- get_or_set_seed(seed)
+                                          n_layers = 3, factor = 4, snap = FALSE, randomize = FALSE, ncovariates = 5, nonspatial = c(
+                                            TRUE,
+                                            FALSE, FALSE, FALSE, FALSE
+                                          ), nontemporal = c(FALSE, TRUE, FALSE, FALSE, FALSE),
+                                          spatially_smooth = c(FALSE, FALSE, TRUE, TRUE, FALSE), temporally_smooth = c(
+                                            FALSE,
+                                            FALSE, FALSE, TRUE, FALSE
+                                          ), polygonal = c(TRUE, FALSE, FALSE, FALSE, FALSE),
+                                          radiating = c(FALSE, TRUE, FALSE, FALSE, TRUE), constant = c(
+                                            FALSE, FALSE, FALSE,
+                                            FALSE, FALSE
+                                          ), rho = rep(0.999999, times = ncovariates), radiating_polygons = list(
+                                            NA,
+                                            create_test_polygons(dimension = 0, number = 2), NA, NA, sf::st_union(create_test_polygons(dimension = 1))
+                                          ),
+                                          radiation_function = rep(list(function(x, mu) {
+                                            mu * exp(-(x / 10000)^2)
+                                          }), ncovariates), radiating_means = list(NA, rnorm(2), NA, NA, 1), smoothing_function = rep(list(function(n,
+                                                                                                                                                    mu, covariance, centers) {
+                                            return(my_scale(MASS::mvrnorm(n = n, mu = mu, Matrix::solve(covariance))))
+                                          }), ncovariates), weights = rep(list(c(0.3, 1, 1, 1, 1)), ncovariates), magnitude = c(
+                                            6,
+                                            rnorm(ncovariates - 1)
+                                          ), family = "Gaussian", normalization = function(x) {
+                                            if (length(unique(x[])) == 1) {
+                                              return(x * 0 + 1)
+                                            }
+                                            x <- exp(x)
+                                            x[] <- 0.1 * ((x[] - min(x[])) / (max(x[]) - min(x[])))
+                                            return(x)
+                                          }, grid_proportion_observed = 1, number_draws = 1, grid_spatial_observation_bias = TRUE,
+                                          grid_temporal_observation_bias = TRUE, grid_value_observation_bias = TRUE, noise = FALSE,
+                                          polygon_proportion_observed = 0.1, polygon_observation_rates = rep(1, times = nrow(test_polygons)),
+                                          polygon_observation_idx = NA, polygon_size_bias = TRUE, nonlinear_covariates = FALSE,
+                                          min_time_left = lubridate::ymd("2000-01-01"), max_time_right = lubridate::ymd("2001-01-01"),
+                                          seed) {
+  seed <- get_or_set_seed(seed)
 
-    test_extent <- create_test_extent(seed = seed)
+  test_extent <- create_test_extent(seed = seed)
 
-    test_raster <- create_test_raster(nrows = nrows, ncols = ncols, nlayers = nlayers,
-        test_extent, seed = .GlobalEnv$.Random.seed)
+  test_raster <- create_test_raster(
+    nrows = nrows, ncols = ncols, nlayers = nlayers,
+    test_extent, seed = .GlobalEnv$.Random.seed
+  )
 
-    test_polygons <- create_test_layered_polygons(test_raster = test_raster, base_number = base_number,
-        n_layers = n_layers, factor = factor, snap = snap, randomize = randomize,
-        seed = .GlobalEnv$.Random.seed)
+  test_polygons <- create_test_layered_polygons(
+    test_raster = test_raster, base_number = base_number,
+    n_layers = n_layers, factor = factor, snap = snap, randomize = randomize,
+    seed = .GlobalEnv$.Random.seed
+  )
 
-    test_covariates <- create_multiple_test_covariates(test_raster = test_raster,
-        ncovariates = ncovariates, nonspatial = nonspatial, nontemporal = nontemporal,
-        spatially_smooth = spatially_smooth, temporally_smooth = temporally_smooth,
-        polygonal = polygonal, radiating = radiating, constant = constant, rho = rho,
-        polygons = test_polygons, radiating_polygons = radiating_polygons, smoothing_function = smoothing_function,
-        radiation_function = radiation_function, radiating_means = radiating_means,
-        weights = weights, magnitude = magnitude, family = family, seed = .GlobalEnv$.Random.seed)
+  test_covariates <- create_multiple_test_covariates(
+    test_raster = test_raster,
+    ncovariates = ncovariates, nonspatial = nonspatial, nontemporal = nontemporal,
+    spatially_smooth = spatially_smooth, temporally_smooth = temporally_smooth,
+    polygonal = polygonal, radiating = radiating, constant = constant, rho = rho,
+    polygons = test_polygons, radiating_polygons = radiating_polygons, smoothing_function = smoothing_function,
+    radiation_function = radiation_function, radiating_means = radiating_means,
+    weights = weights, magnitude = magnitude, family = family, seed = .GlobalEnv$.Random.seed
+  )
 
-    test_underlying_distribution <- create_underlying_distribution(covariates = test_covariates,
-        normalization = normalization, family = family, seed = .GlobalEnv$.Random.seed)
+  test_underlying_distribution <- create_underlying_distribution(
+    covariates = test_covariates,
+    normalization = normalization, family = family, seed = .GlobalEnv$.Random.seed
+  )
 
-    test_observed_polygons <- observe_polygons(test_polygons = test_polygons, test_covariates = test_covariates,
-        underlying_distribution = test_underlying_distribution, grid_proportion_observed = grid_proportion_observed,
-        number_draws = number_draws, grid_spatial_observation_bias = grid_spatial_observation_bias,
-        grid_temporal_observation_bias = grid_temporal_observation_bias, grid_value_observation_bias = grid_value_observation_bias,
-        noise = noise, polygon_proportion_observed = polygon_proportion_observed,
-        polygon_observation_rates = polygon_observation_rates, polygon_observation_idx = polygon_observation_idx,
-        polygon_size_bias = polygon_size_bias, nonlinear_covariates = nonlinear_covariates,
-        min_time_left = min_time_left, max_time_right = max_time_right, seed = .GlobalEnv$.Random.seed)
+  test_observed_polygons <- observe_polygons(
+    test_polygons = test_polygons, test_covariates = test_covariates,
+    underlying_distribution = test_underlying_distribution, grid_proportion_observed = grid_proportion_observed,
+    number_draws = number_draws, grid_spatial_observation_bias = grid_spatial_observation_bias,
+    grid_temporal_observation_bias = grid_temporal_observation_bias, grid_value_observation_bias = grid_value_observation_bias,
+    noise = noise, polygon_proportion_observed = polygon_proportion_observed,
+    polygon_observation_rates = polygon_observation_rates, polygon_observation_idx = polygon_observation_idx,
+    polygon_size_bias = polygon_size_bias, nonlinear_covariates = nonlinear_covariates,
+    min_time_left = min_time_left, max_time_right = max_time_right, seed = .GlobalEnv$.Random.seed
+  )
 
-    rc <- list(observed_polygons = test_observed_polygons, covariates = test_covariates,
-        underlying_distribution_mean = test_underlying_distribution[["mean"]], underlying_distribution_rcases = test_underlying_distribution[["rcases"]],
-        raster = test_raster, seed = .GlobalEnv$.Random.seed)
-    attr(rc, "seed") <- seed
-    return(rc)
+  rc <- list(
+    observed_polygons = test_observed_polygons, covariates = test_covariates,
+    underlying_distribution_mean = test_underlying_distribution[["mean"]], underlying_distribution_rcases = test_underlying_distribution[["rcases"]],
+    raster = test_raster, seed = .GlobalEnv$.Random.seed
+  )
+  attr(rc, "seed") <- seed
+  return(rc)
 }
 
 my_scale <- function(x) {
-    rc <- as.vector(scale(x))
-    if (all(is.na(rc))) {
-        rc[is.na(rc)] <- 1
-    }
-    return(rc)
+  rc <- as.vector(scale(x))
+  if (all(is.na(rc))) {
+    rc[is.na(rc)] <- 1
+  }
+  return(rc)
 }
