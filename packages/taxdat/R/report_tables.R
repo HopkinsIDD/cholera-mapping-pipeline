@@ -20,7 +20,7 @@ table_observation_summary <- function(config, cache, cholera_directory) {
   obs_stats <- dplyr::group_by(obs_stats, year)
   obs_stats <- dplyr::summarize(obs_stats,
     n_obs = dplyr::n(),
-    n_cases = sum(suspected_cases),
+    n_cases = sum(suspected_cases, na.rm = TRUE),
     n_lp = length(unique(location_period_id)),
     u_lps = paste(sort(unique(location_period_id)), collapse = ","),
     n_OCs = length(unique(observation_collection_id)),
@@ -58,7 +58,7 @@ table_dropped_data <- function(config, cache, cholera_directory) {
   obs_stats <- dplyr::group_by(obs_stats, year)
   obs_stats <- dplyr::summarize(obs_stats,
     n_obs = dplyr::n(),
-    n_cases = sum(suspected_cases),
+    n_cases = sum(suspected_cases, na.rm = TRUE),
     n_lp = length(unique(location_period_id)),
     u_lps = paste(sort(unique(location_period_id)), collapse = ","),
     n_OCs = length(unique(observation_collection_id)),

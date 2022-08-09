@@ -97,8 +97,8 @@ aggregate_case_data <- function(case_data, unique_column_names = c("loctime"), c
       .x <- .x %>%
         dplyr::group_by(set) %>%
         dplyr::summarize(
-          time_left = min(time_left), time_right = min(time_left) +
-            sum(duration) - 1, dplyr::across(columns_to_sum_over, ~ sum(., na.rm = TRUE)),
+          time_left = min(time_left, na.rm = TRUE), time_right = min(time_left, na.rm = TRUE) +
+            sum(duration, na.rm = TRUE) - 1, dplyr::across(columns_to_sum_over, ~ sum(., na.rm = TRUE)),
           unique_observation_ids = paste(sort(unique(sprintf(paste0(
             "%0",
             ceiling(log(max(case_data$observation_id)) / log(10)), "d"
@@ -143,7 +143,7 @@ remove_overlapping_observations <- function(case_data, unique_column_names = c("
               start = .x$time_left[possible_container],
               end = .x$time_right[possible_container]
             )
-            if (lubridate::intersect(inner_interval, outer_interval) == inner_interval) {
+            if (!is.na(lubridate::intersect(inner_interval, outer_interval) == inner_interval)) {
               removed <- TRUE
               .x <- .x[other_indices, ]
             }
@@ -172,7 +172,7 @@ do_censoring <- function(case_data, colnames, unique_column_names = c("loctime")
         underestimate <- .x
         for (colname in colnames) {
           underestimate[[paste0(colname, "_R")]] <- underestimate[[colname]]
-          overestimate[[paste0(colname, "_L")]] <- overestimate[[colname]][good_indices]
+          overestimate[[paste0(colname, "_L")]] <- overestimate[[colname]]
           overestimate[[colname]] <- as.numeric(NA)
           underestimate[[colname]] <- as.numeric(NA)
         }
