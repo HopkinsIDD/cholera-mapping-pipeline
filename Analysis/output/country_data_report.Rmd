@@ -2,7 +2,7 @@
 title: "Country Data Report"
 output: html_document
 params: 
-  cholera_directory: "C:/IDD/Cholera/commit_git/cholera-mapping-pipeline"
+  cholera_directory: "/home/qulu/cdr_neda"
   config: "/Analysis/configs/production_tests/dev_tests/TGO/config_TGO_2015_2019_censoring_prior.yml"
   drop_nodata_years: TRUE
   admin_level_for_summary_table: '1'
@@ -14,10 +14,10 @@ params:
 # params <- new.env()
 # params$cholera_directory <- "/home/kaiyuezou/mapping_pipeline/country_data_report_updates/cholera-mapping-pipeline"
 # params$config <- "/Analysis/configs/production_tests/country_data_report_comparison_test/BEN/config_BEN_2015_2019_nocovar.yml"
-# params$drop_nodata_years <- TRUE
-# params$admin_level_for_summary_table <- '1'
-# params$args <- 'myarg'
-# params$old_runs <- FALSE
+params$drop_nodata_years <- TRUE
+params$admin_level_for_summary_table <- '1'
+params$args <- 'myarg'
+params$old_runs <- FALSE
 
 # The updates to make
 ##scatterplot of grid-cell GAM model output and Stan model output
@@ -101,6 +101,7 @@ get_genquant(name="genquant",cache=cache,config=params$config,cholera_directory 
 get_model_rand(name="model.rand",cache=cache,config = params$config,cholera_directory = params$cholera_directory)
 get_modeled_cases(name="modeled_cases",cache=cache,config=params$config,cholera_directory = params$cholera_directory)
 get_modeled_rates(name="modeled_rates",cache=cache,config = params$config,cholera_directory = params$cholera_directory)
+
 cache[["modeled_cases_by_chain"]]<-aggregate_modeled_cases_by_chain_no_cache(cache=cache,config = params$config,cholera_directory = params$cholera_directory)
 cache[["cases_chains"]]<-aggregate_modeled_cases_by_chain_gridtime_no_cache(cache=cache,config = params$config,cholera_directory = params$cholera_directory)
 cache[["niter_per_chain"]]<-get_stan_model_niter_per_chain_no_cache(cache=cache,config = params$config,cholera_directory = params$cholera_directory)
@@ -137,7 +138,6 @@ plot_gam_fit_output_cases(name="gam_output_df",cache=cache)
 ### GAM Output v.s GAM Input Comparison
 **GAM Output v.s GAM Input Rates Scatterplot:**
 ```{r gam output input rates comparison,fig.height=5, fig.width=10, fig.cap=capFig("GAM Output v.s GAM Input Rates")}
-#stitch_gam_input_with_gam_output_rate(output_cache = cache, input_caches = list(cache$initial_values_data, cache$gam_output_df))
 plot_gam_input_vs_output_rate_scatter_plot(cache = cache) #this will output plots 
 ```
 
@@ -231,13 +231,13 @@ plot_disaggregated_modeled_cases_time_varying(disaggregated_case_sf=cache[["disa
 **Stan Output v.s GAM Output Rates by Time Slices:**
 ```{r stangamrates, fig.cap=capFig("Stan Output v.s GAM Output Rates"), fig.height=5, fig.width=10}
 #need to use the fidelity plotting functions because the scales are settled there 
-# stitch_gam_output_with_stan_output_rate(output_cache = cache, input_caches = list(cache$initial_values_data, cache$gam_output_df))
+#stitch_gam_output_with_stan_output_rate(output_cache = cache, input_caches = list(cache$initial_values_data, cache$gam_output_df))
 plot_stan_output_vs_gam_output_rate_scatter_plot(cache = cache) #this will output plots 
 ```
 
 **Stan Output v.s GAM Output Cases by Time Slices:**
 ```{r stangamcates, fig.cap=capFig("Stan Output v.s GAM Output Cates"), fig.height=5, fig.width=10}
-#not done yet 
+plot_stan_output_vs_gam_output_case_scatter_plot(cache = cache) #this will output plots 
 ```
 
 **Table 4. Modeled cases by admin level and time:**
