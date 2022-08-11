@@ -355,7 +355,8 @@ create or replace function resize_spatial_grid(width_in_km int, height_in_km int
     ) as new_rast
   FROM
     grids.master_spatial_grid;
-  $$ LANGUAGE SQL;"
+  $$ LANGUAGE SQL SECURITY DEFINER;
+"
 
   DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
 }
@@ -373,7 +374,8 @@ create or replace function lookup_location_period(target_location_id bigint, tar
     location_periods.location_id = target_location_id AND
     location_periods.start_date <= target_start_date AND
     location_periods.end_date >= target_end_date
-  $$ LANGUAGE SQL;"
+  $$ LANGUAGE SQL SECURITY DEFINER;
+"
 
   trigger_function_query <- "
 CREATE OR REPLACE FUNCTION trigger_lookup_missing_location_period_for_observations()
@@ -416,7 +418,8 @@ create or replace function ingest_covariate(name text, table_name text, ingest_t
   EXECUTE FORMAT ('INSERT INTO covariates.all_covariates SELECT %L as name, %L as time_left, %L as time_right, rid, rast FROM covariates.%I', name, ingest_time_left, ingest_time_right, table_name);
   end if;
   end;
-  $$ SECURITY DEFINER;"
+  $$ SECURITY DEFINER;
+"
 
   DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
   invisible(NULL)
@@ -443,7 +446,7 @@ RETURNS TABLE(id_1 BIGINT, rid_1 INT, x_1 INT, y_1 INT, id_2 BIGINT, rid_2 INT, 
           ST_INTERSECTS(ST_BUFFER(lhs.polygon, SQRT(ST_AREA(lhs.polygon))*.01), rhs.polygon)
   WHERE
     lhs.id < rhs.id
-  $$ LANGUAGE SQL;
+  $$ LANGUAGE SQL SECURITY DEFINER;
 "
 
   DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
@@ -471,7 +474,7 @@ RETURNS TABLE(id_1 BIGINT, rid_1 INT, x_1 INT, y_1 INT, id_2 BIGINT, rid_2 INT, 
           ST_INTERSECTS(ST_BUFFER(lhs.polygon, SQRT(ST_AREA(lhs.polygon))*.01), rhs.polygon)
   WHERE
     lhs.id != rhs.id
-  $$ LANGUAGE SQL;
+  $$ LANGUAGE SQL SECURITY DEFINER;
 "
 
   DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
@@ -511,7 +514,7 @@ create or replace function filter_resized_spatial_grid_pixels_to_location(locati
       (shape_resized_spatial_grid_populations.grid_population > 0) OR
       (shape_resized_spatial_grid_populations.intersection_population IS NULL)
     )
-  $$ LANGUAGE SQL;
+  $$ LANGUAGE SQL SECURITY DEFINER;
 "
 
   DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
@@ -538,7 +541,7 @@ create or replace function filter_location_periods(location_name text)
         location_periods
           ON descendants.id = location_periods.location_id
   WHERE ancestors.qualified_name = location_name;
-  $$ LANGUAGE SQL;"
+  $$ LANGUAGE SQL SECURITY DEFINER;"
 
   DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
   invisible(NULL)
@@ -590,7 +593,8 @@ create or replace function pull_observation_data(location_name text, start_date 
   WHERE
     observations.time_left >= start_date AND
     observations.time_right <= end_date;
-  $$ LANGUAGE SQL;"
+  $$ LANGUAGE SQL SECURITY DEFINER;
+"
 
   DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
   invisible(NULL)
@@ -637,7 +641,7 @@ RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint
     AND spatial_grid.height = height_in_km
     AND (shape_resized_spatial_grid_populations.intersection_population IS NOT NULL)
     AND (shape_resized_spatial_grid_populations.grid_population > 0)
-  $$ LANGUAGE SQL;
+  $$ LANGUAGE SQL SECURITY DEFINER;
 "
 
   function_query_interior <- "
@@ -731,7 +735,8 @@ $$
     extract(month from tbl.time_midpoint);
   END IF;
   END;
-$$ LANGUAGE plpgsql;"
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+"
 
   DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
   invisible(NULL)
@@ -766,31 +771,7 @@ INNER JOIN
 WHERE
     temporal_grid.time_midpoint >= start_date AND
     temporal_grid.time_midpoint <= end_date
-$$ LANGUAGE SQL;
-"
-
-  function_query_alt <- "
-SELECT
-  *
-FROM
-  filter_resized_spatial_grid_pixels_to_location('1', 1, 1) as grid_pixels
-INNER JOIN
-  resized_covariates
-    ON
-      grid_pixels.id = resized_covariates.grid_id
-      AND grid_pixels.rid = resized_covariates.grid_rid
-INNER JOIN
-  resize_temporal_grid('year') as temporal_grid
-    ON
-      resized_covariates.time_left <= temporal_grid.time_midpoint AND
-      resized_covariates.time_right >= temporal_grid.time_midpoint
-WHERE
-    temporal_grid.time_midpoint >= '2000-01-01' AND
-    temporal_grid.time_midpoint <= '2001-12-31'
-    AND grid_pixels.id = 98 AND
-    temporal_grid.id = 1 AND
-    covariate_name = 'population'
-;
+$$ LANGUAGE SQL SECURITY DEFINER;
 "
 
   DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
@@ -825,7 +806,7 @@ INNER JOIN
     ON
       observation_data.time_left < temporal_grid.time_max AND
       observation_data.time_right >= temporal_grid.time_min
-$$ LANGUAGE SQL;
+$$ LANGUAGE SQL SECURITY DEFINER;
 "
 
   DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
