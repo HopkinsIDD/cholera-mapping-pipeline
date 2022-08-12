@@ -749,9 +749,9 @@ observe_polygons <- function(test_polygons = create_test_layered_polygons(), tes
       grid_parameters <- list()
     }
     if (!missing(seed) && is.null(grid_parameters[["seed"]])) {
-      warning("Setting the seed for observe polygons does not set it for observe_gridcells")
+      grid_parameters[["seed"]] <- seed
     }
-    observed_grid <- do.call(what = observe_gridcells, args = grid_parameters, seed)
+    observed_grid <- do.call(what = observe_gridcells, args = grid_parameters)
     seed <- .GlobalEnv$.Random.seed
   } else if (!is.null(grid_parameters)) {
     stop("Provide either an observed grid, or grid observation parameters but not both")
