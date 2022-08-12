@@ -58,7 +58,6 @@ if (!taxdat::check_config(config)) {
 }
 
 
-
 dbuser <- Sys.getenv("USER", "app")
 dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
 
@@ -212,7 +211,9 @@ test_observed_grid <- taxdat::observe_gridcells(
 )
 global_seed <- .GlobalEnv$.Random.seed
 
-test_observations <- lapply(config[["test_metadata"]][["observations"]][["time_ranges"]], function(spec) {
+counter <- 0
+test_observations <- lapply(config[["test_metadata"]][["observations"]], function(spec) {
+  counter <<- counter + 1
   rc <- taxdat::observe_polygons(
     test_polygons = dplyr::mutate(all_dfs$shapes_df, location = qualified_name, geometry = geom),
     test_covariates = raster_df,

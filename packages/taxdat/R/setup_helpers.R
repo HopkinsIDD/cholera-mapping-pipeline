@@ -1336,13 +1336,13 @@ config_defaults[["test_metadata"]][["raster"]][["ncol"]] <- function(config, ind
   return(10)
 }
 config_defaults[["test_metadata"]][["raster"]][["nlayer"]] <- function(config, index) {
-  return(as.numeric(
-    lubridate::as.period(lubridate::interval(
-      config[["general"]][["start_date"]],
-      lubridate::ymd(config[["general"]][["end_date"]]) + 1
-    )),
-    units = config[["test_metadata"]][["raster"]][["units"]]
-  ))
+  interval <- lubridate::interval(
+    lubridate::ymd(config[["general"]][["start_date"]]),
+    lubridate::ymd(config[["general"]][["end_date"]]) + 1
+  )
+  period <- lubridate::as.period(interval, units = config[["test_metadata"]][["raster"]][["units"]])
+  nperiods <- as.numeric(period, units = config[["test_metadata"]][["raster"]][["units"]])
+  return(nperiods)
 }
 config_defaults[["test_metadata"]][["covariates"]] <- list()
 config_defaults[["test_metadata"]][["covariates"]][["::"]] <- list()
@@ -1387,15 +1387,15 @@ config_defaults[["test_metadata"]][["grid_observation"]][["noise"]] <- function(
   return(FALSE)
 }
 config_defaults[["test_metadata"]][["observations"]] <- list()
-config_defaults[["test_metadata"]][["observations"]][["time_ranges"]] <- list()
-config_defaults[["test_metadata"]][["observations"]][["time_ranges"]][["::"]] <- list()
-config_defaults[["test_metadata"]][["observations"]][["time_ranges"]][["::"]][["proportion_observed"]] <- function(config, index) {
+config_defaults[["test_metadata"]][["observations"]]
+config_defaults[["test_metadata"]][["observations"]][["::"]] <- list()
+config_defaults[["test_metadata"]][["observations"]][["::"]][["proportion_observed"]] <- function(config, index) {
   return(1)
 }
-config_defaults[["test_metadata"]][["observations"]][["time_ranges"]][["::"]][["start_date"]] <- function(config, index) {
+config_defaults[["test_metadata"]][["observations"]][["::"]][["start_date"]] <- function(config, index) {
   return(config[["general"]][["start_date"]])
 }
-config_defaults[["test_metadata"]][["observations"]][["time_ranges"]][["::"]][["end_date"]] <- function(config, index) {
+config_defaults[["test_metadata"]][["observations"]][["::"]][["end_date"]] <- function(config, index) {
   return(config[["general"]][["end_date"]])
 }
 

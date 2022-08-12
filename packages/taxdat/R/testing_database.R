@@ -813,6 +813,75 @@ $$ LANGUAGE SQL SECURITY DEFINER;
   invisible(NULL)
 }
 
+create_pull_boundary_polygon <- function(psql_connection) {
+  function_query <- "
+create or replace function pull_boundary_polygon(location_name text)
+  returns table(
+    shape geometry
+  ) AS $$
+SELECT shapes.shape
+FROM
+  locations
+INNER JOIN
+  location_periods
+    ON
+      locations.id = location_periods.location_id
+INNER JOIN
+  shapes
+    ON
+      location_periods.id = shapes.location_period_id
+WHERE
+  locations.qualified_name = location_name
+$$ LANGUAGE SQL SECURITY DEFINER;
+"
+
+  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
+  invisible(NULL)
+}
+
+create_pull_minimal_grid_population <- function(psql_connection) {
+  function_query <- "
+create or replace function pull_minimal_grid_population(location_name text, start_date date, end_date date, time_scale text)
+  returns table(
+    rid int,
+    temporal_grid_id bigint,
+    rast raster
+  ) AS $$
+SELECT
+  rid,
+  temporal_grid.id as t,
+  rast
+FROM
+  locations
+INNER JOIN
+  location_periods
+    ON
+      locations.id = location_periods.location_id
+INNER JOIN
+  shapes
+    ON
+      location_periods.id = shapes.location_period_id
+INNER JOIN
+  covariates.all_covariates
+    ON
+      st_intersects(shapes.shape, st_envelope(rast))
+INNER JOIN
+  resize_temporal_grid(time_scale) as temporal_grid
+    ON
+      covariates.all_covariates.time_left <= temporal_grid.time_midpoint
+      AND covariates.all_covariates.time_right >= temporal_grid.time_midpoint
+WHERE
+  time_midpoint >=start_date
+  AND time_midpoint <= end_date
+  AND covariate_name = 'population'
+  AND locations.qualified_name = location_name
+$$ LANGUAGE SQL SECURITY DEFINER;
+"
+
+  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
+  invisible(NULL)
+}
+
 #' @description Create the functions we will use as part of the testing database
 #' @name create_testing_database_functions
 #' @title create_testing_database_functions
@@ -826,6 +895,8 @@ create_testing_database_functions <- function(psql_connection) {
   create_pull_covar_cube_function(psql_connection)
   create_pull_observation_location_period_map(psql_connection)
   create_pull_location_period_grid_map_function(psql_connection)
+  create_pull_boundary_polygon(psql_connection)
+  create_pull_minimal_grid_population(psql_connection)
 }
 
 #' @description Refresh the materialized views in the database to account for new data
@@ -1352,6 +1423,7 @@ pull_observation_data <- function(psql_connection, location_name, start_date, en
   results_query <- glue::glue_sql(.con = psql_connection, results_query)
   return(DBI::dbGetQuery(conn = psql_connection, results_query))
 }
+
 
 #' @description Convert covariates from the format used by the simulation framework to the format used by the testing framework
 #' @name simulation_covariate_to_test_covariate_funs

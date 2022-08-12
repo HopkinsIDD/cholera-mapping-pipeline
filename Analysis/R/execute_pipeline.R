@@ -63,9 +63,12 @@ option_list <- list(
 opt <- optparse::parse_args((optparse::OptionParser(option_list = option_list)))
 
 
+print("HERE")
 ### Config Options
 config <- yaml::read_yaml(opt[["config"]])
 config <- taxdat::complete_config(config)
+print(config[["test_metadata"]])
+print(config[["test_metadata"]][["covariates"]])
 if (!opt[["testing_run"]]) {
   yaml::write_yaml(config, file = paste0(opt[["config"]], ".complete"))
 }
@@ -155,7 +158,7 @@ temporal_location_grid_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = gl
        {config[[\"general\"]][[\"width_in_km\"]]},
        {config[[\"general\"]][[\"height_in_km\"]]},
        {config[[\"general\"]][[\"time_scale\"]]}
-    )"
+   )"
 )) %>%
   dplyr::mutate(temporal_location_id = paste(location_period_id, t, sep = "_"))
 
@@ -163,22 +166,9 @@ print("Pulled location-grid map")
 
 boundary_polygon <- sf::st_sf(geometry = sf::st_as_sfc(DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(
   .con = conn_pg,
-  "
-SELECT
-  shapes.shape
-FROM
-  locations
-INNER JOIN
-  location_periods
-    ON
-      locations.id = location_periods.location_id
-INNER JOIN
-  shapes
-    ON
-      location_periods.id = shapes.location_period_id
-WHERE
-locations.qualified_name = {config[[\"general\"]][[\"location_name\"]]}
-"
+  "SELECT * FROM pull_boundary_polygon(
+       {config[[\"general\"]][[\"location_name\"]]}
+   );"
 ))[["shape"]]))
 print("Pulled boundary polygon")
 
@@ -186,36 +176,12 @@ print("Pulled boundary polygon")
 start_time <- Sys.time()
 minimal_grid_population <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(
   .con = conn_pg,
-  "
-SELECT
-  rid,
-  temporal_grid.id as t,
-  rast
-FROM
-  locations
-INNER JOIN
-  location_periods
-    ON
-      locations.id = location_periods.location_id
-INNER JOIN
-  shapes
-    ON
-      location_periods.id = shapes.location_period_id
-INNER JOIN
-  covariates.all_covariates
-    ON
-      st_intersects(shapes.shape, st_envelope(rast))
-INNER JOIN
-  resize_temporal_grid({config[[\"general\"]][[\"time_scale\"]]}) as temporal_grid
-    ON
-      covariates.all_covariates.time_left <= temporal_grid.time_midpoint
-      AND covariates.all_covariates.time_right >= temporal_grid.time_midpoint
-WHERE
-  time_midpoint >= {config[[\"general\"]][[\"start_date\"]]}
-  AND time_midpoint <= {config[[\"general\"]][[\"end_date\"]]}
-  AND covariate_name = 'population'
-  AND locations.qualified_name = {config[[\"general\"]][[\"location_name\"]]}
-"
+  "SELECT * FROM pull_minimal_grid_population(
+       {config[[\"general\"]][[\"location_name\"]]},
+       {config[[\"general\"]][[\"start_date\"]]},
+       {config[[\"general\"]][[\"end_date\"]]},
+       {config[[\"general\"]][[\"time_scale\"]]}
+   )"
 ))
 end_time <- Sys.time()
 elapsed_time <- end_time - start_time
@@ -303,9 +269,9 @@ if (config[["processing"]][["aggregate"]]) {
     ), skip_columns = c(
       "observation_collection_id",
       "location_period_id", "shape", cases_column, "time_left", "time_right",
-      "tfrac", "observation_id"
+      "tfrac", "observation_id", "unique_observation_ids"
     )),
-    columns_to_sum_over = c("tfrac", cases_column), cases_column = cases_column
+    columns_to_sum_over = c("tfrac", cases_column)
   )
 
   observation_data <- sf::st_as_sf(taxdat::project_to_groups(

@@ -36,6 +36,7 @@ get_unique_columns_by_group <- function(df, grouping_columns, skip_columns = gro
 remove_inconsistent_duplicates <- function(case_data, columns_to_mean_over, unique_column_names = c("loctime")) {
   ## aggregate observations:
   ocrs <- sf::st_crs(case_data)
+
   # TODO : Remove observation_collection_id, location_period_id from this
   # list
   case_data <- case_data %>%
@@ -44,9 +45,16 @@ remove_inconsistent_duplicates <- function(case_data, columns_to_mean_over, uniq
       location_period_id, time_left, time_right, !!!rlang::syms(unique_column_names)
     ) %>%
     dplyr::summarize(
-      dplyr::across(columns_to_mean_over, mean, na.rm = TRUE)
+      dplyr::across(columns_to_mean_over, mean, na.rm = TRUE),
+      unique_observation_ids = paste(sort(unique(sprintf(paste0(
+        "%0",
+        ceiling(log(max(case_data$observation_id)) / log(10)), "d"
+      ), as.integer(observation_id)))),
+      collapse = " "
+      )
       ## Do something to account for other columns which are relatively unique here
     ) %>%
+    taxdat::reindex("unique_observation_ids", "observation_id") %>%
     return()
 }
 #' @export
@@ -99,11 +107,15 @@ aggregate_case_data <- function(case_data, unique_column_names = c("loctime"), c
         dplyr::summarize(
           time_left = min(time_left, na.rm = TRUE), time_right = min(time_left, na.rm = TRUE) +
             sum(duration, na.rm = TRUE) - 1, dplyr::across(columns_to_sum_over, ~ sum(., na.rm = TRUE)),
-          unique_observation_ids = paste(sort(unique(sprintf(paste0(
-            "%0",
-            ceiling(log(max(case_data$observation_id)) / log(10)), "d"
-          ), as.integer(observation_id)))),
-          collapse = " "
+          unique_observation_ids = ifelse(
+            rep("unique_observation_ids" %in% names(.x), times = length(.)),
+            unique_observation_ids,
+            paste(sort(unique(sprintf(paste0(
+              "%0",
+              ceiling(log(max(case_data$observation_id)) / log(10)), "d"
+            ), as.integer(observation_id)))),
+            collapse = " "
+            )
           ), .groups = "drop"
         ) %>%
         dplyr::select(-set)

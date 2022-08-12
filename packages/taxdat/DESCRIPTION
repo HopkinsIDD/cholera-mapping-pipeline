@@ -29,6 +29,7 @@ Collate:
     'setup_helpers.R'
     'pull_data_helpers.R'
     'model_evaluation_helpers.R'
+    'model_testing.R'
     'pipeline_helpers.R'
     'pq_raster2raster.R'
     'report_cache.R'

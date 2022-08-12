@@ -21,6 +21,7 @@ get_or_set_seed <- function(seed) {
 create_test_extent <- function(seed) {
   seed <- get_or_set_seed(seed)
   rc <- sf::st_bbox(c(xmin = 0, ymin = 0, xmax = 1, ymax = 1))
+  sf::st_crs(rc) <- 4326
   attr(rc, "seed") <- seed
   return(rc)
 }
@@ -53,6 +54,7 @@ create_test_raster <- function(nrows = 8, ncols = 8, nlayers = 2, seed, test_ext
     rc[[i]]$t <- i
   }
   rc <- do.call(sf:::rbind.sf, rc)
+  sf::st_crs(rc) <- 4326
   attr(rc, "seed") <- seed
   return(rc)
 }
@@ -555,15 +557,19 @@ create_multiple_test_covariates <- function(test_raster = create_test_raster(), 
                                               TRUE,
                                               TRUE
                                             ), constant = c(TRUE, FALSE), rho = rep(0.999999, times = ncovariates),
-                                            polygons = create_test_layered_polygons(), radiating_polygons = list(create_test_polygons(
-                                              dimension = 0,
-                                              number = 2
-                                            ), sf::st_union(create_test_polygons(dimension = 1))), smoothing_function = rep(list(function(n,
-                                                                                                                                          mu, covariance, centers) {
+                                            polygons = create_test_layered_polygons(), radiating_polygons = lapply(seq_len(ncovariates), function(x) {
+                                              create_test_polygons(
+                                                dimension = 0,
+                                                number = 2
+                                              )
+                                            }), smoothing_function = rep(list(function(n,
+                                                                                       mu, covariance, centers) {
                                               return(my_scale(MASS::mvrnorm(n = n, mu = mu, Matrix::solve(covariance))))
                                             }), ncovariates), radiation_function = rep(list(function(x, mu) {
                                               mu * exp(-(x / 10000)^2)
-                                            }), ncovariates), radiating_means = list(rnorm(2), 1), weights = rep(list(c(
+                                            }), ncovariates), radiating_means = lapply(radiating_polygons, function(x) {
+                                              rnorm(nrow(x))
+                                            }), weights = rep(list(c(
                                               0.3,
                                               1, 1, 1, 1
                                             )), ncovariates), magnitude = rep(1, times = ncovariates), family = "Gaussian",
@@ -619,7 +625,7 @@ create_underlying_distribution <- function(covariates = create_multiple_test_cov
   if (length(covariates) > 1) {
     covariates <- covariates[-1]
   } else {
-    covariates[[1]] <- covariates[[1]] * 0 + 1
+    covariates[[1]]$covariate <- covariates[[1]]$covariate * 0 + 1
   }
   if (length(covariates) <= 0) {
     stop("Covariates should be a list of sf objects representing spacetime grids")
@@ -738,7 +744,7 @@ observe_polygons <- function(test_polygons = create_test_layered_polygons(), tes
                              polygon_observation_idx = NA, polygon_size_bias = TRUE, nonlinear_covariates = FALSE,
                              min_time_left = lubridate::ymd("2000-01-01"), max_time_right = lubridate::ymd("2001-01-01"),
                              observation_time_left = min_time_left, observation_time_right = max_time_right,
-                             do_temporal_subset = FALSE, seed) {
+                             do_temporal_subset = FALSE, time_scale = "year", seed) {
   if (is.null(observed_grid)) {
     if (is.null(grid_parameters)) {
       grid_parameters <- list()
@@ -770,8 +776,12 @@ observe_polygons <- function(test_polygons = create_test_layered_polygons(), tes
       }
 
       # update the dates of censored observations
-      dates <- seq.Date(min_time_left, max_time_right, length.out = nlayers + 1)
-      underlying_distribution_dates <- data.frame(time_left = dates, time_right = dplyr::lead(dates))[seq(length(dates) - 1), ]
+      left_dates <- min_time_left + (seq_len(nlayers) - 1) * lubridate::period(1, "year")
+      right_dates <- max_time_right - rev(seq_len(nlayers) - 1) * lubridate::period(1, "year")
+      if (max(right_dates) != max_time_right) {
+        stop(paste0("Not enough layers provided for the time scale (", time_scale, ") and date range (", min_time_left, " -- ", max_time_right, ")"))
+      }
+      underlying_distribution_dates <- data.frame(time_left = left_dates, time_right = right_dates)
 
       if (!observation_time_right == max_time_right | !observation_time_left == min_time_left) {
         minmax <- c(which(observation_time_left <= underlying_distribution_dates$time_left)[1], which(observation_time_right <= underlying_distribution_dates$time_right)[1])
