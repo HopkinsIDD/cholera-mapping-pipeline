@@ -30,3 +30,4 @@ todo.org
 **.yml
 !tests/**/*.yml
 **.html
+**.rs

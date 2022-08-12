@@ -103,7 +103,7 @@ plot_true_modeled_grid_cases <- function(cache, cholera_directory, config) {
   cache[["covar_cube"]] <- sf::st_as_sf(cache[["covar_cube"]])
 
   get_config(config = config, cache = cache, cholera_directory = cholera_directory)
-  true_grid_case <- readRDS(cache[["config"]][["test_metadata"]][["test_true_grid_case_filename"]])
+  true_grid_case <- readRDS(cache[["config"]][["test_metadata"]][["file_names"]][["true_grid_cases"]])
 
   # aggregate true_grid_case
   true_grid_case <- true_grid_case %>%
@@ -313,7 +313,7 @@ plot_raster_covariates_datagen <- function(config, cache, cholera_directory) {
     return(invisible(NULL))
   }
 
-  data_simulation_covs <- readRDS(cache[["config"]][["test_metadata"]][["Cov_data_simulation_filename"]])
+  data_simulation_covs <- readRDS(cache[["config"]][["test_metadata"]][["file_names"]][["simulation_covariates"]])
 
   cache[["data_simulation_covs"]] <- as.data.frame(do.call(rbind, data_simulation_covs[2:(length(data_simulation_covs))])) %>%
     mutate(value = covariate, covariate = paste("Covariate", rep(2:length(data_simulation_covs), each = nrow(data_simulation_covs[[1]])))) # Convert list to data frame columns

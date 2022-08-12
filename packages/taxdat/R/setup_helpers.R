@@ -1312,7 +1312,7 @@ config_defaults[["test_metadata"]][["file_names"]] <- list()
 config_defaults[["test_metadata"]][["file_names"]][["simulation_covariates"]] <- function(config, index) {
   file_path <- paste0(paste(c(
     unlist(config[["general"]]), rlang::hash(config[["test_metadata"]]), rlang::hash(config[["seeds"]])
-  ), collapse = "_"), ".data_simulation_covariates.rdata")
+  ), collapse = "_"), ".data_simulation_covariates.rds")
   if (!file.exists(file_path)) {
     file.create(file_path)
   }
@@ -1321,7 +1321,7 @@ config_defaults[["test_metadata"]][["file_names"]][["simulation_covariates"]] <-
 config_defaults[["test_metadata"]][["file_names"]][["true_grid_cases"]] <- function(config, index) {
   file_path <- paste0(paste(c(
     unlist(config[["general"]]), rlang::hash(config[["test_metadata"]]), rlang::hash(config[["seeds"]])
-  ), collapse = "_"), ".true_grid_cases.rdata")
+  ), collapse = "_"), ".true_grid_cases.rs")
   if (!file.exists(file_path)) {
     file.create(file_path)
   }

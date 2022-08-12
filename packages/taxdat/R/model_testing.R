@@ -262,10 +262,9 @@ run_test_case <- function(start_date = Date$new(),
                           time_scale = Scale$new(),
                           grid_size = PositiveInteger$new(),
                           polygon_type = PolygonTemplate$new(),
-                          n_covariates = NonNegativeInteger$new(),
                           covariates = CovariateList$new(),
                           observations = ObservationTimeRanges$new(start = start_date$value, end = start_date$value + duration$value - 1),
-                          stan_parameters = list(niter = 100, nchain = 2, model = "dagar_seasonal_flexible.stan")) {
+                          stan_parameters = list(niter = 1000, nchain = 2, model = "dagar_seasonal_flexible.stan")) {
   config <- list(
     general = list(
       location_name = "1",
@@ -293,4 +292,15 @@ run_test_case <- function(start_date = Date$new(),
 
   print("HERE")
   source(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "R", "test_case", "test_case.R"))
+
+  return(list(
+    start_date = start_date$value,
+    duration = duration$value,
+    time_scale = time_scale,
+    grid_size = grid_size,
+    polygon_type = polygon_type,
+    covariates = covariates,
+    observations = observations,
+    stan_parameters = stan_parameters
+  ))
 }
