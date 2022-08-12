@@ -742,6 +742,8 @@ observe_polygons <- function(test_polygons = create_test_layered_polygons(), tes
                              min_time_left = lubridate::ymd("2000-01-01"), max_time_right = lubridate::ymd("2001-01-01"),
                              observation_time_left = min_time_left, observation_time_right = max_time_right,
                              do_temporal_subset = FALSE, time_scale = "year", seed) {
+  seed <- get_or_set_seed(seed)
+  original_seed <- seed
   if (is.null(observed_grid)) {
     if (is.null(grid_parameters)) {
       grid_parameters <- list()
@@ -749,7 +751,8 @@ observe_polygons <- function(test_polygons = create_test_layered_polygons(), tes
     if (!missing(seed) && is.null(grid_parameters[["seed"]])) {
       warning("Setting the seed for observe polygons does not set it for observe_gridcells")
     }
-    observed_grid <- do.call(what = observe_gridcells, args = grid_parameters)
+    observed_grid <- do.call(what = observe_gridcells, args = grid_parameters, seed)
+    seed <- .GlobalEnv$.Random.seed
   } else if (!is.null(grid_parameters)) {
     stop("Provide either an observed grid, or grid observation parameters but not both")
   }
@@ -823,7 +826,7 @@ observe_polygons <- function(test_polygons = create_test_layered_polygons(), tes
       location, draw, cases, tmin, tmax, time_left, time_right, tfrac,
       geometry
     ))
-  attr(observed_observations, "seed") <- seed
+  attr(observed_observations, "seed") <- original_seed
   return(observed_observations)
 }
 
