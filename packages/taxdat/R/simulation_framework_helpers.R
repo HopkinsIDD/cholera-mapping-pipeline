@@ -721,7 +721,6 @@ observe_gridcells <- function(underlying_distribution = create_underlying_distri
 #' @name observe_polygons
 #' @title observe_polygons
 #' @param test_polygons A set of polygons to (potentially) observe cases over
-#' @param test_covariates A set of covariates to create a distribution out of (not needed if underlying distribution is specified)
 #' @param underlying_distribution An underlying distribution of cases
 #' @param observed_grid The results of observe_gridcells
 #' @param grid_parameters Parameters to call observe_gridcells
@@ -729,19 +728,17 @@ observe_gridcells <- function(underlying_distribution = create_underlying_distri
 #' @param polygon_proportion_observed Percent of polygons observed (for each draw)
 #' @param polygon_observation_rates Not used
 #' @param polygon_size_bias Whether or not to sample larger polygons more frequently
-#' @param nonlinear_covariates Not used
 #' @param min_time_left The first time associated with an observation
 #' @param max_time_right The last time associated with an observation
 #' @param observation_time_left censored left time
 #' @param observation_time_right censored right time
 #' @param seed A random seed
 observe_polygons <- function(test_polygons = create_test_layered_polygons(), test_covariates = create_multiple_test_covariates(polygons = test_polygons),
-                             underlying_distribution = create_underlying_distribution(covariates = test_covariates),
                              observed_grid = NULL,
                              grid_parameters = NULL,
                              number_draws = 1,
                              polygon_proportion_observed = 1, polygon_observation_rates = rep(1, times = nrow(test_polygons)),
-                             polygon_observation_idx = NA, polygon_size_bias = TRUE, nonlinear_covariates = FALSE,
+                             polygon_observation_idx = NA, polygon_size_bias = TRUE,
                              min_time_left = lubridate::ymd("2000-01-01"), max_time_right = lubridate::ymd("2001-01-01"),
                              observation_time_left = min_time_left, observation_time_right = max_time_right,
                              do_temporal_subset = FALSE, time_scale = "year", seed) {
@@ -875,7 +872,6 @@ observe_polygons <- function(test_polygons = create_test_layered_polygons(), tes
 #' @param polygon_observation_rates Not used
 #' @param polygon_size_bias Whether or not to sample larger polygons more frequently
 #' @param polygon_observation_idx integer or NA.  If not NA, then this is the indices of all polygons to observe.
-#' @param nonlinear_covariates Not used
 #' @param min_time_left The first time associated with an observation
 #' @param max_time_right The last time associated with an observation
 # This functions parameter
@@ -915,8 +911,7 @@ create_standardized_test_data <- function(nrows = 8, ncols = 8, nlayers = 2, bas
                                           }, grid_proportion_observed = 1, number_draws = 1, grid_spatial_observation_bias = TRUE,
                                           grid_temporal_observation_bias = TRUE, grid_value_observation_bias = TRUE, noise = FALSE,
                                           polygon_proportion_observed = 0.1, polygon_observation_rates = rep(1, times = nrow(test_polygons)),
-                                          polygon_observation_idx = NA, polygon_size_bias = TRUE, nonlinear_covariates = FALSE,
-                                          min_time_left = lubridate::ymd("2000-01-01"), max_time_right = lubridate::ymd("2001-01-01"),
+                                          polygon_observation_idx = NA, polygon_size_bias = TRUE, min_time_left = lubridate::ymd("2000-01-01"), max_time_right = lubridate::ymd("2001-01-01"),
                                           seed) {
   seed <- get_or_set_seed(seed)
 
@@ -948,14 +943,22 @@ create_standardized_test_data <- function(nrows = 8, ncols = 8, nlayers = 2, bas
     normalization = normalization, family = family, seed = .GlobalEnv$.Random.seed
   )
 
+  test_observed_grid <- observe_gridcells(
+    underlying_distribution = test_underlying_distribution, proportion_observed = grid_proportion_observed,
+    number_draws = number_draws, spatial_observation_bias = grid_spatial_observation_bias,
+    temporal_observation_bias = grid_temporal_observation_bias, value_observation_bias = grid_value_observation_bias,
+    noise = noise,
+    seed = .GlobalEnv$.Random.seed
+  )
+
   test_observed_polygons <- observe_polygons(
     test_polygons = test_polygons, test_covariates = test_covariates,
-    underlying_distribution = test_underlying_distribution, grid_proportion_observed = grid_proportion_observed,
-    number_draws = number_draws, grid_spatial_observation_bias = grid_spatial_observation_bias,
-    grid_temporal_observation_bias = grid_temporal_observation_bias, grid_value_observation_bias = grid_value_observation_bias,
-    noise = noise, polygon_proportion_observed = polygon_proportion_observed,
-    polygon_observation_rates = polygon_observation_rates, polygon_observation_idx = polygon_observation_idx,
-    polygon_size_bias = polygon_size_bias, nonlinear_covariates = nonlinear_covariates,
+    observed_grid = test_observed_grid,
+    number_draws = number_draws,
+    polygon_proportion_observed = polygon_proportion_observed,
+    polygon_observation_rates = polygon_observation_rates,
+    polygon_observation_idx = polygon_observation_idx,
+    polygon_size_bias = polygon_size_bias,
     min_time_left = min_time_left, max_time_right = max_time_right, seed = .GlobalEnv$.Random.seed
   )
 
