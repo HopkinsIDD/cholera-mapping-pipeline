@@ -120,7 +120,7 @@ df <- purrr::map_dfr(
   dplyr::mutate(obs_year = factor(obs_year),
                 log_ey = log(ey),
                 log_tfrac = log(tfrac),
-                gam_offset = log_ey + log_tfrac,
+                gam_offset = log_ey + log_tfrac * (1-config$censoring),
                 # To apply censoring
                 right_threshold = dplyr::case_when(
                   censored == "right-censored" ~ y,
