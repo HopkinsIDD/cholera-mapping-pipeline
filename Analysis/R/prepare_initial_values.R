@@ -44,7 +44,7 @@ df <- purrr::map_dfr(
       print(paste(i,"/", stan_data$M))
       old_percent <<- new_percent
     }
-    # Get the location period covered by observation
+    # Get the location period x time slice covered by observation
     ind_obs <- which(stan_data$map_obs_loctime_obs == i)
     ind_lp <- stan_data$map_obs_loctime_loc[ind_obs]
     # ind_lp <- stan_data$map_obs_loctime_loc[which(stan_data$map_obs_loctime_obs == stan_data$ind_full[i])]
@@ -57,17 +57,27 @@ df <- purrr::map_dfr(
     obs_year <- stan_data$map_grid_time[ind]
     u_obs_years <- unique(obs_year)
     tfrac <- stan_data$tfrac[ind_obs]
-    # Expand observations to account for multiple tfracs
-    y_new <- purrr::map(seq_along(ind_obs), function(x)
-      rep(stan_data$y[i] * tfrac[x]/sum(tfrac), 
-          sum(obs_year == u_obs_years[x]))) %>% 
-      unlist()
+    tfrac_tot <- sum(unique(tfrac))
+    
+    # Expand observations to space x time gridcells
+    y_grid <- purrr::map(seq_along(ind_obs), function(x) {
+      # Get grid indices of loctime
+      sub_ind <- stan_data$map_loc_grid_grid[which(stan_data$map_loc_grid_loc %in% stan_data$map_obs_loctime_loc[ind_obs[x]])] 
+      # Get the time slice
+      ts <- stan_data$map_grid_time[sub_ind] %>% unique()
+      # Get the population in the time slice
+      pop_ts <- sum(pop[obs_year == ts])
+      
+      # Disaggregate
+      stan_data$y[i] * tfrac[x]/tfrac_tot * stan_data$pop[sub_ind]/pop_ts
+      
+    }) %>%
+      unlist() %>% 
+      round()
     
     tfrac_vec <- purrr::map(seq_along(ind_obs), function(x)
       rep(tfrac[x], sum(obs_year == u_obs_years[x]))) %>% 
       unlist()
-    
-    y <- round(y_new * pop/sum(pop))
     
     sx <- coord_frame$x[ind]
     sy <- coord_frame$y[ind]
@@ -85,7 +95,7 @@ df <- purrr::map_dfr(
     return(
       tibble::tibble(obs = i,
                      raw_y = stan_data$y[i],
-                     y = y,
+                     y = y_grid,
                      sx = sx,
                      sy = sy,
                      ind = ind,
