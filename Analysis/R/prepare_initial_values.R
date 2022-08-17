@@ -150,9 +150,7 @@ if (warmup) {
   }
   
   # Is the model one with a time-specific random effect?
-  timevary_model <- stringr::str_detect(config$stan$model, "timevary") & config$time_effect
-  
-  if (config$time_effect & timevary_model) {
+  if (config$time_effect) {
     frml <- paste(c(frml, colnames(df %>% dplyr::select(dplyr::contains("year_")))), collapse = " + ")
   }
   
