@@ -1413,6 +1413,8 @@ complete_config <- function(config, defaults = config_defaults, original_config 
           "config field", field_name, "should be a list, but was of type",
           class(config[[field_name]]), "with value", config[[field_name]]
         ))
+      } else if ((field_name == "test_metadata") && (is.null(config[[field_name]]))) {
+        next
       }
       config[[field_name]] <- complete_config(
         config[[field_name]], defaults[[field_name]],

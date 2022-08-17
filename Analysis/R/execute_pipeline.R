@@ -587,6 +587,8 @@ if (config[["initial_values"]][["warmup"]]) {
           return(median(c(r, m, l), na.rm = TRUE))
         }
       )
+      .x[[cases_column]] <- diff(c(0, round(cumsum(.x[[cases_column]]))))
+      .x[[paste("log", cases_column, sep = "_")]] <- log(.x[[cases_column]])
       return(.x)
     }) %>%
     dplyr::mutate(log_y = log(y), gam_offset = log_y)
@@ -595,6 +597,7 @@ if (config[["initial_values"]][["warmup"]]) {
     dplyr::group_by(x, y) %>%
     dplyr::summarize(.groups = "drop") %>%
     nrow()
+
   gam_formula <- taxdat::get_gam_formula(
     cases_column_name = cases_column,
     include_spatial_smoothing = TRUE,
@@ -606,7 +609,7 @@ if (config[["initial_values"]][["warmup"]]) {
 
   gam_fit <- mgcv::gam(
     gam_formula,
-    family = "gaussian",
+    family = "poisson",
     data = initial_values_df,
     drop.unused.levels = FALSE,
   )
@@ -615,19 +618,48 @@ if (config[["initial_values"]][["warmup"]]) {
     covar_cube
   )
 
-  covariate_effect <- as.vector(as.matrix(as.data.frame(covar_cube)[, covariate_names]) %*%
-    coef(gam_fit)[covariate_names])
+  ## Extract parameters
+  ## - beta0
+  ## - betas
+  ## - log_std_dev_w
+  ## - eta_tilde
+  ## - sigma_eta_tilde
+  ## - rho
+  ## - w
+  ## Extract covariates
+  initial_beta0 <- coef(gam_fit)["(Intercept)"]
+  beta0_effect <- rep(initial_beta0, times = nrow(covar_cube))
 
   initial_betas <- coef(gam_fit)[covariate_names]
+  covariate_effect <- as.vector(as.matrix(as.data.frame(covar_cube)[, covariate_names]) %*%
+    initial_betas)
+
   initial_etas <- c(0, coef(gam_fit)[grepl("^as.factor.t.", names(coef(gam_fit)))])
+  initial_sigma_eta_scale <- 1
+  initial_eta_tilde <- (initial_etas / config[["stan"]][["sigma_eta_scale"]])
+  eta_effect <- initial_etas[as.factor(covar_cube[["t"]])]
+
+  initial_rho <- 0.9999
+
+  residuals <- gam_predict - beta0_effect - covariate_effect - eta_effect
+  initial_ws <- dplyr::tibble(value = residuals, spatial_id = covar_cube[["updated_id"]]) %>%
+    dplyr::group_by(spatial_id) %>%
+    dplyr::summarize(value = mean(value)) %>%
+    dplyr::arrange(spatial_id) %>%
+    .[["value"]]
+
+  ##
 
   initial_values_list <- lapply(seq_len(config[["stan"]][["nchain"]]), function(chain) {
-    w_df <- dplyr::tibble(value = gam_predict - covariate_effect, spatial_id = covar_cube[["updated_id"]]) %>%
-      dplyr::group_by(spatial_id) %>%
-      dplyr::summarize(value = mean(value)) %>%
-      dplyr::arrange(spatial_id)
-
-    rc <- list(w = as.array(rnorm(nrow(w_df), w_df[["value"]])))
+    rc <- list(
+      beta0 = as.array(rnorm(
+        length(initial_beta0),
+        initial_beta0,
+        sqrt(sqrt(abs(initial_beta0)))
+      )),
+      rho = initial_rho,
+      w = as.array(rnorm(length(initial_ws), initial_ws))
+    )
     if (length(covariate_names) > 0) {
       rc$betas <- as.array(rnorm(
         length(coef(gam_fit)[covariate_names]),
@@ -635,10 +667,15 @@ if (config[["initial_values"]][["warmup"]]) {
       ))
     }
     if (config[["stan"]][["do_time_slice"]][["perform"]] && (length(unique(covar_cube$updated_t)) > 1)) {
-      rc$etas <- as.array(rnorm(
-        length(initial_etas),
-        initial_etas,
-        sqrt(var(initial_etas))
+      rc$eta_tilde <- as.array(rnorm(
+        length(initial_eta_tilde),
+        initial_eta_tilde,
+        sqrt(var(initial_eta_tilde))
+      ))
+      rc$sigma_eta_scale <- as.array(rnorm(
+        length(initial_sigma_eta_scale),
+        initial_sigma_eta_scale,
+        .01
       ))
     }
     return(rc)
@@ -646,7 +683,7 @@ if (config[["initial_values"]][["warmup"]]) {
 
 
   covar_cube[["covariate_contribution"]] <- covariate_effect
-  covar_cube[["spatial_smoothing_term"]] <- gam_predict - covariate_effect
+  covar_cube[["spatial_smoothing_term"]] <- residuals
   covar_cube[["gam_output"]] <- gam_predict
   print("Finished gam warmup")
 } else {

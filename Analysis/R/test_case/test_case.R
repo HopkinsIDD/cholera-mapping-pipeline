@@ -217,7 +217,6 @@ test_observations <- lapply(config[["test_metadata"]][["observations"]], functio
   rc <- taxdat::observe_polygons(
     test_polygons = dplyr::mutate(all_dfs$shapes_df, location = qualified_name, geometry = geom),
     test_covariates = raster_df,
-    underlying_distribution = test_underlying_distribution,
     observed_grid = test_observed_grid,
     number_draws = config[["test_metadata"]][["grid_observation"]][["number_draws"]],
     polygon_proportion_observed = spec[["proportion_observed"]],
@@ -278,18 +277,3 @@ taxdat::setup_testing_database_from_dataframes(conn_pg, all_dfs, covariate_raste
 
 # Sys.setenv(CHOLERA_CONFIG = config_filename)
 source(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "R", "execute_pipeline.R"))
-
-## Through here in editing
-rmarkdown::render(
-  rprojroot::find_root_file(
-    criterion = ".choldir", "Analysis", "output",
-    "country_data_report.Rmd"
-  ),
-  params = list(
-    cholera_directory = rprojroot::find_root(criterion = ".choldir"),
-    config = opt$config,
-    drop_nodata_years = TRUE
-  ),
-  # This is a difference
-  output_file = "test_case_1_country_data_report"
-)
