@@ -532,7 +532,7 @@ create_multiple_test_covariates <- function(test_raster = create_test_raster(), 
             radiation_function = radiation_function[[idx]], radiating_polygons = radiating_polygons[[idx]],
             radiating_means = radiating_means[[idx]], weights = weights[[idx]], family = family,
             seed = seed)
-        seed <- .GlobalEnv$.Random.seed)
+        seed <- .GlobalEnv$.Random.seed
         if (length(unique(as.vector(tmp[["covariate"]]))) > 1) {
             tmp[["covariate"]] <- my_scale(tmp[["covariate"]]) * magnitude[idx]
         } else {
