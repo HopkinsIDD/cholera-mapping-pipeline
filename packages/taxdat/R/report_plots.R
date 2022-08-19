@@ -419,10 +419,11 @@ plot_stan_parameter_violin <- function(config, cache, cholera_directory) {
 
   plt <- cache$stan_parameter_draws %>%
     reshape2::melt() %>%
-    dplyr::mutate(chain = as.factor(chain)) %>%
+    dplyr::mutate(chain = as.factor(chain),group=gsub("^([[:alpha:]]*).*$","\\1",variable)) %>%
     ggplot2::ggplot() +
-    ggplot2::geom_violin(ggplot2::aes(x = variable, y = value)) +
-    # ggplot2::facet_wrap(~variable, scales = "free") +
+    ggplot2::geom_boxplot(ggplot2::aes(x = variable, y = value)) +
+    geom_hline(yintercept=0,linetype="dashed",color = "red")+
+    ggplot2::facet_wrap(~group, scales = "free") +
     taxdat::plot_theme()
   return(plt)
 }
