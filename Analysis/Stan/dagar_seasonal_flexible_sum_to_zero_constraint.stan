@@ -137,7 +137,7 @@ transformed parameters {
 
 
     // log-rates without time-slice effects
-    log_lambda =  w[map_smooth_grid] + log_meanrate;
+    log_lambda =  w[map_smooth_grid] + log_meanrate + alpha; // QZ: added intercept
 
     // covariates if applicable
     if (ncovar > 1) {
