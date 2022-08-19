@@ -107,7 +107,7 @@ parameters {
 
   vector[smooth_grid_N] w; // Spatial Random Effect
 
-  simplex[T*do_time_slice_effect] eta_tilde; // yearly random effects
+  simplex[T*do_time_slice_effect] eta_tilde; // QZ: yearly random effects updated to simplex: sum-to-zero constraint
   real <lower=0> sigma_eta_tilde[do_time_slice_effect];
 
   // Covariate stuff
@@ -128,7 +128,7 @@ transformed parameters {
     if (do_time_slice_effect == 1) {
       for(i in 1:T) {
         // scale yearly random effects
-        eta[i] = sigma_eta_scale * sigma_eta_tilde[1] * (eta_tilde[i]-1.0/T);
+        eta[i] = sigma_eta_scale * sigma_eta_tilde[1] * (eta_tilde[i]-1.0/T);  // QZ: subtract 1/T here for sum-to-zero constraint
       }
     }
 
