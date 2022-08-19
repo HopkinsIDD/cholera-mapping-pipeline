@@ -43,6 +43,7 @@ data {
   int <lower=0,upper=smooth_grid_N> map_smooth_grid[N]; //vector with repeating smooth_grid_N indexes repeating 1:N
 
   // Covariate stuff
+  real alpha;           // QZ: added intercept
   int ncovar; // Number of covariates
   matrix[N,ncovar] covar; // Covariate matrix
   int<lower=0> beta_sigma_scale;
