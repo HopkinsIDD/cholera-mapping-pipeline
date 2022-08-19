@@ -43,6 +43,7 @@ data {
   int <lower=0,upper=smooth_grid_N> map_smooth_grid[N]; //vector with repeating smooth_grid_N indexes repeating 1:N
 
   // Covariate stuff
+  real alpha;           // QZ: added intercept 2022-08-15
   int ncovar; // Number of covariates
   matrix[N,ncovar] covar; // Covariate matrix
   int<lower=0> beta_sigma_scale;
@@ -107,7 +108,7 @@ parameters {
 
   vector[smooth_grid_N] w; // Spatial Random Effect
 
-  simplex[T*do_time_slice_effect] eta_tilde; // yearly random effects
+  vector[T*do_time_slice_effect] eta_tilde; // yearly random effects QZ: changed from simplex to vector 2022-08-15
   real <lower=0> sigma_eta_tilde[do_time_slice_effect];
 
   // Covariate stuff
@@ -136,7 +137,7 @@ transformed parameters {
 
 
     // log-rates without time-slice effects
-    log_lambda =  w[map_smooth_grid] + log_meanrate;
+    log_lambda =  w[map_smooth_grid] + log_meanrate + alpha; // QZ: added intercept
 
     // covariates if applicable
     if (ncovar > 1) {
@@ -268,7 +269,7 @@ model {
     // For the autocorrelated model sigma is the sd of the increments in the random effects
     sigma_eta_tilde ~ std_normal();
     
-    sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraint
+    sum(eta_tilde) ~ normal(0, 0.001 * T); // QZ: soft sum to 0 constraint to get narrower prior
     
     if (do_time_slice_effect_autocor == 1) {
       real tau = 1/(sigma_eta_tilde[1] * sigma_eta_scale)^2; // precision of the increments of the time-slice random effects
