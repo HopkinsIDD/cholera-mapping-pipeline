@@ -468,16 +468,21 @@ create_test_covariate <- function(test_raster = create_test_raster(), nonspatial
     ## matrices which are 0 if the covariate is not used
     test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(independent_covariate(test_raster,
         nonspatial, nontemporal, seed = seed) * weights[1])
+    seed <- .GlobalEnv$.Random.seed
     test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(smoothed_covariate(test_raster,
         spatially_smooth, temporally_smooth, smoothing_function, rho, seed = seed) *
         weights[2])
+    seed <- .GlobalEnv$.Random.seed
     test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(polygonal_covariate(test_raster,
         polygonal, polygons, seed = seed) * weights[3])
+    seed <- .GlobalEnv$.Random.seed
     test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(radiating_covariate(test_raster,
         radiating, radiating_polygons, radiating_means, radiation_function, seed = seed) *
         weights[4])
+    seed <- .GlobalEnv$.Random.seed
     test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(constant_covariate(test_raster,
         constant, seed = seed) * weights[5])
+    seed <- .GlobalEnv$.Random.seed
 
     attr(test_raster, "seed") <- seed
     return(test_raster)
