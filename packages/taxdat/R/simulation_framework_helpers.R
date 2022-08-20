@@ -454,6 +454,7 @@ create_test_covariate <- function(test_raster = create_test_raster(), nonspatial
     radiating_means = rnorm(nrow(radiating_polygons)), weights = c(1, 1, 1, 1, 1),
     family = "Gaussian", seed) {
     seed <- get_or_set_seed(seed)
+    original_seed <- seed
     if (family != "Gaussian") {
         stop("This is not yet implemented")
     }
@@ -484,7 +485,7 @@ create_test_covariate <- function(test_raster = create_test_raster(), nonspatial
         constant, seed = seed) * weights[5])
     seed <- .GlobalEnv$.Random.seed
 
-    attr(test_raster, "seed") <- seed
+    attr(test_raster, "seed") <- original_seed
     return(test_raster)
 }
 
