@@ -28,5 +28,6 @@ todo.org
 *.swp
 **.yml
 !tests/**/*.yml
+!Analysis/R/test_case/**.yml
 **.html
 **.rs
