@@ -149,17 +149,17 @@ if(!is.null(cache[["config"]][["test_metadata"]])){
 # disjoint_set_sf_cases <- cache[["observed_polygon_cases_disjoint_aggregated"]]
 ```
 
-**Cases by time:**
+**Averaged annual cases by spatial scales:**
 ```{r rawobsmap, fig.height=5, fig.width=10, fig.cap=capFig("Observed case counts by time adjusted for time fraction cases/year")}
 taxdat::plot_observed_cases_polygon_raw(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
 ```
 
-**Area adjusted cases by time:**
+**Averaged area adjusted annual cases by spatial scales:**
 ```{r areadjustedmap, fig.height=5, fig.width=10, fig.cap=capFig("Area adjusted average observed case counts by time adjusted for time fraction cases/(year * kilometer)")}
 taxdat::plot_area_adjusted_observed_cases(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
 ```
 
-**Cases unique location periods:**
+**Number of observations by unique observed location periods:**
 ```{r obsmap, fig.height=5, fig.width=10, fig.cap=capFig("Number of observations by unique observed location periods.")}
 taxdat::plot_raw_observations(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
 ```
@@ -167,7 +167,7 @@ taxdat::plot_raw_observations(config=params$config,cache=cache,cholera_directory
 ### Covariates
 
 #### Population
-**Population raster by time slices:**
+**Population raster by time slices (log scale):**
 ```{r pop, fig.height=5, fig.width=10, fig.cap=capFig("Population density")}
 taxdat::plot_time_varying_pop_raster(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 ```
