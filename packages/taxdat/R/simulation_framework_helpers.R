@@ -454,6 +454,7 @@ create_test_covariate <- function(test_raster = create_test_raster(), nonspatial
     radiating_means = rnorm(nrow(radiating_polygons)), weights = c(1, 1, 1, 1, 1),
     family = "Gaussian", seed) {
     seed <- get_or_set_seed(seed)
+    original_seed <- seed
     if (family != "Gaussian") {
         stop("This is not yet implemented")
     }
@@ -468,18 +469,23 @@ create_test_covariate <- function(test_raster = create_test_raster(), nonspatial
     ## matrices which are 0 if the covariate is not used
     test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(independent_covariate(test_raster,
         nonspatial, nontemporal, seed = seed) * weights[1])
+    seed <- .GlobalEnv$.Random.seed
     test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(smoothed_covariate(test_raster,
         spatially_smooth, temporally_smooth, smoothing_function, rho, seed = seed) *
         weights[2])
+    seed <- .GlobalEnv$.Random.seed
     test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(polygonal_covariate(test_raster,
         polygonal, polygons, seed = seed) * weights[3])
+    seed <- .GlobalEnv$.Random.seed
     test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(radiating_covariate(test_raster,
         radiating, radiating_polygons, radiating_means, radiation_function, seed = seed) *
         weights[4])
+    seed <- .GlobalEnv$.Random.seed
     test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(constant_covariate(test_raster,
         constant, seed = seed) * weights[5])
+    seed <- .GlobalEnv$.Random.seed
 
-    attr(test_raster, "seed") <- seed
+    attr(test_raster, "seed") <- original_seed
     return(test_raster)
 }
 
@@ -521,6 +527,7 @@ create_multiple_test_covariates <- function(test_raster = create_test_raster(), 
         1, 1, 1, 1)), ncovariates), magnitude = rep(1, times = ncovariates), family = "Gaussian",
     seed) {
     seed <- get_or_set_seed(seed)
+    original_seed <- seed
     rc <- list()
     for (idx in seq_len(ncovariates)) {
         tmp <- create_test_covariate(test_raster = test_raster, nonspatial = nonspatial[idx],
@@ -531,6 +538,7 @@ create_multiple_test_covariates <- function(test_raster = create_test_raster(), 
             radiation_function = radiation_function[[idx]], radiating_polygons = radiating_polygons[[idx]],
             radiating_means = radiating_means[[idx]], weights = weights[[idx]], family = family,
             seed = seed)
+        seed <- .GlobalEnv$.Random.seed
         if (length(unique(as.vector(tmp[["covariate"]]))) > 1) {
             tmp[["covariate"]] <- my_scale(tmp[["covariate"]]) * magnitude[idx]
         } else {
@@ -542,7 +550,7 @@ create_multiple_test_covariates <- function(test_raster = create_test_raster(), 
         tmp$covariate <- as.numeric(tmp$covariate)
         rc[[idx]] <- tmp
     }
-    attr(rc, "seed") <- seed
+    attr(rc, "seed") <- original_seed
     return(rc)
 }
 
