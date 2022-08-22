@@ -43,7 +43,6 @@ data {
   int <lower=0,upper=smooth_grid_N> map_smooth_grid[N]; //vector with repeating smooth_grid_N indexes repeating 1:N
 
   // Covariate stuff
-  real alpha;           // QZ: added intercept 2022-08-15
   int ncovar; // Number of covariates
   matrix[N,ncovar] covar; // Covariate matrix
   int<lower=0> beta_sigma_scale;
@@ -102,6 +101,7 @@ transformed data {
 
 parameters {
   //real beta0; //the intercept
+  real alpha;           // QZ: added intercept 2022-08-15
 
   real <lower=0, upper=1> rho; // Spatial correlation parameter
   real log_std_dev_w; // Precision of the spatial effects
