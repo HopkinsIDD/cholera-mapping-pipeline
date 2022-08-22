@@ -2,8 +2,8 @@
 title: "Country Data Report"
 output: html_document
 params: 
-  cholera_directory: "/home/qulu/cdr_neda"
-  config: "/Analysis/configs/production_tests/dev_tests/TGO/config_TGO_2015_2019_censoring_prior.yml"
+  cholera_directory: "~/cholera-mapping-pipeline"
+  config: "~/Analysis/configs/config.yml"
   drop_nodata_years: TRUE
   admin_level_for_summary_table: '1'
   args: 'myarg'
@@ -11,9 +11,6 @@ params:
 ---
 ```{r eval = FALSE, include = FALSE}
 # Set all the parameters for development purposes (need to comment them out when running the whole script)
-# params <- new.env()
-# params$cholera_directory <- "/home/kaiyuezou/mapping_pipeline/country_data_report_updates/cholera-mapping-pipeline"
-# params$config <- "/Analysis/configs/production_tests/country_data_report_comparison_test/BEN/config_BEN_2015_2019_nocovar.yml"
 params$drop_nodata_years <- TRUE
 params$admin_level_for_summary_table <- '1'
 params$args <- 'myarg'
@@ -156,17 +153,17 @@ aggregate_observed_polygon_cases_disjoint_aggregated(name="observed_polygon_case
 disjoint_set_sf_cases <- cache[["observed_polygon_cases_disjoint_aggregated"]]
 ```
 
-**Cases by time:**
+**Averaged annual cases by spatial scales:**
 ```{r rawobsmap, fig.height=10, fig.width=30, out.width="150%",fig.cap=capFig("Observed case counts by time adjusted for time fraction cases/year")}
 plot_observed_cases_polygon_raw(config=params$config,cache=cache,cholera_directory=params$cholera_directory) 
 ```
 
-**Area adjusted cases by time:**
+**Averaged area adjusted annual cases by spatial scales:**
 ```{r areadjustedmap, fig.height=10, fig.width=30, out.width="150%",fig.cap=capFig("Area adjusted average observed case counts by time adjusted for time fraction cases/(year * kilometer)")}
 plot_area_adjusted_observed_cases(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
 ```
 
-**Cases unique location periods:**
+**Number of observations by unique observed location periods:**
 ```{r obsmap, fig.height=10, fig.width=30, out.width="150%",fig.cap=capFig("Number of observations by unique observed location periods.")}
 plot_raw_observations(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
 ```
@@ -178,7 +175,7 @@ plot_raw_observations(config=params$config,cache=cache,cholera_directory=params$
 plot_time_varying_pop_raster(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 ```
 
-**Table 3. Population by admin level:**
+**Table 3. Population by admin level using 20*20 km pop raster:**
 ```{r echo = FALSE}
 plot_pop_by_admin(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
 ```
@@ -240,7 +237,7 @@ plot_stan_output_vs_gam_output_rate_scatter_plot(cache = cache) #this will outpu
 plot_stan_output_vs_gam_output_case_scatter_plot(cache = cache) #this will output plots 
 ```
 
-**Table 4. Modeled cases by admin level and time:**
+**Table 4. Modeled cases by admin level and time using 20*20 km pop raster:**
 ```{r echo = FALSE}
 plot_cases_by_admin(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 ```
@@ -251,7 +248,7 @@ plot_cases_by_admin(cache=cache,config=params$config,cholera_directory=params$ch
 plot_modeled_rates_time_varying(disaggregated_rate_sf=cache[["disaggregated_rate_sf"]], render = T)
 ```
 
-**Table 5. Modeled population-weighted incidence rates by admin level and time:**
+**Table 5. Modeled incidence rates by admin level and time using 20*20 km pop raster:**
 ```{r echo = FALSE}
 plot_incidence_by_admin(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 ```
