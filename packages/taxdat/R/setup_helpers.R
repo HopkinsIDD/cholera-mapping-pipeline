@@ -341,9 +341,16 @@ config_checks[["general"]][["height_in_km"]] <- function(value, config, index) {
   }
   return(TRUE)
 }
-config_checks[["general"]][["covariates"]] <- function(value, config, index) {
-  if (is.null(value)) {
-    return(TRUE)
+
+config_checks[["general"]][["covariates"]] <- list()
+config_checks[["general"]][["covariates"]][["::"]] <- list()
+config_checks[["general"]][["covariates"]][["::"]][["name"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['general']][['covariates']][[", index, "]][['transform_name']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
   }
   if (!is.character(value)) {
     warning(paste(
@@ -354,6 +361,63 @@ config_checks[["general"]][["covariates"]] <- function(value, config, index) {
   }
   if (any(is.na(value))) {
     warning("config[['general']][['covariates']] is NA at least once")
+    return(FALSE)
+  }
+  return(TRUE)
+}
+config_checks[["general"]][["covariates"]][["::"]][["transform_name"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['general']][['covariates']][[", index, "]][['transform_name']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (!is.character(value)) {
+    warning(paste(
+      "config[['general']][['covariates']][[", index, "]][['transform_name']] should be a character, but is",
+      value, "of mode", mode(value)
+    ))
+    return(FALSE)
+  }
+  if (any(is.na(value))) {
+    warning("config[['general']][['covariates']][[", index, "]][['transform_name']] is NA.")
+    return(FALSE)
+  }
+  return(TRUE)
+}
+config_checks[["general"]][["covariates"]][["::"]][["transform_function"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['general']][['covariates']][[", index, "]][['transform_function']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (!is.function(value)) {
+    warning(paste(
+      "config[['general']][['covariates']][[", index, "]][['transform_function']] should be a function, but is",
+      value, "of mode", mode(value)
+    ))
+    return(FALSE)
+  }
+  tryCatch(
+    {
+      tmp <- value(-5:5)
+    },
+    error = function(e) {
+      warning(paste("config[['general']][['covariates']][[", index, "]][['transform_function']] should take a single numeric vector argument, but", value, "does not run on -5:5"))
+    }
+  )
+  tmp <- value(-5:5)
+  if (length(tmp) != 10) {
+    warning(paste("config[['general']][['covariates']][[", index, "]][['transform_function']] should return a vector the same size as the input, but", value, "returns", tmp, "when run on -5:5"))
+  }
+  if (!is.numeric(tmp)) {
+    warning(paste(
+      "config[['general']][['covariates']][[", index, "]][['transform_function']] should return a numeric vector, but is",
+      tmp, "of mode", mode(tmp), "when applied to -5:5"
+    ))
     return(FALSE)
   }
   return(TRUE)
@@ -1193,6 +1257,37 @@ check_config <- function(config, checks = config_checks, original_config = confi
 }
 
 config_defaults <- list()
+
+config_checks[["general"]] <- list()
+config_checks[["general"]][["covariates"]] <- list()
+config_checks[["general"]][["covariates"]][["::"]] <- list()
+config_checks[["general"]][["covariates"]][["::"]][["transform_name"]] <- function(config, index) {
+  return("identity")
+}
+config_checks[["general"]][["covariates"]][["::"]][["transform_function"]] <- function(config, index) {
+  transform_name <- "identity"
+  try(
+    {
+      transform_name <- config[["general"]][["covariates"]][[index]][["transform_name"]]
+    },
+    silent = TRUE
+  )
+  if (is.null(transform_name)) {
+    transform_name <- "identity"
+  }
+  if (transform_name == "identity") {
+    return(function(x) {
+      return(x)
+    })
+  }
+  if (transform_name == "log") {
+    return(function(x) {
+      return(log(x))
+    })
+  }
+  return("identity")
+}
+
 config_defaults[["initial_values"]] <- list()
 config_defaults[["initial_values"]][["warmup"]] <- function(config, index) {
   return(TRUE)

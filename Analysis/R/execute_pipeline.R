@@ -65,7 +65,7 @@ opt <- optparse::parse_args((optparse::OptionParser(option_list = option_list)))
 
 print("HERE")
 ### Config Options
-config <- yaml::read_yaml(opt[["config"]])
+config <- yaml::read_yaml(opt[["config"]], eval.expr = TRUE)
 config <- taxdat::complete_config(config)
 print(config[["test_metadata"]])
 print(config[["test_metadata"]][["covariates"]])

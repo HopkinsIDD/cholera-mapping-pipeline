@@ -81,12 +81,7 @@ aggregate_case_data <- function(case_data, unique_column_names = c("loctime"), c
       current_set <- 1
       something_changed <- TRUE
       while (any(is.na(.x$set))) {
-        new_set_indices <- (rev(cummax(rev(!is.na(.x$set)))) == 1) & is.na(.x$set)
-        if (any(new_set_indices) & (!something_changed)) {
-          .x$set[[which(new_set_indices)[[1]]]] <- current_set
-          current_set <- current_set + 1
-          something_changed <- TRUE
-        } else if (!something_changed) {
+        if (!something_changed) {
           .x$set[[which(is.na(.x$set))[[1]]]] <- current_set
           current_set <- current_set + 1
           something_changed <- TRUE
@@ -252,4 +247,13 @@ reorder_adjacency_matrix <- function(adjacency_frame, element_bias, id_cols = c(
   reordered_frame <- Matrix::summary(reordered_matrix)[, c("i", "j")]
   names(reordered_frame) <- id_cols
   return(reordered_frame)
+}
+
+transform_covariates <- function(covariates, transformations, verbose = FALSE) {
+  for (transformation in transformations) {
+    if (verbose) {
+      print(paste("Transforming", transformation[["name"]], "by", transformation[["function_name"]]))
+    }
+    covariates[[transformation[["name"]]]] <- transformation[["function"]](covariates[[transformation[["name"]]]])
+  }
 }
