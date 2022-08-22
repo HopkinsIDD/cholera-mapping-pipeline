@@ -1275,6 +1275,9 @@ config_defaults[["file_names"]] <- list()
 config_defaults[["file_names"]][["stan_input"]] <- function(config, index) {
   file_name <- paste0(paste(unlist(config[["general"]]), collapse = "_"), ".stan_input.rdata")
   file_path <- rprojroot::find_root_file(paste0("Analysis/data/", file_name), criterion = rprojroot::has_file(".choldir"))
+  if (!dir.exists(dirname(file_path))) {
+    dir.create(dirname(file_path))
+  }
   return(normalizePath(file_path))
 }
 config_defaults[["file_names"]][["stan_output"]] <- function(config, index) {
@@ -1282,6 +1285,9 @@ config_defaults[["file_names"]][["stan_output"]] <- function(config, index) {
     collapse = "_"
   ), ".stan_output.rds")
   file_path <- rprojroot::find_root_file(paste0("Analysis/data/", file_name), criterion = rprojroot::has_file(".choldir"))
+  if (!dir.exists(dirname(file_path))) {
+    dir.create(dirname(file_path))
+  }
   return(normalizePath(file_path))
 }
 config_defaults[["file_names"]][["report"]] <- function(config, index) {
@@ -1289,6 +1295,9 @@ config_defaults[["file_names"]][["report"]] <- function(config, index) {
     collapse = "_"
   ), ".report.html")
   file_path <- rprojroot::find_root_file(paste0("Analysis/data/", file_name), criterion = rprojroot::has_file(".choldir"))
+  if (!dir.exists(dirname(file_path))) {
+    dir.create(dirname(file_path))
+  }
   return(normalizePath(file_path))
 }
 config_defaults[["file_names"]][["generated_quantities"]] <- function(config, index) {
@@ -1297,6 +1306,9 @@ config_defaults[["file_names"]][["generated_quantities"]] <- function(config, in
     unlist(config[["generated"]])
   ), collapse = "_"), ".generated_quantities.rdata")
   file_path <- rprojroot::find_root_file(paste0("Analysis/data/", file_name), criterion = rprojroot::has_file(".choldir"))
+  if (!dir.exists(dirname(file_path))) {
+    dir.create(dirname(file_path))
+  }
   return(normalizePath(file_path))
 }
 config_defaults[["test_metadata"]] <- list()
@@ -1306,6 +1318,9 @@ config_defaults[["test_metadata"]][["file_names"]][["simulation_covariates"]] <-
     unlist(config[["general"]]), rlang::hash(config[["test_metadata"]]), rlang::hash(config[["seeds"]])
   ), collapse = "_"), ".data_simulation_covariates.rds")
   file_path <- rprojroot::find_root_file(paste0("Analysis/data/", file_name), criterion = rprojroot::has_file(".choldir"))
+  if (!dir.exists(dirname(file_path))) {
+    dir.create(dirname(file_path))
+  }
   return(normalizePath(file_path))
 }
 config_defaults[["test_metadata"]][["file_names"]][["true_grid_cases"]] <- function(config, index) {
@@ -1313,6 +1328,9 @@ config_defaults[["test_metadata"]][["file_names"]][["true_grid_cases"]] <- funct
     unlist(config[["general"]]), rlang::hash(config[["test_metadata"]]), rlang::hash(config[["seeds"]])
   ), collapse = "_"), ".true_grid_cases.rs")
   file_path <- rprojroot::find_root_file(paste0("Analysis/data/", file_name), criterion = rprojroot::has_file(".choldir"))
+  if (!dir.exists(dirname(file_path))) {
+    dir.create(dirname(file_path))
+  }
   return(normalizePath(file_path))
 }
 
