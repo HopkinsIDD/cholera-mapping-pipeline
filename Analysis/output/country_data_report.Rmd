@@ -136,12 +136,12 @@ if(!is.null(cache[["config"]][["test_metadata"]])){
 
 **Table 1. Data used within the model:**
 ```{r Observation Summary Table, echo = FALSE}
-# taxdat::table_observation_summary(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
+ taxdat::table_observation_summary(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
 
 **Table 2. Data dropped from the model:**
 ```{r echo=FALSE}
-#taxdat::table_dropped_data(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
+taxdat::table_dropped_data(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
 
 ```{r disjoint set sf cases, message=FALSE}
@@ -149,17 +149,17 @@ if(!is.null(cache[["config"]][["test_metadata"]])){
 # disjoint_set_sf_cases <- cache[["observed_polygon_cases_disjoint_aggregated"]]
 ```
 
-**Cases by time:**
+**Annual average cases by unique location periods:**
 ```{r rawobsmap, fig.height=5, fig.width=10, fig.cap=capFig("Observed case counts by time adjusted for time fraction cases/year")}
 taxdat::plot_observed_cases_polygon_raw(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
 ```
 
-**Area adjusted cases by time:**
+**Annual average area adjusted cases by unique location periods:**
 ```{r areadjustedmap, fig.height=5, fig.width=10, fig.cap=capFig("Area adjusted average observed case counts by time adjusted for time fraction cases/(year * kilometer)")}
 taxdat::plot_area_adjusted_observed_cases(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
 ```
 
-**Cases unique location periods:**
+**Number of observations by unique location periods:**
 ```{r obsmap, fig.height=5, fig.width=10, fig.cap=capFig("Number of observations by unique observed location periods.")}
 taxdat::plot_raw_observations(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
 ```

@@ -58,9 +58,20 @@ get_stan_input <- cache_fun_results(name = "stan_input", fun = get_stan_input_no
 get_initial_values_df_no_cache <- function(config, cache, cholera_directory) {
   get_stan_input(config = config, cache = cache, cholera_directory = cholera_directory)
   cache[["stan_input"]][["initial_values_df"]] %>%
-    dplyr::mutate(t = taxdat::cast_to_int32(t)) %>%
+    dplyr::mutate(t = taxdat::cast_to_int32(t)) -> tmp_df
+  inner_join(
+    tmp_df %>%
+      dplyr::group_by(spatial_grid_id, t) %>%
+      dplyr::summarise(suspected_cases = mean(suspected_cases), population = mean(population)),
+    tmp_df %>%
+      tibble::tibble() %>%
+      dplyr::select(spatial_grid_id, geometry) %>%
+      unique(),
+    by = "spatial_grid_id"
+  ) %>%
     return()
 }
+
 ## cache the results
 #' @export
 #' @name get_stan_data_data
