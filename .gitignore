@@ -23,12 +23,3 @@ Layers/
 covar_list_.txt
 covar_list_qulu.txt
 Analysis/R/notebooks/gavi_report_html/MAI_preprocess/
-Analysis/output/*.rdata
-Analysis/output/*.rds
-Analysis/output/*.html
-Analysis/R/*.yml
-Analysis/R/*.yml.complete
-Analysis/R/test_case/*.rdata
-Analysis/R/test_case/*.html
-packages/taxdat/*.html
-packages/taxdat/*.rdata
