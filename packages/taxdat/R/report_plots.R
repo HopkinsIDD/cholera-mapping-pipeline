@@ -416,12 +416,18 @@ plot_stan_parameter_traceplot <- function(config, cache, cholera_directory) {
 plot_stan_parameter_violin <- function(config, cache, cholera_directory) {
   get_stan_parameters_of_interest(config = config, cache = cache, cholera_directory = cholera_directory)
   get_stan_parameter_draws(config = config, cache = cache, cholera_directory = cholera_directory)
-
+  
+  quantiles_95 <- function(x) {
+    r <- quantile(x, probs=c(0.05, 0.25, 0.5, 0.75, 0.95))
+    names(r) <- c("ymin", "lower", "middle", "upper", "ymax")
+    r
+  }
+  
   plt <- cache$stan_parameter_draws %>%
     reshape2::melt() %>%
     dplyr::mutate(chain = as.factor(chain),group=gsub("^([[:alpha:]]*).*$","\\1",variable)) %>%
-    ggplot2::ggplot() +
-    ggplot2::geom_boxplot(ggplot2::aes(x = variable, y = value)) +
+    ggplot2::ggplot(ggplot2::aes(x = variable, y = value)) +
+    stat_summary(fun.data=quantiles_95,geom="boxplot")+
     geom_hline(yintercept=0,linetype="dashed",color = "red")+
     ggplot2::facet_wrap(~group, scales = "free") +
     taxdat::plot_theme()
