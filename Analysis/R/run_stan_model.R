@@ -33,7 +33,7 @@ cmdstan_fit <- chol_model$sample(
   iter_sampling = round(niter/2),
   max_treedepth = 15,
   init = initial_values_data$init.list,
-  sig_figs = 5,
+  sig_figs = 14,
   save_warmup = F,
   refresh = 100
 )

@@ -1,0 +1,149 @@
+
+#' Write Shapefiles to taxdat
+#'
+#' @param conn_pg 
+#' @param shapefiles 
+#' @param table_name 
+#'
+#' @export
+#'
+write_shapefiles_table <- function(conn_pg,
+                                   shapefiles,
+                                   table_name) {
+  
+  DBI::dbClearResult(
+    DBI::dbSendStatement(
+      conn_pg,  
+      glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(table_name)}`};", 
+                     .con = conn_pg)))
+  
+  # Write to database
+  sf::st_write(obj = shapefiles,
+               dsn = conn_pg,
+               layer = table_name,
+               append = F,
+               delete_layer = T)
+  
+  # Creat spatial index
+  DBI::dbClearResult(DBI::dbSendStatement(conn_pg, glue::glue_sql("UPDATE {`{DBI::SQL(table_name)}`} SET geom = ST_SetSRID(geom, 4326);", .con = conn_pg)))
+  DBI::dbClearResult(DBI::dbSendStatement(conn_pg, glue::glue_sql("CREATE INDEX  {`{DBI::SQL(paste0(table_name, '_idx'))}`} ON  {`{DBI::SQL(table_name)}`} USING GIST(geom);", .con = conn_pg)))
+  DBI::dbClearResult(DBI::dbSendStatement(conn_pg, glue::glue_sql("VACUUM ANALYZE {`{DBI::SQL(table_name)}`};", .con = conn_pg)))
+  
+}
+
+#' Make grid location periods mapping
+#'
+#' @param conn_pg 
+#' @param lp_name 
+#'
+#' @export
+#'
+make_grid_lp_mapping_table <- function(conn_pg,
+                                       lp_name) {
+  
+  # Table of correspondence between location periods and grid cells
+  location_periods_table <- paste0(lp_name, "_dict")
+  
+  DBI::dbClearResult(DBI::dbSendStatement(
+    conn_pg,
+    glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(location_periods_table)}`};",
+                   .con = conn_pg)
+  ))
+  DBI::dbClearResult(DBI::dbSendStatement(
+    conn_pg,
+    glue::glue_sql("CREATE TABLE {`{DBI::SQL(location_periods_table)}`} AS (
+                  SELECT location_period_id , b.rid, b.x, b.y
+                  FROM {`{DBI::SQL(lp_name)}`} a
+                  JOIN {`{DBI::SQL(paste0(full_grid_name, '_polys'))}`} b
+                  ON ST_Intersects(b.geom, a.geom)
+                );",
+                   .con = conn_pg
+    )
+  ))
+  
+}
+
+#' Make grid intersections table
+#'
+#' @param conn_pg 
+#' @param full_grid_name 
+#' @param lp_name 
+#' @param intersections_table 
+#'
+#' @return
+#' @export
+#'
+make_grid_intersections_table <- function(conn_pg,
+                                          full_grid_name,
+                                          lp_name,
+                                          intersections_table) {
+  
+  DBI::dbClearResult(DBI::dbSendStatement(
+    conn_pg,
+    glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(intersections_table)}`};",
+                   .con = conn_pg)
+  ))
+  DBI::dbClearResult(DBI::dbSendStatement(
+    conn_pg,
+    glue::glue_sql("CREATE TABLE {`{DBI::SQL(intersections_table)}`} AS (
+                  SELECT location_period_id , b.rid, b.x, b.y, ST_Intersection(b.geom, a.geom) as geom,
+                  g.geom as grid_centroid
+                  FROM {`{DBI::SQL(lp_name)}`} a
+                  JOIN {`{DBI::SQL(paste0(full_grid_name, '_polys'))}`} b
+                  ON ST_Intersects(b.geom, ST_Boundary(a.geom)) OR ST_CoveredBy(a.geom, b.geom)
+                  JOIN {`{DBI::SQL(paste0(full_grid_name, '_centroids'))}`} g
+                  ON b.rid = g.rid AND b.x = g.x AND b.y = g.y
+                );",
+                   .con = conn_pg
+    )
+  ))
+  
+  # Create spatial index
+  DBI::dbClearResult(DBI::dbSendStatement(conn_pg, glue::glue_sql("CREATE INDEX  {`{DBI::SQL(paste0(lp_name, 'intersections__idx'))}`} ON  {`{DBI::SQL(intersections_table)}`} USING GIST(geom);", .con = conn_pg)))
+  DBI::dbClearResult(DBI::dbSendStatement(conn_pg, glue::glue_sql("VACUUM ANALYZE {`{DBI::SQL(intersections_table)}`};", .con = conn_pg)))
+  
+}
+
+
+#' Make grid location period centroids
+#'
+#' @param conn_pg 
+#' @param full_grid_name 
+#' @param lp_name 
+#' @param cntrd_table 
+#'
+#' @return
+#' @export
+#'
+make_grid_lp_centroids_table <- function(conn_pg,
+                                         full_grid_name,
+                                         lp_name,
+                                         cntrd_table) {
+  
+  # Create table of grid centroids included in the model
+  DBI::dbClearResult(DBI::dbSendStatement(
+    conn_pg,
+    glue::glue_sql(
+      "DROP TABLE IF EXISTS {`{DBI::SQL(cntrd_table)}`};", .con = conn_pg)))
+  DBI::dbClearResult(DBI::dbSendStatement(
+    conn_pg,
+    glue::glue_sql(
+      "CREATE TABLE {`{DBI::SQL(cntrd_table)}`} AS (
+        SELECT DISTINCT g.*
+        FROM {`{DBI::SQL(paste0(full_grid_name, '_polys'))}`} p
+        JOIN {`{DBI::SQL(lp_name)}`} l
+        ON ST_Intersects(p.geom, l.geom)
+        JOIN {`{DBI::SQL(paste0(full_grid_name, '_centroids'))}`} g
+        ON p.rid = g.rid AND p.x = g.x AND p.y = g.y
+      );", .con = conn_pg
+    )
+  ))
+  
+  DBI::dbClearResult(DBI::dbSendStatement(
+    conn_pg,
+    glue::glue_sql(
+      "CREATE INDEX {`{DBI::SQL(paste0(cntrd_table, '_gidx'))}`} on {`{DBI::SQL(cntrd_table)}`} USING GIST(geom);",
+      .con = conn_pg)))
+  
+  DBI::dbSendStatement(conn_pg, glue::glue_sql("VACUUM ANALYZE {`{DBI::SQL(cntrd_table)}`};", .con = conn_pg))
+}

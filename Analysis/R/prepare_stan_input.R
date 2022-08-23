@@ -8,6 +8,7 @@
 #' @param smooth_covariate_number_timesteps
 #' @param ncore
 #' @param res_time
+#' @param res_space
 #' @param time_slices
 #' @param cases_column
 #' @param sf_cases
@@ -19,18 +20,19 @@
 #' @return A list with the data
 #'
 prepare_stan_input <- function(
-  dbuser,
-  cholera_directory,
-  smooth_covariate_number_timesteps,
-  ncore,
-  res_time,
-  time_slices,
-  cases_column,
-  sf_cases,
-  non_na_gridcells,
-  sf_grid,
-  location_periods_dict,
-  covar_cube
+    dbuser,
+    cholera_directory,
+    smooth_covariate_number_timesteps,
+    ncore,
+    res_time,
+    res_space,
+    time_slices,
+    cases_column,
+    sf_cases,
+    non_na_gridcells,
+    sf_grid,
+    location_periods_dict,
+    covar_cube
 ) {
   
   library(sf)
@@ -462,7 +464,7 @@ prepare_stan_input <- function(
     # stan_data$covar[1:10] = covar_cube[1:10, 1, 2]
     # TODO check if the index removing the first covarcub column which should correspond
     # to population is correct
-
+    
     stan_data$ncovar <- length(covariate_choices)
     stan_data$covar <- matrix(apply(covar_cube, 3, function(x) x[non_na_gridcells])[, -1], nrow = length(non_na_gridcells))
     
@@ -521,10 +523,74 @@ prepare_stan_input <- function(
   
   stan_data$map_full_grid <- full_grid$upd_id
   
+  
+  # Data for output summaries ---------------------------------------
+  # Set user-specific name for location_periods table to use
+  output_lp_name <- taxdat::make_output_locationperiods_table_name(dbuser = dbuser, map_name = map_name)
+  
+  # Add population 1km weights
+  output_intersections_table <- taxdat::make_output_grid_intersections_table_name(dbuser = dbuser,
+                                                                                  map_name = map_name)
+  
+  # Add population 1km weights
+  output_cntrds_table <- taxdat::make_output_grid_centroids_table_name(dbuser = dbuser,
+                                                                       map_name = map_name)
+  
+  conn_pg <- taxdat::connect_to_db(dbuser)
+  output_location_periods_table <- taxdat::make_location_periods_dict(
+    conn_pg = conn_pg,
+    lp_name = output_lp_name,
+    intersections_table = output_intersections_table,
+    cntrd_table = output_cntrds_table,
+    res_space = res_space,
+    sf_grid = sf_grid,
+    grid_changer = grid_changer)
+  
+  # Make fake data to compute output location periods mappings
+  fake_output_obs <- output_location_periods_table %>% 
+    dplyr::inner_join(time_slices %>% dplyr::mutate(t = dplyr::row_number())) %>% 
+    dplyr::distinct(location_period_id, TL, TR) %>% 
+    dplyr::rename(locationPeriod_id = location_period_id)
+  
+  # Mapping from fake observations to location-periods 
+  ind_mapping_output <- taxdat::get_space_time_ind_speedup(
+    df = fake_output_obs, 
+    lp_dict = output_location_periods_table,
+    model_time_slices = time_slices,
+    res_time = res_time,
+    n_cpus = ncore,
+    do_parallel = F)
+  
+  # Space-only location periods
+  output_lps_space <- fake_output_obs %>% 
+    dplyr::distinct(locationPeriod_id)
+  
+  # Set data for output in stan object
+  stan_data$M_output <- nrow(fake_output_obs)
+  stan_data$map_output_obs_loctime_obs <- as.array(ind_mapping_output$map_obs_loctime_obs)
+  stan_data$map_output_obs_loctime_loc <- as.array(ind_mapping_output$map_obs_loctime_loc)
+  stan_data$map_output_loc_grid_loc <- as.array(ind_mapping_output$map_loc_grid_loc)
+  stan_data$map_output_loc_grid_grid <- as.array(ind_mapping_output$map_loc_grid_grid)
+  stan_data$u_output_loctime <- ind_mapping_output$u_loctimes
+  
+  stan_data$K1_output <- length(stan_data$map_output_obs_loctime_obs)
+  stan_data$K2_output <- length(stan_data$map_output_loc_grid_loc)
+  stan_data$L_output <- length(ind_mapping_output$u_loctimes)
+  stan_data$L_output_space <- nrow(output_lps_space)
+  stan_data$map_output_loctime_loc <- purrr::map_dbl(fake_output_obs$locationPeriod_id, 
+                                                     ~ which(output_lps_space$locationPeriod_id == .))
+  
+  if (stan_params$use_pop_weight) {
+    stan_data$pop_weight_output <- ind_mapping_output$u_loc_grid_weights
+  } else {
+    stan_data$pop_weight_output <- array(data = 0, dim = 0)
+  }
+  
   cat("**** FINISHED PREPARING STAN INPUT \n")
   
   return(list(stan_data = stan_data,
               sf_cases_resized = sf_cases_resized,
               sf_grid = sf_grid,
-              smooth_grid  = smooth_grid))
+              smooth_grid  = smooth_grid,
+              fake_output_obs = fake_output_obs))
 }
