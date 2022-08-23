@@ -261,4 +261,5 @@ transform_covariates <- function(covariates, transformations, verbose = FALSE) {
     }
     covariates[[transformation[["name"]]]] <- transformation[["transform_function"]](covariates[[transformation[["name"]]]])
   }
+  return(covariates)
 }
