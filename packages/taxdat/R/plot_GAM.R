@@ -151,6 +151,52 @@ plot_gam_fit_output_rates_stitched <- function(name = "gam_output_df", cache, ye
 }
 
 #' @export
+#' @name plot_gam_cases_scatter_plot_stitched
+#' @title plot_gam_cases_scatter_plot_stitched
+#' @description plot_gam_cases_scatter_plot_stitched
+#' @param cache output cache that has the needed data
+#' @return the ggplot object
+plot_gam_cases_scatter_plot_stitched <- function(cache){
+  plt <- cache$gam_output_df %>%
+    sf::st_drop_geometry() %>% 
+    dplyr::select(id, t, sx, sy, stitch_source, y) %>% 
+    mutate(stitch_source = paste0("source", stitch_source)) %>% 
+    tidyr::spread(stitch_source, y) %>% 
+    ggplot(aes(x = source1, y = source2)) + 
+    geom_point(size=1, color="#69b3a2", alpha=0.3) +
+    theme_minimal() + 
+    coord_fixed(ratio = 1) + 
+    geom_abline(intercept = 0, slope = 1, size = 0.2) +
+    facet_wrap( ~ t, ncol = 3) + 
+    labs(x = "GAM output cases from model 1", y = "GAM output cases from model 2")
+
+  return(plt)
+}
+
+#' @export
+#' @name plot_gam_rates_scatter_plot_stitched
+#' @title plot_gam_rates_scatter_plot_stitched
+#' @description plot_gam_rates_scatter_plot_stitched
+#' @param cache output cache that has the needed data
+#' @return the ggplot object
+plot_gam_rates_scatter_plot_stitched <- function(cache){
+  plt <- cache$gam_output_df %>%
+    sf::st_drop_geometry() %>% 
+    dplyr::select(id, t, sx, sy, stitch_source, lambda) %>% 
+    mutate(stitch_source = paste0("source", stitch_source)) %>% 
+    tidyr::spread(stitch_source, lambda) %>% 
+    ggplot(aes(x = source1, y = source2)) + 
+    geom_point(size=1, color="#69b3a2", alpha=0.3) +
+    theme_minimal() + 
+    coord_fixed(ratio = 1) + 
+    geom_abline(intercept = 0, slope = 1, size = 0.2) +
+    facet_wrap( ~ t, ncol = 3) + 
+    labs(x = "GAM output rates from model 1", y = "GAM output rates from model 2")
+
+  return(plt)
+}
+
+#' @export
 #' @name stitch_gam_input_with_gam_output_rate
 #' @title stitch_gam_input_with_gam_output_rate
 #' @description stitch gam input and gam output together (from the same pipeline model)
@@ -336,4 +382,5 @@ plot_model_comparison_scatter_plot <- function(cache,name,column_x="rate_gam",co
         facet_wrap(~t) 
   }
 return(plt)
+
 }
