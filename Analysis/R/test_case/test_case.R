@@ -138,6 +138,7 @@ all_dfs$location_df <- all_dfs$shapes_df %>%
 ## TODO : Add template code to config checks and defaults
 covariates_table <- lapply(config[["test_metadata"]][["covariates"]], function(covariate_spec) {
   return(tibble::tibble(
+    name = covariate_spec[["name"]],
     nonspatial = covariate_spec[["nonspatial"]],
     nontemporal = covariate_spec[["nontemporal"]],
     spatially_smooth = covariate_spec[["spatially_smooth"]],
@@ -160,6 +161,8 @@ test_covariates <- taxdat::create_multiple_test_covariates(
   polygonal = covariates_table$polygonal, radiating = covariates_table$radiating,
   constant = covariates_table$constant, seed = global_seed
 )
+names(test_covariates) <- covariates_table[["name"]]
+
 global_seed <- .GlobalEnv$.Random.seed
 
 test_covariates_simulation <- test_covariates[covariates_table$Data_simulation_covariates]

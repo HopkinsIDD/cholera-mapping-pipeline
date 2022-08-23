@@ -249,6 +249,11 @@ reorder_adjacency_matrix <- function(adjacency_frame, element_bias, id_cols = c(
   return(reordered_frame)
 }
 
+#' @description Apply a unary transformation to each covariate
+#' @param covariates A data fram with a column for each covariate
+#' @param transformations A list of lists. The inner lists should be name, transform_name, transform_function, with transform_function being a unary function to apply to covariates[[name]]. Transform name is used for debug output
+#' @param verbose boolean whether to print debug output
+#' @export
 transform_covariates <- function(covariates, transformations, verbose = FALSE) {
   for (transformation in transformations) {
     if (verbose) {

@@ -5,6 +5,10 @@ general:
   time_scale: year
   width_in_km: 1.0
   height_in_km: 1.0
+  covariates:
+    - name: "population"
+    - name: "covariate 2"
+    - name: "covariate 3"
 processing: []
 stan:
   niter: 100.0
@@ -16,15 +20,18 @@ test_metadata:
   polygons:
     template: full and grid
   covariates:
-  - template: spatially_smooth_polygonal_constant
+  - name: "population"
+    template: spatially_smooth_polygonal_constant
     include_in_simulation: yes
     include_in_model: yes
     seed: global_seed
-  - template: spatially_smooth_polygonal
+  - name: "covariate 2"
+    template: spatially_smooth_polygonal
     include_in_simulation: yes
     include_in_model: yes
     seed: global_seed
-  - template: nonspatial_spatially_smooth_polygonal
+  - name: "covariate 3"
+    template: nonspatial_spatially_smooth_polygonal
     include_in_simulation: yes
     include_in_model: no
     seed: cov3_seed
