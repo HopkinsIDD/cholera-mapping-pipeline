@@ -252,8 +252,8 @@ reorder_adjacency_matrix <- function(adjacency_frame, element_bias, id_cols = c(
 transform_covariates <- function(covariates, transformations, verbose = FALSE) {
   for (transformation in transformations) {
     if (verbose) {
-      print(paste("Transforming", transformation[["name"]], "by", transformation[["function_name"]]))
+      print(paste("Transforming", transformation[["name"]], "by", transformation[["transform_name"]]))
     }
-    covariates[[transformation[["name"]]]] <- transformation[["function"]](covariates[[transformation[["name"]]]])
+    covariates[[transformation[["name"]]]] <- transformation[["transform_function"]](covariates[[transformation[["name"]]]])
   }
 }

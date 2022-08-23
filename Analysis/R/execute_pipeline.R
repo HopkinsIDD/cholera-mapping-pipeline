@@ -63,12 +63,9 @@ option_list <- list(
 opt <- optparse::parse_args((optparse::OptionParser(option_list = option_list)))
 
 
-print("HERE")
 ### Config Options
 config <- yaml::read_yaml(opt[["config"]], eval.expr = TRUE)
 config <- taxdat::complete_config(config)
-print(config[["test_metadata"]])
-print(config[["test_metadata"]][["covariates"]])
 if (!opt[["testing_run"]]) {
   yaml::write_yaml(config, file = paste0(opt[["config"]], ".complete"))
 }
@@ -371,7 +368,9 @@ if (any(is.na(observation_data[[paste0(cases_column, "_R")]]) & is.na(observatio
 
 ## Replace me with a config call
 potential_covariate_names <- colnames(as.data.frame(covar_cube)[, -c(1:6), drop = FALSE])
-covariate_names <- config[["general"]][["covariates"]]
+covariate_names <- sapply(config[["general"]][["covariates"]], function(x) {
+  x[["name"]]
+})
 if (!all(covariate_names %in% potential_covariate_names)) {
   stop(paste(
     "Could not find all covariates.", paste(covariate_names[!(covariate_names %in%
@@ -511,6 +510,10 @@ temporal_location_grid_mapping <- temporal_location_grid_mapping %>%
   )
 
 print("Finished reindexing")
+
+
+covar_cube <- taxdat::transform_covariates(covar_cube, covariate_info)
+
 
 if (config[["processing"]][["reorder_adjacency_matrix"]][["perform"]]) {
   print("Reordering adjacency matrix")
