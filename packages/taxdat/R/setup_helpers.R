@@ -1258,13 +1258,13 @@ check_config <- function(config, checks = config_checks, original_config = confi
 
 config_defaults <- list()
 
-config_checks[["general"]] <- list()
-config_checks[["general"]][["covariates"]] <- list()
-config_checks[["general"]][["covariates"]][["::"]] <- list()
-config_checks[["general"]][["covariates"]][["::"]][["transform_name"]] <- function(config, index) {
+config_defaults[["general"]] <- list()
+config_defaults[["general"]][["covariates"]] <- list()
+config_defaults[["general"]][["covariates"]][["::"]] <- list()
+config_defaults[["general"]][["covariates"]][["::"]][["transform_name"]] <- function(config, index) {
   return("identity")
 }
-config_checks[["general"]][["covariates"]][["::"]][["transform_function"]] <- function(config, index) {
+config_defaults[["general"]][["covariates"]][["::"]][["transform_function"]] <- function(config, index) {
   transform_name <- "identity"
   try(
     {
