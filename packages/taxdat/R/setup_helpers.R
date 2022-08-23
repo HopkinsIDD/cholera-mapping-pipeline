@@ -396,27 +396,26 @@ config_checks[["general"]][["covariates"]][["::"]][["transform_function"]] <- fu
   }
   if (!is.function(value)) {
     warning(paste(
-      "config[['general']][['covariates']][[", index, "]][['transform_function']] should be a function, but is",
-      value, "of mode", mode(value)
+      "config[['general']][['covariates']][[", index, "]][['transform_function']] should be a function, but is of mode", mode(value)
     ))
     return(FALSE)
   }
   tryCatch(
     {
-      tmp <- value(-5:5)
+      tmp <- value(1:10)
     },
     error = function(e) {
-      warning(paste("config[['general']][['covariates']][[", index, "]][['transform_function']] should take a single numeric vector argument, but", value, "does not run on -5:5"))
+      warning(paste("config[['general']][['covariates']][[", index, "]][['transform_function']] should take a single numeric vector argument, but does not run on 1:10"))
     }
   )
-  tmp <- value(-5:5)
+  tmp <- value(1:10)
   if (length(tmp) != 10) {
-    warning(paste("config[['general']][['covariates']][[", index, "]][['transform_function']] should return a vector the same size as the input, but", value, "returns", tmp, "when run on -5:5"))
+    warning(paste("config[['general']][['covariates']][[", index, "]][['transform_function']] should return a vector the same size as the input, but returns", tmp, "when run on 1:10"))
   }
   if (!is.numeric(tmp)) {
     warning(paste(
       "config[['general']][['covariates']][[", index, "]][['transform_function']] should return a numeric vector, but is",
-      tmp, "of mode", mode(tmp), "when applied to -5:5"
+      tmp, "of mode", mode(tmp), "when applied to 1:10"
     ))
     return(FALSE)
   }

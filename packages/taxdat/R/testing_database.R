@@ -1449,14 +1449,18 @@ convert_simulated_covariates_to_test_covariate_funs <- function(original_simulat
   }
   lapply(seq_len(length(simulated_covariates)), function(covariate_idx) {
     covariate <- simulated_covariates[[covariate_idx]]
+    covariate_name <- names(simulated_covariates)[[covariate_idx]]
+    if (is.null(covariate_name)) {
+      covariate_name <- ifelse(covariate_idx == 1, "population", paste("covariate",
+        covariate_idx,
+        sep = ""
+      ))
+    }
     min_time_index <- min(covariate$t)
     max_time_index <- max(covariate$t)
     lapply(unique(covariate$t), function(time_index) {
       return(list(
-        name = ifelse(covariate_idx == 1, "population", paste("covariate",
-          covariate_idx,
-          sep = ""
-        )),
+        name = covariate_name,
         start_date = min_time_left + (time_index -
           min_time_index) / (max_time_index - min_time_index + 1) * (max_time_right -
           min_time_left),

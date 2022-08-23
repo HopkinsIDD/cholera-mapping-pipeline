@@ -69,6 +69,17 @@ MemberRandomizable <- R6Class(
   )
 )
 
+String <- R6Class(
+  classname = "PositiveInteger",
+  inherit = Randomizable,
+  private = list(
+    .randomize = function() {
+      nchar <- 5 + PositiveInteger$new()$value
+      paste0(letters[round(runif(nchar, 0.5, 26.5))], collapse = "")
+    }
+  )
+)
+
 PositiveInteger <- R6Class(
   classname = "PositiveInteger",
   inherit = Randomizable,
@@ -151,6 +162,7 @@ Covariate <- R6Class(
     .construct_from_members = function(member_list) {
       return(list(
         template = "custom",
+        name = member_list[["name"]],
         nonspatial = member_list[["nonspatial"]],
         nontemporal = member_list[["nontemporal"]],
         spatially_smooth = member_list[["spatially_smooth"]],
@@ -167,6 +179,7 @@ Covariate <- R6Class(
   public = list(
     initialize = function() {
       private$.registry <- list(
+        name = String,
         nonspatial = Boolean,
         nontemporal = Boolean,
         spatially_smooth = Boolean,
@@ -191,6 +204,7 @@ CovariateList <- R6Class(
       rc <- lapply(seq_len(ncovariates), function(x) {
         Covariate$new()$value
       })
+      rc[[1]][["name"]] <- "population"
       rc[[1]][["include_in_simulation"]] <- TRUE
       rc[[1]][["include_in_model"]] <- TRUE
       return(rc)
@@ -273,7 +287,14 @@ run_test_case <- function(start_date = Date$new(),
       end_date = as.character(start_date$value + duration$value - 1),
       time_scale = time_scale$value,
       width_in_km = grid_size$value,
-      height_in_km = grid_size$value
+      height_in_km = grid_size$value,
+      covariates = lapply(covariates$value[sapply(covariates$value, function(covariate) {
+        covariate[["include_in_model"]]
+      })], function(covariate) {
+        return(list(
+          name = covariate[["name"]]
+        ))
+      })
     ),
     processing = processing,
     stan = stan_parameters,
