@@ -512,7 +512,7 @@ temporal_location_grid_mapping <- temporal_location_grid_mapping %>%
 print("Finished reindexing")
 
 
-covar_cube <- taxdat::transform_covariates(covar_cube, covariate_info)
+covar_cube <- taxdat::transform_covariates(covar_cube, config[["general"]][["covariates"]])
 
 
 if (config[["processing"]][["reorder_adjacency_matrix"]][["perform"]]) {
