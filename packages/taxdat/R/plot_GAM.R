@@ -22,8 +22,8 @@ plot_gam_fit_input_cases <- function(name="initial_values_data", cache) {
 #' @name plot_gam_fit_input_cases_stitched
 #' @title plot_gam_fit_input_cases_stitched
 #' @description plot the rasters with gam fitted input cases
-#' @name name the name of the dataset (initial values)
-#' @name cache the cache environment
+#' @param name the name of the dataset (initial values)
+#' @param cache the cache environment
 #' @return ggplot object
 plot_gam_fit_input_cases_stitched <- function(name = "initial_values_data", cache) {
    cache[[name]]$gam_fit_input %>%
@@ -61,8 +61,8 @@ plot_gam_fit_input_rates <- function(name="initial_values_data",cache) {
 #' @name plot_gam_fit_input_rates_stitched
 #' @title plot_gam_fit_input_rates_stitched
 #' @description plot the rasters with gam fitted input rates
-#' @name name the name of the dataset (initial values)
-#' @name cache the cache environment
+#' @param name the name of the dataset (initial values)
+#' @param cache the cache environment
 #' @return ggplot object
 plot_gam_fit_input_rates_stitched <- function(name = "initial_values_data", cache) {
   cache[[name]]$gam_fit_input %>%
@@ -99,8 +99,9 @@ plot_gam_fit_output_cases <- function(name="gam_output_df",cache) {
 #' @name plot_gam_fit_output_cases_stitched
 #' @title plot_gam_fit_output_cases_stitched
 #' @description plot the rasters with gam fitted output cases
-#' @name name the name of the dataset (initial values)
-#' @name cache the cache environment
+#' @param name the name of the dataset (initial values)
+#' @param cache the cache environment
+#' @param year_vector vector of years to plot 
 #' @return ggplot object
 plot_gam_fit_output_cases_stitched <- function(name = "gam_output_df", cache, year_vector){
   cache[[name]] %>%
@@ -381,4 +382,5 @@ plot_model_comparison_scatter_plot <- function(cache,name,column_x="rate_gam",co
         facet_wrap(~t) 
   }
 return(plt)
+
 }
