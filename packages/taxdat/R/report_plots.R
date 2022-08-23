@@ -9,7 +9,7 @@
 #' @param color_scale the color scale of the plot
 #' @param fill_column the column name to fill the raster
 #' @return ggplot object
-plot_sf_with_fill <- function(cache, name, color_scale_type, fill_column, facet_column = "set", geometry_column = "geometry", color_scale_use_log = NA, include_borders = TRUE) {
+plot_sf_with_fill <- function(cache, name, color_scale_type, fill_column, facet_column = "set", geometry_column = "geometry", color_scale_use_log = NA, include_borders = TRUE, legend_title = NULL) {
   if (is.na(color_scale_use_log)) {
     color_scale_use_log <- ifelse(color_scale_type %in% c("population"), TRUE, FALSE)
   }
@@ -25,6 +25,10 @@ plot_sf_with_fill <- function(cache, name, color_scale_type, fill_column, facet_
   if (!is.null(facet_column)) {
     plot <- plot +
       ggplot2::facet_wrap(formula(paste("~", paste(facet_column, collapse = " + "))))
+  }
+  if (!is.null(legend_title)) {
+    plot <- plot +
+      ggplot2::labs(fill = legend_title)
   }
   return(plot)
 }
@@ -146,7 +150,7 @@ plot_true_modeled_grid_cases <- function(cache, cholera_directory, config) {
 #' @return ggplot object
 plot_gam_fit_input_cases <- function(config, cache, cholera_directory) {
   get_initial_values_df(config = config, cache = cache, cholera_directory = cholera_directory)
-  return(plot_sf_with_fill(cache, "initial_values_df", color_scale_type = "cases", fill_column = "suspected_cases", geometry_column = "shape", facet_column = "t"))
+  return(plot_sf_with_fill(cache, "initial_values_df", color_scale_type = "cases", fill_column = "suspected_cases", geometry_column = "geometry", facet_column = "(t+1999)"))
 }
 
 #' @export
@@ -159,7 +163,7 @@ plot_gam_fit_input_cases <- function(config, cache, cholera_directory) {
 #' @return ggplot object
 plot_gam_fit_input_rates <- function(config, cache, cholera_directory) {
   get_initial_values_df(config = config, cache = cache, cholera_directory = cholera_directory)
-  return(plot_sf_with_fill(cache, "initial_values_df", color_scale_type = "rates", fill_column = "suspected_cases/population", geometry_column = "shape", facet_column = "t"))
+  return(plot_sf_with_fill(cache, "initial_values_df", color_scale_type = "rates", fill_column = "suspected_cases/population", geometry_column = "geometry", facet_column = "(t+1999)", legend_title = "\n Incidence rate\n"))
 }
 
 #' @export
@@ -172,7 +176,7 @@ plot_gam_fit_input_rates <- function(config, cache, cholera_directory) {
 #' @return ggplot object
 plot_gam_fit_output_cases <- function(config, cache, cholera_directory) {
   get_covar_cube(config = config, cache = cache, cholera_directory = cholera_directory)
-  return(plot_sf_with_fill(cache, "covar_cube", color_scale_type = "cases", fill_column = "gam_output", facet_column = "t"))
+  return(plot_sf_with_fill(cache, "covar_cube", color_scale_type = "cases", fill_column = "gam_output", facet_column = "(t+1999)", legend_title = " \n Estimated suspected cases \n"))
 }
 
 #' @export
@@ -185,7 +189,7 @@ plot_gam_fit_output_cases <- function(config, cache, cholera_directory) {
 #' @return ggplot object
 plot_gam_fit_output_rates <- function(config, cache, cholera_directory) {
   get_covar_cube(config = config, cache = cache, cholera_directory = cholera_directory)
-  return(plot_sf_with_fill(cache, "covar_cube", color_scale_type = "rates", fill_column = "gam_output/population", facet_column = "t"))
+  return(plot_sf_with_fill(cache, "covar_cube", color_scale_type = "rates", fill_column = "gam_output/population", facet_column = "(t+1999)", legend_title = "\n Estimated incidence rate \n"))
 }
 
 #' @export
@@ -230,7 +234,7 @@ plot_area_adjusted_observed_cases <- function(config, cache, cholera_directory) 
   plot <- plot_sf_with_fill(
     cache = cache, name = "observed_polygon_cases_disjoint_aggregated",
     color_scale_type = "cases", fill_column = "suspected_cases / sf::st_area(geom)",
-    facet_column = "set", geometry_column = "geom"
+    facet_column = "set", geometry_column = "geom", legend_title = "\n Suspected cases \n"
   )
   return(plot)
 }
@@ -252,7 +256,7 @@ plot_raw_observations <- function(config, cache, cholera_directory) {
 
   plot <- plot_sf_with_fill(
     cache = cache, name = "observed_polygon_cases_disjoint_counted",
-    color_scale_type = "observation_counts", fill_column = "suspected_cases", facet_column = "set", geometry_column = "geom"
+    color_scale_type = "observation_counts", fill_column = "suspected_cases", facet_column = "set", geometry_column = "geom", legend_title = "\n Number of observations \n"
   )
 
   return(plot)
@@ -269,7 +273,7 @@ plot_time_varying_pop_raster <- function(config, cache, cholera_directory) {
 
   plot <- plot_sf_with_fill(
     cache = cache, name = "covar_cube",
-    color_scale_type = "population", fill_column = "population", facet_column = "t", geometry_column = "geometry", color_scale_use_log = TRUE
+    color_scale_type = "population", fill_column = "population", facet_column = "(t+1999)", geometry_column = "geometry", color_scale_use_log = TRUE
   )
 
   return(plot)
@@ -294,7 +298,7 @@ plot_raster_covariates <- function(config, cache, cholera_directory) {
 
   aggregate_covar_cube_covariates(config = config, cache = cache, cholera_directory = cholera_directory)
 
-  return(plot_sf_with_fill(cache, "covar_cube_covariates_aggregated", color_scale_type = "covariate", fill_column = "value", facet_column = c("name", "t"), geometry_column = "geom"))
+  return(plot_sf_with_fill(cache, "covar_cube_covariates_aggregated", color_scale_type = "covariate", fill_column = "value", facet_column = c("name", "(t+1999)"), geometry_column = "geom"))
 }
 
 #' @export
@@ -319,7 +323,7 @@ plot_raster_covariates_datagen <- function(config, cache, cholera_directory) {
     mutate(value = covariate, covariate = paste("Covariate", rep(2:length(data_simulation_covs), each = nrow(data_simulation_covs[[1]])))) # Convert list to data frame columns
   cache[["data_simulation_covs"]] <- sf::st_as_sf(cache[["data_simulation_covs"]])
 
-  return(plot_sf_with_fill(cache, "data_simulation_covs", color_scale_type = "covariate", fill_column = "value", facet_column = c("covariate", "t"), geometry_column = "geometry"))
+  return(plot_sf_with_fill(cache, "data_simulation_covs", color_scale_type = "covariate", fill_column = "value", facet_column = c("covariate", "(t+1999)"), geometry_column = "geometry"))
 }
 
 #' @export
@@ -336,7 +340,7 @@ plot_disaggregated_modeled_cases_time_varying <- function(config, cache, cholera
 
   plot <- plot_sf_with_fill(
     cache = cache, name = "grid_cases_mean_disaggregated",
-    color_scale_type = "cases", fill_column = "cases", facet_column = "t", geometry_column = "geometry",
+    color_scale_type = "cases", fill_column = "cases", facet_column = "(t+1999)", geometry_column = "geometry",
     include_borders = FALSE
   ) +
     ggplot2::geom_sf(data = cache[["boundary_polygon"]], fill = NA, color = "black", size = 0.05)
@@ -358,7 +362,7 @@ plot_modeled_rates_time_varying <- function(config, cache, cholera_directory) {
 
   plot <- plot_sf_with_fill(
     cache = cache, name = "mean_rates_sf",
-    color_scale_type = "rates", fill_column = "rates", facet_column = "t", geometry_column = "geometry"
+    color_scale_type = "rates", fill_column = "rates", facet_column = "(t+1999)", geometry_column = "geometry"
   ) +
     ggplot2::geom_sf(data = cache[["boundary_polygon"]], fill = NA, color = "black", size = 0.05)
 
@@ -372,7 +376,7 @@ plot_modeled_rates_time_varying <- function(config, cache, cholera_directory) {
 #' @param cache
 plot_true_grid_cases <- function(config, cache, cholera_directory) {
   get_sf_grid_data(config = config, cache = cache, cholera_directory = cholera_directory)
-  return(plot_sf_with_fill(cache, "true_grid_data", color_scale_type = "cases", fill_column = "cases", geometry_column = "geometry", facet_column = "t"))
+  return(plot_sf_with_fill(cache, "true_grid_data", color_scale_type = "cases", fill_column = "cases", geometry_column = "geometry", facet_column = "(t+1999)"))
 }
 
 #' @export
@@ -382,7 +386,7 @@ plot_true_grid_cases <- function(config, cache, cholera_directory) {
 #' @param cache
 plot_true_grid_rates <- function(config, cache, cholera_directory) {
   get_sf_grid_data(config = config, cache = cache, cholera_directory = cholera_directory)
-  return(plot_sf_with_fill(cache, "true_grid_data", color_scale_type = "rates", fill_column = "rate", geometry_column = "geometry", facet_column = "t"))
+  return(plot_sf_with_fill(cache, "true_grid_data", color_scale_type = "rates", fill_column = "rate", geometry_column = "geometry", facet_column = "(t+1999)"))
 }
 
 #' @export
