@@ -256,6 +256,9 @@ reorder_adjacency_matrix <- function(adjacency_frame, element_bias, id_cols = c(
 #' @export
 transform_covariates <- function(covariates, transformations, verbose = FALSE) {
   for (transformation in transformations) {
+    if (!(transformation[["name"]] %in% names(covariates))) {
+      stop(paste("Trying to perform a transform on a covariate (", transformation[["name"]], ") that does not exist. Allowed covariates are", paste(names(covariates), collapse = ", ")))
+    }
     if (verbose) {
       print(paste("Transforming", transformation[["name"]], "by", transformation[["transform_name"]]))
     }
