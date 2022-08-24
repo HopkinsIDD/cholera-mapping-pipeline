@@ -579,6 +579,27 @@ config_checks[["stan"]][["sigma_eta_scale"]] <- function(value, config, index) {
   return(TRUE)
 }
 config_checks[["stan"]][["do_time_slice"]] <- list()
+config_checks[["stan"]][["do_time_slice"]][["eta_simplex"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['do_time_slice']][['eta_simplex']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['do_time_slice']][['eta_simplex']] is NA")
+    return(FALSE)
+  }
+  if (!is.logical(value)) {
+    warning(
+      "config[['stan']][['do_time_slice']][['eta_simplex']] should be logical, but is",
+      value
+    )
+    return(FALSE)
+  }
+  return(TRUE)
+}
 config_checks[["stan"]][["do_time_slice"]][["perform"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
@@ -1362,6 +1383,9 @@ config_defaults[["stan"]][["do_time_slice"]] <- list()
 config_defaults[["stan"]][["do_time_slice"]][["perform"]] <- function(config, index) {
   return(TRUE)
 }
+config_defaults[["stan"]][["do_time_slice"]][["eta_simplex"]] <- function(config, index) {
+  return(FALSE)
+}
 config_defaults[["stan"]][["do_time_slice"]][["autocorrelated_prior"]] <- function(config, index) {
   return(FALSE)
 }
@@ -1412,7 +1436,7 @@ config_defaults[["file_names"]][["report"]] <- function(config, index) {
   file_name <- paste0(paste(c(unlist(config[["general"]]), gsub(".*[/]", "", unlist(config[["stan"]]))),
     collapse = "_"
   ), ".report.html")
-  file_path <- rprojroot::find_root_file(paste0("Analysis/data/", file_name), criterion = rprojroot::has_file(".choldir"))
+  file_path <- rprojroot::find_root_file(paste0("Analysis/output/", file_name), criterion = rprojroot::has_file(".choldir"))
   if (!dir.exists(dirname(file_path))) {
     dir.create(dirname(file_path))
   }

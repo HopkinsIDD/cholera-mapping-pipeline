@@ -13,6 +13,8 @@ stan:
   niter: 4000.0
   nchain: 4.0
   model: dagar_seasonal_flexible_narrower_prior.stan
+  do_time_slice:
+    eta_simplex: TRUE
 test_metadata:
   raster:
     units: years
@@ -21,16 +23,16 @@ test_metadata:
     template: full and grid
   covariates:
   - name: "population"
-    template: spatially_nontemporal_smooth_polygonal_constant
+    template: spatially_smooth_nontemporal_polygonal_constant
     include_in_simulation: yes
     include_in_model: yes
     seed: global_seed
-  - name: "covariate_2",
-    template: spatially_nontemporal_smooth_polygonal
+  - name: "covariate_2"
+    template: spatially_smooth_nontemporal_polygonal
     include_in_simulation: yes
     include_in_model: yes
     seed: global_seed
-  - name: "covariate_3",
+  - name: "covariate_3"
     template: nonspatial_nontemporal_spatially_smooth_polygonal
     include_in_simulation: yes
     include_in_model: no

@@ -10,7 +10,7 @@ general:
     - name: "covariate_2"
 processing: []
 stan:
-  niter: 100.0
+  niter: 4000.0
   nchain: 2.0
   model: dagar_seasonal_flexible.stan
 test_metadata:

@@ -638,7 +638,7 @@ if (config[["initial_values"]][["warmup"]]) {
     initial_betas)
 
   initial_etas <- c(0, coef(gam_fit)[grepl("^as.factor.t.", names(coef(gam_fit)))])
-  initial_sigma_eta_scale <- 1
+  initial_sigma_eta_tilde <- 1
   initial_eta_tilde <- (initial_etas / config[["stan"]][["sigma_eta_scale"]])
   eta_effect <- initial_etas[as.factor(covar_cube[["t"]])]
 
@@ -675,11 +675,19 @@ if (config[["initial_values"]][["warmup"]]) {
         initial_eta_tilde,
         sqrt(var(initial_eta_tilde))
       ))
-      rc$sigma_eta_scale <- as.array(rnorm(
-        length(initial_sigma_eta_scale),
-        initial_sigma_eta_scale,
+      rc$sigma_eta_tilde <- as.array(rnorm(
+        length(initial_sigma_eta_tilde),
+        initial_sigma_eta_tilde,
         .01
       ))
+
+      if (config[["stan"]][["do_time_slice"]][["eta_simplex"]]) {
+        rc$beta0 <- rc$beta0 - min(rc$eta_tilde) + 1e-13
+        rc$eta_tilde <- rc$eta_tilde - min(rc$eta_tilde) + 1e-13
+
+        rc$sigma_eta_tilde <- rc$sigma_eta_tilde * sum(rc$eta_tilde)
+        rc$eta_tilde <- rc$eta_tilde / sum(rc$eta_tilde)
+      }
     }
     return(rc)
   })
