@@ -173,7 +173,12 @@ aggregate_covar_cube_covariates_no_cache <- function(config, cache, cholera_dire
   get_config(config = config, cache = cache, cholera_directory = cholera_directory)
 
   return(aggregate_to_location_period(
-    sf_object = tidyr::pivot_longer(cache[["covar_cube"]], cache[["config"]][["general"]][["covariates"]]),
+    sf_object = tidyr::pivot_longer(
+      cache[["covar_cube"]],
+      sapply(cache[["config"]][["general"]][["covariates"]], function(x) {
+        x[["name"]]
+      })
+    ),
     aggregation_function = function(cases, time_left, time_right) {
       mean(cases)
     },

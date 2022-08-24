@@ -17,7 +17,6 @@ packages/taxdat/R/database_api_key.R
 Analysis/R/database_api_key.R
 packages/taxdat/.Rhistory
 Analysis/R/run_test_jk.R
-Analysis/**/*.yml
 .Rhistory
 Analysis/configs/
 Layers/
@@ -29,4 +28,6 @@ todo.org
 *.swp
 **.yml
 !tests/**/*.yml
+!Analysis/R/test_case/**.yml
 **.html
+**.rs

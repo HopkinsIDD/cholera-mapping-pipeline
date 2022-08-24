@@ -33,13 +33,37 @@ get_unique_columns_by_group <- function(df, grouping_columns, skip_columns = gro
 
 
 #' @export
-aggregate_case_data <- function(case_data, unique_column_names = c("loctime"), columns_to_sum_over = c("tfrac"), cases_column) {
+remove_inconsistent_duplicates <- function(case_data, columns_to_mean_over, unique_column_names = c("loctime")) {
+  ## aggregate observations:
+  ocrs <- sf::st_crs(case_data)
+
+  # TODO : Remove observation_collection_id, location_period_id from this
+  # list
+  case_data <- case_data %>%
+    dplyr::group_by(
+      observation_collection_id,
+      location_period_id, time_left, time_right, !!!rlang::syms(unique_column_names)
+    ) %>%
+    dplyr::summarize(
+      dplyr::across(columns_to_mean_over, mean, na.rm = TRUE),
+      unique_observation_ids = paste(sort(unique(sprintf(paste0(
+        "%0",
+        ceiling(log(max(case_data$observation_id)) / log(10)), "d"
+      ), as.integer(observation_id)))),
+      collapse = " "
+      )
+      ## Do something to account for other columns which are relatively unique here
+    ) %>%
+    taxdat::reindex("unique_observation_ids", "observation_id") %>%
+    return()
+}
+#' @export
+aggregate_case_data <- function(case_data, unique_column_names = c("loctime"), columns_to_sum_over = c("tfrac")) {
   ## aggregate observations:
   ocrs <- sf::st_crs(case_data)
   # TODO : Remove observation_collection_id, location_period_id from this
   # list
   case_data <- case_data %>%
-    dplyr::filter(!!rlang::sym(cases_column) > 0) %>%
     dplyr::group_by(
       !!!rlang::syms(unique_column_names), observation_collection_id,
       location_period_id
@@ -57,12 +81,7 @@ aggregate_case_data <- function(case_data, unique_column_names = c("loctime"), c
       current_set <- 1
       something_changed <- TRUE
       while (any(is.na(.x$set))) {
-        new_set_indices <- (rev(cummax(rev(!is.na(.x$set)))) == 1) & is.na(.x$set)
-        if (any(new_set_indices) & (!something_changed)) {
-          .x$set[[which(new_set_indices)[[1]]]] <- current_set
-          current_set <- current_set + 1
-          something_changed <- TRUE
-        } else if (!something_changed) {
+        if (!something_changed) {
           .x$set[[which(is.na(.x$set))[[1]]]] <- current_set
           current_set <- current_set + 1
           something_changed <- TRUE
@@ -81,13 +100,18 @@ aggregate_case_data <- function(case_data, unique_column_names = c("loctime"), c
       .x <- .x %>%
         dplyr::group_by(set) %>%
         dplyr::summarize(
-          time_left = min(time_left), time_right = min(time_left) +
-            sum(duration) - 1, dplyr::across(columns_to_sum_over, ~ sum(., na.rm = TRUE)),
-          unique_observation_ids = paste(sort(unique(sprintf(paste0(
-            "%0",
-            ceiling(log(max(case_data$observation_id)) / log(10)), "d"
-          ), as.integer(observation_id)))),
-          collapse = " "
+          time_left = min(time_left, na.rm = TRUE),
+          time_right = min(time_left, na.rm = TRUE) + sum(duration, na.rm = TRUE) - 1,
+          dplyr::across(columns_to_sum_over, ~ sum(., na.rm = TRUE)),
+          unique_observation_ids = ifelse(
+            "unique_observation_ids" %in% names(.x),
+            paste(unique_observation_ids, collapse = " "),
+            paste(sort(unique(sprintf(paste0(
+              "%0",
+              ceiling(log(max(case_data$observation_id)) / log(10)), "d"
+            ), as.integer(observation_id)))),
+            collapse = " "
+            )
           ), .groups = "drop"
         ) %>%
         dplyr::select(-set)
@@ -223,4 +247,22 @@ reorder_adjacency_matrix <- function(adjacency_frame, element_bias, id_cols = c(
   reordered_frame <- Matrix::summary(reordered_matrix)[, c("i", "j")]
   names(reordered_frame) <- id_cols
   return(reordered_frame)
+}
+
+#' @description Apply a unary transformation to each covariate
+#' @param covariates A data fram with a column for each covariate
+#' @param transformations A list of lists. The inner lists should be name, transform_name, transform_function, with transform_function being a unary function to apply to covariates[[name]]. Transform name is used for debug output
+#' @param verbose boolean whether to print debug output
+#' @export
+transform_covariates <- function(covariates, transformations, verbose = FALSE) {
+  for (transformation in transformations) {
+    if (!(transformation[["name"]] %in% names(covariates))) {
+      stop(paste("Trying to perform a transform on a covariate (", transformation[["name"]], ") that does not exist. Allowed covariates are", paste(names(covariates), collapse = ", ")))
+    }
+    if (verbose) {
+      print(paste("Transforming", transformation[["name"]], "by", transformation[["transform_name"]]))
+    }
+    covariates[[transformation[["name"]]]] <- transformation[["transform_function"]](covariates[[transformation[["name"]]]])
+  }
+  return(covariates)
 }
