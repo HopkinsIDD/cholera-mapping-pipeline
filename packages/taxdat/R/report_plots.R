@@ -296,6 +296,7 @@ plot_raster_covariates <- function(config, cache, cholera_directory) {
     return(invisible(NULL))
   }
 
+  # FIX ME
   aggregate_covar_cube_covariates(config = config, cache = cache, cholera_directory = cholera_directory)
 
   return(plot_sf_with_fill(cache, "covar_cube_covariates_aggregated", color_scale_type = "covariate", fill_column = "value", facet_column = c("name", "(t+1999)"), geometry_column = "geom"))
@@ -317,11 +318,17 @@ plot_raster_covariates_datagen <- function(config, cache, cholera_directory) {
     return(invisible(NULL))
   }
 
-  data_simulation_covs <- readRDS(cache[["config"]][["test_metadata"]][["file_names"]][["simulation_covariates"]])
+  raw_simulation_covariates <- readRDS(cache[["config"]][["test_metadata"]][["file_names"]][["simulation_covariates"]])
+  cache[["data_simulation_covs"]] <- do.call(what = rbind, lapply(
+    names(raw_simulation_covariates),
+    function(covariate_name) {
+      rc <- raw_simulation_covariates[[covariate_name]]
+      rc[["value"]] <- rc[["covariate"]]
+      rc[["covariate"]] <- covariate_name
+      return(rc)
+    }
+  ))
 
-  cache[["data_simulation_covs"]] <- as.data.frame(do.call(rbind, data_simulation_covs[2:(length(data_simulation_covs))])) %>%
-    mutate(value = covariate, covariate = paste("Covariate", rep(2:length(data_simulation_covs), each = nrow(data_simulation_covs[[1]])))) # Convert list to data frame columns
-  cache[["data_simulation_covs"]] <- sf::st_as_sf(cache[["data_simulation_covs"]])
 
   return(plot_sf_with_fill(cache, "data_simulation_covs", color_scale_type = "covariate", fill_column = "value", facet_column = c("covariate", "(t+1999)"), geometry_column = "geometry"))
 }

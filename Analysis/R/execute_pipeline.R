@@ -368,9 +368,9 @@ if (any(is.na(observation_data[[paste0(cases_column, "_R")]]) & is.na(observatio
 
 ## Replace me with a config call
 potential_covariate_names <- colnames(as.data.frame(covar_cube)[, -c(1:6), drop = FALSE])
-covariate_names <- sapply(config[["general"]][["covariates"]], function(x) {
+covariate_names <- as.character(sapply(config[["general"]][["covariates"]], function(x) {
   x[["name"]]
-})
+}))
 if (!all(covariate_names %in% potential_covariate_names)) {
   stop(paste(
     "Could not find all covariates.", paste(covariate_names[!(covariate_names %in%

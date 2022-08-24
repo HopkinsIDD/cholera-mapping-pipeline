@@ -2,6 +2,8 @@ library(R6)
 
 Randomizable <- R6Class(
   "Randomizable",
+  portable = TRUE,
+  # parent_env = .GlobalEnv,
   private = list(
     .value = NULL,
     .randomize = function() {
@@ -23,6 +25,15 @@ Randomizable <- R6Class(
         return(private$.value)
       }
       stop("Do not write directly to value")
+    },
+    cached_value = function(value) {
+      if (missing(value)) {
+        if (is.null(private$.value)) {
+          self$randomize()
+        }
+        return(list(value = private$.value))
+      }
+      stop("Do not write directly to value")
     }
   )
 )
@@ -30,6 +41,8 @@ Randomizable <- R6Class(
 DiscreteRandomizable <- R6Class(
   classname = "DiscreteRandomizable",
   inherit = Randomizable,
+  portable = TRUE,
+  # parent_env = .GlobalEnv,
   private = list(
     .registry = list(),
     .randomize = function() {
@@ -46,6 +59,8 @@ DiscreteRandomizable <- R6Class(
 MemberRandomizable <- R6Class(
   "MemberRandomizable",
   inherit = Randomizable,
+  portable = TRUE,
+  # parent_env = .GlobalEnv,
   private = list(
     .registry = list(),
     .member_values = list(),
@@ -72,6 +87,8 @@ MemberRandomizable <- R6Class(
 String <- R6Class(
   classname = "PositiveInteger",
   inherit = Randomizable,
+  portable = TRUE,
+  # parent_env = .GlobalEnv,
   private = list(
     .randomize = function() {
       nchar <- 5 + PositiveInteger$new()$value
@@ -83,6 +100,8 @@ String <- R6Class(
 PositiveInteger <- R6Class(
   classname = "PositiveInteger",
   inherit = Randomizable,
+  portable = TRUE,
+  # parent_env = .GlobalEnv,
   private = list(
     .randomize = function() {
       floor(abs(boot::logit(runif(1)))) + 1
@@ -93,6 +112,8 @@ PositiveInteger <- R6Class(
 NonNegativeInteger <- R6Class(
   classname = "NonNegativeInteger",
   inherit = Randomizable,
+  portable = TRUE,
+  # parent_env = .GlobalEnv,
   private = list(
     .randomize = function() {
       floor(abs(boot::logit(runif(1))))
@@ -102,6 +123,8 @@ NonNegativeInteger <- R6Class(
 
 Date <- R6Class(
   classname = "Date",
+  portable = TRUE,
+  # parent_env = .GlobalEnv,
   inherit = DiscreteRandomizable,
   public = list(
     initialize = function() {
@@ -112,6 +135,8 @@ Date <- R6Class(
 
 Scale <- R6Class(
   classname = "Scale",
+  portable = TRUE,
+  # parent_env = .GlobalEnv,
   inherit = DiscreteRandomizable,
   public = list(
     initialize = function() {
@@ -123,6 +148,8 @@ Scale <- R6Class(
 Period <- R6Class(
   classname = "Period",
   inherit = MemberRandomizable,
+  portable = TRUE,
+  # parent_env = .GlobalEnv,
   private = list(
     .construct_from_members = function(member_list) {
       lubridate::period(num = member_list[[1]], units = member_list[[2]])
@@ -137,6 +164,8 @@ Period <- R6Class(
 
 PolygonTemplate <- R6Class(
   classname = "PolygonTemplate",
+  portable = TRUE,
+  # parent_env = .GlobalEnv,
   inherit = DiscreteRandomizable,
   public = list(
     initialize = function() {
@@ -147,6 +176,8 @@ PolygonTemplate <- R6Class(
 
 Boolean <- R6Class(
   classname = "Boolean",
+  portable = TRUE,
+  # parent_env = .GlobalEnv,
   inherit = DiscreteRandomizable,
   public = list(
     initialize = function() {
@@ -158,6 +189,8 @@ Boolean <- R6Class(
 Covariate <- R6Class(
   classname = "Covariate",
   inherit = MemberRandomizable,
+  portable = TRUE,
+  # parent_env = .GlobalEnv,
   private = list(
     .construct_from_members = function(member_list) {
       return(list(
@@ -197,6 +230,8 @@ Covariate <- R6Class(
 CovariateList <- R6Class(
   classname = "CovariateList",
   inherit = Randomizable,
+  portable = TRUE,
+  # parent_env = .GlobalEnv,
   private = list(
     .covariates = list(),
     .randomize = function() {
@@ -225,6 +260,8 @@ ObservationTemplate <- R6Class(
 ObservationTimeRange <- R6Class(
   classname = "ObservationTimeRange",
   inherit = Randomizable,
+  portable = TRUE,
+  # parent_env = .GlobalEnv,
   private = list(
     .full_interval = lubridate::interval(),
     .randomize = function() {
@@ -252,6 +289,8 @@ ObservationTimeRange <- R6Class(
 ObservationTimeRanges <- R6Class(
   classname = "ObservationTimeRanges",
   inherit = Randomizable,
+  portable = TRUE,
+  # parent_env = .GlobalEnv,
   private = list(
     .start = lubridate::ymd(),
     .end = lubridate::ymd(),
@@ -313,17 +352,31 @@ run_test_case <- function(start_date = Date$new(),
   Sys.setenv(CHOLERA_CONFIG = paste0(tempfile(), ".yml"))
   yaml::write_yaml(x = config, file = Sys.getenv("CHOLERA_CONFIG"))
 
-  print("HERE")
-  source(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "R", "test_case", "test_case.R"))
-
-  return(list(
-    start_date = start_date,
-    duration = duration,
-    time_scale = time_scale,
-    grid_size = grid_size,
-    polygon_type = polygon_type,
-    covariates = covariates,
-    observations = observations,
-    stan_parameters = stan_parameters
-  ))
+  rc <- list(
+    config = config,
+    parameters = list(
+      start_date = start_date$cached_value,
+      duration = duration$cached_value,
+      time_scale = time_scale$cached_value,
+      grid_size = grid_size$cached_value,
+      polygon_type = polygon_type$cached_value,
+      covariates = covariates$cached_value,
+      observations = observations$cached_value,
+      stan_parameters = stan_parameters$cached_value
+    ),
+    success = TRUE
+  )
+  tryCatch(
+    {
+      source(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "R", "test_case", "test_case.R"))
+    },
+    error = function(e) {
+      file.copy(
+        paste0(Sys.getenv("CHOLERA_CONFIG"), ".complete"),
+        rprojroot::find_root_file(criterion = ".choldir", "tests", "tests", "testthat", "failed_configs", basename(paste0(Sys.getenv("CHOLERA_CONFIG"), ".complete")))
+      )
+      rc$success <<- FALSE
+    }
+  )
+  return(rc)
 }

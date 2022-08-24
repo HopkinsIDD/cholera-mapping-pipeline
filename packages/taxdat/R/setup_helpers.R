@@ -347,21 +347,45 @@ config_checks[["general"]][["covariates"]][["::"]] <- list()
 config_checks[["general"]][["covariates"]][["::"]][["name"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
-      "config[['general']][['covariates']][[", index, "]][['transform_name']] should be of length 1, but is of length",
+      "config[['general']][['covariates']][[", index, "]][['name']] should be of length 1, but is of length",
       length(value), "with value", value
     ))
     return(FALSE)
   }
   if (!is.character(value)) {
     warning(paste(
-      "config[['general']][['covariates']] should be character or NULL, but is",
+      "config[['general']][['covariates']][[", index, "]][['name']] should be character or NULL, but is",
       value, "of mode", mode(value)
     ))
     return(FALSE)
   }
   if (any(is.na(value))) {
-    warning("config[['general']][['covariates']] is NA at least once")
+    warning(paste(
+      "config[['general']][['covariates']][[", index, "]][['name']] is NA at least once"
+    ))
     return(FALSE)
+  }
+  if (!is.null(config[["test_metadata"]])) {
+    covariate_names <- sapply(
+      config[["test_metadata"]][["covariates"]],
+      function(x) {
+        return(x[["name"]])
+      }
+    )
+    if (!(value %in% covariate_names)) {
+      warning(paste(
+        "config[['general']][['covariates']][[", index, "]][['name']] should be one of the covariates, but",
+        value, "was not found in", paste(covariate_names, collapse = ", ")
+      ))
+      return(FALSE)
+    }
+    if (!config[["test_metadata"]][["covariates"]][[which(value == covariate_names)]][["include_in_model"]]) {
+      warning(paste(
+        "config[['general']][['covariates']][[", index, "]][['name']] should be included in the model, but",
+        value, "was not."
+      ))
+      return(FALSE)
+    }
   }
   return(TRUE)
 }
@@ -834,12 +858,12 @@ config_checks[["file_names"]][["stan_input"]] <- function(value, config, index) 
     ))
     return(FALSE)
   }
-  if (normalizePath(value) != value) {
+  if (suppressWarnings(normalizePath(value)) != value) {
     warning(paste(
       "config[['file_names']][['stan_input']] should be a normalized path, but ",
       value,
       "normalizes to",
-      normalizePath(value)
+      suppressWarnings(normalizePath(value))
     ))
     return(FALSE)
   }
@@ -886,12 +910,12 @@ config_checks[["file_names"]][["stan_output"]] <- function(value, config, index)
     ))
     return(FALSE)
   }
-  if (normalizePath(value) != value) {
+  if (suppressWarnings(normalizePath(value)) != value) {
     warning(paste(
       "config[['file_names']][['stan_output']] should be a normalized path, but ",
       value,
       "normalizes to",
-      normalizePath(value)
+      suppressWarnings(normalizePath(value))
     ))
     return(FALSE)
   }
@@ -938,12 +962,12 @@ config_checks[["file_names"]][["report"]] <- function(value, config, index) {
     ))
     return(FALSE)
   }
-  if (normalizePath(value) != value) {
+  if (suppressWarnings(normalizePath(value)) != value) {
     warning(paste(
       "config[['file_names']][['report']] should be a normalized path, but ",
       value,
       "normalizes to",
-      normalizePath(value)
+      suppressWarnings(normalizePath(value))
     ))
     return(FALSE)
   }
@@ -990,12 +1014,12 @@ config_checks[["file_names"]][["generated_quantities"]] <- function(value, confi
     ))
     return(FALSE)
   }
-  if (normalizePath(value) != value) {
+  if (suppressWarnings(normalizePath(value)) != value) {
     warning(paste(
       "config[['file_names']][['generated_quantities']] should be a normalized path, but ",
       value,
       "normalizes to",
-      normalizePath(value)
+      suppressWarnings(normalizePath(value))
     ))
     return(FALSE)
   }
@@ -1372,7 +1396,7 @@ config_defaults[["file_names"]][["stan_input"]] <- function(config, index) {
   if (!dir.exists(dirname(file_path))) {
     dir.create(dirname(file_path))
   }
-  return(normalizePath(file_path))
+  return(suppressWarnings(normalizePath(file_path)))
 }
 config_defaults[["file_names"]][["stan_output"]] <- function(config, index) {
   file_name <- paste0(paste(c(unlist(config[["general"]]), gsub(".*[/]", "", unlist(config[["stan"]]))),
@@ -1382,7 +1406,7 @@ config_defaults[["file_names"]][["stan_output"]] <- function(config, index) {
   if (!dir.exists(dirname(file_path))) {
     dir.create(dirname(file_path))
   }
-  return(normalizePath(file_path))
+  return(suppressWarnings(normalizePath(file_path)))
 }
 config_defaults[["file_names"]][["report"]] <- function(config, index) {
   file_name <- paste0(paste(c(unlist(config[["general"]]), gsub(".*[/]", "", unlist(config[["stan"]]))),
@@ -1392,7 +1416,7 @@ config_defaults[["file_names"]][["report"]] <- function(config, index) {
   if (!dir.exists(dirname(file_path))) {
     dir.create(dirname(file_path))
   }
-  return(normalizePath(file_path))
+  return(suppressWarnings(normalizePath(file_path)))
 }
 config_defaults[["file_names"]][["generated_quantities"]] <- function(config, index) {
   file_name <- paste0(paste(c(
@@ -1403,7 +1427,7 @@ config_defaults[["file_names"]][["generated_quantities"]] <- function(config, in
   if (!dir.exists(dirname(file_path))) {
     dir.create(dirname(file_path))
   }
-  return(normalizePath(file_path))
+  return(suppressWarnings(normalizePath(file_path)))
 }
 config_defaults[["test_metadata"]] <- list()
 config_defaults[["test_metadata"]][["file_names"]] <- list()
@@ -1415,7 +1439,7 @@ config_defaults[["test_metadata"]][["file_names"]][["simulation_covariates"]] <-
   if (!dir.exists(dirname(file_path))) {
     dir.create(dirname(file_path))
   }
-  return(normalizePath(file_path))
+  return(suppressWarnings(normalizePath(file_path)))
 }
 config_defaults[["test_metadata"]][["file_names"]][["true_grid_cases"]] <- function(config, index) {
   file_name <- paste0(paste(c(
@@ -1425,7 +1449,7 @@ config_defaults[["test_metadata"]][["file_names"]][["true_grid_cases"]] <- funct
   if (!dir.exists(dirname(file_path))) {
     dir.create(dirname(file_path))
   }
-  return(normalizePath(file_path))
+  return(suppressWarnings(normalizePath(file_path)))
 }
 
 config_defaults[["test_metadata"]][["raster"]] <- list()
