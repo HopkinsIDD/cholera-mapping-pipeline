@@ -31,6 +31,4 @@ todo.org
 !Analysis/R/test_case/**.yml
 **.html
 **.rs
-Analysis/output/*.rds
-Analysis/output/*.rdata
-
+Analysis/output/
