@@ -5,84 +5,16 @@
 # Control Variables: Preamble
 # ------------------------------------------------------------------------------------------------------------
 
-suppress_warning <- function(expr, warning_pattern) {
-  withCallingHandlers(expr, warning = function(w) {
-    if (grepl(warning_pattern, w$message)) {
-      invokeRestart("muffleWarning")
-    }
-  })
-}
 
 
 ### Set Error Handling
-interactive_run <- Sys.getenv("INTERACTIVE_RUN", "FALSE")
-if (interactive_run == "TRUE") {
-  options(warn = max(1, options("warn")$warn), error = recover)
-} else if (interactive_run == "FALSE") {
-  options(warn = max(1, options("warn")$warn), error = function(...) {
-    quit(..., status = 2)
-  })
-}
+taxdat::set_error_handling(is_interactive = Sys.getenv("INTERACTIVE_RUN", "FALSE"))
 
 ### Libraries TODO : Update this list
-if (Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE)) {
-  base_search <- search()
-
-  ## This is the list of packages required by this script: libxt-dev
-  package_list <- c(
-    "optparse", "DBI", "RPostgres", "sf", "magrittr", "dplyr",
-    "rstan", "xfun", "kableExtra", "MCMCvis"
-  )
-
-  for (package in package_list) {
-    if (!require(package = package, character.only = T)) {
-      utils::chooseCRANmirror(ind = 1)
-      install.packages(pkgs = package)
-      library(package = package, character.only = T)
-    }
-  }
-}
-
-# Set working directory to access taxdat properly
-
-if (Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE)) {
-  if (!require(taxdat)) {
-    previous_wd <- getwd()
-    try(
-      {
-        setwd(utils::getSrcDirectory())
-      },
-      silent = TRUE
-    )
-    try(
-      {
-        setwd(dirname(rstudioapi::getActiveDocumentContext()[["path"]]))
-      },
-      silent = TRUE
-    )
-
-    install.packages("packages/taxdat", type = "source", repos = NULL)
-    library(taxdat)
-
-    try(
-      {
-        setwd(utils::getSrcDirectory())
-      },
-      silent = TRUE
-    )
-    try(
-      {
-        setwd(dirname(rstudioapi::getActiveDocumentContext()[["path"]]))
-      },
-      silent = TRUE
-    )
-    setwd(previous_wd)
-  }
-
-  for (x in rev(sort(which(!(search() %in% base_search))))) {
-    suppress_warning(detach(pos = x, force = T), "may no longer work correctly")
-  }
-}
+taxdat::update_libraries(perform = Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE), package_list = c(
+  "optparse", "DBI", "RPostgres", "sf", "magrittr", "dplyr",
+  "rstan", "xfun", "kableExtra", "MCMCvis"
+))
 
 library(magrittr)
 library(bit64)
@@ -90,109 +22,7 @@ library(bit64)
 sf::sf_use_s2(FALSE)
 
 
-## Functions to move to taxdat later
-## --------------------------------------------------------------------------------------------------------------
 
-
-reindex <- function(df, index_column, new_index_column = index_column) {
-  index_column <- rlang::sym(index_column)
-  new_index_column <- rlang::sym(new_index_column)
-  df %>%
-    dplyr::group_by(!!index_column) %>%
-    dplyr::mutate(`:=`(!!new_index_column, dplyr::cur_group_id())) %>%
-    dplyr::ungroup() %>%
-    return()
-  # df %>% dplyr::mutate(`:=`(!!new_index_column, dplyr::group_indices(.,
-  # !!index_column))) %>% return
-}
-
-cast_to_int32 <- function(x) {
-  if (!is.integer(x)) {
-    rc <- as.integer(x)
-    if (all(rc == x)) {
-      return(rc)
-    }
-    stop(paste("Conversion failed", x[rc != x], "converted to", rc[rc != x]))
-  }
-  return(x)
-}
-
-plot_energy <- function(stan_model, par = "all") {
-  energy <- sapply(rstan::get_sampler_params(stan_model), function(x) {
-    x[, "energy__"]
-  })
-  leapfrog_iterations <- rstan::get_num_leapfrog_per_iteration(stan_model)
-
-  nchain <- stan_model@sim[["chains"]]
-  kept_per_chain <- sapply(stan_model@sim[["permutation"]], length)
-  if (!length(unique(kept_per_chain)) == 1) {
-    stop("This function assumes the same number of iterations are saved for each chain")
-  }
-  kept_per_chain <- unique(kept_per_chain)
-
-  if (!(isTRUE(par == "all") || all(par %in% c(stan_model@sim[["pars_oi"]], stan_model@sim[["fnames_oi"]])))) {
-    stop("Not all parameters are approporiate")
-  }
-  if (isTRUE(par == "all")) {
-    par <- stan_model@sim[["fnames_oi"]]
-  }
-  short_par <- par[par %in% stan_model@sim[["pars_oi"]]]
-  if (length(short_par) > 0) {
-    longform_pars <- stan_model@sim[["pars_oi"]][!(stan_model@sim[["pars_oi"]] %in%
-      stan_model@sim[["fnames_oi"]])]
-    short_par <- short_par[short_par %in% longform_pars]
-    par <- par[!(par %in% short_par)]
-    longform_pars <- stan_model@sim[["fnames_oi"]][!(stan_model@sim[["fnames_oi"]] %in%
-      stan_model@sim[["pars_oi"]])]
-    short_names <- gsub("\\[.*\\]", "", longform_pars)
-    short_par <- unlist(lapply(short_par, function(x) {
-      return(longform_pars[x == short_names])
-    }))
-    par <- c(par, short_par)
-  }
-
-  rc <- array(NA, c(kept_per_chain, nchain, length(par) + 2))
-  dimnames(rc) <- list(NULL, paste("chain", seq_len(nchain)), c(
-    par, "energy__",
-    "leapfrog_iterations__"
-  ))
-
-
-  indices_to_pull <- lapply(stan_model@sim[["permutation"]], function(x) {
-    x + stan_model@sim[["warmup"]]
-  })
-
-  counter <- 0
-  for (i in seq_len(nchain)) {
-    rc[, paste("chain", i), "energy__"] <- energy[indices_to_pull[[i]], i]
-    rc[, paste("chain", i), "leapfrog_iterations__"] <- leapfrog_iterations[counter +
-      seq_len(kept_per_chain)]
-    counter <- counter + kept_per_chain
-  }
-  params <- rstan::extract(stan_model, pars = par)
-  for (param in par) {
-    counter <- 0
-    for (i in seq_len(nchain)) {
-      rc[, paste("chain", i), param] <- params[[param]][counter + seq_len(kept_per_chain)]
-      counter <- counter + kept_per_chain
-    }
-  }
-
-  return(pairs(apply(rc, 3, c)))
-}
-
-check_data <- function(observation_data) {
-  no_errors <- TRUE
-  data_df <- as.data.frame(observation_data)
-  if (sum(!is.na(data_df$suspected_cases)) == 0) {
-    no_errors <- FALSE
-    warning("No non-NA cases observed")
-  }
-  if (!(no_errors)) {
-    stop("At least one error which we cannot recover from occured. See above warnings for details")
-  }
-  invisible(NULL)
-}
 ## Inputs
 ## --------------------------------------------------------------------------------------------------------------
 
@@ -234,7 +64,7 @@ opt <- optparse::parse_args((optparse::OptionParser(option_list = option_list)))
 
 
 ### Config Options
-config <- yaml::read_yaml(opt[["config"]])
+config <- yaml::read_yaml(opt[["config"]], eval.expr = TRUE)
 config <- taxdat::complete_config(config)
 if (!opt[["testing_run"]]) {
   yaml::write_yaml(config, file = paste0(opt[["config"]], ".complete"))
@@ -273,6 +103,7 @@ observation_data <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(
   dplyr::filter(!is.na(!!rlang::sym(cases_column))) %>%
   sf::st_as_sf()
 print("Pulled observation data")
+
 
 ## Covariates
 covar_cube <- DBI::dbGetQuery(conn = conn_pg, glue::glue_sql(.con = conn_pg, "SELECT *
@@ -324,7 +155,7 @@ temporal_location_grid_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = gl
        {config[[\"general\"]][[\"width_in_km\"]]},
        {config[[\"general\"]][[\"height_in_km\"]]},
        {config[[\"general\"]][[\"time_scale\"]]}
-    )"
+   )"
 )) %>%
   dplyr::mutate(temporal_location_id = paste(location_period_id, t, sep = "_"))
 
@@ -332,22 +163,9 @@ print("Pulled location-grid map")
 
 boundary_polygon <- sf::st_sf(geometry = sf::st_as_sfc(DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(
   .con = conn_pg,
-  "
-SELECT
-  shapes.shape
-FROM
-  locations
-INNER JOIN
-  location_periods
-    ON
-      locations.id = location_periods.location_id
-INNER JOIN
-  shapes
-    ON
-      location_periods.id = shapes.location_period_id
-WHERE
-locations.qualified_name = {config[[\"general\"]][[\"location_name\"]]}
-"
+  "SELECT * FROM pull_boundary_polygon(
+       {config[[\"general\"]][[\"location_name\"]]}
+   );"
 ))[["shape"]]))
 print("Pulled boundary polygon")
 
@@ -355,36 +173,12 @@ print("Pulled boundary polygon")
 start_time <- Sys.time()
 minimal_grid_population <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(
   .con = conn_pg,
-  "
-SELECT
-  rid,
-  temporal_grid.id as t,
-  rast
-FROM
-  locations
-INNER JOIN
-  location_periods
-    ON
-      locations.id = location_periods.location_id
-INNER JOIN
-  shapes
-    ON
-      location_periods.id = shapes.location_period_id
-INNER JOIN
-  covariates.all_covariates
-    ON
-      st_intersects(shapes.shape, st_envelope(rast))
-INNER JOIN
-  resize_temporal_grid({config[[\"general\"]][[\"time_scale\"]]}) as temporal_grid
-    ON
-      covariates.all_covariates.time_left <= temporal_grid.time_midpoint
-      AND covariates.all_covariates.time_right >= temporal_grid.time_midpoint
-WHERE
-  time_midpoint >= {config[[\"general\"]][[\"start_date\"]]}
-  AND time_midpoint <= {config[[\"general\"]][[\"end_date\"]]}
-  AND covariate_name = 'population'
-  AND locations.qualified_name = {config[[\"general\"]][[\"location_name\"]]}
-"
+  "SELECT * FROM pull_minimal_grid_population(
+       {config[[\"general\"]][[\"location_name\"]]},
+       {config[[\"general\"]][[\"start_date\"]]},
+       {config[[\"general\"]][[\"end_date\"]]},
+       {config[[\"general\"]][[\"time_scale\"]]}
+   )"
 ))
 end_time <- Sys.time()
 elapsed_time <- end_time - start_time
@@ -417,12 +211,45 @@ temporal_location_grid_mapping[["temporal_location_id"]] <- bit64::as.integer64(
   unique_temporal_location_ids
 ))
 
-check_data(observation_data)
+taxdat::check_data(observation_data)
+
 print("Starting processing")
 # Intermediate operations like aggregation and overlap removal
 
 observation_data.bak <- observation_data
 observation_temporal_location_mapping.bak <- observation_temporal_location_mapping
+
+if (config[["processing"]][["average_inconsistent_duplicates"]]) {
+  print("Dealing with inconsistent duplicate observations")
+
+  local_unique_column_names <- taxdat::suppress_warning(
+    taxdat::get_unique_columns_by_group(dplyr::mutate(
+      observation_data,
+      time_left = as.character(time_left), time_right = as.character(time_right)
+    ), grouping_columns = c(
+      "observation_collection_id",
+      "location_period_id",
+      "time_left",
+      "time_right"
+    ), skip_columns = c(
+      "observation_collection_id",
+      "location_period_id",
+      "time_left",
+      "time_right",
+      cases_column,
+      "shape"
+    )), "coercing argument of type 'character' to logical"
+  )
+
+  observation_data_deduplicated <- taxdat::remove_inconsistent_duplicates(observation_data,
+    columns_to_mean_over = c(cases_column), local_unique_column_names
+  )
+
+
+  observation_data <- observation_data_deduplicated
+
+  print("Finished resolving inconsistent duplicates")
+}
 
 if (config[["processing"]][["aggregate"]]) {
   print("Aggregating")
@@ -439,16 +266,16 @@ if (config[["processing"]][["aggregate"]]) {
     ), skip_columns = c(
       "observation_collection_id",
       "location_period_id", "shape", cases_column, "time_left", "time_right",
-      "tfrac", "observation_id"
+      "tfrac", "observation_id", "unique_observation_ids"
     )),
     columns_to_sum_over = c("tfrac", cases_column)
   )
-
 
   observation_data <- sf::st_as_sf(taxdat::project_to_groups(
     observation_data_aggregated,
     "observation_id", observation_data
   ))
+
   observation_temporal_location_mapping <- taxdat::project_to_groups(
     observation_data_aggregated,
     c("observation_id", "temporal_location_id"), observation_temporal_location_mapping
@@ -507,6 +334,7 @@ if (config[["processing"]][["censor_incomplete_observations"]][["perform"]]) {
     observation_data_censored,
     "observation_id", observation_data
   ))
+
   observation_temporal_location_mapping <- taxdat::project_to_groups(
     observation_data_censored,
     c("observation_id", "temporal_location_id"), observation_temporal_location_mapping
@@ -540,7 +368,9 @@ if (any(is.na(observation_data[[paste0(cases_column, "_R")]]) & is.na(observatio
 
 ## Replace me with a config call
 potential_covariate_names <- colnames(as.data.frame(covar_cube)[, -c(1:6), drop = FALSE])
-covariate_names <- config[["general"]][["covariates"]]
+covariate_names <- as.character(sapply(config[["general"]][["covariates"]], function(x) {
+  x[["name"]]
+}))
 if (!all(covariate_names %in% potential_covariate_names)) {
   stop(paste(
     "Could not find all covariates.", paste(covariate_names[!(covariate_names %in%
@@ -606,8 +436,8 @@ fully_covered_ts <- unique(fully_covered_indices[["t"]])
 
 covar_cube <- covar_cube %>%
   dplyr::filter(id %in% fully_covered_grid_ids, t %in% fully_covered_ts) %>%
-  reindex("id", "updated_id") %>%
-  reindex("t", "updated_t") %>%
+  taxdat::reindex("id", "updated_id") %>%
+  taxdat::reindex("t", "updated_t") %>%
   tibble::rownames_to_column() %>%
   dplyr::mutate(spacetime_grid_id = as.numeric(rowname)) %>%
   dplyr::select(-rowname)
@@ -646,7 +476,7 @@ nneighbors[is.na(nneighbors)] <- 0
 
 observation_data <- observation_data %>%
   dplyr::filter(observation_id %in% fully_covered_observation_ids) %>%
-  reindex("observation_id", "updated_observation_id")
+  taxdat::reindex("observation_id", "updated_observation_id")
 
 observation_changer <- setNames(
   sort(unique(observation_data[["updated_observation_id"]])),
@@ -680,6 +510,10 @@ temporal_location_grid_mapping <- temporal_location_grid_mapping %>%
   )
 
 print("Finished reindexing")
+
+
+covar_cube <- taxdat::transform_covariates(covar_cube, config[["general"]][["covariates"]])
+
 
 if (config[["processing"]][["reorder_adjacency_matrix"]][["perform"]]) {
   print("Reordering adjacency matrix")
@@ -756,6 +590,8 @@ if (config[["initial_values"]][["warmup"]]) {
           return(median(c(r, m, l), na.rm = TRUE))
         }
       )
+      .x[[cases_column]] <- diff(c(0, round(cumsum(.x[[cases_column]]))))
+      .x[[paste("log", cases_column, sep = "_")]] <- log(.x[[cases_column]])
       return(.x)
     }) %>%
     dplyr::mutate(log_y = log(y), gam_offset = log_y)
@@ -764,6 +600,7 @@ if (config[["initial_values"]][["warmup"]]) {
     dplyr::group_by(x, y) %>%
     dplyr::summarize(.groups = "drop") %>%
     nrow()
+
   gam_formula <- taxdat::get_gam_formula(
     cases_column_name = cases_column,
     include_spatial_smoothing = TRUE,
@@ -775,7 +612,7 @@ if (config[["initial_values"]][["warmup"]]) {
 
   gam_fit <- mgcv::gam(
     gam_formula,
-    family = "gaussian",
+    family = "poisson",
     data = initial_values_df,
     drop.unused.levels = FALSE,
   )
@@ -784,19 +621,48 @@ if (config[["initial_values"]][["warmup"]]) {
     covar_cube
   )
 
-  covariate_effect <- as.vector(as.matrix(as.data.frame(covar_cube)[, covariate_names]) %*%
-    coef(gam_fit)[covariate_names])
+  ## Extract parameters
+  ## - beta0
+  ## - betas
+  ## - log_std_dev_w
+  ## - eta_tilde
+  ## - sigma_eta_tilde
+  ## - rho
+  ## - w
+  ## Extract covariates
+  initial_beta0 <- coef(gam_fit)["(Intercept)"]
+  beta0_effect <- rep(initial_beta0, times = nrow(covar_cube))
 
   initial_betas <- coef(gam_fit)[covariate_names]
+  covariate_effect <- as.vector(as.matrix(as.data.frame(covar_cube)[, covariate_names]) %*%
+    initial_betas)
+
   initial_etas <- c(0, coef(gam_fit)[grepl("^as.factor.t.", names(coef(gam_fit)))])
+  initial_sigma_eta_tilde <- 1
+  initial_eta_tilde <- (initial_etas / config[["stan"]][["sigma_eta_scale"]])
+  eta_effect <- initial_etas[as.factor(covar_cube[["t"]])]
+
+  initial_rho <- 0.9999
+
+  residuals <- gam_predict - beta0_effect - covariate_effect - eta_effect
+  initial_ws <- dplyr::tibble(value = residuals, spatial_id = covar_cube[["updated_id"]]) %>%
+    dplyr::group_by(spatial_id) %>%
+    dplyr::summarize(value = mean(value)) %>%
+    dplyr::arrange(spatial_id) %>%
+    .[["value"]]
+
+  ##
 
   initial_values_list <- lapply(seq_len(config[["stan"]][["nchain"]]), function(chain) {
-    w_df <- dplyr::tibble(value = gam_predict - covariate_effect, spatial_id = covar_cube[["updated_id"]]) %>%
-      dplyr::group_by(spatial_id) %>%
-      dplyr::summarize(value = mean(value)) %>%
-      dplyr::arrange(spatial_id)
-
-    rc <- list(w = as.array(rnorm(nrow(w_df), w_df[["value"]])))
+    rc <- list(
+      beta0 = as.array(rnorm(
+        length(initial_beta0),
+        initial_beta0,
+        sqrt(sqrt(abs(initial_beta0)))
+      )),
+      rho = initial_rho,
+      w = as.array(rnorm(length(initial_ws), initial_ws))
+    )
     if (length(covariate_names) > 0) {
       rc$betas <- as.array(rnorm(
         length(coef(gam_fit)[covariate_names]),
@@ -804,18 +670,31 @@ if (config[["initial_values"]][["warmup"]]) {
       ))
     }
     if (config[["stan"]][["do_time_slice"]][["perform"]] && (length(unique(covar_cube$updated_t)) > 1)) {
-      rc$etas <- as.array(rnorm(
-        length(initial_etas),
-        initial_etas,
-        sqrt(var(initial_etas))
+      rc$eta_tilde <- as.array(rnorm(
+        length(initial_eta_tilde),
+        initial_eta_tilde,
+        sqrt(var(initial_eta_tilde))
       ))
+      rc$sigma_eta_tilde <- as.array(rnorm(
+        length(initial_sigma_eta_tilde),
+        initial_sigma_eta_tilde,
+        .01
+      ))
+
+      if (config[["stan"]][["do_time_slice"]][["eta_simplex"]]) {
+        rc$beta0 <- rc$beta0 - min(rc$eta_tilde) + 1e-13
+        rc$eta_tilde <- rc$eta_tilde - min(rc$eta_tilde) + 1e-13
+
+        rc$sigma_eta_tilde <- rc$sigma_eta_tilde * sum(rc$eta_tilde)
+        rc$eta_tilde <- rc$eta_tilde / sum(rc$eta_tilde)
+      }
     }
     return(rc)
   })
 
 
   covar_cube[["covariate_contribution"]] <- covariate_effect
-  covar_cube[["spatial_smoothing_term"]] <- gam_predict - covariate_effect
+  covar_cube[["spatial_smoothing_term"]] <- residuals
   covar_cube[["gam_output"]] <- gam_predict
   print("Finished gam warmup")
 } else {
@@ -862,7 +741,7 @@ stan_data <- list(
     "_R"
   )]]))), ind_full = as.array(which(!is.na(observation_data[[cases_column]]))),
   ind_left = as.array(which(!is.na(observation_data[[paste0(cases_column, "_L")]]))),
-  T = cast_to_int32(max(observation_temporal_location_mapping[["updated_t"]])), y = as.array(pmax(pmin(observation_data[[cases_column]],
+  T = taxdat::cast_to_int32(max(observation_temporal_location_mapping[["updated_t"]])), y = as.array(pmax(pmin(observation_data[[cases_column]],
     observation_data[[paste0(cases_column, "_R")]],
     na.rm = TRUE
   ), observation_data[[paste0(
@@ -870,12 +749,12 @@ stan_data <- list(
     "_L"
   )]], na.rm = TRUE)), L = length(unique(observation_temporal_location_mapping[["updated_temporal_location_id"]])),
   K1 = nrow(observation_temporal_location_mapping), K2 = nrow(temporal_location_grid_mapping),
-  map_obs_loctime_obs = as.array(cast_to_int32(observation_temporal_location_mapping[["updated_observation_id"]])),
-  map_obs_loctime_loc = as.array(cast_to_int32(observation_temporal_location_mapping[["updated_temporal_location_id"]])),
+  map_obs_loctime_obs = as.array(taxdat::cast_to_int32(observation_temporal_location_mapping[["updated_observation_id"]])),
+  map_obs_loctime_loc = as.array(taxdat::cast_to_int32(observation_temporal_location_mapping[["updated_temporal_location_id"]])),
   tfrac = as.array(observation_temporal_location_mapping$tfrac),
-  map_loc_grid_loc = as.array(cast_to_int32(temporal_location_grid_mapping[["updated_temporal_location_id"]])),
-  map_loc_grid_grid = as.array(cast_to_int32(temporal_location_grid_mapping[["spacetime_grid_id"]])),
-  map_loc_grid_sfrac = as.array(temporal_location_grid_mapping[["sfrac"]]), map_smooth_grid = as.array(cast_to_int32(covar_cube[["updated_id"]])),
+  map_loc_grid_loc = as.array(taxdat::cast_to_int32(temporal_location_grid_mapping[["updated_temporal_location_id"]])),
+  map_loc_grid_grid = as.array(taxdat::cast_to_int32(temporal_location_grid_mapping[["spacetime_grid_id"]])),
+  map_loc_grid_sfrac = as.array(temporal_location_grid_mapping[["sfrac"]]), map_smooth_grid = as.array(taxdat::cast_to_int32(covar_cube[["updated_id"]])),
   rho = 0.999, covar = standardize_covar(as.matrix(as.data.frame(covar_cube)[
     ,
     covariate_names
@@ -959,8 +838,8 @@ if (config[["generated"]][["perform"]]) {
 
   updated_stan_data <- stan_data
   updated_stan_data$map_loc_grid_sfrac <- as.array(temporal_location_grid_mapping[["sfrac"]])
-  updated_stan_data$map_loc_grid_grid <- as.array(cast_to_int32(temporal_location_grid_mapping[["spacetime_grid_id"]]))
-  updated_stan_data$map_loc_grid_loc <- as.array(cast_to_int32(temporal_location_grid_mapping[["updated_temporal_location_id"]]))
+  updated_stan_data$map_loc_grid_grid <- as.array(taxdat::cast_to_int32(temporal_location_grid_mapping[["spacetime_grid_id"]]))
+  updated_stan_data$map_loc_grid_loc <- as.array(taxdat::cast_to_int32(temporal_location_grid_mapping[["updated_temporal_location_id"]]))
   updated_stan_data$K2 <- nrow(temporal_location_grid_mapping)
 
   # cmdstan_draws <- posterior::as_draws(model.rand)

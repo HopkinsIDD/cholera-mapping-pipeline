@@ -74,36 +74,40 @@ cache<-new.env()
 get_config(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 
 if(!is.null(cache[["config"]][["test_metadata"]])){
- params_table=data.frame(do.call(rbind,cache[["config"]][["test_metadata"]]))
- row.names(params_table)=c(
-  "test case",
-  "Grid by rows",
-  "Grid by cols",
-  "Data",
-  "OC",
-  "Polygon",
-  "Proportion of grids observed",
-  "Randomize",
-  "Number of covariates",
-  "Single_year_run",
-  "\u00A0\u00A0\u00A0Spatially-varied layers",
-  "\u00A0\u00A0\u00A0Temporally-varied layers",
-  "\u00A0\u00A0\u00A0Spatially smoothed",
-  "\u00A0\u00A0\u00A0Temporally smoothed",
-  "\u00A0\u00A0\u00A0Polygonal layer",
-  "\u00A0\u00A0\u00A0Radiating layer",
-  "Constant",
-  "Data_simulation_covariates",
-  "Model_covariates",
-  "Locations with inconsistent data\n (compared to the country level)",
-  "Loc with inconsistent data",
-  "Cov_data_simulation_filename",
-  "test_true_grid_case_filename"
-)
- data.frame(parameter=rownames(params_table)[c(1:10,20:23)],params_table[c(1:10,20:23),1])%>%
-  kableExtra::kable(col.names = c("Parameter","Values"),
-                    caption = "Table 1. Parameters")%>%
+  general_parameters_table <- cache[["config"]][["test_metadata"]][c("raster", "polygons", "grid_observation")] %>%
+    as.data.frame() %>%
+
+    t() %>%
+    as.data.frame() %>%
+    tibble::rownames_to_column() %>%
+    rbind(data.frame(rowname = "Number of covariates", V1 = length(cache[["config"]][["test_metadata"]][["covariates"]]))) %>%
+    kableExtra::kable(col.names = c("Parameter","Values"),
+      caption = "Table 1. Parameters") %>%
     kableExtra::kable_styling(bootstrap_options = c("striped"))
+
+  covariate_parameters_table <- cache[["config"]][["test_metadata"]][["covariates"]] %>%
+    lapply(function(covariate_spec) {
+      as.data.frame(covariate_spec)
+    }) %>%
+    do.call(what=rbind) %>%
+    dplyr::mutate(covariate_name = paste("covariate", seq_len(length(cache[["config"]][["test_metadata"]][["covariates"]])))) %>%
+    kableExtra::kable(caption = "Table 2. Covariate Parameters") %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped"))
+
+  observation_parameters_table <- cache[["config"]][["test_metadata"]][["observations"]] %>%
+    lapply(function(observation_spec) {
+      as.data.frame(observation_spec)
+    }) %>%
+    do.call(what=rbind) %>%
+    dplyr::mutate(
+      tfrac = mapply(s = start_date, e = end_date, FUN= function(s,e){
+        as.numeric(lubridate::as.period(lubridate::interval(lubridate::ymd(s),lubridate::ymd(e) + 1), units = cache[["config"]][["general"]][["time_scale"]]), units = cache[["config"]][["general"]][["time_scale"]])
+      })
+    ) %>%
+    kableExtra::kable(caption = "Table 2. Covariate Parameters") %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped"))
+
+  general_parameters_table
 }else {
   return(invisible(NULL))
 }
@@ -111,23 +115,16 @@ if(!is.null(cache[["config"]][["test_metadata"]])){
 
 ``` {r echo=FALSE}
 if(!is.null(cache[["config"]][["test_metadata"]])){
-   covar=data.frame(t(params_table[c(11:19),]))
-  rownames(covar)=paste("Covariate",1:ncol(params_table))
-  rownames(covar)[1]="Population"
-  covar%>%
-  kableExtra::kable(col.names = c(
-  "Spatially-varied layers",
-  "Temporally-varied layers",
-  "Spatially smoothed",
-  "Temporally smoothed",
-  "Polygonal layer",
-  "Radiating layer",
-  "Constant",
-  "Data simulation covariates",
-  "Model covariates"),
-  caption = "Table 2. Covariates")%>%
-    kableExtra::kable_styling(bootstrap_options = c("striped"))
-}else{
+  covariate_parameters_table
+}else {
+  return(invisible(NULL))
+}
+```
+
+``` {r echo=FALSE}
+if(!is.null(cache[["config"]][["test_metadata"]])){
+  observation_parameters_table
+}else {
   return(invisible(NULL))
 }
 ```
@@ -136,12 +133,12 @@ if(!is.null(cache[["config"]][["test_metadata"]])){
 
 **Table 1. Data used within the model:**
 ```{r Observation Summary Table, echo = FALSE}
-# taxdat::table_observation_summary(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
+ taxdat::table_observation_summary(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
 
 **Table 2. Data dropped from the model:**
 ```{r echo=FALSE}
-#taxdat::table_dropped_data(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
+taxdat::table_dropped_data(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
 
 ```{r disjoint set sf cases, message=FALSE}
@@ -149,17 +146,17 @@ if(!is.null(cache[["config"]][["test_metadata"]])){
 # disjoint_set_sf_cases <- cache[["observed_polygon_cases_disjoint_aggregated"]]
 ```
 
-**Averaged annual cases by spatial scales:**
+**Annual average cases by unique location periods:**
 ```{r rawobsmap, fig.height=5, fig.width=10, fig.cap=capFig("Observed case counts by time adjusted for time fraction cases/year")}
 taxdat::plot_observed_cases_polygon_raw(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
 ```
 
-**Averaged area adjusted annual cases by spatial scales:**
+**Annual average area adjusted cases by unique location periods:**
 ```{r areadjustedmap, fig.height=5, fig.width=10, fig.cap=capFig("Area adjusted average observed case counts by time adjusted for time fraction cases/(year * kilometer)")}
 taxdat::plot_area_adjusted_observed_cases(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
 ```
 
-**Number of observations by unique observed location periods:**
+**Number of observations by unique location periods:**
 ```{r obsmap, fig.height=5, fig.width=10, fig.cap=capFig("Number of observations by unique observed location periods.")}
 taxdat::plot_raw_observations(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
 ```

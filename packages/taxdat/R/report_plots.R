@@ -9,7 +9,7 @@
 #' @param color_scale the color scale of the plot
 #' @param fill_column the column name to fill the raster
 #' @return ggplot object
-plot_sf_with_fill <- function(cache, name, color_scale_type, fill_column, facet_column = "set", geometry_column = "geometry", color_scale_use_log = NA, include_borders = TRUE) {
+plot_sf_with_fill <- function(cache, name, color_scale_type, fill_column, facet_column = "set", geometry_column = "geometry", color_scale_use_log = NA, include_borders = TRUE, legend_title = NULL) {
   if (is.na(color_scale_use_log)) {
     color_scale_use_log <- ifelse(color_scale_type %in% c("population"), TRUE, FALSE)
   }
@@ -25,6 +25,10 @@ plot_sf_with_fill <- function(cache, name, color_scale_type, fill_column, facet_
   if (!is.null(facet_column)) {
     plot <- plot +
       ggplot2::facet_wrap(formula(paste("~", paste(facet_column, collapse = " + "))))
+  }
+  if (!is.null(legend_title)) {
+    plot <- plot +
+      ggplot2::labs(fill = legend_title)
   }
   return(plot)
 }
@@ -103,7 +107,7 @@ plot_true_modeled_grid_cases <- function(cache, cholera_directory, config) {
   cache[["covar_cube"]] <- sf::st_as_sf(cache[["covar_cube"]])
 
   get_config(config = config, cache = cache, cholera_directory = cholera_directory)
-  true_grid_case <- readRDS(cache[["config"]][["test_metadata"]][["test_true_grid_case_filename"]])
+  true_grid_case <- readRDS(cache[["config"]][["test_metadata"]][["file_names"]][["true_grid_cases"]])
 
   # aggregate true_grid_case
   true_grid_case <- true_grid_case %>%
@@ -146,7 +150,7 @@ plot_true_modeled_grid_cases <- function(cache, cholera_directory, config) {
 #' @return ggplot object
 plot_gam_fit_input_cases <- function(config, cache, cholera_directory) {
   get_initial_values_df(config = config, cache = cache, cholera_directory = cholera_directory)
-  return(plot_sf_with_fill(cache, "initial_values_df", color_scale_type = "cases", fill_column = "suspected_cases", geometry_column = "shape", facet_column = "t"))
+  return(plot_sf_with_fill(cache, "initial_values_df", color_scale_type = "cases", fill_column = "suspected_cases", geometry_column = "geometry", facet_column = "(t+1999)"))
 }
 
 #' @export
@@ -159,7 +163,7 @@ plot_gam_fit_input_cases <- function(config, cache, cholera_directory) {
 #' @return ggplot object
 plot_gam_fit_input_rates <- function(config, cache, cholera_directory) {
   get_initial_values_df(config = config, cache = cache, cholera_directory = cholera_directory)
-  return(plot_sf_with_fill(cache, "initial_values_df", color_scale_type = "rates", fill_column = "suspected_cases/population", geometry_column = "shape", facet_column = "t"))
+  return(plot_sf_with_fill(cache, "initial_values_df", color_scale_type = "rates", fill_column = "suspected_cases/population", geometry_column = "geometry", facet_column = "(t+1999)", legend_title = "\n Incidence rate\n"))
 }
 
 #' @export
@@ -172,7 +176,7 @@ plot_gam_fit_input_rates <- function(config, cache, cholera_directory) {
 #' @return ggplot object
 plot_gam_fit_output_cases <- function(config, cache, cholera_directory) {
   get_covar_cube(config = config, cache = cache, cholera_directory = cholera_directory)
-  return(plot_sf_with_fill(cache, "covar_cube", color_scale_type = "cases", fill_column = "gam_output", facet_column = "t"))
+  return(plot_sf_with_fill(cache, "covar_cube", color_scale_type = "cases", fill_column = "gam_output", facet_column = "(t+1999)", legend_title = " \n Estimated suspected cases \n"))
 }
 
 #' @export
@@ -185,7 +189,7 @@ plot_gam_fit_output_cases <- function(config, cache, cholera_directory) {
 #' @return ggplot object
 plot_gam_fit_output_rates <- function(config, cache, cholera_directory) {
   get_covar_cube(config = config, cache = cache, cholera_directory = cholera_directory)
-  return(plot_sf_with_fill(cache, "covar_cube", color_scale_type = "rates", fill_column = "gam_output/population", facet_column = "t"))
+  return(plot_sf_with_fill(cache, "covar_cube", color_scale_type = "rates", fill_column = "gam_output/population", facet_column = "(t+1999)", legend_title = "\n Estimated incidence rate \n"))
 }
 
 #' @export
@@ -230,7 +234,7 @@ plot_area_adjusted_observed_cases <- function(config, cache, cholera_directory) 
   plot <- plot_sf_with_fill(
     cache = cache, name = "observed_polygon_cases_disjoint_aggregated",
     color_scale_type = "cases", fill_column = "suspected_cases / sf::st_area(geom)",
-    facet_column = "set", geometry_column = "geom"
+    facet_column = "set", geometry_column = "geom", legend_title = "\n Suspected cases \n"
   )
   return(plot)
 }
@@ -252,7 +256,7 @@ plot_raw_observations <- function(config, cache, cholera_directory) {
 
   plot <- plot_sf_with_fill(
     cache = cache, name = "observed_polygon_cases_disjoint_counted",
-    color_scale_type = "observation_counts", fill_column = "suspected_cases", facet_column = "set", geometry_column = "geom"
+    color_scale_type = "observation_counts", fill_column = "suspected_cases", facet_column = "set", geometry_column = "geom", legend_title = "\n Number of observations \n"
   )
 
   return(plot)
@@ -269,7 +273,7 @@ plot_time_varying_pop_raster <- function(config, cache, cholera_directory) {
 
   plot <- plot_sf_with_fill(
     cache = cache, name = "covar_cube",
-    color_scale_type = "population", fill_column = "population", facet_column = "t", geometry_column = "geometry", color_scale_use_log = TRUE
+    color_scale_type = "population", fill_column = "population", facet_column = "(t+1999)", geometry_column = "geometry", color_scale_use_log = TRUE
   )
 
   return(plot)
@@ -292,9 +296,10 @@ plot_raster_covariates <- function(config, cache, cholera_directory) {
     return(invisible(NULL))
   }
 
+  # FIX ME
   aggregate_covar_cube_covariates(config = config, cache = cache, cholera_directory = cholera_directory)
 
-  return(plot_sf_with_fill(cache, "covar_cube_covariates_aggregated", color_scale_type = "covariate", fill_column = "value", facet_column = c("name", "t"), geometry_column = "geom"))
+  return(plot_sf_with_fill(cache, "covar_cube_covariates_aggregated", color_scale_type = "covariate", fill_column = "value", facet_column = c("name", "(t+1999)"), geometry_column = "geom"))
 }
 
 #' @export
@@ -313,13 +318,19 @@ plot_raster_covariates_datagen <- function(config, cache, cholera_directory) {
     return(invisible(NULL))
   }
 
-  data_simulation_covs <- readRDS(cache[["config"]][["test_metadata"]][["Cov_data_simulation_filename"]])
+  raw_simulation_covariates <- readRDS(cache[["config"]][["test_metadata"]][["file_names"]][["simulation_covariates"]])
+  cache[["data_simulation_covs"]] <- do.call(what = rbind, lapply(
+    names(raw_simulation_covariates),
+    function(covariate_name) {
+      rc <- raw_simulation_covariates[[covariate_name]]
+      rc[["value"]] <- rc[["covariate"]]
+      rc[["covariate"]] <- covariate_name
+      return(rc)
+    }
+  ))
 
-  cache[["data_simulation_covs"]] <- as.data.frame(do.call(rbind, data_simulation_covs[2:(length(data_simulation_covs))])) %>%
-    mutate(value = covariate, covariate = paste("Covariate", rep(2:length(data_simulation_covs), each = nrow(data_simulation_covs[[1]])))) # Convert list to data frame columns
-  cache[["data_simulation_covs"]] <- sf::st_as_sf(cache[["data_simulation_covs"]])
 
-  return(plot_sf_with_fill(cache, "data_simulation_covs", color_scale_type = "covariate", fill_column = "value", facet_column = c("covariate", "t"), geometry_column = "geometry"))
+  return(plot_sf_with_fill(cache, "data_simulation_covs", color_scale_type = "covariate", fill_column = "value", facet_column = c("covariate", "(t+1999)"), geometry_column = "geometry"))
 }
 
 #' @export
@@ -336,7 +347,7 @@ plot_disaggregated_modeled_cases_time_varying <- function(config, cache, cholera
 
   plot <- plot_sf_with_fill(
     cache = cache, name = "grid_cases_mean_disaggregated",
-    color_scale_type = "cases", fill_column = "cases", facet_column = "t", geometry_column = "geometry",
+    color_scale_type = "cases", fill_column = "cases", facet_column = "(t+1999)", geometry_column = "geometry",
     include_borders = FALSE
   ) +
     ggplot2::geom_sf(data = cache[["boundary_polygon"]], fill = NA, color = "black", size = 0.05)
@@ -358,7 +369,7 @@ plot_modeled_rates_time_varying <- function(config, cache, cholera_directory) {
 
   plot <- plot_sf_with_fill(
     cache = cache, name = "mean_rates_sf",
-    color_scale_type = "rates", fill_column = "rates", facet_column = "t", geometry_column = "geometry"
+    color_scale_type = "rates", fill_column = "rates", facet_column = "(t+1999)", geometry_column = "geometry"
   ) +
     ggplot2::geom_sf(data = cache[["boundary_polygon"]], fill = NA, color = "black", size = 0.05)
 
@@ -372,7 +383,7 @@ plot_modeled_rates_time_varying <- function(config, cache, cholera_directory) {
 #' @param cache
 plot_true_grid_cases <- function(config, cache, cholera_directory) {
   get_sf_grid_data(config = config, cache = cache, cholera_directory = cholera_directory)
-  return(plot_sf_with_fill(cache, "true_grid_data", color_scale_type = "cases", fill_column = "cases", geometry_column = "geometry", facet_column = "t"))
+  return(plot_sf_with_fill(cache, "true_grid_data", color_scale_type = "cases", fill_column = "cases", geometry_column = "geometry", facet_column = "(t+1999)"))
 }
 
 #' @export
@@ -382,7 +393,7 @@ plot_true_grid_cases <- function(config, cache, cholera_directory) {
 #' @param cache
 plot_true_grid_rates <- function(config, cache, cholera_directory) {
   get_sf_grid_data(config = config, cache = cache, cholera_directory = cholera_directory)
-  return(plot_sf_with_fill(cache, "true_grid_data", color_scale_type = "rates", fill_column = "rate", geometry_column = "geometry", facet_column = "t"))
+  return(plot_sf_with_fill(cache, "true_grid_data", color_scale_type = "rates", fill_column = "rate", geometry_column = "geometry", facet_column = "(t+1999)"))
 }
 
 #' @export
@@ -453,3 +464,68 @@ plot_rhat <- function(config, cache, cholera_directory) {
 
   return(plt)
 }
+
+# Leaving this here commented out for now
+### plot_energy <- function(stan_model, par = "all") {
+###   energy <- sapply(rstan::get_sampler_params(stan_model), function(x) {
+###     x[, "energy__"]
+###   })
+###   leapfrog_iterations <- rstan::get_num_leapfrog_per_iteration(stan_model)
+###
+###   nchain <- stan_model@sim[["chains"]]
+###   kept_per_chain <- sapply(stan_model@sim[["permutation"]], length)
+###   if (!length(unique(kept_per_chain)) == 1) {
+###     stop("This function assumes the same number of iterations are saved for each chain")
+###   }
+###   kept_per_chain <- unique(kept_per_chain)
+###
+###   if (!(isTRUE(par == "all") || all(par %in% c(stan_model@sim[["pars_oi"]], stan_model@sim[["fnames_oi"]])))) {
+###     stop("Not all parameters are approporiate")
+###   }
+###   if (isTRUE(par == "all")) {
+###     par <- stan_model@sim[["fnames_oi"]]
+###   }
+###   short_par <- par[par %in% stan_model@sim[["pars_oi"]]]
+###   if (length(short_par) > 0) {
+###     longform_pars <- stan_model@sim[["pars_oi"]][!(stan_model@sim[["pars_oi"]] %in%
+###       stan_model@sim[["fnames_oi"]])]
+###     short_par <- short_par[short_par %in% longform_pars]
+###     par <- par[!(par %in% short_par)]
+###     longform_pars <- stan_model@sim[["fnames_oi"]][!(stan_model@sim[["fnames_oi"]] %in%
+###       stan_model@sim[["pars_oi"]])]
+###     short_names <- gsub("\\[.*\\]", "", longform_pars)
+###     short_par <- unlist(lapply(short_par, function(x) {
+###       return(longform_pars[x == short_names])
+###     }))
+###     par <- c(par, short_par)
+###   }
+###
+###   rc <- array(NA, c(kept_per_chain, nchain, length(par) + 2))
+###   dimnames(rc) <- list(NULL, paste("chain", seq_len(nchain)), c(
+###     par, "energy__",
+###     "leapfrog_iterations__"
+###   ))
+###
+###
+###   indices_to_pull <- lapply(stan_model@sim[["permutation"]], function(x) {
+###     x + stan_model@sim[["warmup"]]
+###   })
+###
+###   counter <- 0
+###   for (i in seq_len(nchain)) {
+###     rc[, paste("chain", i), "energy__"] <- energy[indices_to_pull[[i]], i]
+###     rc[, paste("chain", i), "leapfrog_iterations__"] <- leapfrog_iterations[counter +
+###       seq_len(kept_per_chain)]
+###     counter <- counter + kept_per_chain
+###   }
+###   params <- rstan::extract(stan_model, pars = par)
+###   for (param in par) {
+###     counter <- 0
+###     for (i in seq_len(nchain)) {
+###       rc[, paste("chain", i), param] <- params[[param]][counter + seq_len(kept_per_chain)]
+###       counter <- counter + kept_per_chain
+###     }
+###   }
+###
+###   return(pairs(apply(rc, 3, c)))
+### }
