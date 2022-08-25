@@ -7,8 +7,9 @@ dbname <- Sys.getenv("CHOLERA_COVAR_DBNAME", "cholera_covariates")
 
 conn_pg <- taxdat::connect_to_db(dbuser, dbname)
 DBI::dbClearResult(DBI::dbSendQuery(conn = conn_pg, "SET client_min_messages TO WARNING;"))
-
-  my_seed<-c("10403,3,1235579427,-536490051,-1474526166,-1243979237,936407911,565438754,1449575741,319694383,
+# 
+ my_seed <- c(
+  10403,12,1235579427,-536490051,-1474526166,-1243979237,936407911,565438754,1449575741,319694383,
              745753380,-1499589091,1317135575,367582367,-497616923,-1383406906,1041201250,-758780777,-697571325,
              -1746075096,679503042,-26956654,-1340834598,795482303,-1910278852,-1757431244,-1706273351,
              2117410134,-1818518651,-683209438,987698909,-1755235241,1141036153,1930540532,816396146,300759582,
@@ -74,134 +75,159 @@ DBI::dbClearResult(DBI::dbSendQuery(conn = conn_pg, "SET client_min_messages TO 
              1435157800,1571519618,117759252,-368173505,586579402,916061794,-2049802502,-1874158496,-926835699,741167573,
              1469426977,310173147,311713435,1380661583,835864418,-45467227,2102864420,-87525861,-1993191671,-1640915842,-343676543,
              -1048088977,-2077878146,1382339926,-1144726400,-1036372051,550350861,-1340093134,-779516978,-567269794,1700562070,
-             -2122448835,-512293284,-43230255,-1452912746,1014259737,1189318989,263517052,-537815888,-1071695163,1240415169")
-  .GlobalEnv$.Random.seed<-my_seed
-  
-  query_time_left <- lubridate::ymd("2000-01-01")
-  query_time_right <- lubridate::ymd("2004-12-31")
-  ## Pull data frames needed to create testing database from the api This doesn't
-  ## pull covariates, but does pull everything else tryCatch({ all_dfs <-
-  ## taxdat::create_testing_dfs_from_api( username
-  ## =Sys.getenv('CHOLERA_API_USERNAME'), api_key =
-  ## Sys.getenv('CHOLERA_API_KEY'), locations = 'AFR::KEN', time_left =
-  ## query_time_left, time_right = query_time_right, uids = NULL, website =
-  ## 'https://api.cholera-taxonomy.middle-distance.com/' ) }, error = function(e)
-  ## { })
-  load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_object.rdata"))
-  nlayers<-5
-  
-  ## ------------------------------------------------------------------------------------------------------------------------
-  ## Change polygons
-  test_extent <- sf::st_bbox(all_dfs$shapes_df)
-  test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = nlayers, test_extent = test_extent)
-  test_polygons <- sf::st_make_valid(create_test_layered_polygons(
-    test_raster = test_raster,
-    base_number = 1, n_layers = 2, factor = 10 * 10, snap = FALSE, randomize = TRUE,
-    seed = my_seed
-  ))
-  my_seed <- .GlobalEnv$.Random.seed
-  
-  all_dfs$shapes_df <- test_polygons %>%
-    dplyr::mutate(
-      qualified_name = location, start_date = query_time_left,
-      end_date = query_time_right
-    )
-  names(all_dfs$shapes_df)[names(all_dfs$shapes_df) == "geometry"] <- "geom"
-  sf::st_geometry(all_dfs$shapes_df) <- "geom"
-  
-  all_dfs$location_period_df <- all_dfs$shapes_df %>%
-    sf::st_drop_geometry()
-  all_dfs$location_df <- all_dfs$shapes_df %>%
-    sf::st_drop_geometry() %>%
-    dplyr::group_by(qualified_name) %>%
-    dplyr::summarize()
-  
-  ## ------------------------------------------------------------------------------------------------------------------------
-  ## Change covariates
-  covariates_table <- data.frame(
-    nonspatial = c(FALSE, FALSE, TRUE), nontemporal = c(
-      TRUE,
-      TRUE, TRUE
-    ), spatially_smooth = c(TRUE, TRUE, TRUE), temporally_smooth = c(
-      FALSE,
-      FALSE, FALSE
-    ), polygonal = c(TRUE, TRUE, TRUE), radiating = c(FALSE, FALSE, FALSE),
-    constant = c(TRUE, FALSE, FALSE), Data_simulation_covariates = c(
-      TRUE, TRUE,
-      TRUE
-    ), Model_covariates = c(TRUE, TRUE, FALSE)
+             -2122448835,-512293284,-43230255,-1452912746,1014259737,1189318989,263517052,-537815888,-1071695163,1240415169
+) %>%
+  as.integer()
+
+# generate_seed <- function() {
+#   rnorm(1,1)
+#   seed <- .GlobalEnv$.Random.seed
+#   write.csv(seed,file="test_case_b_seed_0823.csv")
+#   return(as.integer(read.csv(file = "test_case_b_seed_0823.csv")[[2]]))
+# }
+# 
+# idx<-1
+# while(sum(all_dfs$observations_df$cases)<800){
+# my_seed<-generate_seed()
+.GlobalEnv$.Random.seed<-my_seed
+#   
+sim_time_left <- lubridate::ymd("2000-01-01")
+sim_time_right <- lubridate::ymd("2004-12-31")
+# query_time_left <- c(lubridate::ymd("2000-01-01"), lubridate::ymd("2000-12-31"),lubridate::ymd("2001-12-31"),lubridate::ymd("2002-12-31"),lubridate::ymd("2003-12-31"))
+# query_time_right <- c(lubridate::ymd("2000-12-31"), lubridate::ymd("2001-12-31"),lubridate::ymd("2002-12-31"),lubridate::ymd("2003-12-31"),lubridate::ymd("2004-12-31"))
+query_time_left <- c(lubridate::ymd("2000-01-01"), lubridate::ymd("2001-01-01"),lubridate::ymd("2002-01-01"),lubridate::ymd("2003-01-01"),lubridate::ymd("2004-01-01"))
+query_time_right <- c(lubridate::ymd("2000-12-31"), lubridate::ymd("2001-12-31"),lubridate::ymd("2002-12-31"),lubridate::ymd("2003-12-31"),lubridate::ymd("2004-12-31"))
+## Pull data frames needed to create testing database from the api This doesn't
+## pull covariates, but does pull everything else tryCatch({ all_dfs <-
+## taxdat::create_testing_dfs_from_api( username
+## =Sys.getenv('CHOLERA_API_USERNAME'), api_key =
+## Sys.getenv('CHOLERA_API_KEY'), locations = 'AFR::KEN', time_left =
+## query_time_left, time_right = query_time_right, uids = NULL, website =
+## 'https://api.cholera-taxonomy.middle-distance.com/' ) }, error = function(e)
+## { })
+load(rprojroot::find_root_file(criterion = ".choldir", "Analysis", "all_dfs_object.rdata"))
+nlayers = 5
+
+## ------------------------------------------------------------------------------------------------------------------------
+## Change polygons
+test_extent <- sf::st_bbox(all_dfs$shapes_df)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = nlayers, test_extent = test_extent)
+test_polygons <- sf::st_make_valid(create_test_layered_polygons(
+  test_raster = test_raster,
+  base_number = 1, n_layers = 2, factor = 10 * 10, snap = FALSE, randomize = TRUE,
+  seed = my_seed
+))
+my_seed <- .GlobalEnv$.Random.seed
+
+all_dfs$shapes_df <- test_polygons %>%
+  dplyr::mutate(
+    qualified_name = location, start_date = sim_time_left,
+    end_date = sim_time_right
   )
-  
-  test_extent <- sf::st_bbox(all_dfs$shapes_df)
-  test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = nlayers, test_extent = test_extent)
-  
-  test_covariates<-create_multiple_test_covariates(
-    test_raster = test_raster, ncovariates = dim(covariates_table)[1],
-    nonspatial = covariates_table$nonspatial, nontemporal = covariates_table$nontemporal,
-    spatially_smooth = covariates_table$spatially_smooth, temporally_smooth = covariates_table$temporally_smooth,
-    polygonal = covariates_table$polygonal, radiating = covariates_table$radiating,
-    constant = covariates_table$constant, seed = my_seed
-  )
-  min_time_left <- query_time_left
-  max_time_right <- query_time_right
-  my_seed <- .GlobalEnv$.Random.seed
-  
-  covariate_raster_funs_observation <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(
-    test_covariates[covariates_table$Data_simulation_covariates],
-    min_time_left, max_time_right
-  )
-  
-  covariate_raster_funs<- taxdat:::convert_simulated_covariates_to_test_covariate_funs(
-    test_covariates[covariates_table$Model_covariates],
-    min_time_left, max_time_right
-  )
-  
-  for (cov_datagen_idx in 2:(length(covariate_raster_funs_observation)/nlayers)){
-    covariate_raster_funs_observation[[cov_datagen_idx*nlayers]]$name<-rep(paste0("covariate",rownames(covariates_table[covariates_table$Data_simulation_covariates,])),each=nlayers)[cov_datagen_idx*nlayers]
-    covariate_raster_funs_observation[[cov_datagen_idx*nlayers-(nlayers-1)]]$name<-rep(paste0("covariate",rownames(covariates_table[covariates_table$Data_simulation_covariates,])),each=nlayers)[cov_datagen_idx*nlayers-(nlayers-1)]
-  }
-  for (cov_model_idx in 2:(length(covariate_raster_funs)/nlayers)){
-    covariate_raster_funs[[cov_model_idx*nlayers]]$name<-rep(paste0("covariate",rownames(covariates_table[covariates_table$Model_covariates,])),each=nlayers)[cov_model_idx*nlayers]
-    covariate_raster_funs[[cov_model_idx*nlayers-(nlayers-1)]]$name<-rep(paste0("covariate",rownames(covariates_table[covariates_table$Model_covariates,])),each=nlayers)[cov_model_idx*nlayers-(nlayers-1)]
-  }
-  test_covariates_observation_final<-test_covariates[covariates_table$Data_simulation_covariates]
-  
-  ## save additional covariates in the data generation process for country data
-  ## report
-  rds_file <- file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_b_data_simulation_covariates.rds")
-  if (!dir.exists(dirname(rds_file))) {
-    dir.create(dirname(rds_file))
-  }
-  saveRDS(test_covariates_observation_final, rds_file)
-  
-  ## ------------------------------------------------------------------------------------------------------------------------
-  ## Change observations
-  raster_df <- taxdat::convert_test_covariate_funs_to_simulation_covariates(covariate_raster_funs_observation)
-  
-  test_underlying_distribution <- create_underlying_distribution(
-    covariates = raster_df,
-    seed = my_seed
-  )
-  my_seed <- .GlobalEnv$.Random.seed
-  
-  test_observations <- observe_polygons(
+names(all_dfs$shapes_df)[names(all_dfs$shapes_df) == "geometry"] <- "geom"
+sf::st_geometry(all_dfs$shapes_df) <- "geom"
+
+all_dfs$location_period_df <- all_dfs$shapes_df %>%
+  sf::st_drop_geometry()
+all_dfs$location_df <- all_dfs$shapes_df %>%
+  sf::st_drop_geometry() %>%
+  dplyr::group_by(qualified_name) %>%
+  dplyr::summarize()
+
+## ------------------------------------------------------------------------------------------------------------------------
+## Change covariates
+covariates_table <- data.frame(
+  nonspatial = c(FALSE, FALSE, TRUE), nontemporal = c(
+    TRUE,
+    TRUE, TRUE
+  ), spatially_smooth = c(TRUE, TRUE, TRUE), temporally_smooth = c(
+    FALSE,
+    FALSE, FALSE
+  ), polygonal = c(TRUE, TRUE, TRUE), radiating = c(FALSE, FALSE, FALSE),
+  constant = c(TRUE, FALSE, FALSE), Data_simulation_covariates = c(
+    TRUE, TRUE,
+    TRUE
+  ), Model_covariates = c(TRUE, TRUE, FALSE)
+)
+
+test_extent <- sf::st_bbox(all_dfs$shapes_df)
+test_raster <- create_test_raster(nrows = 10, ncols = 10, nlayers = nlayers, test_extent = test_extent)
+test_covariates<-create_multiple_test_covariates(
+  test_raster = test_raster, ncovariates = dim(covariates_table)[1],
+  nonspatial = covariates_table$nonspatial, nontemporal = covariates_table$nontemporal,
+  spatially_smooth = covariates_table$spatially_smooth, temporally_smooth = covariates_table$temporally_smooth,
+  polygonal = covariates_table$polygonal, radiating = covariates_table$radiating,
+  constant = covariates_table$constant, seed = my_seed
+)
+my_seed <- .GlobalEnv$.Random.seed
+
+min_time_left <- sim_time_left
+max_time_right <- sim_time_right
+
+covariate_raster_funs_observation <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(
+  test_covariates[covariates_table$Data_simulation_covariates],
+  min_time_left, max_time_right
+)
+
+covariate_raster_funs<- taxdat:::convert_simulated_covariates_to_test_covariate_funs(
+  test_covariates[covariates_table$Model_covariates],
+  min_time_left, max_time_right
+)
+
+for (cov_datagen_idx in 2:(length(covariate_raster_funs_observation)/nlayers)){
+  covariate_raster_funs_observation[[cov_datagen_idx*nlayers]]$name<-rep(paste0("covariate",rownames(covariates_table[covariates_table$Data_simulation_covariates,])),each=nlayers)[cov_datagen_idx*nlayers]
+  covariate_raster_funs_observation[[cov_datagen_idx*nlayers-(nlayers-1)]]$name<-rep(paste0("covariate",rownames(covariates_table[covariates_table$Data_simulation_covariates,])),each=nlayers)[cov_datagen_idx*nlayers-(nlayers-1)]
+}
+for (cov_model_idx in 2:(length(covariate_raster_funs)/nlayers)){
+  covariate_raster_funs[[cov_model_idx*nlayers]]$name<-rep(paste0("covariate",rownames(covariates_table[covariates_table$Model_covariates,])),each=nlayers)[cov_model_idx*nlayers]
+  covariate_raster_funs[[cov_model_idx*nlayers-(nlayers-1)]]$name<-rep(paste0("covariate",rownames(covariates_table[covariates_table$Model_covariates,])),each=nlayers)[cov_model_idx*nlayers-(nlayers-1)]
+}
+test_covariates_observation_final<-test_covariates[covariates_table$Data_simulation_covariates]
+
+## save additional covariates in the data generation process for country data
+## report
+rds_file <- file.path(rprojroot::find_root(criterion = ".choldir"), "Analysis", "data", "test_case_b_data_simulation_covariates.rds")
+if (!dir.exists(dirname(rds_file))) {
+  dir.create(dirname(rds_file))
+}
+saveRDS(test_covariates_observation_final, rds_file)
+
+## ------------------------------------------------------------------------------------------------------------------------
+## Change observations
+raster_df <- taxdat::convert_test_covariate_funs_to_simulation_covariates(covariate_raster_funs_observation)
+
+test_underlying_distribution <- create_underlying_distribution(
+  covariates = raster_df,
+  seed = my_seed
+)
+my_seed <- .GlobalEnv$.Random.seed
+
+test_observations <- list()
+for (time_index in seq_len(length(query_time_left))) {
+  test_observations[[time_index]] <- observe_polygons(
     test_polygons = dplyr::mutate(all_dfs$shapes_df,
                                   location = qualified_name, geometry = geom
     ), test_covariates = raster_df, underlying_distribution = test_underlying_distribution,
     noise = FALSE, number_draws = 1, grid_proportion_observed = 1, polygon_proportion_observed = 1,
-    min_time_left = query_time_left, max_time_right = query_time_right, seed = my_seed
+    min_time_left = sim_time_left, max_time_right = sim_time_right, observation_time_left = query_time_left[[time_index]], observation_time_right = query_time_right[[time_index]], seed = my_seed
   )
-  my_seed <- .GlobalEnv$.Random.seed
-  
-  all_dfs$observations_df <- test_observations %>%
-    dplyr::mutate(
-      observation_collection_id = draw, time_left = time_left, time_right = time_right,
-      qualified_name = location, primary = TRUE, phantom = FALSE, suspected_cases = cases,
-      deaths = NA, confirmed_cases = NA
-    )
+}
+test_observations <- do.call(what = dplyr::bind_rows, test_observations)
+my_seed <- .GlobalEnv$.Random.seed
+
+all_dfs$observations_df <- test_observations %>%
+  dplyr::mutate(
+    observation_collection_id = draw, time_left = time_left, time_right = time_right,
+    qualified_name = location, primary = TRUE, phantom = FALSE, suspected_cases = cases,
+    deaths = NA, confirmed_cases = NA
+  )
+# print(idx)
+# idx=idx+1
+# print(sum(all_dfs$observations_df$cases))
+# }
 
 # overlapping observations with consistent case counts
-all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$cases <- all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$cases
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$suspected_cases <- all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$suspected_cases
 
 test_true_grid_cases <- test_underlying_distribution$mean
 # label grids that is observed
@@ -280,5 +306,5 @@ rmarkdown::render(
     config = config_filename,
     drop_nodata_years = TRUE
   ),
-  output_file = "test_case_b_country_data_report"
+  output_file = "test_case_b_country_data_report_0823"
 )
