@@ -14,7 +14,7 @@ export R_VERSION=4.0.2
 ## Local R libraries
 export R_LIBRARY_DIRECTORY=$HOME/rlibs/cmp/$R_VERSION/gcc/$GCC_VERSION/
 ## cmdstan repo
-export CMDSTAN_LOCATION=$HOME/data_aazman1/$USER/cmdstan
+export CMDSTAN_LOCATION=/data/aazman1/$USER/cmdstan
 
 ## clone cmdstan (will not fail if already cloned)
 git clone https://github.com/stan-dev/cmdstan.git $CMDSTAN_LOCATION
