@@ -17,7 +17,7 @@ export R_LIBRARY_DIRECTORY=$HOME/rlibs/cmp/$R_VERSION/gcc/$GCC_VERSION/
 export CMDSTAN_LOCATION=/data/aazman1/$USER/cmdstan
 
 ## clone cmdstan (will not fail if already cloned)
-git clone https://github.com/stan-dev/cmdstan.git $CMDSTAN_LOCATION
+git clone https://github.com/stan-dev/cmdstan.git $CMDSTAN_LOCATION --recurse-submodules
 cd $CMDSTAN_LOCATION
 
 ## Update cmdstan
