@@ -51,7 +51,7 @@ mkdir -p $R_LIBRARY_DIRECTORY \
  && cd $CMDSTAN_LOCATION \
  && make build \
  && Rscript -e "options(error=quit, status = 1); install.packages('cmdstanr', repos = c('https://mc-stan.org/r-packages/', getOption('repos')), lib='$R_LIBRARY_DIRECTORY')" \
- ## We need to install these packages again, since they need newer versions than rockfish has available
  && Rscript -e "options(error=quit, status = 1); install.packages(c('processx','withr'), repos = c('http://cran.r-project.org/'), lib='$R_LIBRARY_DIRECTORY')"
+ ## We need to install these packages again, since they need newer versions than rockfish has available
 
 echo "DONE"
