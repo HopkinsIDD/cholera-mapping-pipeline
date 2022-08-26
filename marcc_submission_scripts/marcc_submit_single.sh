@@ -35,6 +35,6 @@ export CMDSTAN_LOCATION=/data/aazman1/$USER/cmdstan
 
 cd $CHOLERA_PIPELINE_DIRECTORY
 
-Rscript -e "library(cmdstanr, lib.loc='$R_LIBRARY_DIRECTORY'); library(withr, lib.loc='$R_LIBRARY_DIRECTORY'); library(processx, lib.loc='$R_LIBRARY_DIRECTORY'); cmdstanr::set_cmdstan_path('$CMDSTAN_LOCATION'); source('Analysis/R/set_parameters.R')"
+Rscript -e "library(taxdat, lib.loc='$R_LIBRARY_DIRECTORY'); library(cmdstanr, lib.loc='$R_LIBRARY_DIRECTORY'); library(withr, lib.loc='$R_LIBRARY_DIRECTORY'); library(processx, lib.loc='$R_LIBRARY_DIRECTORY'); cmdstanr::set_cmdstan_path('$CMDSTAN_LOCATION'); source('Analysis/R/set_parameters.R')"
 
 echo "DONE"
