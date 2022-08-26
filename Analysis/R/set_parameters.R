@@ -99,18 +99,20 @@ cholera_directory <- ifelse(is.null(opt$cholera_directory),
                             opt$cholera_directory)
 
 
-if (as.logical(Sys.getenv("PRODUCTION_RUN", TRUE)) && (nrow(gert::git_status(repo=cholera_directory)) != 0)) {
-  print(gert::git_status(repo=cholera_directory))
-  Sys.setenv(REINSTALL_TAXDAT = TRUE)
-  stop("There are local changes to the repository.  This is not allowed for a production run. Please revert or commit local changes")
-}
+if (!as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
+  if (as.logical(Sys.getenv("PRODUCTION_RUN", TRUE)) && (nrow(gert::git_status(repo=cholera_directory)) != 0)) {
+    print(gert::git_status(repo=cholera_directory))
+    Sys.setenv(REINSTALL_TAXDAT = TRUE)
+    stop("There are local changes to the repository.  This is not allowed for a production run. Please revert or commit local changes")
+  }
 
-if (Sys.getenv("REINSTALL_TAXDAT", FALSE)) {
-  install.packages(paste0(cholera_directory, "packages/taxdat"), type = "source", repos = NULL)
-} else if (!require(taxdat)) {
-  install.packages(paste0(cholera_directory, "packages/taxdat"), type = "source", repos = NULL)
-} else {
-  detach("package:taxdat")
+  if (Sys.getenv("REINSTALL_TAXDAT", FALSE)) {
+    install.packages(paste0(cholera_directory, "packages/taxdat"), type = "source", repos = NULL)
+  } else if (!require(taxdat)) {
+    install.packages(paste0(cholera_directory, "packages/taxdat"), type = "source", repos = NULL)
+  } else {
+    detach("package:taxdat")
+  }
 }
 
 
@@ -120,7 +122,9 @@ laydir <- ifelse(is.null(opt$layers_directory),
                  opt$layers_directory)
 
 # s2 has different ideas about geometry validity than postgis does
-sf::sf_use_s2(FALSE)
+if (!as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
+  sf::sf_use_s2(FALSE)
+}
 
 ## Inputs --------------------------------------------------------------------------------------------------------------
 print("---- Reading Parameters ----\n")
@@ -257,7 +261,6 @@ if(testing){
     stop("Do not mix test cases and countries")
   }
 } else {
-  print("Path b")
   # Fix country names
   if (!any(suppressWarnings(is.na(as.numeric(countries))))) {
     countries <- as.numeric(countries)
@@ -331,6 +334,11 @@ for(t_idx in 1:length(all_test_idx)){
     warning("Data already preprocessed, skipping")
     load(file_names[["data"]])
   } else if(!testing){
+    if (as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
+      print(normalizePath(file_names[["data"]]))
+      stop("This shouldn't run on marcc")
+    }
+	 
     source(paste(cholera_directory, 'Analysis', 'R', 'prepare_grid.R', sep='/'))
     
     # First prepare the computation grid and get the grid name
@@ -355,6 +363,9 @@ for(t_idx in 1:length(all_test_idx)){
     warning("Covariate cube already preprocessed, skipping")
     load(file_names[["covar"]])
   } else if(!testing){
+    if (as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
+      stop("This shouldn't run on marcc")
+    }
     
     # Note: the first covariate is always the population raster
     ## Step 2a: ingest the required covariates ##
@@ -401,6 +412,9 @@ for(t_idx in 1:length(all_test_idx)){
   ## Step 3: Prepare the stan input ##
   print(file_names[["stan_input"]])
   if(!file.exists(file_names[["stan_input"]])){
+    if (as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
+      stop("This shouldn't run on marcc")
+    }
     source(paste(cholera_directory, "Analysis/R/prepare_stan_input.R", sep = "/"))
     
     stan_input <-  prepare_stan_input(
@@ -440,6 +454,9 @@ for(t_idx in 1:length(all_test_idx)){
     print("Initial_values already found, skipping")
     warning("Initial_values already found, skipping")
   } else {
+    if (as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
+      stop("This shouldn't run on marcc")
+    }
     source(paste(cholera_directory,'Analysis','R','prepare_initial_values.R',sep='/'))
     recompile <- FALSE
   }
@@ -473,6 +490,8 @@ for(t_idx in 1:length(all_test_idx)){
     recompile <- FALSE
   }
   
-  taxdat::clean_all_tmp(dbuser = dbuser, map_name = map_name)
+  if (!as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
+    taxdat::clean_all_tmp(dbuser = dbuser, map_name = map_name)
+  }
   
 }

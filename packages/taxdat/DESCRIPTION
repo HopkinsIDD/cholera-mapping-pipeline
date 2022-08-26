@@ -8,8 +8,8 @@ Maintainer: Joshua Kaminsky <jkaminsky@jhu.edu>
 Description: This package is designed to load and work with taxonomy files in a particular file structure.
 Encoding: UTF-8
 License: GPL (>= 2)
-Depends: R (>= 3.4),ISOcodes,magrittr, dplyr, tidyr, igraph
-Suggests: readxl, sf, sp, raster, rgdal, testthat, knitr, rmarkdown
+Depends: R (>= 3.4), magrittr
+Suggests: readxl, sf, sp, raster, rgdal, testthat, knitr, rmarkdow, tidyr, igraph, ISOcodes, dplyr
 RoxygenNote: 7.1.2
 Collate:
     'plot_cache_function.R'
