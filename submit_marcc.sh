@@ -32,8 +32,6 @@ export CHOLERA_CONFIG_DIRECTORY=/data/aazman1/$USER/cholera-configs/no_covariate
 export CHOLERA_CONFIG=$CHOLERA_CONFIG_DIRECTORY/config_CIV_2016_2020.yml
 export R_LIBRARY_DIRECTORY=$HOME/rlibs/cmp/$R_VERSION/gcc/$GCC_VERSION/
 export CMDSTAN_LOCATION=/data/aazman1/$USER/cmdstan
-echo "R library directory is $R_LIBRARY_DIRECTORY"
-ls $R_LIBRARY_DIRECTORY
 
 Rscript -e "library(withr, lib.loc='$R_LIBRARY_DIRECTORY'); library(processx, lib.loc='$R_LIBRARY_DIRECTORY'); cmdstanr::set_cmdstan_path('$CMDSTAN_LOCATION'); source('Analysis/R/set_parameters.R')"
 
