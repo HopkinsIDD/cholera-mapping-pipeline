@@ -12,6 +12,7 @@ export R_VERSION=4.0.2
 
 # Set filepaths for:
 ## Local R libraries
+export CHOLERA_PIPELINE_DIRECTORY=/data/aazman1/$USER/cholera-mapping-pipeline/
 export R_LIBRARY_DIRECTORY=$HOME/rlibs/cmp/$R_VERSION/gcc/$GCC_VERSION/
 ## cmdstan repo
 export CMDSTAN_LOCATION=/data/aazman1/$USER/cmdstan
@@ -51,7 +52,8 @@ mkdir -p $R_LIBRARY_DIRECTORY \
  && cd $CMDSTAN_LOCATION \
  && make build \
  && Rscript -e "options(error=quit, status = 1); install.packages('cmdstanr', repos = c('https://mc-stan.org/r-packages/', getOption('repos')), lib='$R_LIBRARY_DIRECTORY')" \
- && Rscript -e "options(error=quit, status = 1); install.packages(c('processx','withr'), repos = c('http://cran.r-project.org/'), lib='$R_LIBRARY_DIRECTORY')"
+ && Rscript -e "options(error=quit, status = 1); install.packages(c('processx','withr'), repos = c('http://cran.r-project.org/'), lib='$R_LIBRARY_DIRECTORY')" \
+ && Rscript -e "options(error=quit, status = 1); install.packages('$CHOLERA_PIPELINE_DIRECTORY/packages/taxdat', type='source', repos = NULL, lib='$R_LIBRARY_DIRECTORY')"
  ## We need to install these packages again, since they need newer versions than rockfish has available
 
 echo "DONE"
