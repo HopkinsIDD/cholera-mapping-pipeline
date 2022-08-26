@@ -21,9 +21,9 @@ git clone https://github.com/stan-dev/cmdstan.git $CMDSTAN_LOCATION --recurse-su
 cd $CMDSTAN_LOCATION
 
 ## Update cmdstan
-git reset --hard $CMDSTAN_LOCATION
-git clean -fxd $CMDSTAN_LOCATION
-git pull
+# git reset --hard $CMDSTAN_LOCATION
+# git clean -fxd $CMDSTAN_LOCATION
+# git pull
 
 
 ## Set up modules
