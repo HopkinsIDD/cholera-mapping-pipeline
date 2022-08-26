@@ -2,7 +2,7 @@
 #SBATCH --job-name submit_multiple_years
 #SBATCH --time=01:00:00
 #SBATCH --mem=10G
-#SBATCH --ntasks=1
+#SBATCH --ntasks=4
 #SBATCH --partition=defq
 #SBATCH --account=aazman1
 
@@ -26,12 +26,12 @@ ml r-stringi
 ml r-rstan
 
 export CHOLERA_ON_MARCC=TRUE
-export CHOLERA_PIPELINE_DIRECTORY=/home/jkaminsky/data_aazman1/jkaminsky/cholera-mapping-pipeline/
-export CHOLERA_CONFIG=/home/jkaminsky/data_aazman1/jkaminsky/cholera-configs/
-export CHOLERA_CONFIG_DIRECTORY=/home/jkaminsky/data_aazman1/jkaminsky/cholera-configs/no_covariate_production_2016_2020/2016_2020_country
+export CHOLERA_PIPELINE_DIRECTORY=$HOME/data_aazman1/$USER/cholera-mapping-pipeline/
+export CHOLERA_CONFIG=$HOME/data_aazman1/$USER/cholera-configs/
+export CHOLERA_CONFIG_DIRECTORY=$HOME/data_aazman1/$USER/cholera-configs/no_covariate_production_2016_2020/2016_2020_country
 export CHOLERA_CONFIG=$CHOLERA_CONFIG_DIRECTORY/config_CIV_2016_2020.yml
-export R_LIBRARY_DIRECTORY=/home/jkaminsky/rlibs/cmp/$R_VERSION/gcc/$GCC_VERSION/
-export CMDSTAN_LOCATION=/home/jkaminsky/data_aazman1/jkaminsky/cmdstan
+export R_LIBRARY_DIRECTORY=$HOME/rlibs/cmp/$R_VERSION/gcc/$GCC_VERSION/
+export CMDSTAN_LOCATION=$HOME/data_aazman1/$USER/cmdstan
 echo "R library directory is $R_LIBRARY_DIRECTORY"
 ls $R_LIBRARY_DIRECTORY
 

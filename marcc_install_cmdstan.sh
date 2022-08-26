@@ -6,8 +6,28 @@
 #SBATCH --partition=defq
 #SBATCH --account=aazman1
 
+# Specify toolchain
 export GCC_VERSION=9.3.0
 export R_VERSION=4.0.2
+
+# Set filepaths for:
+## Local R libraries
+export R_LIBRARY_DIRECTORY=$HOME/rlibs/cmp/$R_VERSION/gcc/$GCC_VERSION/
+## cmdstan repo
+export CMDSTAN_LOCATION=$HOME/data_aazman1/$USER/cmdstan
+
+## clone cmdstan (will not fail if already cloned)
+git clone https://github.com/stan-dev/cmdstan.git $CMDSTAN_LOCATION
+cd $CMDSTAN_LOCATION
+
+## Update cmdstan
+git reset --hard $CMDSTAN_LOCATION
+git clean -fxd $CMDSTAN_LOCATION
+git pull
+
+
+## Set up modules
+## (we need to do git things since reset removes git)
 module purge
 
 ml gcc/$GCC_VERSION
@@ -25,15 +45,13 @@ ml r-tidyverse
 ml r-stringi
 ml r-rstan
 
-export R_LIBRARY_DIRECTORY=/home/jkaminsky/rlibs/cmp/$R_VERSION/gcc/$GCC_VERSION/
-export CMDSTAN_LOCATION=/home/jkaminsky/data_aazman1/jkaminsky/cmdstan
 
-
-
+## Actually install cmdstanr including dependent r packages and cmdstan
 mkdir -p $R_LIBRARY_DIRECTORY \
  && cd $CMDSTAN_LOCATION \
  && make build \
  && Rscript -e "options(error=quit, status = 1); install.packages('cmdstanr', repos = c('https://mc-stan.org/r-packages/', getOption('repos')), lib='$R_LIBRARY_DIRECTORY')" \
+ ## We need to install these packages again, since they need newer versions than rockfish has available
  && Rscript -e "options(error=quit, status = 1); install.packages(c('processx','withr'), repos = c('http://cran.r-project.org/'), lib='$R_LIBRARY_DIRECTORY')"
 
 echo "DONE"
