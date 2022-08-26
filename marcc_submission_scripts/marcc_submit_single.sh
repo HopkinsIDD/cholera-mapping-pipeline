@@ -33,6 +33,6 @@ export CHOLERA_CONFIG=$CHOLERA_CONFIG_DIRECTORY/config_CIV_2016_2020.yml
 export R_LIBRARY_DIRECTORY=$HOME/rlibs/cmp/$R_VERSION/gcc/$GCC_VERSION/
 export CMDSTAN_LOCATION=/data/aazman1/$USER/cmdstan
 
-Rscript -e "library(withr, lib.loc='$R_LIBRARY_DIRECTORY'); library(processx, lib.loc='$R_LIBRARY_DIRECTORY'); cmdstanr::set_cmdstan_path('$CMDSTAN_LOCATION'); source('Analysis/R/set_parameters.R')"
+Rscript -e "library(cmdstanr, lib.loc='$R_LIBRARY_DIRECTORY'); library(withr, lib.loc='$R_LIBRARY_DIRECTORY'); library(processx, lib.loc='$R_LIBRARY_DIRECTORY'); cmdstanr::set_cmdstan_path('$CMDSTAN_LOCATION'); source('Analysis/R/set_parameters.R')"
 
 echo "DONE"
