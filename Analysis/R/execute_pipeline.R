@@ -766,6 +766,7 @@ stan_data <- list(
   )]])) + sum(!is.na(observation_data[[paste0(cases_column, "_R")]])))),
   do_time_slice_effect = config[["stan"]][["do_time_slice"]][["perform"]],
   do_time_slice_effect_autocor = config[["stan"]][["do_time_slice"]][["autocorrelated_prior"]],
+  exp_prior=config[["stan"]][["exp_prior"]],#QZ: added exponential betas option in config
   has_data_year = has_data_year,
   mat_grid_time = mat_grid_time,
   debug = FALSE
@@ -860,5 +861,5 @@ rmarkdown::render(
     config = paste0(opt[["config"]], ".complete"),
     drop_nodata_years = TRUE
   ),
-  output_file = config[["file_names"]][["report"]]
+  output_file = rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", config[["file_names"]][["report"]])#QZ: added rprojroot to get the filepath
 )
