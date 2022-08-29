@@ -837,6 +837,50 @@ config_checks[["processing"]][["censor_incomplete_observations"]][["threshold"]]
   }
   return(TRUE)
 }
+config_checks[["processing"]][["remove_unobserved_time_slices"]] <- function(value,
+                                                                             config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['processing']][['remove_unobserved_time_slices']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['processing']][['remove_unobserved_time_slices']] is NA")
+    return(FALSE)
+  }
+  if (!is.logical(value)) {
+    warning(paste(
+      "config[['processing']][['remove_unobserved_time_slices']] should be logical, but is",
+      value, "of mode", mode(value)
+    ))
+    return(FALSE)
+  }
+  return(TRUE)
+}
+config_checks[["processing"]][["remove_unobserved_space_slices"]] <- function(value,
+                                                                              config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['processing']][['remove_unobserved_space_slices']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['processing']][['remove_unobserved_space_slices']] is NA")
+    return(FALSE)
+  }
+  if (!is.logical(value)) {
+    warning(paste(
+      "config[['processing']][['remove_unobserved_space_slices']] should be logical, but is",
+      value, "of mode", mode(value)
+    ))
+    return(FALSE)
+  }
+  return(TRUE)
+}
 
 config_checks[["file_names"]] <- list()
 config_checks[["file_names"]][["stan_input"]] <- function(value, config, index) {
@@ -1360,6 +1404,12 @@ config_defaults[["processing"]][["censor_incomplete_observations"]][["perform"]]
 }
 config_defaults[["processing"]][["censor_incomplete_observations"]][["threshold"]] <- function(config, index) {
   return(0.95)
+}
+config_defaults[["processing"]][["remove_unobserved_time_slices"]] <- function(config, index) {
+  return(TRUE)
+}
+config_defaults[["processing"]][["remove_unobserved_space_slices"]] <- function(config, index) {
+  return(TRUE)
 }
 
 config_defaults[["stan"]] <- list()
