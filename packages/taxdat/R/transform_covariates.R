@@ -11,7 +11,7 @@ transform_covariates <- function(covariates, transformations, verbose = FALSE) {
     if (verbose) {
       print(paste("Transforming", transformation[["name"]], "by", transformation[["transform_name"]]))
     }
-    covariates[:,:,transformation[["name"]]] <- transformation[["transform_function"]](covariates[:,:,transformation[["name"]]])
+    covariates[, , transformation[["name"]]] <- transformation[["transform_function"]](covariates[ , ,transformation[["name"]]])
   }
   return(covariates)
 }
