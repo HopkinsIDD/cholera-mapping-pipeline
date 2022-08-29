@@ -295,7 +295,7 @@ taxdat::plot_stan_parameter_traceplot(config = params$config, cache = cache, cho
 ```
 
 **Parameter posteriors:**
-```{r params, fig.height=6, fig.width=6, fig.cap=capFig("Parameter posteriors")}
+```{r params, fig.height=10, fig.width=18, fig.cap=capFig("Parameter posteriors")}
 taxdat::plot_stan_parameter_violin(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
