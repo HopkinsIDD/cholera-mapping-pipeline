@@ -485,9 +485,9 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL, time_le
 
     cat("-- Pulling data from taxonomy database with SQL \n")
 
-    if (unified_dataset_behaviour = "drop") {
+    if (unified_dataset_behaviour == "drop") {
       unified_filter <- c("((observation_collections.unified is NULL) OR (!observation_collections.unified))")
-    } else if (unified_dataset_behaviour = "keep") {
+    } else if (unified_dataset_behaviour == "keep") {
       unified_filter <- c("((observation_collections.unified is NOT NULL) AND (observation_collections.unified))")
     } else {
       unified_filter <- NULL
