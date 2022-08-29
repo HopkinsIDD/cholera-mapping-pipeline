@@ -272,11 +272,16 @@ plot_model_fidelity_tfrac_adjusted(
 ```
 
 ``` {r datafidelity2, fig.cap=capFig("True vs. modeled grid cases"), fig.height=10, fig.width=10}
-plot_true_modeled_grid_cases (
+if(!is.null(cache[["config"]][["test_metadata"]])){
+  plot_true_modeled_grid_cases (
   config = params$config,
   cache = cache,
   cholera_directory = params$cholera_directory
 )
+}else{
+  return(NULL)
+  warning("Production runs don't have the true distribution of cases at the grid level.")
+}
 ```
 
 ```{r datafidelity3, fig.cap=capFig("Observations vs. modeled cases (tfrac adjusted)"), fig.height=15, fig.width=10}
