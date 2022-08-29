@@ -59,6 +59,9 @@ data {
   int<lower=0, upper=1> use_weights;
   // Prior for high values of rho
   int<lower=0, upper=1> use_rho_prior;
+  // QZ: exponentiate betas 
+  int<lower=0, upper=1> exp_prior;
+  
 
   // If time slice effect pass indicator function for years without data
   int debug;
@@ -315,7 +318,13 @@ model {
   }
 
   // prior on regression coefficients
-  betas ~ normal(0,beta_sigma_scale);
+  // QZ: added ifelse for exponential options
+  if (exp_prior==0){
+    betas ~ normal(0,beta_sigma_scale);
+  } else {
+    betas ~ double_exponential(0, beta_sigma_scale);
+  }
+  
   if (debug && (previous_debugs == 0)) {
     print("betas", target());
   }
