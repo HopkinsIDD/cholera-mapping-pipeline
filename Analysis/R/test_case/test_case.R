@@ -190,7 +190,8 @@ rds_file <- config[["test_metadata"]][["file_names"]][["simulation_covariates"]]
 if (!dir.exists(dirname(rds_file))) {
   dir.create(dirname(rds_file))
 }
-saveRDS(test_covariates_modeling, rds_file)
+#QZ: this is simulation covariates not modeling covariates
+saveRDS(test_covariates_simulation, rds_file)
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change observations
@@ -255,23 +256,24 @@ buffer <- min(c(
 )) * 100 * 1000 * .5
 lhs <- t(sf::st_contains(sf::st_buffer(test_observations, buffer), test_observed_grid))
 rhs <- sf::st_contains(sf::st_buffer(test_observed_grid, buffer), test_observations)
-test_observed_grid$observed <- mapply(
-  idx = seq_len(length(lhs)),
-  lhs,
-  rhs,
-  FUN = function(idx, x, y) {
-    rc <- intersect(x, y)
-    rc <- rc[test_observed_grid$t[idx] == test_observations$tmin[rc]]
-    rc <- rc[test_observed_grid$t[idx] == test_observations$tmax[rc]]
-    return(ifelse(length(rc) > 0, "Observed grid cells", "Unobserved grid cells"))
-  }
-)
 
 rds_file <- config[["test_metadata"]][["file_names"]][["true_grid_cases"]]
 if (!dir.exists(dirname(rds_file))) {
   dir.create(dirname(rds_file))
 }
-saveRDS(test_observed_grid, rds_file)
+true_grid_data<-test_underlying_distribution$mean #QZ: instead of true observed grid, here it should be from the true_underlying_distribution$mean
+true_grid_data$observed<- mapply(
+  idx = seq_len(length(lhs)),
+  lhs,
+  rhs,
+  FUN = function(idx, x, y) {
+    rc <- intersect(x, y)
+    rc <- rc[true_grid_data$t[idx] == test_observations$tmin[rc]]
+    rc <- rc[true_grid_data$t[idx] == test_observations$tmax[rc]]
+    return(ifelse(length(rc) > 0, "Observed grid cells", "Unobserved grid cells"))
+  }
+)
+saveRDS(true_grid_data,rds_file)
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
