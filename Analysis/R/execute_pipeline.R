@@ -434,8 +434,15 @@ fully_covered_ts <- unique(fully_covered_indices[["t"]])
 
 ## Actually doing filtering here
 
+if (config[["processing"]][["remove_unobserved_time_slices"]]) {
+  covar_cube <- covar_cube %>%
+    dplyr::filter(id %in% fully_covered_grid_ids, t %in% fully_covered_ts)
+}
+if (config[["processing"]][["remove_unobserved_space_slices"]]) {
+  covar_cube <- covar_cube %>%
+    dplyr::filter(id %in% fully_covered_grid_ids)
+}
 covar_cube <- covar_cube %>%
-  dplyr::filter(id %in% fully_covered_grid_ids, t %in% fully_covered_ts) %>%
   taxdat::reindex("id", "updated_id") %>%
   taxdat::reindex("t", "updated_t") %>%
   tibble::rownames_to_column() %>%

@@ -70,3 +70,27 @@ jobs:
           cd tests
           sudo -E -u app Rscript -e "devtools::test(stop_on_failure=TRUE)"
         shell: bash
+      - name: Run fuzz tests
+        env:
+          CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
+          CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
+        run: |
+          chown app:app -R ./
+          chmod 777 -R ./
+          service postgresql start
+          export CHOLERA_POSTGRES_PORT=5432
+          sudo -E -u app Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
+          cd tests
+          timeout -k 10m 11m sudo -E -u app Rscript -e "while(TRUE) {taxdat::run_test_case()}" || \
+            code=$?; if [[ $code -ne 124 && $code -ne 0 ]]; then exit $code; fi
+        shell: bash
+      - name: Evaluate fuzz tests
+        env:
+          DIR: tests/tests/testthat/failed_configs
+        run: |
+          if [ "$(ls -A $DIR)" ]; then
+            echo "Some fuzz tests failed"
+            exit 1;
+          else
+            echo "$DIR is Empty"
+          fi;

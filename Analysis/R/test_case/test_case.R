@@ -233,6 +233,10 @@ test_observations <- lapply(config[["test_metadata"]][["observations"]], functio
     rc <- rc %>%
       dplyr::mutate(cases = ifelse(qualified_name == config[["general"]][["location"]], cases, cases * spec[["inflation_factor"]]))
   }
+  if (grepl("iso_level", spec[["template"]])) {
+    rc <- rc %>%
+      dplyr::filter(stringr::str_count(qualified_name, pattern = "::") %in% spec[["iso_levels_to_keep"]])
+  }
   if (grepl("filtered", spec[["template"]])) {
     rc <- rc %>%
       dplyr::filter(qualified_name %in% spec[["kept_location_periods"]])
