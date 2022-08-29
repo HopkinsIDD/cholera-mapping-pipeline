@@ -680,6 +680,29 @@ config_checks[["stan"]][["model"]] <- function(value, config, index) {
   return(FALSE)
 }
 
+##QZ: added exp_prior
+config_checks[["stan"]][["exp_prior"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['exp_prior']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['exp_prior']] is NA")
+    return(FALSE)
+  }
+  if (!is.logical(value)) {
+    warning(
+      "config[['stan']][['exp_prior']] should be logical, but is",
+      value
+    )
+    return(FALSE)
+  }
+  return(TRUE)
+}
+
 config_checks[["initial_values"]] <- list()
 config_checks[["initial_values"]][["warmup"]] <- function(value, config, index) {
   if (length(value) != 1) {
@@ -1389,7 +1412,9 @@ config_defaults[["stan"]][["do_time_slice"]][["eta_simplex"]] <- function(config
 config_defaults[["stan"]][["do_time_slice"]][["autocorrelated_prior"]] <- function(config, index) {
   return(FALSE)
 }
-
+config_defaults[["stan"]][["exp_prior"]]<- function(config, index) {
+  return(FALSE)
+}
 config_defaults[["generated"]] <- list()
 config_defaults[["generated"]][["perform"]] <- function(config, index) {
   return(FALSE)
