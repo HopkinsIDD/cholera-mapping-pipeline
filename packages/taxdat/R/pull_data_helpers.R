@@ -463,7 +463,7 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
 #' @return An sf object containing data extracted from the database
 #' @export
 read_taxonomy_data_sql <- function(username, password, locations = NULL, time_left = NULL,
-    time_right = NULL, uids = NULL, discard_incomplete_observation_collections = TRUE) {
+    time_right = NULL, uids = NULL, discard_incomplete_observation_collections = TRUE, unified_dataset_behaviour = "drop") {
 
     if (missing(username) | missing(password)) {
         stop("Please provide username and password to connect to the taxonomy database.")
@@ -485,6 +485,13 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL, time_le
 
     cat("-- Pulling data from taxonomy database with SQL \n")
 
+    if (unified_dataset_behaviour = "drop") {
+      unified_filter <- c("((observation_collections.unified is NULL) OR (!observation_collections.unified))")
+    } else if (unified_dataset_behaviour = "keep") {
+      unified_filter <- c("((observation_collections.unified is NOT NULL) AND (observation_collections.unified))")
+    } else {
+      unified_filter <- NULL
+    }
     if (discard_incomplete_observation_collections) {
       oc_filter <- c("(observation_collections.status != 'initialized') AND (observation_collections.status != 'validated') AND (observation_collections.status != 'inprogress')")
     } else {
@@ -531,7 +538,7 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL, time_le
     }
 
     # Combine filters
-    filters <- c(time_left_filter, time_right_filter, locations_filter, uids_filter, oc_filter) %>%
+    filters <- c(time_left_filter, time_right_filter, locations_filter, uids_filter, oc_filter, unified_filter) %>%
         paste(collapse = " AND ")
 
     # Run query for observations
