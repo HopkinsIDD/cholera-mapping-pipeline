@@ -59,6 +59,9 @@ data {
   int<lower=0, upper=1> use_weights;
   // Prior for high values of rho
   int<lower=0, upper=1> use_rho_prior;
+  // QZ: exponentiate betas 
+  int<lower=0, upper=1> exp_prior;
+  
 
   // If time slice effect pass indicator function for years without data
   int debug;
@@ -100,8 +103,7 @@ transformed data {
 }
 
 parameters {
-  //real beta0; //the intercept
-  real alpha;           // QZ: added intercept
+  real beta0; //the intercept
 
   real <lower=0, upper=1> rho; // Spatial correlation parameter
   real log_std_dev_w; // Precision of the spatial effects
@@ -121,6 +123,8 @@ transformed parameters {
   real<lower=0> modeled_cases[M]; //expected number of cases for each observation
   real<lower=0> std_dev_w;
   vector[N] grid_cases; //cases modeled in each gridcell and time point.
+  real previous_debugs;
+  previous_debugs = 0;
 
   {
     vector[L] location_cases; //cases modeled in each (temporal) location.
@@ -133,25 +137,34 @@ transformed parameters {
       }
     }
 
+    if (debug && (previous_debugs == 0)) {
+      // for(i in 1:T)
+      {
+      int i = 1;
+        if (eta[i] < - 9999) {
+	  print("eta is -inf");
+	  print("sigma eta scale is ", sigma_eta_scale, " at index ", i);
+	  print("sigma eta tilde is ", sigma_eta_tilde, " at index ", i);
+	  print("eta tilde is ", eta_tilde, " at index ", i);
+	}
+        if (is_nan(eta[i])) {
+	  print("eta is -inf");
+	  print("sigma eta scale is ", sigma_eta_scale, " at index ", i);
+	  print("sigma eta tilde is ", sigma_eta_tilde, " at index ", i);
+	  print("eta tilde is ", eta_tilde, " at index ", i);
+	}
+      }
+    }
+
     std_dev_w = exp(log_std_dev_w);
 
 
     // log-rates without time-slice effects
-    log_lambda =  w[map_smooth_grid] + log_meanrate + alpha; // QZ: added intercept
+    log_lambda =  beta0 + w[map_smooth_grid] + log_meanrate;
 
     // covariates if applicable
     if (ncovar > 1) {
       log_lambda += covar * betas;
-    }
-    if (debug) {
-      for (i in 1:N) {
-        if (log_lambda[i] < -1000) {
-          print("log_lambda is 0 at index ", i);
-          print("dagar prior is ", w[map_smooth_grid[i]], " at index ", i);
-          print("log mean rate is ", log_meanrate, " at index ", i);
-          print("covariate contribution is ", (covar * betas)[i], " at index ", i);
-        }
-      }
     }
 
     // Add time slice effects
@@ -159,14 +172,53 @@ transformed parameters {
       log_lambda += (mat_grid_time * eta) .* has_data_year;
     }
 
+    if (debug && (previous_debugs == 0)) {
+      // for(i in 1:N)
+      {
+      int i = 1;
+        if (log_lambda[i] < -1000) {
+          print("lambda is 0 at index ", i);
+          print("dagar prior is ", w[map_smooth_grid[i]], " at index ", i);
+          print("log mean rate is ", log_meanrate, " at index ", i);
+          print("covariate contribution is ", (covar * betas)[i], " at index ", i);
+	  print("has_data_year is ", has_data_year[i], " at index ", i);
+	  print("mat_grid_time is ", mat_grid_time[i], " at index ", i);
+	  print("eta is ", eta, " at index ", i);
+	  print("Eta contribution is ", ((mat_grid_time * eta) .* has_data_year)[i], " at index ", i);
+	  print("beta0 is ", beta0, " at index ", i);
+	  previous_debugs += 1;
+        }
+        if (is_nan(log_lambda[i])) {
+          print("lambda is nan at index ", i);
+          print("dagar prior is ", w[map_smooth_grid[i]], " at index ", i);
+          print("log mean rate is ", log_meanrate, " at index ", i);
+          print("covariate contribution is ", (covar * betas)[i], " at index ", i);
+	  print("has_data_year is ", has_data_year[i], " at index ", i);
+	  print("mat_grid_time is ", mat_grid_time[i], " at index ", i);
+	  print("eta is ", eta, " at index ", i);
+	  print("Eta contribution is ", ((mat_grid_time * eta) .* has_data_year)[i], " at index ", i);
+	  previous_debugs += 1;
+        }
+      }
+    }
+
     grid_cases = exp(log_lambda + logpop);
 
-    if (debug) {
-      for (i in 1:N) {
+    if (debug && previous_debugs == 0) {
+      // for(i in 1:N)
+      {
+      int i = 1;
         if (grid_cases[i] == 0) {
           print("grid cases is 0 at index ", i);
           print("log_lambda is ", log_lambda[i], " at index ", i);
           print("logpop is ", logpop[i], " at index ", i);
+	  previous_debugs += 1;
+        }
+        if (is_nan(grid_cases[i])) {
+          print("grid cases is nan at index ", i);
+          print("log_lambda is ", log_lambda[i], " at index ", i);
+          print("logpop is ", logpop[i], " at index ", i);
+	  previous_debugs += 1;
         }
       }
     }
@@ -180,19 +232,27 @@ transformed parameters {
 
     for(i in 1:K2){
       location_cases[map_loc_grid_loc[i]] += grid_cases[map_loc_grid_grid[i]] * map_loc_grid_sfrac[i];
-      if (debug) {
+      if (debug && (previous_debugs == 0)) {
         if (is_nan(location_cases[map_loc_grid_loc[i]])) {
           print("location : ", map_loc_grid_loc[i]);
           print("grid_cases : ", grid_cases[map_loc_grid_grid[i] ]);
           print("sfrac : ", map_loc_grid_sfrac[i]);
+	  previous_debugs += 1;
         }
       }
     }
 
-    if (debug) {
-      for (i in 1:L) {
+    if (debug && (previous_debugs == 0)) {
+      // for(i in 1:L)
+      {
+      int i = 1;
         if (location_cases[i] == 0) {
           print("location cases is 0 at index ", i);
+	  previous_debugs += 1;
+        }
+        if (is_nan(location_cases[i])) {
+          print("location cases is nan at index ", i);
+	  previous_debugs += 1;
         }
       }
     }
@@ -211,10 +271,17 @@ transformed parameters {
       }
     }
 
-    if (debug) {
-      for (i in 1:M) {
+    if (debug && (previous_debugs == 0)) {
+      // for(i in 1:M)
+      {
+      int i = 1;
+        if (is_nan(modeled_cases[i])) {
+          print("modeled cases is nan at index ", i);
+	  previous_debugs += 1;
+        }
         if (modeled_cases[i] == 0) {
           print("modeled cases is 0 at index ", i);
+	  previous_debugs += 1;
         }
       }
     }
@@ -245,21 +312,27 @@ model {
     // NOTE:  no prior on phi_raw, it is used to construct phi
     // the following computes the prior on phi on the unit scale with std_dev = 1
     w ~ normal(t_rowsum, std_dev);
-    if (debug) {
+    if (debug && (previous_debugs == 0)) {
       print("dagar", target());
     }
   }
 
   // prior on regression coefficients
-  betas ~ normal(0,beta_sigma_scale);
-  if (debug) {
+  // QZ: added ifelse for exponential options
+  if (exp_prior==0){
+    betas ~ normal(0,beta_sigma_scale);
+  } else {
+    betas ~ double_exponential(0, beta_sigma_scale);
+  }
+  
+  if (debug && (previous_debugs == 0)) {
     print("betas", target());
   }
 
   // prior on rho if provided
   if (use_rho_prior == 1) {
     rho ~ beta(5,1.5);
-    if (debug) {
+    if (debug && (previous_debugs == 0)) {
       print("rho", target());
     }
   }
@@ -268,10 +341,11 @@ model {
     // prior on the time_slice random effects
     // For the autocorrelated model sigma is the sd of the increments in the random effects
     sigma_eta_tilde ~ std_normal();
-    
+    sigma_eta_scale ~ std_normal();
+
     if (do_time_slice_effect_autocor == 1) {
       real tau = 1/(sigma_eta_tilde[1] * sigma_eta_scale)^2; // precision of the increments of the time-slice random effects
-      // Autocorrelation on yearly random effects with 0-sum constraint 
+      // Autocorrelation on yearly random effects with 0-sum constraint
       // The increments of the time-slice random effects are assumed to have mean 0
       // and variance 1/tau
       // Sorbye and Rue (2014) https://doi.org/10.1016/j.spasta.2013.06.004
@@ -280,13 +354,13 @@ model {
     } else {
       eta_tilde ~ std_normal();
     }
-    if (debug) {
+    if (debug && (previous_debugs == 0)) {
       print("etas", target());
     }
   }
 
   log_std_dev_w ~ normal(0,1);
-  if (debug) {
+  if (debug && (previous_debugs == 0)) {
     print("dagar std", target());
   }
 
@@ -295,14 +369,14 @@ model {
     if (M_full > 0) {
       // data model for estimated rates for full time slice observations
       target += poisson_lpmf(y[ind_full]| modeled_cases[ind_full]);
-      if (debug) {
+      if (debug && (previous_debugs == 0)) {
         print("full obs", target());
       }
     }
 
     if (M_right > 0) {
       //data model for estimated rates for right-censored time slice observations
-      //note that according to Stan the complementary CDF, or CCDF(Y|modeled_cases))
+      //note that according to Stan the complementary CDF, or CCDF(Y|modeled_cases)
       // is defined as Pr(Y > y | modeled_cases),
       // we therefore add the probability Pr(Y = y|modeled_cases) to CCDF(y|modeled_casees)
       // to get Pr(Y >= y|modeled_cases)
@@ -325,7 +399,7 @@ model {
       }
       target += sum(lp_censored);
 
-      if (debug) {
+      if (debug && (previous_debugs == 0)) {
         print("right censored obs", target());
       }
       // add a 0-centered prior on the censored cases
@@ -338,13 +412,13 @@ model {
       //data model for estimated rates
       for(i in 1:M){
         target += poisson_lpmf(y[i] | modeled_cases[i])/weights[i];
-        if (debug) {
+        if (debug && (previous_debugs == 0)) {
           print("weighted obs", target());
         }
       }
     } else {
       target += poisson_lpmf(y | modeled_cases);
-      if (debug) {
+      if (debug && (previous_debugs == 0)) {
         print("unweighted obs", target());
       }
     }
@@ -353,8 +427,8 @@ model {
 
 generated quantities {
   vector<lower=0>[L] location_cases; //cases modeled in each (temporal) location.
-  
-    
+
+
   // calculate number of cases for each location
   for(i in 1:L){
     location_cases[i] = 0;
