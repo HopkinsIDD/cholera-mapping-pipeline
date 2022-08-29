@@ -93,3 +93,4 @@ jobs:
             exit 1;
           else
             echo "$DIR is Empty"
+          fi;
