@@ -861,5 +861,5 @@ rmarkdown::render(
     config = paste0(opt[["config"]], ".complete"),
     drop_nodata_years = TRUE
   ),
-  output_file = rprojroot::find_root_file(criterion = ".choldir", "Analysis", "output", config[["file_names"]][["report"]])#QZ: added rprojroot to get the filepath
+  output_file = config[["file_names"]][["report"]]
 )
