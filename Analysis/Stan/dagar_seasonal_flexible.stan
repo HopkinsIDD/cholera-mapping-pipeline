@@ -113,7 +113,7 @@ parameters {
 
   vector[smooth_grid_N] w; // Spatial Random Effect
 
-  simplex[T*do_time_slice_effect] eta_tilde_raw; // QZ: sum(eta_tilde_raw)=1
+  simplex[T*do_time_slice_effect] eta_tilde_simplex; // QZ: sum(eta_tilde_raw)=1
   real <lower=0> sigma_eta_tilde[do_time_slice_effect];
 
   // Covariate stuff
@@ -135,7 +135,7 @@ transformed parameters {
     vector[N] log_lambda; //local log rate
   
   if(sum_to_zero == 1){
-    eta_tilde=eta_tilde_raw-inv(T*do_time_slice_effect); // QZ: sum(eta_tilde)=0
+    eta_tilde = eta_tilde_simplex; // QZ: sum(eta_tilde)=0
     
     if (do_time_slice_effect == 1) {
       for(i in 1:T) {
