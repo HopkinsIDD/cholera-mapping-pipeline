@@ -120,14 +120,15 @@ parameters {
 
 transformed parameters {
   
-  vector[L] location_cases; //cases modeled in each (temporal) location.
-  vector[N] log_lambda; //local log rate
   vector[T*do_time_slice_effect] eta; // yearly random effects
   real<lower=0> modeled_cases[M]; //expected number of cases for each observation
   real<lower=0> std_dev_w;
   vector[N] grid_cases; //cases modeled in each gridcell and time point.
   real previous_debugs;
   previous_debugs = 0;
+ {
+  vector[L] location_cases; //cases modeled in each (temporal) location.
+  vector[N] log_lambda; //local log rate
 
     if (do_time_slice_effect == 1) {
       for(i in 1:T) {
