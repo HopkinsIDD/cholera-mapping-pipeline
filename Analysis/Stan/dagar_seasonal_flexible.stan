@@ -63,8 +63,6 @@ data {
   int<lower=0, upper=1> exp_prior;
   // QZ: narrower prior (betas)
   int<lower=0, upper=1> narrower_prior;
-  // QZ: sum_to_zero_constraint 
-  int<lower=0, upper=1> sum_to_zero;
   
   // If time slice effect pass indicator function for years without data
   int debug;
@@ -121,38 +119,23 @@ parameters {
 }
 
 transformed parameters {
-
+  
+  vector[L] location_cases; //cases modeled in each (temporal) location.
+  vector[N] log_lambda; //local log rate
   vector[T*do_time_slice_effect] eta; // yearly random effects
   real<lower=0> modeled_cases[M]; //expected number of cases for each observation
   real<lower=0> std_dev_w;
   vector[N] grid_cases; //cases modeled in each gridcell and time point.
   real previous_debugs;
   previous_debugs = 0;
-  
-    simplex[T*do_time_slice_effect] eta_tilde_simplex; // QZ: sum(eta_tilde_raw)=1
-    if(sum_to_zero==1){
-        eta_tilde = eta_tilde_simplex; // QZ: sum(eta_tilde)=0
-    }
 
-    vector[L] location_cases; //cases modeled in each (temporal) location.
-    vector[N] log_lambda; //local log rate
-  
-  if(sum_to_zero == 1){
-    
-    if (do_time_slice_effect == 1) {
-      for(i in 1:T) {
-        // scale yearly random effects
-        eta[i] = sigma_eta_scale * sigma_eta_tilde[1] * (eta_tilde[i]-1.0/T);  // QZ: subtract 1/T here for sum-to-zero constraint
-      }
-    }
-} else{
     if (do_time_slice_effect == 1) {
       for(i in 1:T) {
         // scale yearly random effects
         eta[i] = sigma_eta_scale * sigma_eta_tilde[1] * eta_tilde[i];
       }
     }  
-}
+    
     if (debug && (previous_debugs == 0)) {
       // for(i in 1:T)
       {
