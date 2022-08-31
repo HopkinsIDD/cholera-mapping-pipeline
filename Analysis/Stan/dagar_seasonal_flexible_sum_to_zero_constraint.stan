@@ -109,8 +109,8 @@ parameters {
   real log_std_dev_w; // Precision of the spatial effects
 
   vector[smooth_grid_N] w; // Spatial Random Effect
-
-  simplex[T*do_time_slice_effect] eta_tilde; // QZ: yearly random effects updated to simplex: sum-to-zero constraint
+  
+  simplex[T*do_time_slice_effect] eta_tilde_raw; // QZ: sum(eta_tilde_raw)=1
   real <lower=0> sigma_eta_tilde[do_time_slice_effect];
 
   // Covariate stuff
@@ -118,7 +118,7 @@ parameters {
 }
 
 transformed parameters {
-
+  vector[T*do_time_slice_effect] eta_tilde; //QZ:set eta_tilde
   vector[T*do_time_slice_effect] eta; // yearly random effects
   real<lower=0> modeled_cases[M]; //expected number of cases for each observation
   real<lower=0> std_dev_w;
@@ -126,6 +126,8 @@ transformed parameters {
   real previous_debugs;
   previous_debugs = 0;
 
+  eta_tilde=eta_tilde_raw-inv(T*do_time_slice_effect); // QZ: sum(eta_tilde)=0
+  
   {
     vector[L] location_cases; //cases modeled in each (temporal) location.
     vector[N] log_lambda; //local log rate
