@@ -12,9 +12,10 @@ processing: []
 stan:
   niter: 4000.0
   nchain: 4.0
-  model: dagar_seasonal_flexible_narrower_prior.stan
+  model: dagar_seasonal_flexible.stan
   do_time_slice:
     eta_simplex: TRUE
+  narrower_prior: TRUE
 test_metadata:
   raster:
     units: years
