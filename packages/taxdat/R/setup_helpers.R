@@ -703,6 +703,52 @@ config_checks[["stan"]][["exp_prior"]] <- function(value, config, index) {
   return(TRUE)
 }
 
+##QZ: added narrower_prior
+config_checks[["stan"]][["narrower_prior"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['narrower_prior']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['narrower_prior']] is NA")
+    return(FALSE)
+  }
+  if (!is.logical(value)) {
+    warning(
+      "config[['stan']][['narrower_prior']] should be logical, but is",
+      value
+    )
+    return(FALSE)
+  }
+  return(TRUE)
+}
+
+##QZ: added sum_to_zero
+config_checks[["stan"]][["sum_to_zero"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['sum_to_zero']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['sum_to_zero']] is NA")
+    return(FALSE)
+  }
+  if (!is.logical(value)) {
+    warning(
+      "config[['stan']][['sum_to_zero']] should be logical, but is",
+      value
+    )
+    return(FALSE)
+  }
+  return(TRUE)
+}
+
 config_checks[["initial_values"]] <- list()
 config_checks[["initial_values"]][["warmup"]] <- function(value, config, index) {
   if (length(value) != 1) {
@@ -1413,6 +1459,12 @@ config_defaults[["stan"]][["do_time_slice"]][["autocorrelated_prior"]] <- functi
   return(FALSE)
 }
 config_defaults[["stan"]][["exp_prior"]]<- function(config, index) {
+  return(FALSE)
+}
+config_defaults[["stan"]][["narrower_prior"]]<- function(config, index) {
+  return(FALSE)
+}
+config_defaults[["stan"]][["sum_to_zero"]]<- function(config, index) {
   return(FALSE)
 }
 config_defaults[["generated"]] <- list()
