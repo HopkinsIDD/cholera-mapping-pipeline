@@ -767,6 +767,8 @@ stan_data <- list(
   do_time_slice_effect = config[["stan"]][["do_time_slice"]][["perform"]],
   do_time_slice_effect_autocor = config[["stan"]][["do_time_slice"]][["autocorrelated_prior"]],
   exp_prior=config[["stan"]][["exp_prior"]],#QZ: added exponential betas option in config
+  narrower_prior=config[["stan"]][["narrower_prior"]],#QZ: added narrower prior option in config
+  sum_to_zero=config[["stan"]][["sum_to_zero"]],#QZ: added sum-to-zero prior option in config
   has_data_year = has_data_year,
   mat_grid_time = mat_grid_time,
   debug = FALSE
