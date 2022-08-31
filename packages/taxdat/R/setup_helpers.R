@@ -906,6 +906,50 @@ config_checks[["processing"]][["censor_incomplete_observations"]][["threshold"]]
   }
   return(TRUE)
 }
+config_checks[["processing"]][["remove_unobserved_time_slices"]] <- function(value,
+                                                                             config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['processing']][['remove_unobserved_time_slices']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['processing']][['remove_unobserved_time_slices']] is NA")
+    return(FALSE)
+  }
+  if (!is.logical(value)) {
+    warning(paste(
+      "config[['processing']][['remove_unobserved_time_slices']] should be logical, but is",
+      value, "of mode", mode(value)
+    ))
+    return(FALSE)
+  }
+  return(TRUE)
+}
+config_checks[["processing"]][["remove_unobserved_space_slices"]] <- function(value,
+                                                                              config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['processing']][['remove_unobserved_space_slices']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['processing']][['remove_unobserved_space_slices']] is NA")
+    return(FALSE)
+  }
+  if (!is.logical(value)) {
+    warning(paste(
+      "config[['processing']][['remove_unobserved_space_slices']] should be logical, but is",
+      value, "of mode", mode(value)
+    ))
+    return(FALSE)
+  }
+  return(TRUE)
+}
 
 config_checks[["file_names"]] <- list()
 config_checks[["file_names"]][["stan_input"]] <- function(value, config, index) {
@@ -1304,6 +1348,8 @@ config_checks[["seeds"]][["::"]] <- function(value, config, index) {
   return(TRUE)
 }
 
+config_ignore_checks <- c("test_metadata")
+
 #' @name check_config
 #' @description Check the config to make sure the fields are valid
 #' @param config The config to check
@@ -1311,7 +1357,7 @@ config_checks[["seeds"]][["::"]] <- function(value, config, index) {
 #' @param original_config In case of recursion, the original config this was part of.  This is what is passed to the functions in the defaults
 #' @export
 check_config <- function(config, checks = config_checks, original_config = config,
-                         name_prefix = NULL, no_check_fields = c("test_metadata"), index = NULL) {
+                         name_prefix = NULL, no_check_fields = config_ignore_checks, index = NULL) {
   config_is_valid <- TRUE
   subconfig_valid <- TRUE
   for (field_name in names(checks)) {
@@ -1427,6 +1473,12 @@ config_defaults[["processing"]][["censor_incomplete_observations"]][["perform"]]
 }
 config_defaults[["processing"]][["censor_incomplete_observations"]][["threshold"]] <- function(config, index) {
   return(0.95)
+}
+config_defaults[["processing"]][["remove_unobserved_time_slices"]] <- function(config, index) {
+  return(TRUE)
+}
+config_defaults[["processing"]][["remove_unobserved_space_slices"]] <- function(config, index) {
+  return(TRUE)
 }
 
 config_defaults[["stan"]] <- list()
@@ -1662,4 +1714,72 @@ complete_config <- function(config, defaults = config_defaults, original_config 
     }
   }
   return(config)
+}
+
+document_config_options <- function(name_prefix = NULL, defaults = config_defaults, checks = config_checks, no_check_fields = config_ignore_checks) {
+  config_documentation <- ""
+  subconfig_documentation <- ""
+  for (field_name in sort(unique(c(names(checks), names(defaults))))) {
+    if (field_name == "::") {
+      subconfig_documentation <- document_config_options(
+        name_prefix = paste0(name_prefix, ifelse(is.null(name_prefix), "", "::"), "ARRAY"),
+        defaults = defaults[[field_name]],
+        checks = checks[[field_name]],
+        no_check_fields = no_check_fields
+      )
+      config_documentation <- paste(config_documentation, subconfig_documentation, sep = "\n\n\n\n")
+      next
+    }
+    if ((class(checks[[field_name]]) == "list") || (class(defaults[[field_name]]) == "list")) {
+      subconfig_documentation <- document_config_options(
+        name_prefix = paste0(name_prefix, ifelse(is.null(name_prefix), "", "::"), field_name),
+        defaults = defaults[[field_name]],
+        checks = checks[[field_name]],
+        no_check_fields = no_check_fields
+      )
+      config_documentation <- paste(config_documentation, subconfig_documentation, sep = "\n\n\n\n")
+    } else {
+      config_documentation <- paste(config_documentation, document_single_field(field_name, checks[[field_name]], defaults[[field_name]], name_prefix), sep = "\n\n")
+    }
+  }
+  return(config_documentation)
+}
+
+document_single_field <- function(name, check, default, name_prefix = NULL) {
+  if ((class(default) == "list") || (class(check) == "list")) {
+    print(paste(name_prefix, name))
+    stop("This shouldn't happen")
+  }
+  name_string <- paste("Name is", paste0(name_prefix, ifelse(is.null(name_prefix), "", "::"), name))
+  check_string <- paste("Check function is", yaml::as.yaml(check))
+  default_string <- paste("Default is", yaml::as.yaml(default))
+  return(paste(name_string, check_string, default_string, sep = "\n"))
+}
+
+#' @description Print documentation for part of the config by field name.
+#' @param field_name character The part of the config you want to see documentation for. For nested fields, separate by "::"
+#' @export
+get_config_documentation <- function(field_name) {
+  all_field_names <- stringr::str_split(field_name, pattern = "::")[[1]]
+  my_defaults <- config_defaults
+  my_checks <- config_checks
+  for (name in all_field_names) {
+    if (!is.null(my_defaults)) {
+      if (name %in% names(my_defaults)) {
+        my_defaults <- my_defaults[[name]]
+      } else {
+        my_defaults <- NULL
+      }
+    }
+    if (!is.null(my_checks)) {
+      if (name %in% names(my_checks)) {
+        my_checks <- my_checks[[name]]
+      } else {
+        my_checks <- NULL
+      }
+    }
+  }
+  print("HERE")
+  cat(document_config_options(name_prefix = field_name, defaults = my_defaults, checks = my_checks, no_check_fields = no_check_fields))
+  invisible(NULL)
 }
