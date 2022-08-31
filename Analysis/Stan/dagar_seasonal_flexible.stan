@@ -113,7 +113,7 @@ parameters {
 
   vector[smooth_grid_N] w; // Spatial Random Effect
 
-  simplex[T*do_time_slice_effect] eta_tilde_simplex; // QZ: sum(eta_tilde_raw)=1
+  vector[T*do_time_slice_effect] eta_tilde; // QZ: yearly random effects
   real <lower=0> sigma_eta_tilde[do_time_slice_effect];
 
   // Covariate stuff
@@ -121,7 +121,6 @@ parameters {
 }
 
 transformed parameters {
-  vector[T*do_time_slice_effect] eta_tilde; // QZ: yearly random effects
 
   vector[T*do_time_slice_effect] eta; // yearly random effects
   real<lower=0> modeled_cases[M]; //expected number of cases for each observation
@@ -129,13 +128,16 @@ transformed parameters {
   vector[N] grid_cases; //cases modeled in each gridcell and time point.
   real previous_debugs;
   previous_debugs = 0;
+  
+    simplex[T*do_time_slice_effect] eta_tilde_simplex; // QZ: sum(eta_tilde_raw)=1
+    if(sum_to_zero==1){
+        eta_tilde = eta_tilde_simplex; // QZ: sum(eta_tilde)=0
+    }
 
-  {
     vector[L] location_cases; //cases modeled in each (temporal) location.
     vector[N] log_lambda; //local log rate
   
   if(sum_to_zero == 1){
-    eta_tilde = eta_tilde_simplex; // QZ: sum(eta_tilde)=0
     
     if (do_time_slice_effect == 1) {
       for(i in 1:T) {
