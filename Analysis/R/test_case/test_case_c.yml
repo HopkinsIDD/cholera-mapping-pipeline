@@ -12,7 +12,7 @@ processing: []
 stan:
   niter: 4000.0
   nchain: 4.0
-  model: dagar_seasonal_flexible.stan
+  model: dagar_seasonal_flexible_sum_to_zero.stan
   do_time_slice:
     eta_simplex: TRUE
   sum_to_zero: TRUE
