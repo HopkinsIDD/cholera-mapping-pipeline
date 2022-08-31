@@ -19,6 +19,8 @@ stan:
   do_time_slice:
     eta_simplex: TRUE
   exp_prior: FALSE
+  narrower_prior: FALSE
+  sum_to_zero: FALSE
 test_metadata:
   raster:
     units: years
