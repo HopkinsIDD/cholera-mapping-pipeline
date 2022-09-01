@@ -121,21 +121,12 @@ plot_true_modeled_grid_cases <- function(cache, cholera_directory, config) {
 
   max_value <- max(long_modeled_grid_case[, c(3, 6)])
 
-  if (!cache[["config"]][["test_metadata"]][["observations"]][[:]][["proportion_observed"]] == 1) {
     plt <- ggplot2::ggplot(long_modeled_grid_case) +
       ggplot2::geom_point(ggplot2::aes(y = `modeled grid cases`, x = `true grid cases`, col = chains)) +
       ggplot2::geom_abline(intercept = 0, slope = 1) +
       ggplot2::coord_fixed(ratio = 1, xlim = c(0, max_value), ylim = c(0, max_value)) +
-      ggplot2::facet_wrap(~observed) +
+      #ggplot2::facet_wrap(~observed) + QZ: need to update the observed versus unobserved grid cells
       ggplot2::theme_bw()
-  } else {
-    plt <- ggplot2::ggplot(long_modeled_grid_case) +
-      ggplot2::geom_point(ggplot2::aes(y = `modeled grid cases`, x = `true grid cases`, col = chains)) +
-      ggplot2::geom_abline(intercept = 0, slope = 1) +
-      ggplot2::coord_fixed(ratio = 1, xlim = c(0, max_value), ylim = c(0, max_value)) +
-      ggplot2::theme_bw()
-  }
-
   return(plt)
 }
 
