@@ -121,7 +121,7 @@ plot_true_modeled_grid_cases <- function(cache, cholera_directory, config) {
 
   max_value <- max(long_modeled_grid_case[, c(3, 6)])
 
-  if (!cache[["config"]][["test_metadata"]][["polygons"]][["template"]] == "full and grid") {
+  if (!cache[["config"]][["test_metadata"]][["observations"]][["proportion_observed"]] == 1) {
     plt <- ggplot2::ggplot(long_modeled_grid_case) +
       ggplot2::geom_point(ggplot2::aes(y = `modeled grid cases`, x = `true grid cases`, col = chains)) +
       ggplot2::geom_abline(intercept = 0, slope = 1) +
