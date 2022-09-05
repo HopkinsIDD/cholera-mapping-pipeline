@@ -597,10 +597,10 @@ prepare_stan_input <- function(
   # Map from space x time grid to space grid
   sf_grid <- sf_grid %>% 
     group_by(rid, x, y) %>% 
-    mutate(space_id = min(upd_long_id)) %>% 
+    mutate(space_id = min(upd_id)) %>% 
     ungroup()
   
-  stan_data$map_spacetime_space_grid <- sf_grid$space_id[space_id$upd_long_id]
+  stan_data$map_spacetime_space_grid <- sf_grid$space_id[sf_grid$upd_id]
   
   
   cat("**** FINISHED PREPARING STAN INPUT \n")
