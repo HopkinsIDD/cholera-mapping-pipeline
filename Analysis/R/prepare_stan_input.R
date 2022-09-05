@@ -600,6 +600,7 @@ prepare_stan_input <- function(
     mutate(space_id = min(upd_id)) %>% 
     ungroup()
   
+  stan_data$N_space <- length(unique(sf_grid$space_id))
   stan_data$map_spacetime_space_grid <- sf_grid$space_id[sf_grid$upd_id]
   
   
