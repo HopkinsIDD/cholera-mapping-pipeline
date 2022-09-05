@@ -6,9 +6,10 @@
 //              - 0-centered prior, no reference and no sum-to-zero constraint
 //              - Autocorrelated (increments ~ N(0, sigma)) with sum-to-zero constraint 
 data {
-  int <lower=1> N; //length of non-NA grid cells (space and time)
+  int <lower=1> N; // length of non-NA grid cells (space and time)
   int <lower=1> N_edges;
   int <lower=1> smooth_grid_N; //size of smooth grid (# non-NA cells * (timesteps+1))
+  int <lower=1> N_space; // length of non-NA grid cells (space only)
   
   //The adjacency matrix node1 should be sorted and lower triangular
   int <lower=1, upper=smooth_grid_N> node1[N_edges]; //column 1 of the adjacency matrix
@@ -38,6 +39,7 @@ data {
   real <lower=0, upper=1> tfrac[K1]; // The time fraction side of the mapping from observations to location/times
   int <lower=0, upper=L> map_loc_grid_loc[K2]; // the location side of the mapping from locations to gridcells
   int <lower=0, upper=N> map_loc_grid_grid[K2]; // the gridcell side of the mapping from locations to gridcells
+  int <lower=1, upper=N_space> map_spacetime_space_grid[N];  // map from spacextime grid cells to space-only grid
   
   // For output summaries
   int <lower=0> L_output; // number of location periods (space and time)
@@ -79,6 +81,11 @@ data {
   vector<lower=0, upper=1>[N*do_time_slice_effect] has_data_year;
   matrix[N*do_time_slice_effect + 2 * (do_time_slice_effect != 1), T*do_time_slice_effect + 2*(do_time_slice_effect != 1)] mat_grid_time; // The time side of the mapping from locations/times to grid (2x2 in case of missing just so it's easy to create)
   
+  
+  // Outputs: People in incidence classes
+  int<lower=0> N_cat;    // Number of incidence categories. For now there are no checks whether categories are mutually exclusive or not
+  real<lower=0> risk_cat_low[N_cat];    // lower bound of categories
+  real<lower=0> risk_cat_high[N_cat];   // upper bound of categories
 }
 
 transformed data {
@@ -87,7 +94,6 @@ transformed data {
   real<lower=0> weights[M*(1-do_censoring)*use_weights]; //a function of the expected offset for each observation used to downwight the likelihood
   real log_meanrate = log(meanrate);
   real <lower=1> pop_loctimes[L]; // pre-computed population in each location period
-  real <lower=1> pop_loctimes_output[L_output]; // pre-computed population in each location period
   
   for(i in 1:N){
     logpop[i] = log(pop[i]);
@@ -101,13 +107,6 @@ transformed data {
     pop_loctimes[map_loc_grid_loc[i]] += pop[map_loc_grid_grid[i]]  * pop_weight[i];
   }
   
-  for (i in 1:L_output) {
-    pop_loctimes_output[i] = 0;
-  }
-  
-  for (i in 1:K2_output) {
-    pop_loctimes_output[map_output_loc_grid_loc[i]] += pop[map_output_loc_grid_grid[i]] * pop_weight_output[i];
-  }
   
   // Compute observation likelihood weights 
   if (do_censoring == 0 && use_weights == 1) {
@@ -141,18 +140,38 @@ parameters {
 }
 
 generated quantities {
+  
+  // Model estimates
   real<lower=0> tfrac_modeled_cases[M]; //expected number of cases for each observation
   real<lower=0> modeled_cases[M]; //expected number of cases for each observation
   real log_lik[M]; // log-likelihood of observations
   vector[N] grid_cases; //cases modeled in each gridcell and time point.
   vector[N] log_lambda; //local log rate
+  vector[N_space] space_grid_rates; // mean annual incidence rates at grid level
+  
   vector<lower=0>[L] location_cases; //cases modeled in each (temporal) location.
+  vector[T*do_time_slice_effect] eta; // yearly random effects
+  
+  // Outputs at given admin levels
   vector<lower=0>[L_output] location_cases_output; //cases modeled in each (temporal) location.
   vector<lower=0>[L_output] location_rates_output; //rates modeled in each (temporal) location.
   vector<lower=0>[L_output_space] location_total_cases_output; //cases modeled in each location across time slices.
   vector<lower=0>[L_output_space] location_total_rates_output; //rates modeled in each location  across time slices.
+  matrix<lower=0>[L_output_space, N_cat] location_risk_cat_num;    // number of people in each location in each risk category
+  matrix<lower=0>[L_output_space, N_cat] location_risk_cat_prop;    // proportion of people in each location in each risk category
+  int<lower=0> location_risk_cat[L_output_space] ;    // risk category for each space location
   
-  vector[T*do_time_slice_effect] eta; // yearly random effects\\
+  // Data outputs to return (same for all samples)
+  real <lower=1> pop_loctimes_output[L_output];    // population in each output location period
+  real <lower=1> pop_loc_output[L_output_space];   // population in each output location (space only)
+  
+  for (i in 1:L_output) {
+    pop_loctimes_output[i] = 0;
+  }
+  
+  for (i in 1:K2_output) {
+    pop_loctimes_output[map_output_loc_grid_loc[i]] += pop[map_output_loc_grid_grid[i]] * pop_weight_output[i];
+  }
   
   
   // ---- Part A: Grid-level rates and cases ----
@@ -177,6 +196,7 @@ generated quantities {
   }
   
   grid_cases = exp(log_lambda + logpop);
+  // --- End Part A ---
   
   // ----  Part B: Modeled number of cases for observed location-periods ----
   // calculate number of cases for each location
@@ -214,6 +234,7 @@ generated quantities {
   for (i in 1:K1) {
     tfrac_modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
   }
+  // ---  End Part B ---
   
   // ---- Part C: Modeled number of cases for output summary location-periods ----
   
@@ -247,17 +268,80 @@ generated quantities {
       tot_loc_pop[map_output_loctime_loc[i]] += pop_loctimes_output[i];
     }
     
-    // Compute mean rates
+    // Compute mean rates at each location
     for (i in 1:L_output_space) {
       location_total_rates_output[i] = location_total_cases_output[i]/tot_loc_pop[i];
+    }
+    
+    // Compute average population in each output location (space only)
+    for (i in 1:L_output_space) {
+      pop_loc_output[i] = tot_loc_pop[i]/T;
     }
   }
   
   for(i in 1:L_output){
     location_rates_output[i] = location_cases_output[i]/pop_loctimes_output[i];
   }
+  // ---  End Part C ---
   
-  // ---- Part D: Log-likelihoods ----
+  // ---- Part D: People at risk ----
+  // This block computes the number of people at risk
+  
+  // First comput mean rates at grid level
+  for (i in 1:N_space) {
+    space_grid_rates[i] = 0;
+  }
+  
+  for (i in 1:N) {
+    //  We know that there are T time slices
+    space_grid_rates[map_spacetime_space_grid[i]] += exp(log_lambda[i])/T;
+  }
+  
+  {
+    // Loop over space output locations and compute numbers at risk
+    // Since there are T pixel/location intersections in K2_output we only add in the first.
+    int check_done[N_space, L_output_space] = 0;
+    
+    for (i in 1:K2_output) {
+      real r = space_grid_rates[i];
+      int l = map_output_loctime_loc[map_output_loc_grid_loc[i]];  // which space location period we are in
+      if (check_done[r, l] == 0) {
+        for (j in 1:N_cat) {
+          if (r >= risk_cat_low[j] && r < risk_cat_low[j]) {
+            location_risk_cat_num[i, j] += pop[map_output_loc_grid_grid[i]] * pop_weight_output[i]; 
+          }
+        }
+        check_done[r, l] = 1;
+      }
+    }
+    
+    // Compute proportions
+    for (i in 1:L_output_space) {
+      for (j in 1:N_cat) {
+        location_risk_cat_prop[i, j] = location_risk_cat_num[i, j]/pop_loc_output[i];
+      }
+    }
+    
+    // Determine risk category for each output location
+    // Initialize to lowest risk category
+    for (i in 1:L_output_space) {
+      location_risk_cat[i] = 1;
+    }
+    
+    // This algorithm assumes that risk categories are mutually exclusive and sorted
+    // in increasing order
+    for (i in 1:L_output_space) {
+      for (j in 1:N_cat) {
+        if (location_risk_cat_num[i, j] > 1e5 || location_risk_cat_prop[i, j] > .1) {
+          location_risk_cat[i] = j;
+        }
+      }
+    }
+  }
+  
+  // --- End Part D ---
+  
+  // ---- Part E: Log-likelihoods ----
   if (do_censoring == 0) {
     for (i in 1:M) {
       log_lik[i] = poisson_lpmf(y[i] | modeled_cases[i]);
@@ -282,4 +366,6 @@ generated quantities {
       }
     }
   }
+  // ---  End Part D ---
+  
 }
