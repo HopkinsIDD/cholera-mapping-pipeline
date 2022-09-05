@@ -322,7 +322,7 @@ generated quantities {
       if (check_done[s, l] == 0) {
         for (j in 1:N_cat) {
           if (r >= risk_cat_low[j] && r < risk_cat_high[j]) {
-            location_risk_cat_num[i, j] += pop[map_output_loc_grid_grid[i]] * pop_weight_output[i]; 
+            location_risk_cat_num[l, j] += pop[map_output_loc_grid_grid[i]] * pop_weight_output[i]; 
           }
         }
         check_done[s, l] = 1;
