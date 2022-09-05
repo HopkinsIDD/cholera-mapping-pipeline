@@ -300,18 +300,25 @@ generated quantities {
   {
     // Loop over space output locations and compute numbers at risk
     // Since there are T pixel/location intersections in K2_output we only add in the first.
-    int check_done[N_space, L_output_space] = 0;
+    int check_done[N_space, L_output_space];
+    
+    for (i in 1:N_space) {
+      for (j in 1:L_output_space) {
+        check_done[i, j] = 0;
+      }
+    }
     
     for (i in 1:K2_output) {
       real r = space_grid_rates[i];
+      int s = map_spacetime_space_grid[i];
       int l = map_output_loctime_loc[map_output_loc_grid_loc[i]];  // which space location period we are in
-      if (check_done[r, l] == 0) {
+      if (check_done[s, l] == 0) {
         for (j in 1:N_cat) {
           if (r >= risk_cat_low[j] && r < risk_cat_low[j]) {
             location_risk_cat_num[i, j] += pop[map_output_loc_grid_grid[i]] * pop_weight_output[i]; 
           }
         }
-        check_done[r, l] = 1;
+        check_done[s, l] = 1;
       }
     }
     
