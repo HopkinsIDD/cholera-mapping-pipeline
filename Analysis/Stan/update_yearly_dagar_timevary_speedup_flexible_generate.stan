@@ -309,8 +309,8 @@ generated quantities {
     }
     
     for (i in 1:K2_output) {
-      real r = space_grid_rates[i];
       int s = map_spacetime_space_grid[i];
+      real r = space_grid_rates[s];
       int l = map_output_loctime_loc[map_output_loc_grid_loc[i]];  // which space location period we are in
       if (check_done[s, l] == 0) {
         for (j in 1:N_cat) {
