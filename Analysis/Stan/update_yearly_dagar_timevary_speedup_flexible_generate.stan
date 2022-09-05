@@ -308,6 +308,13 @@ generated quantities {
       }
     }
     
+    // Initialize risk cat num
+    for (i in 1:L_output_space) {
+      for (j in 1:N_cat) {
+        location_risk_cat_num[i, j] = 0;
+      }
+    }
+    
     for (i in 1:K2_output) {
       int s = map_spacetime_space_grid[map_output_loc_grid_grid[i]];
       real r = space_grid_rates[s];
