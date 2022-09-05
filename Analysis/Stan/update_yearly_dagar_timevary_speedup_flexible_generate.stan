@@ -321,7 +321,7 @@ generated quantities {
       int l = map_output_loctime_loc[map_output_loc_grid_loc[i]];  // which space location period we are in
       if (check_done[s, l] == 0) {
         for (j in 1:N_cat) {
-          if (r >= risk_cat_low[j] && r < risk_cat_low[j]) {
+          if (r >= risk_cat_low[j] && r < risk_cat_high[j]) {
             location_risk_cat_num[i, j] += pop[map_output_loc_grid_grid[i]] * pop_weight_output[i]; 
           }
         }
