@@ -232,19 +232,20 @@ test_observations <- lapply(config[["test_metadata"]][["observations"]], functio
   )
   if (grepl("inflated", spec[["template"]])) {
     rc <- rc %>%
-      dplyr::mutate(cases = ifelse(qualified_name == config[["general"]][["location"]], cases, cases * spec[["inflation_factor"]]))
+      dplyr::mutate(cases = ifelse(location == config[["general"]][["location"]], cases, cases * spec[["inflation_factor"]]))#QZ: changed qualified_name into location
   }
   if (grepl("iso_level", spec[["template"]])) {
     rc <- rc %>%
-      dplyr::filter(stringr::str_count(qualified_name, pattern = "::") %in% spec[["iso_levels_to_keep"]])
+      dplyr::filter(stringr::str_count(location, pattern = "::") %in% spec[["iso_levels_to_keep"]])
   }
   if (grepl("filtered", spec[["template"]])) {
     rc <- rc %>%
-      dplyr::filter(qualified_name %in% spec[["kept_location_periods"]])
+      dplyr::filter(location %in% spec[["kept_location_periods"]])
   }
   return(rc)
 }) %>%
   do.call(what = dplyr::bind_rows)
+
 global_seed <- .GlobalEnv$.Random.seed
 
 all_dfs$observations_df <- test_observations %>%
@@ -272,8 +273,8 @@ true_grid_data$observed<- mapply(
   rhs,
   FUN = function(idx, x, y) {
     rc <- intersect(x, y)
-    rc <- rc[true_grid_data$t[idx] == test_observations$tmin[rc]]
-    rc <- rc[true_grid_data$t[idx] == test_observations$tmax[rc]]
+    rc <- rc[true_grid_data$t[idx] <= test_observations$tmin[rc]]
+    rc <- rc[true_grid_data$t[idx] <= test_observations$tmax[rc]]
     return(ifelse(length(rc) > 0, "Observed grid cells", "Unobserved grid cells"))
   }
 )
