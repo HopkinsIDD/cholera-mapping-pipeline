@@ -18,8 +18,10 @@ Collate:
     'aggregate_stan_input.R'
     'aggregate_stan_output.R'
     'color_scale.R'
+    'compare_country_data_reports.R'
     'config_helpers.R'
     'covariate_helpers.R'
+    'db_table_creation_functions.R'
     'file_name_functions.R'
     'geo_lookup_helpers.R'
     'get_covar_cube.R'
@@ -56,4 +58,5 @@ Collate:
     'shapefile_manipulation.R'
     'simulation_framework_helpers.R'
     'stan_input_helpers.R'
+    'stitch_caches.R'
 VignetteBuilder: knitr

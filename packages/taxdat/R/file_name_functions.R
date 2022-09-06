@@ -154,7 +154,7 @@ make_initial_values_filename <- function(cholera_directory,
   }
   
   # Modeling configs
-  for (par in c("censoring", "time_effect", "time_effect_autocorr", "use_weights", "use_rho_prior")) {
+  for (par in c("censoring", "time_effect", "time_effect_autocorr", "use_weights", "use_rho_prior", "use_pop_weight", "beta_sigma_scale")) {
     if(!is.null(stan_pars[[par]])) {
       to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, stan_pars[[par]])
     } else {
