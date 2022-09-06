@@ -735,7 +735,7 @@ observe_polygons <- function(test_polygons = create_test_layered_polygons(), tes
     if (!missing(seed) && is.null(grid_parameters[["seed"]])) {
       grid_parameters[["seed"]] <- seed
     }
-    observed_grid <- do.call(what = observe_gridcells, args = grid_parameters)
+    observed_grid <- do.call(what = taxdat::observe_gridcells, args = grid_parameters)
     seed <- .GlobalEnv$.Random.seed
   } else if (!is.null(grid_parameters)) {
     stop("Provide either an observed grid, or grid observation parameters but not both")
@@ -759,9 +759,17 @@ observe_polygons <- function(test_polygons = create_test_layered_polygons(), tes
         minmax <- sort(sample(nlayers, 2, replace = TRUE))
       }
 
-      # update the dates of censored observations
-      left_dates <- min_time_left + (seq_len(nlayers) - 1) * lubridate::period(1, "year")
-      right_dates <- max_time_right - rev(seq_len(nlayers) - 1) * lubridate::period(1, "year")
+      # update the dates of censored observations // QZ: updating time slice from year to the units from the config
+      left_dates <- min_time_left + (seq_len(nlayers) - 1) * lubridate::period(1, config[["test_metadata"]][["raster"]][["units"]])
+      right_dates <- max_time_right - rev(seq_len(nlayers) - 1) * lubridate::period(1, config[["test_metadata"]][["raster"]][["units"]])
+      if(any(is.na(right_dates))){
+        for ( idx in 1:length(right_dates)) {
+          if(is.na(right_dates[idx])&!idx==1){
+            right_dates[idx]=right_dates[idx-1]+(right_dates[idx+1]-right_dates[idx-1])/2
+          }
+        }       
+      }
+
       if (max(right_dates) != max_time_right) {
         stop(paste0("Not enough layers provided for the time scale (", time_scale, ") and date range (", min_time_left, " -- ", max_time_right, ")"))
       }
