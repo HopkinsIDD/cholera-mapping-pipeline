@@ -364,7 +364,7 @@ parse_gdal_res <- function(src_file) {
 #'
 #' @return none (writes resulting rater to file)
 #' @export
-transform_raster <- function(res_file, transform) {
+transform_raster <- function(res_file, res_file_trans, transform) {
   
   cat("Transforming ", res_file, "with", transform)
   
@@ -373,7 +373,7 @@ transform_raster <- function(res_file, transform) {
                                    "(x))}")))
   # transform data
   raster::values(r) <- trans_fun(raster::values(r))
-  raster::writeRaster(r, res_file, NAflag = -9999, overwrite = T)
+  raster::writeRaster(r, res_file_trans, NAflag = -9999, overwrite = T)
 }
 
 #' @title Sum non-NA cells
@@ -948,16 +948,7 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
           
           # File of the spatial aggregation step
           res_file_space <- stringr::str_replace(res_file_time, "\\.nc", stringr::str_c("__resampled_",
-                                                                                        res_x, "x", res_y, "km.nc")) %>%
-            {
-              str <- .
-              if (!is.null(transform)) {
-                stringr::str_replace(str, "\\.nc", stringr::str_c("_", transform,
-                                                                  "_trans.nc"))
-              } else {
-                str
-              }
-            }
+                                                                                        res_x, "x", res_y, "km.nc"))
           
           # Aggregate covariate in space
           if (!file.exists(res_file_space)) {
@@ -968,8 +959,19 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
                             covar_type = covar_type, aggregator = space_aggregator, dbuser = dbuser)
             
             if (!is.null(transform)) {
+              res_file_space_trans <- res_file_space %>%
+                {
+                  str <- .
+                  if (!is.null(transform)) {
+                    stringr::str_replace(str, "\\.nc", stringr::str_c("_", transform,
+                                                                      "_trans.nc"))
+                  } else {
+                    str
+                  }
+                }
               # if specified, apply transform
-              transform_raster(res_file_space, transform)
+              transform_raster(res_file_space, res_file_space_trans, transform)
+              res_file_space <- res_file_space_trans
             }
           }
           

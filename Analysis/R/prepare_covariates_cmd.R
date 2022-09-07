@@ -2,7 +2,7 @@ option_list <- list(
   optparse::make_option(c("-u", "--dbuser"), action = "store", default =  Sys.getenv("USER"), type="character", help = "Database user"),
   optparse::make_option(c("-d", "--cholera_covariates_directory"), action = "store", default = "./", type="character", help = "Cholera directory"),
   optparse::make_option(c("-r", "--res_space"), action = "store", default = 20, type="integer", help = "Spatial resolution"),
-  optparse::make_option(c("-t", "--res_time"), action = "store", default = "1 year", type="character", help = "Temporal resolution"),
+  optparse::make_option(c("-t", "--res_time"), action = "store", default = "1 years", type="character", help = "Temporal resolution"),
   optparse::make_option(c("-i", "--ingest"), action = "store", default = T, type="logical", help = "Flag to do ingestion, if false stops if covariates has not already been ingested"),
   optparse::make_option(c("-p", "--do_parallel"), action = "store", default = T, type="logical", help = "Flag to do parallel pre-processing, this needs to be done prior to ingestion. Useful for temporal covariates."),
   optparse::make_option(c("-n", "--n_cores"), action = "store", default = parallel::detectCores() - 2, type="integer", help = "Number of cores to use for parallel computation"),
