@@ -958,21 +958,25 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
             space_aggregate(res_file_time, res_file = res_file_space, ref_grid_db = ref_grid_db,
                             covar_type = covar_type, aggregator = space_aggregator, dbuser = dbuser)
             
-            if (!is.null(transform)) {
-              res_file_space_trans <- res_file_space %>%
-                {
-                  str <- .
-                  if (!is.null(transform)) {
-                    stringr::str_replace(str, "\\.nc", stringr::str_c("_", transform,
-                                                                      "_trans.nc"))
-                  } else {
-                    str
-                  }
+          }
+          
+          if (!is.null(transform)) {
+            res_file_space_trans <- res_file_space %>%
+              {
+                str <- .
+                if (!is.null(transform)) {
+                  stringr::str_replace(str, "\\.nc", stringr::str_c("_", transform,
+                                                                    "_trans.nc"))
+                } else {
+                  str
                 }
-              # if specified, apply transform
-              transform_raster(res_file_space, res_file_space_trans, transform)
-              res_file_space <- res_file_space_trans
-            }
+              }
+            
+            cat("Transforming", res_file_space, "with function", transform, "\n")
+            
+            # if specified, apply transform
+            transform_raster(res_file_space, res_file_space_trans, transform)
+            res_file_space <- res_file_space_trans
           }
           
           # Progress
