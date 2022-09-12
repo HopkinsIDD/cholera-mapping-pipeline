@@ -15,7 +15,8 @@ stan:
   model: dagar_seasonal_flexible.stan
 test_metadata:
   raster:
-    units: years
+    units: month
+    nlayer: 12.0
   polygons:
     template: full and grid
   covariates:
