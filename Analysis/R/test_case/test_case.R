@@ -228,7 +228,8 @@ test_observations <- lapply(config[["test_metadata"]][["observations"]], functio
     max_time_right = lubridate::ymd(config[["general"]][["end_date"]]),
     observation_time_left = lubridate::ymd(spec[["start_date"]]),
     observation_time_right = lubridate::ymd(spec[["end_date"]]),
-    seed = global_seed
+    seed = global_seed,
+    time_scale=config[["test_metadata"]][["raster"]][["units"]]
   )
   if (grepl("inflated", spec[["template"]])) {
     rc <- rc %>%
