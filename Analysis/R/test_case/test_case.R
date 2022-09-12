@@ -232,7 +232,7 @@ test_observations <- lapply(config[["test_metadata"]][["observations"]], functio
   )
   if (grepl("inflated", spec[["template"]])) {
     rc <- rc %>%
-      dplyr::mutate(cases = ifelse(location == config[["general"]][["location"]], cases, cases * spec[["inflation_factor"]]))#QZ: changed qualified_name into location
+      dplyr::mutate(cases = ifelse(location == config[["general"]][["location_name"]], cases, cases * spec[["inflation_factor"]]))#QZ: changed qualified_name into location/change location into location_names
   }
   if (grepl("iso_level", spec[["template"]])) {
     rc <- rc %>%
@@ -273,9 +273,9 @@ true_grid_data$observed<- mapply(
   rhs,
   FUN = function(idx, x, y) {
     rc <- intersect(x, y)
-    rc <- rc[true_grid_data$t[idx] <= test_observations$tmin[rc]]
-    rc <- rc[true_grid_data$t[idx] <= test_observations$tmax[rc]]
-    return(ifelse(length(rc) > 0, "Observed grid cells", "Unobserved grid cells"))
+    rc <- rc[true_grid_data$t[idx] == test_observations$tmin[rc]]
+    rc <- rc[true_grid_data$t[idx] == test_observations$tmax[rc]]
+    return(ifelse(length(rc) > 0, "Unobserved grid cells","Observed grid cells"))
   }
 )
 saveRDS(true_grid_data,rds_file)
