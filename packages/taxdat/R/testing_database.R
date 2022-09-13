@@ -32,21 +32,8 @@ add_and_or_drop <- function(psql_connection, add_query, drop_query, drop = FALSE
 #' @param psql_connection a connection to a database made with dbConnect
 #' @param drop Whether to drop an existing table
 create_observations_table <- function(psql_connection, drop = FALSE) {
-  drop_query <- "DROP TABLE IF EXISTS observations CASCADE;"
-  add_query <- "
-CREATE TABLE observations(
-  id BIGSERIAL PRIMARY KEY,
-  observation_collection_id bigint,
-  time_left date,
-  time_right date,
-  location_id bigint REFERENCES locations(id),
-  location_period_id bigint REFERENCES location_periods(id),
-  \"primary\" boolean,
-  phantom boolean,
-  suspected_cases integer,
-  confirmed_cases integer,
-  deaths integer
-);"
+  drop_query <- readr::read_file(system.file("sql", "drop_observations_table.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_observations_table.sql", package = "taxdat"))
 
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
@@ -57,8 +44,8 @@ CREATE TABLE observations(
 #' @param psql_connection a connection to a database made with dbConnect
 #' @param drop Whether to drop an existing table
 create_locations_table <- function(psql_connection, drop = FALSE) {
-  drop_query <- "DROP TABLE IF EXISTS locations CASCADE;"
-  add_query <- "CREATE TABLE locations(id BIGSERIAL PRIMARY KEY, qualified_name text UNIQUE);"
+  drop_query <- readr::read_file(system.file("sql", "drop_locations_table.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_locations_table.sql", package = "taxdat"))
 
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
@@ -69,14 +56,8 @@ create_locations_table <- function(psql_connection, drop = FALSE) {
 #' @param psql_connection a connection to a database made with dbConnect
 #' @param drop Whether to drop an existing table
 create_location_periods_table <- function(psql_connection, drop = FALSE) {
-  drop_query <- "DROP TABLE IF EXISTS location_periods CASCADE;"
-  add_query <- "
-CREATE TABLE location_periods(
-  id BIGSERIAL PRIMARY KEY,
-  location_id bigint REFERENCES locations(id),
-  start_date date,
-  end_date date
-);"
+  drop_query <- readr::read_file(system.file("sql", "drop_location_periods_table.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_location_periods_table.sql", package = "taxdat"))
 
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
@@ -87,14 +68,8 @@ CREATE TABLE location_periods(
 #' @param psql_connection a connection to a database made with dbConnect
 #' @param drop Whether to drop an existing table
 create_shapes_table <- function(psql_connection, drop = FALSE) {
-  drop_query <- "DROP TABLE IF EXISTS shapes CASCADE;"
-  add_query <- "
-CREATE TABLE shapes(
-  id BIGSERIAL PRIMARY KEY,
-  location_period_id bigint REFERENCES location_periods(id) UNIQUE,
-  shape GEOMETRY,
-  box GEOMETRY
-);"
+  drop_query <- readr::read_file(system.file("sql", "drop_shapes_table.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_shapes_table.sql", package = "taxdat"))
 
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
@@ -105,8 +80,8 @@ CREATE TABLE shapes(
 #' @param psql_connection a connection to a database made with dbConnect
 #' @param drop Whether to drop an existing table
 create_location_hierarchies_table <- function(psql_connection, drop = FALSE) {
-  drop_query <- "DROP TABLE IF EXISTS location_hierarchies CASCADE;"
-  add_query <- "CREATE TABLE location_hierarchies(ancestor_id bigint REFERENCES locations(id), descendant_id bigint REFERENCES locations(id), generations integer);"
+  drop_query <- readr::read_file(system.file("sql", "drop_location_hierarchies_table.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_location_hierarchies_table.sql", package = "taxdat"))
 
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
@@ -117,11 +92,8 @@ create_location_hierarchies_table <- function(psql_connection, drop = FALSE) {
 #' @param psql_connection a connection to a database made with dbConnect
 #' @param drop Whether to drop an existing table
 create_master_spatial_grid_table <- function(psql_connection, drop = FALSE) {
-  drop_query <- "DROP MATERIALIZED VIEW IF EXISTS grids.master_spatial_grid CASCADE;"
-  add_query <- "
-CREATE MATERIALIZED VIEW grids.master_spatial_grid as
-  select 1 as rid, st_asraster(shape, 10, 10, '32BF') as rast
-  from (SELECT shape from shapes where id = 1) as local_shapes;"
+  drop_query <- readr::read_file(system.file("sql", "drop_master_spatial_grid_table.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_master_spatial_grid_table.sql", package = "taxdat"))
 
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
