@@ -167,22 +167,8 @@ create_master_temporal_grid_view <- function(psql_connection, drop = FALSE) {
 #' @title create_resized_spatial_grid_pixels_view
 #' @param psql_connection a connection to a database made with dbConnect
 create_resized_spatial_grid_pixels_view <- function(psql_connection, drop = FALSE) {
-  add_query <- "
-CREATE MATERIALIZED VIEW IF NOT EXISTS grids.resized_spatial_grid_pixels
-AS
-  SELECT
-    ROW_NUMBER() OVER (ORDER BY 1) as id,
-    rid,
-    width,
-    height,
-    dp.x,
-    dp.y,
-    dp.geom as polygon,
-    st_centroid(dp.geom) as centroid
-  FROM
-    grids.resized_spatial_grids, LATERAL ST_PixelAsPolygons(rast, 1) AS dp;"
-
-  drop_query <- "DROP MATERIALIZED VIEW IF EXISTS grids.resized_spatial_grid_pixels"
+  drop_query <- readr::read_file(system.file("sql", "drop_resized_spatial_grid_pixels_view.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_resized_spatial_grid_pixels_view.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
@@ -191,18 +177,8 @@ AS
 #' @title create_master_spatial_grid_centroids_view
 #' @param psql_connection a connection to a database made with dbConnect
 create_master_spatial_grid_centroids_view <- function(psql_connection, drop = FALSE) {
-  add_query <- "
-CREATE MATERIALIZED VIEW IF NOT EXISTS grids.master_spatial_grid_centroids
-AS
-  SELECT
-    ROW_NUMBER() OVER (ORDER BY 1) as id,
-    rid,
-    dp.x,
-    dp.y,
-    dp.geom
-  FROM
-    grids.master_spatial_grid, LATERAL ST_PixelAsCentroids(rast, 1) AS dp;"
-  drop_query <- "DROP MATERIALIZED VIEW IF EXISTS grids.master_spatial_grid_centroids"
+  drop_query <- readr::read_file(system.file("sql", "drop_master_spatial_grid_centroids_view.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_master_spatial_grid_centroids_view.sql", package = "taxdat"))
 
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
@@ -212,23 +188,8 @@ AS
 #' @title create_location_period_raster_map_view
 #' @param psql_connection a connection to a database made with dbConnect
 create_location_period_raster_map_view <- function(psql_connection, drop = FALSE) {
-  add_query <- "
-CREATE MATERIALIZED VIEW IF NOT EXISTS location_period_raster_map AS
-  SELECT
-    shapes.id as shape_id,
-    location_period_id,
-    rid,
-    width,
-    height
-  FROM
-    shapes
-      LEFT JOIN
-    grids.resized_spatial_grids
-      on
-        ST_INTERSECTS(shapes.box, resized_spatial_grids.rast);"
-
-  drop_query <- "DROP MATERIALIZED VIEW IF EXISTS location_period_raster_map"
-
+  drop_query <- readr::read_file(system.file("sql", "drop_location_period_raster_map_view.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_location_period_raster_map_view.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
@@ -237,26 +198,12 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS location_period_raster_map AS
 #' @title create_covariate_grid_map_view
 #' @param psql_connection a connection to a database made with dbConnect
 create_covariate_grid_map_view <- function(psql_connection, drop = FALSE) {
-  add_query <- "
-CREATE MATERIALIZED VIEW IF NOT EXISTS covariate_grid_map AS
-SELECT
-  all_covariates.covariate_name,
-  all_covariates.time_left,
-  all_covariates.time_right,
-  all_covariates.rid as covar_rid,
-  resized_spatial_grids.rid as grid_rid,
-  resized_spatial_grids.width,
-  resized_spatial_grids.height
-FROM
-  grids.resized_spatial_grids
-    LEFT JOIN
-  covariates.all_covariates
-    ON
-      st_intersects(all_covariates.rast, resized_spatial_grids.rast);
-"
-
-  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, add_query))
+  drop_query <- readr::read_file(system.file("sql", "drop_covariate_grid_map_view.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_covariate_grid_map_view.sql", package = "taxdat"))
+  add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
+
+## HERE : MOVE ME
 
 #' @description Create the portion of the testing database that mimics
 #' the database located at cholera-taxonomy.middle-distance.com
@@ -272,6 +219,8 @@ create_testing_base_database <- function(psql_connection, drop = FALSE) {
   create_location_hierarchies_table(psql_connection, drop)
   create_master_spatial_grid_table(psql_connection, drop)
 }
+
+## HERE : MOVE ME
 
 #' @description Create the portion of the testing database that we intend
 #' to add to the database located at cholera-taxonomy.middle-distance.com
@@ -297,69 +246,24 @@ create_testing_additional_database <- function(psql_connection, drop = FALSE) {
   invisible(NULL)
 }
 
-create_resize_spatial_grid_function <- function(psql_connection) {
-  function_query <- "
-create or replace function resize_spatial_grid(width_in_km int, height_in_km int)
-  returns table(rid integer, rast raster)
-  as $$
-  SELECT
-    master_spatial_grid.rid,
-    st_resample(
-      master_spatial_grid.rast,
-      (st_metadata(master_spatial_grid.rast)).width / width_in_km,
-      (st_metadata(master_spatial_grid.rast)).height / height_in_km
-    ) as new_rast
-  FROM
-    grids.master_spatial_grid;
-  $$ LANGUAGE SQL SECURITY DEFINER;
-"
-
-  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
+create_resize_spatial_grid_function <- function(psql_connection, drop = FALSE) {
+  drop_query <- readr::read_file(system.file("sql", "drop_resize_spatial_grid_function.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_resize_spatial_grid_function.sql", package = "taxdat"))
+  add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
-create_lookup_location_period_function <- function(psql_connection) {
-  function_query <- "
-create or replace function lookup_location_period(target_location_id bigint, target_start_date date, target_end_date date)
-  returns bigint
-  as $$
-  SELECT
-    location_periods.id
-  FROM
-    location_periods
-  WHERE
-    location_periods.location_id = target_location_id AND
-    location_periods.start_date <= target_start_date AND
-    location_periods.end_date >= target_end_date
-  $$ LANGUAGE SQL SECURITY DEFINER;
-"
+create_lookup_location_period_function <- function(psql_connection, drop = FALSE, add_triggers = TRUE) {
+  drop_query <- readr::read_file(system.file("sql", "drop_lookup_location_period_function.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_lookup_location_period_function.sql", package = "taxdat"))
+  if (add_triggers) {
+    add_query <- c(
+      add_query,
+      readr::read_file(system.file("sql", "add_lookup_location_period_function_trigger_add.sql", package = "taxdat")),
+      readr::read_file(system.file("sql", "add_lookup_location_period_function_trigger_function.sql", package = "taxdat"))
+    )
+  }
 
-  trigger_function_query <- "
-CREATE OR REPLACE FUNCTION trigger_lookup_missing_location_period_for_observations()
-  RETURNS trigger
-  LANGUAGE plpgsql AS
-$func$
-BEGIN
-   NEW.location_period_id := lookup_location_period(NEW.location_id, NEW.time_left, NEW.time_right);
-   RETURN NEW;
-END
-$func$;"
-
-
-  trigger_add_query <- "
-CREATE TRIGGER observations_location_period_id_default
-BEFORE INSERT ON observations
-FOR EACH ROW
-WHEN (
-  NEW.location_period_id IS NULL AND
-  NEW.location_id IS NOT NULL AND
-  NEW.time_left IS NOT NULL AND
-  NEW.time_right IS NOT NULL
-) EXECUTE PROCEDURE trigger_lookup_missing_location_period_for_observations();
-"
-
-  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
-  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, trigger_function_query))
-  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, trigger_add_query))
+  add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
 create_ingest_covariate_function <- function(psql_connection) {

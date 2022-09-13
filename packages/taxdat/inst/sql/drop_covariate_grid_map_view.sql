@@ -1,0 +1,1 @@
+DROP MATERIALIZED VIEW IF EXISTS covariate_grid_map CASCADE;
