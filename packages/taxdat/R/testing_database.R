@@ -99,24 +99,14 @@ create_master_spatial_grid_table <- function(psql_connection, drop = FALSE) {
 }
 
 create_spatial_resolutions_table <- function(psql_connection, drop = FALSE) {
-  add_query <- "CREATE TABLE grids.spatial_resolutions(width_in_km int, height_in_km int, UNIQUE(width_in_km, height_in_km));"
-  drop_query <- "DROP TABLE IF EXISTS grids.spatial_resolutions CASCADE;"
+  drop_query <- readr::read_file(system.file("sql", "drop_spatial_resolutions_table.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_spatial_resolutions_table.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
 create_resized_spatial_grids_view <- function(psql_connection, drop = FALSE) {
-  add_query <- "
-CREATE MATERIALIZED VIEW grids.resized_spatial_grids AS
-   SELECT
-     spatial_resolutions.width_in_km as width,
-     spatial_resolutions.height_in_km as height,
-     resized_grid.*
-   FROM
-     grids.spatial_resolutions,
-   LATERAL
-     resize_spatial_grid(width_in_km, height_in_km) as resized_grid;
-"
-  drop_query <- "DROP MATERIALIZED VIEW IF EXISTS grids.resized_spatial_grids CASCADE;"
+  drop_query <- readr::read_file(system.file("sql", "drop_resized_spatial_grids_view.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_resized_spatial_grids_view.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
@@ -126,10 +116,11 @@ CREATE MATERIALIZED VIEW grids.resized_spatial_grids AS
 #' @param psql_connection a connection to a database made with dbConnect
 #' @param drop Whether to drop an existing table
 create_covariates_schema <- function(psql_connection, drop = FALSE) {
-  add_query <- "CREATE SCHEMA IF NOT EXISTS covariates;"
-  drop_query <- "DROP SCHEMA IF EXISTS covariates CASCADE;"
+  drop_query <- readr::read_file(system.file("sql", "drop_covariates_schema.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_covariates_schema.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
+
 #' @description Create a all_covariates table for use in testing
 #' @name create_all_covariates_table
 #' @title create_all_covariates_table
@@ -137,12 +128,11 @@ create_covariates_schema <- function(psql_connection, drop = FALSE) {
 #' @param drop Whether to drop an existing table
 create_all_covariates_table <- function(psql_connection, drop = FALSE) {
   create_covariates_schema(psql_connection, drop = drop)
-  drop_query <- "DROP TABLE IF EXISTS covariates.all_covariates"
+  drop_query <- readr::read_file(system.file("sql", "drop_all_covariates_table.sql", package = "taxdat"))
   add_query <- c(
-    "CREATE TABLE covariates.all_covariates(covariate_name text, time_left date, time_right date, rid integer, rast raster);",
-    "CREATE INDEX covariate_name_size_idx ON covariates.all_covariates(covariate_name, time_left, time_right, rid);"
+    readr::read_file(system.file("sql", "add_all_covariates_table.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "add_all_covariates_table_index.sql", package = "taxdat"))
   )
-
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
@@ -152,11 +142,13 @@ create_all_covariates_table <- function(psql_connection, drop = FALSE) {
 #' @param psql_connection a connection to a database made with dbConnect
 #' @param drop Whether to drop an existing table
 create_time_bounds_table <- function(psql_connection, drop = FALSE) {
-  drop_query <- "DROP TABLE IF EXISTS grids.time_bounds CASCADE;"
-  add_query <- "CREATE TABLE grids.time_bounds(time_left date, time_right date);"
-  add_data_query <- "INSERT INTO grids.time_bounds VALUES('2000-01-01', '2020-12-31');"
+  drop_query <- readr::read_file(system.file("sql", "drop_time_bounds_table.sql", package = "taxdat"))
+  add_query <- c(
+    readr::read_file(system.file("sql", "add_time_bounds_table.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "add_time_bounds_table_data.sql", package = "taxdat"))
+  )
 
-  add_and_or_drop(psql_connection, c(add_query, add_data_query), drop_query, drop)
+  add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
 #' @description Create a master_temporal_grid view for use in testing
@@ -164,20 +156,12 @@ create_time_bounds_table <- function(psql_connection, drop = FALSE) {
 #' @title create_master_temporal_grid_view
 #' @param psql_connection a connection to a database made with dbConnect
 create_master_temporal_grid_view <- function(psql_connection, drop = FALSE) {
-  add_query <- "
-CREATE OR REPLACE VIEW grids.master_temporal_grid AS
-SELECT
-  generate_series(
-    time_bounds.time_left::timestamp,
-    time_bounds.time_right::timestamp,
-    '1 day'::interval
-  )::date as time_midpoint
-FROM grids.time_bounds;"
-
-  drop_query <- "DROP VIEW IF EXISTS grids.master_temporal_grid"
+  drop_query <- readr::read_file(system.file("sql", "drop_master_temporal_grid_view.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_master_temporal_grid_view.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
+## HERE
 #' @description Create a resized_spatial_grid_pixels view for use in testing
 #' @name create_resized_spatial_grid_pixels_view
 #' @title create_resized_spatial_grid_pixels_view
