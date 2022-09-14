@@ -116,7 +116,7 @@ covar_cube <- DBI::dbGetQuery(conn = conn_pg, glue::glue_sql(.con = conn_pg, "SE
        {config[[\"general\"]][[\"time_scale\"]]}
     )")) %>%
   dplyr::filter(!is.na(value)) %>%
-  tidyr::pivot_wider(names_from = covariate_name, values_from = value, values_fn = sum)
+  tidyr::pivot_wider(names_from = covariate_name, values_from = value, values_fn = mean)#QZ: mean, instead of sum
 covar_cube[["geometry"]] <- sf::st_as_sfc(covar_cube[["geometry"]])
 covar_cube <- sf::st_as_sf(covar_cube)
 print("Pulled covariates")
@@ -775,7 +775,6 @@ stan_data <- list(
   do_time_slice_effect_autocor = config[["stan"]][["do_time_slice"]][["autocorrelated_prior"]],
   exp_prior=config[["stan"]][["exp_prior"]],#QZ: added exponential betas option in config
   narrower_prior=config[["stan"]][["narrower_prior"]],#QZ: added narrower prior option in config
-  sum_to_zero=config[["stan"]][["sum_to_zero"]],#QZ: added sum-to-zero prior option in config
   has_data_year = has_data_year,
   mat_grid_time = mat_grid_time,
   debug = FALSE
