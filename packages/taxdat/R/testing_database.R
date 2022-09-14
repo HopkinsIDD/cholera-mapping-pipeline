@@ -1434,6 +1434,7 @@ pull_observation_data <- function(psql_connection, location_name, start_date, en
 #' @export
 convert_simulated_covariates_to_test_covariate_funs <- function(original_simulated_covariates,
                                                                 min_time_left, max_time_right) {
+  max_time_right<-max_time_right+1
   simulated_covariates <- original_simulated_covariates
   simulated_covariates[[1]]$covariate <- 10^simulated_covariates[[1]][["covariate"]] +
     1
