@@ -119,7 +119,7 @@ parameters {
 }
 
 transformed parameters {
-  
+
   vector[T*do_time_slice_effect] eta; // yearly random effects
   real<lower=0> modeled_cases[M]; //expected number of cases for each observation
   real<lower=0> std_dev_w;
@@ -135,8 +135,8 @@ transformed parameters {
         // scale yearly random effects
         eta[i] = sigma_eta_scale * sigma_eta_tilde[1] * eta_tilde[i];
       }
-    }  
-    
+    }
+
     if (debug && (previous_debugs == 0)) {
       // for(i in 1:T)
       {
