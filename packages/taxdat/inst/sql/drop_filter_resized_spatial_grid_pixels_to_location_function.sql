@@ -1,0 +1,1 @@
+drop function if exists filter_resized_spatial_grid_pixels_to_location;

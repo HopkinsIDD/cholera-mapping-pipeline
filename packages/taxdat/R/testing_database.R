@@ -266,116 +266,28 @@ create_lookup_location_period_function <- function(psql_connection, drop = FALSE
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
-create_ingest_covariate_function <- function(psql_connection) {
-  function_query <- "
-create or replace function ingest_covariate(name text, table_name text, ingest_time_left date, ingest_time_right date)
-  returns void
-  LANGUAGE plpgsql
-  as $$
-  begin
-  PERFORM * FROM covariates.all_covariates where all_covariates.covariate_name = name AND all_covariates.time_left = ingest_time_left and all_covariates.time_right = ingest_time_right;
-  if not found then
-  EXECUTE FORMAT ('INSERT INTO covariates.all_covariates SELECT %L as name, %L as time_left, %L as time_right, rid, rast FROM covariates.%I', name, ingest_time_left, ingest_time_right, table_name);
-  end if;
-  end;
-  $$ SECURITY DEFINER;
-"
-
-  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
-  invisible(NULL)
+create_ingest_covariate_function <- function(psql_connection, drop = FALSE) {
+  drop_query <- readr::read_file(system.file("sql", "drop_ingest_covariate_function.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_ingest_covariate_function.sql", package = "taxdat"))
+  add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
-create_pull_grid_adjacency_function <- function(psql_connection) {
+create_pull_grid_adjacency_function <- function(psql_connection, drop = FALSE) {
   create_filter_resized_spatial_grid_pixels_to_location_function(psql_connection)
-  function_query <- "
-CREATE OR REPLACE FUNCTION pull_grid_adjacency(location_name text, width_in_km int, height_in_km int)
-RETURNS TABLE(id_1 BIGINT, rid_1 INT, x_1 INT, y_1 INT, id_2 BIGINT, rid_2 INT, x_2 INT, y_2 INT)AS $$
-  SELECT
-    lhs.id AS id_1,
-    lhs.rid AS rid_1,
-    lhs.x AS x_1,
-    lhs.y AS y_1,
-    rhs.id AS id_2,
-    rhs.rid AS rid_2,
-    rhs.x AS x_2,
-    rhs.y AS y_2
-  FROM filter_resized_spatial_grid_pixels_to_location(location_name, width_in_km, height_in_km) AS lhs
-    INNER JOIN
-      filter_resized_spatial_grid_pixels_to_location(location_name, width_in_km, height_in_km) AS rhs
-        ON
-          ST_INTERSECTS(ST_BUFFER(lhs.polygon, SQRT(ST_AREA(lhs.polygon))*.01), rhs.polygon)
-  WHERE
-    lhs.id < rhs.id
-  $$ LANGUAGE SQL SECURITY DEFINER;
-"
-
-  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
-  invisible(NULL)
+  drop_query <- readr::read_file(system.file("sql", "drop_pull_grid_adjacency_function.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_pull_grid_adjacency_function.sql", package = "taxdat"))
+  add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
-create_pull_symmetric_grid_adjacency_function <- function(psql_connection) {
+create_pull_symmetric_grid_adjacency_function <- function(psql_connection, drop = FALSE) {
   create_filter_resized_spatial_grid_pixels_to_location_function(psql_connection)
-  function_query <- "
-CREATE OR REPLACE FUNCTION pull_symmetric_grid_adjacency(location_name text, width_in_km int, height_in_km int)
-RETURNS TABLE(id_1 BIGINT, rid_1 INT, x_1 INT, y_1 INT, id_2 BIGINT, rid_2 INT, x_2 INT, y_2 INT)AS $$
-  SELECT
-    lhs.id AS id_1,
-    lhs.rid AS rid_1,
-    lhs.x AS x_1,
-    lhs.y AS y_1,
-    rhs.id AS id_2,
-    rhs.rid AS rid_2,
-    rhs.x AS x_2,
-    rhs.y AS y_2
-  FROM filter_resized_spatial_grid_pixels_to_location(location_name, width_in_km, height_in_km) AS lhs
-    INNER JOIN
-      filter_resized_spatial_grid_pixels_to_location(location_name, width_in_km, height_in_km) AS rhs
-        ON
-          ST_INTERSECTS(ST_BUFFER(lhs.polygon, SQRT(ST_AREA(lhs.polygon))*.01), rhs.polygon)
-  WHERE
-    lhs.id != rhs.id
-  $$ LANGUAGE SQL SECURITY DEFINER;
-"
-
-  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
+  drop_query <- readr::read_file(system.file("sql", "drop_pull_symmetric_grid_adjacency_function.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_pull_symmetric_grid_adjacency_function.sql", package = "taxdat"))
+  add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
 create_filter_resized_spatial_grid_pixels_to_location_function <- function(psql_connection) {
   create_filter_location_periods_function(psql_connection)
-  function_query <- "
-create or replace function filter_resized_spatial_grid_pixels_to_location(location_name text, width_in_km int, height_in_km int)
-  returns table(id bigint, rid int, x int, y int, centroid geometry, polygon geometry) AS $$
- SELECT
-    DISTINCT
-    spatial_grid.id,
-    spatial_grid.rid,
-    spatial_grid.x,
-    spatial_grid.y,
-    spatial_grid.centroid,
-    spatial_grid.polygon
-  FROM
-    filter_location_periods(location_name) as location_periods
-  LEFT JOIN
-    shapes
-      on
-        location_periods.location_period_id = shapes.location_period_id
-  LEFT JOIN
-    shape_resized_spatial_grid_populations
-      ON
-        shape_resized_spatial_grid_populations.shape_id = shapes.id
-  LEFT JOIN
-    grids.resized_spatial_grid_pixels as spatial_grid
-      ON
-        shape_resized_spatial_grid_populations.grid_id = spatial_grid.id
-  WHERE
-    spatial_grid.width = width_in_km AND
-    spatial_grid.height = height_in_km AND
-    (
-      (shape_resized_spatial_grid_populations.grid_population > 0) OR
-      (shape_resized_spatial_grid_populations.intersection_population IS NULL)
-    )
-  $$ LANGUAGE SQL SECURITY DEFINER;
-"
 
   DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
 }
