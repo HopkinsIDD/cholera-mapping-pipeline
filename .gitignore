@@ -29,6 +29,3 @@ todo.org
 **.yml
 !tests/**/*.yml
 !Analysis/R/test_case/**.yml
-**.html
-**.rs
-Analysis/output/
