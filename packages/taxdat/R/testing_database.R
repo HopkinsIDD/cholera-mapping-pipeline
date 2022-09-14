@@ -254,14 +254,11 @@ create_resize_spatial_grid_function <- function(psql_connection, drop = FALSE) {
 
 create_lookup_location_period_function <- function(psql_connection, drop = FALSE, add_triggers = TRUE) {
   drop_query <- readr::read_file(system.file("sql", "drop_lookup_location_period_function.sql", package = "taxdat"))
-  add_query <- readr::read_file(system.file("sql", "add_lookup_location_period_function.sql", package = "taxdat"))
-  if (add_triggers) {
-    add_query <- c(
-      add_query,
-      readr::read_file(system.file("sql", "add_lookup_location_period_function_trigger_add.sql", package = "taxdat")),
-      readr::read_file(system.file("sql", "add_lookup_location_period_function_trigger_function.sql", package = "taxdat"))
-    )
-  }
+  add_query <- c(
+    readr::read_file(system.file("sql", "add_lookup_location_period_function.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "add_lookup_location_period_function_trigger_function.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "add_lookup_location_period_function_trigger_add.sql", package = "taxdat"))
+  )
 
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
