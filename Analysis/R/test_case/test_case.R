@@ -178,6 +178,19 @@ covariate_raster_funs_simulation <- taxdat:::convert_simulated_covariates_to_tes
 global_seed <- .GlobalEnv$.Random.seed
 min_time_left <- query_time_left
 max_time_right <- query_time_right
+
+## todo: Convert test_covariates_modeling :
+### Make these covariates match the time scale of model (at least population) /QZ: if covariates is time-varying (especially population), then we should do transformations on the covariates if the time slices of covariates are different from the modeling time scale. code isn't done, need to decide how to do the transformations.
+if (
+  (config[["test_metadata"]][["covariates"]][[1]][["nontemporal"]] || config[["test_metadata"]][["covariates"]][[1]][["temporally_smooth"]]) &
+  (config[["general"]][["time_scale"]] != config[["test_metadata"]][["raster"]][["units"]])
+) {
+  if (config[["test_metadata"]][["processing"]][["adjust_covariates_for_modeling_timescale"]][["perform"]]) {
+    stop("We didn't write this code yet")
+  }
+  ## Otherwise don't do the adjustment
+}
+
 covariate_raster_funs_modeling <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(
   test_covariates_modeling,
   min_time_left, max_time_right
@@ -276,7 +289,7 @@ true_grid_data$observed<- mapply(
     rc <- intersect(x, y)
     rc <- rc[true_grid_data$t[idx] == test_observations$tmin[rc]]
     rc <- rc[true_grid_data$t[idx] == test_observations$tmax[rc]]
-    return(ifelse(length(rc) > 0, "Unobserved grid cells","Observed grid cells"))
+    return(ifelse(length(rc) > 0, "Observed grid cells","Unobserved grid cells"))
   }
 )
 saveRDS(true_grid_data,rds_file)
