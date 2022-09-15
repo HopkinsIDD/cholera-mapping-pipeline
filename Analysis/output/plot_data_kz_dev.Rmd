@@ -262,10 +262,7 @@ sum_obs1 <- sf::st_drop_geometry(raw_data) %>%
             num_locationPeriod_id = length(unique(locationPeriod_id)), 
             num_OC_UID = length(unique(OC_UID)))
 
-sum_obs2 <- sf::st_drop_geometry(taxonomy_data) %>% 
-  mutate(OC_UID = observation_collection_id, 
-         locationPeriod_id = location_period_id, 
-         year = lubridate::year(time_left)) %>% 
+sum_obs2 <- sf::st_drop_geometry(taxonomy_data) %>% #QZ: remove the mutate code part
   select(year, suspected_cases, locationPeriod_id, OC_UID) %>% 
   group_by(year) %>%
   summarise(num_observations = n(), 
