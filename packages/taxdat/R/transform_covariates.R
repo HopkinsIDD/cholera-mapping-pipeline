@@ -5,7 +5,7 @@
 #' @export
 transform_covariates <- function(covariates, transformations, verbose = FALSE) {
   for (transformation in transformations) {
-    if (!(transformation[["name"]] %in% names(covariates)[[3]])) {
+    if (!(transformation[["name"]] %in% names(covariates[1,1,]))) {#QZ: update to obtain the name of the covariates
       stop(paste("Trying to perform a transform on a covariate (", transformation[["name"]], ") that does not exist. Allowed covariates are", paste(names(covariates), collapse = ", ")))
     }
     if (verbose) {
