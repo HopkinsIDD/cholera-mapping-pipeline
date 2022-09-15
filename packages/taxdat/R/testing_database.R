@@ -286,8 +286,8 @@ create_pull_symmetric_grid_adjacency_function <- function(psql_connection, drop 
 create_filter_resized_spatial_grid_pixels_to_location_function <- function(psql_connection) {
   create_filter_location_periods_function(psql_connection)
 
-  drop_query <- readr::read_file(system.file("sql", "drop_ffilter_resized_spatial_grid_pixels_to_location_function.sql", package = "taxdat"))
-  add_query <- readr::read_file(system.file("sql", "add_ffilter_resized_spatial_grid_pixels_to_location_function.sql", package = "taxdat"))
+  drop_query <- readr::read_file(system.file("sql", "drop_filter_resized_spatial_grid_pixels_to_location_function.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_filter_resized_spatial_grid_pixels_to_location_function.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
