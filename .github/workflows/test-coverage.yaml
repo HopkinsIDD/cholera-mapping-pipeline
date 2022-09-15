@@ -1,0 +1,43 @@
+# Workflow derived from https://github.com/r-lib/actions/tree/master/examples
+# Need help debugging build failures? Start at https://github.com/r-lib/actions#where-to-find-help
+on:
+  push:
+    branches:
+      - main
+      - new_pipeline
+  pull_request:
+    branches:
+      - main
+      - new_pipeline
+
+name: test-coverage
+
+jobs:
+  test-coverage:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: r-lib/actions/setup-r@v1
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v1
+        with:
+          extra-packages: covr
+
+      - name: Test coverage for taxdat
+        env:
+          CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
+          CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
+        run: |
+          chown app:app -R ./
+          chmod 777 -R ./
+          service postgresql start
+          service postgresql status
+          export CHOLERA_POSTGRES_PORT=5432
+          cd packages/taxdat
+          sudo -E -u app Rscript -e "covr::codecov()"
