@@ -278,7 +278,7 @@ plot_time_varying_pop_raster <- function(config, cache, cholera_directory) {
   if(is.null(cache[["config"]][["test_metadata"]])){
     plot <- plot_sf_with_fill(
     cache = cache, name = "covar_cube",
-    color_scale_type = "population", fill_column = "population", facet_column = "lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))", geometry_column = "geometry", color_scale_use_log = TRUE
+    color_scale_type = "population", fill_column = "population", facet_column = "(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))", geometry_column = "geometry", color_scale_use_log = TRUE
     )} else{
       plot <- plot_sf_with_fill(
         cache = cache, name = "covar_cube",
