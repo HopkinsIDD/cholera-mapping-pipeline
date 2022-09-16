@@ -1,0 +1,1 @@
+drop function pull_covar_cube;
