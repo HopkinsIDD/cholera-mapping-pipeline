@@ -22,8 +22,16 @@ jobs:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
-      - uses: actions/checkout@v2
-
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          lfs: false
+          token: ${{ secrets.PERSONAL_TOKEN }}
+      - name: Set up Rprofile
+        run: |
+          cp Docker.Rprofile $HOME/.Rprofile
+          cp -R /home/app/.cache $HOME/.cache
+        shell: bash
       - uses: r-lib/actions/setup-r@v1
         with:
           use-public-rspm: true
