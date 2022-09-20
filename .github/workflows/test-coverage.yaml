@@ -25,10 +25,6 @@ jobs:
         with:
           use-public-rspm: true
 
-      - uses: r-lib/actions/setup-r-dependencies@v1
-        with:
-          extra-packages: covr
-
       - name: Test coverage for taxdat
         env:
           CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
@@ -40,4 +36,6 @@ jobs:
           service postgresql status
           export CHOLERA_POSTGRES_PORT=5432
           cd packages/taxdat
+          Rscript -e "install.packages('covr', repos = 'https://mc-stan.org/r-packages/')"
+          Rscript -e "install.packages('.', type = 'source', repos = NULL)"
           sudo -E -u app Rscript -e "covr::codecov()"

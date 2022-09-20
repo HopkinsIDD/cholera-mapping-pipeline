@@ -1,1 +1,1 @@
-drop function pull_covar_cube;
+drop function if exists pull_covar_cube;
