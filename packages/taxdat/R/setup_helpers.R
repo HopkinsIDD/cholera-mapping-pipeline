@@ -927,30 +927,6 @@ config_checks[["processing"]][["remove_unobserved_space_slices"]] <- function(va
   }
   return(TRUE)
 }
-#QZ: add config option for adjusting covariates for modeling time scale
-config_checks[["processing"]][["adjust_covariates_for_modeling_timescale"]] <- list()
-config_checks[["processing"]][["adjust_covariates_for_modeling_timescale"]][["perform"]] <- function(value,
-                                                                                           config, index) {
-  if (length(value) != 1) {
-    warning(paste(
-      "config[['processing']][['adjust_covariates_for_modeling_timescale']][['perform']] should be of length 1, but is of length",
-      length(value), "with value", value
-    ))
-    return(FALSE)
-  }
-  if (is.na(value)) {
-    warning("config[['processing']][['adjust_covariates_for_modeling_timescale']][['perform']] is NA")
-    return(FALSE)
-  }
-  if (!is.logical(value)) {
-    warning(paste(
-      "config[['processing']][['adjust_covariates_for_modeling_timescale']][['perform']] should be logical, but is",
-      value, "of mode", mode(value)
-    ))
-    return(FALSE)
-  }
-  return(TRUE)
-}
 config_checks[["file_names"]] <- list()
 config_checks[["file_names"]][["stan_input"]] <- function(value, config, index) {
   if (length(value) != 1) {
@@ -1479,10 +1455,6 @@ config_defaults[["processing"]][["remove_unobserved_time_slices"]] <- function(c
 }
 config_defaults[["processing"]][["remove_unobserved_space_slices"]] <- function(config, index) {
   return(TRUE)
-}
-config_defaults[["processing"]][["adjust_covariates_for_modeling_timescale"]] <- list()
-config_defaults[["processing"]][["adjust_covariates_for_modeling_timescale"]][["perform"]] <- function(config, index) {
-  return(FALSE)
 }
 config_defaults[["stan"]] <- list()
 config_defaults[["stan"]][["ncores"]] <- function(config, index) {
