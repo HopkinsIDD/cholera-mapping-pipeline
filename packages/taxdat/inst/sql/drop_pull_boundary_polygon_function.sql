@@ -1,1 +1,1 @@
-drop function pull_boundary_polygon;
+drop function if exists pull_boundary_polygon;

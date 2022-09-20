@@ -1,1 +1,1 @@
-drop function resize_spatial_grid cascade;
+drop function if exists resize_spatial_grid cascade;
