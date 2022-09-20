@@ -14,7 +14,10 @@ assert <- function(test, message = "Assertion failed") {
 #' @param add_query The query to use to add the thing
 #' @param drop_query The query to use to drop the thing
 #' @param drop Whether to drop an existing table
-add_and_or_drop <- function(psql_connection, add_query, drop_query, drop = FALSE) {
+add_and_or_drop <- function(psql_connection, add_query, drop_query, drop = FALSE, echo = Sys.getenv("CHOLERA_ECHO_SQL", FALSE)) {
+  if (echo) {
+    cat(add_query)
+  }
   if (drop) {
     lapply(drop_query, function(q) {
       DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, q))
@@ -1130,4 +1133,11 @@ cast_to_int32 <- function(x) {
     stop(paste("Conversion failed", x[rc != x], "converted to", rc[rc != x]))
   }
   return(x)
+}
+
+generate_sql_file_for_database_creation <- function(psql_connection) {
+  Sys.setenv("CHOLERA_ECHO_SQL", TRUE)
+  rc <- capture.output(tmp <- taxdat::setup_testing_database(psql_connection))
+  Sys.setenv("CHOLERA_ECHO_SQL", FALSE)
+  return()
 }
