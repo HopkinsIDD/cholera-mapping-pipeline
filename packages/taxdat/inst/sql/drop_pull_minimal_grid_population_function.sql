@@ -1,0 +1,1 @@
+drop function pull_minimal_grid_population;

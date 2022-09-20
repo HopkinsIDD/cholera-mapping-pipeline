@@ -261,11 +261,16 @@ create_resize_spatial_grid_function <- function(psql_connection, drop = FALSE) {
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
-create_lookup_location_period_function <- function(psql_connection, drop = FALSE, add_triggers = TRUE) {
-  drop_query <- readr::read_file(system.file("sql", "drop_lookup_location_period_function.sql", package = "taxdat"))
+create_lookup_location_period_function <- function(psql_connection, drop = FALSE) {
+  drop_query <- c(
+    readr::read_file(system.file("sql", "drop_lookup_location_period_function.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "drop_lookup_location_period_function_trigger_function.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "drop_lookup_location_period_function_trigger_add.sql", package = "taxdat"))
+  )
   add_query <- c(
     readr::read_file(system.file("sql", "add_lookup_location_period_function.sql", package = "taxdat")),
     readr::read_file(system.file("sql", "add_lookup_location_period_function_trigger_function.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "drop_lookup_location_period_function_trigger_add.sql", package = "taxdat")),
     readr::read_file(system.file("sql", "add_lookup_location_period_function_trigger_add.sql", package = "taxdat"))
   )
 
@@ -339,230 +344,76 @@ create_pull_covar_cube_function <- function(psql_connection, drop = FALSE) {
   drop_query <- readr::read_file(system.file("sql", "drop_pull_covar_cube_function.sql", package = "taxdat"))
   add_query <- readr::read_file(system.file("sql", "add_pull_covar_cube_function.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
-
 }
 
-create_pull_observation_location_period_map <- function(psql_connection) {
-  function_query <- "
-create or replace function pull_observation_location_period_map(location_name text, start_date date, end_date date, time_scale text)
-  returns table(
-    observation_id bigint,
-    location_period_id bigint,
-    t bigint,
-    tfrac double precision
-  ) AS $$
-WITH
-  observation_data AS
-  (SELECT * FROM pull_observation_data(location_name, start_date, end_date))
-SELECT
-  observation_data.observation_id,
-  location_periods.id as location_period_id,
-  temporal_grid.id as temporal_grid_id,
-  ( 1 + least(observation_data.time_right, temporal_grid.time_max) - greatest(observation_data.time_left, temporal_grid.time_min)) * 1.::double precision / ( 1 + temporal_grid.time_max - temporal_grid.time_min) as tfrac
-FROM
-  observation_data
-INNER JOIN
-  location_periods
-    ON
-      observation_data.location_period_id = location_periods.id
-INNER JOIN
-  resize_temporal_grid(time_scale) AS temporal_grid
-    ON
-      observation_data.time_left < temporal_grid.time_max AND
-      observation_data.time_right >= temporal_grid.time_min
-$$ LANGUAGE SQL SECURITY DEFINER;
-"
-
-  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
-  invisible(NULL)
+create_pull_observation_location_period_map <- function(psql_connection, drop = FALSE) {
+  drop_query <- readr::read_file(system.file("sql", "drop_pull_observation_location_period_map_function.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_pull_observation_location_period_map_function.sql", package = "taxdat"))
+  add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
-create_pull_boundary_polygon <- function(psql_connection) {
-  function_query <- "
-create or replace function pull_boundary_polygon(location_name text)
-  returns table(
-    shape geometry
-  ) AS $$
-SELECT shapes.shape
-FROM
-  locations
-INNER JOIN
-  location_periods
-    ON
-      locations.id = location_periods.location_id
-INNER JOIN
-  shapes
-    ON
-      location_periods.id = shapes.location_period_id
-WHERE
-  locations.qualified_name = location_name
-$$ LANGUAGE SQL SECURITY DEFINER;
-"
-
-  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
-  invisible(NULL)
+create_pull_boundary_polygon <- function(psql_connection, drop = FALSE) {
+  create_resize_temporal_grid_function(psql_connection)
+  drop_query <- readr::read_file(system.file("sql", "drop_pull_boundary_polygon_function.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_pull_boundary_polygon_function.sql", package = "taxdat"))
+  add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
-create_pull_minimal_grid_population <- function(psql_connection) {
-  function_query <- "
-create or replace function pull_minimal_grid_population(location_name text, start_date date, end_date date, time_scale text)
-  returns table(
-    rid int,
-    temporal_grid_id bigint,
-    rast raster
-  ) AS $$
-SELECT
-  rid,
-  temporal_grid.id as t,
-  rast
-FROM
-  locations
-INNER JOIN
-  location_periods
-    ON
-      locations.id = location_periods.location_id
-INNER JOIN
-  shapes
-    ON
-      location_periods.id = shapes.location_period_id
-INNER JOIN
-  covariates.all_covariates
-    ON
-      st_intersects(shapes.shape, st_envelope(rast))
-INNER JOIN
-  resize_temporal_grid(time_scale) as temporal_grid
-    ON
-      covariates.all_covariates.time_left <= temporal_grid.time_midpoint
-      AND covariates.all_covariates.time_right >= temporal_grid.time_midpoint
-WHERE
-  time_midpoint >=start_date
-  AND time_midpoint <= end_date
-  AND covariate_name = 'population'
-  AND locations.qualified_name = location_name
-$$ LANGUAGE SQL SECURITY DEFINER;
-"
-
-  DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, function_query))
-  invisible(NULL)
+create_pull_minimal_grid_population <- function(psql_connection, drop = FALSE) {
+  create_resize_temporal_grid_function(psql_connection)
+  drop_query <- readr::read_file(system.file("sql", "drop_pull_minimal_grid_population_function.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_pull_minimal_grid_population_function.sql", package = "taxdat"))
+  add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
 create_shapes_with_names_view <- function(psql_connection, drop = FALSE) {
-  add_query <- "
-CREATE MATERIALIZED VIEW shapes_with_names AS
-SELECT locations.qualified_name, locations.id as location_id, location_periods.id as location_period_id, shapes.id as shape_id, shapes.shape as geom
-FROM locations inner join location_periods on locations.id = location_periods.location_id inner join shapes on location_periods.id = shapes.location_period_id
-"
-
-  index_queries <- c(
-    "create index on shapes_with_names using gist(geom);", "create index on shapes_with_names(location_period_id);",
-    "create index on shapes_with_names(shape_id);"
-  )
-
-  drop_query <- "DROP MATERIALIZED VIEW IF EXISTS shapes_with_names"
-  add_and_or_drop(psql_connection, c(add_query, index_queries), drop_query, drop)
+  create_resize_temporal_grid_function(psql_connection)
+  drop_query <- readr::read_file(system.file("sql", "drop_shapes_with_names_view.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_shapes_with_names_view.sql", package = "taxdat"))
+  add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
 create_shape_resized_spatial_grid_map_view <- function(psql_connection, drop = FALSE) {
-  add_query <- "
-CREATE MATERIALIZED VIEW IF NOT EXISTS shape_resized_spatial_grid_map_view AS(
-SELECT  l.qualified_name, l.location_period_id as location_period_id, l.shape_id, p.id as grid_id, ST_Intersection(p.polygon, l.geom) as intersection_geom, p.polygon as grid_geom
-FROM
-  grids.resized_spatial_grid_pixels p,
-  shapes_with_names l
-WHERE
-ST_IsValid(l.geom)
-AND ST_Intersects(p.polygon, ST_Boundary(l.geom))
-);
-"
-
-  index_queries <- c(
-    "create index on shape_resized_spatial_grid_map_view using gist(intersection_geom);",
-    "create index on shape_resized_spatial_grid_map_view using gist(grid_geom);",
-    "create index on shape_resized_spatial_grid_map_view(grid_id);", "create index on shape_resized_spatial_grid_map_view(location_period_id);",
-    "create index on shape_resized_spatial_grid_map_view(shape_id);"
+  create_resize_temporal_grid_function(psql_connection)
+  drop_query <- readr::read_file(system.file("sql", "drop_shape_resized_spatial_grid_map_view.sql", package = "taxdat"))
+  add_query <- c(
+    readr::read_file(system.file("sql", "add_shape_resized_spatial_grid_map_view.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "add_shape_resized_spatial_grid_map_view_intersection_index.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "add_shape_resized_spatial_grid_map_view_grid_index.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "add_shape_resized_spatial_grid_map_view_grid_id_index.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "add_shape_resized_spatial_grid_map_view_location_period_id_index.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "add_shape_resized_spatial_grid_map_view_shape_id_index.sql", package = "taxdat"))
   )
-
-  drop_query <- "DROP MATERIALIZED VIEW IF EXISTS shape_resized_spatial_grid_map_view"
-  add_and_or_drop(psql_connection, c(add_query, index_queries), drop_query, drop)
-
-  invisible(NULL)
+  add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
 create_shape_resized_spatial_grid_populations_view <- function(psql_connection, drop = FALSE) {
-  add_query <- "
-CREATE MATERIALIZED VIEW shape_resized_spatial_grid_populations as (select
-  shape_resized_spatial_grid_map_view.location_period_id,
-  shape_resized_spatial_grid_map_view.shape_id,
-  shape_resized_spatial_grid_map_view.grid_id,
-  all_covariates.time_left,
-  all_covariates.time_right,
-  all_covariates.covariate_name,
-  (st_summarystats(st_clip(rast,intersection_geom))).sum as intersection_population,
-  (st_summarystats(st_clip(rast,grid_geom))).sum as grid_population
-FROM
-  shape_resized_spatial_grid_map_view
-INNER JOIN
-  covariates.all_covariates
-    on
-      st_intersects(shape_resized_spatial_grid_map_view.intersection_geom, st_envelope(all_covariates.rast))
-WHERE
-  covariate_name = 'population');
-"
-
-  drop_query <- "DROP MATERIALIZED VIEW IF EXISTS shape_resized_spatial_grid_populations"
+  drop_query <- readr::read_file(system.file("sql", "drop_shape_resized_spatial_grid_populations_view.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_shape_resized_spatial_grid_populations_view.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
-  invisible(NULL)
 }
 
 create_resized_covariates_view <- function(psql_connection, drop = FALSE) {
-  add_query <- "
-CREATE MATERIALIZED VIEW resized_covariates as (
-select
-  resized_spatial_grid_pixels.rid as grid_rid,
-  resized_spatial_grid_pixels.id as grid_id,
-  all_covariates.covariate_name,
-  all_covariates.time_left,
-  all_covariates.time_right,
-  all_covariates.rid,
-  (st_summarystats(st_clip(all_covariates.rast, resized_spatial_grid_pixels.polygon))).sum
-from
-  grids.resized_spatial_grid_pixels
-inner join
-  covariate_grid_map
-    on
-      resized_spatial_grid_pixels.rid = covariate_grid_map.grid_rid
-      AND resized_spatial_grid_pixels.height = covariate_grid_map.height
-      AND resized_spatial_grid_pixels.width = covariate_grid_map.width
-inner join
-  covariates.all_covariates
-    on
-      all_covariates.covariate_name = covariate_grid_map.covariate_name
-      and covariate_grid_map.time_left = all_covariates.time_left
-      and covariate_grid_map.time_right = all_covariates.time_right
-      and covariate_grid_map.covar_rid = all_covariates.rid
-      and st_intersects(st_envelope(all_covariates.rast), resized_spatial_grid_pixels.polygon)
-);
-"
-  drop_query <- "DROP MATERIALIZED VIEW IF EXISTS resized_covariates"
+  drop_query <- readr::read_file(system.file("sql", "drop_resized_covariates_view.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_resized_covariates_view.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
-  invisible(NULL)
 }
 
 #' @description Create the functions we will use as part of the testing database
 #' @name create_testing_database_functions
 #' @title create_testing_database_functions
 #' @param psql_connection a connection to a database made with dbConnect
-create_testing_database_functions <- function(psql_connection) {
-  create_lookup_location_period_function(psql_connection)
-  create_ingest_covariate_function(psql_connection)
-  create_pull_grid_adjacency_function(psql_connection)
-  create_pull_symmetric_grid_adjacency_function(psql_connection)
-  create_pull_observation_data_function(psql_connection)
-  create_pull_covar_cube_function(psql_connection)
-  create_pull_observation_location_period_map(psql_connection)
-  create_pull_location_period_grid_map_function(psql_connection)
-  create_pull_boundary_polygon(psql_connection)
-  create_pull_minimal_grid_population(psql_connection)
+create_testing_database_functions <- function(psql_connection, drop = FALSE) {
+  create_lookup_location_period_function(psql_connection, drop)
+  create_ingest_covariate_function(psql_connection, drop)
+  create_pull_grid_adjacency_function(psql_connection, drop)
+  create_pull_symmetric_grid_adjacency_function(psql_connection, drop)
+  create_pull_observation_data_function(psql_connection, drop)
+  create_pull_covar_cube_function(psql_connection, drop)
+  create_pull_observation_location_period_map(psql_connection, drop)
+  create_pull_location_period_grid_map_function(psql_connection, drop)
+  create_pull_boundary_polygon(psql_connection, drop)
+  create_pull_minimal_grid_population(psql_connection, drop)
 }
 
 #' @description Refresh the materialized views in the database to account for new data
@@ -595,7 +446,7 @@ setup_testing_database <- function(psql_connection, drop = FALSE) {
   }
   create_testing_base_database(psql_connection, drop)
   create_testing_additional_database(psql_connection, drop)
-  create_testing_database_functions(psql_connection)
+  create_testing_database_functions(psql_connection, drop)
 }
 
 #' @description Create a testing database out of a list of data frames
