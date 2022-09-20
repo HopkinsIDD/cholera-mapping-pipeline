@@ -1,0 +1,1 @@
+drop function if exists pull_location_period_grid_map_interior;

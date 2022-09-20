@@ -4,11 +4,14 @@ test_that("Create locations table works", {
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
   skip_if_not(dbuser == "app") ## Check for on docker
 
-  expect_error({
-    conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
-    destroy_testing_database(conn_pg)
-    database_working <- TRUE
-  }, NA)
+  expect_error(
+    {
+      conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
+      destroy_testing_database(conn_pg)
+      database_working <- TRUE
+    },
+    NA
+  )
 
   tryCatch(
     {
@@ -34,12 +37,18 @@ test_that("Create locations table works", {
     },
     NA
   )
-  expect_error({
-    create_locations_table(conn_pg)
-  })
-  expect_error({
-    create_locations_table(conn_pg, FALSE)
-  })
+  expect_error(
+    {
+      create_locations_table(conn_pg)
+    },
+    NA
+  )
+  expect_error(
+    {
+      create_locations_table(conn_pg, FALSE)
+    },
+    NA
+  )
 })
 
 test_that("Create location_periods table works", {
@@ -70,12 +79,18 @@ test_that("Create location_periods table works", {
     },
     NA
   )
-  expect_error({
-    create_location_periods_table(conn_pg)
-  })
-  expect_error({
-    create_location_periods_table(conn_pg, FALSE)
-  })
+  expect_error(
+    {
+      create_location_periods_table(conn_pg)
+    },
+    NA
+  )
+  expect_error(
+    {
+      create_location_periods_table(conn_pg, FALSE)
+    },
+    NA
+  )
 })
 
 test_that("Create shapes table works", {
@@ -107,12 +122,18 @@ test_that("Create shapes table works", {
     },
     NA
   )
-  expect_error({
-    create_shapes_table(conn_pg)
-  })
-  expect_error({
-    create_shapes_table(conn_pg, FALSE)
-  })
+  expect_error(
+    {
+      create_shapes_table(conn_pg)
+    },
+    NA
+  )
+  expect_error(
+    {
+      create_shapes_table(conn_pg, FALSE)
+    },
+    NA
+  )
 })
 
 test_that("Create location_hierarchies table works", {
@@ -143,12 +164,18 @@ test_that("Create location_hierarchies table works", {
     },
     NA
   )
-  expect_error({
-    create_location_hierarchies_table(conn_pg)
-  })
-  expect_error({
-    create_location_hierarchies_table(conn_pg, FALSE)
-  })
+  expect_error(
+    {
+      create_location_hierarchies_table(conn_pg)
+    },
+    NA
+  )
+  expect_error(
+    {
+      create_location_hierarchies_table(conn_pg, FALSE)
+    },
+    NA
+  )
 })
 
 test_that("Create observation table works", {
@@ -180,12 +207,18 @@ test_that("Create observation table works", {
     },
     NA
   )
-  expect_error({
-    create_observations_table(conn_pg)
-  })
-  expect_error({
-    create_observations_table(conn_pg, FALSE)
-  })
+  expect_error(
+    {
+      create_observations_table(conn_pg)
+    },
+    NA
+  )
+  expect_error(
+    {
+      create_observations_table(conn_pg, FALSE)
+    },
+    NA
+  )
 })
 
 test_that("Create master_spatial_grid table works", {
@@ -218,12 +251,18 @@ test_that("Create master_spatial_grid table works", {
     },
     NA
   )
-  expect_error({
-    create_master_spatial_grid_table(conn_pg)
-  })
-  expect_error({
-    create_master_spatial_grid_table(conn_pg, FALSE)
-  })
+  expect_error(
+    {
+      create_master_spatial_grid_table(conn_pg)
+    },
+    NA
+  )
+  expect_error(
+    {
+      create_master_spatial_grid_table(conn_pg, FALSE)
+    },
+    NA
+  )
 })
 
 test_that("Create resized_spatial_grids table works", {
@@ -259,12 +298,18 @@ test_that("Create resized_spatial_grids table works", {
     },
     NA
   )
-  expect_error({
-    create_resized_spatial_grids_view(conn_pg)
-  })
-  expect_error({
-    create_resized_spatial_grids_view(conn_pg, FALSE)
-  })
+  expect_error(
+    {
+      create_resized_spatial_grids_view(conn_pg)
+    },
+    NA
+  )
+  expect_error(
+    {
+      create_resized_spatial_grids_view(conn_pg, FALSE)
+    },
+    NA
+  )
 })
 
 test_that("Create all_covariates table works", {
@@ -294,12 +339,18 @@ test_that("Create all_covariates table works", {
     },
     NA
   )
-  expect_error({
-    create_all_covariates_table(conn_pg)
-  })
-  expect_error({
-    create_all_covariates_table(conn_pg, FALSE)
-  })
+  expect_error(
+    {
+      create_all_covariates_table(conn_pg)
+    },
+    NA
+  )
+  expect_error(
+    {
+      create_all_covariates_table(conn_pg, FALSE)
+    },
+    NA
+  )
 })
 
 test_that("Create time_bounds table works", {
@@ -329,12 +380,18 @@ test_that("Create time_bounds table works", {
     },
     NA
   )
-  expect_error({
-    create_time_bounds_table(conn_pg)
-  })
-  expect_error({
-    create_time_bounds_table(conn_pg, FALSE)
-  })
+  expect_error(
+    {
+      create_time_bounds_table(conn_pg)
+    },
+    NA
+  )
+  expect_error(
+    {
+      create_time_bounds_table(conn_pg, FALSE)
+    },
+    NA
+  )
 })
 
 test_that("Create master_temporal_grid_view works", {

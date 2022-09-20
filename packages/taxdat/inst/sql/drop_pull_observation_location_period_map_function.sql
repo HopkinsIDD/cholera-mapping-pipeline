@@ -1,0 +1,1 @@
+drop function if exists pull_observation_location_period_map;

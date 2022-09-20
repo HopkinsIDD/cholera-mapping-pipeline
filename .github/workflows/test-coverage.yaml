@@ -1,0 +1,42 @@
+# Workflow derived from https://github.com/r-lib/actions/tree/master/examples
+# Need help debugging build failures? Start at https://github.com/r-lib/actions#where-to-find-help
+on:
+  push:
+    branches:
+      - main
+      - new_pipeline
+  pull_request:
+    branches:
+      - main
+      - new_pipeline
+jobs:
+  test-coverage:
+    runs-on: ubuntu-20.04
+    container:
+      image: docker://hopkinsidd/choleramappingpipeline:latest-dev
+      options: --user root
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          lfs: false
+          token: ${{ secrets.PERSONAL_TOKEN }}
+      - name: Set up Rprofile
+        run: |
+          cp Docker.Rprofile $HOME/.Rprofile
+          cp -R /home/app/.cache $HOME/.cache
+        shell: bash
+      - name: Test coverage for taxdat
+        env:
+          CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
+          CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
+        run: |
+          chown app:app -R ./
+          chmod 777 -R ./
+          service postgresql start
+          service postgresql status
+          export CHOLERA_POSTGRES_PORT=5432
+          cd packages/taxdat
+          sudo -E -u app Rscript -e "install.packages(c('covr'), repos = c('http://cran.r-project.org/'))"
+          sudo -E -u app Rscript -e "covr::codecov()"
+        shell: bash
