@@ -15,6 +15,9 @@ name: test-coverage
 jobs:
   test-coverage:
     runs-on: ubuntu-latest
+    container:
+      image: docker://hopkinsidd/choleramappingpipeline:latest-dev
+      options: --user root
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
 
@@ -36,6 +39,6 @@ jobs:
           service postgresql status
           export CHOLERA_POSTGRES_PORT=5432
           cd packages/taxdat
-          Rscript -e "install.packages('covr', repos = 'https://mc-stan.org/r-packages/')"
-          Rscript -e "install.packages('.', type = 'source', repos = NULL)"
+          sudo -E -u app Rscript -e "install.packages('covr', repos = 'https://mc-stan.org/r-packages/')"
+          sudo -E -u app Rscript -e "install.packages('.', type = 'source', repos = NULL)"
           sudo -E -u app Rscript -e "covr::codecov()"
