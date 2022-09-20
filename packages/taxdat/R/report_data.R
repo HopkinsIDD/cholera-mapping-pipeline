@@ -1,5 +1,4 @@
 #' @include report_cache.R
-#' @include setup_helpers.R
 
 #' @name get_config_no_cache
 #' @description load config.rdata
