@@ -9,17 +9,13 @@ on:
     branches:
       - main
       - new_pipeline
-
-name: test-coverage
-
 jobs:
   test-coverage:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     container:
       image: docker://hopkinsidd/choleramappingpipeline:latest-dev
       options: --user root
-    env:
-      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+    env: GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -31,10 +27,6 @@ jobs:
           cp Docker.Rprofile $HOME/.Rprofile
           cp -R /home/app/.cache $HOME/.cache
         shell: bash
-      - uses: r-lib/actions/setup-r@v1
-        with:
-          use-public-rspm: true
-
       - name: Test coverage for taxdat
         env:
           CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
@@ -46,5 +38,6 @@ jobs:
           service postgresql status
           export CHOLERA_POSTGRES_PORT=5432
           cd packages/taxdat
+          sudo -E -u app Rscript -e "install.packages(c('covr'), repos = c('http://cran.r-project.org/'))"
           sudo -E -u app Rscript -e "covr::codecov()"
         shell: bash
