@@ -47,6 +47,5 @@ jobs:
           service postgresql status
           export CHOLERA_POSTGRES_PORT=5432
           cd packages/taxdat
-          sudo -E -u app Rscript -e "install.packages('covr', repos = 'https://mc-stan.org/r-packages/')"
           sudo -E -u app Rscript -e "install.packages('.', type = 'source', repos = NULL)"
           sudo -E -u app Rscript -e "covr::codecov()"

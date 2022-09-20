@@ -1,1 +1,1 @@
-drop function if existspull_minimal_grid_population;
+drop function if exists pull_minimal_grid_population;
