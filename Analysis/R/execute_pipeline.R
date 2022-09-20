@@ -66,6 +66,9 @@ opt <- optparse::parse_args((optparse::OptionParser(option_list = option_list)))
 ### Config Options
 config <- yaml::read_yaml(opt[["config"]], eval.expr = TRUE)
 config <- taxdat::complete_config(config)
+if (!is.na(as.integer(Sys.getenv("CHOLERA_TEST_ITERATION", NA)))) {
+  config[["stan"]][["niter"]] <- as.integer(Sys.getenv("CHOLERA_TEST_ITERATION", NA))
+}
 if (!opt[["testing_run"]]) {
   yaml::write_yaml(config, file = paste0(opt[["config"]], ".complete"))
 }
