@@ -197,8 +197,8 @@ cov3_seed <- c(
 
 sim_time_left <- lubridate::ymd("2000-01-01")
 sim_time_right <- lubridate::ymd("2001-12-31")
-query_time_left <- c(lubridate::ymd("2000-01-01"), lubridate::ymd("2000-01-01"),lubridate::ymd("2000-01-01"))
-query_time_right <- c(lubridate::ymd("2000-05-30"), lubridate::ymd("2001-05-30"),lubridate::ymd("2001-12-31"))
+query_time_left <- c(lubridate::ymd("2000-01-01"), lubridate::ymd("2000-01-01"), lubridate::ymd("2000-01-01"))
+query_time_right <- c(lubridate::ymd("2000-05-30"), lubridate::ymd("2001-05-30"), lubridate::ymd("2001-12-31"))
 ## Pull data frames needed to create testing database from the api This doesn't
 ## pull covariates, but does pull everything else tryCatch({ all_dfs <-
 ## taxdat::create_testing_dfs_from_api( username
@@ -358,15 +358,15 @@ all_dfs$observations_df <- test_observations %>%
   )
 
 # overlapping observations with consistent case counts
-all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$cases<-all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$cases
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$cases <- all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$cases
 
-test_true_grid_cases<-test_underlying_distribution$mean
-#label grids that is observed
-observed_polygon_id<-c(unique(data.frame(sf::st_join(st_centroid(test_true_grid_cases),sf::st_as_sf(all_dfs$observations_df)))%>%subset(is.na(location)==F)%>%subset(!qualified_name=="1")%>%dplyr::select(id)))
-observed_test_true_grid_cases<-test_true_grid_cases%>%subset(id%in%observed_polygon_id$id)
-test_true_grid_cases<-test_true_grid_cases%>%mutate(observed=ifelse(id%in%observed_polygon_id$id,"Observed grid cells","Unobserved grid cells"))
+test_true_grid_cases <- test_underlying_distribution$mean
+# label grids that is observed
+observed_polygon_id <- c(unique(data.frame(sf::st_join(st_centroid(test_true_grid_cases), sf::st_as_sf(all_dfs$observations_df))) %>% subset(is.na(location) == F) %>% subset(!qualified_name == "1") %>% dplyr::select(id)))
+observed_test_true_grid_cases <- test_true_grid_cases %>% subset(id %in% observed_polygon_id$id)
+test_true_grid_cases <- test_true_grid_cases %>% mutate(observed = ifelse(id %in% observed_polygon_id$id, "Observed grid cells", "Unobserved grid cells"))
 
-saveRDS(test_true_grid_cases,"/home/app/cmp/Analysis/output/test_case_9_true_grid_cases.rdata")
+saveRDS(test_true_grid_cases, "/home/app/cmp/Analysis/output/test_case_9_true_grid_cases.rdata")
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
@@ -404,7 +404,7 @@ config <- list(general = list(
   nrows = 10, ncols = 10, data_type = "Grid data", oc_type = "-", polygon_type = "Fake polygon",
   polygon_coverage = "100%", randomize = TRUE, ncovariates = nrow(covariates_table),
   single_year_run = ifelse(lubridate::year(query_time_right) - lubridate::year(query_time_left) ==
-                             0, "yes", "no"), nonspatial = covariates_table$nonspatial, nontemporal = covariates_table$nontemporal,
+    0, "yes", "no"), nonspatial = covariates_table$nonspatial, nontemporal = covariates_table$nontemporal,
   spatially_smooth = covariates_table$spatially_smooth, temporally_smooth = covariates_table$temporally_smooth,
   polygonal = covariates_table$polygonal, radiating = covariates_table$radiating,
   constant = covariates_table$constant, Data_simulation_covariates = covariates_table$Data_simulation_covariates,
@@ -412,8 +412,7 @@ config <- list(general = list(
     "Nationally reported data is ",
     all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$suspected_cases / sum(all_dfs$observations_df[grep("1::", all_dfs$observations_df$qualified_name), ]$suspected_cases), " times of the cases reported at the subnational level."
   ),
-  Loc_with_inconsistent_data = "-", Cov_data_simulation_filename = "/home/app/cmp/Analysis/output/test_case_9_data_simulation_covariates.rdata",test_true_grid_case_filename="/home/app/cmp/Analysis/output/test_case_9_true_grid_cases.rdata"
-  
+  Loc_with_inconsistent_data = "-", Cov_data_simulation_filename = "/home/app/cmp/Analysis/output/test_case_9_data_simulation_covariates.rdata", test_true_grid_case_filename = "/home/app/cmp/Analysis/output/test_case_9_true_grid_cases.rdata"
 ))
 
 yaml::write_yaml(x = config, file = config_filename)
