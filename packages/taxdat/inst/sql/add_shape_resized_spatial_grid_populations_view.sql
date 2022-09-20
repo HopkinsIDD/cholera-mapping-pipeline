@@ -1,4 +1,4 @@
-CREATE MATERIALIZED VIEW shape_resized_spatial_grid_populations as (select
+CREATE MATERIALIZED VIEW IF NOT EXISTS shape_resized_spatial_grid_populations as (select
   shape_resized_spatial_grid_map_view.location_period_id,
   shape_resized_spatial_grid_map_view.shape_id,
   shape_resized_spatial_grid_map_view.grid_id,

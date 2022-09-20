@@ -1,4 +1,4 @@
-CREATE MATERIALIZED VIEW resized_covariates as (
+CREATE MATERIALIZED VIEW IF NOT EXISTS resized_covariates as (
 select
   resized_spatial_grid_pixels.rid as grid_rid,
   resized_spatial_grid_pixels.id as grid_id,

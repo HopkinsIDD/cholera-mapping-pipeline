@@ -1,4 +1,4 @@
-CREATE TABLE observations(
+CREATE TABLE IF NOT EXISTS observations(
   id BIGSERIAL PRIMARY KEY,
   observation_collection_id bigint,
   time_left date,
