@@ -20,6 +20,7 @@ jobs:
         with:
           lfs: false
           token: ${{ secrets.PERSONAL_TOKEN }}
+          fetch-depth: 0
       - name: Set up Rprofile
         run: |
           cp Docker.Rprofile $HOME/.Rprofile
