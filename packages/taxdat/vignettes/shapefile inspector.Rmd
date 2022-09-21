@@ -16,36 +16,36 @@ params:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE,warning=FALSE,message=FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(taxdat)
 library(sf)
-taxdir = params$taxdir
-country = substr(params$region,1,3)
+taxdir <- params$taxdir
+country <- substr(params$region, 1, 3)
 whoregion <- lookup_WHO_region(country)
-ISO_level = length(strsplit(params$region,'_')[[1]]) - 1
+ISO_level <- length(strsplit(params$region, "_")[[1]]) - 1
 ```
 
 Pulling the shapefile for `r params$region`.
 ```{r}
-shp <- get_shape_file(paste("AFR",params$region,sep='_'),taxonomy_dir = taxdir)
+shp <- get_shape_file(paste("AFR", params$region, sep = "_"), taxonomy_dir = taxdir)
 plot(shp$geometry)
 print(shp)
 ```
 Custom Shapefile if we have it
 ```{r}
 ### FIX ME
-ldir <- paste(taxdir,'Location',sep='/')
-region_array = strsplit(params$region,split = '_',fixed=TRUE)[[1]]
-smallest_ISO = region_array[length(region_array)]
-smallest_ISO = gsub(' ','',smallest_ISO)
-alllocs <- list.files(ldir,pattern = paste(whoregion,country,'.*',smallest_ISO,'LOC.csv',sep='_'),ignore.case = TRUE)
-alllocs = gsub('_LOC.csv','',alllocs)
-if(length(alllocs) > 0){
-  if(length(alllocs) > 1){
-    shplist <- lapply(alllocs,get_shape_file,taxonomy_dir = taxdir,method = 'center')
+ldir <- paste(taxdir, "Location", sep = "/")
+region_array <- strsplit(params$region, split = "_", fixed = TRUE)[[1]]
+smallest_ISO <- region_array[length(region_array)]
+smallest_ISO <- gsub(" ", "", smallest_ISO)
+alllocs <- list.files(ldir, pattern = paste(whoregion, country, ".*", smallest_ISO, "LOC.csv", sep = "_"), ignore.case = TRUE)
+alllocs <- gsub("_LOC.csv", "", alllocs)
+if (length(alllocs) > 0) {
+  if (length(alllocs) > 1) {
+    shplist <- lapply(alllocs, get_shape_file, taxonomy_dir = taxdir, method = "center")
     shp <- reduce_sf_vector(shplist)
   } else {
-    shp <- get_shape_file(alllocs,taxonomy_dir = taxdir,method = 'center')
+    shp <- get_shape_file(alllocs, taxonomy_dir = taxdir, method = "center")
   }
   plot(shp$geometry)
 }
@@ -53,23 +53,23 @@ if(length(alllocs) > 0){
 
 These are the differences between the shapefiles
 ```{r}
-if(nrow(shp) > 1){
-  print(all.equal(shp[1,],shp[2,]))
+if (nrow(shp) > 1) {
+  print(all.equal(shp[1, ], shp[2, ]))
 }
 ```
 Pulling the shapefiles for all subregions in `r country`
 ```{r}
-shp1 <- get_country_sublevels(country,1,taxdir)
+shp1 <- get_country_sublevels(country, 1, taxdir)
 plot(shp1$geometry)
-plot(shp$geometry,add=TRUE,col='blue',key.pos=1)
+plot(shp$geometry, add = TRUE, col = "blue", key.pos = 1)
 ```
 
 Pulling the shapefiles for all subregions of `r params$region`
 ```{r}
-shp3 <- get_country_sublevels(country,3,taxdir)
-shp3 = st_intersection(shp3,shp)
-shp3 = shp3[as.numeric(st_area(shp3)) > 10,]
-plot(shp3[,'NAME_3'],key.size = lcm(3.3))
+shp3 <- get_country_sublevels(country, 3, taxdir)
+shp3 <- st_intersection(shp3, shp)
+shp3 <- shp3[as.numeric(st_area(shp3)) > 10, ]
+plot(shp3[, "NAME_3"], key.size = lcm(3.3))
 ```
 
 The subregions are
