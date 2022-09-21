@@ -6,8 +6,8 @@ output: revealjs::revealjs_presentation
 knitr::opts_chunk$set(echo = TRUE)
 ```
 ```{r,echo=FALSE,message=FALSE,warning=FALSE}
-taxonomy_dir = "~/svn/cholera-taxonomy/trunk/taxonomy-verified/"
-layers_dir = "~/svn/cholera-taxonomy/trunk/Layers/"
+taxonomy_dir <- "~/svn/cholera-taxonomy/trunk/taxonomy-verified/"
+layers_dir <- "~/svn/cholera-taxonomy/trunk/Layers/"
 library(taxdat)
 ```
 
@@ -30,24 +30,29 @@ In `svn` at `trunk/packages/taxdat`
 read_description_taxonomy(
   taxonomy.directory,
   ...,
-  uids)
+  uids
+)
 read_epi_taxonomy(
   taxonomy.directory,
-  uids)
+  uids
+)
 read_taxonomy_data(
   taxonomy.directory,
   columns,
-  ...)
+  ...
+)
 aggregate_taxonomy_data(
- data,
- ...)
+  data,
+  ...
+)
 ```
 #### Sample
 ```{r,eval=FALSE}
-data = read_taxonomy_data(
-  taxonomy_dir,c('who_region','cases'),"!is.na(cases)")
-aggregate_data <- 
-  aggregate_taxonomy_data(data,'who_region')
+data <- read_taxonomy_data(
+  taxonomy_dir, c("who_region", "cases"), "!is.na(cases)"
+)
+aggregate_data <-
+  aggregate_taxonomy_data(data, "who_region")
 ```
 
 ## Create Taxonomy
@@ -57,50 +62,53 @@ aggregate_data <-
 create_location_file(
   location,
   taxonomy_dir,
-  replace.existing)
+  replace.existing
+)
 create_population_file(
   location,
   taxonomy_dir,
-  replace.existing)
-fix_country_name(country_name)                 #in progress
-fix_location_name(location,taxonomy.directory) #in progress
+  replace.existing
+)
+fix_country_name(country_name) # in progress
+fix_location_name(location, taxonomy.directory) # in progress
 lookup_WHO_region(country_name)
 ```
 #### Sample
 ```{r,eval=FALSE}
 create_location_file(
-  'Africa_Malawi_Blantyre_TA Chigaru',
+  "Africa_Malawi_Blantyre_TA Chigaru",
   taxonomy_dir = taxonomy_dir,
-  replace.existing = FALSE)
+  replace.existing = FALSE
+)
 ```
 #### <span style="color:red">-In Progress-</span>
  
 ## Shapefiles
 #### Functions
 ```{r,eval=FALSE}
-get_country_shapefile(name,taxonomy_dir)
-get_country_sublevels(location_name,ISO_level,taxonomy_dir)
-get_shape_file(location_name,taxonomy_dir)
-exists_shape_file(location,taxonomy_dir)
+get_country_shapefile(name, taxonomy_dir)
+get_country_sublevels(location_name, ISO_level, taxonomy_dir)
+get_shape_file(location_name, taxonomy_dir)
+exists_shape_file(location, taxonomy_dir)
 ```
 
 #### Sample
 ```{r,}
-shp <- get_shape_file("AFR_MWI_MW-BL",taxonomy_dir)
+shp <- get_shape_file("AFR_MWI_MW-BL", taxonomy_dir)
 shp
 ```
 -----
 ```{r,}
-plot(shp$geometry,col='blue',axes=TRUE)
+plot(shp$geometry, col = "blue", axes = TRUE)
 ```
 
 ## Rasters
 #### Functions
 ```{r,eval=FALSE}
-aggregate_raster_xcells(raster_layer,fun)
-aggregate_raster_xlayers(raster_layer,fun)
-expand_extent(extent,expansion)
-load_population_estimates(raster_layer,year,layers_dir) #in progress
+aggregate_raster_xcells(raster_layer, fun)
+aggregate_raster_xlayers(raster_layer, fun)
+expand_extent(extent, expansion)
+load_population_estimates(raster_layer, year, layers_dir) # in progress
 ```
 #### Future Covariates
 |Covariate           |source    |status         |
@@ -111,39 +119,41 @@ load_population_estimates(raster_layer,year,layers_dir) #in progress
 #### Sample
 ```{r}
 case_estimates <- raster::brick("~/svn/cholera-taxonomy/trunk/manuscripts/GAVI Impact Estimation/data/afro_2010-2016_cases_raster_stack_upd.grd")
-mean_cases <- aggregate_raster_xlayers(case_estimates,mean)
+mean_cases <- aggregate_raster_xlayers(case_estimates, mean)
 ```
 
 ## Raster-Shapefile Interactions
 #### Functions
 ```{r,eval=FALSE}
-extract_country_from_raster(raster_layer,shapefile,partial_cover)
-extract_shapefile_from_raster(shapefile,raster_layer,expansion)
+extract_country_from_raster(raster_layer, shapefile, partial_cover)
+extract_shapefile_from_raster(shapefile, raster_layer, expansion)
 apply_to_all_sublevels(
-  location_name,raster_layer,ISO_level,
-  fun,taxonomy_dir,fix_location_names,
-  partial_cover,...)
+  location_name, raster_layer, ISO_level,
+  fun, taxonomy_dir, fix_location_names,
+  partial_cover, ...
+)
 ```
 #### Sample
 ```{r}
 region_cases <- extract_country_from_raster(
-  mean_cases,shp,TRUE)
+  mean_cases, shp, TRUE
+)
 ```
 -----
 ```{r}
 plot(region_cases)
-plot(shp$geometry,add=TRUE,axes=TRUE)
+plot(shp$geometry, add = TRUE, axes = TRUE)
 ```
 
 ## Other functions in taxdat
 
 #### Functions
 ```{r,eval=FALSE}
-classify_date         # Modeling Data Availability
-get_observed_cells    # (I didn't write this)
-get_report_type       # Modeling Data Availability
-rdist_stan_model      # (I didn't write this)
-sample_stan_model     # (I didn't write this)
+classify_date # Modeling Data Availability
+get_observed_cells # (I didn't write this)
+get_report_type # Modeling Data Availability
+rdist_stan_model # (I didn't write this)
+sample_stan_model # (I didn't write this)
 stan_result_summarize # (I didn't write this)
 ```
 
