@@ -55,12 +55,12 @@ aggregate_data <-
 #### Functions
 ```{r,eval=FALSE}
 create_location_file(
-  location
-  taxonomy_dir
+  location,
+  taxonomy_dir,
   replace.existing)
 create_population_file(
-  location
-  taxonomy_dir
+  location,
+  taxonomy_dir,
   replace.existing)
 fix_country_name(country_name)                 #in progress
 fix_location_name(location,taxonomy.directory) #in progress
