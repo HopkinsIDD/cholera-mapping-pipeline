@@ -21,13 +21,13 @@ jobs:
           lfs: false
           token: ${{ secrets.PERSONAL_TOKEN }}
           fetch-depth: 0
-          set-safe-directory: '/__w/cholera-mapping-pipeline/cholera-mapping-pipeline'
       - name: Set up Rprofile
         run: |
           cp Docker.Rprofile $HOME/.Rprofile
           cp -R /home/app/.cache $HOME/.cache
           pwd
           ls
+          git config --global --add safe.directory .
           git status
           exit 1
         shell: bash
