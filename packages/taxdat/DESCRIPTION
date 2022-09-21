@@ -23,6 +23,7 @@ RoxygenNote: 7.2.1
 VignetteBuilder: knitr
 Collate: 
     'aggregation.R'
+    'check_stan_model.R'
     'color_scale.R'
     'config_checks.R'
     'covariate_helpers.R'
