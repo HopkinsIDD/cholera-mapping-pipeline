@@ -797,7 +797,7 @@ print("Finished saving model input")
 
 print("Running STAN")
 ## Fix me : make sure this works
-chol_model <- cmdstanr::cmdstan_model(stan_model_path, quiet = FALSE, force_recompile = F)
+chol_model <- cmdstanr::cmdstan_model(stan_model_path, quiet = FALSE, force_recompile = config[["stan"]][["recompile"]])
 
 ## FIX ME : add seed to config FIX ME : Split warmup and sampling iterations
 ## into two arguments
