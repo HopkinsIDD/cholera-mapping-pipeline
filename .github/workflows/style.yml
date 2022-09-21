@@ -21,7 +21,7 @@ jobs:
           lfs: false
           token: ${{ secrets.PERSONAL_TOKEN }}
           fetch-depth: 0
-          safe_directory: '.'
+          safe_directory: '/__w/cholera-mapping-pipeline/cholera-mapping-pipeline'
       - name: Set up Rprofile
         run: |
           cp Docker.Rprofile $HOME/.Rprofile
