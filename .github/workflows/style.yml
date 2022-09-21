@@ -25,6 +25,9 @@ jobs:
         run: |
           cp Docker.Rprofile $HOME/.Rprofile
           cp -R /home/app/.cache $HOME/.cache
+          pwd
+          ls
+          exit 1
         shell: bash
 
       - name: Setup styler
