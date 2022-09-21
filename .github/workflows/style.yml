@@ -27,6 +27,7 @@ jobs:
           cp -R /home/app/.cache $HOME/.cache
           pwd
           ls
+          git status
           exit 1
         shell: bash
 
