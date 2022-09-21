@@ -11,7 +11,7 @@ params:
 ---
 
 ```{r setup, include=FALSE, dev="CairoPNG"}
-knitr::opts_chunk$set(inlude = FALSE, dev="CairoPNG")
+knitr::opts_chunk$set(inlude = FALSE, dev = "CairoPNG")
 knitr::opts_chunk$set(
   echo = FALSE,
   fig.align = "center",
@@ -29,16 +29,15 @@ library(countrycode)
 
 ```{r readdata}
 bad <- read_csv("gavi_summary_bad.csv") %>% ## lancet numbers are wrong
-    dplyr::select(country, contains("estimate"))
+  dplyr::select(country, contains("estimate"))
 gha <- data.frame(country = "GHA", WHO_estimate = mean(c(692, 175, 0, 1))) ## no data reported for 2018
 tza <- data.frame(country = "TZA", WHO_estimate = mean(c(11563, 11360, 4895, 4777))) ## no 2019 data reported
 bad <- dplyr::bind_rows(bad, gha, tza)
 
 gavi <- read_csv("gavi_summary.csv") %>%
-    dplyr::select(-X1) %>%
-    left_join(bad, by = c("country"))
-need_manual_WHO <- gavi[which(!gavi$country %in% bad$country),]$country
-
+  dplyr::select(-X1) %>%
+  left_join(bad, by = c("country"))
+need_manual_WHO <- gavi[which(!gavi$country %in% bad$country), ]$country
 ```
 
 ```{r popdata}
@@ -46,104 +45,114 @@ data(codelist, package = "countrycode")
 data(pop, package = "wpp2019")
 country_cw <- dplyr::select(codelist, iso3n, iso3c) %>%
   dplyr::filter(!is.na(iso3n) & !is.na(iso3c))
-pop <- pop[,c("country_code", "name", "2015", "2020")] ## get 2015 & 2020 estimates only
+pop <- pop[, c("country_code", "name", "2015", "2020")] ## get 2015 & 2020 estimates only
 names(pop) <- c("iso3n", "country", "p2015", "p2020")
 popdf <- dplyr::inner_join(country_cw, pop, by = c("iso3n")) %>%
   dplyr::mutate(pop = rowMeans(cbind(p2015, p2020), na.rm = TRUE) * 1000) %>% ## mean of 2015 & 2020 pop estimates
-  dplyr::select(iso3c, pop)  
+  dplyr::select(iso3c, pop)
 ```
 
 ```{r prepdata}
 datlong <- dplyr::left_join(gavi, popdf, by = c("country" = "iso3c")) %>%
   dplyr::rowwise() %>%
-  dplyr::mutate(WHO_cases_quantile_low = quantile(rpois(1000, WHO_estimate), probs = c(.025), na.rm= TRUE),
-                WHO_cases_quantile_high = quantile(rpois(1000, WHO_estimate), probs = c(.975), na.rm = TRUE)) %>%
+  dplyr::mutate(
+    WHO_cases_quantile_low = quantile(rpois(1000, WHO_estimate), probs = c(.025), na.rm = TRUE),
+    WHO_cases_quantile_high = quantile(rpois(1000, WHO_estimate), probs = c(.975), na.rm = TRUE)
+  ) %>%
   dplyr::ungroup() %>%
-  dplyr::mutate(WHO_rates = WHO_estimate/pop, 
-                WHO_rates_quantile_low = WHO_cases_quantile_low/pop,
-                WHO_rates_quantile_high = WHO_cases_quantile_high/pop,
-                UNICEF_rates = UNICEF_estimate/pop) %>%
+  dplyr::mutate(
+    WHO_rates = WHO_estimate / pop,
+    WHO_rates_quantile_low = WHO_cases_quantile_low / pop,
+    WHO_rates_quantile_high = WHO_cases_quantile_high / pop,
+    UNICEF_rates = UNICEF_estimate / pop
+  ) %>%
   dplyr::select(-pop) %>%
-  dplyr::mutate(swap_current_who = ifelse(current_cases_mean/lancet_cases_mean==1, T, F)) %>%
-  dplyr::mutate(current_rates_mean = ifelse(swap_current_who, WHO_rates, current_rates_mean),
-                current_rates_quantile_high = ifelse(swap_current_who, WHO_rates_quantile_high, current_rates_quantile_high),
-                current_rates_quantile_low = ifelse(swap_current_who, WHO_rates_quantile_low, current_rates_quantile_low),
-                current_cases_mean = ifelse(swap_current_who, WHO_estimate, current_cases_mean),
-                current_cases_quantile_high = ifelse(swap_current_who, WHO_cases_quantile_high, current_cases_quantile_high),
-                current_cases_quantile_low = ifelse(swap_current_who, WHO_cases_quantile_low, current_cases_quantile_low)) %>%
-  dplyr::mutate(current_rates_mean = ifelse(is.na(current_rates_mean), 0, current_rates_mean),
-                current_cases_mean = ifelse(is.na(current_cases_mean), 0, current_cases_mean)) %>%
+  dplyr::mutate(swap_current_who = ifelse(current_cases_mean / lancet_cases_mean == 1, T, F)) %>%
+  dplyr::mutate(
+    current_rates_mean = ifelse(swap_current_who, WHO_rates, current_rates_mean),
+    current_rates_quantile_high = ifelse(swap_current_who, WHO_rates_quantile_high, current_rates_quantile_high),
+    current_rates_quantile_low = ifelse(swap_current_who, WHO_rates_quantile_low, current_rates_quantile_low),
+    current_cases_mean = ifelse(swap_current_who, WHO_estimate, current_cases_mean),
+    current_cases_quantile_high = ifelse(swap_current_who, WHO_cases_quantile_high, current_cases_quantile_high),
+    current_cases_quantile_low = ifelse(swap_current_who, WHO_cases_quantile_low, current_cases_quantile_low)
+  ) %>%
+  dplyr::mutate(
+    current_rates_mean = ifelse(is.na(current_rates_mean), 0, current_rates_mean),
+    current_cases_mean = ifelse(is.na(current_cases_mean), 0, current_cases_mean)
+  ) %>%
   # dplyr::select(-swap_current_who) %>%
   pivot_longer(cols = c(-country, -swap_current_who), names_to = c("source", "type", "q", "dummy"), names_sep = "_", values_to = "value") %>%
-  dplyr::mutate(type = ifelse(type == "estimate", "cases", type),
-              q = ifelse(q == "quantile", dummy, q)) %>%
+  dplyr::mutate(
+    type = ifelse(type == "estimate", "cases", type),
+    q = ifelse(q == "quantile", dummy, q)
+  ) %>%
   dplyr::select(-dummy) %>%
   dplyr::mutate(q = ifelse(is.na(q), "mean", q)) %>%
   pivot_wider(names_from = q, values_from = value) %>%
   dplyr::rename(countrycode = country) %>%
   dplyr::mutate(country = recode(countrycode,
-                    AGO = "Angola",
-                    BDI = "Burundi",
-                    BEN = "Benin",
-                    BFA = "Burkina Faso",
-                    CAF = "C. African Republic",
-                    CIV = "Cote D'Ivoire",
-                    CMR = "Cameroon",
-                    COD = "DR Congo",
-                    COG = "Republic of Congo",
-                    ETH = "Ethiopia",
-                    GHA = "Ghana",
-                    GNB = "Guinea Bissau",
-                    KEN = "Kenya",
-                    LBR = "Liberia",
-                    MLI = "Mali",
-                    MOZ = "Mozambique",
-                    MRT = "Mauritania",
-                    MWI = "Malawi",
-                    NER = "Niger",
-                    NGA = "Nigeria",
-                    RWA = "Rwanda",
-                    SDN = "Sudan",
-                    SEN = "Senegal",
-                    SLE = "Sierra Leone",
-                    SOM = "Somalia",
-                    SSD = "South Sudan",
-                    SWZ = "Eswatini",
-                    TCD = "Chad",
-                    TGO = "Togo",
-                    TZA = "Tanzania",
-                    UGA = "Uganda",
-                    ZAF = "South Africa",
-                    ZMB = "Zambia",
-                    ZWE = "Zimbabwe"
-        )) %>%
+    AGO = "Angola",
+    BDI = "Burundi",
+    BEN = "Benin",
+    BFA = "Burkina Faso",
+    CAF = "C. African Republic",
+    CIV = "Cote D'Ivoire",
+    CMR = "Cameroon",
+    COD = "DR Congo",
+    COG = "Republic of Congo",
+    ETH = "Ethiopia",
+    GHA = "Ghana",
+    GNB = "Guinea Bissau",
+    KEN = "Kenya",
+    LBR = "Liberia",
+    MLI = "Mali",
+    MOZ = "Mozambique",
+    MRT = "Mauritania",
+    MWI = "Malawi",
+    NER = "Niger",
+    NGA = "Nigeria",
+    RWA = "Rwanda",
+    SDN = "Sudan",
+    SEN = "Senegal",
+    SLE = "Sierra Leone",
+    SOM = "Somalia",
+    SSD = "South Sudan",
+    SWZ = "Eswatini",
+    TCD = "Chad",
+    TGO = "Togo",
+    TZA = "Tanzania",
+    UGA = "Uganda",
+    ZAF = "South Africa",
+    ZMB = "Zambia",
+    ZWE = "Zimbabwe"
+  )) %>%
   dplyr::mutate(country = ifelse(swap_current_who, paste0(country, "*"), country)) %>%
   dplyr::filter(source != "UNICEF") %>%
-  dplyr::mutate(data_source = dplyr::case_when(
-                    source == "current" ~ "JHU_2015-19",
-                    source == "lancet" ~ "JHU_2010-16",
-                    source == "WHO" ~ "WHO_2015-19"
-                ),
-                years = dplyr::case_when(
-                    source == "current" ~ "2015-2019",
-                    source == "lancet" ~ "2010-2016",
-                    source == "WHO" ~ "2015-2019"
-                )
+  dplyr::mutate(
+    data_source = dplyr::case_when(
+      source == "current" ~ "JHU_2015-19",
+      source == "lancet" ~ "JHU_2010-16",
+      source == "WHO" ~ "WHO_2015-19"
+    ),
+    years = dplyr::case_when(
+      source == "current" ~ "2015-2019",
+      source == "lancet" ~ "2010-2016",
+      source == "WHO" ~ "2015-2019"
+    )
   )
 
 cases <- dplyr::filter(datlong, type == "cases")
 rates <- dplyr::filter(datlong, type == "rates") %>%
-    dplyr::mutate(mean10K = mean*10000)
+  dplyr::mutate(mean10K = mean * 10000)
 rateRatio <- dplyr::filter(datlong, type == "rates" & source %in% c("current", "lancet")) %>%
-    dplyr::select(country, source, mean) %>%
-    pivot_wider(names_from = source, values_from = mean) %>%
-    dplyr::mutate(ratio = current/lancet) %>%
-    dplyr::mutate(changes = dplyr::case_when(
-                    ratio > 1 ~ "increased incidence",
-                    ratio == 1 ~ "no updated estimates",
-                    ratio < 1 ~ "decreased incidence"
-        ))
-
+  dplyr::select(country, source, mean) %>%
+  pivot_wider(names_from = source, values_from = mean) %>%
+  dplyr::mutate(ratio = current / lancet) %>%
+  dplyr::mutate(changes = dplyr::case_when(
+    ratio > 1 ~ "increased incidence",
+    ratio == 1 ~ "no updated estimates",
+    ratio < 1 ~ "decreased incidence"
+  ))
 ```
 
 ```{r write_out}
@@ -153,8 +162,8 @@ readr::write_csv(dplyr::select(datlong, -swap_current_who, -source), "prelim_est
 ```{r figsettings}
 pal <- diverging_hcl(4, palette = "Purple Green")
 names(pal) <- c("JHU_2015-19", "JHU_2010-16", "UNICEF", "WHO_2015-19")
-w=7
-h=5
+w <- 7
+h <- 5
 ```
 
 In this report, we present preliminary nationwide estimates of mean annual incidence of suspected cholera from 2015-2019 for countries in sub-Saharan Africa. We compare our "JHU_2015_2019" estimates to three other sources of information:
@@ -172,12 +181,12 @@ Exceptions:
 
 ```{r caseplot, fig.width=5, fig.height=7, fig.cap="Mean annual cholera incident cases, 2010-2016 estimates versus preliminary 2015-2019 estimates. The difference between 2010-16 and 2015-19 estimates is shown with a grey line. Mean annual reports to WHO from 2015-2019 are displayed for reference. WHO reports were used for JHU_2015-19 estimates for countries marked with '*'. "}
 plt_c <- ggplot(cases, aes(y = country)) +
-    geom_point(aes(x = mean, colour = data_source, group = data_source), alpha = 0.8, size = 2) +
-    geom_path(data = dplyr::filter(cases, source %in% c("lancet", "current")), aes(y = country, x = mean), colour = "grey60") +
-    scale_x_sqrt("Cases", breaks = c(0, 100, 1000, 5000, 10000, 20000, 30000, 50000), labels = scales::comma) +
-    scale_colour_manual(values = pal) +
-    theme_bw() +
-    theme(legend.position = "bottom", axis.title.y = element_blank(), legend.title = element_blank())
+  geom_point(aes(x = mean, colour = data_source, group = data_source), alpha = 0.8, size = 2) +
+  geom_path(data = dplyr::filter(cases, source %in% c("lancet", "current")), aes(y = country, x = mean), colour = "grey60") +
+  scale_x_sqrt("Cases", breaks = c(0, 100, 1000, 5000, 10000, 20000, 30000, 50000), labels = scales::comma) +
+  scale_colour_manual(values = pal) +
+  theme_bw() +
+  theme(legend.position = "bottom", axis.title.y = element_blank(), legend.title = element_blank())
 
 ggsave("case_comparison_minireport.png", plt_c, width = w, height = h)
 plt_c
@@ -185,12 +194,12 @@ plt_c
 
 ```{r rateplot, fig.width=5, fig.height=7, fig.cap="Mean annual cholera incidence rate, 2010-2016 estimates versus preliminary 2015-2019 estimates. The difference between 2010-16 and 2015-19 estimates is shown with a grey line. WHO reports were used for JHU_2015-19 estimates for countries marked with '*'."}
 plt_r <- ggplot(rates, aes(y = country)) +
-    geom_point(aes(x = mean10K, colour = data_source, group = data_source), alpha = 0.8, size = 2) +
-    geom_path(aes(x = mean10K), colour = "grey60") +
-    scale_x_continuous("Incidence Rate per 10K", labels = scales::comma) +
-    scale_colour_manual(values = pal) +
-    theme_bw() +
-    theme(legend.position = "bottom", axis.title.y = element_blank(), legend.title = element_blank())
+  geom_point(aes(x = mean10K, colour = data_source, group = data_source), alpha = 0.8, size = 2) +
+  geom_path(aes(x = mean10K), colour = "grey60") +
+  scale_x_continuous("Incidence Rate per 10K", labels = scales::comma) +
+  scale_colour_manual(values = pal) +
+  theme_bw() +
+  theme(legend.position = "bottom", axis.title.y = element_blank(), legend.title = element_blank())
 
 ggsave("rate_comparison_minireport.png", plt_r, width = w, height = h)
 plt_r
@@ -198,12 +207,12 @@ plt_r
 
 ```{r rrplot, fig.width=5, fig.height=7, fig.cap="Rate ratio of preliminary 2015-2019 to 2010-2016 mean annual cholera incidence estimates"}
 plt_rr <- ggplot(rateRatio, aes(y = country)) +
-    geom_point(aes(x = ratio, colour = changes), size = 2) +
-    geom_vline(aes(xintercept = 1)) +
-    scale_x_log10("Rate Ratio (current/lancet)", labels = scales::comma) +
-    theme_bw() +
-    theme(legend.position = "bottom", axis.title.y = element_blank(), legend.title = element_blank()) +
-    guides(colour = guide_legend(nrow=2))
+  geom_point(aes(x = ratio, colour = changes), size = 2) +
+  geom_vline(aes(xintercept = 1)) +
+  scale_x_log10("Rate Ratio (current/lancet)", labels = scales::comma) +
+  theme_bw() +
+  theme(legend.position = "bottom", axis.title.y = element_blank(), legend.title = element_blank()) +
+  guides(colour = guide_legend(nrow = 2))
 
 ggsave("rateratio_minireport.png", plt_rr, width = w, height = h)
 plt_rr
@@ -218,7 +227,6 @@ dplyr::filter(datlong, type == "cases") %>%
   dplyr::arrange(country) %>%
   kableExtra::kable(digits = 0, caption = "Mean annual incidence cases", col.names = c("Country", "Source", "Years", "Mean", "2.5%", "97.5%")) %>%
   kableExtra::kable_styling(full_width = F)
-
 ```
 
 ```{r ratetab}
@@ -226,10 +234,9 @@ dplyr::filter(datlong, type == "rates") %>%
   dplyr::mutate(source = ifelse(source == "WHO", source, "JHU")) %>%
   dplyr::select(country, source, years, mean, low, high) %>%
   dplyr::arrange(country) %>%
-  dplyr::mutate(mean = mean*10, low = low*10, high = high*10) %>%
+  dplyr::mutate(mean = mean * 10, low = low * 10, high = high * 10) %>%
   kableExtra::kable(caption = "Mean annual incidence rate per 100,000", col.names = c("Country", "Source", "Years", "Mean", "2.5%", "97.5%")) %>%
   kableExtra::kable_styling(full_width = F)
-
 ```
 
 # Methods

@@ -17,7 +17,8 @@ create_mapping_progress_table <- function(config_path, pipeline_path) {
   }
 
   ## bind together the results for each config
-  do.call(what=rbind,
+  do.call(
+    what = rbind,
     lapply(
       config_path,
       create_mapping_progress_table_single_config,
