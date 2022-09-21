@@ -30,5 +30,3 @@ todo.org
 !tests/**/*.yml
 !.github/**/*.yml
 !Analysis/R/test_case/**.yml
-**.html
-**.rs

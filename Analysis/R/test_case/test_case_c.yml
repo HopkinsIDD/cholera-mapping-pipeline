@@ -12,10 +12,10 @@ processing: []
 stan:
   niter: 4000.0
   nchain: 4.0
-  model: dagar_seasonal_flexible.stan
+  model: dagar_seasonal_flexible_sum_to_zero.stan
   do_time_slice:
     eta_simplex: TRUE
-  narrower_prior: TRUE
+  sum_to_zero: TRUE
 test_metadata:
   raster:
     units: years
@@ -55,7 +55,7 @@ test_metadata:
     end_date: '2004-12-31'
     template: accurate
 file_names:
-  report: test_case_b.html
+  report: test_case_c.html
 seeds:
   global_seed: [10403,68,1235579427,-536490051,-1474526166,-1243979237,936407911,565438754,1449575741,319694383,
              745753380,-1499589091,1317135575,367582367,-497616923,-1383406906,1041201250,-758780777,-697571325,

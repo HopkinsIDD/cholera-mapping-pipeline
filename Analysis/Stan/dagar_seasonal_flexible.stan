@@ -59,7 +59,11 @@ data {
   int<lower=0, upper=1> use_weights;
   // Prior for high values of rho
   int<lower=0, upper=1> use_rho_prior;
-
+  // QZ: exponentiate betas 
+  int<lower=0, upper=1> exp_prior;
+  // QZ: narrower prior (betas)
+  int<lower=0, upper=1> narrower_prior;
+  
   // If time slice effect pass indicator function for years without data
   int debug;
   vector<lower=0, upper=1>[N*do_time_slice_effect] has_data_year;
@@ -107,7 +111,7 @@ parameters {
 
   vector[smooth_grid_N] w; // Spatial Random Effect
 
-  vector[T*do_time_slice_effect] eta_tilde; // yearly random effects
+  vector[T*do_time_slice_effect] eta_tilde; // QZ: yearly random effects
   real <lower=0> sigma_eta_tilde[do_time_slice_effect];
 
   // Covariate stuff
@@ -122,10 +126,9 @@ transformed parameters {
   vector[N] grid_cases; //cases modeled in each gridcell and time point.
   real previous_debugs;
   previous_debugs = 0;
-
-  {
-    vector[L] location_cases; //cases modeled in each (temporal) location.
-    vector[N] log_lambda; //local log rate
+ {
+  vector[L] location_cases; //cases modeled in each (temporal) location.
+  vector[N] log_lambda; //local log rate
 
     if (do_time_slice_effect == 1) {
       for(i in 1:T) {
@@ -315,7 +318,13 @@ model {
   }
 
   // prior on regression coefficients
-  betas ~ normal(0,beta_sigma_scale);
+  // QZ: added ifelse for exponential options
+  if (exp_prior==0){
+    betas ~ normal(0,beta_sigma_scale);
+  } else {
+    betas ~ double_exponential(0, beta_sigma_scale);
+  }
+  
   if (debug && (previous_debugs == 0)) {
     print("betas", target());
   }
@@ -333,7 +342,9 @@ model {
     // For the autocorrelated model sigma is the sd of the increments in the random effects
     sigma_eta_tilde ~ std_normal();
     sigma_eta_scale ~ std_normal();
-
+    
+    if(narrower_prior==1){ //QZ: added narower_prior as an option
+      sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraint
     if (do_time_slice_effect_autocor == 1) {
       real tau = 1/(sigma_eta_tilde[1] * sigma_eta_scale)^2; // precision of the increments of the time-slice random effects
       // Autocorrelation on yearly random effects with 0-sum constraint
@@ -342,7 +353,16 @@ model {
       // Sorbye and Rue (2014) https://doi.org/10.1016/j.spasta.2013.06.004
       target += (T-1.0)/2.0 * log(tau) - tau/2 * (dot_self(eta[2:T] - eta[1:(T-1)]));
       sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraint
-    } else {
+    }
+  }else if (do_time_slice_effect_autocor == 1) {
+      real tau = 1/(sigma_eta_tilde[1] * sigma_eta_scale)^2; // precision of the increments of the time-slice random effects
+      // Autocorrelation on yearly random effects with 0-sum constraint
+      // The increments of the time-slice random effects are assumed to have mean 0
+      // and variance 1/tau
+      // Sorbye and Rue (2014) https://doi.org/10.1016/j.spasta.2013.06.004
+      target += (T-1.0)/2.0 * log(tau) - tau/2 * (dot_self(eta[2:T] - eta[1:(T-1)]));
+      sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraint
+  }else {
       eta_tilde ~ std_normal();
     }
     if (debug && (previous_debugs == 0)) {

@@ -36,10 +36,13 @@ test_metadata:
     seed: global_seed
   observations:
   - start_date: '2000-01-01'
+    end_date: '2000-12-31'
+    template: accurate
+  - start_date: '2001-01-01'
     end_date: '2001-12-31'
     template: accurate
 file_names:
-  report: test_case_1.html
+  report: test_case_19.html
 seeds:
   global_seed: [ 10404, 625, 105045778, 1207077739, 2042172336, -219892751, -768060162,
   -2006256281, -1585201540, -978856627, -1568163926, -1028934365, 1356190728, 1795633769,
