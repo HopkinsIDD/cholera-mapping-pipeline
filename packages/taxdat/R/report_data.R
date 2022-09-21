@@ -386,7 +386,7 @@ get_grid_cases <- cache_fun_results(name = "grid_cases", fun = get_grid_cases_no
 #' @return grid_cases
 get_sf_grid_data_no_cache <- function(config, cache, cholera_directory) {
   get_config(config = config, cache = cache, cholera_directory = cholera_directory)
-  true_grid_data <- readRDS(cache[["config"]][["test_metadata"]][["test_true_grid_case_filename"]])
+  true_grid_data <- readRDS(cache[["config"]][["test_metadata"]][["file_names"]][["true_grid_cases"]])
   return(true_grid_data)
 }
 ## cache the results

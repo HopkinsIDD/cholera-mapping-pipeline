@@ -164,7 +164,7 @@ taxdat::plot_raw_observations(config=params$config,cache=cache,cholera_directory
 ### Covariates
 
 #### Population
-**Population raster by time slices:**
+**Population raster by time slices (log scale):**
 ```{r pop, fig.height=5, fig.width=10, fig.cap=capFig("Population density")}
 taxdat::plot_time_varying_pop_raster(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 ```
@@ -177,7 +177,7 @@ warning("Removed this plot for now")
 
 #### Other covariates
 **Covariate rasters:**
-```{r covars, fig.height=5, fig.width=10, fig.cap=capFig("Covariate rasters")}
+```{r covars, fig.height=10, fig.width=10, fig.cap=capFig("Covariate rasters")}
 taxdat::plot_raster_covariates(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
 ```
 
@@ -205,17 +205,22 @@ taxdat::plot_gam_fit_output_cases(config = params$config, cache = cache, cholera
 taxdat::plot_gam_fit_output_rates(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
-### True underlying distribution maps
-#### Ture underlying distribution of cases
-**True grid cases raster by time slices:**
-```{r underlying distribution of cases,fig.cap=capFig("True underlying distribution of cases"), fig.height=5, fig.width=10}
-# plot_true_grid_cases(config=params$config,cholera_directory=params$cholera_directory,cache=cache)
+```{r, results="asis", echo=FALSE}
+if(!is.null(cache[["config"]][["test_metadata"]])){
+cat("### True underlying distribution maps","\n","#### True grid cases raster by time slices:")
+plot_true_grid_cases(config=params$config,cholera_directory=params$cholera_directory,cache=cache)
+}else{
+  return(NULL)
+}
 ```
 
-#### Ture underlying distribution of incidece rates
-**True grid incidence raster by time slices:**
-```{r underlying distribution of incidence rates,fig.cap=capFig("True underlying distribution of rates"), fig.height=5, fig.width=10}
-# plot_true_grid_rates(config=params$config,cholera_directory=params$cholera_directory,cache=cache)
+```{r, results="asis", echo=FALSE}
+if(!is.null(cache[["config"]][["test_metadata"]])){
+cat("#### True grid rate raster by time slices:")
+plot_true_grid_rates(config=params$config,cholera_directory=params$cholera_directory,cache=cache)
+}else{
+  return(NULL)
+}
 ```
 
 ### Output maps
@@ -272,11 +277,16 @@ plot_model_fidelity_tfrac_adjusted(
 ```
 
 ``` {r datafidelity2, fig.cap=capFig("True vs. modeled grid cases"), fig.height=10, fig.width=10}
-# plot_true_modeled_grid_cases (
-#   config = params$config,
-#   cache = cache,
-#   cholera_directory = params$cholera_directory
-# )
+if(!is.null(cache[["config"]][["test_metadata"]])){
+  plot_true_modeled_grid_cases (
+  config = params$config,
+  cache = cache,
+  cholera_directory = params$cholera_directory
+)
+}else{
+  return(NULL)
+  warning("Production runs don't have the true distribution of cases at the grid level.")
+}
 ```
 
 ```{r datafidelity3, fig.cap=capFig("Observations vs. modeled cases (tfrac adjusted)"), fig.height=15, fig.width=10}
@@ -295,7 +305,7 @@ taxdat::plot_stan_parameter_traceplot(config = params$config, cache = cache, cho
 ```
 
 **Parameter posteriors:**
-```{r params, fig.height=6, fig.width=6, fig.cap=capFig("Parameter posteriors")}
+```{r params, fig.height=10, fig.width=18, fig.cap=capFig("Parameter posteriors")}
 taxdat::plot_stan_parameter_violin(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 

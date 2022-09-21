@@ -12,10 +12,9 @@ processing: []
 stan:
   niter: 4000.0
   nchain: 4.0
-  model: dagar_seasonal_flexible.stan
+  model: dagar_seasonal_flexible_sum_to_zero_constraint.stan
   do_time_slice:
     eta_simplex: TRUE
-  narrower_prior: TRUE
 test_metadata:
   raster:
     units: years
@@ -24,17 +23,17 @@ test_metadata:
     template: full and grid
   covariates:
   - name: "population"
-    template: spatially_smooth_polygonal_temporally_smooth_constant
+    template: spatially_smooth_nontemporal_polygonal_constant
     include_in_simulation: yes
     include_in_model: yes
     seed: global_seed
   - name: "covariate_2"
-    template: spatially_smooth_temporally_smooth_polygonal
+    template: spatially_smooth_nontemporal_polygonal
     include_in_simulation: yes
     include_in_model: yes
     seed: global_seed
   - name: "covariate_3"
-    template: nonspatial_spatially_smooth_temporally_smooth_polygonal
+    template: nonspatial_nontemporal_spatially_smooth_polygonal
     include_in_simulation: yes
     include_in_model: no
     seed: global_seed
@@ -55,7 +54,7 @@ test_metadata:
     end_date: '2004-12-31'
     template: accurate
 file_names:
-  report: test_case_b.html
+  report: test_case_c1.html
 seeds:
   global_seed: [10403,68,1235579427,-536490051,-1474526166,-1243979237,936407911,565438754,1449575741,319694383,
              745753380,-1499589091,1317135575,367582367,-497616923,-1383406906,1041201250,-758780777,-697571325,
