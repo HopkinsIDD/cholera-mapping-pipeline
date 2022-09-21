@@ -178,6 +178,19 @@ covariate_raster_funs_simulation <- taxdat:::convert_simulated_covariates_to_tes
 global_seed <- .GlobalEnv$.Random.seed
 min_time_left <- query_time_left
 max_time_right <- query_time_right
+
+## todo: Convert test_covariates_modeling :
+### Make these covariates match the time scale of model (at least population) /QZ: if covariates is time-varying (especially population), then we should do transformations on the covariates if the time slices of covariates are different from the modeling time scale. code isn't done, need to decide how to do the transformations.
+if (
+  (config[["test_metadata"]][["covariates"]][[1]][["nontemporal"]] || config[["test_metadata"]][["covariates"]][[1]][["temporally_smooth"]]) &
+    (config[["general"]][["time_scale"]] != config[["test_metadata"]][["raster"]][["units"]])
+) {
+  if (config[["test_metadata"]][["processing"]][["adjust_covariates_for_modeling_timescale"]][["perform"]]) {
+    stop("We didn't write this code yet")
+  }
+  ## Otherwise don't do the adjustment
+}
+
 covariate_raster_funs_modeling <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(
   test_covariates_modeling,
   min_time_left, max_time_right
@@ -190,7 +203,8 @@ rds_file <- config[["test_metadata"]][["file_names"]][["simulation_covariates"]]
 if (!dir.exists(dirname(rds_file))) {
   dir.create(dirname(rds_file))
 }
-saveRDS(test_covariates_modeling, rds_file)
+# QZ: this is simulation covariates not modeling covariates
+saveRDS(test_covariates_simulation, rds_file)
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Change observations
@@ -227,23 +241,25 @@ test_observations <- lapply(config[["test_metadata"]][["observations"]], functio
     max_time_right = lubridate::ymd(config[["general"]][["end_date"]]),
     observation_time_left = lubridate::ymd(spec[["start_date"]]),
     observation_time_right = lubridate::ymd(spec[["end_date"]]),
-    seed = global_seed
+    seed = global_seed,
+    time_scale = config[["test_metadata"]][["raster"]][["units"]]
   )
   if (grepl("inflated", spec[["template"]])) {
     rc <- rc %>%
-      dplyr::mutate(cases = ifelse(qualified_name == config[["general"]][["location"]], cases, cases * spec[["inflation_factor"]]))
+      dplyr::mutate(cases = ifelse(location == config[["general"]][["location_name"]], cases, cases * spec[["inflation_factor"]])) # QZ: changed qualified_name into location/change location into location_names
   }
   if (grepl("iso_level", spec[["template"]])) {
     rc <- rc %>%
-      dplyr::filter(stringr::str_count(qualified_name, pattern = "::") %in% spec[["iso_levels_to_keep"]])
+      dplyr::filter(stringr::str_count(location, pattern = "::") %in% spec[["iso_levels_to_keep"]])
   }
   if (grepl("filtered", spec[["template"]])) {
     rc <- rc %>%
-      dplyr::filter(qualified_name %in% spec[["kept_location_periods"]])
+      dplyr::filter(location %in% spec[["kept_location_periods"]])
   }
   return(rc)
 }) %>%
   do.call(what = dplyr::bind_rows)
+
 global_seed <- .GlobalEnv$.Random.seed
 
 all_dfs$observations_df <- test_observations %>%
@@ -259,23 +275,24 @@ buffer <- min(c(
 )) * 100 * 1000 * .5
 lhs <- t(sf::st_contains(sf::st_buffer(test_observations, buffer), test_observed_grid))
 rhs <- sf::st_contains(sf::st_buffer(test_observed_grid, buffer), test_observations)
-test_observed_grid$observed <- mapply(
-  idx = seq_len(length(lhs)),
-  lhs,
-  rhs,
-  FUN = function(idx, x, y) {
-    rc <- intersect(x, y)
-    rc <- rc[test_observed_grid$t[idx] == test_observations$tmin[rc]]
-    rc <- rc[test_observed_grid$t[idx] == test_observations$tmax[rc]]
-    return(ifelse(length(rc) > 0, "Observed grid cells", "Unobserved grid cells"))
-  }
-)
 
 rds_file <- config[["test_metadata"]][["file_names"]][["true_grid_cases"]]
 if (!dir.exists(dirname(rds_file))) {
   dir.create(dirname(rds_file))
 }
-saveRDS(test_observed_grid, rds_file)
+true_grid_data <- test_underlying_distribution$mean # QZ: instead of true observed grid, here it should be from the true_underlying_distribution$mean
+true_grid_data$observed <- mapply(
+  idx = seq_len(length(lhs)),
+  lhs,
+  rhs,
+  FUN = function(idx, x, y) {
+    rc <- intersect(x, y)
+    rc <- rc[true_grid_data$t[idx] == test_observations$tmin[rc]]
+    rc <- rc[true_grid_data$t[idx] == test_observations$tmax[rc]]
+    return(ifelse(length(rc) > 0, "Observed grid cells", "Unobserved grid cells"))
+  }
+)
+saveRDS(true_grid_data, rds_file)
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database

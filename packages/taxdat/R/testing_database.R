@@ -954,6 +954,7 @@ pull_observation_data <- function(psql_connection, location_name, start_date, en
 #' @export
 convert_simulated_covariates_to_test_covariate_funs <- function(original_simulated_covariates,
                                                                 min_time_left, max_time_right) {
+  max_time_right <- max_time_right + 1
   simulated_covariates <- original_simulated_covariates
   simulated_covariates[[1]]$covariate <- 10^simulated_covariates[[1]][["covariate"]] +
     1
@@ -985,7 +986,7 @@ convert_simulated_covariates_to_test_covariate_funs <- function(original_simulat
           min_time_index) / (max_time_index - min_time_index + 1) * (max_time_right -
           min_time_left),
         end_date = min_time_left + (time_index + 1 - min_time_index) / (max_time_index +
-          -min_time_index + 1) * (max_time_right - min_time_left), fun = function(psql_connection) {
+          -min_time_index + 1) * (max_time_right - min_time_left) - 1, fun = function(psql_connection) { # QZ: end_date-1 (so the end_date and start_date aren't the same)
           rc <- raster::raster(sf::st_sf(sf::st_as_sfc(sf::st_bbox(covariate))),
             nrow = nrow, ncol = ncol, vals = as.numeric(NA)
           )

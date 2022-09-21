@@ -483,6 +483,52 @@ config_checks[["stan"]][["model"]] <- function(value, config, index) {
   return(FALSE)
 }
 
+## QZ: added exp_prior
+config_checks[["stan"]][["exp_prior"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['exp_prior']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['exp_prior']] is NA")
+    return(FALSE)
+  }
+  if (!is.logical(value)) {
+    warning(
+      "config[['stan']][['exp_prior']] should be logical, but is",
+      value
+    )
+    return(FALSE)
+  }
+  return(TRUE)
+}
+
+## QZ: added narrower_prior
+config_checks[["stan"]][["narrower_prior"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['narrower_prior']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['narrower_prior']] is NA")
+    return(FALSE)
+  }
+  if (!is.logical(value)) {
+    warning(
+      "config[['stan']][['narrower_prior']] should be logical, but is",
+      value
+    )
+    return(FALSE)
+  }
+  return(TRUE)
+}
+
 config_checks[["initial_values"]] <- list()
 config_checks[["initial_values"]][["warmup"]] <- function(value, config, index) {
   if (length(value) != 1) {
@@ -684,7 +730,6 @@ config_checks[["processing"]][["remove_unobserved_space_slices"]] <- function(va
   }
   return(TRUE)
 }
-
 config_checks[["file_names"]] <- list()
 config_checks[["file_names"]][["stan_input"]] <- function(value, config, index) {
   if (length(value) != 1) {
@@ -1214,7 +1259,6 @@ config_defaults[["processing"]][["remove_unobserved_time_slices"]] <- function(c
 config_defaults[["processing"]][["remove_unobserved_space_slices"]] <- function(config, index) {
   return(TRUE)
 }
-
 config_defaults[["stan"]] <- list()
 config_defaults[["stan"]][["ncores"]] <- function(config, index) {
   return(2)
@@ -1244,7 +1288,12 @@ config_defaults[["stan"]][["do_time_slice"]][["eta_simplex"]] <- function(config
 config_defaults[["stan"]][["do_time_slice"]][["autocorrelated_prior"]] <- function(config, index) {
   return(FALSE)
 }
-
+config_defaults[["stan"]][["exp_prior"]] <- function(config, index) {
+  return(FALSE)
+}
+config_defaults[["stan"]][["narrower_prior"]] <- function(config, index) {
+  return(FALSE)
+}
 config_defaults[["generated"]] <- list()
 config_defaults[["generated"]][["perform"]] <- function(config, index) {
   return(FALSE)

@@ -1,13 +1,16 @@
 general:
   location_name: '1'
   start_date: '2000-01-01'
-  end_date: '2004-12-31'
+  end_date: '2001-12-31'
   time_scale: year
   width_in_km: 1.0
   height_in_km: 1.0
   covariates:
    - name: "population"
    - name: "covariate_2"
+   - name: "covariate_3"
+   - name: "covariate_5"
+   - name: "covariate_6"
 processing: []
 stan:
   niter: 4000.0
@@ -15,49 +18,54 @@ stan:
   model: dagar_seasonal_flexible.stan
   do_time_slice:
     eta_simplex: TRUE
-  narrower_prior: TRUE
+  exp_prior: TRUE
+  narrower_prior: FALSE
+  sum_to_zero: FALSE
 test_metadata:
   raster:
     units: years
-    nlayer: 5
+    nlayer: 2
   polygons:
     template: full and grid
   covariates:
   - name: "population"
-    template: spatially_smooth_polygonal_temporally_smooth_constant
+    template: polygonal
     include_in_simulation: yes
     include_in_model: yes
     seed: global_seed
   - name: "covariate_2"
-    template: spatially_smooth_temporally_smooth_polygonal
+    template: polygonal
     include_in_simulation: yes
     include_in_model: yes
     seed: global_seed
   - name: "covariate_3"
-    template: nonspatial_spatially_smooth_temporally_smooth_polygonal
+    template: polygonal
+    include_in_simulation: yes
+    include_in_model: yes
+    seed: global_seed
+  - name: "covariate_4"
+    template: polygonal
     include_in_simulation: yes
     include_in_model: no
     seed: global_seed
+  - name: "covariate_5"
+    template: polygonal
+    include_in_simulation: no
+    include_in_model: yes
+    seed: global_seed
+  - name: "covariate_6"
+    template: polygonal
+    include_in_simulation: no
+    include_in_model: yes
+    seed: global_seed
   observations:
   - start_date: '2000-01-01'
-    end_date: '2000-12-31'
-    template: accurate
-  - start_date: '2001-01-01'
     end_date: '2001-12-31'
     template: accurate
-  - start_date: '2002-01-01'
-    end_date: '2002-12-31'
-    template: accurate
-  - start_date: '2003-01-01'
-    end_date: '2003-12-31'
-    template: accurate
-  - start_date: '2004-01-01'
-    end_date: '2004-12-31'
-    template: accurate
 file_names:
-  report: test_case_b.html
+  report: test_case_1d.html
 seeds:
-  global_seed: [10403,68,1235579427,-536490051,-1474526166,-1243979237,936407911,565438754,1449575741,319694383,
+  global_seed: [10403,80,1235579427,-536490051,-1474526166,-1243979237,936407911,565438754,1449575741,319694383,
              745753380,-1499589091,1317135575,367582367,-497616923,-1383406906,1041201250,-758780777,-697571325,
              -1746075096,679503042,-26956654,-1340834598,795482303,-1910278852,-1757431244,-1706273351,
              2117410134,-1818518651,-683209438,987698909,-1755235241,1141036153,1930540532,816396146,300759582,
