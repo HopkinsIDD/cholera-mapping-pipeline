@@ -680,7 +680,7 @@ config_checks[["stan"]][["model"]] <- function(value, config, index) {
   return(FALSE)
 }
 
-##QZ: added exp_prior
+## QZ: added exp_prior
 config_checks[["stan"]][["exp_prior"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
@@ -703,7 +703,7 @@ config_checks[["stan"]][["exp_prior"]] <- function(value, config, index) {
   return(TRUE)
 }
 
-##QZ: added narrower_prior
+## QZ: added narrower_prior
 config_checks[["stan"]][["narrower_prior"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
@@ -1485,10 +1485,10 @@ config_defaults[["stan"]][["do_time_slice"]][["eta_simplex"]] <- function(config
 config_defaults[["stan"]][["do_time_slice"]][["autocorrelated_prior"]] <- function(config, index) {
   return(FALSE)
 }
-config_defaults[["stan"]][["exp_prior"]]<- function(config, index) {
+config_defaults[["stan"]][["exp_prior"]] <- function(config, index) {
   return(FALSE)
 }
-config_defaults[["stan"]][["narrower_prior"]]<- function(config, index) {
+config_defaults[["stan"]][["narrower_prior"]] <- function(config, index) {
   return(FALSE)
 }
 config_defaults[["generated"]] <- list()

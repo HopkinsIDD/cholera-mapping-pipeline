@@ -26,36 +26,36 @@ __Note__: an observation is the count of cases over a timeframe, which can be â‰
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = FALSE)
-rm(list=ls())
+rm(list = ls())
 ```
 
 
 ```{r packages and functions, include = FALSE}
 # packages
-package_list <- c('sf', 'ggplot2', 'data.table', 'kableExtra', 'tidyverse')
+package_list <- c("sf", "ggplot2", "data.table", "kableExtra", "tidyverse")
 invisible(lapply(package_list, library, character.only = TRUE))
 # functions
-source('Analysis/R/notebooks/gtfcc_data_scoping/data_scoping_functions.R')
+source("Analysis/R/notebooks/gtfcc_data_scoping/data_scoping_functions.R")
 ```
 
 
 ```{r load data, include = FALSE}
 # parent directories
-dir <- 'Analysis/R/notebooks/gtfcc_data_scoping/'
+dir <- "Analysis/R/notebooks/gtfcc_data_scoping/"
 # country data file
-dt_countries <- fread(paste0(dir, 'outputs/country_data_summary_2020-11-06.csv'))
+dt_countries <- fread(paste0(dir, "outputs/country_data_summary_2020-11-06.csv"))
 # fix data mismatch
-dt_countries[country == 'CAM', country := 'CMR']
+dt_countries[country == "CAM", country := "CMR"]
 # region data file
-dt_region <- fread(paste0(dir, 'outputs/region_data_summary_2020-11-06.csv'))
+dt_region <- fread(paste0(dir, "outputs/region_data_summary_2020-11-06.csv"))
 # shapefile
-shp <- st_read(paste0(dir, 'inputs/ne_50m_admin_0_countries/ne_50m_admin_0_countries.shp'))
-shp <- shp[c('ISO_A3', 'NAME_EN', 'geometry')]
+shp <- st_read(paste0(dir, "inputs/ne_50m_admin_0_countries/ne_50m_admin_0_countries.shp"))
+shp <- shp[c("ISO_A3", "NAME_EN", "geometry")]
 # country meta-data and clean up
-meta <- fread(paste0(dir, 'inputs/db_country_codes_20201026.csv'))
+meta <- fread(paste0(dir, "inputs/db_country_codes_20201026.csv"))
 meta[, region := get_region(country_code)]
-meta <- meta[region != 'WHO']
-meta <- merge(meta, data.table(country = shp$ISO_A3, name = shp$NAME_EN), by = 'country')
+meta <- meta[region != "WHO"]
+meta <- merge(meta, data.table(country = shp$ISO_A3, name = shp$NAME_EN), by = "country")
 ```
 
 ## Data availability 2010-2020: totals by country
@@ -66,16 +66,17 @@ Represent primary observations for Africa, and all observations for the rest of 
 ```{r total observations, fig.height = 3, fig.width = 8}
 # subset data
 dt_ctry <- copy(dt_countries)
-dt_ctry <- dt_ctry[((region == 'AFR' & primary == TRUE) | region!= 'AFR') & year >= 2010 & suspected_report != 0]
+dt_ctry <- dt_ctry[((region == "AFR" & primary == TRUE) | region != "AFR") & year >= 2010 & suspected_report != 0]
 # aggregate
 dt <- copy(dt_ctry)
 dt <- dt[, lapply(.SD, sum),
-           .SDcols = c('suspected_report', 'suspected_zero'), 
-           by = c('country')]
+  .SDcols = c("suspected_report", "suspected_zero"),
+  by = c("country")
+]
 # add geo group (which will be title of the plot)
-dt[, c('geo_group', 'group') := c('All geographic levels')]
+dt[, c("geo_group", "group") := c("All geographic levels")]
 # plot number of observations
-print(data_map(dt, 'All geographic levels', 'suspected_report', 'Observations'))
+print(data_map(dt, "All geographic levels", "suspected_report", "Observations"))
 ```
 
 ### Number of observations by country and geographic level
@@ -87,10 +88,11 @@ dt[geo_group >= 2 & geo_group < 99, geo_group := 2]
 dt[, group := get_geo_name(geo_group), by = V1]
 # aggregate
 dt <- dt[, lapply(.SD, sum),
-           .SDcols = c('suspected_report', 'suspected_zero'), 
-           by = c('country', 'geo_group', 'group')]
+  .SDcols = c("suspected_report", "suspected_zero"),
+  by = c("country", "geo_group", "group")
+]
 # plot number of observations
-for (i in c(0:2,99)) print(data_map(dt, i, 'suspected_report', 'Observations'))
+for (i in c(0:2, 99)) print(data_map(dt, i, "suspected_report", "Observations"))
 ```
 
 <br>
@@ -108,25 +110,25 @@ Represent primary observations for Africa, and all observations for the rest of 
 ```{r timeline}
 # set just two geography groups
 tab <- copy(dt_ctry)
-tab[geo_group == 0, group := 'National']
-tab[geo_group != 0, group := 'Subnational']
+tab[geo_group == 0, group := "National"]
+tab[geo_group != 0, group := "Subnational"]
 # columns to work with
-val_cols <- c('suspected_report', 'suspected_zero')
-id_cols <- c('country', 'group', 'year')
+val_cols <- c("suspected_report", "suspected_zero")
+id_cols <- c("country", "group", "year")
 # aggregate
 tab <- tab[, lapply(.SD, sum), .SDcols = val_cols, by = id_cols]
 # get data types
-tab[, prop_non_zero := round((suspected_report - suspected_zero)/suspected_report, 2)]
+tab[, prop_non_zero := round((suspected_report - suspected_zero) / suspected_report, 2)]
 # reshape
-tab <- dcast(tab, country ~ group + year, value.var = 'prop_non_zero')
+tab <- dcast(tab, country ~ group + year, value.var = "prop_non_zero")
 # add region and more informative country name
 cols_tmp <- names(tab)
-tab <- merge(meta[, c('region', 'country', 'name')], tab, by = 'country')
+tab <- merge(meta[, c("region", "country", "name")], tab, by = "country")
 tab[, country := name]
 tab[, name := NULL]
 # order
-setcolorder(tab, c('region', cols_tmp))
-setorderv(tab, c('region', 'country'))
+setcolorder(tab, c("region", cols_tmp))
+setorderv(tab, c("region", "country"))
 # make table
 prettier_table(tab)
 ```
@@ -142,21 +144,22 @@ Represent primary observations for Africa, and all observations for the rest of 
 ```{r table region summaries, fig.width = 10}
 # subset data
 dt_reg <- copy(dt_region)
-dt_reg <- dt_reg[((region == 'AFR' & primary == TRUE) | region!= 'AFR') & year >= 2010 & suspected_report != 0]
+dt_reg <- dt_reg[((region == "AFR" & primary == TRUE) | region != "AFR") & year >= 2010 & suspected_report != 0]
 # calling missing values non-primary (since this is how mapping handles them)
 dt_reg[is.na(primary), primary := FALSE]
 # set geography groups
 dt_reg[, group := get_geo_name(geo_group), by = V1]
 # reshape
 tab <- copy(dt_reg)
-tab <- tab[, lapply(.SD, function(x) format(sum(x), format = 'd', big.mark = ',')),
-           .SDcols = c('suspected_report', 'suspected_zero', 'confirmed_report', 'confirmed_zero'), 
-           by = c('region', 'group')]
+tab <- tab[, lapply(.SD, function(x) format(sum(x), format = "d", big.mark = ",")),
+  .SDcols = c("suspected_report", "suspected_zero", "confirmed_report", "confirmed_zero"),
+  by = c("region", "group")
+]
 # rename columns
-setnames(tab, c('Region', 'Geography', 'Total observations', 'Total zeros', 'Total observations', 'Total zeros'))
+setnames(tab, c("Region", "Geography", "Total observations", "Total zeros", "Total observations", "Total zeros"))
 # make a pretty table for numbers
 pretty_table(tab) %>%
-  add_header_above(c(' ' = 1, ' ' = 1, 'Suspected cases' = 2, 'Confirmed cases' = 2))
+  add_header_above(c(" " = 1, " " = 1, "Suspected cases" = 2, "Confirmed cases" = 2))
 ```
 
 <br>
@@ -167,34 +170,43 @@ pretty_table(tab) %>%
 # aggregate data
 tab <- copy(dt_reg)
 tab <- tab[, lapply(.SD, sum),
-           .SDcols = c('suspected_report', 'suspected_zero'), 
-           by = c('region', 'group', 'phantom')]
+  .SDcols = c("suspected_report", "suspected_zero"),
+  by = c("region", "group", "phantom")
+]
 # percent
-tab[, total_obs := sum(suspected_report), by = c('region', 'group')]
-tab[, zero := suspected_zero/total_obs, by = c('region', 'group', 'phantom')]
-tab[, non_zero := (suspected_report - suspected_zero)/total_obs, by = c('region', 'group', 'phantom')]
+tab[, total_obs := sum(suspected_report), by = c("region", "group")]
+tab[, zero := suspected_zero / total_obs, by = c("region", "group", "phantom")]
+tab[, non_zero := (suspected_report - suspected_zero) / total_obs, by = c("region", "group", "phantom")]
 # melt
-tab <- melt(tab, id.vars = c('region', 'group', 'phantom', 'total_obs'), variable.name = 'data_type',
-            measure.vars = c('zero', 'non_zero'), value.name = 'proportion')
+tab <- melt(tab,
+  id.vars = c("region", "group", "phantom", "total_obs"), variable.name = "data_type",
+  measure.vars = c("zero", "non_zero"), value.name = "proportion"
+)
 # also get number
-tab[, number := total_obs*proportion, by = .I]
+tab[, number := total_obs * proportion, by = .I]
 # name plotting groups
-tab[is.na(phantom), data_type := paste0('unknown_', data_type)]
-tab[phantom == FALSE, data_type := paste0('actual_', data_type)]
-tab[phantom == TRUE, data_type := paste0('phantom_', data_type)]
+tab[is.na(phantom), data_type := paste0("unknown_", data_type)]
+tab[phantom == FALSE, data_type := paste0("actual_", data_type)]
+tab[phantom == TRUE, data_type := paste0("phantom_", data_type)]
 # make a pretty graph
-pretty_graph(tab, colors = c('#660066', '#CC99CC', 'darkgreen', 
-                             'lightgreen', '#333333', '#999999'),
-             color_names = c('Zero: unaudited', 'Non-zero: unaudited',
-                             'Zero: actual', 'Non-zero: actual',
-                             'Zero: phantom', 'Non-zero: phantom'))
+pretty_graph(tab,
+  colors = c(
+    "#660066", "#CC99CC", "darkgreen",
+    "lightgreen", "#333333", "#999999"
+  ),
+  color_names = c(
+    "Zero: unaudited", "Non-zero: unaudited",
+    "Zero: actual", "Non-zero: actual",
+    "Zero: phantom", "Non-zero: phantom"
+  )
+)
 ```
 
 ### Proportion of observation zeros by country and geographic level
 
 ```{r plot zeros, fig.height = 3, fig.width = 8}
 # calculate proportion zeros
-dt[, prop_zero := suspected_zero/suspected_report, by = .I]
+dt[, prop_zero := suspected_zero / suspected_report, by = .I]
 # plot
-for (i in c(0:2,99)) print(data_map(dt, i, 'prop_zero', 'Proportion\nwith zero'))
+for (i in c(0:2, 99)) print(data_map(dt, i, "prop_zero", "Proportion\nwith zero"))
 ```

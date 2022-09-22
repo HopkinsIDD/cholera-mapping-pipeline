@@ -8,16 +8,15 @@
 #' @param countries_names character vector with country codes to include in the model
 #' @param countries_ids character vector with country location ids to include in the model
 #'
-#' @return string with yaml config file 
+#' @return string with yaml config file
 #' @export
-automate_mapping_config <- function(p, covariate_names, countries_names, countries_ids){
-  
-  map_name <- paste0(paste(countries_names, collapse="_"), "_", lubridate::year(as.Date(p$start_time)), "_", lubridate::year(as.Date(p$end_time)), "_", p$res_space, "km")
+automate_mapping_config <- function(p, covariate_names, countries_names, countries_ids) {
+  map_name <- paste0(paste(countries_names, collapse = "_"), "_", lubridate::year(as.Date(p$start_time)), "_", lubridate::year(as.Date(p$end_time)), "_", p$res_space, "km")
 
   cat(paste0(
     "name: '", map_name, "'\n",
-    "countries: ['", paste(countries_ids, collapse="','"), "']\n",
-    "countries_name: ['", paste(countries_names, collapse="','"), "']\n",
+    "countries: ['", paste(countries_ids, collapse = "','"), "']\n",
+    "countries_name: ['", paste(countries_names, collapse = "','"), "']\n",
     "aoi: '", p$aoi, "'\n",
     "res_space: ", p$res_space, "\n",
     "res_time: '", p$res_time, "'\n",
@@ -25,7 +24,7 @@ automate_mapping_config <- function(p, covariate_names, countries_names, countri
     "case_definition: '", p$case_definition, "'\n",
     "start_time: '", as.Date(p$start_time), "'\n",
     "end_time: '", as.Date(p$end_time), "'\n",
-    "covariate_choices: ['", paste(covariate_names, collapse="','"), "']\n",
+    "covariate_choices: ['", paste(covariate_names, collapse = "','"), "']\n",
     "data_source: '", p$data_source, "'\n",
     "ovrt_metadata_table: no\n",
     "ingest_covariates: ", p$ingest_covariates, "\n",
@@ -58,16 +57,15 @@ automate_mapping_config <- function(p, covariate_names, countries_names, countri
 #' @param countries_names character vector with country codes to include in the model
 #' @param countries_ids character vector with country location ids to include in the model
 #'
-#' @return string with yaml config file 
+#' @return string with yaml config file
 #' @export
-auto_config_Dec2021 <- function(p, covariate_names, countries_names, countries_ids){
-  
-  map_name <- paste0(paste(countries_names, collapse="_"), "_", lubridate::year(as.Date(p$start_time)), "_", lubridate::year(as.Date(p$end_time)), "_", p$res_space, "km")
+auto_config_Dec2021 <- function(p, covariate_names, countries_names, countries_ids) {
+  map_name <- paste0(paste(countries_names, collapse = "_"), "_", lubridate::year(as.Date(p$start_time)), "_", lubridate::year(as.Date(p$end_time)), "_", p$res_space, "km")
 
   cat(paste0(
     "name: '", map_name, "'\n",
-    "countries: ['", paste(countries_ids, collapse="','"), "']\n",
-    "countries_name: ['", paste(countries_names, collapse="','"), "']\n",
+    "countries: ['", paste(countries_ids, collapse = "','"), "']\n",
+    "countries_name: ['", paste(countries_names, collapse = "','"), "']\n",
     "OCs: ", "\n",
     "aoi: '", p$aoi, "'\n",
     "res_space: ", p$res_space, "\n",
@@ -76,7 +74,7 @@ auto_config_Dec2021 <- function(p, covariate_names, countries_names, countries_i
     "case_definition: '", p$case_definition, "'\n",
     "start_time: '", as.Date(p$start_time), "'\n",
     "end_time: '", as.Date(p$end_time), "'\n",
-    "covariate_choices: ['", paste(covariate_names, collapse="','"), "']\n",
+    "covariate_choices: ['", paste(covariate_names, collapse = "','"), "']\n",
     "data_source: '", p$data_source, "'\n",
     "ovrt_metadata_table: no\n",
     "ingest_covariates: ", p$ingest_covariates, "\n",

@@ -183,7 +183,7 @@ max_time_right <- query_time_right
 ### Make these covariates match the time scale of model (at least population) /QZ: if covariates is time-varying (especially population), then we should do transformations on the covariates if the time slices of covariates are different from the modeling time scale. code isn't done, need to decide how to do the transformations.
 if (
   (config[["test_metadata"]][["covariates"]][[1]][["nontemporal"]] || config[["test_metadata"]][["covariates"]][[1]][["temporally_smooth"]]) &
-  (config[["general"]][["time_scale"]] != config[["test_metadata"]][["raster"]][["units"]])
+    (config[["general"]][["time_scale"]] != config[["test_metadata"]][["raster"]][["units"]])
 ) {
   if (config[["test_metadata"]][["processing"]][["adjust_covariates_for_modeling_timescale"]][["perform"]]) {
     stop("We didn't write this code yet")
@@ -203,7 +203,7 @@ rds_file <- config[["test_metadata"]][["file_names"]][["simulation_covariates"]]
 if (!dir.exists(dirname(rds_file))) {
   dir.create(dirname(rds_file))
 }
-#QZ: this is simulation covariates not modeling covariates
+# QZ: this is simulation covariates not modeling covariates
 saveRDS(test_covariates_simulation, rds_file)
 
 ## ------------------------------------------------------------------------------------------------------------------------
@@ -242,11 +242,11 @@ test_observations <- lapply(config[["test_metadata"]][["observations"]], functio
     observation_time_left = lubridate::ymd(spec[["start_date"]]),
     observation_time_right = lubridate::ymd(spec[["end_date"]]),
     seed = global_seed,
-    time_scale=config[["test_metadata"]][["raster"]][["units"]]
+    time_scale = config[["test_metadata"]][["raster"]][["units"]]
   )
   if (grepl("inflated", spec[["template"]])) {
     rc <- rc %>%
-      dplyr::mutate(cases = ifelse(location == config[["general"]][["location_name"]], cases, cases * spec[["inflation_factor"]]))#QZ: changed qualified_name into location/change location into location_names
+      dplyr::mutate(cases = ifelse(location == config[["general"]][["location_name"]], cases, cases * spec[["inflation_factor"]])) # QZ: changed qualified_name into location/change location into location_names
   }
   if (grepl("iso_level", spec[["template"]])) {
     rc <- rc %>%
@@ -280,8 +280,8 @@ rds_file <- config[["test_metadata"]][["file_names"]][["true_grid_cases"]]
 if (!dir.exists(dirname(rds_file))) {
   dir.create(dirname(rds_file))
 }
-true_grid_data<-test_underlying_distribution$mean #QZ: instead of true observed grid, here it should be from the true_underlying_distribution$mean
-true_grid_data$observed<- mapply(
+true_grid_data <- test_underlying_distribution$mean # QZ: instead of true observed grid, here it should be from the true_underlying_distribution$mean
+true_grid_data$observed <- mapply(
   idx = seq_len(length(lhs)),
   lhs,
   rhs,
@@ -289,10 +289,10 @@ true_grid_data$observed<- mapply(
     rc <- intersect(x, y)
     rc <- rc[true_grid_data$t[idx] == test_observations$tmin[rc]]
     rc <- rc[true_grid_data$t[idx] == test_observations$tmax[rc]]
-    return(ifelse(length(rc) > 0, "Observed grid cells","Unobserved grid cells"))
+    return(ifelse(length(rc) > 0, "Observed grid cells", "Unobserved grid cells"))
   }
 )
-saveRDS(true_grid_data,rds_file)
+saveRDS(true_grid_data, rds_file)
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database
