@@ -1772,7 +1772,7 @@ document_config <- function(docstrings = config_docstrings, prefix = "") {
 document_config_options <- function(name_prefix = NULL, docstrings = config_docstrings, defaults = config_defaults, checks = config_checks, no_check_fields = config_ignore_checks) {
   config_documentation <- ""
   subconfig_documentation <- ""
-  for (field_name in sort(unique(c(names(checks), names(defaults))))) {
+  for (field_name in unique(c(names(docstrings), names(checks), names(defaults)))) {
     if (field_name == "::") {
       subconfig_documentation <- document_config_options(
         name_prefix = paste0(name_prefix, ifelse(is.null(name_prefix), "", "::"), "ARRAY"),
@@ -1781,7 +1781,7 @@ document_config_options <- function(name_prefix = NULL, docstrings = config_docs
         checks = checks[[field_name]],
         no_check_fields = no_check_fields
       )
-      config_documentation <- paste(config_documentation, subconfig_documentation, sep = "\n\n\n\n")
+      config_documentation <- paste(config_documentation, subconfig_documentation, sep = ifelse(nchar(config_documentation) > 0, "\n\n\n\n", ""))
       next
     }
     if ((class(checks[[field_name]]) == "list") || (class(defaults[[field_name]]) == "list")) {
@@ -1792,18 +1792,17 @@ document_config_options <- function(name_prefix = NULL, docstrings = config_docs
         checks = checks[[field_name]],
         no_check_fields = no_check_fields
       )
-      config_documentation <- paste(config_documentation, subconfig_documentation, sep = "\n\n\n\n")
+      config_documentation <- paste(config_documentation, subconfig_documentation, sep = ifelse(nchar(config_documentation) > 0, "\n\n\n\n", ""))
     } else {
-      config_documentation <- paste(config_documentation, document_single_field(field_name, docstrings[[field_name]], checks[[field_name]], defaults[[field_name]], name_prefix), sep = "\n\n")
+      config_documentation <- paste(config_documentation, document_single_field(field_name, docstrings[[field_name]], checks[[field_name]], defaults[[field_name]], name_prefix), sep = ifelse(nchar(config_documentation) > 0, "\n\n", ""))
     }
   }
   return(config_documentation)
 }
 
 document_single_field <- function(name, docstring, check, default, name_prefix = NULL, verbose = FALSE) {
-  if ((class(default) == "list") || (class(check) == "list")) {
-    print(paste(name_prefix, name))
-    stop("This shouldn't happen")
+  if ((class(docstring) == "list") || (class(default) == "list") || (class(check) == "list")) {
+    stop(paste("The default, docstring, or check for field", paste0(name_prefix, ifelse(is.null(name_prefix), "", "::"), name), "was a list instead of a value"))
   }
   name_string <- paste("Name is", paste0(name_prefix, ifelse(is.null(name_prefix), "", "::"), name))
   doc_string <- paste("Explanation is", docstring)
@@ -1820,14 +1819,19 @@ document_single_field <- function(name, docstring, check, default, name_prefix =
 #' @param field_name character The part of the config you want to see documentation for. For nested fields, separate by "::"
 #' @export
 get_config_documentation <- function(field_name) {
-  all_field_names <- stringr::str_split(field_name, pattern = "::")[[1]]
   my_docstrings <- config_docstrings
   my_defaults <- config_defaults
   my_checks <- config_checks
+  if (missing(field_name)) {
+    cat(document_config_options(name_prefix = NULL, docstrings = my_docstrings, defaults = my_defaults, checks = my_checks, no_check_fields = no_check_fields))
+    cat("\n")
+    invisible(NULL)
+  }
+  all_field_names <- stringr::str_split(field_name, pattern = "::")[[1]]
   for (name in all_field_names) {
     if (!is.null(my_docstrings)) {
       if (name %in% names(my_docstrings)) {
-        my_docstrings <- my_defaults[[name]]
+        my_docstrings <- my_docstrings[[name]]
       } else {
         my_docstrings <- NULL
       }
@@ -1847,7 +1851,20 @@ get_config_documentation <- function(field_name) {
       }
     }
   }
-  print("HERE")
-  cat(document_config_options(name_prefix = field_name, docstrings = my_docstrings, defaults = my_defaults, checks = my_checks, no_check_fields = no_check_fields))
+  name_prefix <- field_name
+  if (class(my_docstrings) == "character") {
+    my_docstrings <- setNames(list(my_docstrings), field_name)
+    name_prefix <- NULL
+  }
+  if (class(my_defaults) == "function") {
+    my_defaults <- setNames(list(my_defaults), field_name)
+    name_prefix <- NULL
+  }
+  if (class(my_checks) == "function") {
+    my_checks <- setNames(list(my_checks), field_name)
+    name_prefix <- NULL
+  }
+  cat(document_config_options(name_prefix = name_prefix, docstrings = my_docstrings, defaults = my_defaults, checks = my_checks, no_check_fields = no_check_fields))
+  cat("\n")
   invisible(NULL)
 }
