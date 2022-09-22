@@ -1757,19 +1757,19 @@ complete_config <- function(config, defaults = config_defaults, original_config 
   return(config)
 }
 
-document_config <- function(docstrings = config_docstrings, prefix = "") {
+document_config <- function(docstrings = config_docstrings, prefix = "", verbose = FALSE) {
   rc <- ""
   for (field_name in names(docstrings)) {
     if (class(docstrings[[field_name]]) == "list") {
-      rc <- paste(rc, field_name, document_config(docstrings[[field_name]], prefix = paste0("  ", prefix)), sep = "\n")
+      rc <- paste(rc, field_name, document_config(docstrings[[field_name]], prefix = paste0("  ", prefix), verbose = verbose), sep = "\n")
     } else {
       rc <- paste(rc, paste0(prefix, field_name, ":"), paste0(prefix, docstrings[[field_name]]), sep = "\n")
     }
   }
-  return(config)
+  return(rc)
 }
 
-document_config_options <- function(name_prefix = NULL, docstrings = config_docstrings, defaults = config_defaults, checks = config_checks, no_check_fields = config_ignore_checks) {
+document_config_options <- function(name_prefix = NULL, docstrings = config_docstrings, defaults = config_defaults, checks = config_checks, no_check_fields = config_ignore_checks, verbose = FALSE) {
   config_documentation <- ""
   subconfig_documentation <- ""
   for (field_name in unique(c(names(docstrings), names(checks), names(defaults)))) {
@@ -1779,7 +1779,8 @@ document_config_options <- function(name_prefix = NULL, docstrings = config_docs
         docstrings = docstrings[[field_name]],
         defaults = defaults[[field_name]],
         checks = checks[[field_name]],
-        no_check_fields = no_check_fields
+        no_check_fields = no_check_fields,
+        verbose = verbose
       )
       config_documentation <- paste(config_documentation, subconfig_documentation, sep = ifelse(nchar(config_documentation) > 0, "\n\n\n\n", ""))
       next
@@ -1790,11 +1791,12 @@ document_config_options <- function(name_prefix = NULL, docstrings = config_docs
         docstrings = docstrings[[field_name]],
         defaults = defaults[[field_name]],
         checks = checks[[field_name]],
-        no_check_fields = no_check_fields
+        no_check_fields = no_check_fields,
+        verbose = verbose
       )
       config_documentation <- paste(config_documentation, subconfig_documentation, sep = ifelse(nchar(config_documentation) > 0, "\n\n\n\n", ""))
     } else {
-      config_documentation <- paste(config_documentation, document_single_field(field_name, docstrings[[field_name]], checks[[field_name]], defaults[[field_name]], name_prefix), sep = ifelse(nchar(config_documentation) > 0, "\n\n", ""))
+      config_documentation <- paste(config_documentation, document_single_field(field_name, docstrings[[field_name]], checks[[field_name]], defaults[[field_name]], name_prefix, verbose = verbose), sep = ifelse(nchar(config_documentation) > 0, "\n\n", ""))
     }
   }
   return(config_documentation)
@@ -1818,12 +1820,12 @@ document_single_field <- function(name, docstring, check, default, name_prefix =
 #' @description Print documentation for part of the config by field name.
 #' @param field_name character The part of the config you want to see documentation for. For nested fields, separate by "::"
 #' @export
-get_config_documentation <- function(field_name) {
+get_config_documentation <- function(field_name, verbose = FALSE) {
   my_docstrings <- config_docstrings
   my_defaults <- config_defaults
   my_checks <- config_checks
   if (missing(field_name)) {
-    cat(document_config_options(name_prefix = NULL, docstrings = my_docstrings, defaults = my_defaults, checks = my_checks, no_check_fields = no_check_fields))
+    cat(document_config_options(name_prefix = NULL, docstrings = my_docstrings, defaults = my_defaults, checks = my_checks, no_check_fields = no_check_fields, verbose = verbose))
     cat("\n")
     invisible(NULL)
   }
@@ -1864,7 +1866,7 @@ get_config_documentation <- function(field_name) {
     my_checks <- setNames(list(my_checks), field_name)
     name_prefix <- NULL
   }
-  cat(document_config_options(name_prefix = name_prefix, docstrings = my_docstrings, defaults = my_defaults, checks = my_checks, no_check_fields = no_check_fields))
+  cat(document_config_options(name_prefix = name_prefix, docstrings = my_docstrings, defaults = my_defaults, checks = my_checks, no_check_fields = no_check_fields, verbose = verbose))
   cat("\n")
   invisible(NULL)
 }
