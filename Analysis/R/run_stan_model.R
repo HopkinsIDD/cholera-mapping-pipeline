@@ -14,9 +14,11 @@ library(rstan)
 
 # Run model ---------------------------------------------------------------
 start_time <- Sys.time()
-model.rand <- rstan::stan(file = stan_model_path, data = initial_values_data$stan_data, 
-    chains = nchain, iter = niter, pars = c("b", "t_rowsum", "vec_var"), include = FALSE, 
-    control = list(max_treedepth = 15), init = initial_values_data$init.list)
+model.rand <- rstan::stan(
+  file = stan_model_path, data = initial_values_data$stan_data,
+  chains = nchain, iter = niter, pars = c("b", "t_rowsum", "vec_var"), include = FALSE,
+  control = list(max_treedepth = 15), init = initial_values_data$init.list
+)
 end_time <- Sys.time()
 
 elapsed_time <- end_time - start_time

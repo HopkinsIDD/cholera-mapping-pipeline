@@ -120,19 +120,21 @@ plot_true_modeled_grid_cases <- function(cache, cholera_directory, config) {
   long_modeled_grid_case <- data.frame(reshape2::melt(wide_modeled_true_grid_cases, id.vars = c("row", "col", "aggregated_cases", "observed"), variable.name = "chains")) %>% rename("modeled grid cases" = value, "true grid cases" = aggregated_cases)
 
   max_value <- max(long_modeled_grid_case[, c(3, 6)])
-  if (all(unlist(lapply(cache[["config"]][["test_metadata"]][["observations"]],function(x) return(x[["proportion_observed"]]==1))))) {
+  if (all(unlist(lapply(cache[["config"]][["test_metadata"]][["observations"]], function(x) {
+    return(x[["proportion_observed"]] == 1)
+  })))) {
     plt <- ggplot2::ggplot(long_modeled_grid_case) +
       ggplot2::geom_point(ggplot2::aes(y = `modeled grid cases`, x = `true grid cases`, col = chains)) +
       ggplot2::geom_abline(intercept = 0, slope = 1) +
       ggplot2::coord_fixed(ratio = 1, xlim = c(0, max_value), ylim = c(0, max_value)) +
       ggplot2::theme_bw()
-  }else{
+  } else {
     plt <- ggplot2::ggplot(long_modeled_grid_case) +
       ggplot2::geom_point(ggplot2::aes(y = `modeled grid cases`, x = `true grid cases`, col = chains)) +
       ggplot2::geom_abline(intercept = 0, slope = 1) +
       ggplot2::coord_fixed(ratio = 1, xlim = c(0, max_value), ylim = c(0, max_value)) +
       ggplot2::facet_wrap(~observed) +
-      ggplot2::theme_bw()    
+      ggplot2::theme_bw()
   }
   return(plt)
 }
@@ -141,7 +143,7 @@ plot_true_modeled_grid_cases <- function(cache, cholera_directory, config) {
 #' @name automated_period
 #' @description function to specify time facet labels
 automated_period <- function(num, units) {
-  list_period  <- paste(num, units)
+  list_period <- paste(num, units)
   lubridate::period(list_period)
 }
 
@@ -155,7 +157,7 @@ automated_period <- function(num, units) {
 #' @return ggplot object
 plot_gam_fit_input_cases <- function(config, cache, cholera_directory) {
   get_initial_values_df(config = config, cache = cache, cholera_directory = cholera_directory)
-  return(plot_sf_with_fill(cache, "initial_values_df", color_scale_type = "cases", fill_column = "suspected_cases", geometry_column = "geometry", facet_column ="(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))"))
+  return(plot_sf_with_fill(cache, "initial_values_df", color_scale_type = "cases", fill_column = "suspected_cases", geometry_column = "geometry", facet_column = "(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))"))
 }
 
 #' @export
@@ -275,16 +277,17 @@ plot_raw_observations <- function(config, cache, cholera_directory) {
 #' @param cholera_directory  the directory of cholera mapping pipeline folder
 plot_time_varying_pop_raster <- function(config, cache, cholera_directory) {
   get_covar_cube(config = config, cache = cache, cholera_directory = cholera_directory)
-  if(is.null(cache[["config"]][["test_metadata"]])){
+  if (is.null(cache[["config"]][["test_metadata"]])) {
     plot <- plot_sf_with_fill(
-    cache = cache, name = "covar_cube",
-    color_scale_type = "population", fill_column = "population", facet_column = "(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))", geometry_column = "geometry", color_scale_use_log = TRUE
-    )} else{
-      plot <- plot_sf_with_fill(
-        cache = cache, name = "covar_cube",
-        color_scale_type = "population", fill_column = "population", 
-        facet_column = "(lubridate::ymd(cache[['config']][['general']][['start_date']]) + automated_period(t-1, rep(cache[['config']][['test_metadata']][['raster']][['units']],length(unique(t)))))", geometry_column = "geometry", color_scale_use_log = TRUE
-      )
+      cache = cache, name = "covar_cube",
+      color_scale_type = "population", fill_column = "population", facet_column = "(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))", geometry_column = "geometry", color_scale_use_log = TRUE
+    )
+  } else {
+    plot <- plot_sf_with_fill(
+      cache = cache, name = "covar_cube",
+      color_scale_type = "population", fill_column = "population",
+      facet_column = "(lubridate::ymd(cache[['config']][['general']][['start_date']]) + automated_period(t-1, rep(cache[['config']][['test_metadata']][['raster']][['units']],length(unique(t)))))", geometry_column = "geometry", color_scale_use_log = TRUE
+    )
   }
 
   return(plot)
@@ -309,9 +312,9 @@ plot_raster_covariates <- function(config, cache, cholera_directory) {
 
   # FIX ME
   aggregate_covar_cube_covariates(config = config, cache = cache, cholera_directory = cholera_directory)
-  if(is.null(cache[["config"]][["test_metadata"]])){
-  return(plot_sf_with_fill(cache, "covar_cube_covariates_aggregated", color_scale_type = "covariate", fill_column = "value", facet_column = c("name", "(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))"), geometry_column = "geom"))
-  } else{
+  if (is.null(cache[["config"]][["test_metadata"]])) {
+    return(plot_sf_with_fill(cache, "covar_cube_covariates_aggregated", color_scale_type = "covariate", fill_column = "value", facet_column = c("name", "(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))"), geometry_column = "geom"))
+  } else {
     return(plot_sf_with_fill(cache, "covar_cube_covariates_aggregated", color_scale_type = "covariate", fill_column = "value", facet_column = c("name", "(lubridate::ymd(cache[['config']][['general']][['start_date']]) + automated_period(t-1, rep(cache[['config']][['test_metadata']][['raster']][['units']],length(unique(t)))))"), geometry_column = "geom"))
   }
 }
@@ -343,9 +346,9 @@ plot_raster_covariates_datagen <- function(config, cache, cholera_directory) {
     }
   ))
 
-  if(is.null(cache[["config"]][["test_metadata"]])){
-  return(plot_sf_with_fill(cache, "data_simulation_covs", color_scale_type = "covariate", fill_column = "value", facet_column = c("covariate", "(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))"), geometry_column = "geometry"))
-  }else{
+  if (is.null(cache[["config"]][["test_metadata"]])) {
+    return(plot_sf_with_fill(cache, "data_simulation_covs", color_scale_type = "covariate", fill_column = "value", facet_column = c("covariate", "(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))"), geometry_column = "geometry"))
+  } else {
     return(plot_sf_with_fill(cache, "data_simulation_covs", color_scale_type = "covariate", fill_column = "value", facet_column = c("covariate", "(lubridate::ymd(cache[['config']][['general']][['start_date']]) + automated_period(t-1, rep(cache[['config']][['test_metadata']][['raster']][['units']],length(unique(t)))))"), geometry_column = "geometry"))
   }
 }
@@ -361,21 +364,21 @@ plot_raster_covariates_datagen <- function(config, cache, cholera_directory) {
 plot_disaggregated_modeled_cases_time_varying <- function(config, cache, cholera_directory) {
   get_boundary_polygon(config = config, cache = cache, cholera_directory = cholera_directory)
   disaggregate_grid_cases_mean(config = config, cache = cache, cholera_directory = cholera_directory)
-  if(is.null(cache[["config"]][["test_metadata"]])){
-  plot <- plot_sf_with_fill(
-    cache = cache, name = "grid_cases_mean_disaggregated",
-    color_scale_type = "cases", fill_column = "cases", facet_column = "(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))", geometry_column = "geometry",
-    include_borders = FALSE
-  ) +
-    ggplot2::geom_sf(data = cache[["boundary_polygon"]], fill = NA, color = "black", size = 0.05)
-  }else{
+  if (is.null(cache[["config"]][["test_metadata"]])) {
+    plot <- plot_sf_with_fill(
+      cache = cache, name = "grid_cases_mean_disaggregated",
+      color_scale_type = "cases", fill_column = "cases", facet_column = "(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))", geometry_column = "geometry",
+      include_borders = FALSE
+    ) +
+      ggplot2::geom_sf(data = cache[["boundary_polygon"]], fill = NA, color = "black", size = 0.05)
+  } else {
     plot <- plot_sf_with_fill(
       cache = cache, name = "grid_cases_mean_disaggregated",
       color_scale_type = "cases", fill_column = "cases", facet_column = "(lubridate::ymd(cache[['config']][['general']][['start_date']]) + automated_period(t-1, rep(cache[['config']][['test_metadata']][['raster']][['units']],length(unique(t)))))", geometry_column = "geometry",
       include_borders = FALSE
     ) +
       ggplot2::geom_sf(data = cache[["boundary_polygon"]], fill = NA, color = "black", size = 0.05)
-}
+  }
   return(plot)
 }
 
@@ -390,19 +393,19 @@ plot_disaggregated_modeled_cases_time_varying <- function(config, cache, cholera
 plot_modeled_rates_time_varying <- function(config, cache, cholera_directory) {
   get_boundary_polygon(config = config, cache = cache, cholera_directory = cholera_directory)
   aggregate_grid_cases_mean(config = config, cache = cache, cholera_directory = cholera_directory)
-  if(is.null(cache[["config"]][["test_metadata"]])){
-  plot <- plot_sf_with_fill(
-    cache = cache, name = "mean_rates_sf",
-    color_scale_type = "rates", fill_column = "rates", facet_column = "(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))", geometry_column = "geometry"
-  ) +
-    ggplot2::geom_sf(data = cache[["boundary_polygon"]], fill = NA, color = "black", size = 0.05)
-  }else{
+  if (is.null(cache[["config"]][["test_metadata"]])) {
+    plot <- plot_sf_with_fill(
+      cache = cache, name = "mean_rates_sf",
+      color_scale_type = "rates", fill_column = "rates", facet_column = "(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))", geometry_column = "geometry"
+    ) +
+      ggplot2::geom_sf(data = cache[["boundary_polygon"]], fill = NA, color = "black", size = 0.05)
+  } else {
     plot <- plot_sf_with_fill(
       cache = cache, name = "mean_rates_sf",
       color_scale_type = "rates", fill_column = "rates", facet_column = "(lubridate::ymd(cache[['config']][['general']][['start_date']]) + automated_period(t-1, rep(cache[['config']][['test_metadata']][['raster']][['units']],length(unique(t)))))", geometry_column = "geometry"
     ) +
       ggplot2::geom_sf(data = cache[["boundary_polygon"]], fill = NA, color = "black", size = 0.05)
-}
+  }
   return(plot)
 }
 
@@ -413,11 +416,11 @@ plot_modeled_rates_time_varying <- function(config, cache, cholera_directory) {
 #' @param cache
 plot_true_grid_cases <- function(config, cache, cholera_directory) {
   get_sf_grid_data(config = config, cache = cache, cholera_directory = cholera_directory)
-  if(is.null(cache[["config"]][["test_metadata"]])){
-  return(plot_sf_with_fill(cache, "true_grid_data", color_scale_type = "cases", fill_column = "cases", geometry_column = "geometry", facet_column = "(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))"))
-  }else{
-  return(plot_sf_with_fill(cache, "true_grid_data", color_scale_type = "cases", fill_column = "cases", geometry_column = "geometry", facet_column = "(lubridate::ymd(cache[['config']][['general']][['start_date']]) + automated_period(t-1, rep(cache[['config']][['test_metadata']][['raster']][['units']],length(unique(t)))))"))
-}
+  if (is.null(cache[["config"]][["test_metadata"]])) {
+    return(plot_sf_with_fill(cache, "true_grid_data", color_scale_type = "cases", fill_column = "cases", geometry_column = "geometry", facet_column = "(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))"))
+  } else {
+    return(plot_sf_with_fill(cache, "true_grid_data", color_scale_type = "cases", fill_column = "cases", geometry_column = "geometry", facet_column = "(lubridate::ymd(cache[['config']][['general']][['start_date']]) + automated_period(t-1, rep(cache[['config']][['test_metadata']][['raster']][['units']],length(unique(t)))))"))
+  }
 }
 
 #' @export
@@ -427,11 +430,11 @@ plot_true_grid_cases <- function(config, cache, cholera_directory) {
 #' @param cache
 plot_true_grid_rates <- function(config, cache, cholera_directory) {
   get_sf_grid_data(config = config, cache = cache, cholera_directory = cholera_directory)
-  if(is.null(cache[["config"]][["test_metadata"]])){
-  return(plot_sf_with_fill(cache, "true_grid_data", color_scale_type = "rates", fill_column = "rate", geometry_column = "geometry", facet_column = "(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))"))
-  }else{
+  if (is.null(cache[["config"]][["test_metadata"]])) {
+    return(plot_sf_with_fill(cache, "true_grid_data", color_scale_type = "rates", fill_column = "rate", geometry_column = "geometry", facet_column = "(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))"))
+  } else {
     return(plot_sf_with_fill(cache, "true_grid_data", color_scale_type = "rates", fill_column = "rate", geometry_column = "geometry", facet_column = "(lubridate::ymd(cache[['config']][['general']][['start_date']]) + automated_period(t-1, rep(cache[['config']][['test_metadata']][['raster']][['units']],length(unique(t)))))"))
-    }
+  }
 }
 
 #' @export
@@ -465,19 +468,19 @@ plot_stan_parameter_traceplot <- function(config, cache, cholera_directory) {
 plot_stan_parameter_violin <- function(config, cache, cholera_directory) {
   get_stan_parameters_of_interest(config = config, cache = cache, cholera_directory = cholera_directory)
   get_stan_parameter_draws(config = config, cache = cache, cholera_directory = cholera_directory)
-  
+
   quantiles_95 <- function(x) {
-    r <- quantile(x, probs=c(0.05, 0.25, 0.5, 0.75, 0.95))
+    r <- quantile(x, probs = c(0.05, 0.25, 0.5, 0.75, 0.95))
     names(r) <- c("ymin", "lower", "middle", "upper", "ymax")
     r
   }
-  
+
   plt <- cache$stan_parameter_draws %>%
     reshape2::melt() %>%
-    dplyr::mutate(chain = as.factor(chain),group=gsub("^([[:alpha:]]*).*$","\\1",variable)) %>%
+    dplyr::mutate(chain = as.factor(chain), group = gsub("^([[:alpha:]]*).*$", "\\1", variable)) %>%
     ggplot2::ggplot(ggplot2::aes(x = variable, y = value)) +
-    stat_summary(fun.data=quantiles_95,geom="boxplot")+
-    geom_hline(yintercept=0,linetype="dashed",color = "red")+
+    stat_summary(fun.data = quantiles_95, geom = "boxplot") +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
     ggplot2::facet_wrap(~group, scales = "free") +
     taxdat::plot_theme()
   return(plt)

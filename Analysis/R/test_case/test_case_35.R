@@ -355,7 +355,7 @@ all_dfs$observations_df <- test_observations %>%
   )
 
 # overlapping observations with consistent case counts
-all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$cases<-all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$cases
+all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$cases <- all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$cases
 
 test_true_grid_cases <- test_underlying_distribution$mean
 
