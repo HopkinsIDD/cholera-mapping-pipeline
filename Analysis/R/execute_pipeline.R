@@ -119,7 +119,7 @@ covar_cube <- DBI::dbGetQuery(conn = conn_pg, glue::glue_sql(.con = conn_pg, "SE
        {config[[\"general\"]][[\"time_scale\"]]}
     )")) %>%
   dplyr::filter(!is.na(value)) %>%
-  tidyr::pivot_wider(names_from = covariate_name, values_from = value,values_fn = function(x) return(x))#QZ: keeping the same format for covar cube but removing the values_fn
+  tidyr::pivot_wider(names_from = covariate_name, values_from = value, values_fn = sum)
 covar_cube[["geometry"]] <- sf::st_as_sfc(covar_cube[["geometry"]])
 covar_cube <- sf::st_as_sf(covar_cube)
 print("Pulled covariates")
@@ -776,8 +776,8 @@ stan_data <- list(
   )]])) + sum(!is.na(observation_data[[paste0(cases_column, "_R")]])))),
   do_time_slice_effect = config[["stan"]][["do_time_slice"]][["perform"]],
   do_time_slice_effect_autocor = config[["stan"]][["do_time_slice"]][["autocorrelated_prior"]],
-  exp_prior=config[["stan"]][["exp_prior"]],#QZ: added exponential betas option in config
-  narrower_prior=config[["stan"]][["narrower_prior"]],#QZ: added narrower prior option in config
+  exp_prior = config[["stan"]][["exp_prior"]], # QZ: added exponential betas option in config
+  narrower_prior = config[["stan"]][["narrower_prior"]], # QZ: added narrower prior option in config
   has_data_year = has_data_year,
   mat_grid_time = mat_grid_time,
   debug = FALSE
