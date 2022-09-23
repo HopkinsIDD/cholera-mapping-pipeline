@@ -88,7 +88,8 @@ option_list <- list(
 opt <- optparse::OptionParser(option_list = option_list) %>% optparse::parse_args()
 
 ### Read config file
-config <- yaml::read_yaml(opt$config)
+config <- yaml::read_yaml(opt[["config"]], eval.expr = TRUE)
+
 
 ### Define relevent directories
 try({setwd(utils::getSrcDirectory())}, silent = TRUE)
@@ -391,7 +392,8 @@ for(t_idx in 1:length(all_test_idx)){
       end_time = end_time,
       res_space = res_space,
       res_time = res_time,
-      username = dbuser
+      username = dbuser,
+      covariate_transformations = config[["covariate_transformations"]]
     )
     
     # Save results to file
