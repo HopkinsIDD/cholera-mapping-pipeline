@@ -401,14 +401,17 @@ read_taxonomy_data_api <- function(username, api_key, locations = NULL, time_lef
 #' @return An sf object containing data pulled from the database
 #' @export
 pull_taxonomy_data <- function(username, password, locations = NULL, time_left = NULL,
-    time_right = NULL, uids = NULL, website = "https://api.cholera-taxonomy.middle-distance.com/",
+    time_right = NULL, uids = NULL, website = NULL,
     source) {
 
     if (missing(source) | is.null(source))
         stop("No source specified to pull taxonomy data, please specify one of 'api' or 'sql'.")
 
     if (source == "api") {
-        if (missing(username) | missing(password) | is.null(username) | is.null(password))
+        if (is.null(website)) {
+          website <- "https://api.cholera-taxonomy.middle-distance.com/"
+        }
+        if (missing(username) | missing(password) | is.null(username) | is.null(password) | is.null(website))
             stop("Trying to pull data from API, please provide username and api_key.")
 
         # Return API data pull
@@ -417,12 +420,15 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
             uids = uids, website = website)
 
     } else if (source == "sql") {
-        if (missing(username) | missing(password) | is.null(username) | is.null(password))
+        if (is.null(website)) {
+          website <- "db.cholera-taxonomy.middle-distance.com"
+        }
+        if (missing(username) | missing(password) | is.null(username) | is.null(password) | is.null(website))
             stop("Trying to pull data using sql on idemodelin2, please provide database username and password.")
 
         # Return SQL data pull
         rc <- read_taxonomy_data_sql(username = username, password = password, locations = locations,
-            time_left = time_left, time_right = time_right, uids = uids)
+            time_left = time_left, time_right = time_right, uids = uids, host = website)
         rc$attributes.fields.suspected_cases <- rc$suspected_cases
         rc$attributes.fields.confirmed_cases <- rc$confirmed_cases
         rc$attributes.fields.location_id <- rc$location_id
@@ -463,14 +469,14 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
 #' @return An sf object containing data extracted from the database
 #' @export
 read_taxonomy_data_sql <- function(username, password, locations = NULL, time_left = NULL,
-    time_right = NULL, uids = NULL) {
+    time_right = NULL, uids = NULL, host = "db.cholera-taxonomy.middle-distance.com") {
 
     if (missing(username) | missing(password)) {
         stop("Please provide username and password to connect to the taxonomy database.")
     }
 
     # Connect to database
-    conn <- RPostgres::dbConnect(RPostgres::Postgres(), host = "db.cholera-taxonomy.middle-distance.com",
+    conn <- RPostgres::dbConnect(RPostgres::Postgres(), host = host,
         dbname = "CholeraTaxonomy_production", user = username, password = password,
         port = "5432")
 

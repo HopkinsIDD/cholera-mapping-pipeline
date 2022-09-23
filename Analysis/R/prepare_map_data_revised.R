@@ -19,6 +19,7 @@ if (data_source == "api") {
   worldpop_region <- unique(sapply(countries_name, taxdat::lookup_WorldPop_region))
   username <- Sys.getenv("CHOLERA_API_USERNAME", "NONE")
   password <- Sys.getenv("CHOLERA_API_KEY", "NONE")
+  website <- Sys.getenv("CHOLERA_API_WEBSITE", NULL)
   if (any(c(username, password) == "NONE")) {
     source("Analysis/R/database_api_key.R")
     username <- database_username
@@ -29,6 +30,7 @@ if (data_source == "api") {
   long_countries <- countries
   username <- Sys.getenv("CHOLERA_SQL_USERNAME", "NONE")
   password <- Sys.getenv("CHOLERA_SQL_PASSWORD", "NONE")
+  website <- Sys.getenv("CHOLERA_SQL_WEBSITE", NULL)
   if (any(c(username, password) == "NONE")) {
     source("Analysis/R/database_api_key.R")
     username <- taxonomy_username
@@ -48,6 +50,7 @@ cases <- taxdat::pull_taxonomy_data(
   time_right = end_time,
   source = data_source,
   uids = filter_OCs,
+  website = website
 ) %>%
   taxdat::rename_database_fields(source = data_source)
 
