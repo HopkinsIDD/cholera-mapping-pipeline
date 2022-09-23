@@ -17,6 +17,7 @@ slurm*.out
 
 **.yml
 !tests/**/*.yml
+!.github/**/*.yml
 !Analysis/R/test_case/**.yml
 
 Analysis/Stan/*

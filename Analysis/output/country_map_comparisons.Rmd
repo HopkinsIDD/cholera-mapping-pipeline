@@ -25,21 +25,19 @@ library(sf)
 library(abind)
 library(taxdat)
 
-options(bitmapType = 'cairo')
-#knitr::opts_chunk$set(include = FALSE, dev="CairoPNG")
+options(bitmapType = "cairo")
+# knitr::opts_chunk$set(include = FALSE, dev="CairoPNG")
 knitr::opts_chunk$set(
   echo = FALSE,
- # dev.args = list(png = list(type = "cairo")),
+  # dev.args = list(png = list(type = "cairo")),
   dev = "CairoPNG",
   fig.align = "center",
   message = FALSE,
   warning = FALSE,
   cache.lazy = F,
   bitmapType = "cairo",
-  error=TRUE
+  error = TRUE
 )
-
-
 ```
 
 ```{r dir_settings}
@@ -47,8 +45,6 @@ knitr::opts_chunk$set(
 
 dir.create(params$shapefiles_dir, showWarnings = FALSE)
 dir.create(stringr::str_c(params$cholera_directory, params$output_dir), showWarnings = FALSE)
-
-
 ```
 # Country Data Pull
 Extract Stan model outputs
@@ -56,7 +52,7 @@ Extract Stan model outputs
 ```{r data_pull}
 orig_configs <- list.files(stringr::str_c(params$cholera_directory, params$config_directory), full.names = TRUE)
 skip_cntry <- c("BWA", "COG", "DJI", "ERI", "GAB", "GMB", "GNQ", "LSO", "MDG", "NAM", "SEN", "SWZ")
-indexes <- unlist(lapply(skip_cntry, function(cntry){
+indexes <- unlist(lapply(skip_cntry, function(cntry) {
   which(stringr::str_detect(orig_configs, cntry))
 }))
 all_configs <- orig_configs[-indexes]
@@ -76,57 +72,66 @@ sf_grid <- list()
 country_summ <- list()
 eta_summ <- list()
 country_count <- 0
-for(i in 1:length(all_configs)){
+for (i in 1:length(all_configs)) {
   config_filename <- all_configs[i]
   print(config_filename)
-  if(country_count >= params$max_countries){break}
+  if (country_count >= params$max_countries) {
+    break
+  }
   config <- yaml::read_yaml(config_filename)
   file_names <- taxdat::get_filenames(config, params$cholera_directory)
-  if(!all(file.exists(file_names))){
+  if (!all(file.exists(file_names))) {
     print("These files don't exist:")
     print(file_names[which(!file.exists(file_names))])
   }
 
-  try({
-    stan_input <- taxdat::read_file_of_type(file_names[['stan_input']], "stan_input")
-    stan_input$sf_grid <- stan_input$sf_grid %>% 
-        dplyr::ungroup() %>% 
-        dplyr::select(t,id)
-  }, silent = TRUE)
+  try(
+    {
+      stan_input <- taxdat::read_file_of_type(file_names[["stan_input"]], "stan_input")
+      stan_input$sf_grid <- stan_input$sf_grid %>%
+        dplyr::ungroup() %>%
+        dplyr::select(t, id)
+    },
+    silent = TRUE
+  )
 
   try({
-    model.rand <- taxdat::read_file_of_type(file_names[['stan_output']], "model.rand")
-    niter_per_chain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__', chain_num=1))[1]
-    nchain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__'))[1] / niter_per_chain
-    stan_output <- lapply(rstan::extract(model.rand), function(x){array(x,c(niter_per_chain, nchain, dim(x)[-1]))})
+    model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
+    niter_per_chain <- dim(MCMCvis::MCMCchains(model.rand, params = "lp__", chain_num = 1))[1]
+    nchain <- dim(MCMCvis::MCMCchains(model.rand, params = "lp__"))[1] / niter_per_chain
+    stan_output <- lapply(rstan::extract(model.rand), function(x) {
+      array(x, c(niter_per_chain, nchain, dim(x)[-1]))
+    })
 
-    cases_chains <- apply(stan_output$grid_cases, c(3,2), mean)
-    rates_chains <- apply(exp(stan_output$log_lambda), c(3,2), mean)
+    cases_chains <- apply(stan_output$grid_cases, c(3, 2), mean)
+    rates_chains <- apply(exp(stan_output$log_lambda), c(3, 2), mean)
 
-    eta_chains <- purrr::map_dfr(1:(dim(stan_output$eta)[3]), function(i){
-        dummy <- data.frame(stan_output$eta[,,i])
-        names(dummy) <- paste0("chain_", 1:length(names(dummy)))
-        rc <- dplyr::mutate(dummy, year = i)
-        return(rc)
-      }) %>%
+    eta_chains <- purrr::map_dfr(1:(dim(stan_output$eta)[3]), function(i) {
+      dummy <- data.frame(stan_output$eta[, , i])
+      names(dummy) <- paste0("chain_", 1:length(names(dummy)))
+      rc <- dplyr::mutate(dummy, year = i)
+      return(rc)
+    }) %>%
       tidyr::pivot_longer(dplyr::contains("chain"), values_to = "eta_est", names_to = "chain") %>%
       dplyr::mutate(chain = as.numeric(stringr::str_remove(chain, "chain_"))) %>%
       dplyr::group_by(year, chain) %>%
-      dplyr::summarise(eta_mean = mean(eta_est), 
-                      eta_q025 = quantile(eta_est, probs = c(.025)),
-                      eta_q975 = quantile(eta_est, probs = c(.975))) %>%
+      dplyr::summarise(
+        eta_mean = mean(eta_est),
+        eta_q025 = quantile(eta_est, probs = c(.025)),
+        eta_q975 = quantile(eta_est, probs = c(.975))
+      ) %>%
       dplyr::mutate(country = all_locations[i])
 
-    pop_est <- cases_chains[,1]/rates_chains[,1]
+    pop_est <- cases_chains[, 1] / rates_chains[, 1]
   })
 
   try({
-    stan_input$sf_grid[paste('cases','chain',seq_len(nchain),sep='_')] <- cases_chains
-    stan_input$sf_grid[paste('rate','chain',seq_len(nchain),sep='_')] <- rates_chains
-    stan_input$sf_grid['pop'] <- pop_est
+    stan_input$sf_grid[paste("cases", "chain", seq_len(nchain), sep = "_")] <- cases_chains
+    stan_input$sf_grid[paste("rate", "chain", seq_len(nchain), sep = "_")] <- rates_chains
+    stan_input$sf_grid["pop"] <- pop_est
     stan_input$sf_grid$row_index <- seq_len(nrow(stan_input$sf_grid))
     sf_grid_wider <- sf::st_drop_geometry(stan_input$sf_grid)
-    
+
     # stan_input$sf_grid <- tidyr::pivot_longer(
     #   stan_input$sf_grid,
     #   cols=c(
@@ -138,7 +143,7 @@ for(i in 1:length(all_configs)){
     # ) %>% sf::st_sf()
     # stan_input$sf_grid <- tidyr::separate(col=scenario, into = c('type',NA,'chain'),stan_input$sf_grid)
     # stan_input$sf_grid$filename <- config_filename
-  
+
     # if("list" %in% class(sf_grid)){
     #   sf_grid <- stan_input$sf_grid
     # } else {
@@ -147,42 +152,40 @@ for(i in 1:length(all_configs)){
 
     calc_country_summ <- sf_grid_wider %>%
       dplyr::group_by(t) %>%
-      dplyr::summarise(dplyr::across(dplyr::contains("cases_"), sum),
-                       dplyr::across(dplyr::contains("rate_"), mean),
-                       ## dplyr::across(dplyr::contains("rate_"), ~weighted.mean(.x, w=pop)), ## something weird with the pop estimates
-                       dplyr::across(pop, sum)) %>%
+      dplyr::summarise(
+        dplyr::across(dplyr::contains("cases_"), sum),
+        dplyr::across(dplyr::contains("rate_"), mean),
+        ## dplyr::across(dplyr::contains("rate_"), ~weighted.mean(.x, w=pop)), ## something weird with the pop estimates
+        dplyr::across(pop, sum)
+      ) %>%
       tidyr::pivot_longer(
-              cols=c(
-              paste('cases','chain',seq_len(nchain),sep='_'),
-              paste('rate','chain',seq_len(nchain),sep='_')
-              ),
-              names_to="scenario",
-              values_to="modeled") %>%
-      tidyr::separate(col = scenario, into = c('type', NA, 'chain')) %>%
+        cols = c(
+          paste("cases", "chain", seq_len(nchain), sep = "_"),
+          paste("rate", "chain", seq_len(nchain), sep = "_")
+        ),
+        names_to = "scenario",
+        values_to = "modeled"
+      ) %>%
+      tidyr::separate(col = scenario, into = c("type", NA, "chain")) %>%
       dplyr::mutate(country = all_locations[i])
   })
 
 
   try({
-
-    if("list" %in% class(country_summ)){
+    if ("list" %in% class(country_summ)) {
       country_summ <- calc_country_summ
     } else {
       country_summ <- rbind(country_summ, calc_country_summ)
     }
-    if("list" %in% class(eta_summ)){
+    if ("list" %in% class(eta_summ)) {
       eta_summ <- eta_chains
     } else {
       eta_summ <- rbind(eta_summ, eta_chains)
     }
 
     country_count <- country_count + 1
-
   })
-
-
 }
-
 ```
 
 
@@ -192,13 +195,11 @@ Load old maps - incidence and incidence rate
 ```{r load_old_output}
 allafr_rate <- taxdat::load_orig_map(stringr::str_c(params$cholera_directory, params$old_map_rate))
 allafr_cases <- taxdat::load_orig_map(stringr::str_c(params$cholera_directory, params$old_map_case))
-
 ```
 Process old maps country by country
 ```{r country_datapull}
 country_summ_old <- list()
-for (cntry in all_locations){
-
+for (cntry in all_locations) {
   shp <- GADMTools::gadm_sf_loadCountries(c(cntry), level = 0, basefile = params$shapefiles_dir)$sf
 
   # raster::crs(allafr_rate) <- raster::crs(shp)
@@ -212,19 +213,19 @@ for (cntry in all_locations){
   country_case <- shp_raster * allafr_cases
   names(country_case) <- "case"
 
-  calc_country_summ_old <- data.frame(cases_old = sum(raster::values(country_case), na.rm=TRUE),
-                                      rate_old = mean(raster::values(country_rate), na.rm = TRUE)) %>%
+  calc_country_summ_old <- data.frame(
+    cases_old = sum(raster::values(country_case), na.rm = TRUE),
+    rate_old = mean(raster::values(country_rate), na.rm = TRUE)
+  ) %>%
     tidyr::pivot_longer(cols = c("cases_old", "rate_old"), names_to = "type", values_to = "modeled") %>%
     dplyr::mutate(country = cntry)
 
-  if("list" %in% class(country_summ)){
+  if ("list" %in% class(country_summ)) {
     country_summ_old <- calc_country_summ_old
   } else {
     country_summ_old <- rbind(country_summ_old, calc_country_summ_old)
   }
 }
-
-
 ```
 
 Export a table of chain vs time for new estimates and mean annual value for old estimates
@@ -235,16 +236,20 @@ levels_yrs <- seq.int(labels_yrs)
 plot_df <- dplyr::bind_rows(dplyr::select(country_summ, -pop), country_summ_old) %>%
   dplyr::mutate(type_lab = paste(type, chain, sep = "_")) %>%
   dplyr::arrange(country, type, t) %>%
-  dplyr::mutate(t = factor(t, levels = levels_yrs, labels = labels_yrs),
-                modeled_trunc = ifelse(modeled > 1.5E4, 1.5E4, modeled))
+  dplyr::mutate(
+    t = factor(t, levels = levels_yrs, labels = labels_yrs),
+    modeled_trunc = ifelse(modeled > 1.5E4, 1.5E4, modeled)
+  )
 readr::write_csv(plot_df, paste0(params$cholera_directory, params$output_dir, "national_estimates_new_old.csv"))
 
-plot_df2 <- plot_df %>% 
+plot_df2 <- plot_df %>%
   dplyr::group_by(country, type) %>%
   dplyr::summarise(modeled = mean(modeled)) %>%
   dplyr::mutate(modeled_trunc = ifelse(modeled > 1.5E4, 1.5E4, modeled)) %>%
   dplyr::mutate(type = recode(type, rate = "rate_new", cases = "cases_new"))
-plot_df2 %>% kbl %>% kable_minimal()
+plot_df2 %>%
+  kbl() %>%
+  kable_minimal()
 ```
 
 ## Examine new model estimates
@@ -261,9 +266,9 @@ ggplot2::ggsave(paste0(params$cholera_directory, params$output_dir, "national_in
 
 ```{r bar_eta_chain, fig.height = 12, fig.width = 6, fig.cap = "Yearly random effects"}
 p_eta <- ggplot2::ggplot(eta_summ, ggplot2::aes(x = chain, y = eta_mean)) +
-  ggplot2::geom_point() + 
+  ggplot2::geom_point() +
   ggplot2::geom_errorbar(ggplot2::aes(ymin = eta_q025, ymax = eta_q975)) +
-  ggplot2::facet_grid(country~year, scales = "free_y")
+  ggplot2::facet_grid(country ~ year, scales = "free_y")
 p_eta
 ggplot2::ggsave(paste0(params$cholera_directory, params$output_dir, "eta_chain.png"), p_eta, width = 7, height = 14)
 ```
@@ -272,7 +277,7 @@ ggplot2::ggsave(paste0(params$cholera_directory, params$output_dir, "eta_chain.p
 ## Incidence comparison 
 
 ```{r plot_incid, fig.height=10, fig.width=8, fig.cap = "Log 10 modeled incidence, new vs old (NA chain)"}
-  
+
 p_case <- ggplot2::ggplot(dplyr::filter(plot_df2, grepl("case", type)), ggplot2::aes(x = country, y = modeled)) +
   ggplot2::geom_point(ggplot2::aes(colour = type), alpha = 0.7) +
   ggplot2::coord_flip() +
@@ -283,7 +288,7 @@ p_case
 ```
 
 ```{r plot_incid_zm, fig.height=10, fig.width=8}
-  
+
 p_case_zm <- ggplot2::ggplot(dplyr::filter(plot_df2, grepl("case", type)), ggplot2::aes(x = country, y = modeled_trunc)) +
   ggplot2::geom_point(ggplot2::aes(colour = type), alpha = 0.7) +
   ggplot2::coord_flip() +
