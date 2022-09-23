@@ -1524,7 +1524,7 @@ config_defaults[["stan"]][["nchain"]] <- function(config, index) {
   return(4)
 }
 config_defaults[["stan"]][["ncores"]] <- function(config, index) {
-  return(pmax(config[["stan"]][["nchain"]], parallel::detectCores()))
+  return(pmin(config[["stan"]][["nchain"]], parallel::detectCores()))
 }
 config_defaults[["stan"]][["niter"]] <- function(config, index) {
   return(2000)
