@@ -299,6 +299,15 @@ warning("Took this one out because it was identical to the adjusted figure. Must
 # plot_model_fidelity_tfrac_unadjusted(data_fidelity = cache[["data_fidelity"]],case_raster = cache[["case_raster"]],render = T)
 ```
 
+### Error Tables
+```{r echo=FALSE }
+plot_error_by_grid(cache=cache,cholera_directory = params$cholera_directory,config=params$config)
+```
+
+```{r echo=FALSE}
+plot_error_by_grid_spatial_scale(cache=cache,cholera_directory = params$cholera_directory,config=params$config)
+```
+
 **Stan trace plots:**
 ```{r traceplots, fig.height=8, fig.width=10, fig.cap=capFig("Stan trace plots")}
 taxdat::plot_stan_parameter_traceplot(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
@@ -307,6 +316,12 @@ taxdat::plot_stan_parameter_traceplot(config = params$config, cache = cache, cho
 **Parameter posteriors:**
 ```{r params, fig.height=10, fig.width=18, fig.cap=capFig("Parameter posteriors")}
 taxdat::plot_stan_parameter_violin(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
+```
+
+
+**w distribution**
+```{r w_distribution,fig.height=8,fig.width=10,fig.cap=capFig("Distribution of mean w across chains and iterations")}
+plot_w_mean(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 ```
 
 **Gelman-Rubin Rhat:**
