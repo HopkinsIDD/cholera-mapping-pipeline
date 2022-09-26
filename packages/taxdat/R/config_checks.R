@@ -1,3 +1,64 @@
+config_docstrings <- list()
+config_docstrings[["general"]] <- list()
+config_docstrings[["general"]][["location_name"]] <- "Qualified name (e.g., AFR::TZA) of the top level location you want to model."
+config_docstrings[["general"]][["time_scale"]] <- "The units for the size of gridcell in time. Currently supports either 'year' or 'month'."
+config_docstrings[["general"]][["start_date"]] <- "The first date (inclusive) to include in the model."
+config_docstrings[["general"]][["end_date"]] <- "The last date (inclusive) to include in the model."
+config_docstrings[["general"]][["width_in_km"]] <- "The width of each gridcell in space. Currently supports any numeric value."
+config_docstrings[["general"]][["height_in_km"]] <- "The height of each gridcell in space. Currently supports any numeric value."
+config_docstrings[["general"]][["covariates"]] <- list()
+config_docstrings[["general"]][["covariates"]][["::"]] <- list()
+config_docstrings[["general"]][["covariates"]][["::"]][["name"]] <- "The name of the covariate as stored in the postgres database."
+config_docstrings[["general"]][["covariates"]][["::"]][["transform_name"]] <- "A string representing the name of the transformation applied to the covariate. Defaults to identity."
+config_docstrings[["general"]][["covariates"]][["::"]][["transform_function"]] <- "A function to use to transform the covariate after loading.  Uses expr! syntax.  Should be a function of one variable. Default is expr! function(x){return(x)}."
+config_docstrings[["stan"]] <- list()
+config_docstrings[["stan"]][["directory"]] <- "Directory (either absolute or relative to cholera-mapping-pipeline) containing stan files."
+config_docstrings[["stan"]][["recompile"]] <- "Whether to force the stan model to recompile if it has already been compiled. logical. Defaults to FALSE."
+config_docstrings[["stan"]][["niter"]] <- "The number of iterations to run on each chain. Results will have only have this number of iterations due to warmup. integer. Defaults to 2000."
+config_docstrings[["stan"]][["nchain"]] <- "The number of chains to use when running stan. integer. Defaults to 4."
+config_docstrings[["stan"]][["ncores"]] <- "The number of parallel processes to use when running stan. integer. Should not be greater than the number of chains. Defaults to 4 or the number of chains, whichever is smaller."
+config_docstrings[["stan"]][["beta_sigma_scale"]] <- "This value is used to rescale the standard deviation associated with the covariate contributions (beta). numeric. Defaults to 1."
+config_docstrings[["stan"]][["sigma_eta_scale"]] <- "This value is used to rescale the eta values. numeric. Defaults to 5."
+config_docstrings[["stan"]][["sigma_eta_scale"]] <- "This value is used to rescale the eta values. numeric. Defaults to 5."
+config_docstrings[["stan"]][["do_time_slice"]] <- list()
+config_docstrings[["stan"]][["do_time_slice"]][["eta_simplex"]] <- "Should we compute initial conditions as though the eta values are part of a simplex. logical. Defaults to FALSE."
+config_docstrings[["stan"]][["do_time_slice"]][["perform"]] <- "Should we compute values for the temporal random effect eta. logical. Defaults to TRUE."
+config_docstrings[["stan"]][["do_time_slice"]][["autocorrelated_prior"]] <- "Should the prior associated with the temporal random effect (eta) be autocorrelated. logical. Defaults to TRUE."
+config_docstrings[["stan"]][["model"]] <- "Filename (no directory) of the stan model to use."
+config_docstrings[["stan"]][["exp_prior"]] <- "Should we use a double exponential prior for covariate contributions (beta) to help unused covariates tend toward 0. logical. Defaults to FALSE."
+config_docstrings[["stan"]][["narrower_prior"]] <- "Should we use a narrower prior for the standard deviation of covariate contributions (beta). logical. Defaults to TRUE."
+config_docstrings[["initial_values"]] <- list()
+config_docstrings[["initial_values"]][["warmup"]] <- "Should we use the gam model to try to find better starting conditions for the stan model. logical. Defaults to TRUE."
+config_docstrings[["processing"]] <- list()
+config_docstrings[["processing"]][["reorder_adjacency_matrix"]] <- list()
+config_docstrings[["processing"]][["reorder_adjacency_matrix"]][["perform"]] <- "Should we permute the order of the gridcells so that the (assymetric) adjacency matrix has better properties for DAGAR. logical. Defaults to TRUE."
+config_docstrings[["processing"]][["remove_overlaps"]] <- list()
+config_docstrings[["processing"]][["remove_overlaps"]][["perform"]] <- "Should observations completely covered by another observation from the same observation collection which covers the same gridcells be dropped. logical. Defaults to TRUE."
+config_docstrings[["processing"]][["aggregate"]] <- "Should non-overlapping observations from the same observation collection covering the same gridcells be combined together. logical. Defaults to TRUE."
+config_docstrings[["processing"]][["average_inconsistent_duplicates"]] <- "Should observations from the same observation collection covering the same gridcells with the same time bounds be combined together. logical. Defaults to TRUE."
+config_docstrings[["processing"]][["censor_incomplete_observations"]] <- list()
+config_docstrings[["processing"]][["censor_incomplete_observations"]][["perform"]] <- "Should observations covering a small subset of the time dimension of a gridcell be converted to partial observations. logical. Defaults to TRUE."
+config_docstrings[["processing"]][["censor_incomplete_observations"]][["threshold"]] <- "How small is a small subset (as a fraction) of the time dimension. numeric. Defaults to 0.95."
+config_docstrings[["processing"]][["remove_unobserved_time_slices"]] <- "Should time slices which are not observed be dropped from the model. logical. Defaults to TRUE."
+config_docstrings[["processing"]][["remove_unobserved_space_slices"]] <- "Should space slices which are not observed be dropped from the model. logical. Defaults to TRUE."
+config_docstrings[["file_names"]] <- list()
+config_docstrings[["file_names"]][["stan_input"]] <- "Filename to save input data to. Defaults to a unique string based on the config."
+config_docstrings[["file_names"]][["stan_output"]] <- "Filename to save stan output data to. Defaults to a unique string based on the config."
+config_docstrings[["file_names"]][["generated_quantities"]] <- "Filename to save generated quantities data to. Defaults to a unique string based on the config."
+config_docstrings[["file_names"]][["report"]] <- "Filename to save report to. Defaults to a unique string based on the config."
+config_docstrings[["generated"]] <- list()
+config_docstrings[["generated"]][["location_name"]] <- "Qualified name (e.g., AFR::TZA) of the top level location you want to generate modeled values for."
+config_docstrings[["generated"]][["time_scale"]] <- "The units for the size of gridcell in time. Currently supports either 'year' or 'month'."
+config_docstrings[["generated"]][["start_date"]] <- "The first date (inclusive) to include in the generate modeled values for."
+config_docstrings[["generated"]][["end_date"]] <- "The last date (inclusive) to include in the generate modeled values for."
+config_docstrings[["generated"]][["width_in_km"]] <- "The width of each gridcell in space. Currently supports any numeric value."
+config_docstrings[["generated"]][["height_in_km"]] <- "The height of each gridcell in space. Currently supports any numeric value."
+config_docstrings[["generated"]][["perform"]] <- "Whether to generate additional results from the model based on different information."
+
+
+
+
+
 config_checks <- list()
 config_checks[["general"]] <- list()
 config_checks[["general"]][["location_name"]] <- function(value, config, index) {
