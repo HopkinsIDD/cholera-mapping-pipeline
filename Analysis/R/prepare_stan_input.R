@@ -586,6 +586,24 @@ prepare_stan_input <- function(
     stan_data$pop_weight_output <- array(data = 0, dim = 0)
   }
   
+  # Data for people at risk
+  risk_cat_low <- c(0, 1, 10, 100)*1e-5
+  risk_cat_high <- c(risk_cat_low[-1], 1e6)
+  
+  stan_data$N_cat <- length(risk_cat_low)
+  stan_data$risk_cat_low <- risk_cat_low
+  stan_data$risk_cat_high <- risk_cat_high
+  
+  # Map from space x time grid to space grid
+  sf_grid <- sf_grid %>% 
+    group_by(rid, x, y) %>% 
+    mutate(space_id = min(upd_id)) %>% 
+    ungroup()
+  
+  stan_data$N_space <- length(unique(sf_grid$space_id))
+  stan_data$map_spacetime_space_grid <- sf_grid$space_id[sf_grid$upd_id]
+  
+  
   cat("**** FINISHED PREPARING STAN INPUT \n")
   
   return(list(stan_data = stan_data,
