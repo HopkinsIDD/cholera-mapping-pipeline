@@ -469,7 +469,7 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
 #' @return An sf object containing data extracted from the database
 #' @export
 read_taxonomy_data_sql <- function(username, password, locations = NULL, time_left = NULL,
-    time_right = NULL, uids = NULL, host = "db.cholera-taxonomy.middle-distance.com") {
+    time_right = NULL, uids = NULL, discard_incomplete_observation_collections = TRUE, unified_dataset_behaviour = "drop", host = "db.cholera-taxonomy.middle-distance.com") {
 
     if (missing(username) | missing(password)) {
         stop("Please provide username and password to connect to the taxonomy database.")
@@ -484,12 +484,25 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL, time_le
     obs_query <- paste("SELECT", "observations.id::text, observations.observation_collection_id::text, observations.time_left, observations.time_right,observations.suspected_cases, observations.confirmed_cases, observations.deaths, observations.phantom, observations.primary",
         ",locations.qualified_name as location_name, locations.id::text as location_id",
         ",location_periods.id::text as location_period_id", ",shapes.shape as geojson",
-        "FROM", "observations", "left join location_hierarchies on observations.location_id = location_hierarchies.descendant_id",
+        "FROM", "observations", "left join observation_collections on observations.observation_collection_id = observation_collections.id", 
+        "left join location_hierarchies on observations.location_id = location_hierarchies.descendant_id",
         "left join locations on observations.location_id = locations.id", "left join location_periods on observations.location_period_id = location_periods.id",
         "left join shapes on shapes.location_period_id = location_periods.id", " WHERE")
 
     cat("-- Pulling data from taxonomy database with SQL \n")
 
+    if (unified_dataset_behaviour == "drop") {
+      unified_filter <- c("((observation_collections.unified is NULL) OR (observation_collections.unified!='t'))") #QZ: updated the operator
+    } else if (unified_dataset_behaviour == "keep") {
+      unified_filter <- c("((observation_collections.unified is NOT NULL) AND (observation_collections.unified))")
+    } else {
+      unified_filter <- NULL
+    }
+    if (discard_incomplete_observation_collections) {
+      oc_filter <- c("(observation_collections.status != 'initialized') AND (observation_collections.status != 'validated') AND (observation_collections.status != 'inprogress')")
+    } else {
+      oc_filter <- NULL
+    }
     # Add filters
     if (any(c(!is.null(time_left), !is.null(time_right), !is.null(uids)), !is.null(locations))) {
     } else {
@@ -531,7 +544,7 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL, time_le
     }
 
     # Combine filters
-    filters <- c(time_left_filter, time_right_filter, locations_filter, uids_filter) %>%
+    filters <- c(time_left_filter, time_right_filter, locations_filter, uids_filter, oc_filter, unified_filter) %>%
         paste(collapse = " AND ")
 
     # Run query for observations
