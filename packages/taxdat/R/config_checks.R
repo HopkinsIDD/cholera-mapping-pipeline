@@ -1,199 +1,63 @@
-#' @include file_name_functions.R
+config_docstrings <- list()
+config_docstrings[["general"]] <- list()
+config_docstrings[["general"]][["location_name"]] <- "Qualified name (e.g., AFR::TZA) of the top level location you want to model."
+config_docstrings[["general"]][["time_scale"]] <- "The units for the size of gridcell in time. Currently supports either 'year' or 'month'."
+config_docstrings[["general"]][["start_date"]] <- "The first date (inclusive) to include in the model."
+config_docstrings[["general"]][["end_date"]] <- "The last date (inclusive) to include in the model."
+config_docstrings[["general"]][["width_in_km"]] <- "The width of each gridcell in space. Currently supports any numeric value."
+config_docstrings[["general"]][["height_in_km"]] <- "The height of each gridcell in space. Currently supports any numeric value."
+config_docstrings[["general"]][["covariates"]] <- list()
+config_docstrings[["general"]][["covariates"]][["::"]] <- list()
+config_docstrings[["general"]][["covariates"]][["::"]][["name"]] <- "The name of the covariate as stored in the postgres database."
+config_docstrings[["general"]][["covariates"]][["::"]][["transform_name"]] <- "A string representing the name of the transformation applied to the covariate. Defaults to identity."
+config_docstrings[["general"]][["covariates"]][["::"]][["transform_function"]] <- "A function to use to transform the covariate after loading.  Uses expr! syntax.  Should be a function of one variable. Default is expr! function(x){return(x)}."
+config_docstrings[["stan"]] <- list()
+config_docstrings[["stan"]][["directory"]] <- "Directory (either absolute or relative to cholera-mapping-pipeline) containing stan files."
+config_docstrings[["stan"]][["recompile"]] <- "Whether to force the stan model to recompile if it has already been compiled. logical. Defaults to FALSE."
+config_docstrings[["stan"]][["niter"]] <- "The number of iterations to run on each chain. Results will have only have this number of iterations due to warmup. integer. Defaults to 2000."
+config_docstrings[["stan"]][["nchain"]] <- "The number of chains to use when running stan. integer. Defaults to 4."
+config_docstrings[["stan"]][["ncores"]] <- "The number of parallel processes to use when running stan. integer. Should not be greater than the number of chains. Defaults to 4 or the number of chains, whichever is smaller."
+config_docstrings[["stan"]][["beta_sigma_scale"]] <- "This value is used to rescale the standard deviation associated with the covariate contributions (beta). numeric. Defaults to 1."
+config_docstrings[["stan"]][["sigma_eta_scale"]] <- "This value is used to rescale the eta values. numeric. Defaults to 5."
+config_docstrings[["stan"]][["sigma_eta_scale"]] <- "This value is used to rescale the eta values. numeric. Defaults to 5."
+config_docstrings[["stan"]][["do_time_slice"]] <- list()
+config_docstrings[["stan"]][["do_time_slice"]][["eta_simplex"]] <- "Should we compute initial conditions as though the eta values are part of a simplex. logical. Defaults to FALSE."
+config_docstrings[["stan"]][["do_time_slice"]][["perform"]] <- "Should we compute values for the temporal random effect eta. logical. Defaults to TRUE."
+config_docstrings[["stan"]][["do_time_slice"]][["autocorrelated_prior"]] <- "Should the prior associated with the temporal random effect (eta) be autocorrelated. logical. Defaults to TRUE."
+config_docstrings[["stan"]][["model"]] <- "Filename (no directory) of the stan model to use."
+config_docstrings[["stan"]][["exp_prior"]] <- "Should we use a double exponential prior for covariate contributions (beta) to help unused covariates tend toward 0. logical. Defaults to FALSE."
+config_docstrings[["stan"]][["narrower_prior"]] <- "Should we use a narrower prior for the standard deviation of covariate contributions (beta). logical. Defaults to TRUE."
+config_docstrings[["initial_values"]] <- list()
+config_docstrings[["initial_values"]][["warmup"]] <- "Should we use the gam model to try to find better starting conditions for the stan model. logical. Defaults to TRUE."
+config_docstrings[["processing"]] <- list()
+config_docstrings[["processing"]][["reorder_adjacency_matrix"]] <- list()
+config_docstrings[["processing"]][["reorder_adjacency_matrix"]][["perform"]] <- "Should we permute the order of the gridcells so that the (assymetric) adjacency matrix has better properties for DAGAR. logical. Defaults to TRUE."
+config_docstrings[["processing"]][["remove_overlaps"]] <- list()
+config_docstrings[["processing"]][["remove_overlaps"]][["perform"]] <- "Should observations completely covered by another observation from the same observation collection which covers the same gridcells be dropped. logical. Defaults to TRUE."
+config_docstrings[["processing"]][["aggregate"]] <- "Should non-overlapping observations from the same observation collection covering the same gridcells be combined together. logical. Defaults to TRUE."
+config_docstrings[["processing"]][["average_inconsistent_duplicates"]] <- "Should observations from the same observation collection covering the same gridcells with the same time bounds be combined together. logical. Defaults to TRUE."
+config_docstrings[["processing"]][["censor_incomplete_observations"]] <- list()
+config_docstrings[["processing"]][["censor_incomplete_observations"]][["perform"]] <- "Should observations covering a small subset of the time dimension of a gridcell be converted to partial observations. logical. Defaults to TRUE."
+config_docstrings[["processing"]][["censor_incomplete_observations"]][["threshold"]] <- "How small is a small subset (as a fraction) of the time dimension. numeric. Defaults to 0.95."
+config_docstrings[["processing"]][["remove_unobserved_time_slices"]] <- "Should time slices which are not observed be dropped from the model. logical. Defaults to TRUE."
+config_docstrings[["processing"]][["remove_unobserved_space_slices"]] <- "Should space slices which are not observed be dropped from the model. logical. Defaults to TRUE."
+config_docstrings[["file_names"]] <- list()
+config_docstrings[["file_names"]][["stan_input"]] <- "Filename to save input data to. Defaults to a unique string based on the config."
+config_docstrings[["file_names"]][["stan_output"]] <- "Filename to save stan output data to. Defaults to a unique string based on the config."
+config_docstrings[["file_names"]][["generated_quantities"]] <- "Filename to save generated quantities data to. Defaults to a unique string based on the config."
+config_docstrings[["file_names"]][["report"]] <- "Filename to save report to. Defaults to a unique string based on the config."
+config_docstrings[["generated"]] <- list()
+config_docstrings[["generated"]][["location_name"]] <- "Qualified name (e.g., AFR::TZA) of the top level location you want to generate modeled values for."
+config_docstrings[["generated"]][["time_scale"]] <- "The units for the size of gridcell in time. Currently supports either 'year' or 'month'."
+config_docstrings[["generated"]][["start_date"]] <- "The first date (inclusive) to include in the generate modeled values for."
+config_docstrings[["generated"]][["end_date"]] <- "The last date (inclusive) to include in the generate modeled values for."
+config_docstrings[["generated"]][["width_in_km"]] <- "The width of each gridcell in space. Currently supports any numeric value."
+config_docstrings[["generated"]][["height_in_km"]] <- "The height of each gridcell in space. Currently supports any numeric value."
+config_docstrings[["generated"]][["perform"]] <- "Whether to generate additional results from the model based on different information."
 
 
-#' @title Check time resolution
-#' @description Checks whether the time resolution input is valid
-#'
-#' @param res_time the time resolution of the model
-#'
-#' @return res_time if valid
-#' @export
-check_time_res <- function(res_time) {
-  err_message <- "Time resolution should be specified as a string in the from '<n> <period>' where n is the number of time units of period <period>. Example: '1 year'."
-
-  parts <- stringr::str_split(res_time, " ")[[1]]
-  if (length(parts) != 2) {
-    stop(err_message)
-  }
-
-  n_units <- as.numeric(parts[1])
-  if (is.na(n_units)) {
-    stop(paste(err_message, "[Units not valid]"))
-  }
-
-  allowed_time_periods <- c("month", "year")
-  allowed_time_periods <- c(allowed_time_periods, paste0(
-    allowed_time_periods,
-    "s"
-  ))
-  time_period <- parts[2]
-  if (!(time_period %in% allowed_time_periods)) {
-    stop(paste(err_message, "[Time period not valid]"))
-  }
-
-  # Standardize to always have an s at the end
-  if (!stringr::str_detect(res_time, "s$")) {
-    res_time <- stringr::str_c(res_time, "s")
-  }
-
-  cat("-- Running with valid time resolution:", res_time, "\n")
-  return(res_time)
-}
-
-#' @title Check case definition
-#' @description Checks whether the column name for case definition is valid
-#'
-#' @param case_column the name of the case column to use in the database
-#'
-#' @return case column if valid
-#' @export
-check_case_definition <- function(case_col) {
-  if (!(case_col %in% c("suspected", "confirmed"))) {
-    stop("Cholera case definition not in allowed options (suspected or confirmed).")
-  }
-
-  cat("-- Running with valid case defitinion: '", case_col, "'\n", sep = "")
-  return(case_col)
-}
 
 
-#' @title Check modeling date range
-#' @description Checks if input date ranges are correct
-#'
-#' @param start_time the start time of the modeling time rante
-#' @param end_time the end time of the modeling time range
-#' @param time_change_func function to change dates to the aggregation level
-#' determined by the time resolution of the model
-#' @param aggregate_to_start function to aggregate dates to the start date of modeling time slices
-#' @param aggregate_to_end function to aggregate dates to the end of the modeling time slices
-#'
-#' @return return
-#' @export
-check_model_date_range <- function(start_time, end_time, time_change_func, aggregate_to_start,
-                                   aggregate_to_end) {
-  if (any(c(!lubridate::is.Date(start_time), !lubridate::is.Date(end_time)))) {
-    stop("Start and end times need to be in date format")
-  }
-
-  if (start_time > end_time) {
-    stop("Start time is after end time")
-  }
-
-  model_TL <- aggregate_to_start(time_change_func(start_time))
-  model_TR <- aggregate_to_end(time_change_func(end_time))
-
-  if (start_time != model_TL | end_time != model_TR) {
-    warning(
-      "--- User-defined modeling time range does not cover the whole range",
-      "as defined with the time resoltion: \n user-defined range:\t", start_time,
-      " - ", end_time, "\n ", "model range:\t\t", model_TL, " - ", model_TR
-    )
-  } else {
-    cat(
-      "---- Running with model date range:", as.character(model_TL), "-", as.character(model_TR),
-      "\n"
-    )
-  }
-}
-
-#' @title Check covariate choices
-#' @description Verifies whether user-defined covariate choices are in the available
-#' set
-#'
-#' @param covar_choices vector of user-defined covariate choices
-#' @param available_choices vector of available covaraites choices
-#'
-#' @return if valid the vector of covariate choices
-#' @export
-check_covariate_choices <- function(covar_choices, available_choices) {
-  if (any(purrr::map_lgl(covar_choices, ~ !(. %in% available_choices)))) {
-    stop("Covariate choices [", stringr::str_c(setdiff(covar_choices, available_choices),
-      collapse = ", "
-    ), "] not available. \n", "Choose among: [", stringr::str_c(available_choices,
-      collapse = ", "
-    ), "]")
-  }
-
-  cat(
-    "---- Running with covariates:", stringr::str_c(covar_choices, collapse = ", "),
-    "\n"
-  )
-
-  return(covar_choices)
-}
-
-
-#' @title Check stan model
-#' @description Checks whether the stan model file exists
-#'
-#' @param stan_model_path the path to the stan model to use
-#' @param stan_dir the directory to the directory with all available stan models
-#'
-#' @return if valid the stan model path
-#' @export
-check_stan_model <- function(stan_model_path, stan_dir) {
-  if (!file.exists(stan_model_path)) {
-    stop("Could not find stan model. Choose among:\n", stringr::str_c(dir(stan_dir),
-      collapse = "\n"
-    ))
-  }
-  cat("---- Running with stan model:", stringr::str_replace(
-    stan_model_path, stan_dir,
-    ""
-  ), "\n")
-
-  return(stan_model_path)
-}
-
-#' @title Check set tfrac
-#' @description Checks whether the user-specified value of tfrac is valid
-#'
-#' @param config the config
-#'
-#' @return if valid the stan model path
-#' @export
-check_set_tfrac <- function(set_tfrac) {
-  if (!is.null(set_tfrac)) {
-    if (set_tfrac < 0) {
-      stop("Cannot specifiy negative tfrac values")
-    }
-    if (set_tfrac > 1) {
-      warning("-- Running with a tfrac value larger than 1")
-    } else {
-      cat("---- Running with user-specified value of tfrac:", set_tfrac, "\n")
-    }
-  }
-  return(set_tfrac)
-}
-
-#' @title Modeling time slices
-#' @description Defines the modeling time slicez
-#'
-#' @param start_time modeling start date (in date format)
-#' @param end_time   modeling end date (in date format)
-#' @param res_time   modeling time resolution
-#' @param time_change_func function to get the time unit of the date
-#' @param aggregate_to_start function to get the first date of a time slice
-#' @param aggregate_to_end function to get the last date of a time slices
-#' @return a dataframe left and right bounds of the modeling time slices
-#' @export
-modeling_time_slices <- function(start_time, end_time, res_time, time_change_func,
-                                 aggregate_to_start, aggregate_to_end) {
-  left_bounds <- seq.Date(start_time, end_time, by = res_time)
-  left_bounds <- aggregate_to_start(time_change_func(left_bounds))
-  right_bounds <- aggregate_to_end(time_change_func(left_bounds))
-
-  time_slices <- tibble::tibble(TL = left_bounds[left_bounds <= end_time], TR = right_bounds[right_bounds <=
-    end_time])
-
-  cat(
-    "-- Model consists of", nrow(time_slices), "time slices of duration", res_time,
-    ":\n"
-  )
-  print(time_slices)
-  cat("\n")
-  return(time_slices)
-}
 
 config_checks <- list()
 config_checks[["general"]] <- list()
@@ -500,24 +364,6 @@ config_checks[["stan"]][["niter"]] <- function(value, config, index) {
   }
   return(TRUE)
 }
-config_checks[["stan"]][["ncores"]] <- function(value, config, index) {
-  if (length(value) != 1) {
-    warning(paste(
-      "config[['stan']][['ncores']] should be of length 1, but is of length",
-      length(value), "with value", value
-    ))
-    return(FALSE)
-  }
-  if (is.na(value)) {
-    warning("config[['stan']][['ncores']] is NA")
-    return(FALSE)
-  }
-  if (!is.numeric(value)) {
-    warning("config[['stan']][['ncores']] should be numeric, but is", value)
-    return(FALSE)
-  }
-  return(TRUE)
-}
 config_checks[["stan"]][["nchain"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
@@ -532,6 +378,24 @@ config_checks[["stan"]][["nchain"]] <- function(value, config, index) {
   }
   if (!is.numeric(value)) {
     warning("config[['stan']][['nchain']] should be numeric, but is", value)
+    return(FALSE)
+  }
+  return(TRUE)
+}
+config_checks[["stan"]][["ncores"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['ncores']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['ncores']] is NA")
+    return(FALSE)
+  }
+  if (!is.numeric(value)) {
+    warning("config[['stan']][['ncores']] should be numeric, but is", value)
     return(FALSE)
   }
   return(TRUE)
@@ -679,8 +543,6 @@ config_checks[["stan"]][["model"]] <- function(value, config, index) {
   )
   return(FALSE)
 }
-
-## QZ: added exp_prior
 config_checks[["stan"]][["exp_prior"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
@@ -702,8 +564,6 @@ config_checks[["stan"]][["exp_prior"]] <- function(value, config, index) {
   }
   return(TRUE)
 }
-
-## QZ: added narrower_prior
 config_checks[["stan"]][["narrower_prior"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
@@ -1332,7 +1192,7 @@ config_ignore_checks <- c("test_metadata")
 #' @param config_checks A named list of checks, where each element is either a named list of checks, or a function which takes the field value and the config.  The function should return TRUE if the config is valid, or FALSE and emit a warning if the config is invalid.
 #' @param original_config In case of recursion, the original config this was part of.  This is what is passed to the functions in the defaults
 #' @export
-check_config <- function(config, checks = config_checks, original_config = config,
+check_config <- function(config, checks = config_checks, docstrings = config_docstrings, original_config = config,
                          name_prefix = NULL, no_check_fields = config_ignore_checks, index = NULL) {
   config_is_valid <- TRUE
   subconfig_valid <- TRUE
@@ -1341,7 +1201,7 @@ check_config <- function(config, checks = config_checks, original_config = confi
       for (new_index in seq_len(length(config))) {
         if (class(config[[field_name]]) %in% c("NULL", "list")) {
           subconfig_valid <- check_config(
-            config[[new_index]], checks[[field_name]],
+            config[[new_index]], checks[[field_name]], docstrings[[field_name]],
             original_config, paste0(name_prefix, ifelse(is.null(name_prefix),
               "", "::"
             ), c(index, new_index)),
@@ -1357,7 +1217,7 @@ check_config <- function(config, checks = config_checks, original_config = confi
     if (class(checks[[field_name]]) == "list") {
       if (class(config[[field_name]]) %in% c("NULL", "list")) {
         subconfig_valid <- check_config(
-          config[[field_name]], checks[[field_name]],
+          config[[field_name]], checks[[field_name]], docstrings[[field_name]],
           original_config, paste0(name_prefix, ifelse(is.null(name_prefix),
             "", "::"
           ), field_name)
@@ -1374,7 +1234,13 @@ check_config <- function(config, checks = config_checks, original_config = confi
       }
     } else {
       field_valid <- checks[[field_name]](config[[field_name]], original_config, index)
-      config_is_valid <- config_is_valid && field_valid
+      field_documented <- field_name %in% names(docstrings)
+      if (!field_documented) {
+        warning(paste("config field", paste0(name_prefix, ifelse(is.null(name_prefix),
+          "", "::"
+        ), field_name), "does not have a documentation string"))
+      }
+      config_is_valid <- config_is_valid && field_valid && field_documented
     }
   }
   if ((!all(names(config) %in% names(checks))) && (!all(names(checks) == "::"))) {
@@ -1457,11 +1323,14 @@ config_defaults[["processing"]][["remove_unobserved_space_slices"]] <- function(
   return(TRUE)
 }
 config_defaults[["stan"]] <- list()
-config_defaults[["stan"]][["ncores"]] <- function(config, index) {
-  return(2)
-}
 config_defaults[["stan"]][["nchain"]] <- function(config, index) {
-  return(pmax(config[["stan"]][["ncores"]], 2))
+  return(4)
+}
+config_defaults[["stan"]][["ncores"]] <- function(config, index) {
+  return(pmin(config[["stan"]][["nchain"]], parallel::detectCores()))
+}
+config_defaults[["stan"]][["niter"]] <- function(config, index) {
+  return(2000)
 }
 config_defaults[["stan"]][["recompile"]] <- function(config, index) {
   return(TRUE)
@@ -1650,6 +1519,9 @@ config_defaults[["test_metadata"]][["observations"]][["::"]][["end_date"]] <- fu
 
 
 
+
+
+
 #' @name complete_config
 #' @description Makes default values in the config explicit recursively
 #' @param config A config (or section of the config) to apply defaults to
@@ -1688,54 +1560,87 @@ complete_config <- function(config, defaults = config_defaults, original_config 
   return(config)
 }
 
-document_config_options <- function(name_prefix = NULL, defaults = config_defaults, checks = config_checks, no_check_fields = config_ignore_checks) {
+document_config <- function(docstrings = config_docstrings, prefix = "", verbose = FALSE) {
+  rc <- ""
+  for (field_name in names(docstrings)) {
+    if (class(docstrings[[field_name]]) == "list") {
+      rc <- paste(rc, field_name, document_config(docstrings[[field_name]], prefix = paste0("  ", prefix), verbose = verbose), sep = "\n")
+    } else {
+      rc <- paste(rc, paste0(prefix, field_name, ":"), paste0(prefix, docstrings[[field_name]]), sep = "\n")
+    }
+  }
+  return(rc)
+}
+
+document_config_options <- function(name_prefix = NULL, docstrings = config_docstrings, defaults = config_defaults, checks = config_checks, no_check_fields = config_ignore_checks, verbose = FALSE) {
   config_documentation <- ""
   subconfig_documentation <- ""
-  for (field_name in sort(unique(c(names(checks), names(defaults))))) {
+  for (field_name in unique(c(names(docstrings), names(checks), names(defaults)))) {
     if (field_name == "::") {
       subconfig_documentation <- document_config_options(
         name_prefix = paste0(name_prefix, ifelse(is.null(name_prefix), "", "::"), "ARRAY"),
+        docstrings = docstrings[[field_name]],
         defaults = defaults[[field_name]],
         checks = checks[[field_name]],
-        no_check_fields = no_check_fields
+        no_check_fields = no_check_fields,
+        verbose = verbose
       )
-      config_documentation <- paste(config_documentation, subconfig_documentation, sep = "\n\n\n\n")
+      config_documentation <- paste(config_documentation, subconfig_documentation, sep = ifelse(nchar(config_documentation) > 0, "\n\n\n\n", ""))
       next
     }
     if ((class(checks[[field_name]]) == "list") || (class(defaults[[field_name]]) == "list")) {
       subconfig_documentation <- document_config_options(
         name_prefix = paste0(name_prefix, ifelse(is.null(name_prefix), "", "::"), field_name),
+        docstrings = docstrings[[field_name]],
         defaults = defaults[[field_name]],
         checks = checks[[field_name]],
-        no_check_fields = no_check_fields
+        no_check_fields = no_check_fields,
+        verbose = verbose
       )
-      config_documentation <- paste(config_documentation, subconfig_documentation, sep = "\n\n\n\n")
+      config_documentation <- paste(config_documentation, subconfig_documentation, sep = ifelse(nchar(config_documentation) > 0, "\n\n\n\n", ""))
     } else {
-      config_documentation <- paste(config_documentation, document_single_field(field_name, checks[[field_name]], defaults[[field_name]], name_prefix), sep = "\n\n")
+      config_documentation <- paste(config_documentation, document_single_field(field_name, docstrings[[field_name]], checks[[field_name]], defaults[[field_name]], name_prefix, verbose = verbose), sep = ifelse(nchar(config_documentation) > 0, "\n\n", ""))
     }
   }
   return(config_documentation)
 }
 
-document_single_field <- function(name, check, default, name_prefix = NULL) {
-  if ((class(default) == "list") || (class(check) == "list")) {
-    print(paste(name_prefix, name))
-    stop("This shouldn't happen")
+document_single_field <- function(name, docstring, check, default, name_prefix = NULL, verbose = FALSE) {
+  if ((class(docstring) == "list") || (class(default) == "list") || (class(check) == "list")) {
+    stop(paste("The default, docstring, or check for field", paste0(name_prefix, ifelse(is.null(name_prefix), "", "::"), name), "was a list instead of a value"))
   }
   name_string <- paste("Name is", paste0(name_prefix, ifelse(is.null(name_prefix), "", "::"), name))
+  doc_string <- paste("Explanation is", docstring)
   check_string <- paste("Check function is", yaml::as.yaml(check))
   default_string <- paste("Default is", yaml::as.yaml(default))
-  return(paste(name_string, check_string, default_string, sep = "\n"))
+  rc <- paste(name_string, doc_string, sep = "\n")
+  if (verbose) {
+    rc <- paste(rc, check_string, default_string, sep = "\n")
+  }
+  return(rc)
 }
 
 #' @description Print documentation for part of the config by field name.
 #' @param field_name character The part of the config you want to see documentation for. For nested fields, separate by "::"
 #' @export
-get_config_documentation <- function(field_name) {
-  all_field_names <- stringr::str_split(field_name, pattern = "::")[[1]]
+get_config_documentation <- function(field_name, verbose = FALSE) {
+  my_docstrings <- config_docstrings
   my_defaults <- config_defaults
   my_checks <- config_checks
+  if (missing(field_name)) {
+    cat(document_config_options(name_prefix = NULL, docstrings = my_docstrings, defaults = my_defaults, checks = my_checks, no_check_fields = no_check_fields, verbose = verbose))
+    cat("\n")
+    invisible(NULL)
+  }
+  all_field_names <- stringr::str_split(field_name, pattern = "::")[[1]]
   for (name in all_field_names) {
+    if (!is.null(my_docstrings)) {
+      if (name %in% names(my_docstrings)) {
+        my_docstrings <- my_docstrings[[name]]
+      } else {
+        my_docstrings <- NULL
+      }
+    }
     if (!is.null(my_defaults)) {
       if (name %in% names(my_defaults)) {
         my_defaults <- my_defaults[[name]]
@@ -1751,7 +1656,20 @@ get_config_documentation <- function(field_name) {
       }
     }
   }
-  print("HERE")
-  cat(document_config_options(name_prefix = field_name, defaults = my_defaults, checks = my_checks, no_check_fields = no_check_fields))
+  name_prefix <- field_name
+  if (class(my_docstrings) == "character") {
+    my_docstrings <- setNames(list(my_docstrings), field_name)
+    name_prefix <- NULL
+  }
+  if (class(my_defaults) == "function") {
+    my_defaults <- setNames(list(my_defaults), field_name)
+    name_prefix <- NULL
+  }
+  if (class(my_checks) == "function") {
+    my_checks <- setNames(list(my_checks), field_name)
+    name_prefix <- NULL
+  }
+  cat(document_config_options(name_prefix = name_prefix, docstrings = my_docstrings, defaults = my_defaults, checks = my_checks, no_check_fields = no_check_fields, verbose = verbose))
+  cat("\n")
   invisible(NULL)
 }

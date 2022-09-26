@@ -1,5 +1,4 @@
 #' @include report_cache.R
-#' @include setup_helpers.R
 
 #' @name get_config_no_cache
 #' @description load config.rdata
@@ -32,8 +31,7 @@ get_config <- cache_fun_results(name = "config", fun = get_config_no_cache)
 #' @return stan_input
 get_stan_input_no_cache <- function(config, cache, cholera_directory) {
   get_config(config = config, cache = cache, cholera_directory = cholera_directory)
-  file_names <- taxdat::get_filenames(cache[["config"]], cholera_directory)
-  stan_input <- read_file_of_type(file_names[["stan_input"]], "stan_input")
+  stan_input <- read_file_of_type(cache[["config"]][["file_names"]][["stan_input"]], "stan_input")
   require(bit64)
   require(sf)
   return(stan_input)
@@ -186,8 +184,7 @@ get_observed_years <- cache_fun_results(name = "observed_years", fun = get_obser
 #' @return cmdstan_fit
 get_cmdstan_fit_no_cache <- function(config, cache, cholera_directory) {
   get_config(config = config, cache = cache, cholera_directory = cholera_directory)
-  file_names <- taxdat::get_filenames(cache[["config"]], cholera_directory)
-  cmdstan_fit <- read_file_of_type(file_names[["stan_output"]], "cmdstan_fit")
+  cmdstan_fit <- read_file_of_type(cache[["config"]][["file_names"]][["stan_output"]], "cmdstan_fit")
   return(cmdstan_fit)
 }
 ## cache the results
@@ -228,8 +225,7 @@ get_model.rand <- cache_fun_results(name = "model.rand", fun = get_model.rand_no
 #' @return elapsed_time
 get_elapsed_time_no_cache <- function(config, cache, cholera_directory) {
   get_config(config = config, cache = cache, cholera_directory = cholera_directory)
-  file_names <- taxdat::get_filenames(cache[["config"]], cholera_directory)
-  elapsed_time <- read_file_of_type(file_names[["stan_output"]], "elapsed_time")
+  elapsed_time <- read_file_of_type(cache[["config"]][["file_names"]][["stan_output"]], "elapsed_time")
   return(elapsed_time)
 }
 ## cache the results
