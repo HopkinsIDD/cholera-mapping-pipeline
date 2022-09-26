@@ -1,4 +1,3 @@
-#' @include file_name_functions.R
 
 #' @title create_mapping_progress_table
 #' @name create_mapping_progress_table
@@ -43,27 +42,3 @@ create_mapping_progress_table_single_config <- function(config_path, pipeline_pa
     dplyr::mutate(config_path = config_path) %>%
     return()
 }
-
-### create_mapping_progress_table(
-###   c("Analysis/configs/2010_2016_full_base", "Analysis/configs/2015_2019_full_base"),
-###   "~/git/cholera-mapping-pipeline"
-### ) %>%
-###   group_by(config_path) %>%
-###   summarize(stages_complete = ifelse(
-###     data,
-###     ifelse(covar,
-###       ifelse(stan_input,
-###         ifelse(stan_output,
-###           "Output Produced",
-###           "Input Produced"
-###         ), "Covariates constructed"
-###       ),
-###       "Data pulled"
-###     ),
-###     "None"
-###   )) %>%
-###   tidyr::separate(config_path,
-###     c(NA, NA, "start_year","end_year", NA, NA, "country", NA) # This is file path specific
-###   ) %>%
-###   ggplot() +
-###   geom_tile(aes(x=paste(start_year, end_year, sep = '-'), y=country, fill=stages_complete))
