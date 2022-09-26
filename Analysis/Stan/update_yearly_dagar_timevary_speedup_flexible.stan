@@ -71,7 +71,7 @@ transformed data {
   real small_N = .001 * smooth_grid_N;
   real<lower=0> weights[M*(1-do_censoring)*use_weights]; //a function of the expected offset for each observation used to downwight the likelihood
   real log_meanrate = log(meanrate);
-  real <lower=1> pop_loctimes[L]; // pre-computed population in each location period
+  real <lower=0> pop_loctimes[L]; // pre-computed population in each location period
   
   for(i in 1:N){
     logpop[i] = log(pop[i]);

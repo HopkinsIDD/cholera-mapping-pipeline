@@ -1,9 +1,9 @@
 
 #' Write Shapefiles to taxdat
 #'
-#' @param conn_pg 
-#' @param shapefiles 
-#' @param table_name 
+#' @param conn_pg connection to a postgis database
+#' @param shapefiles set of shapefiles to write
+#' @param table_name name of table to write the shapefiles to
 #'
 #' @export
 #'
