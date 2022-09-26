@@ -303,24 +303,6 @@ config_checks[["stan"]][["niter"]] <- function(value, config, index) {
   }
   return(TRUE)
 }
-config_checks[["stan"]][["ncores"]] <- function(value, config, index) {
-  if (length(value) != 1) {
-    warning(paste(
-      "config[['stan']][['ncores']] should be of length 1, but is of length",
-      length(value), "with value", value
-    ))
-    return(FALSE)
-  }
-  if (is.na(value)) {
-    warning("config[['stan']][['ncores']] is NA")
-    return(FALSE)
-  }
-  if (!is.numeric(value)) {
-    warning("config[['stan']][['ncores']] should be numeric, but is", value)
-    return(FALSE)
-  }
-  return(TRUE)
-}
 config_checks[["stan"]][["nchain"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
@@ -335,6 +317,24 @@ config_checks[["stan"]][["nchain"]] <- function(value, config, index) {
   }
   if (!is.numeric(value)) {
     warning("config[['stan']][['nchain']] should be numeric, but is", value)
+    return(FALSE)
+  }
+  return(TRUE)
+}
+config_checks[["stan"]][["ncores"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['ncores']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['ncores']] is NA")
+    return(FALSE)
+  }
+  if (!is.numeric(value)) {
+    warning("config[['stan']][['ncores']] should be numeric, but is", value)
     return(FALSE)
   }
   return(TRUE)
@@ -482,8 +482,6 @@ config_checks[["stan"]][["model"]] <- function(value, config, index) {
   )
   return(FALSE)
 }
-
-## QZ: added exp_prior
 config_checks[["stan"]][["exp_prior"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
@@ -505,8 +503,6 @@ config_checks[["stan"]][["exp_prior"]] <- function(value, config, index) {
   }
   return(TRUE)
 }
-
-## QZ: added narrower_prior
 config_checks[["stan"]][["narrower_prior"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
@@ -1135,7 +1131,7 @@ config_ignore_checks <- c("test_metadata")
 #' @param config_checks A named list of checks, where each element is either a named list of checks, or a function which takes the field value and the config.  The function should return TRUE if the config is valid, or FALSE and emit a warning if the config is invalid.
 #' @param original_config In case of recursion, the original config this was part of.  This is what is passed to the functions in the defaults
 #' @export
-check_config <- function(config, checks = config_checks, original_config = config,
+check_config <- function(config, checks = config_checks, docstrings = config_docstrings, original_config = config,
                          name_prefix = NULL, no_check_fields = config_ignore_checks, index = NULL) {
   config_is_valid <- TRUE
   subconfig_valid <- TRUE
@@ -1144,7 +1140,7 @@ check_config <- function(config, checks = config_checks, original_config = confi
       for (new_index in seq_len(length(config))) {
         if (class(config[[field_name]]) %in% c("NULL", "list")) {
           subconfig_valid <- check_config(
-            config[[new_index]], checks[[field_name]],
+            config[[new_index]], checks[[field_name]], docstrings[[field_name]],
             original_config, paste0(name_prefix, ifelse(is.null(name_prefix),
               "", "::"
             ), c(index, new_index)),
@@ -1160,7 +1156,7 @@ check_config <- function(config, checks = config_checks, original_config = confi
     if (class(checks[[field_name]]) == "list") {
       if (class(config[[field_name]]) %in% c("NULL", "list")) {
         subconfig_valid <- check_config(
-          config[[field_name]], checks[[field_name]],
+          config[[field_name]], checks[[field_name]], docstrings[[field_name]],
           original_config, paste0(name_prefix, ifelse(is.null(name_prefix),
             "", "::"
           ), field_name)
@@ -1177,7 +1173,13 @@ check_config <- function(config, checks = config_checks, original_config = confi
       }
     } else {
       field_valid <- checks[[field_name]](config[[field_name]], original_config, index)
-      config_is_valid <- config_is_valid && field_valid
+      field_documented <- field_name %in% names(docstrings)
+      if (!field_documented) {
+        warning(paste("config field", paste0(name_prefix, ifelse(is.null(name_prefix),
+          "", "::"
+        ), field_name), "does not have a documentation string"))
+      }
+      config_is_valid <- config_is_valid && field_valid && field_documented
     }
   }
   if ((!all(names(config) %in% names(checks))) && (!all(names(checks) == "::"))) {
@@ -1260,11 +1262,14 @@ config_defaults[["processing"]][["remove_unobserved_space_slices"]] <- function(
   return(TRUE)
 }
 config_defaults[["stan"]] <- list()
-config_defaults[["stan"]][["ncores"]] <- function(config, index) {
-  return(2)
-}
 config_defaults[["stan"]][["nchain"]] <- function(config, index) {
-  return(pmax(config[["stan"]][["ncores"]], 2))
+  return(4)
+}
+config_defaults[["stan"]][["ncores"]] <- function(config, index) {
+  return(pmin(config[["stan"]][["nchain"]], parallel::detectCores()))
+}
+config_defaults[["stan"]][["niter"]] <- function(config, index) {
+  return(2000)
 }
 config_defaults[["stan"]][["recompile"]] <- function(config, index) {
   return(TRUE)
@@ -1453,6 +1458,9 @@ config_defaults[["test_metadata"]][["observations"]][["::"]][["end_date"]] <- fu
 
 
 
+
+
+
 #' @name complete_config
 #' @description Makes default values in the config explicit recursively
 #' @param config A config (or section of the config) to apply defaults to
@@ -1491,54 +1499,87 @@ complete_config <- function(config, defaults = config_defaults, original_config 
   return(config)
 }
 
-document_config_options <- function(name_prefix = NULL, defaults = config_defaults, checks = config_checks, no_check_fields = config_ignore_checks) {
+document_config <- function(docstrings = config_docstrings, prefix = "", verbose = FALSE) {
+  rc <- ""
+  for (field_name in names(docstrings)) {
+    if (class(docstrings[[field_name]]) == "list") {
+      rc <- paste(rc, field_name, document_config(docstrings[[field_name]], prefix = paste0("  ", prefix), verbose = verbose), sep = "\n")
+    } else {
+      rc <- paste(rc, paste0(prefix, field_name, ":"), paste0(prefix, docstrings[[field_name]]), sep = "\n")
+    }
+  }
+  return(rc)
+}
+
+document_config_options <- function(name_prefix = NULL, docstrings = config_docstrings, defaults = config_defaults, checks = config_checks, no_check_fields = config_ignore_checks, verbose = FALSE) {
   config_documentation <- ""
   subconfig_documentation <- ""
-  for (field_name in sort(unique(c(names(checks), names(defaults))))) {
+  for (field_name in unique(c(names(docstrings), names(checks), names(defaults)))) {
     if (field_name == "::") {
       subconfig_documentation <- document_config_options(
         name_prefix = paste0(name_prefix, ifelse(is.null(name_prefix), "", "::"), "ARRAY"),
+        docstrings = docstrings[[field_name]],
         defaults = defaults[[field_name]],
         checks = checks[[field_name]],
-        no_check_fields = no_check_fields
+        no_check_fields = no_check_fields,
+        verbose = verbose
       )
-      config_documentation <- paste(config_documentation, subconfig_documentation, sep = "\n\n\n\n")
+      config_documentation <- paste(config_documentation, subconfig_documentation, sep = ifelse(nchar(config_documentation) > 0, "\n\n\n\n", ""))
       next
     }
     if ((class(checks[[field_name]]) == "list") || (class(defaults[[field_name]]) == "list")) {
       subconfig_documentation <- document_config_options(
         name_prefix = paste0(name_prefix, ifelse(is.null(name_prefix), "", "::"), field_name),
+        docstrings = docstrings[[field_name]],
         defaults = defaults[[field_name]],
         checks = checks[[field_name]],
-        no_check_fields = no_check_fields
+        no_check_fields = no_check_fields,
+        verbose = verbose
       )
-      config_documentation <- paste(config_documentation, subconfig_documentation, sep = "\n\n\n\n")
+      config_documentation <- paste(config_documentation, subconfig_documentation, sep = ifelse(nchar(config_documentation) > 0, "\n\n\n\n", ""))
     } else {
-      config_documentation <- paste(config_documentation, document_single_field(field_name, checks[[field_name]], defaults[[field_name]], name_prefix), sep = "\n\n")
+      config_documentation <- paste(config_documentation, document_single_field(field_name, docstrings[[field_name]], checks[[field_name]], defaults[[field_name]], name_prefix, verbose = verbose), sep = ifelse(nchar(config_documentation) > 0, "\n\n", ""))
     }
   }
   return(config_documentation)
 }
 
-document_single_field <- function(name, check, default, name_prefix = NULL) {
-  if ((class(default) == "list") || (class(check) == "list")) {
-    print(paste(name_prefix, name))
-    stop("This shouldn't happen")
+document_single_field <- function(name, docstring, check, default, name_prefix = NULL, verbose = FALSE) {
+  if ((class(docstring) == "list") || (class(default) == "list") || (class(check) == "list")) {
+    stop(paste("The default, docstring, or check for field", paste0(name_prefix, ifelse(is.null(name_prefix), "", "::"), name), "was a list instead of a value"))
   }
   name_string <- paste("Name is", paste0(name_prefix, ifelse(is.null(name_prefix), "", "::"), name))
+  doc_string <- paste("Explanation is", docstring)
   check_string <- paste("Check function is", yaml::as.yaml(check))
   default_string <- paste("Default is", yaml::as.yaml(default))
-  return(paste(name_string, check_string, default_string, sep = "\n"))
+  rc <- paste(name_string, doc_string, sep = "\n")
+  if (verbose) {
+    rc <- paste(rc, check_string, default_string, sep = "\n")
+  }
+  return(rc)
 }
 
 #' @description Print documentation for part of the config by field name.
 #' @param field_name character The part of the config you want to see documentation for. For nested fields, separate by "::"
 #' @export
-get_config_documentation <- function(field_name) {
-  all_field_names <- stringr::str_split(field_name, pattern = "::")[[1]]
+get_config_documentation <- function(field_name, verbose = FALSE) {
+  my_docstrings <- config_docstrings
   my_defaults <- config_defaults
   my_checks <- config_checks
+  if (missing(field_name)) {
+    cat(document_config_options(name_prefix = NULL, docstrings = my_docstrings, defaults = my_defaults, checks = my_checks, no_check_fields = no_check_fields, verbose = verbose))
+    cat("\n")
+    invisible(NULL)
+  }
+  all_field_names <- stringr::str_split(field_name, pattern = "::")[[1]]
   for (name in all_field_names) {
+    if (!is.null(my_docstrings)) {
+      if (name %in% names(my_docstrings)) {
+        my_docstrings <- my_docstrings[[name]]
+      } else {
+        my_docstrings <- NULL
+      }
+    }
     if (!is.null(my_defaults)) {
       if (name %in% names(my_defaults)) {
         my_defaults <- my_defaults[[name]]
@@ -1554,7 +1595,20 @@ get_config_documentation <- function(field_name) {
       }
     }
   }
-  print("HERE")
-  cat(document_config_options(name_prefix = field_name, defaults = my_defaults, checks = my_checks, no_check_fields = no_check_fields))
+  name_prefix <- field_name
+  if (class(my_docstrings) == "character") {
+    my_docstrings <- setNames(list(my_docstrings), field_name)
+    name_prefix <- NULL
+  }
+  if (class(my_defaults) == "function") {
+    my_defaults <- setNames(list(my_defaults), field_name)
+    name_prefix <- NULL
+  }
+  if (class(my_checks) == "function") {
+    my_checks <- setNames(list(my_checks), field_name)
+    name_prefix <- NULL
+  }
+  cat(document_config_options(name_prefix = name_prefix, docstrings = my_docstrings, defaults = my_defaults, checks = my_checks, no_check_fields = no_check_fields, verbose = verbose))
+  cat("\n")
   invisible(NULL)
 }

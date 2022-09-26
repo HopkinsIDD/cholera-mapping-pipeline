@@ -588,9 +588,17 @@ create_testing_dfs_from_api <- function(username, api_key, locations = NULL, tim
       qualified_name = gsub("[.][^:]*$", "", attributes.location_name),
       time_left = lubridate::ymd(attributes.time_left), time_right = lubridate::ymd(attributes.time_right),
       observation_collection_id = relationships.observation_collection.data.id,
-      primary = attributes.primary, phantom = attributes.phantom, suspected_cases = attributes.fields.suspected_cases,
-      confirmed_cases = attributes.fields.confirmed_cases, deaths = attributes.fields.deaths
+      primary = attributes.primary, phantom = attributes.phantom
     )
+  if ("attributes.fields.suspected_cases" %in% names(observations_df)) {
+    observations_df$suspected_cases <- observations_df$attributes.fields.suspected_cases
+  }
+  if ("attributes.fields.confirmed_cases" %in% names(observations_df)) {
+    observations_df$confirmed_cases <- observations_df$attributes.fields.confirmed_cases
+  }
+  if ("attributes.fields.deaths" %in% names(observations_df)) {
+    observations_df$deaths <- observations_df$attributes.fields.deaths
+  }
 
   return(list(
     location_df = location_df, location_period_df = location_period_df,
