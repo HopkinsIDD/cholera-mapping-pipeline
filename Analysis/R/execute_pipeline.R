@@ -56,6 +56,8 @@ option_list <- list(
     help = "Postgres database user"
   ), optparse::make_option(c("--testing_run"),
     action = "store", default = FALSE, type = "logical", help = "Is this run a testing run or a production run"
+  ), optparse::make_option(c("-H", "--postgres_database_host"),
+    action = "store", default = "localhost", type = "character", help = "Postgres hostname"
   )
 )
 
@@ -83,7 +85,7 @@ if (!taxdat::check_config(config)) {
 ### Setup postgres
 conn_pg <- taxdat::connect_to_db(
   dbname = opt[["postgres_database_name"]], dbuser = opt[["postgres_database_user"]],
-  port = opt[["postgres_database_port"]]
+  port = opt[["postgres_database_port"]], host = opt[["host"]]
 )
 
 cases_column <- "suspected_cases"
