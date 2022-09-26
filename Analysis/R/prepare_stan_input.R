@@ -402,9 +402,9 @@ prepare_stan_input <- function(
     L <- length(ind_mapping_resized$u_loctimes)
     
     # Compute pop_loctimes
-    pop_loctimes <- rep(0, dat$L)
-    for (i in 1:dat$K2) {
-      pop_loctimes[dat$map_loc_grid_loc[i]] <- pop_loctimes[dat$map_loc_grid_loc[i]] + dat$pop[dat$map_loc_grid_grid[i]]  * dat$pop_weight[i]
+    pop_loctimes <- rep(0, L)
+    for (i in 1:K2) {
+      pop_loctimes[stan_data$map_loc_grid_loc[i]] <- pop_loctimes[stan_data$map_loc_grid_loc[i]] + stan_data$pop[stan_data$map_loc_grid_grid[i]]  * stan_data$pop_weight[i]
     }
     
     if (any(pop_loctimes == 0)) {
@@ -420,7 +420,7 @@ prepare_stan_input <- function(
         # Remove observations
         sf_cases_resized <- sf_cases_resized[-c(nopop_obs), ]
         
-        # Re-compute space-time indices based on aggretated data
+        # Re-compute space-time indices based on aggregated data
         ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
           df = sf_cases_resized, 
           lp_dict = location_periods_dict,
