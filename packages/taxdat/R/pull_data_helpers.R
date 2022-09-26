@@ -401,17 +401,17 @@ read_taxonomy_data_api <- function(username, api_key, locations = NULL, time_lef
 #' @return An sf object containing data pulled from the database
 #' @export
 pull_taxonomy_data <- function(username, password, locations = NULL, time_left = NULL,
-    time_right = NULL, uids = NULL, website = NULL,
+    time_right = NULL, uids = NULL, website = "",
     source) {
 
     if (missing(source) | is.null(source))
         stop("No source specified to pull taxonomy data, please specify one of 'api' or 'sql'.")
 
     if (source == "api") {
-        if (is.null(website)) {
+        if (website == "") {
           website <- "https://api.cholera-taxonomy.middle-distance.com/"
         }
-        if (missing(username) | missing(password) | is.null(username) | is.null(password) | is.null(website))
+        if (missing(username) | missing(password) | is.null(username) | is.null(password) | (website == ""))
             stop("Trying to pull data from API, please provide username and api_key.")
 
         # Return API data pull
@@ -420,10 +420,10 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
             uids = uids, website = website)
 
     } else if (source == "sql") {
-        if (is.null(website)) {
+        if (website == "") {
           website <- "db.cholera-taxonomy.middle-distance.com"
         }
-        if (missing(username) | missing(password) | is.null(username) | is.null(password) | is.null(website))
+        if (missing(username) | missing(password) | is.null(username) | is.null(password) | (website == ""))
             stop("Trying to pull data using sql on idemodelin2, please provide database username and password.")
 
         # Return SQL data pull
