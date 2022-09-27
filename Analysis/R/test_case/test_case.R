@@ -159,7 +159,7 @@ test_covariates <- taxdat::create_multiple_test_covariates(
   nonspatial = covariates_table$nonspatial, nontemporal = covariates_table$nontemporal,
   spatially_smooth = covariates_table$spatially_smooth, temporally_smooth = covariates_table$temporally_smooth,
   polygonal = covariates_table$polygonal, radiating = covariates_table$radiating,
-  constant = covariates_table$constant, seed = global_seed
+  constant = covariates_table$constant, seed = global_seed,polygons = taxdat:::create_test_layered_polygons(test_raster=test_raster)
 )
 names(test_covariates) <- covariates_table[["name"]]
 
