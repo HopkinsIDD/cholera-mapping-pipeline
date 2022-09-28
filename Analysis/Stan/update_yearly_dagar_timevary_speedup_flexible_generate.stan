@@ -93,7 +93,7 @@ transformed data {
   real small_N = .001 * smooth_grid_N;
   real<lower=0> weights[M*(1-do_censoring)*use_weights]; //a function of the expected offset for each observation used to downwight the likelihood
   real log_meanrate = log(meanrate);
-  real <lower=1> pop_loctimes[L]; // pre-computed population in each location period
+  real <lower=0> pop_loctimes[L]; // pre-computed population in each location period
   
   for(i in 1:N){
     logpop[i] = log(pop[i]);
@@ -162,8 +162,8 @@ generated quantities {
   int<lower=0> location_risk_cat[L_output_space] ;    // risk category for each space location
   
   // Data outputs to return (same for all samples)
-  real <lower=1> pop_loctimes_output[L_output];    // population in each output location period
-  real <lower=1> pop_loc_output[L_output_space];   // population in each output location (space only)
+  real <lower=0> pop_loctimes_output[L_output];    // population in each output location period
+  real <lower=0> pop_loc_output[L_output_space];   // population in each output location (space only)
   
   for (i in 1:L_output) {
     pop_loctimes_output[i] = 0;
