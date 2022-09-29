@@ -122,16 +122,12 @@ test_that("Create shapes table works", {
     },
     NA
   )
-  expect_error(
-    {
-      create_shapes_table(conn_pg)
-    }
-  )
-  expect_error(
-    {
-      create_shapes_table(conn_pg, FALSE)
-    }
-  )
+  expect_error({
+    create_shapes_table(conn_pg)
+  })
+  expect_error({
+    create_shapes_table(conn_pg, FALSE)
+  })
 })
 
 test_that("Create location_hierarchies table works", {
@@ -251,16 +247,12 @@ test_that("Create master_spatial_grid table works", {
     },
     NA
   )
-  expect_error(
-    {
-      create_master_spatial_grid_table(conn_pg)
-    }
-  )
-  expect_error(
-    {
-      create_master_spatial_grid_table(conn_pg, FALSE)
-    }
-  )
+  expect_error({
+    create_master_spatial_grid_table(conn_pg)
+  })
+  expect_error({
+    create_master_spatial_grid_table(conn_pg, FALSE)
+  })
 })
 
 test_that("Create resized_spatial_grids table works", {
@@ -298,16 +290,12 @@ test_that("Create resized_spatial_grids table works", {
     },
     NA
   )
-  expect_error(
-    {
-      create_resized_spatial_grids_view(conn_pg)
-    }
-  )
-  expect_error(
-    {
-      create_resized_spatial_grids_view(conn_pg, FALSE)
-    }
-  )
+  expect_error({
+    create_resized_spatial_grids_view(conn_pg)
+  })
+  expect_error({
+    create_resized_spatial_grids_view(conn_pg, FALSE)
+  })
 })
 
 test_that("Create all_covariates table works", {
@@ -378,16 +366,12 @@ test_that("Create time_bounds table works", {
     },
     NA
   )
-  expect_error(
-    {
-      create_time_bounds_table(conn_pg)
-    }
-  )
-  expect_error(
-    {
-      create_time_bounds_table(conn_pg, FALSE)
-    }
-  )
+  expect_error({
+    create_time_bounds_table(conn_pg)
+  })
+  expect_error({
+    create_time_bounds_table(conn_pg, FALSE)
+  })
 })
 
 test_that("Create master_temporal_grid_view works", {
@@ -412,11 +396,9 @@ test_that("Create master_temporal_grid_view works", {
     },
     NA
   )
-  expect_error(
-    {
-      create_master_temporal_grid_view(conn_pg)
-    }
-  )
+  expect_error({
+    create_master_temporal_grid_view(conn_pg)
+  })
 })
 
 test_that("Create resized_spatial_grid_pixels_view works", {
@@ -449,11 +431,9 @@ test_that("Create resized_spatial_grid_pixels_view works", {
     },
     NA
   )
-  expect_error(
-    {
-      create_resized_spatial_grid_pixels_view(conn_pg)
-    }
-  )
+  expect_error({
+    create_resized_spatial_grid_pixels_view(conn_pg)
+  })
 })
 
 test_that("Create location_period_raster_map view works", {
@@ -486,11 +466,9 @@ test_that("Create location_period_raster_map view works", {
     },
     NA
   )
-  expect_error(
-    {
-      create_location_period_raster_map_view(conn_pg)
-    }
-  )
+  expect_error({
+    create_location_period_raster_map_view(conn_pg)
+  })
 })
 
 test_that("Create covariate_grid_map view works", {
@@ -524,11 +502,9 @@ test_that("Create covariate_grid_map view works", {
     },
     NA
   )
-  expect_error(
-    {
-      create_covariate_grid_map_view(conn_pg)
-    }
-  )
+  expect_error({
+    create_covariate_grid_map_view(conn_pg)
+  })
 })
 
 test_that("create_testing_base_database works", {
