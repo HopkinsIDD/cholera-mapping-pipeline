@@ -300,7 +300,6 @@ create_pull_symmetric_grid_adjacency_function <- function(psql_connection, drop 
 }
 
 create_filter_resized_spatial_grid_pixels_to_location_function <- function(psql_connection, drop = FALSE) {
-
   drop_query <- readr::read_file(system.file("sql", "drop_filter_resized_spatial_grid_pixels_to_location_function.sql", package = "taxdat"))
   add_query <- readr::read_file(system.file("sql", "add_filter_resized_spatial_grid_pixels_to_location_function.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
@@ -331,7 +330,6 @@ create_pull_location_period_grid_map_interior_function <- function(psql_connecti
 }
 
 create_pull_location_period_grid_map_function <- function(psql_connection, drop = FALSE) {
-
   drop_query <- readr::read_file(system.file("sql", "drop_pull_location_period_grid_map_function.sql", package = "taxdat"))
   add_query <- readr::read_file(system.file("sql", "add_pull_location_period_grid_map_function.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
@@ -1232,9 +1230,9 @@ generate_sql_file_for_database_creation <- function(psql_connection) {
 generate_dataframes_from_test_data <- function(all_dfs, covariate_function_list) {
   lapply(
     names(all_dfs),
-    function(x){
-      if(x == "shapes_df") {
-        readr::write_file(x=geojsonsf::sf_geojson(all_dfs[[x]]),file=gsub("_df",".geojson",x))
+    function(x) {
+      if (x == "shapes_df") {
+        readr::write_file(x = geojsonsf::sf_geojson(all_dfs[[x]]), file = gsub("_df", ".geojson", x))
       } else {
         write.csv(file = gsub("_df", ".csv", x), all_dfs[[x]])
       }
@@ -1242,8 +1240,8 @@ generate_dataframes_from_test_data <- function(all_dfs, covariate_function_list)
   )
   lapply(
     covariate_function_list,
-    function(x){
-      raster::writeRaster(x$fun(), filename = paste0(paste(x$name,x$start_date, x$end_date, sep = "_"), ".tif"))
+    function(x) {
+      raster::writeRaster(x$fun(), filename = paste0(paste(x$name, x$start_date, x$end_date, sep = "_"), ".tif"))
     }
   )
 }
