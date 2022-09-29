@@ -560,36 +560,6 @@ test_that("create_testing_base_database works", {
   )
 })
 
-test_that("create_testing_additional_database works", {
-  dbuser <- Sys.getenv("USER", "app")
-  dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
-  tryCatch(
-    {
-      conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
-      destroy_testing_database(conn_pg)
-      create_testing_base_database(conn_pg)
-      database_working <- TRUE
-    },
-    error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
-    }
-  )
-
-  expect_error(
-    {
-      create_testing_additional_database(conn_pg, FALSE)
-    },
-    NA
-  )
-  expect_error(
-    {
-      create_testing_additional_database(conn_pg, TRUE)
-    },
-    NA
-  )
-})
-
 test_that("refresh_materialized_views works", {
   dbuser <- Sys.getenv("USER", "app")
   dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")

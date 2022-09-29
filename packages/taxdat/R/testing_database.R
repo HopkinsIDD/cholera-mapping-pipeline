@@ -16,8 +16,13 @@ assert <- function(test, message = "Assertion failed") {
 #' @param drop Whether to drop an existing table
 add_and_or_drop <- function(psql_connection, add_query, drop_query, drop = FALSE, echo = Sys.getenv("CHOLERA_ECHO_SQL", FALSE)) {
   if (echo) {
-    cat(add_query)
-    cat("\n")
+    sapply(
+      add_query,
+      function(x){
+        cat(x)
+        cat("\n")
+      }
+    )
   }
   if (drop) {
     lapply(drop_query, function(q) {
@@ -254,31 +259,6 @@ create_testing_base_database <- function(psql_connection, drop = FALSE) {
   create_ingest_covariate_function(psql_connection, drop)
 }
 
-## HERE : MOVE ME
-
-#' @description Create the portion of the testing database that we intend
-#' to add to the database located at cholera-taxonomy.middle-distance.com
-#' @name create_testing_additional_database
-#' @title create_testing_additional_database
-#' @param psql_connection a connection to a database made with dbConnect
-#' @param drop Whether to drop existing database elements
-create_testing_additional_database <- function(psql_connection, drop = FALSE) {
-  create_spatial_resolutions_table(psql_connection, drop)
-  create_resize_spatial_grid_function(psql_connection)
-  create_resized_spatial_grids_view(psql_connection, drop)
-  create_time_bounds_table(psql_connection, drop)
-  create_master_temporal_grid_view(psql_connection, drop)
-  create_resized_spatial_grid_pixels_view(psql_connection, drop)
-  create_master_spatial_grid_centroids_view(psql_connection, drop)
-  create_location_period_raster_map_view(psql_connection, drop)
-  create_covariate_grid_map_view(psql_connection, drop)
-  create_shapes_with_names_view(psql_connection, drop)
-  create_shape_resized_spatial_grid_map_view(psql_connection, drop)
-  create_shape_resized_spatial_grid_populations_view(psql_connection, drop)
-  create_resized_covariates_view(psql_connection, drop)
-  invisible(NULL)
-}
-
 create_resize_spatial_grid_function <- function(psql_connection, drop = FALSE) {
   drop_query <- readr::read_file(system.file("sql", "drop_resize_spatial_grid_function.sql", package = "taxdat"))
   add_query <- readr::read_file(system.file("sql", "add_resize_spatial_grid_function.sql", package = "taxdat"))
@@ -426,12 +406,19 @@ create_resized_covariates_view <- function(psql_connection, drop = FALSE) {
 #' @title create_testing_database_functions
 #' @param psql_connection a connection to a database made with dbConnect
 create_testing_database_functions <- function(psql_connection, drop = FALSE) {
+  create_testing_database_functions_phase_1(psql_connection,drop)
+  create_testing_database_functions_phase_2(psql_connection,drop)
+  create_testing_database_functions_phase_3(psql_connection,drop)
   # Phase 1
+}
+
+create_testing_database_functions_phase_1 <- function(psql_connection, drop = FALSE) {
   create_shapes_with_names_view(psql_connection, drop)
   create_lookup_location_period_function(psql_connection, drop)
   create_filter_location_periods_function(psql_connection, drop)
+}
 
-  # Phase 2
+create_testing_database_functions_phase_2 <- function(psql_connection, drop = FALSE) {
   create_time_bounds_table(psql_connection, drop)
   create_master_spatial_grid_table(psql_connection, drop)
   create_spatial_resolutions_table(psql_connection, drop)
@@ -448,15 +435,16 @@ create_testing_database_functions <- function(psql_connection, drop = FALSE) {
   create_resized_covariates_view(psql_connection, drop)
   create_location_period_raster_map_view(psql_connection, drop)
   create_filter_resized_spatial_grid_pixels_to_location_function(psql_connection, drop)
+}
 
-  # Phase 3
+create_testing_database_functions_phase_3 <- function(psql_connection, drop = FALSE) {
   create_pull_grid_adjacency_function(psql_connection, drop)
   create_pull_symmetric_grid_adjacency_function(psql_connection, drop)
   create_pull_observation_data_function(psql_connection, drop)
   create_pull_covar_cube_function(psql_connection, drop)
   create_pull_observation_location_period_map(psql_connection, drop)
-  create_pull_location_period_grid_map_interior_function(psql_connection, drop)
   create_pull_location_period_grid_map_boundary_function(psql_connection, drop)
+  create_pull_location_period_grid_map_interior_function(psql_connection, drop)
   create_pull_location_period_grid_map_function(psql_connection, drop)
   create_pull_boundary_polygon(psql_connection, drop)
   create_pull_minimal_grid_population(psql_connection, drop)
@@ -1225,10 +1213,19 @@ convert_simulated_data_to_test_dataframes <- function(simulated_data) {
 }
 
 generate_sql_file_for_database_creation <- function(psql_connection) {
-  Sys.setenv("CHOLERA_ECHO_SQL", TRUE)
-  rc <- capture.output(tmp <- taxdat::setup_testing_database(psql_connection))
-  Sys.setenv("CHOLERA_ECHO_SQL", FALSE)
-  return()
+  destroy_testing_database(psql_connection)
+  Sys.setenv("CHOLERA_ECHO_SQL" = TRUE)
+  base_commands <- paste(capture.output(tmp <- create_testing_base_database(psql_connection, drop = FALSE)), collapse = "\n")
+  phase_1_commands <- paste(capture.output(tmp <- create_testing_database_functions_phase_1(psql_connection,drop = FALSE)), collapse = "\n")
+  phase_2_commands <- paste(capture.output(tmp <- create_testing_database_functions_phase_2(psql_connection,drop = FALSE)), collapse = "\n")
+  phase_3_commands <- paste(capture.output(tmp <- create_testing_database_functions_phase_3(psql_connection,drop = FALSE)), collapse = "\n")
+  Sys.setenv("CHOLERA_ECHO_SQL" = FALSE)
+  return(list(
+    base_commands = base_commands,
+    phase_1_commands = phase_1_commands,
+    phase_2_commands = phase_2_commands,
+    phase_3_commands = phase_3_commands
+  ))
 }
 
 
