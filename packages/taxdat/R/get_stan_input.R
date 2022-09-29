@@ -9,7 +9,7 @@
 #' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return stan_input
 get_stan_input_no_cache <- function(config, cache, cholera_directory) {
-  config <- yaml::read_yaml(paste0(cholera_directory,config))
+  config <- yaml::read_yaml(paste0(cholera_directory,"/",config))
   file_names <- taxdat::get_filenames(config, cholera_directory)
   stan_input <- taxdat::read_file_of_type(file_names[["stan_input"]], "stan_input")
   require(bit64)

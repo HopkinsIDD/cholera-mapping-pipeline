@@ -8,7 +8,7 @@
 #' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return genquant
 get_genquant_no_cache <- function(config, cache, cholera_directory) {
-  config <- yaml::read_yaml(paste0(cholera_directory, config))
+  config <- yaml::read_yaml(paste0(cholera_directory, "/", config))
   file_names <- taxdat::get_filenames(config, cholera_directory)
   genquant <- taxdat::read_file_of_type(file_names[["stan_genquant"]], "chol_gen")
   require(bit64)
@@ -28,7 +28,7 @@ get_genquant <- cache_fun_results(name = "genquant", fun = get_genquant_no_cache
 #' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return model.rand
 get_model_rand_no_cache <- function(config, cache, cholera_directory) {
-  config <- yaml::read_yaml(paste0(cholera_directory, config))
+  config <- yaml::read_yaml(paste0(cholera_directory, "/", config))
   file_names <- taxdat::get_filenames(config, cholera_directory)
   model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
   require(bit64)

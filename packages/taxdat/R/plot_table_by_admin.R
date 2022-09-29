@@ -7,9 +7,10 @@
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment
 #' @param cholera_directory  the directory of cholera mapping pipeline folder
+#' @param admin_level_for_summary_table
 #' @return table
-plot_pop_by_admin <- function(cache,cholera_directory,config) {
-  config<-yaml::read_yaml(paste0(cholera_directory,config))
+plot_pop_by_admin <- function(cache,cholera_directory,config,admin_level_for_summary_table=1) {
+  config_file<-yaml::read_yaml(paste0(cholera_directory,"/",config))
   
   #load pop and sf objects
   covar_cube <- cache[["covar_cube"]]
@@ -20,14 +21,14 @@ plot_pop_by_admin <- function(cache,cholera_directory,config) {
   })))
   pltdata <- dplyr::bind_cols(sf_grid, covar)
   
-  analysis_years <- lubridate::year(config$start_time):lubridate::year(config$end_time)
+  analysis_years <- lubridate::year(config_file$start_time):lubridate::year(config_file$end_time)
   pltdata$t<- factor(pltdata$t, labels = analysis_years )
   
 if(nrow(cache[["sf_grid"]]) == prod(dim(pop_layer))){
   
   ### Use the geo package
-  iso_code <- as.character(stringr::str_extract(params$config, "[A-Z]{3}"))
-  admin_level <- as.numeric(params$admin_level_for_summary_table)
+  iso_code <- as.character(stringr::str_extract(config, "[A-Z]{3}"))
+  admin_level <- as.numeric(admin_level_for_summary_table)
   if (iso_code == "ZNZ" & admin_level == 1){
     boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
   } else if (iso_code == "ZNZ"){
@@ -50,20 +51,21 @@ if(nrow(cache[["sf_grid"]]) == prod(dim(pop_layer))){
   ### For loops and make the table
   admin_pop_table <- data.frame(matrix(NA, length(boundary_sf$shapeName), length(unique(pltdata$t)) + 1))
   
-  start_year <- as.numeric(stringr::str_extract(stringr::str_extract(params$config, "[A-Z]{3}_[0-9]{4}"), "[0-9]{4}"))
-  pltdata$t<-as.numeric(pltdata$t)
-  pltdata$t<-as.numeric(pltdata$t-min(pltdata$t))+1
-  year_list <- unique(pltdata$t) + (start_year-1)
+  # start_year <- as.numeric(stringr::str_extract(stringr::str_extract(config, "[A-Z]{3}_[0-9]{4}"), "[0-9]{4}"))
+  # pltdata$t<-as.numeric(pltdata$t)
+  # pltdata$t<-as.numeric(pltdata$t-min(pltdata$t))+1
+  # year_list <- unique(pltdata$t) + (start_year-1)
   
-  if(is.na(start_year)){
-    start_year <- as.numeric(stringr::str_extract(params$config, "[0-9]{1,4}"))
-    year_list <- unique(pltdata$t) + (start_year-1)
+  # if(is.na(start_year)){
+  #   start_year <- as.numeric(stringr::str_extract(config, "[0-9]{1,4}"))
+  #   year_list <- unique(pltdata$t) + (start_year-1)
     
-    if(!start_year%in%c(2015,2016,2017,2018,2019)){
-      start_year <- as.numeric(stringr::str_extract(params$config, "\\d+(?=.yml)"))
-      year_list <- start_year
-    }
-  }
+  #   if(!start_year%in%c(2015,2016,2017,2018,2019)){
+  #     start_year <- as.numeric(stringr::str_extract(config, "\\d+(?=.yml)"))
+  #     year_list <- start_year
+  #   }
+  # }
+  year_list <- analysis_years
   
   colnames(admin_pop_table) <- c('adminlevel', year_list)
   admin_pop_table$adminlevel <- boundary_sf$shapeName
@@ -112,22 +114,19 @@ if(nrow(cache[["sf_grid"]]) == prod(dim(pop_layer))){
 #' @param aesthetic whether to return the kable object
 #' @return table
 plot_cases_by_admin <- function(cache, config, cholera_directory, admin_level_for_summary_table = 1, aesthetic = TRUE){
-  params <- new.env()
-  params$config <- config
-  params$cholera_directory <- cholera_directory
-  params$admin_level_for_summary_table <- admin_level_for_summary_table
-  config_file <- yaml::read_yaml(paste0(params$cholera_directory, params$config))
+  
+  config_file <- yaml::read_yaml(paste0(cholera_directory, "/", config))
   
   ### Clean up the sf dataset
   if(!"disaggregated_case_sf" %in% names(cache)){
     cache[["disaggregated_case_sf"]]<-get_disaggregated_cases_sf(
-      cache=cache,config=params$config,cholera_directory=params$cholera_directory)
+      cache=cache,config=config,cholera_directory=cholera_directory)
   }
   case_raster_admin<-cache[["disaggregated_case_sf"]]
   colnames(case_raster_admin)[stringr::str_detect(colnames(case_raster_admin),"modeled_case")] <- "value"
   
-  iso_code <- as.character(stringr::str_extract(params$config, "[A-Z]{3}"))
-  admin_level <- as.numeric(params$admin_level_for_summary_table)
+  iso_code <- as.character(stringr::str_extract(config, "[A-Z]{3}"))
+  admin_level <- as.numeric(admin_level_for_summary_table)
   if (iso_code == "ZNZ" & admin_level == 1){
     boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
   } else if (iso_code == "ZNZ"){
@@ -155,8 +154,8 @@ plot_cases_by_admin <- function(cache, config, cholera_directory, admin_level_fo
   admin_case_table$adminlevel <- boundary_sf$shapeName
   
   disaggregated_case_raster<-disaggregate_case_raster(cache,
-                                                      config=params$config,
-                                                      cholera_directory=params$cholera_directory)
+                                                      config=config,
+                                                      cholera_directory=cholera_directory)
   
   for (ts in unique(case_raster_admin$t)){
     ## filter and rasterize
@@ -208,24 +207,21 @@ plot_cases_by_admin <- function(cache, config, cholera_directory, admin_level_fo
 #' @param config
 #' @param cache
 #' @param cholera_directory
+#' @param admin_level_for_summary_table
 #' @return table
 plot_incidence_by_admin <- function(cache,config,cholera_directory,admin_level_for_summary_table=1){
-  params <- new.env()
-  params$config <- config
-  params$cholera_directory <- cholera_directory
-  params$admin_level_for_summary_table <- admin_level_for_summary_table
-  config_file <- yaml::read_yaml(paste0(params$cholera_directory, params$config))
+  config_file <- yaml::read_yaml(paste0(cholera_directory, "/", config))
   
   ### Clean up the sf dataset
   cache[["disaggregated_rate_sf"]]<-get_disaggregated_rates_sf(
-    cache=cache,config=params$config,cholera_directory=params$cholera_directory)
+    cache=cache,config=config,cholera_directory=cholera_directory)
   
   ### Clean up the sf dataset
   rate_raster_admin<-cache[["disaggregated_rate_sf"]]
   colnames(rate_raster_admin)[stringr::str_detect(colnames(rate_raster_admin),"modeled rate")] <- "value"
   
-  iso_code <- as.character(stringr::str_extract(params$config, "[A-Z]{3}"))
-  admin_level <- as.numeric(params$admin_level_for_summary_table)
+  iso_code <- as.character(stringr::str_extract(config, "[A-Z]{3}"))
+  admin_level <- as.numeric(admin_level_for_summary_table)
   if (iso_code == "ZNZ" & admin_level == 1){
     boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
   } else if (iso_code == "ZNZ"){
@@ -247,11 +243,11 @@ plot_incidence_by_admin <- function(cache,config,cholera_directory,admin_level_f
   
   ##### Multiply two rasters together
   disaggregated_rate_raster<-disaggregate_rate_raster(cache,
-                                                      config=params$config,
-                                                      cholera_directory=params$cholera_directory)
+                                                      config=config,
+                                                      cholera_directory=cholera_directory)
   disaggregated_case_raster<-disaggregate_case_raster(cache,
-                                                      config=params$config,
-                                                      cholera_directory=params$cholera_directory)
+                                                      config=config,
+                                                      cholera_directory=cholera_directory)
   
   #load pop and sf objects
   covar_cube <- cache[["covar_cube"]]
@@ -272,7 +268,7 @@ plot_incidence_by_admin <- function(cache,config,cholera_directory,admin_level_f
 
   ### For loops and make the table
   admin_rate_table <- data.frame(matrix(NA, length(boundary_sf$shapeName), length(unique(rate_raster_admin$t)) + 1))
-  year_list <- as.numeric(unique(rate_raster_admin$t)) + (lubridate::year(as.Date(config$start_time,origin="1970-01-01"))-1)
+  year_list <- as.numeric(unique(rate_raster_admin$t)) + (lubridate::year(as.Date(config_file$start_time,origin="1970-01-01"))-1)
   colnames(admin_rate_table) <- c('adminlevel', year_list)
   admin_rate_table$adminlevel <- boundary_sf$shapeName
   
