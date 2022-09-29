@@ -1,4 +1,4 @@
-create or replace function pull_observation_location_period_map(location_name text, start_date date, end_date date, time_scale text)
+CREATE FUNCTION pull_observation_location_period_map(location_name text, start_date date, end_date date, time_scale text)
   returns table(
     observation_id bigint,
     location_period_id bigint,
