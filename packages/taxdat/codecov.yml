@@ -1,7 +1,7 @@
 comment: false
 
 fixes:
-  - "packages/taxdat/::"
+  - "::packages/taxdat/"
 coverage:
   status:
     project:
