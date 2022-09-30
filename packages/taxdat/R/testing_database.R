@@ -18,7 +18,7 @@ add_and_or_drop <- function(psql_connection, add_query, drop_query, drop = FALSE
   if (echo) {
     sapply(
       add_query,
-      function(x){
+      function(x) {
         cat(x)
         cat("\n")
       }
@@ -404,9 +404,9 @@ create_resized_covariates_view <- function(psql_connection, drop = FALSE) {
 #' @title create_testing_database_functions
 #' @param psql_connection a connection to a database made with dbConnect
 create_testing_database_functions <- function(psql_connection, drop = FALSE) {
-  create_testing_database_functions_phase_1(psql_connection,drop)
-  create_testing_database_functions_phase_2(psql_connection,drop)
-  create_testing_database_functions_phase_3(psql_connection,drop)
+  create_testing_database_functions_phase_1(psql_connection, drop)
+  create_testing_database_functions_phase_2(psql_connection, drop)
+  create_testing_database_functions_phase_3(psql_connection, drop)
   # Phase 1
 }
 
@@ -1214,9 +1214,9 @@ generate_sql_file_for_database_creation <- function(psql_connection) {
   destroy_testing_database(psql_connection)
   Sys.setenv("CHOLERA_ECHO_SQL" = TRUE)
   base_commands <- paste(capture.output(tmp <- create_testing_base_database(psql_connection, drop = FALSE)), collapse = "\n")
-  phase_1_commands <- paste(capture.output(tmp <- create_testing_database_functions_phase_1(psql_connection,drop = FALSE)), collapse = "\n")
-  phase_2_commands <- paste(capture.output(tmp <- create_testing_database_functions_phase_2(psql_connection,drop = FALSE)), collapse = "\n")
-  phase_3_commands <- paste(capture.output(tmp <- create_testing_database_functions_phase_3(psql_connection,drop = FALSE)), collapse = "\n")
+  phase_1_commands <- paste(capture.output(tmp <- create_testing_database_functions_phase_1(psql_connection, drop = FALSE)), collapse = "\n")
+  phase_2_commands <- paste(capture.output(tmp <- create_testing_database_functions_phase_2(psql_connection, drop = FALSE)), collapse = "\n")
+  phase_3_commands <- paste(capture.output(tmp <- create_testing_database_functions_phase_3(psql_connection, drop = FALSE)), collapse = "\n")
   Sys.setenv("CHOLERA_ECHO_SQL" = FALSE)
   return(list(
     base_commands = base_commands,
