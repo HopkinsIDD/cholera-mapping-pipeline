@@ -1,7 +1,7 @@
 CREATE MATERIALIZED VIEW grids.master_spatial_grid AS
 SELECT rid,rast FROM (
   SELECT
-    rank() OVER (ORDER BY filename) AS rnk,
+    rank() OVER (ORDER BY all_covariates.filename) AS rnk,
     rid,
     rast
   FROM

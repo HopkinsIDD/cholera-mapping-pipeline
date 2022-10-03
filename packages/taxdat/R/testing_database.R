@@ -205,7 +205,11 @@ create_master_temporal_grid_view <- function(psql_connection, drop = FALSE) {
 #' @param psql_connection a connection to a database made with dbConnect
 create_resized_spatial_grid_pixels_view <- function(psql_connection, drop = FALSE) {
   drop_query <- readr::read_file(system.file("sql", "drop_resized_spatial_grid_pixels_view.sql", package = "taxdat"))
-  add_query <- readr::read_file(system.file("sql", "add_resized_spatial_grid_pixels_view.sql", package = "taxdat"))
+  add_query <- c(
+    readr::read_file(system.file("sql", "add_resized_spatial_grid_pixels_view.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "add_resized_spatial_grid_pixels_view_index_polygon.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "add_resized_spatial_grid_pixels_view_index_centroid.sql", package = "taxdat"))
+  )
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
