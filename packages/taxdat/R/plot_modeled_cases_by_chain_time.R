@@ -27,7 +27,7 @@ plot_modeled_cases_by_chain_time <- function(config, cache, cholera_directory, a
     
     stan_input$sf_grid[paste('cases','chain',seq_len(nchain),sep='_')] <- t(cases_chains)
 
-    config_file<-yaml::read_yaml(paste0(cholera_directory,config))
+    config_file<-yaml::read_yaml(paste0(cholera_directory,"/",config))
     analysis_years <- lubridate::year(config_file$start_time):lubridate::year(config_file$end_time)
     obs_years <- min(lubridate::year(cache[["sf_cases_resized"]]$TL)):max(lubridate::year(cache[["sf_cases_resized"]]$TR))
     

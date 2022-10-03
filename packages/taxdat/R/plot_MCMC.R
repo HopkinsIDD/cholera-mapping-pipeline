@@ -7,8 +7,9 @@
 #' @param cache the cache environment
 #' @param pars a list of parameters which we want to display
 
-plot_chain_convergence <- function(cache, name, pars= c("rho", "betas", "log_std_dev_w", "eta")){
+plot_chain_convergence <- function(cache, name, pars= c("rho", "alpha", "log_std_dev_w", "eta")){
   model.rand <- cache[[name]]
+  if("betas" %in% names(model.rand)){pars <- c("betas", pars[pars != "alpha"])}
   plot<- rstan::traceplot(model.rand, pars = pars)
   return(plot)
 }
@@ -22,9 +23,10 @@ plot_chain_convergence <- function(cache, name, pars= c("rho", "betas", "log_std
 #' @param pars a list of parameters which we want to display
 #' @return ggplot object
 
-plot_MCMCpars <- function(name,cache,pars) {
+plot_MCMCpars <- function(name,cache,pars = c("rho", "alpha", "log_std_dev_w", "eta")) {
   model.rand <- cache[[name]]
-  plot <- rstan::plot(model.rand, pars =  c("rho", "betas", "log_std_dev_w", "eta"))
+  if("betas" %in% names(model.rand)){pars <- c("betas", pars[pars != "alpha"])}
+  plot <- rstan::plot(model.rand, pars = pars)
   return(plot)
 }
 
