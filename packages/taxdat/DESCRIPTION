@@ -10,7 +10,7 @@ Encoding: UTF-8
 License: GPL (>= 2)
 Depends: R (>= 3.4),ISOcodes,magrittr, dplyr, tidyr, igraph
 Suggests: readxl, sf, sp, raster, rgdal, testthat, knitr, rmarkdown
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.0
 Collate:
     'plot_cache_function.R'
     'get_stan_output.R'
@@ -60,4 +60,5 @@ Collate:
     'simulation_framework_helpers.R'
     'stan_input_helpers.R'
     'stitch_caches.R'
+    'transform_covariates.R'
 VignetteBuilder: knitr

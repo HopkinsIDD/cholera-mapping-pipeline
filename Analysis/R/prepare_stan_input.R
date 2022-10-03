@@ -394,7 +394,53 @@ prepare_stan_input <- function(
   stan_data$use_pop_weight <- stan_params$use_pop_weight
   
   if (stan_params$use_pop_weight) {
+    # Make sure that all observations for have a pop_loctime > 0
     stan_data$pop_weight <- ind_mapping_resized$u_loc_grid_weights
+    
+    # Initialize 
+    K2 <- length(stan_data$map_loc_grid_loc)
+    L <- length(ind_mapping_resized$u_loctimes)
+    
+    # Compute pop_loctimes
+    pop_loctimes <- rep(0, L)
+    for (i in 1:K2) {
+      pop_loctimes[stan_data$map_loc_grid_loc[i]] <- pop_loctimes[stan_data$map_loc_grid_loc[i]] + stan_data$pop[stan_data$map_loc_grid_grid[i]]  * stan_data$pop_weight[i]
+    }
+    
+    if (any(pop_loctimes == 0)) {
+      # Remove pop_loctimes == 0
+      cat("-- Found", sum(pop_loctimes == 0), "location/times with weighted population == 0. \n")
+      nopop_loctimes <- which(pop_loctimes == 0)
+      nopop_obs <- purrr::map(nopop_loctimes, ~ stan_data$map_obs_loctime_obs[which(stan_data$map_obs_loctime_loc == .)]) %>% 
+        unlist() %>% 
+        unique()
+      
+      cat("---- REMOVING", length(nopop_obs), "of", nrow(sf_cases_resized), "observations for which the location/time population is 0. \n")
+      
+      # Remove observations
+      sf_cases_resized <- sf_cases_resized[-c(nopop_obs), ]
+      
+      # Re-compute space-time indices based on aggregated data
+      ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+        df = sf_cases_resized, 
+        lp_dict = location_periods_dict,
+        model_time_slices = time_slices,
+        res_time = res_time,
+        n_cpus = ncore,
+        do_parallel = F)
+      
+      # Reset stan_data
+      non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
+      obs_changer <- setNames(seq_len(length(non_na_obs_resized)),non_na_obs_resized)
+      stan_data$map_obs_loctime_obs <- as.array(obs_changer[as.character(ind_mapping_resized$map_obs_loctime_obs)])
+      stan_data$map_obs_loctime_loc <- as.array(ind_mapping_resized$map_obs_loctime_loc)
+      stan_data$tfrac <- as.array(ind_mapping_resized$tfrac)
+      stan_data$map_loc_grid_loc <- as.array(ind_mapping_resized$map_loc_grid_loc)
+      stan_data$map_loc_grid_grid <- as.array(ind_mapping_resized$map_loc_grid_grid)
+      stan_data$u_loctime <- ind_mapping_resized$u_loctimes
+      stan_data$pop_weight <- ind_mapping_resized$u_loc_grid_weights
+    }
+    
   } else {
     stan_data$pop_weight <- array(data = 0, dim = 0)
   }
@@ -585,6 +631,24 @@ prepare_stan_input <- function(
   } else {
     stan_data$pop_weight_output <- array(data = 0, dim = 0)
   }
+  
+  # Data for people at risk
+  risk_cat_low <- c(0, 1, 10, 100)*1e-5
+  risk_cat_high <- c(risk_cat_low[-1], 1e6)
+  
+  stan_data$N_cat <- length(risk_cat_low)
+  stan_data$risk_cat_low <- risk_cat_low
+  stan_data$risk_cat_high <- risk_cat_high
+  
+  # Map from space x time grid to space grid
+  sf_grid <- sf_grid %>% 
+    group_by(rid, x, y) %>% 
+    mutate(space_id = min(upd_id)) %>% 
+    ungroup()
+  
+  stan_data$N_space <- length(unique(sf_grid$space_id))
+  stan_data$map_spacetime_space_grid <- sf_grid$space_id[sf_grid$upd_id]
+  
   
   cat("**** FINISHED PREPARING STAN INPUT \n")
   
