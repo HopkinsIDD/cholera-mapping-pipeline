@@ -54,6 +54,7 @@ disaggregate_case_raster <- function(cache,config,cholera_directory){
   disaggregated_rate_raster <- fasterize::fasterize(rate_raster, empty_raster, field = c("value"),by="t")
   
   #get 1*1 pop-weighted case raster
+  raster::origin(disaggregated_rate_raster) <- raster::origin(disaggregate_pop)
   disaggregated_case_raster<-disaggregate_pop*disaggregated_rate_raster
 
   return(disaggregated_case_raster)

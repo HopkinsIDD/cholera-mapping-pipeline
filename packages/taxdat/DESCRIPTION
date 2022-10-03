@@ -21,6 +21,7 @@ Collate:
     'compare_country_data_reports.R'
     'config_helpers.R'
     'covariate_helpers.R'
+    'database_api_key.R'
     'db_table_creation_functions.R'
     'file_name_functions.R'
     'geo_lookup_helpers.R'

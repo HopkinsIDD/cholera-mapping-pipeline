@@ -30,10 +30,13 @@ if(nrow(cache[["sf_grid"]]) == prod(dim(pop_layer))){
   iso_code <- as.character(stringr::str_extract(config, "[A-Z]{3}"))
   admin_level <- as.numeric(admin_level_for_summary_table)
   if (iso_code == "ZNZ" & admin_level == 1){
-    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
-  } else if (iso_code == "ZNZ"){
-    stop('Sorry, currently ZNZ only has the admin 1 level shape files available to use, please try again. ')
-  } else{
+    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+      c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
+  } else if (iso_code == "ZNZ" & admin_level == 2){
+    boundary_sf <- rgeoboundaries::gb_adm2("TZA")[rgeoboundaries::gb_adm2("TZA")$shapeName %in% 
+      c("Micheweni", "Wete", "Chake Chake", "Mkoani", 
+        "Kaskazini A", "Kaskazini B", "Mjini", "Magharibi", "Kati", "Kusini"), ]
+  } else {
     if (admin_level == 1){
       boundary_sf <- rgeoboundaries::gb_adm1(iso_code)
     }else if (admin_level == 2){
@@ -70,22 +73,30 @@ if(nrow(cache[["sf_grid"]]) == prod(dim(pop_layer))){
   colnames(admin_pop_table) <- c('adminlevel', year_list)
   admin_pop_table$adminlevel <- boundary_sf$shapeName
   
-  pop_raster_data<-raster()
   for(layer in unique(pltdata$t)){
-    empty_raster <- raster::raster(pltdata[which(pltdata$t==layer),], res = max(0.1666666, 0.1666666))#20*20km raster
-    pop_raster_data_tmp <- fasterize::fasterize(pltdata[which(pltdata$t==layer),], empty_raster, field = c("covar"))
-    pop_raster_data<-stack(pop_raster_data,pop_raster_data_tmp)
-  }
-  
-  for(layer in 1:raster::nlayers(pop_raster_data)){
     for (locs in admin_pop_table$adminlevel){
-      cropped <- raster::crop(pop_raster_data[[layer]], boundary_sf[boundary_sf$shapeName == locs, layer+1], snap = "out")
-      masked <- raster::mask(cropped, boundary_sf[boundary_sf$shapeName == locs, layer+1], updatevalue = NA)
-      sum_pop <- sum(raster::getValues(masked), na.rm = TRUE)
-      admin_pop_table[match(locs, admin_pop_table$adminlevel), layer+1]<-round(sum_pop,4) 
-      rm(cropped, masked)
-    }  
+      idx <- sf::st_intersects(sf::st_centroid(pltdata[pltdata$t == layer, ]), boundary_sf[boundary_sf$shapeName == locs, ], sparse = FALSE)
+      pop <- sum(pltdata$covar[pltdata$t == layer][idx], na.rm = TRUE)
+      admin_pop_table[match(locs, admin_pop_table$adminlevel), match(layer, unique(pltdata$t))+1]<-round(pop, 0) 
+    }
   }
+
+  # pop_raster_data<-raster()
+  # for(layer in unique(pltdata$t)){
+  #   empty_raster <- raster::raster(pltdata[which(pltdata$t==layer),], res = max(0.1666666, 0.1666666))#20*20km raster
+  #   pop_raster_data_tmp <- fasterize::fasterize(pltdata[which(pltdata$t==layer),], empty_raster, field = c("covar"))
+  #   pop_raster_data<-stack(pop_raster_data,pop_raster_data_tmp)
+  # }
+  
+  # for(layer in 1:raster::nlayers(pop_raster_data)){
+  #   for (locs in admin_pop_table$adminlevel){
+  #     cropped <- raster::crop(pop_raster_data[[layer]], boundary_sf[boundary_sf$shapeName == locs, layer+1], snap = "out")
+  #     masked <- raster::mask(cropped, boundary_sf[boundary_sf$shapeName == locs, layer+1], updatevalue = NA)
+  #     sum_pop <- sum(raster::getValues(masked), na.rm = TRUE)
+  #     admin_pop_table[match(locs, admin_pop_table$adminlevel), layer+1]<-round(sum_pop,4) 
+  #     rm(cropped, masked)
+  #   }  
+  # }
   
   ### Add a total row, change colnames, and display the table
   total_row <- c('Total', apply(data.frame(admin_pop_table[, -1]), 2, sum))
@@ -128,9 +139,12 @@ plot_cases_by_admin <- function(cache, config, cholera_directory, admin_level_fo
   iso_code <- as.character(stringr::str_extract(config, "[A-Z]{3}"))
   admin_level <- as.numeric(admin_level_for_summary_table)
   if (iso_code == "ZNZ" & admin_level == 1){
-    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
-  } else if (iso_code == "ZNZ"){
-    stop('Sorry, currently ZNZ only has the admin 1 level shape files available to use, please try again. ')
+    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+      c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
+  } else if (iso_code == "ZNZ" & admin_level == 2){
+    boundary_sf <- rgeoboundaries::gb_adm2("TZA")[rgeoboundaries::gb_adm2("TZA")$shapeName %in% 
+      c("Micheweni", "Wete", "Chake Chake", "Mkoani", 
+        "Kaskazini A", "Kaskazini B", "Mjini", "Magharibi", "Kati", "Kusini"), ]
   } else{
     if (admin_level == 1){
       boundary_sf <- rgeoboundaries::gb_adm1(iso_code)
@@ -223,9 +237,12 @@ plot_incidence_by_admin <- function(cache,config,cholera_directory,admin_level_f
   iso_code <- as.character(stringr::str_extract(config, "[A-Z]{3}"))
   admin_level <- as.numeric(admin_level_for_summary_table)
   if (iso_code == "ZNZ" & admin_level == 1){
-    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
-  } else if (iso_code == "ZNZ"){
-    stop('Sorry, currently ZNZ only has the admin 1 level shape files available to use, please try again. ')
+    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+      c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
+  } else if (iso_code == "ZNZ" & admin_level == 2){
+    boundary_sf <- rgeoboundaries::gb_adm2("TZA")[rgeoboundaries::gb_adm2("TZA")$shapeName %in% 
+      c("Micheweni", "Wete", "Chake Chake", "Mkoani", 
+        "Kaskazini A", "Kaskazini B", "Mjini", "Magharibi", "Kati", "Kusini"), ]
   } else{
     if (admin_level == 1){
       boundary_sf <- rgeoboundaries::gb_adm1(iso_code)
