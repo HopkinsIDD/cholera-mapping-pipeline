@@ -160,6 +160,7 @@ generated quantities {
   matrix<lower=0>[L_output_space, N_cat] location_risk_cat_num;    // number of people in each location in each risk category
   matrix<lower=0>[L_output_space, N_cat] location_risk_cat_prop;    // proportion of people in each location in each risk category
   int<lower=0> location_risk_cat[L_output_space] ;    // risk category for each space location
+  vector<lower=0>[N_cat] tot_pop_risk;    // total number of people in admin units in each risk category
   
   // Data outputs to return (same for all samples)
   real <lower=0> pop_loctimes_output[L_output];    // population in each output location period
@@ -352,10 +353,23 @@ generated quantities {
       }
     }
   }
-  
   // --- End Part D ---
   
-  // ---- Part E: Log-likelihoods ----
+  // ---- Part E: Total population at risk ----
+  
+  // Initialize
+  for (i in 1:N_cat) {
+    tot_pop_risk[i] = 0;
+  } 
+  
+  // Sum over locations
+  for (i in 1:L_output_space) {
+    int j = location_risk_cat[i];
+    tot_pop_risk[j] += pop_loc_output[i];
+  }
+  // ---  End Part E ---
+  
+  // ---- Part F: Log-likelihoods ----
   if (do_censoring == 0) {
     for (i in 1:M) {
       log_lik[i] = poisson_lpmf(y[i] | modeled_cases[i]);
@@ -380,6 +394,6 @@ generated quantities {
       }
     }
   }
-  // ---  End Part D ---
+  // ---  End Part F ---
   
 }
