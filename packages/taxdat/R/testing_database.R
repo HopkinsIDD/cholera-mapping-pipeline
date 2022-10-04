@@ -35,6 +35,10 @@ add_and_or_drop <- function(psql_connection, add_query, drop_query, drop = FALSE
   })
 }
 
+refresh_indices <- function(psql_connection) {
+  add_and_or_drop(psql_connection, "VACUUM ANALYZE", NULL, drop = FALSE)
+}
+
 #' @description Create an observations table for use in testing
 #' @name create_observations_table
 #' @title create_observations_table
@@ -432,6 +436,7 @@ create_testing_database_functions_phase_2 <- function(psql_connection, drop = FA
   create_master_spatial_grid_centroids_view(psql_connection, drop) # Check if used
   create_covariate_grid_map_view(psql_connection, drop)
   create_resize_temporal_grid_function(psql_connection, drop)
+  refresh_indices(psql_connection)
   create_shape_resized_spatial_grid_map_view(psql_connection, drop)
   create_shape_resized_spatial_grid_populations_view(psql_connection, drop)
   create_resized_covariates_view(psql_connection, drop)

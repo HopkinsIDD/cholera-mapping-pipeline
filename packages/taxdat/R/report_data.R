@@ -338,9 +338,17 @@ get_boundary_polygon <- cache_fun_results(name = "boundary_polygon", fun = get_b
 #' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return minimal_grid_population
 get_minimal_grid_population_no_cache <- function(config, cache, cholera_directory) {
-  get_stan_input(config = config, cache = cache, cholera_directory = cholera_directory)
-  rc <- cache[["stan_input"]][["minimal_grid_population"]]
-  rc$t <- cast_to_int32(rc$t)
+  get_config(config = config, cache = cache, cholera_directory = cholera_directory)
+  require(raster)
+  # rc <- raster::brick(cache[["config"]][["file_names"]][["minimal_grid_population"]])
+  rc <- readr::read_csv(cache[["config"]][["file_names"]][["minimal_grid_population"]])
+  for (row_idx in seq_len(nrow(rc))) {
+    if (row_idx == 1) {
+      rc$rast <- list(stars::read_stars(rc$raster_filename[[row_idx]]))
+    } else {
+      rc$rast[[row_idx]] <- stars::read_stars(rc$raster_filename[[row_idx]])
+    }
+  }
   return(rc)
 }
 ## cache the results
