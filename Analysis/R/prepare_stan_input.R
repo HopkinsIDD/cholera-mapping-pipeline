@@ -609,7 +609,8 @@ prepare_stan_input <- function(
   
   # Space-only location periods
   output_lps_space <- fake_output_obs %>% 
-    dplyr::distinct(locationPeriod_id)
+    dplyr::distinct(locationPeriod_id) %>% 
+    dplyr::arrange(locationPeriod_id)
   
   # Set data for output in stan object
   stan_data$M_output <- nrow(fake_output_obs)
