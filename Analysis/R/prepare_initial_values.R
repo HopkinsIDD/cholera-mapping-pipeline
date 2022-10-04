@@ -246,7 +246,7 @@ if (warmup) {
   
 } else {
   # Set to random initial draws if no covar warmup
-  init.list <- "random"
+  init.list <- NULL #QZ: change from "random" to list()
   
   if (stan_params$time_effect) {
     stan_data$mat_grid_time <- mat_grid_time %>% as.matrix()
