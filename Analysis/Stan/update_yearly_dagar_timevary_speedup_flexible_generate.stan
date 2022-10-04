@@ -5,6 +5,7 @@
 //            Time-slice random effect can be specified as:
 //              - 0-centered prior, no reference and no sum-to-zero constraint
 //              - Autocorrelated (increments ~ N(0, sigma)) with sum-to-zero constraint 
+
 data {
   int <lower=1> N; // length of non-NA grid cells (space and time)
   int <lower=1> N_edges;
@@ -52,6 +53,7 @@ data {
   int <lower=0, upper=L_output> map_output_loc_grid_loc[K2_output]; // the location side of the mapping from locations to gridcells
   int <lower=0, upper=N> map_output_loc_grid_grid[K2_output]; // the gridcell side of the mapping from locations to gridcells
   int <lower=0, upper=L_output_space> map_output_loctime_loc[L_output]; // Map from space x time location ids to space only location
+  int <lower=0> map_output_loc_adminlev[L_output_space]; // Map from space location ids to admin level
   
   int <lower=0,upper=smooth_grid_N> map_smooth_grid[N]; //vector with repeating smooth_grid_N indexes repeating 1:N
   
@@ -94,6 +96,7 @@ transformed data {
   real<lower=0> weights[M*(1-do_censoring)*use_weights]; //a function of the expected offset for each observation used to downwight the likelihood
   real log_meanrate = log(meanrate);
   real <lower=0> pop_loctimes[L]; // pre-computed population in each location period
+  int N_output_adminlev = max(map_output_loc_adminlev)+1;    // number of admin levels in output
   
   for(i in 1:N){
     logpop[i] = log(pop[i]);
@@ -160,7 +163,7 @@ generated quantities {
   matrix<lower=0>[L_output_space, N_cat] location_risk_cat_num;    // number of people in each location in each risk category
   matrix<lower=0>[L_output_space, N_cat] location_risk_cat_prop;    // proportion of people in each location in each risk category
   int<lower=0> location_risk_cat[L_output_space] ;    // risk category for each space location
-  vector<lower=0>[N_cat] tot_pop_risk;    // total number of people in admin units in each risk category
+  matrix<lower=0>[N_cat, N_output_adminlev] tot_pop_risk;    // total number of people in admin units in each risk category by admin level
   
   // Data outputs to return (same for all samples)
   real <lower=0> pop_loctimes_output[L_output];    // population in each output location period
@@ -359,13 +362,16 @@ generated quantities {
   
   // Initialize
   for (i in 1:N_cat) {
-    tot_pop_risk[i] = 0;
+    for (j in 1:N_output_adminlev) {
+      tot_pop_risk[i, j] = 0;
+    }
   } 
   
   // Sum over locations
   for (i in 1:L_output_space) {
     int j = location_risk_cat[i];
-    tot_pop_risk[j] += pop_loc_output[i];
+    int k = map_output_loc_adminlev[i] + 1;
+    tot_pop_risk[j, k] += pop_loc_output[i];
   }
   // ---  End Part E ---
   
