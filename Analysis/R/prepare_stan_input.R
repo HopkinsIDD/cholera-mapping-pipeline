@@ -374,17 +374,31 @@ prepare_stan_input <- function(
     }
   }
   
-  # Overwrite tfrac with user-specified value
+  stan_data$M <- nrow(sf_cases_resized)
+  non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
+  obs_changer <- setNames(seq_len(length(non_na_obs_resized)),non_na_obs_resized)
+  stan_data$map_obs_loctime_obs <- as.array(obs_changer[as.character(ind_mapping_resized$map_obs_loctime_obs)])
+  stan_data$map_obs_loctime_loc <- as.array(ind_mapping_resized$map_obs_loctime_loc)
+  
+  # First define censored observations
+  stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= stan_params$censoring_thresh)
+  
+  # Extract censoring information
+  censoring_inds <- purrr::map_chr(
+    1:stan_data$M, 
+    function(x) {
+      # Get all tfracs for the given observation
+      tfracs <- ind_mapping_resized$tfrac[stan_data$map_obs_loctime_obs == x]
+      # Define right-censored if any tfrac is smaller than 95% of the time slice
+      ifelse(any(tfracs < stan_params$censoring_thresh), "right-censored", "full")
+    })
+  
+  # Then overwrite tfrac with user-specified value
   if (!is.null(set_tfrac) && (set_tfrac)) {
     cat("-- Overwriting tfrac with user-specified value of ", set_tfrac)
     ind_mapping_resized$tfrac <- rep(1.0, length(ind_mapping_resized$tfrac))
   }
   
-  non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
-  
-  obs_changer <- setNames(seq_len(length(non_na_obs_resized)),non_na_obs_resized)
-  stan_data$map_obs_loctime_obs <- as.array(obs_changer[as.character(ind_mapping_resized$map_obs_loctime_obs)])
-  stan_data$map_obs_loctime_loc <- as.array(ind_mapping_resized$map_obs_loctime_loc)
   stan_data$tfrac <- as.array(ind_mapping_resized$tfrac)
   stan_data$map_loc_grid_loc <- as.array(ind_mapping_resized$map_loc_grid_loc)
   stan_data$map_loc_grid_grid <- as.array(ind_mapping_resized$map_loc_grid_grid)
@@ -434,6 +448,27 @@ prepare_stan_input <- function(
       obs_changer <- setNames(seq_len(length(non_na_obs_resized)),non_na_obs_resized)
       stan_data$map_obs_loctime_obs <- as.array(obs_changer[as.character(ind_mapping_resized$map_obs_loctime_obs)])
       stan_data$map_obs_loctime_loc <- as.array(ind_mapping_resized$map_obs_loctime_loc)
+      
+      # First define censored observations
+      stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= stan_params$censoring_thresh)
+      stan_data$M <- nrow(sf_cases_resized)
+      
+      # Extract censoring information
+      censoring_inds <- purrr::map_chr(
+        1:stan_data$M, 
+        function(x) {
+          # Get all tfracs for the given observation
+          tfracs <- ind_mapping_resized$tfrac[stan_data$map_obs_loctime_obs == x]
+          # Define right-censored if any tfrac is smaller than 95% of the time slice
+          ifelse(any(tfracs < stan_params$censoring_thresh), "right-censored", "full")
+        })
+      
+      # Then overwrite tfrac with user-specified value
+      if (!is.null(set_tfrac) && (set_tfrac)) {
+        cat("-- Overwriting tfrac with user-specified value of ", set_tfrac)
+        ind_mapping_resized$tfrac <- rep(1.0, length(ind_mapping_resized$tfrac))
+      }
+      
       stan_data$tfrac <- as.array(ind_mapping_resized$tfrac)
       stan_data$map_loc_grid_loc <- as.array(ind_mapping_resized$map_loc_grid_loc)
       stan_data$map_loc_grid_grid <- as.array(ind_mapping_resized$map_loc_grid_grid)
@@ -451,18 +486,7 @@ prepare_stan_input <- function(
     dplyr::summarize(tfrac = mean(tfrac)) %>%  # We take the average over time so we can sum population over time
     .[["tfrac"]]
   
-  stan_data$M <- nrow(sf_cases_resized)
   stan_data$y <- as.array(sf_cases_resized[[cases_column]])
-  
-  # Extract censoring information
-  censoring_inds <- purrr::map_chr(
-    1:stan_data$M, 
-    function(x) {
-      # Get all tfracs for the given observation
-      tfracs <- stan_data$tfrac[stan_data$map_obs_loctime_obs == x]
-      # Define right-censored if any tfrac is smaller than 95% of the time slice
-      ifelse(any(tfracs < 0.95), "right-censored", "full")
-    })
   
   # Get censoring indexes 
   stan_data$ind_full <- which(censoring_inds == "full") %>% array()

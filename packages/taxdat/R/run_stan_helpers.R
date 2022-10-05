@@ -7,7 +7,7 @@
 #' @return a list with parameter values
 #' @export 
 get_stan_parameters <- function(config,
-                                sigma_eta_scale = 5,
+                                sigma_eta_scale = 1,
                                 beta_sigma_scale = 1,
                                 warmup = T,
                                 covar_warmup = T,
@@ -17,7 +17,8 @@ get_stan_parameters <- function(config,
                                 use_weights = T,
                                 overdispersion = NA,
                                 use_rho_prior = F,
-                                use_pop_weight = T
+                                use_pop_weight = T,
+                                censoring_thresh = .95
 ) {
   
   default_params <- list(sigma_eta_scale = sigma_eta_scale,
@@ -30,7 +31,8 @@ get_stan_parameters <- function(config,
                          use_weights = use_weights,
                          overdispersion = overdispersion,
                          use_rho_prior = use_rho_prior,
-                         use_pop_weight = use_pop_weight)
+                         use_pop_weight = use_pop_weight,
+                         censoring_thresh = censoring_thresh)
   
   # For each parameter check if specified in config, if not use default value
   params <- purrr::map(names(default_params), 
