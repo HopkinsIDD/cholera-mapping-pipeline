@@ -121,7 +121,7 @@ color_scale <- function(type = "cases", use_case = "leaflet", use_log = FALSE) {
       transform <- scales::identity_trans()
     }
 
-    limits <- c(1, 1e+5)
+    limits <- c(100, 1e+6)
   } else {
     stop(paste("The type", type, "is not recognized"))
   }
@@ -130,7 +130,7 @@ color_scale <- function(type = "cases", use_case = "leaflet", use_log = FALSE) {
     return(colorRampPalette(colors, space = "Lab"))
   } else if (use_case == "ggplot map") {
     return(
-      ggplot2::scale_fill_gradientn(colours = colors, oob = scales::squish, limits = limits, trans = transform, guide = ggplot2::guide_colorbar(label.theme = ggplot2::element_text(angle = 45)))
+      ggplot2::scale_fill_gradientn(colours = colors, oob = scales::squish, limits = limits, breaks = c(1e3, 1e4, 1e5), trans = transform, guide = ggplot2::guide_colorbar(label.theme = ggplot2::element_text(angle = 45)))
     )
   } else {
     stop(paste("The use case", use_case, "is not recognized"))
