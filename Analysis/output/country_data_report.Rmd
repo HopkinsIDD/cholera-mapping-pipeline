@@ -2,8 +2,8 @@
 title: "Country Data Report"
 output: html_document
 params: 
-  cholera_directory: "~/cholera-mapping-pipeline"
-  config: "~/Analysis/configs/config.yml"
+  cholera_directory: "/home/.../cholera-mapping-pipeline"
+  config: "Analysis/.../config.yml"
   drop_nodata_years: TRUE
   admin_level_for_summary_table: '1'
   args: 'myarg'
@@ -11,10 +11,13 @@ params:
 ---
 ```{r eval = FALSE, include = FALSE}
 # Set all the parameters for development purposes (need to comment them out when running the whole script)
-params$drop_nodata_years <- TRUE
-params$admin_level_for_summary_table <- '1'
-params$args <- 'myarg'
-params$old_runs <- FALSE
+# params <- new.env()
+# params$cholera_directory <- "/home/kaiyuezou/mapping_pipeline/2016_2020_no_covariate_run/cholera-mapping-pipeline"
+# params$config <- "Analysis/configs/no_covariate_production_2016_2020/2016_2020_country/config_BEN_2016_2020.yml"
+# params$drop_nodata_years <- TRUE
+# params$admin_level_for_summary_table <- '1'
+# params$args <- 'myarg'
+# params$old_runs <- FALSE
 ```
 
 ```{r setup, include=FALSE, dev="CairoPNG",message=FALSE}
@@ -108,29 +111,34 @@ get_sf_grid(name="sf_grid",config = params$config,cache=cache,cholera_directory 
 
 ### GAM Input
 **Observations input for the GAM model:**
-```{r gam input of cases,fig.height=5, fig.width=10, fig.cap=capFig("Observations input for the GAM model (cases)")}
-plot_gam_fit_input_cases (name="initial_values_data",cache=cache)
+```{r gam input of cases,fig.height=10, fig.width=15, fig.cap=capFig("Observations input for the GAM model (cases)")}
+plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="cases")
 ```
 
-```{r gam input of rates,fig.height=5, fig.width=10, fig.cap=capFig("Observations output of the GAM model (rates)")}
-plot_gam_fit_input_rates (name="initial_values_data",cache=cache)
+```{r gam input of rates,fig.height=10, fig.width=15, fig.cap=capFig("Observations input for the GAM model (rates)")}
+plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="rates")
 ```
 
 ### GAM Output
 **Observations output of the GAM model:**
-```{r gam output of cases,fig.height=5, fig.width=10, fig.cap=capFig("Observations input for the GAM model (cases)")}
-plot_gam_fit_output_cases(name="gam_output_df",cache=cache)
+```{r gam output of cases,fig.height=10, fig.width=15, fig.cap=capFig("Observations output from the GAM model (cases)")}
+plot_gam_fit_output(name="gam_output_df",cache=cache,type='cases')
 ```
 
-```{r gam output of rates,fig.height=5, fig.width=10, fig.cap=capFig("Observations input for the GAM model (rates)")}
-plot_gam_fit_output_rates(name="gam_output_df",cache=cache)
+```{r gam output of rates,fig.height=10, fig.width=15, fig.cap=capFig("Observations output from the GAM model (rates)")}
+plot_gam_fit_output(name="gam_output_df",cache=cache,type='rates')
 ```
 
 ### GAM Output v.s GAM Input Comparison
-**GAM Output v.s GAM Input Rates Scatterplot:**
-```{r gam output input rates comparison,fig.height=5, fig.width=10, fig.cap=capFig("GAM Output v.s GAM Input Rates")}
-plot_gam_input_vs_output_rate_scatter_plot(cache = cache) #this will output plots 
+**GAM Output v.s Raw GAM Input Rates Scatterplot:**
+```{r gam output input rates comparison,fig.height=10, fig.width=15, fig.cap=capFig("GAM Output v.s Raw GAM Input Rates")}
+plot_gam_input_vs_output_rate_scatter_plot(cache = cache, type = 'raw') 
 ```
+**GAM Output v.s Averaged GAM Input Rates Scatterplot:**
+```{r gam output input rates comparison averaged,fig.height=10, fig.width=15, fig.cap=capFig("GAM Output v.s Averaged GAM Input Rates")}
+plot_gam_input_vs_output_rate_scatter_plot(cache = cache, type = 'averaged') 
+```
+
 
 **Table 1. Data used within the model:**
 ```{r echo = FALSE}
@@ -171,7 +179,7 @@ plot_time_varying_pop_raster(cache=cache,config=params$config,cholera_directory=
 
 **Table 3. Population by admin level:**
 ```{r echo = FALSE}
-plot_pop_by_admin(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
+plot_pop_by_admin(cache=cache,cholera_directory=params$cholera_directory,config=params$config,admin_level_for_summary_table=params$admin_level_for_summary_table)
 warning("Here we're using 20*20 km pop raster to estimate the population!")
 ```
 
@@ -197,7 +205,7 @@ cache[["case_raster"]] <-get_case_raster(cache=cache,config=params$config,choler
 cache[["disaggregated_rate_sf"]]<-get_disaggregated_rates_sf(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 cache[["disaggregated_case_sf"]]<-get_disaggregated_cases_sf (cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 
-config_file<-yaml::read_yaml(paste0(params$cholera_directory,params$config))
+config_file<-yaml::read_yaml(paste0(params$cholera_directory,"/",params$config))
 analysis_years <- lubridate::year(config_file$start_time):lubridate::year(config_file$end_time)
 obs_years <- min(lubridate::year(cache[["sf_cases_resized"]]$TL)):max(lubridate::year(cache[["sf_cases_resized"]]$TR))
 
@@ -226,13 +234,15 @@ plot_stan_output_vs_gam_output_rate_scatter_plot(cache = cache)
 ```
 
 **Stan Output v.s GAM Output Cases by Time Slices:**
-```{r stangamcates, fig.cap=capFig("Stan Output v.s GAM Output Cates"), fig.height=5, fig.width=10}
+```{r stangamcates, fig.cap=capFig("Stan Output v.s GAM Output Cases"), fig.height=5, fig.width=10}
 plot_stan_output_vs_gam_output_case_scatter_plot(cache = cache) #this will output plots 
 ```
 
+
+
 **Table 4. Modeled cases by admin level and time:**
 ```{r echo = FALSE}
-plot_cases_by_admin(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
+plot_cases_by_admin(cache=cache,config=params$config,cholera_directory=params$cholera_directory,admin_level_for_summary_table=params$admin_level_for_summary_table)
 ```
 
 #### Modeled incidence rates
@@ -243,7 +253,7 @@ plot_modeled_rates_time_varying(disaggregated_rate_sf=cache[["disaggregated_rate
 
 **Table 5. Modeled incidence rates by admin level and time:**
 ```{r echo = FALSE}
-plot_incidence_by_admin(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
+plot_incidence_by_admin(cache=cache,config=params$config,cholera_directory=params$cholera_directory,admin_level_for_summary_table=params$admin_level_for_summary_table)
 warning("Here we're using 20*20 km pop raster!")
 ```
 
