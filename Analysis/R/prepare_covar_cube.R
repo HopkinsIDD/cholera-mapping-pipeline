@@ -24,7 +24,8 @@ prepare_covar_cube <- function(
     end_time,
     res_space,
     res_time,
-    username
+    username,
+    covariate_transformations
 ) {
   
   
@@ -169,6 +170,8 @@ prepare_covar_cube <- function(
   
   # close database
   DBI::dbDisconnect(conn_pg)
+
+  covar_cube <- taxdat::transform_covariates(covar_cube, covariate_transformations)
   
   # Assemble output
   output <- list(covar_cube = covar_cube,
