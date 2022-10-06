@@ -1381,7 +1381,8 @@ get_multi_country_admin_units <- function(iso_code,
     purrr::map_df(admin_levels, 
                   ~ get_country_admin_units(iso_code = iso_code, 
                                             admin_level = .) %>% 
-                    dplyr::rename(admin_level = shapeType)
+                    dplyr::rename(admin_level = shapeType) %>% 
+                    dplyr::arrange(location_period_id)
     )
   }
 }
