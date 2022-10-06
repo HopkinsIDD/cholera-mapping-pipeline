@@ -594,9 +594,12 @@ prepare_stan_input <- function(
   
   # Make fake data to compute output location periods mappings
   fake_output_obs <- output_location_periods_table %>% 
-    dplyr::inner_join(time_slices %>% dplyr::mutate(t = dplyr::row_number())) %>% 
+    dplyr::inner_join(time_slices %>% 
+                        dplyr::mutate(t = dplyr::row_number())) %>% 
     dplyr::distinct(location_period_id, TL, TR) %>% 
-    dplyr::rename(locationPeriod_id = location_period_id)
+    dplyr::rename(locationPeriod_id = location_period_id) %>% 
+    dplyr::mutate(admin_lev = stringr::str_extract(locationPeriod_id, "ADM[0-9]{1}"),
+                  admin_lev = stringr::str_remove_all(admin_lev, "ADM") %>% as.integer())
   
   # Mapping from fake observations to location-periods 
   ind_mapping_output <- taxdat::get_space_time_ind_speedup(
@@ -609,7 +612,8 @@ prepare_stan_input <- function(
   
   # Space-only location periods
   output_lps_space <- fake_output_obs %>% 
-    dplyr::distinct(locationPeriod_id)
+    dplyr::distinct(locationPeriod_id, admin_lev) %>% 
+    dplyr::arrange(locationPeriod_id)
   
   # Set data for output in stan object
   stan_data$M_output <- nrow(fake_output_obs)
@@ -625,6 +629,7 @@ prepare_stan_input <- function(
   stan_data$L_output_space <- nrow(output_lps_space)
   stan_data$map_output_loctime_loc <- purrr::map_dbl(fake_output_obs$locationPeriod_id, 
                                                      ~ which(output_lps_space$locationPeriod_id == .))
+  stan_data$map_output_loc_adminlev <- output_lps_space$admin_lev
   
   if (stan_params$use_pop_weight) {
     stan_data$pop_weight_output <- ind_mapping_output$u_loc_grid_weights
