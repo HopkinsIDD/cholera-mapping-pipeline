@@ -98,7 +98,7 @@ if(!is.null(cache[["config"]][["test_metadata"]])){
     lapply(function(observation_spec) {
       as.data.frame(observation_spec)
     }) %>%
-    do.call(what=rbind) %>%
+    do.call(what=bind_rows) %>%
     dplyr::mutate(
       tfrac = mapply(s = start_date, e = end_date, FUN= function(s,e){
         as.numeric(lubridate::as.period(lubridate::interval(lubridate::ymd(s),lubridate::ymd(e) + 1), units = cache[["config"]][["general"]][["time_scale"]]), units = cache[["config"]][["general"]][["time_scale"]])
