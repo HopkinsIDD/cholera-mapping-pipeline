@@ -725,14 +725,8 @@ stan_model_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, co
 
 options(mc.cores = config[["stan"]][["ncores"]])
 
-standardize <- function(x) {
-  if (length(unique(x)) == 1) {
-    return(x * 0) + 1
-  }
-  return((x - mean(x)) / sd(x - mean(x)))
-}
 standardize_covar <- function(M) {
-  return(apply(M, 2, standardize))
+  return(apply(M, 2,  taxdat::my_scale))
 }
 
 print("Creating stan data")
