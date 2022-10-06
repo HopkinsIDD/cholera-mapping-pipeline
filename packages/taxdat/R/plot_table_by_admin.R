@@ -73,30 +73,32 @@ if(nrow(cache[["sf_grid"]]) == prod(dim(pop_layer))){
   colnames(admin_pop_table) <- c('adminlevel', year_list)
   admin_pop_table$adminlevel <- boundary_sf$shapeName
   
-  for(layer in unique(pltdata$t)){
-    for (locs in admin_pop_table$adminlevel){
-      idx <- sf::st_intersects(sf::st_centroid(pltdata[pltdata$t == layer, ]), boundary_sf[boundary_sf$shapeName == locs, ], sparse = FALSE)
-      pop <- sum(pltdata$covar[pltdata$t == layer][idx], na.rm = TRUE)
-      admin_pop_table[match(locs, admin_pop_table$adminlevel), match(layer, unique(pltdata$t))+1]<-round(pop, 0) 
-    }
-  }
-
-  # pop_raster_data<-raster()
+  ### using sf package to calculate pop size by district
   # for(layer in unique(pltdata$t)){
-  #   empty_raster <- raster::raster(pltdata[which(pltdata$t==layer),], res = max(0.1666666, 0.1666666))#20*20km raster
-  #   pop_raster_data_tmp <- fasterize::fasterize(pltdata[which(pltdata$t==layer),], empty_raster, field = c("covar"))
-  #   pop_raster_data<-stack(pop_raster_data,pop_raster_data_tmp)
-  # }
-  
-  # for(layer in 1:raster::nlayers(pop_raster_data)){
   #   for (locs in admin_pop_table$adminlevel){
-  #     cropped <- raster::crop(pop_raster_data[[layer]], boundary_sf[boundary_sf$shapeName == locs, layer+1], snap = "out")
-  #     masked <- raster::mask(cropped, boundary_sf[boundary_sf$shapeName == locs, layer+1], updatevalue = NA)
-  #     sum_pop <- sum(raster::getValues(masked), na.rm = TRUE)
-  #     admin_pop_table[match(locs, admin_pop_table$adminlevel), layer+1]<-round(sum_pop,4) 
-  #     rm(cropped, masked)
-  #   }  
+  #     idx <- sf::st_intersects(sf::st_centroid(pltdata[pltdata$t == layer, ]), boundary_sf[boundary_sf$shapeName == locs, ], sparse = FALSE)
+  #     pop <- sum(pltdata$covar[pltdata$t == layer][idx], na.rm = TRUE)
+  #     admin_pop_table[match(locs, admin_pop_table$adminlevel), match(layer, unique(pltdata$t))+1]<-round(pop, 0) 
+  #   }
   # }
+
+  ### using raster package to calculate pop size by district
+  pop_raster_data<-raster()
+  for(layer in unique(pltdata$t)){
+    empty_raster <- raster::raster(pltdata[which(pltdata$t==layer),], res = max(0.1666666, 0.1666666))#20*20km raster
+    pop_raster_data_tmp <- fasterize::fasterize(pltdata[which(pltdata$t==layer),], empty_raster, field = c("covar"))
+    pop_raster_data<-stack(pop_raster_data,pop_raster_data_tmp)
+  }
+  
+  for(layer in 1:raster::nlayers(pop_raster_data)){
+    for (locs in admin_pop_table$adminlevel){
+      cropped <- raster::crop(pop_raster_data[[layer]], boundary_sf[boundary_sf$shapeName == locs, layer+1], snap = "out")
+      masked <- raster::mask(cropped, boundary_sf[boundary_sf$shapeName == locs, layer+1], updatevalue = NA)
+      sum_pop <- sum(raster::getValues(masked), na.rm = TRUE)
+      admin_pop_table[match(locs, admin_pop_table$adminlevel), layer+1]<-round(sum_pop,4) 
+      rm(cropped, masked)
+    }  
+  }
   
   ### Add a total row, change colnames, and display the table
   total_row <- c('Total', apply(data.frame(admin_pop_table[, -1]), 2, sum))
