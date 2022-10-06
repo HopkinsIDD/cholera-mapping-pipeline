@@ -1322,10 +1322,13 @@ get_country_admin_units <- function(iso_code,
   library(sf)
   
   if (iso_code == "ZNZ" & admin_level == 1){
-    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
-  } else if (iso_code == "ZNZ"){
-    stop('Sorry, currently ZNZ only has the admin 1 level shape files available to use, please try again. ')
-  } else{
+    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+      c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
+  } else if (iso_code == "ZNZ" & admin_level == 2){
+    boundary_sf <- rgeoboundaries::gb_adm2("TZA")[rgeoboundaries::gb_adm2("TZA")$shapeName %in% 
+      c("Micheweni", "Wete", "Chake Chake", "Mkoani", 
+        "Kaskazini A", "Kaskazini B", "Mjini", "Magharibi", "Kati", "Kusini"), ]
+  } else {
     if (admin_level == 0){
       boundary_sf <- rgeoboundaries::gb_adm0(iso_code)
     }else if (admin_level == 1){
@@ -1338,7 +1341,7 @@ get_country_admin_units <- function(iso_code,
       warning('The current admin level is set at 3. ')
     }else{
       stop('Error: the current admin level is unnecessarily high or invalid, 
-    please check and change the parameters for the country data report before running again. ')
+            please check and change the parameters for the country data report before running again. ')
     }
   }
   

@@ -216,7 +216,7 @@ obs_years <- min(lubridate::year(cache[["sf_cases_resized"]]$TL)):max(lubridate:
    message(paste(paste(analysis_years[drop_year_ix], collapse = ", "), "are not represented in OCs"))
    if(params$drop_nodata_years){
      message(paste("Dropping", paste(analysis_years[drop_year_ix], collapse = ", "), "from case_raster"))
-     case_raster <- dplyr::filter(case_raster, !(t %in% drop_year_ix))
+     cache[["case_raster"]] <- dplyr::filter(cache[["case_raster"]], !(t %in% drop_year_ix))
    }
  }
 ```
