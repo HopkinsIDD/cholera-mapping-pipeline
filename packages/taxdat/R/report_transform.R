@@ -210,7 +210,7 @@ disaggregate_grid_cases_mean_no_cache <- function(config, cache, cholera_directo
   counter <- 1
   for (this_t in unique(cache[["mean_rates_sf"]]$t)) {
     local_mean_rates_sf <- cache[["mean_rates_sf"]] %>% dplyr::filter(t == this_t)
-    for (pop_tile_idx in which(cache[["minimal_grid_population"]]$t == this_t)) {
+    for (pop_tile_idx in which(cache[["minimal_grid_population"]]$temporal_grid_id == this_t)) {
       rc[[counter]] <- (
         stars::st_rasterize(local_mean_rates_sf, template = cache[["minimal_grid_population"]][["rast"]][[pop_tile_idx]] * NA) *
           cache[["minimal_grid_population"]][["rast"]][[pop_tile_idx]]

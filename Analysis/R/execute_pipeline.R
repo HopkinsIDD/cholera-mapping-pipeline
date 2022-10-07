@@ -56,6 +56,8 @@ option_list <- list(
     help = "Postgres database user"
   ), optparse::make_option(c("--testing_run"),
     action = "store", default = FALSE, type = "logical", help = "Is this run a testing run or a production run"
+  ), optparse::make_option(c("-H", "--postgres_database_host"),
+    action = "store", default = "localhost", type = "character", help = "Postgres hostname"
   )
 )
 
@@ -83,7 +85,7 @@ if (!taxdat::check_config(config)) {
 ### Setup postgres
 conn_pg <- taxdat::connect_to_db(
   dbname = opt[["postgres_database_name"]], dbuser = opt[["postgres_database_user"]],
-  port = opt[["postgres_database_port"]]
+  port = opt[["postgres_database_port"]], host = opt[["host"]]
 )
 
 cases_column <- "suspected_cases"
@@ -787,14 +789,28 @@ print("Finished creating stan data")
 
 
 # Save input
-print("Saving model input")
+print("Creating model input")
 stan_input <- list(
   stan_data = stan_data, covar_cube = covar_cube, observation_data = observation_data,
   grid_adjacency = grid_adjacency, observation_temporal_location_mapping = observation_temporal_location_mapping,
   temporal_location_grid_mapping = temporal_location_grid_mapping, initial_values_list = initial_values_list,
-  initial_values_df = initial_values_df, boundary_polygon = boundary_polygon, minimal_grid_population = minimal_grid_population
+  initial_values_df = initial_values_df, boundary_polygon = boundary_polygon
 )
+print("Saving model input")
 save(stan_input, file = config[["file_names"]][["stan_input"]])
+# raster::writeRaster(minimal_grid_population, file = config[["file_names"]][["minimal_grid_population_file"]])
+raster_filenames <- character(nrow(minimal_grid_population))
+for (row_idx in seq_len(nrow(minimal_grid_population))) {
+  raster_filenames[row_idx] <- paste0(config[["file_names"]][["minimal_grid_population"]], "_", row_idx, "_raster.tif")
+  print(paste("Saving raster", raster_filenames[row_idx]))
+  stars::write_stars(minimal_grid_population$rast[[row_idx]], dsn = raster_filenames[row_idx])
+  print(paste("Finished saving raster", raster_filenames[row_idx]))
+}
+minimal_grid_population$rast <- NULL
+minimal_grid_population$raster_filename <- raster_filenames
+minimal_grid_population$rid <- taxdat::cast_to_int32(minimal_grid_population$rid)
+minimal_grid_population$temporal_grid_id <- taxdat::cast_to_int32(minimal_grid_population$temporal_grid_id)
+readr::write_csv(minimal_grid_population, config[["file_names"]][["minimal_grid_population"]])
 print("Finished saving model input")
 
 print("Running STAN")

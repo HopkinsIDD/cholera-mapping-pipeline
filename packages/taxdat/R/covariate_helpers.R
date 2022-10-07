@@ -10,8 +10,13 @@
 #' @title Connect to database
 #' @description Connects to the postgres/postgis cholera_covariates database
 #' @return db connection object
-connect_to_db <- function(dbuser, dbname, port = 5432) {
-  rc <- DBI::dbConnect(RPostgres::Postgres(), dbname = dbname, user = dbuser, port = port)
+connect_to_db <- function(dbuser, dbname, port = 5432, host = "localhost") {
+  rc <- NULL
+  if (is.null(host) || (host == "") || (host == "localhost")) {
+    rc <- DBI::dbConnect(RPostgres::Postgres(), dbname = dbname, user = dbuser, port = port)
+  } else {
+    rc <- DBI::dbConnect(RPostgres::Postgres(), dbname = dbname, user = dbuser, port = port, host = host, password = Sys.getenv("CHOLERA_POSTGRES_PASSWORD"))
+  }
   if (is_connection_to_old_pipeline(rc)) {
     stop("This database appears to be an old pipeline database")
   }

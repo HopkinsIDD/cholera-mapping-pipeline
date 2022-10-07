@@ -43,6 +43,7 @@ config_docstrings[["processing"]][["remove_unobserved_time_slices"]] <- "Should 
 config_docstrings[["processing"]][["remove_unobserved_space_slices"]] <- "Should space slices which are not observed be dropped from the model. logical. Defaults to TRUE."
 config_docstrings[["file_names"]] <- list()
 config_docstrings[["file_names"]][["stan_input"]] <- "Filename to save input data to. Defaults to a unique string based on the config."
+config_docstrings[["file_names"]][["minimal_grid_population"]] <- "Filename to save 1km population data to. Defaults to a unique string based on the config."
 config_docstrings[["file_names"]][["stan_output"]] <- "Filename to save stan output data to. Defaults to a unique string based on the config."
 config_docstrings[["file_names"]][["generated_quantities"]] <- "Filename to save generated quantities data to. Defaults to a unique string based on the config."
 config_docstrings[["file_names"]][["report"]] <- "Filename to save report to. Defaults to a unique string based on the config."
@@ -840,6 +841,58 @@ config_checks[["file_names"]][["stan_input"]] <- function(value, config, index) 
 
   return(TRUE)
 }
+config_checks[["file_names"]][["minimal_grid_population"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['file_names']][['minimal_grid_population']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['file_names']][['minimal_grid_population']] is NA")
+    return(FALSE)
+  }
+  if (!is.character(value)) {
+    warning(paste(
+      "config[['file_names']][['minimal_grid_population']] should be character, but is",
+      value, "of mode", mode(value)
+    ))
+    return(FALSE)
+  }
+  if (!dir.exists(dirname(value))) {
+    warning(paste(
+      "config[['file_names']][['minimal_grid_population']] should be a path to a file in an existing directory, but",
+      value, "implies a directory of", dirname(value), "which does not exist"
+    ))
+    return(FALSE)
+  }
+  if (!(tolower(tools::file_ext(value)) == "csv")) {
+    warning(paste(
+      "config[['file_names']][['minimal_grid_population']] should be an csv file, but is actually",
+      value, "with extension", tools::file_ext(value)
+    ))
+    return(FALSE)
+  }
+  if (sum(value == config$file_names) > 1) {
+    warning(paste(
+      "config[['file_names']][['minimal_grid_population']] should be a unique file name, but",
+      value, "appears more than once"
+    ))
+    return(FALSE)
+  }
+  if (suppressWarnings(normalizePath(value)) != value) {
+    warning(paste(
+      "config[['file_names']][['minimal_grid_population']] should be a normalized path, but ",
+      value,
+      "normalizes to",
+      suppressWarnings(normalizePath(value))
+    ))
+    return(FALSE)
+  }
+
+  return(TRUE)
+}
 config_checks[["file_names"]][["stan_output"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
@@ -1386,6 +1439,14 @@ config_defaults[["generated"]][["time_scale"]] <- function(config, index) {
 config_defaults[["file_names"]] <- list()
 config_defaults[["file_names"]][["stan_input"]] <- function(config, index) {
   file_name <- paste0(paste(unlist(config[["general"]]), collapse = "_"), ".stan_input.rdata")
+  file_path <- rprojroot::find_root_file(paste0("Analysis/data/", file_name), criterion = rprojroot::has_file(".choldir"))
+  if (!dir.exists(dirname(file_path))) {
+    dir.create(dirname(file_path))
+  }
+  return(suppressWarnings(normalizePath(file_path)))
+}
+config_defaults[["file_names"]][["minimal_grid_population"]] <- function(config, index) {
+  file_name <- paste0(paste(unlist(config[["general"]]), collapse = "_"), ".minimal_grid_population.csv")
   file_path <- rprojroot::find_root_file(paste0("Analysis/data/", file_name), criterion = rprojroot::has_file(".choldir"))
   if (!dir.exists(dirname(file_path))) {
     dir.create(dirname(file_path))
