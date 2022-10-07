@@ -30,4 +30,4 @@ RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint
     AND temporal_grid.time_midpoint >= start_date
     AND spatial_grid.width = width_in_km
     AND spatial_grid.height = height_in_km
-  $$ LANGUAGE SQL;
+  $$ LANGUAGE SQL SECURITY DEFINER;

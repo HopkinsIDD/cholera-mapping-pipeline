@@ -12,6 +12,7 @@ config_docstrings[["general"]][["covariates"]][["::"]][["name"]] <- "The name of
 config_docstrings[["general"]][["covariates"]][["::"]][["transform_name"]] <- "A string representing the name of the transformation applied to the covariate. Defaults to identity."
 config_docstrings[["general"]][["covariates"]][["::"]][["transform_function"]] <- "A function to use to transform the covariate after loading.  Uses expr! syntax.  Should be a function of one variable. Default is expr! function(x){return(x)}."
 config_docstrings[["stan"]] <- list()
+config_docstrings[["stan"]][["enable_debug_logging"]] <- "Logical. Whether or not to print debug information from stan.  Generally used only to determine why the probability is log(0). Defaults to FALSE"
 config_docstrings[["stan"]][["directory"]] <- "Directory (either absolute or relative to cholera-mapping-pipeline) containing stan files."
 config_docstrings[["stan"]][["recompile"]] <- "Whether to force the stan model to recompile if it has already been compiled. logical. Defaults to FALSE."
 config_docstrings[["stan"]][["niter"]] <- "The number of iterations to run on each chain. Results will have only have this number of iterations due to warmup. integer. Defaults to 2000."
@@ -30,6 +31,10 @@ config_docstrings[["stan"]][["narrower_prior"]] <- "Should we use a narrower pri
 config_docstrings[["initial_values"]] <- list()
 config_docstrings[["initial_values"]][["warmup"]] <- "Should we use the gam model to try to find better starting conditions for the stan model. logical. Defaults to TRUE."
 config_docstrings[["processing"]] <- list()
+config_docstrings[["processing"]][["remove_short_time_observations"]] <- list()
+config_docstrings[["processing"]][["remove_short_time_observations"]][["perform"]] <- "Should we remove all observations with low tfrac. logical. Defaults to FALSE"
+config_docstrings[["processing"]][["remove_short_time_observations"]][["threshold"]] <- "Fraction of one time period below which we should remove observations."
+
 config_docstrings[["processing"]][["reorder_adjacency_matrix"]] <- list()
 config_docstrings[["processing"]][["reorder_adjacency_matrix"]][["perform"]] <- "Should we permute the order of the gridcells so that the (assymetric) adjacency matrix has better properties for DAGAR. logical. Defaults to TRUE."
 config_docstrings[["processing"]][["remove_overlaps"]] <- list()
@@ -312,6 +317,24 @@ config_checks[["general"]][["covariates"]][["::"]][["transform_function"]] <- fu
 }
 
 config_checks[["stan"]] <- list()
+config_checks[["stan"]][["enable_debug_logging"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['enable_debug_logging']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['enable_debug_logging']] is NA")
+    return(FALSE)
+  }
+  if (!is.logical(value)) {
+    warning("config[['stan']][['enable_debug_logging']] should be logical, but is", value)
+    return(FALSE)
+  }
+  return(TRUE)
+}
 config_checks[["stan"]][["directory"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
@@ -611,6 +634,51 @@ config_checks[["initial_values"]][["warmup"]] <- function(value, config, index) 
 }
 
 config_checks[["processing"]] <- list()
+config_checks[["processing"]][["remove_short_time_observations"]] <- list()
+config_checks[["processing"]][["remove_short_time_observations"]][["perform"]] <- function(value,
+                                                                                           config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['processing']][['remove_short_time_observations']][['perform']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['processing']][['remove_short_time_observations']][['perform']] is NA")
+    return(FALSE)
+  }
+  if (!is.logical(value)) {
+    warning(paste(
+      "config[['processing']][['remove_short_time_observations']][['perform']] should be logical, but is",
+      value, "of mode", mode(value)
+    ))
+    return(FALSE)
+  }
+  return(TRUE)
+}
+config_checks[["processing"]][["remove_short_time_observations"]][["threshold"]] <- function(value,
+                                                                                             config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['processing']][['remove_short_time_observations']][['threshold']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['processing']][['remove_short_time_observations']][['threshold']] is NA")
+    return(FALSE)
+  }
+  if (!is.numeric(value)) {
+    warning(paste(
+      "config[['processing']][['remove_short_time_observations']][['threshold']] should be numeric, but is",
+      value, "of mode", mode(value)
+    ))
+    return(FALSE)
+  }
+  return(TRUE)
+}
 config_checks[["processing"]][["reorder_adjacency_matrix"]] <- list()
 config_checks[["processing"]][["reorder_adjacency_matrix"]][["perform"]] <- function(value,
                                                                                      config, index) {
@@ -1358,6 +1426,13 @@ config_defaults[["processing"]][["reorder_adjacency_matrix"]] <- list()
 config_defaults[["processing"]][["reorder_adjacency_matrix"]][["perform"]] <- function(config, index) {
   return(TRUE)
 }
+config_defaults[["processing"]][["remove_short_time_observations"]] <- list()
+config_defaults[["processing"]][["remove_short_time_observations"]][["perform"]] <- function(config, index) {
+  return(FALSE)
+}
+config_defaults[["processing"]][["remove_short_time_observations"]][["threshold"]] <- function(config, index) {
+  return(0.0)
+}
 config_defaults[["processing"]][["remove_overlaps"]] <- list()
 config_defaults[["processing"]][["remove_overlaps"]][["perform"]] <- function(config, index) {
   return(TRUE)
@@ -1384,6 +1459,9 @@ config_defaults[["stan"]][["ncores"]] <- function(config, index) {
 }
 config_defaults[["stan"]][["niter"]] <- function(config, index) {
   return(2000)
+}
+config_defaults[["stan"]][["enable_debug_logging"]] <- function(config, index) {
+  return(FALSE)
 }
 config_defaults[["stan"]][["recompile"]] <- function(config, index) {
   return(TRUE)
