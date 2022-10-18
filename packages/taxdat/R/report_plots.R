@@ -157,7 +157,12 @@ automated_period <- function(num, units) {
 #' @return ggplot object
 plot_gam_fit_input_cases <- function(config, cache, cholera_directory) {
   get_initial_values_df(config = config, cache = cache, cholera_directory = cholera_directory)
-  return(plot_sf_with_fill(cache, "initial_values_df", color_scale_type = "cases", fill_column = "suspected_cases", geometry_column = "geometry", facet_column = "(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))"))
+  return(plot_sf_with_fill(cache, "initial_values_df",
+    color_scale_type = "cases", fill_column = "suspected_cases",
+    geometry_column = "geometry",
+    facet_column = "(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))",
+    legend_title = "Cases"
+  ))
 }
 
 #' @export
@@ -504,6 +509,47 @@ plot_rhat <- function(config, cache, cholera_directory) {
     taxdat::plot_theme()
 
   return(plt)
+}
+
+#' @export
+#' @name plot_scatters
+#' @title plot_scatters
+#' @description plot gam input versus gam outputs rates
+#' @param cache
+#' @param name_input
+#' @param name_output
+#' @param y_column
+#' @param facet_column
+plot_scatters <- function(cache = cache, name_input = "initial_values_df", name_output = "covar_cube", y_column = "gam_output", facet_column = "set") {
+  tmp_df <- tibble::tibble(
+    rates_input = cache[[name_input]][["suspected_cases"]] / cache[[name_input]][["population"]],
+    t = cache[[name_input]][["t"]], rates_output = cache[[name_output]][[y_column]] / cache[[name_input]][["population"]]
+  )
+  plt <- ggplot2::ggplot()
+  plt <- plt +
+    ggplot2::geom_point(data = tmp_df, ggplot2::aes(x = rates_input, y = rates_output), size = 3, color = "#69b3a2", alpha = 0.3) +
+    ggplot2::ylim(0, max(tmp_df$rates_input, tmp_df$rates_output)) +
+    ggplot2::xlim(0, max(tmp_df$rates_input, tmp_df$rates_output)) +
+    ggplot2::geom_abline(intercept = 0, slope = 1, size = 0.2) +
+    ggplot2::theme_minimal()
+  if (!is.null(facet_column)) {
+    plt <- plt +
+      ggplot2::facet_wrap(formula(paste("~", paste(facet_column, collapse = " + "))), ncol = 3)
+  }
+  return(plt)
+}
+
+#' @export
+#' @name plot_gam_input_output_scatter
+#' @param config
+#' @param cholera_directory
+#' @param cache
+plot_gam_input_output_scatter <- function(config, cache, cholera_directory) {
+  get_covar_cube(config = config, cache = cache, cholera_directory = cholera_directory)
+  plot_scatters(
+    cache = cache, name_input = "initial_values_df", name_output = "covar_cube", y_column = "gam_output",
+    facet_column = "(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))"
+  )
 }
 
 # Leaving this here commented out for now

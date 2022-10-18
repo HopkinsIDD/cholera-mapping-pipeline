@@ -205,6 +205,10 @@ taxdat::plot_gam_fit_output_cases(config = params$config, cache = cache, cholera
 taxdat::plot_gam_fit_output_rates(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
+```{r gam output rates versus gam input rates,fig.height=5, fig.width=10, fig.cap = capFig("GAM input rates versus GAM output rates")}
+taxdat::plot_gam_input_output_scatter(config = params$config, cholera_directory = params$cholera_directory, cache = cache)
+``` 
+
 ```{r, results="asis", echo=FALSE}
 if (!is.null(cache[["config"]][["test_metadata"]])) {
   cat("### True underlying distribution maps", "\n", "#### True grid cases raster by time slices:")
