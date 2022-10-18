@@ -8,15 +8,17 @@ general:
   covariates:
     - name: "population"
     - name: "covariate_2"
-processing: []
+processing: 
+  remove_overlaps:
+    perform: no
 stan:
-  niter: 100.0
+  niter: 4000.0
   nchain: 4.0
   model: dagar_seasonal_flexible.stan
 test_metadata:
   raster:
     units: month
-    nlayer: 8
+    nlayer: 24
   polygons:
     template: full and grid
   covariates:
@@ -41,6 +43,9 @@ test_metadata:
     template: accurate
   - start_date: '2000-01-01'
     end_date: '2000-04-30'
+    template: accurate
+  - start_date: '2001-10-01'
+    end_date: '2001-11-30'
     template: accurate
 file_names:
   report: test_case_9.html
