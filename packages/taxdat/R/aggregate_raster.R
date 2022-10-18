@@ -16,7 +16,7 @@ disaggregate_rate_raster <- function(cache,config,cholera_directory){
   rate_raster <- case_raster %>%
     dplyr::select(dplyr::contains("modeled_rates_mean"),id,t,x,y,geom) %>%
     tidyr::gather(dplyr::contains("modeled_rates_mean"), key = "chain", value = "value")
-
+  
   empty_raster <- raster::raster(rate_raster, res = max(0.00833333, 0.00833333))#1*1km raster
   disaggregated_rate_raster <- fasterize::fasterize(rate_raster, empty_raster, field = c("value"),by="t")
   return(disaggregated_rate_raster)
@@ -46,15 +46,18 @@ disaggregate_case_raster <- function(cache,config,cholera_directory){
   })))
   pltdata <- dplyr::bind_cols(sf_grid, covar)
   colnames(pltdata)[colnames(pltdata)=="covar"]<-"pop"
-
+  
   empty_raster <- raster::raster(pltdata, res = max(0.00833333, 0.00833333))#1*1km raster
-  disaggregate_pop <- fasterize::fasterize(pltdata, empty_raster, field = c("pop"),by="t")
+  disaggregate_pop <- fasterize::fasterize(pltdata, empty_raster, field = c("pop"),by="t") 
   
   empty_raster <- raster::raster(rate_raster, res = max(0.00833333, 0.00833333))#1*1km raster
   disaggregated_rate_raster <- fasterize::fasterize(rate_raster, empty_raster, field = c("value"),by="t")
   
+  # Make sure extents match
+  disaggregate_pop2 <- raster::resample(disaggregate_pop, disaggregated_rate_raster)
+  
   #get 1*1 pop-weighted case raster
-  disaggregated_case_raster<-disaggregate_pop*disaggregated_rate_raster
-
+  disaggregated_case_raster<-disaggregate_pop2*disaggregated_rate_raster
+  
   return(disaggregated_case_raster)
 }
