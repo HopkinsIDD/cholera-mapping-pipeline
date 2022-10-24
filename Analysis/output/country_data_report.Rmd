@@ -12,8 +12,8 @@ params:
 ```{r eval = FALSE, include = FALSE}
 # Set all the parameters for development purposes (need to comment them out when running the whole script)
 # params <- new.env()
-# params$cholera_directory <- "/home/kaiyuezou/mapping_pipeline/2016_2020_no_covariate_run/cholera-mapping-pipeline"
-# params$config <- "Analysis/configs/no_covariate_production_2016_2020/2016_2020_country/config_BEN_2016_2020.yml"
+# params$cholera_directory <- "/home/kaiyuezou/mapping_pipeline/country_data_report/cholera-mapping-pipeline"
+# params$config <- "Analysis/configs/no_covariate_production_2016_2020/2016_2020_country/config_ETH_2016_2020.yml"
 # params$drop_nodata_years <- TRUE
 # params$admin_level_for_summary_table <- '1'
 # params$args <- 'myarg'
@@ -77,6 +77,8 @@ capFig = function(x){
     capFigNo <<- capFigNo + 1
     x
 }
+#Debug
+options(error = traceback)
 
 ```
 
@@ -109,35 +111,6 @@ get_covar_cube (name="covar_cube", config = params$config,cache=cache,cholera_di
 get_sf_grid(name="sf_grid",config = params$config,cache=cache,cholera_directory = params$cholera_directory)
 ```
 
-### GAM Input
-**Observations input for the GAM model:**
-```{r gam input of cases,fig.height=10, fig.width=15, fig.cap=capFig("Observations input for the GAM model (cases)")}
-plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="cases")
-```
-
-```{r gam input of rates,fig.height=10, fig.width=15, fig.cap=capFig("Observations input for the GAM model (rates)")}
-plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="rates")
-```
-
-### GAM Output
-**Observations output of the GAM model:**
-```{r gam output of cases,fig.height=10, fig.width=15, fig.cap=capFig("Observations output from the GAM model (cases)")}
-plot_gam_fit_output(name="gam_output_df",cache=cache,type='cases')
-```
-
-```{r gam output of rates,fig.height=10, fig.width=15, fig.cap=capFig("Observations output from the GAM model (rates)")}
-plot_gam_fit_output(name="gam_output_df",cache=cache,type='rates')
-```
-
-### GAM Output v.s GAM Input Comparison
-**GAM Output v.s Raw GAM Input Rates Scatterplot:**
-```{r gam output input rates comparison,fig.height=10, fig.width=15, fig.cap=capFig("GAM Output v.s Raw GAM Input Rates")}
-plot_gam_input_vs_output_rate_scatter_plot(cache = cache, type = 'raw') 
-```
-**GAM Output v.s Averaged GAM Input Rates Scatterplot:**
-```{r gam output input rates comparison averaged,fig.height=10, fig.width=15, fig.cap=capFig("GAM Output v.s Averaged GAM Input Rates")}
-plot_gam_input_vs_output_rate_scatter_plot(cache = cache, type = 'averaged') 
-```
 
 
 **Table 1. Data used within the model:**
@@ -150,56 +123,28 @@ plot_ObservationSummary_table(config=params$config, cache=cache, cholera_directo
 plot_DroppedData_table (config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
 
+
+**Averaged annual cases by spatial scales:**
 ```{r disjoint set sf cases, message=FALSE}
 aggregate_observed_polygon_cases_disjoint_aggregated(name="observed_polygon_cases_disjoint_aggregated",config=params$config,cholera_directory=params$cholera_directory,cache=cache)
 disjoint_set_sf_cases <- cache[["observed_polygon_cases_disjoint_aggregated"]]
 ```
-
-**Averaged annual cases by spatial scales:**
-```{r rawobsmap, fig.height=10, fig.width=30, out.width="150%",fig.cap=capFig("Observed case counts by time adjusted for time fraction cases/year")}
+```{r rawobsmap, fig.height=30, fig.width=30, out.width="150%",fig.cap=capFig("Observed case counts by time adjusted for time fraction cases/year")}
 plot_observed_cases_polygon_raw(config=params$config,cache=cache,cholera_directory=params$cholera_directory) 
 ```
 
 **Averaged area adjusted annual cases by spatial scales:**
-```{r areadjustedmap, fig.height=10, fig.width=30, out.width="150%",fig.cap=capFig("Area adjusted average observed case counts by time adjusted for time fraction cases/(year * kilometer)")}
+```{r areadjustedmap, fig.height=30, fig.width=30, out.width="150%",fig.cap=capFig("Area adjusted average observed case counts by time adjusted for time fraction cases/(year * kilometer)")}
 plot_area_adjusted_observed_cases(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
 ```
 
 **Number of observations by unique observed location periods:**
-```{r obsmap, fig.height=10, fig.width=30, out.width="150%",fig.cap=capFig("Number of observations by unique observed location periods.")}
+```{r obsmap, fig.height=30, fig.width=30, out.width="150%",fig.cap=capFig("Number of observations by unique observed location periods.")}
 plot_raw_observations(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
 ```
-### Covariates
 
-#### Population
-**Population raster by time slices:**
-```{r pop, fig.height=5, fig.width=10, fig.cap=capFig("Population density")}
-plot_time_varying_pop_raster(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
-```
-
-**Table 3. Population by admin level:**
-```{r echo = FALSE}
-plot_pop_by_admin(cache=cache,cholera_directory=params$cholera_directory,config=params$config,admin_level_for_summary_table=params$admin_level_for_summary_table)
-warning("Here we're using 20*20 km pop raster to estimate the population!")
-```
-
-#### Other covariates
-**Covariate rasters:**
-```{r covars, fig.height=5, fig.width=10, fig.cap=capFig("Covariate rasters")}
-if(length(dimnames(cache[["covar_cube"]])[[3]])>=2){
-plot_raster_covariates(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
-}else{
-  warning("no covariates")
-}
-```
 
 ### Output maps
-```{r analysisyears}
-obs_years <- min(lubridate::year(cache[["stan_input"]]$sf_cases_resized$TL)):max(lubridate::year(cache[["stan_input"]]$sf_cases_resized$TR))
-rstan::get_elapsed_time(cache[["model.rand"]])
-```
-
-
 ```{r importcase}
 cache[["case_raster"]] <-get_case_raster(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 cache[["disaggregated_rate_sf"]]<-get_disaggregated_rates_sf(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
@@ -224,23 +169,10 @@ obs_years <- min(lubridate::year(cache[["sf_cases_resized"]]$TL)):max(lubridate:
 #### Modeled cases
 **Modeled cases raster by time slices:**
 ```{r caserast, fig.cap=capFig("Modeled cases"), fig.height=5, fig.width=10}
-plot_disaggregated_modeled_cases_time_varying(disaggregated_case_sf=cache[["disaggregated_case_sf"]])
+plot_disaggregated_modeled_cases_time_varying(config_file=config_file, disaggregated_case_sf=cache[["disaggregated_case_sf"]])
 ```
 
-### Stan Output v.s GAM Output
-**Stan Output v.s GAM Output Rates by Time Slices:**
-```{r stangamrates, fig.cap=capFig("Stan Output v.s GAM Output Rates"), fig.height=5, fig.width=10}
-plot_stan_output_vs_gam_output_rate_scatter_plot(cache = cache)
-```
-
-**Stan Output v.s GAM Output Cases by Time Slices:**
-```{r stangamcates, fig.cap=capFig("Stan Output v.s GAM Output Cases"), fig.height=5, fig.width=10}
-plot_stan_output_vs_gam_output_case_scatter_plot(cache = cache) #this will output plots 
-```
-
-
-
-**Table 4. Modeled cases by admin level and time:**
+**Table 3. Modeled cases by admin level and time:**
 ```{r echo = FALSE}
 plot_cases_by_admin(cache=cache,config=params$config,cholera_directory=params$cholera_directory,admin_level_for_summary_table=params$admin_level_for_summary_table)
 ```
@@ -248,10 +180,10 @@ plot_cases_by_admin(cache=cache,config=params$config,cholera_directory=params$ch
 #### Modeled incidence rates
 **Modeled incidence rates raster by time slices:**
 ```{r raterast, fig.cap=capFig("Modeled rates by time"), fig.height=5, fig.width=10}
-plot_modeled_rates_time_varying(disaggregated_rate_sf=cache[["disaggregated_rate_sf"]], render = T)
+plot_modeled_rates_time_varying(config_file=config_file, disaggregated_rate_sf=cache[["disaggregated_rate_sf"]], render = T)
 ```
 
-**Table 5. Modeled incidence rates by admin level and time:**
+**Table 4. Modeled incidence rates by admin level and time:**
 ```{r echo = FALSE}
 plot_incidence_by_admin(cache=cache,config=params$config,cholera_directory=params$cholera_directory,admin_level_for_summary_table=params$admin_level_for_summary_table)
 warning("Here we're using 20*20 km pop raster!")
@@ -295,6 +227,7 @@ plot_model_fidelity_by_chain(cache=cache,cholera_directory=params$cholera_direct
 }
 ```
 
+### Model Convergence 
 **Stan trace plots:**
 ```{r traceplots, fig.height=8, fig.width=10, fig.cap=capFig("Stan trace plots")}
 plot_chain_convergence(cache=cache,name="model.rand")
@@ -310,12 +243,12 @@ plot_MCMCpars(name="model.rand",cache=cache)
 plot_Rhat(name="model.rand",cache)
 ```
 
-**Table 6. Observed and estimates of WHO annual cholera reports:**
+**Table 5. Observed and estimates of WHO annual cholera reports:**
 ```{r WHO output, fig.height=510, fig.width=10, fig.cap = "comparison with WHO Output"}
 plot_WHOcomparison_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
 
-**Table 7. Estimated cases by chain and time slice:**
+**Table 6. Estimated cases by chain and time slice:**
 ```{r cases_chain_table, fig.width=10, fig.cap = "Sum of grid cases by chain and year"}
 plot_modeled_cases_by_chain_time (config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
@@ -323,4 +256,94 @@ plot_modeled_cases_by_chain_time (config=params$config, cache=cache, cholera_dir
 ```{r full country modeled cases, fig.cap = "comparison with WHO Output"}
 total_cases <- cache[["modeled_cases"]] %>% apply(3, mean) %>% sum()
 print(paste("There are",format(round(total_cases), big.mark=","),"total cases"))
+```
+
+
+## Others 
+### GAM Input
+**Observations input for the GAM model:**
+```{r gam input of cases,fig.height=10, fig.width=15, fig.cap=capFig("Observations input for the GAM model (cases)")}
+plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="cases")
+```
+
+```{r gam input of rates,fig.height=10, fig.width=15, fig.cap=capFig("Observations input for the GAM model (rates)")}
+plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="rates")
+```
+
+### GAM Output
+**Observations output of the GAM model:**
+```{r gam output of cases,fig.height=10, fig.width=15, fig.cap=capFig("Observations output from the GAM model (cases)")}
+plot_gam_fit_output(name="gam_output_df",cache=cache,type='cases')
+```
+
+```{r gam output of rates,fig.height=10, fig.width=15, fig.cap=capFig("Observations output from the GAM model (rates)")}
+plot_gam_fit_output(name="gam_output_df",cache=cache,type='rates')
+```
+
+### GAM Output v.s GAM Input Comparison
+**GAM Output v.s Raw GAM Input Rates Scatterplot:**
+```{r gam output input rates comparison,fig.height=10, fig.width=15, fig.cap=capFig("GAM Output v.s Raw GAM Input Rates")}
+plot_gam_input_vs_output_rate_scatter_plot(cache = cache, type = 'raw') 
+```
+**GAM Output v.s Averaged GAM Input Rates Scatterplot:**
+```{r gam output input rates comparison averaged,fig.height=10, fig.width=15, fig.cap=capFig("GAM Output v.s Averaged GAM Input Rates")}
+plot_gam_input_vs_output_rate_scatter_plot(cache = cache, type = 'averaged') 
+```
+
+### Stan Output v.s GAM Output
+**Stan Output v.s GAM Output Rates by Time Slices:**
+```{r stangamrates, fig.cap=capFig("Stan Output v.s GAM Output Rates"), fig.height=5, fig.width=10}
+plot_stan_output_vs_gam_output_rate_scatter_plot(cache = cache)
+```
+
+**Stan Output v.s GAM Output Cases by Time Slices:**
+```{r stangamcates, fig.cap=capFig("Stan Output v.s GAM Output Cases"), fig.height=5, fig.width=10}
+plot_stan_output_vs_gam_output_case_scatter_plot(cache = cache) #this will output plots 
+```
+
+### Covariates
+#### Population
+**Population raster by time slices:**
+```{r pop, fig.height=5, fig.width=10, fig.cap=capFig("Population density")}
+plot_time_varying_pop_raster(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
+```
+
+**Table 3. Population by admin level:**
+```{r echo = FALSE}
+plot_pop_by_admin(cache=cache,cholera_directory=params$cholera_directory,config=params$config,admin_level_for_summary_table=params$admin_level_for_summary_table)
+warning("Here we're using 20*20 km pop raster to estimate the population!")
+```
+
+#### Other covariates
+**Covariate rasters:**
+```{r covars, fig.height=5, fig.width=10, fig.cap=capFig("Covariate rasters")}
+if(length(dimnames(cache[["covar_cube"]])[[3]])>=2){
+plot_raster_covariates(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
+}else{
+  warning("no covariates")
+}
+```
+
+### Time for each chain 
+```{r analysisyears}
+obs_years <- min(lubridate::year(cache[["stan_input"]]$sf_cases_resized$TL)):max(lubridate::year(cache[["stan_input"]]$sf_cases_resized$TR))
+time_tmp <- rstan::get_elapsed_time(cache[["model.rand"]])
+time_table <- tibble::tibble( chain = paste("Chain", 1:nrow(time_tmp)), 
+                              warmup = dplyr::case_when(  all(time_tmp[, 1] > 60*60*24) ~ paste((time_tmp[, 1] / (60*60*24)), "(days)"), 
+                                                          all(time_tmp[, 1] > 60*60   ) ~ paste((time_tmp[, 1] / (60*60   )), "(hours)"),
+                                                          all(time_tmp[, 1] > 60      ) ~ paste((time_tmp[, 1] / (60      )), "(minutes)"), 
+                                                          TRUE ~  paste(time_tmp[, 1], "(seconds)") 
+                                                        ), 
+                              sample = dplyr::case_when(  all(time_tmp[, 2] > 60*60*24) ~ paste((time_tmp[, 2] / (60*60*24)), "(days)"), 
+                                                          all(time_tmp[, 2] > 60*60   ) ~ paste((time_tmp[, 2] / (60*60   )), "(hours)"),
+                                                          all(time_tmp[, 2] > 60      ) ~ paste((time_tmp[, 2] / (60      )), "(minutes)"), 
+                                                          TRUE ~  paste(time_tmp[, 2], "(seconds)") 
+                                                        )
+                            )
+
+time_table %>%
+    kableExtra::kable(col.names = c("Chain", "Warm-up", "Sample")) %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+    kableExtra::kable_paper(full_width = F)
+
 ```

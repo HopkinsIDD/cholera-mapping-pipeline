@@ -343,7 +343,7 @@ plot_disaggregated_modeled_cases <- function(case_raster,
 #' @name plot_disaggregated_modeled_cases_time_varying
 #' @title plot_disaggregated_modeled_cases_time_varying
 #' @description add
-#' @param config the filename of the config 
+#' @param config_file the actual config file 
 #' @param disaggregated_case_sf disaggregated case raster object
 #' @param country_iso the iso code of the country
 #' @param render default is TRUE
@@ -351,13 +351,12 @@ plot_disaggregated_modeled_cases <- function(case_raster,
 #' @param width plot width
 #' @param height plot height
 #' @return ggplot object with modeled cases map
-plot_disaggregated_modeled_cases_time_varying <- function(config, 
+plot_disaggregated_modeled_cases_time_varying <- function(config_file, 
                                                           disaggregated_case_sf,
                                                           render = T,
                                                           plot_file = NULL,
                                                           width = NULL,
                                                           height = NULL){
-  config_file <- yaml::read_yaml(config)
   iso_code <- as.character(stringr::str_extract(config_file$name, "[A-Z]{3}"))
 
   if(iso_code == "ZNZ"){
@@ -440,20 +439,19 @@ plot_modeled_rates <- function(case_raster,
 #' @name plot_modeled_rates_time_varying
 #' @title plot_modeled_rates_time_varying
 #' @description add
-#' @param config the filename of the config 
+#' @param config_file the actual config file 
 #' @param disaggregated_rate_sf disaggregated_rate_sf object
 #' @param render default is TRUE
 #' @param plot_file default is NULL
 #' @param width plot width
 #' @param height plot height
 #' @return ggplot object with modeled rates map
-plot_modeled_rates_time_varying <- function(config, 
+plot_modeled_rates_time_varying <- function(config_file, 
                                             disaggregated_rate_sf,
                                             render = T,
                                             plot_file = NULL,
                                             width = NULL,
                                             height = NULL){
-  config_file <- yaml::read_yaml(config)
   iso_code <- as.character(stringr::str_extract(config_file$name, "[A-Z]{3}"))
 
   if(iso_code == "ZNZ"){
