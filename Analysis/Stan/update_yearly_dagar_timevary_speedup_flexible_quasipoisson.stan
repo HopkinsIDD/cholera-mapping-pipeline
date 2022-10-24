@@ -120,7 +120,7 @@ parameters {
 transformed parameters {
   
   vector[T*do_time_slice_effect] eta; // yearly random effects
-  real<lower=0> modeled_cases[M]; //expected number of cases for each observation
+  vector<lower=0>[M] modeled_cases; //expected number of cases for each observation
   real<lower=0> std_dev_w;
   real mean_w = mean(w);;    // this is the mean of the spatial random effect (for diganostic use only)
   
@@ -242,7 +242,7 @@ model {
     
     if (M_full > 0) {
       // data model for estimated rates for full time slice observations
-      target += poisson_lpmf(y[ind_full]| modeled_cases[ind_full]);
+      target += neg_binomial_2_lpmf(y[ind_full]| modeled_cases[ind_full], lambda * modeled_cases[ind_full]);
     }
     
     if (M_right > 0) {
