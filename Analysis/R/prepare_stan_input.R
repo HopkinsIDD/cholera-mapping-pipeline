@@ -654,6 +654,8 @@ prepare_stan_input <- function(
   stan_data$N_space <- length(unique(sf_grid$space_id))
   stan_data$map_spacetime_space_grid <- sf_grid$space_id[sf_grid$upd_id]
   
+  # Add quasi-poisson parameter
+  stan_data$lambda <- .1
   
   cat("**** FINISHED PREPARING STAN INPUT \n")
   
