@@ -1,0 +1,335 @@
+---
+title: "Pre-production-run Taxonomy Data Report"
+date: "`r Sys.time()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+  pdf_document: default
+params:
+  cholera_directory: "/home/kaiyuezou/mapping_pipeline/2016_2020_no_covariate_run/cholera-mapping-pipeline" #change this parameter accordingly 
+  country_iso: "ZWE"
+  year_lower: "2010"
+  year_upper: "2015"
+  credential_directory: ""
+  args: 'myarg'
+  
+---
+
+# Data summary for `r params$country_iso` and period `r params$year_lower`-`r params$year_upper`
+
+```{r setup, include=FALSE}
+# params <- new.env()
+# params$cholera_directory <- "/home/kaiyuezou/mapping_pipeline/2016_2020_no_covariate_run/cholera-mapping-pipeline"  
+# params$country_iso <- "AGO"
+# params$year_lower <- "2010"
+# params$year_upper <- "2015"
+# params$credential_directory <- ""
+# setwd("/home/kaiyuezou/mapping_pipeline/2016_2020_no_covariate_run/cholera-mapping-pipeline")
+# rmarkdown::render('Analysis/output/database_exploration_2010_2015.Rmd', params=list(args = 'myarg'))
+
+library(lubridate)
+library(stringr)
+library(dplyr)
+library(magrittr)
+library(purrr)
+library(readr)
+library(ggplot2)
+library(kableExtra)
+library(taxdat)
+library(sf)
+library(Cairo)
+Sys.setlocale("LC_ALL","English")
+
+```
+
+```{r warning=FALSE, include=FALSE}
+time_left <- lubridate::as_date(paste0(params$year_lower, "-01-01"))
+time_right <- lubridate::as_date(paste0(params$year_upper, "-12-31"))
+ids <- readr::read_csv(paste0(params$cholera_directory, "/Analysis/R/locations_todeletelater.csv"))
+if(params$country_iso == "TZA_mainland"){
+  country_id <- 25510
+}else if(params$country_iso == "TZA_ZNZ"){
+  country_id <- 25492
+}else{
+  country_id <- ids[ids$region == params$country_iso, ]$id
+}
+
+if(is.null(params$credential_directory) | length(params$credential_directory) <= 1){
+  credential_directory <- paste0(params$cholera_directory, "/Analysis/R/database_api_key.R")
+}
+source(credential_directory)
+taxonomy_data <- taxdat::pull_taxonomy_data(username = taxonomy_username, password = taxonomy_password, 
+                                            locations = country_id, time_left = time_left, time_right = time_right, 
+                                            source = 'sql')
+rm(taxonomy_username, taxonomy_password, ids)
+
+taxonomy_data <- taxonomy_data %>% 
+  mutate(year = lubridate::year(time_left))
+
+```
+
+## Table 1. Summary table for the dataset directly drawn from taxonomy database
+```{r echo=FALSE, warning=FALSE}
+print(paste0("There are ", sum(is.na(taxonomy_data$location_period_id)), " NA for location period in the dataset from taxonomy database. "))
+NA_cases <- sum(taxonomy_data[is.na(taxonomy_data$location_period_id), ]$suspected_cases, na.rm = T)
+NA_obs <- nrow(taxonomy_data[is.na(taxonomy_data$location_period_id), ])
+NA_ocs <- length(unique(taxonomy_data[is.na(taxonomy_data$location_period_id), ]$observation_collection_id))
+non_NA_ocs <- unique(taxonomy_data[is.na(taxonomy_data$location_period_id), ]$observation_collection_id)
+non_NA_ocs2 <- non_NA_ocs[!all(is.na(taxonomy_data[taxonomy_data$observation_collection_id %in% non_NA_ocs, ]$location_period_id))]
+print(paste0("These NA location periods correspond to ", NA_cases, " cases and ", NA_obs, " observations and ", NA_ocs, " OC in the dataset from taxonomy database. "))
+if(length(non_NA_ocs) > 0){
+  print(paste0("Among the OC with NA location periods, including ", paste(non_NA_ocs, collapse = ', '), ", the following are those also with non-NA location periods: ", paste(non_NA_ocs2, collapse = ', ')))
+}
+if(any(!(as.numeric(params$year_lower):as.numeric(params$year_upper)) %in% unique(taxonomy_data$year))){
+  print(
+    paste0(
+      "The taxonomy database does not have data for year: ", 
+      (as.numeric(params$year_lower):as.numeric(params$year_upper))[!(as.numeric(params$year_lower):as.numeric(params$year_upper)) %in% unique(taxonomy_data$year)]
+    )
+  )
+}
+
+sum_obs <- sf::st_drop_geometry(taxonomy_data) %>% 
+  mutate(OC_UID = observation_collection_id, 
+         locationPeriod_id = location_period_id, 
+         year = lubridate::year(time_left)) %>% 
+  select(year, primary, suspected_cases, locationPeriod_id, OC_UID) %>% 
+  group_by(year) %>%
+  summarise(num_observations = n(), 
+            num_primary = sum(primary, na.rm = TRUE), 
+            num_cases = sum(suspected_cases, na.rm = TRUE), 
+            primary_cases = sum(suspected_cases * as.numeric(primary), na.rm = TRUE), 
+            num_locationPeriod_id = length(unique(locationPeriod_id)), 
+            all_locationPeriod_id = paste(unique(locationPeriod_id), collapse = ', '), 
+            num_OC_UID = length(unique(OC_UID)), 
+            all_OC_UID = paste(unique(OC_UID), collapse = ', '))
+
+sum_obs %>%
+  kableExtra::kable(col.names = c("Year", "#observations", "#primary observations", "#total suspected cases", 
+                                  "#primary suspected cases", "#location-periods", "location-periods", 
+                                  "#observation collections", "observation collections")) %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+  kableExtra::kable_paper(full_width = F)
+rm(sum_obs)
+
+```
+
+## Fig 1. Overall figure -- all observations by location only (#cases divided by time length)
+**The daily-based observations are represented in vertical lines **
+**The period-based observations are represented in rectangles **
+```{r echo=FALSE}
+taxonomy_data <- taxonomy_data %>% 
+  rename(OC_UID = observation_collection_id, TL = time_left, TR = time_right)
+
+period_OC_divided_by_timelength <- TRUE
+fig1_ncol_factor <- 1 
+fig1_height_factor <- 5 * length(unique(taxonomy_data$location_name)) / fig1_ncol_factor
+
+```
+
+```{r echo=FALSE, fig.height=as.numeric(fig1_height_factor), fig.width=10}
+if ( (nrow(taxonomy_data[taxonomy_data$TL != taxonomy_data$TR, ]) == 0 | 
+      nrow(taxonomy_data[taxonomy_data$TL == taxonomy_data$TR, ]) == 0)  ){
+  
+  if ( nrow(taxonomy_data[taxonomy_data$TL != taxonomy_data$TR, ]) == 0 ){
+      
+    taxonomy_data %>% 
+      filter(TR == TL) %>%
+      ggplot(aes(colour = OC_UID)) + 
+      geom_segment( aes(x=ymd(TL), xend=ymd(TL), y=0, yend=suspected_cases), 
+                    size=0.3, alpha=0.5) + 
+      geom_point( aes(x=ymd(TL), y=suspected_cases),
+                  size = 0.7, alpha=0.5, shape=23) +
+      scale_x_date(date_labels = "%m-%Y") + 
+      facet_wrap(~location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
+      theme_bw()
+    
+  } else if ( nrow(taxonomy_data[taxonomy_data$TL == taxonomy_data$TR, ]) == 0 ){
+  
+    if (period_OC_divided_by_timelength){
+      taxonomy_data %>% 
+        filter(TL != TR) %>% 
+        ggplot(aes(x = ymd(TL), y = suspected_cases/(time_length(interval(TL, TR), 'day') + 1), 
+                  color = OC_UID)) +
+        geom_rect(aes(xmin = TL, xmax = TR, ymin = 0, 
+                      ymax = suspected_cases/(time_length(interval(TL, TR), 'day') + 1), 
+                      colour = OC_UID),
+                  fill = NA, size = 0.35 * fig1_ncol_factor, alpha = 0.3, 
+                  stat = "identity") +
+        scale_x_date(date_labels = "%m-%Y") + 
+        ylab('Average Daily Cases') + 
+        facet_wrap(~location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
+        theme_bw()
+    } else{
+      taxonomy_data %>% 
+        filter(TL != TR) %>% 
+        ggplot(aes(x = ymd(TL), y = suspected_cases/1, 
+                  color = OC_UID)) +
+        geom_rect(aes(xmin = TL, xmax = TR, ymin = 0, 
+                      ymax = suspected_cases/1, 
+                      colour = OC_UID),
+                  fill = NA, size = 0.35 * fig1_ncol_factor, alpha = 0.3, 
+                  stat = "identity") +
+        scale_x_date(date_labels = "%m-%Y") + 
+        labs(y = 'Total Cases over Period') + 
+        facet_wrap(~location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
+        theme_bw()
+    }  
+    
+  }
+  
+} else {
+        
+  if (period_OC_divided_by_timelength){
+    taxonomy_data %>% 
+      filter(TL != TR) %>% 
+      ggplot(aes(x = ymd(TL), y = suspected_cases/(time_length(interval(TL, TR), 'day') + 1), 
+                color = OC_UID)) +
+      geom_rect(aes(xmin = TL, xmax = TR, ymin = 0, 
+                    ymax = suspected_cases/(time_length(interval(TL, TR), 'day') + 1), 
+                    colour = OC_UID),
+                fill = NA, size = 0.7, alpha = 0.3, 
+                stat = "identity") +
+      geom_segment( data = (taxonomy_data %>% filter(TR == TL)),
+                    aes(x=ymd(TL), xend=ymd(TL), y=0, yend=suspected_cases), 
+                    size=0.3, alpha=0.5) + 
+      geom_point(data = (taxonomy_data %>% filter(TR == TL)),
+                aes(x=ymd(TL), y=suspected_cases),
+                size = 0.7, alpha=0.5, shape=23) +
+      scale_x_date(date_labels = "%m-%Y") + 
+      labs(y = 'Average Daily Cases') + 
+      facet_wrap(~location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
+      theme_bw()
+  } else{
+    taxonomy_data %>% 
+      filter(TL != TR) %>% 
+      ggplot(aes(x = ymd(TL), y = suspected_cases/1, 
+                color = OC_UID)) +
+      geom_rect(aes(xmin = TL, xmax = TR, ymin = 0, 
+                    ymax = suspected_cases/1, 
+                    colour = OC_UID),
+                fill = NA, size = 0.7, alpha = 0.3, 
+                stat = "identity") +
+      geom_segment( data = (taxonomy_data %>% filter(TR == TL)),
+                    aes(x=ymd(TL), xend=ymd(TL), y=0, yend=suspected_cases), 
+                    size=0.3, alpha=0.5) + 
+      geom_point(data = (taxonomy_data %>% filter(TR == TL)),
+                aes(x=ymd(TL), y=suspected_cases),
+                size = 0.7, alpha=0.5, shape=23) +
+      scale_x_date(date_labels = "%m-%Y") + 
+      labs(y = 'Total Cases for Period OC and Daily Cases for Daily OC') + 
+      facet_wrap(~location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
+      theme_bw()
+  }
+}
+
+```
+
+## Fig 2. Overall figure -- all observations by location only
+**The daily-based observations are represented in vertical lines **
+**The period-based observations are represented in rectangles **
+```{r echo=FALSE}
+period_OC_divided_by_timelength <- FALSE
+fig2_ncol_factor <- 1 
+fig2_height_factor <- 5 * length(unique(taxonomy_data$location_name)) / fig2_ncol_factor
+
+```
+
+```{r echo=FALSE, fig.height=as.numeric(fig2_height_factor), fig.width=10}
+if ( (nrow(taxonomy_data[taxonomy_data$TL != taxonomy_data$TR, ]) == 0 | 
+      nrow(taxonomy_data[taxonomy_data$TL == taxonomy_data$TR, ]) == 0)  ){
+  
+  if ( nrow(taxonomy_data[taxonomy_data$TL != taxonomy_data$TR, ]) == 0 ){
+      
+    taxonomy_data %>% 
+      filter(TR == TL) %>%
+      ggplot(aes(colour = OC_UID)) + 
+      geom_segment( aes(x=ymd(TL), xend=ymd(TL), y=0, yend=suspected_cases), 
+                    size=0.3, alpha=0.5) + 
+      geom_point( aes(x=ymd(TL), y=suspected_cases),
+                  size = 0.7, alpha=0.5, shape=23) +
+      scale_x_date(date_labels = "%m-%Y") + 
+      facet_wrap(~location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
+      theme_bw()
+    
+  } else if ( nrow(taxonomy_data[taxonomy_data$TL == taxonomy_data$TR, ]) == 0 ){
+  
+    if (period_OC_divided_by_timelength){
+      taxonomy_data %>% 
+        filter(TL != TR) %>% 
+        ggplot(aes(x = ymd(TL), y = suspected_cases/(time_length(interval(TL, TR), 'day') + 1), 
+                  color = OC_UID)) +
+        geom_rect(aes(xmin = TL, xmax = TR, ymin = 0, 
+                      ymax = suspected_cases/(time_length(interval(TL, TR), 'day') + 1), 
+                      colour = OC_UID),
+                  fill = NA, size = 0.35 * fig1_ncol_factor, alpha = 0.3, 
+                  stat = "identity") +
+        scale_x_date(date_labels = "%m-%Y") + 
+        ylab('Average Daily Cases') + 
+        facet_wrap(~location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
+        theme_bw()
+    } else{
+      taxonomy_data %>% 
+        filter(TL != TR) %>% 
+        ggplot(aes(x = ymd(TL), y = suspected_cases/1, 
+                  color = OC_UID)) +
+        geom_rect(aes(xmin = TL, xmax = TR, ymin = 0, 
+                      ymax = suspected_cases/1, 
+                      colour = OC_UID),
+                  fill = NA, size = 0.35 * fig1_ncol_factor, alpha = 0.3, 
+                  stat = "identity") +
+        scale_x_date(date_labels = "%m-%Y") + 
+        labs(y = 'Total Cases over Period') + 
+        facet_wrap(~location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
+        theme_bw()
+    }  
+    
+  }
+  
+} else {
+        
+  if (period_OC_divided_by_timelength){
+    taxonomy_data %>% 
+      filter(TL != TR) %>% 
+      ggplot(aes(x = ymd(TL), y = suspected_cases/(time_length(interval(TL, TR), 'day') + 1), 
+                color = OC_UID)) +
+      geom_rect(aes(xmin = TL, xmax = TR, ymin = 0, 
+                    ymax = suspected_cases/(time_length(interval(TL, TR), 'day') + 1), 
+                    colour = OC_UID),
+                fill = NA, size = 0.7, alpha = 0.3, 
+                stat = "identity") +
+      geom_segment( data = (taxonomy_data %>% filter(TR == TL)),
+                    aes(x=ymd(TL), xend=ymd(TL), y=0, yend=suspected_cases), 
+                    size=0.3, alpha=0.5) + 
+      geom_point(data = (taxonomy_data %>% filter(TR == TL)),
+                aes(x=ymd(TL), y=suspected_cases),
+                size = 0.7, alpha=0.5, shape=23) +
+      scale_x_date(date_labels = "%m-%Y") + 
+      labs(y = 'Average Daily Cases') + 
+      facet_wrap(~location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
+      theme_bw()
+  } else{
+    taxonomy_data %>% 
+      filter(TL != TR) %>% 
+      ggplot(aes(x = ymd(TL), y = suspected_cases/1, 
+                color = OC_UID)) +
+      geom_rect(aes(xmin = TL, xmax = TR, ymin = 0, 
+                    ymax = suspected_cases/1, 
+                    colour = OC_UID),
+                fill = NA, size = 0.7, alpha = 0.3, 
+                stat = "identity") +
+      geom_segment( data = (taxonomy_data %>% filter(TR == TL)),
+                    aes(x=ymd(TL), xend=ymd(TL), y=0, yend=suspected_cases), 
+                    size=0.3, alpha=0.5) + 
+      geom_point(data = (taxonomy_data %>% filter(TR == TL)),
+                aes(x=ymd(TL), y=suspected_cases),
+                size = 0.7, alpha=0.5, shape=23) +
+      scale_x_date(date_labels = "%m-%Y") + 
+      labs(y = 'Total Cases for Period OC and Daily Cases for Daily OC') + 
+      facet_wrap(~location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
+      theme_bw()
+  }
+}
+
+```
