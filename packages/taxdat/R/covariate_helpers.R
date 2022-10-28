@@ -1320,8 +1320,15 @@ get_pop_weights <- function(res_space,
 get_country_admin_units <- function(iso_code, 
                                     admin_level = 1) {
   library(sf)
-  
-  if (iso_code == "ZNZ" & admin_level == 1){
+  if (iso_code == "ZNZ" & admin_level == 0){
+    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+      c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
+    unionized <- sf::st_union(boundary_sf)
+    boundary_sf <- boundary_sf[1, ]
+    sf::st_geometry(boundary_sf) <- unionized
+    boundary_sf$shapeName <- "Zanzibar"
+    boundary_sf$shapeType <- "ADM0"
+  } else if (iso_code == "ZNZ" & admin_level == 1){
     boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
       c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
   } else if (iso_code == "ZNZ" & admin_level == 2){
