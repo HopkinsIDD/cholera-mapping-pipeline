@@ -655,7 +655,7 @@ prepare_stan_input <- function(
   stan_data$map_spacetime_space_grid <- sf_grid$space_id[sf_grid$upd_id]
   
   # Add quasi-poisson parameter
-  stan_data$lambda <- .1
+  stan_data$lambda <- stan_params$lambda
   
   cat("**** FINISHED PREPARING STAN INPUT \n")
   
