@@ -162,7 +162,7 @@ normalize_cases_by_time <- function(cases, time_left, time_right) {
 #' @export
 #' @name get_modeled_cases_mean_no_cache
 get_modeled_cases_mean_no_cache <- function(config, cache, cholera_directory) {
-    get_modeled_cases(config, cache, cholera_directory)
+    get_modeled_cases(name="modeled_cases", config, cache, cholera_directory)
     modeled_cases_mean <- aggregate_to_modeled_cases_mean(cache[["modeled_cases"]],
         funs = "mean")
     return(modeled_cases_mean)
@@ -175,17 +175,46 @@ get_modeled_cases_mean <- cache_fun_results("modeled_cases_mean", get_modeled_ca
 #' @export
 #' @name aggregate_to_modeled_cases_mean
 #' @title aggregate_to_modeled_cases_mean
-#' @description get the mean of the modeled cases for each observation
+#' @description get the mean of the modeled cases for each grid
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment
 #' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return  modeled cases mean for each grid cell by times
 aggregate_to_modeled_cases_mean <- function(modeled_cases, funs = "mean") {
     modeled_cases_mean_by_chain <- apply(modeled_cases, c(2, 3), mean)
-    modeled_cases_mean <- apply(modeled_cases_mean_by_chain, c(2), mean)[grepl("modeled_cases",
+    modeled_cases_mean <- apply(modeled_cases_mean_by_chain, c(2), mean)[grepl("grid_case",
         names(apply(modeled_cases, c(3), mean))) & !grepl(c("tfrac"), names(apply(modeled_cases,
         c(3), mean)))]
     return(modeled_cases_mean)
+}
+
+#' @export
+#' @name get_modeled_rates_mean_no_cache
+get_modeled_rates_mean_no_cache <- function(config, cache, cholera_directory) {
+    get_modeled_rates(name="modeled_rates", config, cache, cholera_directory)
+    modeled_rates_mean <- aggregate_to_modeled_rates_mean(cache[["modeled_rates"]],
+        funs = "mean")
+    return(modeled_rates_mean)
+}
+#' @export
+#' @name get_modeled_rates_mean
+get_modeled_rates_mean <- cache_fun_results("modeled_rates_mean", get_modeled_rates_mean_no_cache,
+    overwrite = T, config = config)
+
+#' @export
+#' @name aggregate_to_modeled_rates_mean
+#' @title aggregate_to_modeled_rates_mean
+#' @description get the mean of the modeled rates for each grid 
+#' @param config config file that contains the parameter information
+#' @param cache the cached environment
+#' @param cholera_directory  the directory of cholera mapping pipeline folder
+#' @return  modeled cases mean for each grid cell by times
+aggregate_to_modeled_rates_mean <- function(modeled_rates, funs = "mean") {
+    modeled_rates_mean_by_chain <- apply(modeled_rates, c(2, 3), mean)
+    modeled_rates_mean <- apply(modeled_rates_mean_by_chain, c(2), mean)[grepl("log_lambda",
+        names(apply(modeled_rates, c(3), mean))) & !grepl(c("tfrac"), names(apply(modeled_rates,
+        c(3), mean)))]
+    return(modeled_rates_mean)
 }
 
 # integrate modeled ases into the polygon
