@@ -1,6 +1,9 @@
 ---
 title: "Country Data Report"
-output: html_document
+output: 
+  html_document:
+    toc: true
+    toc_float: true
 params: 
   cholera_directory: "/home/.../cholera-mapping-pipeline"
   config: "Analysis/.../config.yml"
@@ -9,16 +12,6 @@ params:
   args: 'myarg'
   old_runs: FALSE
 ---
-```{r eval = FALSE, include = FALSE}
-# Set all the parameters for development purposes (need to comment them out when running the whole script)
-# params <- new.env()
-# params$cholera_directory <- "/home/kaiyuezou/mapping_pipeline/country_data_report/cholera-mapping-pipeline"
-# params$config <- "Analysis/configs/no_covariate_production_2016_2020/2016_2020_country/config_ETH_2016_2020.yml"
-# params$drop_nodata_years <- TRUE
-# params$admin_level_for_summary_table <- '1'
-# params$args <- 'myarg'
-# params$old_runs <- FALSE
-```
 
 ```{r setup, include=FALSE, dev="CairoPNG",message=FALSE}
 library(knitr)
@@ -44,6 +37,8 @@ library(sf)
 library(raster)
 library(stars)
 library(taxdat)
+library(ggthemes)
+library(scales)
 sf::sf_use_s2(FALSE)
 
 ### other new packages (mainly for "rgeoboundaries")
@@ -84,7 +79,7 @@ options(error = traceback)
 
 # Mapping results summary for `r stringr::str_extract(params$config, "[A-Z]{3}")` and period `r stringr::str_extract(params$config, "[0-9]{4}_[0-9]{4}")`
 
-## Cholera input data
+## Cholera data input
 **Data input:**
 ```{r load data,message=FALSE}
 # Load data
@@ -109,9 +104,84 @@ cache[["gam_output_df"]]<-get_gam_values_no_cache(cache=cache,config = params$co
 
 get_covar_cube (name="covar_cube", config = params$config,cache=cache,cholera_directory = params$cholera_directory)
 get_sf_grid(name="sf_grid",config = params$config,cache=cache,cholera_directory = params$cholera_directory)
+
+#gen_quant data input
+file_names <- taxdat::get_filenames(
+  config = str_c(params$cholera_directory, params$config, sep = "/") %>% yaml::read_yaml(), 
+  cholera_directory = params$cholera_directory)
+
+load(file_names["data"])
+load(file_names["stan_input"])
+
+chol_gen <- readRDS(file_names["stan_genquant"])
 ```
 
+```{r output}
+#genquant data
+# Get cases and rates summaries
+cases <- chol_gen$summary(variables = "location_cases_output", 
+                          c(posterior::default_summary_measures(),
+                            posterior::default_convergence_measures()),
+                          .cores = 4) %>% 
+  mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
+         location_period_id = stan_input$fake_output_obs$locationPeriod_id[id],
+         TL = stan_input$fake_output_obs$TL[id])
 
+rates <- chol_gen$summary(variables = "location_rates_output", 
+                          c(posterior::default_summary_measures(),
+                            posterior::default_convergence_measures()),
+                          .cores = 4) %>% 
+  mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
+         location_period_id = stan_input$fake_output_obs$locationPeriod_id[id],
+         TL = stan_input$fake_output_obs$TL[id])
+
+output_data <- output_shapefiles %>% 
+  inner_join(cases %>% dplyr::select(cases = mean, 
+                                     cases_q5 = q5,
+                                     cases_q95 = q95,
+                                     location_period_id, TL)) %>% 
+  inner_join(rates %>% dplyr::select(rate = mean, 
+                                     rate_q5 = q5,
+                                     rate_q95 = q95,
+                                     location_period_id, TL))
+
+# Data over whole period
+
+# Sum of cases by location for whole period
+tot_cases <- chol_gen$summary(variables = "location_total_cases_output", 
+                              c(posterior::default_summary_measures(),
+                                posterior::default_convergence_measures()),
+                              .cores = 4) %>% 
+  mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
+         location_period_id = output_shapefiles$location_period_id[id],
+         shapeName = output_shapefiles$shapeName[id],
+         admin_level = output_shapefiles$admin_level[id])
+
+# Mean rates by location for whole period
+tot_rates <- chol_gen$summary(variables = "location_total_rates_output", 
+                              c(posterior::default_summary_measures(),
+                                posterior::default_convergence_measures()),
+                              .cores = 4) %>% 
+  mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
+         location_period_id = output_shapefiles$location_period_id[id],
+         shapeName = output_shapefiles$shapeName[id],
+         admin_level = output_shapefiles$admin_level[id])
+```
+
+```{r out-shape,fig.height=5,fig.width=10,fig.cap=capFig("Shapefiles used for output summaries pulled form rgeoboundaries")}
+ggplot(output_shapefiles) +
+  geom_sf() +
+  ggrepel::geom_label_repel(
+    aes(label = shapeName, geometry = geom),
+    stat = "sf_coordinates",
+    min.segment.length = 0,
+    size = 2,
+    max.overlaps = Inf,
+    alpha = .8
+  )  +
+  facet_wrap(~admin_level) +
+  theme_map()
+```
 
 **Table 1. Data used within the model:**
 ```{r echo = FALSE}
@@ -122,7 +192,6 @@ plot_ObservationSummary_table(config=params$config, cache=cache, cholera_directo
 ```{r echo=FALSE}
 plot_DroppedData_table (config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
-
 
 **Averaged annual cases by spatial scales:**
 ```{r disjoint set sf cases, message=FALSE}
@@ -143,8 +212,7 @@ plot_area_adjusted_observed_cases(config=params$config,cache=cache,cholera_direc
 plot_raw_observations(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
 ```
 
-
-### Output maps
+## Output maps and tables
 ```{r importcase}
 cache[["case_raster"]] <-get_case_raster(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 cache[["disaggregated_rate_sf"]]<-get_disaggregated_rates_sf(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
@@ -166,30 +234,148 @@ obs_years <- min(lubridate::year(cache[["sf_cases_resized"]]$TL)):max(lubridate:
  }
 ```
 
-#### Modeled cases
+### Modeled cases
 **Modeled cases raster by time slices:**
 ```{r caserast, fig.cap=capFig("Modeled cases"), fig.height=5, fig.width=10}
 plot_disaggregated_modeled_cases_time_varying(config_file=config_file, disaggregated_case_sf=cache[["disaggregated_case_sf"]])
 ```
 
-**Table 3. Modeled cases by admin level and time:**
-```{r echo = FALSE}
-plot_cases_by_admin(cache=cache,config=params$config,cholera_directory=params$cholera_directory,admin_level_for_summary_table=params$admin_level_for_summary_table)
+```{r out-cases,fig.height=5,fig.width=10,fig.cap=capFig("Mean cases per year")}
+output_data %>% 
+  ggplot(aes(fill = log10(cases))) +
+  geom_sf(col = "white", size = .05) +
+  facet_grid(admin_level ~ TL) +
+  scale_fill_viridis_c() +
+  ggthemes::theme_map() +
+  theme(legend.position = "right")
+
 ```
 
-#### Modeled incidence rates
+**Table 3. Cases by location and year:**
+```{r out-table-cases}
+
+cases_summ <- output_data %>%
+  st_drop_geometry() %>% 
+  dplyr::select(shapeName, admin_level, TL, contains("cases")) %>% 
+  mutate(TL = as.character(lubridate::year(TL))) %>% 
+  bind_rows(tot_cases %>% 
+              rename(cases = mean,
+                     cases_q5 = q5,
+                     cases_q95 = q95) %>% 
+              dplyr::select(shapeName, admin_level, contains("cases")) %>% 
+              mutate(TL = "Total")) %>% 
+  mutate(text = str_c(
+    round(cases), " (",
+    round(cases_q5), "-", 
+    round(cases_q95), ")"
+  )) %>% 
+  dplyr::select(shapeName, admin_level, TL, text) %>% 
+  pivot_wider(values_from = "text",
+              names_from = "TL") %>% 
+  arrange(admin_level, shapeName)
+
+cases_summ %>% 
+  dplyr::select(-admin_level) %>% 
+  kableExtra::kbl(caption = "Cases by location and year") %>% 
+  kableExtra::kable_styling(full_width = FALSE) %>% 
+  kableExtra::pack_rows(index = table(cases_summ$admin_level))
+
+```
+
+### Modeled incidence rates
 **Modeled incidence rates raster by time slices:**
 ```{r raterast, fig.cap=capFig("Modeled rates by time"), fig.height=5, fig.width=10}
 plot_modeled_rates_time_varying(config_file=config_file, disaggregated_rate_sf=cache[["disaggregated_rate_sf"]], render = T)
 ```
 
-**Table 4. Modeled incidence rates by admin level and time:**
-```{r echo = FALSE}
-plot_incidence_by_admin(cache=cache,config=params$config,cholera_directory=params$cholera_directory,admin_level_for_summary_table=params$admin_level_for_summary_table)
-warning("Here we're using 20*20 km pop raster!")
+```{r out-rates,fig.height=5,fig.width=10,fig.cap=capFig("Mean rate per year")}
+output_data %>% 
+  ggplot(aes(fill = log10(rate))) +
+  geom_sf(col = "white", size = .05) +
+  facet_grid(admin_level ~ TL) +
+  scale_fill_viridis_c() +
+  ggthemes::theme_map() +
+  theme(legend.position = "right")
+
 ```
 
-### Validation
+**Table 4. Rates by location and year:**
+```{r out-table-rates}
+rate_multiplier <- 1e4
+
+rates_summ <- output_data %>%
+  st_drop_geometry() %>% 
+  dplyr::select(shapeName, admin_level, TL, contains("rate")) %>% 
+  mutate(TL = as.character(lubridate::year(TL))) %>% 
+  bind_rows(tot_rates %>% 
+              rename(rate = mean,
+                     rate_q5 = q5,
+                     rate_q95 = q95) %>% 
+              dplyr::select(shapeName, admin_level, contains("rate")) %>% 
+              mutate(TL = "Total")) %>% 
+  mutate(text = str_c(
+    (rate * rate_multiplier) %>% formatC(digits = 1, big.mark = "'", format = "f"), " (",
+    (rate_q5 * rate_multiplier) %>% formatC(digits = 1, big.mark = "'", format = "f"), "-", 
+    (rate_q95 * rate_multiplier) %>% formatC(digits = 1, big.mark = "'", format = "f"), ")"
+  )) %>% 
+  dplyr::select(shapeName, admin_level, TL, text) %>% 
+  pivot_wider(values_from = "text",
+              names_from = "TL") %>% 
+  arrange(admin_level, shapeName)
+
+rates_summ %>% 
+  dplyr::select(-admin_level) %>% 
+  kableExtra::kbl(caption = "Cases per 10'000 people by location and year") %>% 
+  kableExtra::kable_styling(full_width = FALSE) %>% 
+  kableExtra::pack_rows(index = table(cases_summ$admin_level))
+
+```
+### Proportion per risk category (per 100'000)
+```{r risk_prop,fig.height=5,fig.width=10,fig.cap=capFig("Proportion per risk category (per 100'000)")}
+risk_cat_dict <- c("<1", "1-10", "10-100", ">100")
+
+risk_cat_pop <- chol_gen$summary(variables = "location_risk_cat_prop", .cores = 6) %>% 
+  mutate(id = str_extract(variable, "(?<=\\[)[0-9]+") %>% as.numeric(),
+         risk_cat = str_extract(variable, "(?<=,)[0-9]+") %>% as.numeric(),
+         risk_cat = factor(risk_cat_dict[risk_cat], levels = risk_cat_dict),
+         location_period_id = output_shapefiles$location_period_id[id],
+         admin_level = str_extract(location_period_id, "ADM[0-2]")) %>% 
+  inner_join(output_shapefiles, ., by = c("location_period_id", "admin_level"))
+
+
+risk_cat_pop %>% 
+  ggplot(aes(fill = median)) +
+  geom_sf(col = "white", size = .05) +
+  facet_grid(admin_level ~ risk_cat) +
+  scale_fill_viridis_c() +
+  ggthemes::theme_map() +
+  theme(legend.position = "right")
+
+```
+### Number per risk category  (per 100'000)
+```{r risk_num,fig.height=5,fig.width=10,fig.cap=capFig("Number per risk category  (per 100'000)")}
+risk_cat_dict <- c("<1", "1-10", "10-100", ">100")
+
+risk_cat_num <- chol_gen$summary(variables = "location_risk_cat_num", .cores = 6) %>% 
+  mutate(id = str_extract(variable, "(?<=\\[)[0-9]+") %>% as.numeric(),
+         risk_cat = str_extract(variable, "(?<=,)[0-9]+") %>% as.numeric(),
+         risk_cat = factor(risk_cat_dict[risk_cat], levels = risk_cat_dict),
+         location_period_id = output_shapefiles$location_period_id[id],
+         admin_level = str_extract(location_period_id, "ADM[0-2]")) %>% 
+  inner_join(output_shapefiles, ., by = c("location_period_id", "admin_level"))
+
+
+risk_cat_num %>% 
+  ggplot(aes(fill = log10(median))) +
+  geom_sf(col = "white", size = .05) +
+  facet_grid(admin_level ~ risk_cat) +
+  scale_fill_viridis_c() +
+  ggthemes::theme_map() +
+  theme(legend.position = "right")
+
+```
+
+## Validation
 ```{r import_modelfidel}
 cache[["data_fidelity"]]<-get_data_fidelity(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
 ```
@@ -227,7 +413,12 @@ plot_model_fidelity_by_chain(cache=cache,cholera_directory=params$cholera_direct
 }
 ```
 
-### Model Convergence 
+**Table 5. Observed and estimates of WHO annual cholera reports:**
+```{r WHO output, fig.height=510, fig.width=10, fig.cap = "comparison with WHO Output"}
+plot_WHOcomparison_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
+```
+
+## Model Convergence 
 **Stan trace plots:**
 ```{r traceplots, fig.height=8, fig.width=10, fig.cap=capFig("Stan trace plots")}
 plot_chain_convergence(cache=cache,name="model.rand")
@@ -243,11 +434,6 @@ plot_MCMCpars(name="model.rand",cache=cache)
 plot_Rhat(name="model.rand",cache)
 ```
 
-**Table 5. Observed and estimates of WHO annual cholera reports:**
-```{r WHO output, fig.height=510, fig.width=10, fig.cap = "comparison with WHO Output"}
-plot_WHOcomparison_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
-```
-
 **Table 6. Estimated cases by chain and time slice:**
 ```{r cases_chain_table, fig.width=10, fig.cap = "Sum of grid cases by chain and year"}
 plot_modeled_cases_by_chain_time (config=params$config, cache=cache, cholera_directory=params$cholera_directory)
@@ -257,7 +443,6 @@ plot_modeled_cases_by_chain_time (config=params$config, cache=cache, cholera_dir
 total_cases <- cache[["modeled_cases"]] %>% apply(3, mean) %>% sum()
 print(paste("There are",format(round(total_cases), big.mark=","),"total cases"))
 ```
-
 
 ## Others 
 ### GAM Input
@@ -308,7 +493,7 @@ plot_stan_output_vs_gam_output_case_scatter_plot(cache = cache) #this will outpu
 plot_time_varying_pop_raster(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 ```
 
-**Table 3. Population by admin level:**
+**Table 7. Population by admin level:**
 ```{r echo = FALSE}
 plot_pop_by_admin(cache=cache,cholera_directory=params$cholera_directory,config=params$config,admin_level_for_summary_table=params$admin_level_for_summary_table)
 warning("Here we're using 20*20 km pop raster to estimate the population!")
@@ -324,7 +509,7 @@ plot_raster_covariates(cache=cache,cholera_directory=params$cholera_directory,co
 }
 ```
 
-### Time for each chain 
+**Table 8. Time for each chain:**
 ```{r analysisyears}
 obs_years <- min(lubridate::year(cache[["stan_input"]]$sf_cases_resized$TL)):max(lubridate::year(cache[["stan_input"]]$sf_cases_resized$TR))
 time_tmp <- rstan::get_elapsed_time(cache[["model.rand"]])
@@ -345,5 +530,4 @@ time_table %>%
     kableExtra::kable(col.names = c("Chain", "Warm-up", "Sample")) %>%
     kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
     kableExtra::kable_paper(full_width = F)
-
 ```
