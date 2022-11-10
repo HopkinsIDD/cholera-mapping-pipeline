@@ -206,7 +206,7 @@ taxdat::plot_gam_fit_output_rates(config = params$config, cache = cache, cholera
 ```
 
 ```{r gam output rates versus gam input rates,fig.height=5, fig.width=10, fig.cap = capFig("GAM input rates versus GAM output rates")}
-taxdat::plot_gam_input_output_scatter(config = params$config, cholera_directory = params$cholera_directory, cache = cache)
+#taxdat::plot_gam_input_output_scatter(config = params$config, cholera_directory = params$cholera_directory, cache = cache)
 ``` 
 
 ```{r, results="asis", echo=FALSE}
