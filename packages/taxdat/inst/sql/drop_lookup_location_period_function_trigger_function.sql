@@ -1,1 +1,1 @@
-drop function if exists trigger_lookup_missing_location_period_for_observations;
+drop function if exists trigger_lookup_missing_location_period_for_observations cascade;

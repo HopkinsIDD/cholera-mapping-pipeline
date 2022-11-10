@@ -122,18 +122,12 @@ test_that("Create shapes table works", {
     },
     NA
   )
-  expect_error(
-    {
-      create_shapes_table(conn_pg)
-    },
-    NA
-  )
-  expect_error(
-    {
-      create_shapes_table(conn_pg, FALSE)
-    },
-    NA
-  )
+  expect_error({
+    create_shapes_table(conn_pg)
+  })
+  expect_error({
+    create_shapes_table(conn_pg, FALSE)
+  })
 })
 
 test_that("Create location_hierarchies table works", {
@@ -232,6 +226,8 @@ test_that("Create master_spatial_grid table works", {
       create_locations_table(conn_pg)
       create_location_periods_table(conn_pg)
       create_shapes_table(conn_pg)
+      create_all_covariates_table(conn_pg)
+      create_raster_covariate_collections_table(conn_pg)
       database_working <- TRUE
     },
     error = function(e) {
@@ -251,18 +247,12 @@ test_that("Create master_spatial_grid table works", {
     },
     NA
   )
-  expect_error(
-    {
-      create_master_spatial_grid_table(conn_pg)
-    },
-    NA
-  )
-  expect_error(
-    {
-      create_master_spatial_grid_table(conn_pg, FALSE)
-    },
-    NA
-  )
+  expect_error({
+    create_master_spatial_grid_table(conn_pg)
+  })
+  expect_error({
+    create_master_spatial_grid_table(conn_pg, FALSE)
+  })
 })
 
 test_that("Create resized_spatial_grids table works", {
@@ -276,6 +266,8 @@ test_that("Create resized_spatial_grids table works", {
       create_locations_table(conn_pg)
       create_location_periods_table(conn_pg)
       create_shapes_table(conn_pg)
+      create_all_covariates_table(conn_pg)
+      create_raster_covariate_collections_table(conn_pg)
       create_master_spatial_grid_table(conn_pg)
       create_spatial_resolutions_table(conn_pg)
       create_resize_spatial_grid_function(conn_pg)
@@ -298,18 +290,12 @@ test_that("Create resized_spatial_grids table works", {
     },
     NA
   )
-  expect_error(
-    {
-      create_resized_spatial_grids_view(conn_pg)
-    },
-    NA
-  )
-  expect_error(
-    {
-      create_resized_spatial_grids_view(conn_pg, FALSE)
-    },
-    NA
-  )
+  expect_error({
+    create_resized_spatial_grids_view(conn_pg)
+  })
+  expect_error({
+    create_resized_spatial_grids_view(conn_pg, FALSE)
+  })
 })
 
 test_that("Create all_covariates table works", {
@@ -380,18 +366,12 @@ test_that("Create time_bounds table works", {
     },
     NA
   )
-  expect_error(
-    {
-      create_time_bounds_table(conn_pg)
-    },
-    NA
-  )
-  expect_error(
-    {
-      create_time_bounds_table(conn_pg, FALSE)
-    },
-    NA
-  )
+  expect_error({
+    create_time_bounds_table(conn_pg)
+  })
+  expect_error({
+    create_time_bounds_table(conn_pg, FALSE)
+  })
 })
 
 test_that("Create master_temporal_grid_view works", {
@@ -416,12 +396,9 @@ test_that("Create master_temporal_grid_view works", {
     },
     NA
   )
-  expect_error(
-    {
-      create_master_temporal_grid_view(conn_pg)
-    },
-    NA
-  )
+  expect_error({
+    create_master_temporal_grid_view(conn_pg)
+  })
 })
 
 test_that("Create resized_spatial_grid_pixels_view works", {
@@ -435,6 +412,8 @@ test_that("Create resized_spatial_grid_pixels_view works", {
       create_locations_table(conn_pg)
       create_location_periods_table(conn_pg)
       create_shapes_table(conn_pg)
+      create_all_covariates_table(conn_pg)
+      create_raster_covariate_collections_table(conn_pg)
       create_master_spatial_grid_table(conn_pg)
       create_spatial_resolutions_table(conn_pg)
       create_resize_spatial_grid_function(conn_pg)
@@ -452,12 +431,9 @@ test_that("Create resized_spatial_grid_pixels_view works", {
     },
     NA
   )
-  expect_error(
-    {
-      create_resized_spatial_grid_pixels_view(conn_pg)
-    },
-    NA
-  )
+  expect_error({
+    create_resized_spatial_grid_pixels_view(conn_pg)
+  })
 })
 
 test_that("Create location_period_raster_map view works", {
@@ -471,6 +447,8 @@ test_that("Create location_period_raster_map view works", {
       create_locations_table(conn_pg)
       create_location_periods_table(conn_pg)
       create_shapes_table(conn_pg)
+      create_all_covariates_table(conn_pg)
+      create_raster_covariate_collections_table(conn_pg)
       create_master_spatial_grid_table(conn_pg)
       create_spatial_resolutions_table(conn_pg)
       create_resize_spatial_grid_function(conn_pg)
@@ -488,12 +466,9 @@ test_that("Create location_period_raster_map view works", {
     },
     NA
   )
-  expect_error(
-    {
-      create_location_period_raster_map_view(conn_pg)
-    },
-    NA
-  )
+  expect_error({
+    create_location_period_raster_map_view(conn_pg)
+  })
 })
 
 test_that("Create covariate_grid_map view works", {
@@ -507,6 +482,8 @@ test_that("Create covariate_grid_map view works", {
       create_locations_table(conn_pg)
       create_location_periods_table(conn_pg)
       create_shapes_table(conn_pg)
+      create_all_covariates_table(conn_pg)
+      create_raster_covariate_collections_table(conn_pg)
       create_master_spatial_grid_table(conn_pg)
       create_spatial_resolutions_table(conn_pg)
       create_resize_spatial_grid_function(conn_pg)
@@ -525,12 +502,9 @@ test_that("Create covariate_grid_map view works", {
     },
     NA
   )
-  expect_error(
-    {
-      create_covariate_grid_map_view(conn_pg)
-    },
-    NA
-  )
+  expect_error({
+    create_covariate_grid_map_view(conn_pg)
+  })
 })
 
 test_that("create_testing_base_database works", {
@@ -557,36 +531,6 @@ test_that("create_testing_base_database works", {
   expect_error(
     {
       create_testing_base_database(conn_pg, TRUE)
-    },
-    NA
-  )
-})
-
-test_that("create_testing_additional_database works", {
-  dbuser <- Sys.getenv("USER", "app")
-  dbname <- Sys.getenv("CHOLERA_POSTGRES_DATABASE", "cholera_covariates")
-  skip_if_not(dbuser == "app") ## Check for on docker
-  tryCatch(
-    {
-      conn_pg <- connect_to_db(dbname = dbname, dbuser = dbuser)
-      destroy_testing_database(conn_pg)
-      create_testing_base_database(conn_pg)
-      database_working <- TRUE
-    },
-    error = function(e) {
-      skip(paste("Could not connect to database", dbname, "as user", dbuser, "with message", e$message))
-    }
-  )
-
-  expect_error(
-    {
-      create_testing_additional_database(conn_pg, FALSE)
-    },
-    NA
-  )
-  expect_error(
-    {
-      create_testing_additional_database(conn_pg, TRUE)
     },
     NA
   )

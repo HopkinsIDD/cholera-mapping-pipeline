@@ -1,4 +1,4 @@
-CREATE MATERIALIZED VIEW IF NOT EXISTS grids.master_spatial_grid_centroids
+CREATE MATERIALIZED VIEW grids.master_spatial_grid_centroids
 AS
   SELECT
     ROW_NUMBER() OVER (ORDER BY 1) as id,

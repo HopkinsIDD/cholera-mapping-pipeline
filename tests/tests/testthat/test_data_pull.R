@@ -53,12 +53,19 @@ test_that("setup works", {
   conn_pg <- taxdat::connect_to_db(dbuser, dbname)
   DBI::dbClearResult(DBI::dbSendQuery(conn = conn_pg, "SET client_min_messages TO WARNING;"))
 
-  pop_raster_funs <- list(population = list(
-    name = "population", start_date = lubridate::ymd("2000-01-01"),
-    end_date = lubridate::ymd("2000-12-31"), fun = function(psql_connection) {
-      return(rpostgis::pgGetRast(psql_connection, c("grids", "master_spatial_grid")))
-    }
-  ))
+  # pop_raster_funs <- list(population = list(
+  #   name = "population", start_date = lubridate::ymd("2000-01-01"),
+  #   end_date = lubridate::ymd("2000-12-31"), fun = function(psql_connection) {
+  #     return(rpostgis::pgGetRast(psql_connection, c("grids", "master_spatial_grid")))
+  #   }
+  # ))
+  test_extent <- sf::st_bbox(all_dfs$shapes_df)
+  test_raster <- taxdat::create_test_raster(test_extent = test_extent)
+  test_covariates <- list(taxdat::create_test_covariate(test_raster = test_raster))
+  pop_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(
+    test_covariates,
+    lubridate::ymd("2000-01-01"), lubridate::ymd("2000-12-31")
+  )
 
   expect_error(taxdat::setup_testing_database_from_dataframes(
     conn_pg, all_dfs,

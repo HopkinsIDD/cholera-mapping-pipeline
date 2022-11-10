@@ -1,4 +1,4 @@
-CREATE MATERIALIZED VIEW IF NOT EXISTS grids.resized_spatial_grid_pixels
+CREATE MATERIALIZED VIEW grids.resized_spatial_grid_pixels
 AS
   SELECT
     ROW_NUMBER() OVER (ORDER BY 1) as id,
