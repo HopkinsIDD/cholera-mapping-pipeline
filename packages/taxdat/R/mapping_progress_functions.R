@@ -6,7 +6,6 @@
 #' @return a data.frame with rows based on configs, and columns based on different stages of progress, with TRUE if the stage has been completed for that config, and FALSE if it has not
 #' @export
 create_mapping_progress_table <- function(config_path, pipeline_path) {
-
   ## Turn directories into more files
   if (any(dir.exists(config_path))) {
     dir_indices <- dir.exists(config_path)
