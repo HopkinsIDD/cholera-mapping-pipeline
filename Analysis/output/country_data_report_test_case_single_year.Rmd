@@ -598,11 +598,12 @@ for (i in 1:length(model_output_filenames)) {
     stan_input_filenames[i],
     "stan_input"
   )$sf_cases_resized$OC_UID, each = nchain)
-  actual_cases$oc_year <- rep(format(taxdat::read_file_of_type(
-    stan_input_filenames[i],
-    "stan_input"
-  )$sf_cases_resized$TR, "%Y"),
-  each = nchain
+  actual_cases$oc_year <- rep(
+    format(taxdat::read_file_of_type(
+      stan_input_filenames[i],
+      "stan_input"
+    )$sf_cases_resized$TR, "%Y"),
+    each = nchain
   )
   comparison <- dplyr::left_join(modeled_cases_chain_mean,
     actual_cases,
