@@ -325,6 +325,13 @@ for(t_idx in 1:length(all_test_idx)){
   
   file_names <- taxdat::get_filenames(config=config, cholera_directory = cholera_directory)
   
+  # Check if the file names are valid
+  new_file_names<-file_names[!sapply(file_names,file.exists)]
+  if(!all(sapply(new_file_names,file.create))){
+  stop(paste(names(sapply(new_file_names,file.create)[!sapply(new_file_names,file.create)]),"file name is invalid!"))
+  }
+  sapply(new_file_names,file.remove)
+
   # Preparation: Load auxillary functions
   # source(stringr::str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
   
