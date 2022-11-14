@@ -104,7 +104,7 @@ transformed data {
 }
 
 parameters {
-  real beta0; //the intercept
+  real alpha; //the intercept
 
   real <lower=0, upper=1> rho; // Spatial correlation parameter
   real log_std_dev_w; // Precision of the spatial effects
@@ -160,7 +160,7 @@ transformed parameters {
 
 
     // log-rates without time-slice effects
-    log_lambda =  beta0 + w[map_smooth_grid] + log_meanrate;
+    log_lambda =  alpha + w[map_smooth_grid] + log_meanrate;
 
     // covariates if applicable
     if (ncovar > 1) {
@@ -185,7 +185,7 @@ transformed parameters {
 	  print("mat_grid_time is ", mat_grid_time[i], " at index ", i);
 	  print("eta is ", eta, " at index ", i);
 	  print("Eta contribution is ", ((mat_grid_time * eta) .* has_data_year)[i], " at index ", i);
-	  print("beta0 is ", beta0, " at index ", i);
+	  print("alpha is ", alpha, " at index ", i);
 	  previous_debugs += 1;
         }
         if (is_nan(log_lambda[i])) {
@@ -341,11 +341,19 @@ model {
     // prior on the time_slice random effects
     // For the autocorrelated model sigma is the sd of the increments in the random effects
     sigma_eta_tilde ~ std_normal();
-    sigma_eta_scale ~ std_normal();
     
     if(narrower_prior==1){ //QZ: added narower_prior as an option
       sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraint
-    if (do_time_slice_effect_autocor == 1) {
+        if (do_time_slice_effect_autocor == 1) {
+          real tau = 1/(sigma_eta_tilde[1] * sigma_eta_scale)^2; // precision of the increments of the time-slice random effects
+          // Autocorrelation on yearly random effects with 0-sum constraint
+          // The increments of the time-slice random effects are assumed to have mean 0
+          // and variance 1/tau
+          // Sorbye and Rue (2014) https://doi.org/10.1016/j.spasta.2013.06.004
+          target += (T-1.0)/2.0 * log(tau) - tau/2 * (dot_self(eta[2:T] - eta[1:(T-1)]));
+          sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraint
+        }
+    } else if (do_time_slice_effect_autocor == 1) {
       real tau = 1/(sigma_eta_tilde[1] * sigma_eta_scale)^2; // precision of the increments of the time-slice random effects
       // Autocorrelation on yearly random effects with 0-sum constraint
       // The increments of the time-slice random effects are assumed to have mean 0
@@ -353,22 +361,13 @@ model {
       // Sorbye and Rue (2014) https://doi.org/10.1016/j.spasta.2013.06.004
       target += (T-1.0)/2.0 * log(tau) - tau/2 * (dot_self(eta[2:T] - eta[1:(T-1)]));
       sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraint
-    }
-  }else if (do_time_slice_effect_autocor == 1) {
-      real tau = 1/(sigma_eta_tilde[1] * sigma_eta_scale)^2; // precision of the increments of the time-slice random effects
-      // Autocorrelation on yearly random effects with 0-sum constraint
-      // The increments of the time-slice random effects are assumed to have mean 0
-      // and variance 1/tau
-      // Sorbye and Rue (2014) https://doi.org/10.1016/j.spasta.2013.06.004
-      target += (T-1.0)/2.0 * log(tau) - tau/2 * (dot_self(eta[2:T] - eta[1:(T-1)]));
-      sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraint
-  }else {
+    } else {
       eta_tilde ~ std_normal();
     }
     if (debug && (previous_debugs == 0)) {
       print("etas", target());
     }
-  }
+  }    
 
   log_std_dev_w ~ normal(0,1);
   if (debug && (previous_debugs == 0)) {
