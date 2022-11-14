@@ -678,6 +678,13 @@ prepare_stan_input <- function(
   stan_data$N_space <- length(unique(sf_grid$space_id))
   stan_data$map_spacetime_space_grid <- sf_grid$space_id[sf_grid$upd_id]
   
+  # Add quasi-poisson parameter
+  stan_data$lambda <- stan_params$lambda
+  
+  if (stringr::str_detect(config$stan$model, "quasipoisson_estlambda")) {
+    cat("---- Estimating lambda of quasipoisson model, setting lambda to NULL in stan_input\n")
+    stan_data$lambda <- NULL
+  }
   
   cat("**** FINISHED PREPARING STAN INPUT \n")
   
