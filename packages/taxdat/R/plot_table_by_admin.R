@@ -29,11 +29,14 @@ if(nrow(cache[["sf_grid"]]) == prod(dim(pop_layer))){
   ### Use the geo package
   iso_code <- as.character(stringr::str_extract(config, "[A-Z]{3}"))
   admin_level <- as.numeric(admin_level_for_summary_table)
-  if (iso_code == "ZNZ" & admin_level == 1){
-    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
-  } else if (iso_code == "ZNZ"){
-    stop('Sorry, currently ZNZ only has the admin 1 level shape files available to use, please try again. ')
-  } else{
+  if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config))) & admin_level == 1){
+    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+      c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
+  } else if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config))) & admin_level == 2){
+    boundary_sf <- rgeoboundaries::gb_adm2("TZA")[rgeoboundaries::gb_adm2("TZA")$shapeName %in% 
+      c("Micheweni", "Wete", "Chake Chake", "Mkoani", 
+        "Kaskazini A", "Kaskazini B", "Mjini", "Magharibi", "Kati", "Kusini"), ]
+  } else {
     if (admin_level == 1){
       boundary_sf <- rgeoboundaries::gb_adm1(iso_code)
     }else if (admin_level == 2){
@@ -70,6 +73,16 @@ if(nrow(cache[["sf_grid"]]) == prod(dim(pop_layer))){
   colnames(admin_pop_table) <- c('adminlevel', year_list)
   admin_pop_table$adminlevel <- boundary_sf$shapeName
   
+  ### using sf package to calculate pop size by district
+  # for(layer in unique(pltdata$t)){
+  #   for (locs in admin_pop_table$adminlevel){
+  #     idx <- sf::st_intersects(sf::st_centroid(pltdata[pltdata$t == layer, ]), boundary_sf[boundary_sf$shapeName == locs, ], sparse = FALSE)
+  #     pop <- sum(pltdata$covar[pltdata$t == layer][idx], na.rm = TRUE)
+  #     admin_pop_table[match(locs, admin_pop_table$adminlevel), match(layer, unique(pltdata$t))+1]<-round(pop, 0) 
+  #   }
+  # }
+
+  ### using raster package to calculate pop size by district
   pop_raster_data<-raster()
   for(layer in unique(pltdata$t)){
     empty_raster <- raster::raster(pltdata[which(pltdata$t==layer),], res = max(0.1666666, 0.1666666))#20*20km raster
@@ -127,10 +140,13 @@ plot_cases_by_admin <- function(cache, config, cholera_directory, admin_level_fo
   
   iso_code <- as.character(stringr::str_extract(config, "[A-Z]{3}"))
   admin_level <- as.numeric(admin_level_for_summary_table)
-  if (iso_code == "ZNZ" & admin_level == 1){
-    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
-  } else if (iso_code == "ZNZ"){
-    stop('Sorry, currently ZNZ only has the admin 1 level shape files available to use, please try again. ')
+  if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config))) & admin_level == 1){
+    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+      c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
+  } else if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config))) & admin_level == 2){
+    boundary_sf <- rgeoboundaries::gb_adm2("TZA")[rgeoboundaries::gb_adm2("TZA")$shapeName %in% 
+      c("Micheweni", "Wete", "Chake Chake", "Mkoani", 
+        "Kaskazini A", "Kaskazini B", "Mjini", "Magharibi", "Kati", "Kusini"), ]
   } else{
     if (admin_level == 1){
       boundary_sf <- rgeoboundaries::gb_adm1(iso_code)
@@ -222,10 +238,13 @@ plot_incidence_by_admin <- function(cache,config,cholera_directory,admin_level_f
   
   iso_code <- as.character(stringr::str_extract(config, "[A-Z]{3}"))
   admin_level <- as.numeric(admin_level_for_summary_table)
-  if (iso_code == "ZNZ" & admin_level == 1){
-    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
-  } else if (iso_code == "ZNZ"){
-    stop('Sorry, currently ZNZ only has the admin 1 level shape files available to use, please try again. ')
+  if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config))) & admin_level == 1){
+    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+      c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
+  } else if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config))) & admin_level == 2){
+    boundary_sf <- rgeoboundaries::gb_adm2("TZA")[rgeoboundaries::gb_adm2("TZA")$shapeName %in% 
+      c("Micheweni", "Wete", "Chake Chake", "Mkoani", 
+        "Kaskazini A", "Kaskazini B", "Mjini", "Magharibi", "Kati", "Kusini"), ]
   } else{
     if (admin_level == 1){
       boundary_sf <- rgeoboundaries::gb_adm1(iso_code)
