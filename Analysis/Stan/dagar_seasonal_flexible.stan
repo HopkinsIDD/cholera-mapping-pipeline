@@ -104,7 +104,7 @@ transformed data {
 }
 
 parameters {
-  real beta0; //the intercept
+  real alpha; //the intercept
 
   real <lower=0, upper=1> rho; // Spatial correlation parameter
   real log_std_dev_w; // Precision of the spatial effects
@@ -160,7 +160,7 @@ transformed parameters {
 
 
     // log-rates without time-slice effects
-    log_lambda =  beta0 + w[map_smooth_grid] + log_meanrate;
+    log_lambda =  alpha + w[map_smooth_grid] + log_meanrate;
 
     // covariates if applicable
     if (ncovar > 1) {
@@ -185,7 +185,7 @@ transformed parameters {
 	  print("mat_grid_time is ", mat_grid_time[i], " at index ", i);
 	  print("eta is ", eta, " at index ", i);
 	  print("Eta contribution is ", ((mat_grid_time * eta) .* has_data_year)[i], " at index ", i);
-	  print("beta0 is ", beta0, " at index ", i);
+	  print("alpha is ", alpha, " at index ", i);
 	  previous_debugs += 1;
         }
         if (is_nan(log_lambda[i])) {
@@ -341,7 +341,6 @@ model {
     // prior on the time_slice random effects
     // For the autocorrelated model sigma is the sd of the increments in the random effects
     sigma_eta_tilde ~ std_normal();
-    sigma_eta_scale ~ std_normal();
     
     if(narrower_prior==1){ //QZ: added narower_prior as an option
       sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraint
