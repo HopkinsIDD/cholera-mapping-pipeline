@@ -424,17 +424,18 @@ avail_times <- rhats %>%
   count(country, t)
 
 all_maps <- map(unique(case_rast$country), function(cntry) {
-  taxdat::plot_map(case_rast %>%
-    filter(country == cntry) %>%
-    inner_join(avail_times) %>%
-    group_by(country, rid, x, y) %>%
-    summarise(modeled_rates = mean(`modeled rates`, na.rm = T)),
-  column = "modeled_rates",
-  colorscale_type = "rates",
-  facet_column = NULL,
-  plot_border = F,
-  render = T,
-  use_log = T
+  taxdat::plot_map(
+    case_rast %>%
+      filter(country == cntry) %>%
+      inner_join(avail_times) %>%
+      group_by(country, rid, x, y) %>%
+      summarise(modeled_rates = mean(`modeled rates`, na.rm = T)),
+    column = "modeled_rates",
+    colorscale_type = "rates",
+    facet_column = NULL,
+    plot_border = F,
+    render = T,
+    use_log = T
   ) +
     guides(fill = "none")
 })
@@ -451,17 +452,18 @@ cowplot::plot_grid(
 ```{r casemaps, fig.width=8, fig.height=10, fig.cap="Maximum modeled case incidence rate on the log10-scale, with limtis 1e-3 - 1e5 cases/year (values lower and larger than these are shown in gray)"}
 
 all_maps <- map(unique(case_rast$country), function(cntry) {
-  taxdat::plot_map(case_rast %>%
-    filter(country == cntry) %>%
-    inner_join(avail_times) %>%
-    group_by(country, rid, x, y) %>%
-    summarise(modeled_cases = mean(`modeled cases`, na.rm = T)),
-  column = "modeled_cases",
-  colorscale_type = "cases",
-  facet_column = NULL,
-  plot_border = F,
-  render = T,
-  use_log = T
+  taxdat::plot_map(
+    case_rast %>%
+      filter(country == cntry) %>%
+      inner_join(avail_times) %>%
+      group_by(country, rid, x, y) %>%
+      summarise(modeled_cases = mean(`modeled cases`, na.rm = T)),
+    column = "modeled_cases",
+    colorscale_type = "cases",
+    facet_column = NULL,
+    plot_border = F,
+    render = T,
+    use_log = T
   ) +
     guides(fill = "none")
 })

@@ -260,7 +260,6 @@ extract_covariate_metadata <- function(covar_alias, covar_file, covar_type) {
       src_res_y = res_y, first_TL = first_TL, last_TL = last_TL, src_res_time = format(res_time)
     )
   } else if (covar_type == "static") {
-
     # Space attribute
     space_res <- parse_gdal_res(covar_file)
     res_x <- space_res[1]
@@ -320,7 +319,6 @@ parse_time_res <- function(x) {
 #' attributes
 #' @export
 get_ncdf_metadata <- function(src_file) {
-
   # Extract time metadata
   r_nc <- ncdf4::nc_open(src_file)
   r_time_info <- try(ncdf4::ncatt_get(r_nc, "time"), silent = T)
@@ -410,7 +408,6 @@ transform_raster <- function(res_file, transform) {
 #' @return A raster with the number of non-NA cells
 #' @export
 sum_nonNA <- function(conn, r_file, ref_grid_db, dbuser, dbname) {
-
   # temporary file to which to write the result
   tmp_file1 <- stringr::str_c(raster::tmpDir(), "resampled_zeros_1.tif")
   tmp_file <- stringr::str_c(raster::tmpDir(), "resampled_zeros.tif")
@@ -455,7 +452,6 @@ sum_nonNA <- function(conn, r_file, ref_grid_db, dbuser, dbname) {
 #' @export
 write_ncdf <- function(data, res_file, mv = -9999, var_name, long_var_name, var_unit,
                        time_units, time_vals, chunk_size = 1000) {
-
   # Longitude and Latitude data
   xvals <- raster::unique(raster::init(data, "x"))
   yvals <- raster::unique(raster::init(data, "y"))
@@ -640,7 +636,6 @@ generate_time_sequence <- function(dates, res_time_source, res_time) {
 #' @export
 time_aggregate <- function(src_file, covar_name, covar_unit, covar_type, covar_res_time,
                            res_file, res_time, aggregator, aoi_extent = NULL) {
-
   # Extract time resolution
   res_time_list <- parse_time_res(res_time)
   f_format <- stringr::str_extract(src_file, "(?<=\\.)[a-z]+$")
@@ -701,7 +696,6 @@ time_aggregate <- function(src_file, covar_name, covar_unit, covar_type, covar_r
         }
       }
     } else {
-
       # Create rts object for temporal aggregation
       r_ts <- rts::rts(r, r_metadata$dates)
       # Endpoints for the temporal aggregation
@@ -764,7 +758,6 @@ time_aggregate <- function(src_file, covar_name, covar_unit, covar_type, covar_r
 #' @export
 space_aggregate <- function(src_file, res_file, ref_grid_db, covar_type, aggregator,
                             dbuser, dbname) {
-
   # Spatial aggregators available to GDAL
   spat_aggregators <- c("average", "max", "min", "sum")
 
@@ -835,7 +828,6 @@ space_aggregate <- function(src_file, res_file, ref_grid_db, covar_type, aggrega
 #' @return a list with the band indices, and the left and right time bounds
 #' @export
 get_temporal_bands <- function(model_time_slices, covar_TL_seq, covar_TR_seq) {
-
   # Get the covariate stack band indices that correspond to the model time
   # slices
   ind_vec <- purrr::map(1:nrow(model_time_slices), ~ which(covar_TL_seq == model_time_slices$TL[.] &
@@ -891,7 +883,6 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
                              aoi_name = "raw", res_time, time_aggregator = "sum", res_x, res_y, space_aggregator = "mean",
                              transform = NULL, path_to_cholera_covariates, write_to_db = F, do_parallel = F,
                              n_cpus = 0, dbuser, dbname) {
-
   # Checks
   if (do_parallel & write_to_db) {
     stop("Cannot process in parallel and write to database at the same time, set
@@ -1415,12 +1406,13 @@ gdalinfo2 <- function(datasetname, json, mm, stats, approx_stats, hist, nogcp, n
     )[[1]])
     result$ll.x <- orig[1]
     result$ll.y <- orig[2]
-    res <- as.numeric(strsplit(gsub(gsub(grep(cmd_output,
-      pattern = "Pixel Size = \\(",
-      value = TRUE
-    ), pattern = "Pixel Size = \\(", replacement = ""),
-    pattern = "\\)",
-    replacement = ""
+    res <- as.numeric(strsplit(gsub(
+      gsub(grep(cmd_output,
+        pattern = "Pixel Size = \\(",
+        value = TRUE
+      ), pattern = "Pixel Size = \\(", replacement = ""),
+      pattern = "\\)",
+      replacement = ""
     ), ",")[[1]])
     result$res.x <- res[1]
     result$res.y <- res[2]
@@ -1455,12 +1447,13 @@ gdalinfo2 <- function(datasetname, json, mm, stats, approx_stats, hist, nogcp, n
       cmd_output
     )], "\\(")[[1]][2], "\\)")[[1]][1], ",")[[1]])
     corners_rbind <- rbind(ul, ll, ur, lr)
-    result$bbox <- matrix(c(
-      min(corners_rbind[, 1]), max(corners_rbind[, 1]),
-      min(corners_rbind[, 2]), max(corners_rbind[, 2])
-    ),
-    nrow = 2, ncol = 2,
-    byrow = TRUE
+    result$bbox <- matrix(
+      c(
+        min(corners_rbind[, 1]), max(corners_rbind[, 1]),
+        min(corners_rbind[, 2]), max(corners_rbind[, 2])
+      ),
+      nrow = 2, ncol = 2,
+      byrow = TRUE
     )
     colnames(result$bbox) <- c("min", "max")
     rownames(result$bbox) <- c("s1", "s2")

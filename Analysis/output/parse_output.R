@@ -150,10 +150,11 @@ if (!file.exists(rhat_filename) | opt$redo) {
             tfrac = stan_input$stan_data$tfrac
           )
         ) %>%
-        inner_join(covar_cube_output$location_periods_dict %>%
-          group_by(location_period_id, loctime_id, t) %>%
-          summarise(n_cell = n()),
-        by = c("lp" = "loctime_id")
+        inner_join(
+          covar_cube_output$location_periods_dict %>%
+            group_by(location_period_id, loctime_id, t) %>%
+            summarise(n_cell = n()),
+          by = c("lp" = "loctime_id")
         ) %>%
         mutate(location_period_id = as.character(location_period_id))
     )

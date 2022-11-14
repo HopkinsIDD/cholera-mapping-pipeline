@@ -9,7 +9,6 @@
 #' @export
 reorder_single_source <- function(A,
                                   coords) {
-
   # Check if the matrix is symetric
   if (!Matrix::isSymmetric(A)) {
     stop("Adjacency matrix not symetric fed to re-ordering")
