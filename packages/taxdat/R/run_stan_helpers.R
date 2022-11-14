@@ -7,7 +7,7 @@
 #' @return a list with parameter values
 #' @export 
 get_stan_parameters <- function(config,
-                                sigma_eta_scale = 5,
+                                sigma_eta_scale = 1,
                                 beta_sigma_scale = 1,
                                 warmup = T,
                                 covar_warmup = T,
@@ -18,6 +18,7 @@ get_stan_parameters <- function(config,
                                 overdispersion = NA,
                                 use_rho_prior = F,
                                 use_pop_weight = T,
+                                censoring_thresh = .95,
                                 lambda = 1
 ) {
   
@@ -32,6 +33,7 @@ get_stan_parameters <- function(config,
                          overdispersion = overdispersion,
                          use_rho_prior = use_rho_prior,
                          use_pop_weight = use_pop_weight,
+                         censoring_thresh = censoring_thresh,
                          lambda = lambda)
   
   # For each parameter check if specified in config, if not use default value

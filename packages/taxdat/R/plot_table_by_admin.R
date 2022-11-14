@@ -29,10 +29,10 @@ if(nrow(cache[["sf_grid"]]) == prod(dim(pop_layer))){
   ### Use the geo package
   iso_code <- as.character(stringr::str_extract(config, "[A-Z]{3}"))
   admin_level <- as.numeric(admin_level_for_summary_table)
-  if (iso_code == "ZNZ" & admin_level == 1){
+  if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config))) & admin_level == 1){
     boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
       c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
-  } else if (iso_code == "ZNZ" & admin_level == 2){
+  } else if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config))) & admin_level == 2){
     boundary_sf <- rgeoboundaries::gb_adm2("TZA")[rgeoboundaries::gb_adm2("TZA")$shapeName %in% 
       c("Micheweni", "Wete", "Chake Chake", "Mkoani", 
         "Kaskazini A", "Kaskazini B", "Mjini", "Magharibi", "Kati", "Kusini"), ]
@@ -140,10 +140,10 @@ plot_cases_by_admin <- function(cache, config, cholera_directory, admin_level_fo
   
   iso_code <- as.character(stringr::str_extract(config, "[A-Z]{3}"))
   admin_level <- as.numeric(admin_level_for_summary_table)
-  if (iso_code == "ZNZ" & admin_level == 1){
+  if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config))) & admin_level == 1){
     boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
       c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
-  } else if (iso_code == "ZNZ" & admin_level == 2){
+  } else if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config))) & admin_level == 2){
     boundary_sf <- rgeoboundaries::gb_adm2("TZA")[rgeoboundaries::gb_adm2("TZA")$shapeName %in% 
       c("Micheweni", "Wete", "Chake Chake", "Mkoani", 
         "Kaskazini A", "Kaskazini B", "Mjini", "Magharibi", "Kati", "Kusini"), ]
@@ -238,10 +238,10 @@ plot_incidence_by_admin <- function(cache,config,cholera_directory,admin_level_f
   
   iso_code <- as.character(stringr::str_extract(config, "[A-Z]{3}"))
   admin_level <- as.numeric(admin_level_for_summary_table)
-  if (iso_code == "ZNZ" & admin_level == 1){
+  if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config))) & admin_level == 1){
     boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
       c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
-  } else if (iso_code == "ZNZ" & admin_level == 2){
+  } else if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config))) & admin_level == 2){
     boundary_sf <- rgeoboundaries::gb_adm2("TZA")[rgeoboundaries::gb_adm2("TZA")$shapeName %in% 
       c("Micheweni", "Wete", "Chake Chake", "Mkoani", 
         "Kaskazini A", "Kaskazini B", "Mjini", "Magharibi", "Kati", "Kusini"), ]

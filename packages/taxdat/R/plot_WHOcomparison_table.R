@@ -19,7 +19,7 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, aesthetic
   chains <- cache[["data_fidelity"]] %>% 
     filter(str_detect(variable, "tfrac", negate = T)) %>% 
     group_by(variable) %>% 
-    summarise(modeled = mean(`modeled cases`))
+    summarise(modeled = paste0(format(round(mean(`modeled cases`),0),big.mark=","),"(",format(round(quantile(`modeled cases`,prob=0.025),0),big.mark=","),"-",format(round(quantile(`modeled cases`,prob=0.975),0),big.mark=","),")"))
   
   who_annual_cases$modeled <-   chains$modeled
   who_annual_cases$observed <- who_annual_cases$attributes.fields.suspected_cases # fix me
@@ -34,7 +34,7 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, aesthetic
         as.data.frame() %>%
         dplyr::select(OC_UID, TL, TR, observed, modeled) %>%
         dplyr::mutate_if(is.numeric, function(x) {format(round(x) , big.mark=",")}) %>%
-        kableExtra::kable(col.names = c("OC id", "start time", "end time", "# Observed cases", "# Modeled Cases")) %>%
+        kableExtra::kable(col.names = c("OC id", "start time", "end time", "# Observed cases", "# Modeled Cases (2.5%-97.5%)")) %>%
         kableExtra::kable_styling(bootstrap_options = c("striped"))
     }else{
       who_annual_cases_from_db %>%
