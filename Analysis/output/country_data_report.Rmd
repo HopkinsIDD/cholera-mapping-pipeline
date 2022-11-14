@@ -161,86 +161,6 @@ taxdat::plot_area_adjusted_observed_cases(config = params$config, cache = cache,
 taxdat::plot_raw_observations(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
-### Covariates
-
-#### Population
-**Population raster by time slices (log scale):**
-```{r pop, fig.height=5, fig.width=10, fig.cap=capFig("Population density")}
-taxdat::plot_time_varying_pop_raster(cache = cache, config = params$config, cholera_directory = params$cholera_directory)
-```
-
-**Table 3. Population by admin level:**
-```{r echo = FALSE}
-warning("Removed this plot for now")
-# taxdat::plot_pop_by_admin(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
-```
-
-#### Other covariates
-**Covariate rasters:**
-```{r covars, fig.height=10, fig.width=10, fig.cap=capFig("Covariate rasters")}
-taxdat::plot_raster_covariates(cache = cache, cholera_directory = params$cholera_directory, config = params$config)
-```
-
-``` {r covars_data_simulation, fig.height=10, fig.width=10, fig.cap=capFig("Non-population covariate rasters in data simulation process")}
-taxdat::plot_raster_covariates_datagen(cache = cache, cholera_directory = params$cholera_directory, config = params$config)
-```
-
-### GAM Input
-**Observations input for the GAM model:**
-```{r gam input of cases,fig.height=5, fig.width=10, fig.cap=capFig("Observations input for the GAM model (cases)")}
-taxdat::plot_gam_fit_input_cases(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-```
-
-```{r gam input of rates,fig.height=5, fig.width=10, fig.cap=capFig("Observations input of the GAM model (rates)")}
-taxdat::plot_gam_fit_input_rates(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-```
-
-### GAM Output
-**Observations output of the GAM model:**
-```{r gam output of cases,fig.height=5, fig.width=10, fig.cap=capFig("Observations output for the GAM model (cases)")}
-taxdat::plot_gam_fit_output_cases(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-```
-
-```{r gam output of rates,fig.height=5, fig.width=10, fig.cap=capFig("Observations output for the GAM model (rates)")}
-taxdat::plot_gam_fit_output_rates(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-```
-
-```{r gam output rates versus gam input rates,fig.height=5, fig.width=10, fig.cap = capFig("GAM input rates versus GAM output rates")}
-taxdat::plot_gam_input_output_scatter(config = params$config, cholera_directory = params$cholera_directory, cache = cache)
-``` 
-
-```{r, results="asis", echo=FALSE}
-if (!is.null(cache[["config"]][["test_metadata"]])) {
-  cat("### True underlying distribution maps", "\n", "#### True grid cases raster by time slices:")
-  plot_true_grid_cases(config = params$config, cholera_directory = params$cholera_directory, cache = cache)
-} else {
-  return(NULL)
-}
-```
-
-```{r, results="asis", echo=FALSE}
-if (!is.null(cache[["config"]][["test_metadata"]])) {
-  cat("#### True grid rate raster by time slices:")
-  plot_true_grid_rates(config = params$config, cholera_directory = params$cholera_directory, cache = cache)
-} else {
-  return(NULL)
-}
-```
-
-### Output maps
-
-```{r importcase}
-get_dropped_years(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-if (length(cache[["dropped_years"]]) == 0) {
-  message("All modeled years are represented by OCs.")
-} else {
-  message(paste(paste(cache[["dropped_years"]], collapse = ", "), "are not represented in OCs"))
-  if (params$drop_nodata_years) {
-    message(paste("Dropping", paste(cache[["dropped_years"]], collapse = ", "), "from case_raster"))
-  }
-}
-```
-
 #### Modeled cases
 **Modeled cases raster by time slices:**
 ```{r caserast, fig.cap=capFig("Modeled cases"), fig.height=5, fig.width=10}
@@ -334,3 +254,84 @@ warning("This is a weird thing to print")
 total_cases <- sum(cache[["grid_cases_mean"]])
 print(paste("There are", format(round(total_cases), big.mark = ","), "total cases"))
 ```
+
+### GAM Input
+**Observations input for the GAM model:**
+```{r gam input of cases,fig.height=5, fig.width=10, fig.cap=capFig("Observations input for the GAM model (cases)")}
+taxdat::plot_gam_fit_input_cases(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
+```
+
+```{r gam input of rates,fig.height=5, fig.width=10, fig.cap=capFig("Observations input of the GAM model (rates)")}
+taxdat::plot_gam_fit_input_rates(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
+```
+
+### GAM Output
+**Observations output of the GAM model:**
+```{r gam output of cases,fig.height=5, fig.width=10, fig.cap=capFig("Observations output for the GAM model (cases)")}
+taxdat::plot_gam_fit_output_cases(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
+```
+
+```{r gam output of rates,fig.height=5, fig.width=10, fig.cap=capFig("Observations output for the GAM model (rates)")}
+taxdat::plot_gam_fit_output_rates(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
+```
+
+```{r gam output rates versus gam input rates,fig.height=5, fig.width=10, fig.cap = capFig("GAM input rates versus GAM output rates")}
+taxdat::plot_gam_input_output_scatter(config = params$config, cholera_directory = params$cholera_directory, cache = cache)
+``` 
+
+```{r, results="asis", echo=FALSE}
+if (!is.null(cache[["config"]][["test_metadata"]])) {
+  cat("### True underlying distribution maps", "\n", "#### True grid cases raster by time slices:")
+  plot_true_grid_cases(config = params$config, cholera_directory = params$cholera_directory, cache = cache)
+} else {
+  return(NULL)
+}
+```
+
+```{r, results="asis", echo=FALSE}
+if (!is.null(cache[["config"]][["test_metadata"]])) {
+  cat("#### True grid rate raster by time slices:")
+  plot_true_grid_rates(config = params$config, cholera_directory = params$cholera_directory, cache = cache)
+} else {
+  return(NULL)
+}
+```
+
+### Output maps
+
+```{r importcase}
+get_dropped_years(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
+if (length(cache[["dropped_years"]]) == 0) {
+  message("All modeled years are represented by OCs.")
+} else {
+  message(paste(paste(cache[["dropped_years"]], collapse = ", "), "are not represented in OCs"))
+  if (params$drop_nodata_years) {
+    message(paste("Dropping", paste(cache[["dropped_years"]], collapse = ", "), "from case_raster"))
+  }
+}
+```
+
+### Covariates
+
+#### Population
+**Population raster by time slices (log scale):**
+```{r pop, fig.height=5, fig.width=10, fig.cap=capFig("Population density")}
+taxdat::plot_time_varying_pop_raster(cache = cache, config = params$config, cholera_directory = params$cholera_directory)
+```
+
+**Table 3. Population by admin level:**
+```{r echo = FALSE}
+warning("Removed this plot for now")
+# taxdat::plot_pop_by_admin(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
+```
+
+#### Other covariates
+**Covariate rasters:**
+```{r covars, fig.height=10, fig.width=10, fig.cap=capFig("Covariate rasters")}
+taxdat::plot_raster_covariates(cache = cache, cholera_directory = params$cholera_directory, config = params$config)
+```
+
+``` {r covars_data_simulation, fig.height=10, fig.width=10, fig.cap=capFig("Non-population covariate rasters in data simulation process")}
+taxdat::plot_raster_covariates_datagen(cache = cache, cholera_directory = params$cholera_directory, config = params$config)
+```
+
