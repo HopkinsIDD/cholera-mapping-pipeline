@@ -510,7 +510,7 @@ get_data_fidelity_df <- cache_fun_results(name = "data_fidelity_df", fun = get_d
 get_stan_parameters_of_interest_no_cache <- function(config, cache, cholera_directory) {
   get_config(config = config, cache = cache, cholera_directory = cholera_directory)
   warning("This function should do something smarter")
-  return(c("rho", "betas", "eta", "log_std_dev_w"))
+  return(c("rho", "betas", "eta", "log_std_dev_w","alpha"))
 }
 ## cache the results
 #' @export
