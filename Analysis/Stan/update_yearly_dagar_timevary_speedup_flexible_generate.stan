@@ -37,6 +37,7 @@ data {
   int <lower=L> K2; // the length of the mapping of location periods to gridcells
   int <lower=0, upper=M> map_obs_loctime_obs[K1]; // The observation side of the mapping from observations to location/times
   int <lower=0, upper=L> map_obs_loctime_loc[K1]; // The location side of the mapping from observations to location/times
+  int <lower=0, upper=1> censored[K1]; // Whether data is censored in the mapping from observations to location/times
   real <lower=0, upper=1> tfrac[K1]; // The time fraction side of the mapping from observations to location/times
   int <lower=0, upper=L> map_loc_grid_loc[K2]; // the location side of the mapping from locations to gridcells
   int <lower=0, upper=N> map_loc_grid_grid[K2]; // the gridcell side of the mapping from locations to gridcells
@@ -97,6 +98,15 @@ transformed data {
   real log_meanrate = log(meanrate);
   real <lower=0> pop_loctimes[L]; // pre-computed population in each location period
   int N_output_adminlev = max(map_output_loc_adminlev)+1;    // number of admin levels in output
+  real <lower=0, upper=1> tfrac_censoring[K1]; // tfrac accounting for censoring
+  
+  for (i in 1:K1) {
+    if (censored[i] == 1) {
+      tfrac_censoring[i] = 1;  
+    } else {
+      tfrac_censoring[i] = tfrac[i];  
+    }
+  }
   
   for(i in 1:N){
     logpop[i] = log(pop[i]);
@@ -224,7 +234,7 @@ generated quantities {
   //now accumulate
   for (i in 1:K1) {
     if (do_censoring == 1) {
-      modeled_cases[map_obs_loctime_obs[i]] += location_cases[map_obs_loctime_loc[i]];
+      modeled_cases[map_obs_loctime_obs[i]] += tfrac_censoring[i] * location_cases[map_obs_loctime_loc[i]];
     } else {
       modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
     }

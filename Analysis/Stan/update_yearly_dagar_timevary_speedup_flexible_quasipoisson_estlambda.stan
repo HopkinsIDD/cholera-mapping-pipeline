@@ -35,7 +35,6 @@ data {
   int <lower=L> K2; // the length of the mapping of location periods to gridcells
   int <lower=0, upper=M> map_obs_loctime_obs[K1]; // The observation side of the mapping from observations to location/times
   int <lower=0, upper=L> map_obs_loctime_loc[K1]; // The location side of the mapping from observations to location/times
-  int <lower=0, upper=1> censored[K1]; // Whether data is censored in the mapping from observations to location/times
   real <lower=0, upper=1> tfrac[K1]; // The time fraction side of the mapping from observations to location/times
   int <lower=0, upper=L> map_loc_grid_loc[K2]; // the location side of the mapping from locations to gridcells
   int <lower=0, upper=N> map_loc_grid_grid[K2]; // the gridcell side of the mapping from locations to gridcells
@@ -65,6 +64,7 @@ data {
   // If time slice effect pass indicator function for years without data
   vector<lower=0, upper=1>[N*do_time_slice_effect] has_data_year;
   matrix[N*do_time_slice_effect + 2 * (do_time_slice_effect != 1), T*do_time_slice_effect + 2*(do_time_slice_effect != 1)] mat_grid_time; // The time side of the mapping from locations/times to grid (2x2 in case of missing just so it's easy to create)
+  
 }
 
 transformed data {
@@ -73,15 +73,6 @@ transformed data {
   real<lower=0> weights[M*(1-do_censoring)*use_weights]; //a function of the expected offset for each observation used to downwight the likelihood
   real log_meanrate = log(meanrate);
   real <lower=0> pop_loctimes[L]; // pre-computed population in each location period
-  real <lower=0, upper=1> tfrac_censoring[K1]; // tfrac accounting for censoring
-  
-  for (i in 1:K1) {
-    if (censored[i] == 1) {
-      tfrac_censoring[i] = 1;  
-    } else {
-      tfrac_censoring[i] = tfrac[i];  
-    }
-  }
   
   for(i in 1:N){
     logpop[i] = log(pop[i]);
@@ -122,15 +113,18 @@ parameters {
   
   // Covariate stuff
   vector[ncovar] betas;
-  real alpha;    // intercept of log-lambdas
+  real alpha;    // intercept of yearly random effect
+  
+  real<lower=1e-8, upper=500> raw_lambda;    // quasipoisson variance multiplier: var(y) = mean(y) * (1+1/lambda)
 }
 
 transformed parameters {
   
   vector[T*do_time_slice_effect] eta; // yearly random effects
-  real<lower=0> modeled_cases[M]; //expected number of cases for each observation
+  vector<lower=0>[M] modeled_cases; //expected number of cases for each observation
   real<lower=0> std_dev_w;
-  real mean_w = mean(w);;    // this is the mean of the spatial random effect (for diganostic use only)
+  real mean_w = mean(w);    // this is the mean of the spatial random effect (for diganostic use only)
+  real lambda = 1/raw_lambda^2;
   
   {
     vector[L] location_cases; //cases modeled in each (temporal) location.
@@ -183,7 +177,7 @@ transformed parameters {
     //now accumulate
     for (i in 1:K1) {
       if (do_censoring == 1) {
-        modeled_cases[map_obs_loctime_obs[i]] += tfrac_censoring[i] * location_cases[map_obs_loctime_loc[i]];
+        modeled_cases[map_obs_loctime_obs[i]] += location_cases[map_obs_loctime_loc[i]];
       } else {
         modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
       }
@@ -250,7 +244,7 @@ model {
     
     if (M_full > 0) {
       // data model for estimated rates for full time slice observations
-      target += poisson_lpmf(y[ind_full]| modeled_cases[ind_full]);
+      target += neg_binomial_2_lpmf(y[ind_full]| modeled_cases[ind_full], lambda * modeled_cases[ind_full]);
     }
     
     if (M_right > 0) {
@@ -265,11 +259,11 @@ model {
       
       for(i in 1:M_right){
         real lpmf;
-        lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+        lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], lambda * modeled_cases[ind_right[i]]);
         // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
         if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
           real lls[2];
-          lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+          lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], lambda * modeled_cases[ind_right[i]]);
           lls[2] = lpmf;
           lp_censored[i] = log_sum_exp(lls);
         } else {
@@ -279,18 +273,19 @@ model {
       target += sum(lp_censored);
       
       // add a 0-centered prior on the censored cases
-      for (idx in ind_right) {
-        modeled_cases[idx] ~ cauchy(0, 2);
-      }
+      modeled_cases[ind_right] ~ cauchy(0, 2);
     }
   } else {
     if (use_weights == 1) {
       //data model for estimated rates
       for(i in 1:M){
-        target += poisson_lpmf(y[i] | modeled_cases[i])/weights[i];
+        target += neg_binomial_2_lpmf(y| modeled_cases, lambda * modeled_cases)/weights[i];
       } 
     } else {
-      target += poisson_lpmf(y | modeled_cases);
+      target += neg_binomial_2_lpmf(y| modeled_cases, lambda * modeled_cases);
     }
   }
+  
+  // Prior on lambda
+  raw_lambda ~ std_normal();
 }

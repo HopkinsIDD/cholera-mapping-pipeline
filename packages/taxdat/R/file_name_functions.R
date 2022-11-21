@@ -86,7 +86,7 @@ make_stan_input_filename <- function(cholera_directory,
   
   # Processing configs
   to_add <- "pc"
-  for (par in c("smoothing_period", "aggregate", "tfrac_thresh", "set_tfrac")) {
+  for (par in c("smoothing_period", "aggregate", "tfrac_thresh", "set_tfrac", "censoring_thresh")) {
     if(!is.null(config[[par]])) {
       to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, config[[par]])
     } else {
@@ -222,7 +222,11 @@ make_stan_output_filename <- function(cholera_directory,
   }
   
   # Add stan filename and iterations
-  to_add <- paste0(to_add, "-model:", stringr::str_remove(config$stan$model, "\\.stan"))
+  model_name <- stringr::str_remove(config$stan$model, "\\.stan") %>% 
+    stringr::str_split("_") %>% 
+    .[[1]] %>% 
+    last()
+  to_add <- paste0(to_add, "-model:", model_name)
   to_add <- paste0(to_add, "-niter", config$stan$niter)
   
   to_add <- stringr::str_replace_all(to_add, "TRUE", "T")
@@ -283,7 +287,11 @@ make_stan_genquant_filename <- function(cholera_directory,
   }
   
   # Add stan filename and iterations
-  to_add <- paste0(to_add, "-model:", stringr::str_remove(config$stan$model, "\\.stan"))
+  model_name <- stringr::str_remove(config$stan$model, "\\.stan") %>% 
+    stringr::str_split("_") %>% 
+    .[[1]] %>% 
+    last()
+  to_add <- paste0(to_add, "-model:", model_name)
   to_add <- paste0(to_add, "-niter", config$stan$niter)
   
   to_add <- stringr::str_replace_all(to_add, "TRUE", "T")
