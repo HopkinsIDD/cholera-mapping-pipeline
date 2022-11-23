@@ -41,6 +41,7 @@ data {
   int <lower=1, upper=M> ind_left[M_left];      // indexes of left-censored observations
   int <lower=1, upper=M> ind_right[M_right];    // indexes of right-censored observations
   real <lower=0, upper=1> tfrac[K1];            // the time fraction side of the mapping from observations to location/times
+  int <lower=0, upper=1> censored[K1]; // Whether data is censored in the mapping from observations to location/times
   
   // Mappings
   int <lower=0, upper=M> map_obs_loctime_obs[K1];    // the observation side of the mapping from observations to location/times
@@ -95,6 +96,15 @@ transformed data {
   real<lower=0> weights[M*(1-do_censoring)*use_weights];    // a function of the expected offset for each observation used to downwight the likelihood
   real <lower=0> pop_loctimes[L];        // pre-computed population in each location period
   int N_output_adminlev = max(map_output_loc_adminlev)+1;    // number of admin levels in output
+  real <lower=0, upper=1> tfrac_censoring[K1]; // tfrac accounting for censoring
+  
+  for (i in 1:K1) {
+    if (censored[i] == 1) {
+      tfrac_censoring[i] = 1;  
+    } else {
+      tfrac_censoring[i] = tfrac[i];  
+    }
+  }
   
   for(i in 1:N){
     logpop[i] = log(pop[i]);
@@ -217,7 +227,7 @@ generated quantities {
   //now accumulate
   for (i in 1:K1) {
     if (do_censoring == 1) {
-      modeled_cases[map_obs_loctime_obs[i]] += location_cases[map_obs_loctime_loc[i]];
+      modeled_cases[map_obs_loctime_obs[i]] += tfrac_censoring[i] * location_cases[map_obs_loctime_loc[i]];
     } else {
       modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
     }
@@ -367,21 +377,59 @@ generated quantities {
   // ---- Part F: Log-likelihoods ----
   if (do_censoring == 0) {
     for (i in 1:M) {
-      log_lik[i] = poisson_lpmf(y[i] | modeled_cases[i]);
+      if (obs_model == 1) {
+        // Poisson likelihood
+        log_lik[i] = poisson_lpmf(y[i] | modeled_cases[i]);
+      } else if (obs_model == 2) {
+        // Quasi-poisson likelihood
+        log_lik[i] = neg_binomial_2_lpmf(y[i] | modeled_cases[i], lambda * modeled_cases[i]);
+      } else {
+        // Neg-binom likelihood
+        log_lik[i] = neg_binomial_2_lpmf(y[i] | modeled_cases[i], lambda);
+      }
     }
+    
   } else {
     // full observations
     for (i in 1:M_full) {
-      log_lik[ind_full[i]] = poisson_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]]);
+      if (obs_model == 1) {
+        // Poisson likelihood
+        log_lik[ind_full[i]] = poisson_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]]);
+      } else if (obs_model == 2) {
+        // Quasi-poisson likelihood
+        log_lik[ind_full[i]] = neg_binomial_2_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]], lambda * modeled_cases[ind_full[i]]);
+      } else {
+        // Neg-binom likelihood
+        log_lik[ind_full[i]] = neg_binomial_2_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]], lambda);
+      }
     }
     // rigth-censored observations
     for(i in 1:M_right){
       real lpmf;
-      lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+      if (obs_model == 1) {
+        // Poisson likelihood
+        lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+      } else if (obs_model == 2) {
+        // Quasi-poisson likelihood
+        lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], lambda * modeled_cases[ind_right[i]]);
+      } else {
+        // Neg-binom likelihood
+        lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], lambda);
+      }
+      
       // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
       if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
         real lls[2];
-        lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+        if (obs_model == 1) {
+          // Poisson likelihood
+          lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+        } else if (obs_model == 2) {
+          // Quasi-poisson likelihood
+          lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], lambda * modeled_cases[ind_right[i]]);
+        } else {
+          // Neg-binom likelihood
+          lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], lambda);
+        }
         lls[2] = lpmf;
         log_lik[ind_right[i]] = log_sum_exp(lls);
       } else {
