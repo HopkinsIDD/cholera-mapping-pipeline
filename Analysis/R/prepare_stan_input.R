@@ -593,6 +593,8 @@ prepare_stan_input <- function(
   
   stan_data$map_full_grid <- full_grid$upd_id
   
+  # What observation model to use
+  stan_data$obs_model <- stan_params$obs_model
   
   # Data for output summaries ---------------------------------------
   # Set user-specific name for location_periods table to use
