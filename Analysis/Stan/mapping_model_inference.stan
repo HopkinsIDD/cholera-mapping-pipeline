@@ -40,6 +40,7 @@ data {
   int <lower=1, upper=M> ind_left[M_left];      // indexes of left-censored observations
   int <lower=1, upper=M> ind_right[M_right];    // indexes of right-censored observations
   real <lower=0, upper=1> tfrac[K1];            // the time fraction side of the mapping from observations to location/times
+  int <lower=0, upper=1> censored[K1]; // Whether data is censored in the mapping from observations to location/times
   
   // Mappings
   int <lower=0, upper=M> map_obs_loctime_obs[K1];    // the observation side of the mapping from observations to location/times
@@ -75,6 +76,16 @@ transformed data {
   real log_meanrate = log(meanrate);
   real<lower=0> weights[M*(1-do_censoring)*use_weights];    // a function of the expected offset for each observation used to downwight the likelihood
   real <lower=0> pop_loctimes[L];        // pre-computed population in each location period
+  real <lower=0, upper=1> tfrac_censoring[K1]; // tfrac accounting for censoring
+  
+  for (i in 1:K1) {
+    if (censored[i] == 1) {
+      tfrac_censoring[i] = 1;  
+    } else {
+      tfrac_censoring[i] = tfrac[i];  
+    }
+  }
+  
   
   for(i in 1:N){
     logpop[i] = log(pop[i]);
@@ -268,7 +279,7 @@ transformed parameters {
     // now accumulate
     for (i in 1:K1) {
       if (do_censoring == 1) {
-        modeled_cases[map_obs_loctime_obs[i]] += location_cases[map_obs_loctime_loc[i]];
+        modeled_cases[map_obs_loctime_obs[i]] += tfrac_censoring[i] * location_cases[map_obs_loctime_loc[i]];
       } else {
         modeled_cases[map_obs_loctime_obs[i]] += tfrac[i] * location_cases[map_obs_loctime_loc[i]];
       }
@@ -450,13 +461,13 @@ model {
       for(i in 1:M){
         if (obs_model == 1) {
           // Poisson likelihood
-          target += poisson_lpmf(y[i] | modeled_cases[i]);
+          target += poisson_lpmf(y[i] | modeled_cases[i])/weights[i];
         } else if (obs_model == 2) {
           // Quasi-poisson likelihood
-          target += neg_binomial_2_lpmf(y[i] | modeled_cases[i], lambda * modeled_cases[i]);
+          target += neg_binomial_2_lpmf(y[i] | modeled_cases[i], lambda * modeled_cases[i])/weights[i];
         } else {
           // Neg-binom likelihood
-          target += neg_binomial_2_lpmf(y[i] | modeled_cases[i], lambda);
+          target += neg_binomial_2_lpmf(y[i] | modeled_cases[i], lambda)/weights[i];
         }
         if (debug && (previous_debugs == 0)) {
           print("weighted obs", target());
