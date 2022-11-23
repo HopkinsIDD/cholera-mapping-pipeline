@@ -683,11 +683,6 @@ prepare_stan_input <- function(
   # Add quasi-poisson parameter
   stan_data$lambda <- stan_params$lambda
   
-  if (stringr::str_detect(config$stan$model, "quasipoisson_estlambda")) {
-    cat("---- Estimating lambda of quasipoisson model, setting lambda to NULL in stan_input\n")
-    stan_data$lambda <- NULL
-  }
-  
   cat("**** FINISHED PREPARING STAN INPUT \n")
   
   return(list(stan_data = stan_data,
