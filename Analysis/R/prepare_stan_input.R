@@ -409,7 +409,7 @@ prepare_stan_input <- function(
   
   if (stan_params$use_pop_weight) {
     # Make sure that all observations for have a pop_loctime > 0
-    stan_data$pop_weight <- ind_mapping_resized$u_loc_grid_weights
+    stan_data$map_loc_grid_sfrac <- ind_mapping_resized$u_loc_grid_weights
     
     # Initialize 
     K2 <- length(stan_data$map_loc_grid_loc)
@@ -418,7 +418,7 @@ prepare_stan_input <- function(
     # Compute pop_loctimes
     pop_loctimes <- rep(0, L)
     for (i in 1:K2) {
-      pop_loctimes[stan_data$map_loc_grid_loc[i]] <- pop_loctimes[stan_data$map_loc_grid_loc[i]] + stan_data$pop[stan_data$map_loc_grid_grid[i]]  * stan_data$pop_weight[i]
+      pop_loctimes[stan_data$map_loc_grid_loc[i]] <- pop_loctimes[stan_data$map_loc_grid_loc[i]] + stan_data$pop[stan_data$map_loc_grid_grid[i]]  * stan_data$map_loc_grid_sfrac[i]
     }
     
     if (any(pop_loctimes == 0)) {
@@ -473,11 +473,11 @@ prepare_stan_input <- function(
       stan_data$map_loc_grid_loc <- as.array(ind_mapping_resized$map_loc_grid_loc)
       stan_data$map_loc_grid_grid <- as.array(ind_mapping_resized$map_loc_grid_grid)
       stan_data$u_loctime <- ind_mapping_resized$u_loctimes
-      stan_data$pop_weight <- ind_mapping_resized$u_loc_grid_weights
+      stan_data$map_loc_grid_sfrac <- ind_mapping_resized$u_loc_grid_weights
     }
     
   } else {
-    stan_data$pop_weight <- array(data = 0, dim = 0)
+    stan_data$map_loc_grid_sfrac <- array(data = 0, dim = 0)
   }
   
   y_tfrac <- tibble::tibble(tfrac = stan_data$tfrac, 
@@ -656,9 +656,9 @@ prepare_stan_input <- function(
   stan_data$map_output_loc_adminlev <- output_lps_space$admin_lev
   
   if (stan_params$use_pop_weight) {
-    stan_data$pop_weight_output <- ind_mapping_output$u_loc_grid_weights
+    stan_data$map_loc_grid_sfrac_output <- ind_mapping_output$u_loc_grid_weights
   } else {
-    stan_data$pop_weight_output <- array(data = 0, dim = 0)
+    stan_data$map_loc_grid_sfrac_output <- array(data = 0, dim = 0)
   }
   
   # Data for people at risk
