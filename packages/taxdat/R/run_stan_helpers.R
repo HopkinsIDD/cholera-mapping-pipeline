@@ -20,7 +20,8 @@ get_stan_parameters <- function(config,
                                 use_pop_weight = T,
                                 censoring_thresh = .95,
                                 lambda = 1,
-                                obs_model = 1
+                                obs_model = 1,
+                                exp_prior = 0
 ) {
   
   default_params <- list(sigma_eta_scale = sigma_eta_scale,
@@ -36,7 +37,8 @@ get_stan_parameters <- function(config,
                          use_pop_weight = use_pop_weight,
                          censoring_thresh = censoring_thresh,
                          lambda = lambda,
-                         obs_model = obs_model)
+                         obs_model = obs_model,
+                         exp_prior = exp_prior)
   
   # For each parameter check if specified in config, if not use default value
   params <- purrr::map(names(default_params), 

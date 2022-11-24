@@ -680,8 +680,18 @@ prepare_stan_input <- function(
   stan_data$N_space <- length(unique(sf_grid$space_id))
   stan_data$map_spacetime_space_grid <- sf_grid$space_id[sf_grid$upd_id]
   
-  # Add quasi-poisson parameter
+  # Add quasi-poisson/neg-binom parameter
   stan_data$lambda <- stan_params$lambda
+  
+  # Option for double-exponential prior on betas
+  stan_data$exp_prior <- stan_params$exp_prior
+  
+  # Option for debug mode
+  if (is.null(config$debug)) {
+    stan_data$debug <- 0
+  } else {
+    stan_data$debug <- config$debug
+  }
   
   cat("**** FINISHED PREPARING STAN INPUT \n")
   
