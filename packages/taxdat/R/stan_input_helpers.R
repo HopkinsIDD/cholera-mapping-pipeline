@@ -364,6 +364,8 @@ make_smooth_grid <- function(sf_grid,
                              non_na_gridcells,
                              smooth_covariate_number_timesteps) {
   
+  grid_changer <- make_changer(x = non_na_gridcells)
+  
   # Set the index of smooth grid time slices
   sf_grid <- sf_grid %>% 
     dplyr::mutate(s = (t-1) %% smooth_covariate_number_timesteps + 1)
