@@ -46,6 +46,7 @@ prepare_stan_input <- function(
   
   # make the smooth grid
   smooth_grid_obj <- taxdat::make_smooth_grid(sf_grid = sf_grid,
+                                              non_na_gridcells = non_na_gridcells,
                                               smooth_covariate_number_timesteps = smooth_covariate_number_timesteps)
   
   # Unpack

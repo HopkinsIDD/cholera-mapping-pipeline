@@ -361,6 +361,7 @@ make_changer <- function(x) {
 #' @export
 #'
 make_smooth_grid <- function(sf_grid,
+                             non_na_gridcells,
                              smooth_covariate_number_timesteps) {
   
   # Set the index of smooth grid time slices
