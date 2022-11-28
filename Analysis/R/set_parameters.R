@@ -82,7 +82,8 @@ option_list <- list(
     help = "Model run configuration file"
   ),
   optparse::make_option(c("-d", "--cholera_directory"), action = "store", default = NULL, type="character", help = "Cholera directory"),
-  optparse::make_option(c("-l", "--layers_directory"), action = "store", default = NULL, type="character", help = "Layers directory")
+  optparse::make_option(c("-l", "--layers_directory"), action = "store", default = NULL, type="character", help = "Layers directory"),
+  optparse::make_option(c("-v", "--verbose"), action = "store", default = FALSE, type="logical", help = "Print extra messages")
 )
 
 opt <- optparse::OptionParser(option_list = option_list) %>% optparse::parse_args()
