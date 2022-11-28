@@ -341,10 +341,25 @@ get_space_time_ind_speedup <- function(df,
 
 
 # Functions to move to taxdat
+#' Title
+#'
+#' @param x 
+#'
+#' @return
+#' @export
+#'
 make_changer <- function(x) {
   setNames(seq_len(length(x)), x)
 }
 
+#' Title
+#'
+#' @param sf_grid 
+#' @param smooth_covariate_number_timesteps 
+#'
+#' @return
+#' @export
+#'
 make_smooth_grid <- function(sf_grid,
                              smooth_covariate_number_timesteps) {
   
@@ -380,6 +395,13 @@ make_smooth_grid <- function(sf_grid,
 }
 
 # First connect all vertices
+#' Title
+#'
+#' @param nn_mat 
+#'
+#' @return
+#' @export
+#'
 connect_vertices <- function(nn_mat) {
   isolated_vertices <- which(Matrix::rowSums(nn_mat) == 0)
   
@@ -398,6 +420,13 @@ connect_vertices <- function(nn_mat) {
 }
 
 
+#' Title
+#'
+#' @param nn_mat 
+#'
+#' @return
+#' @export
+#'
 connect_islands <- function(nn_mat) {
   
   # Create graph to extract disconnected islands
@@ -442,6 +471,16 @@ connect_islands <- function(nn_mat) {
 
 
 
+#' Title
+#'
+#' @param adjacency_list 
+#' @param sf_grid 
+#' @param cell_id_mapping 
+#' @param flag 
+#'
+#' @return
+#' @export
+#'
 add_time_adjacency <- function(adjacency_list,
                                sf_grid,
                                cell_id_mapping,
@@ -473,6 +512,14 @@ add_time_adjacency <- function(adjacency_list,
 }
 
 
+#' Title
+#'
+#' @param adjacency_list 
+#' @param smooth_grid 
+#'
+#' @return
+#' @export
+#'
 compute_n_neighbors <- function(adjacency_list,
                                 smooth_grid) {
   
@@ -493,6 +540,14 @@ compute_n_neighbors <- function(adjacency_list,
 }
 
 
+#' Title
+#'
+#' @param smooth_grid 
+#' @param model_time_slices 
+#'
+#' @return
+#' @export
+#'
 make_adjacency <- function(smooth_grid,
                            model_time_slices) {
   
@@ -593,6 +648,15 @@ make_adjacency <- function(smooth_grid,
   )
 }
 
+#' Title
+#'
+#' @param covar_cube 
+#' @param non_na_gridcells 
+#'
+#' @return
+#' @export
+#'
+#' @examples
 extract_population <- function(covar_cube,
                                non_na_gridcells = NULL) {
   # the first covariate is always the population (n_grid_cells x n_obs_t_units x n_covar)
@@ -603,6 +667,17 @@ extract_population <- function(covar_cube,
   }
 }
 
+#' Title
+#'
+#' @param .x 
+#' @param .y 
+#' @param cases_column 
+#' @param verbose 
+#'
+#' @return
+#' @export
+#'
+#' @examples
 aggregate_single_lp <- function(.x, 
                                 .y, 
                                 cases_column,
@@ -705,6 +780,18 @@ aggregate_single_lp <- function(.x,
   return(res)
 }
 
+#' Title
+#'
+#' @param sf_cases_resized 
+#' @param non_na_obs 
+#' @param ind_mapping 
+#' @param cases_column 
+#' @param verbose 
+#'
+#' @return
+#' @export
+#'
+#' @examples
 aggregate_observations <- function(sf_cases_resized,
                                    non_na_obs,
                                    ind_mapping,
@@ -740,6 +827,15 @@ aggregate_observations <- function(sf_cases_resized,
   sf_cases_resized
 }
 
+#' Title
+#'
+#' @param x 
+#' @param obs_changer 
+#'
+#' @return
+#' @export
+#'
+#' @examples
 get_map_obs_loctime_obs <- function(x, obs_changer) {
   x %>% 
     as.character() %>% 
@@ -747,6 +843,16 @@ get_map_obs_loctime_obs <- function(x, obs_changer) {
     as.array()
 }
 
+#' Title
+#'
+#' @param M 
+#' @param ind_mapping_resized 
+#' @param censoring_thresh 
+#'
+#' @return
+#' @export
+#'
+#' @examples
 get_censoring_inds <- function(M, 
                                ind_mapping_resized,
                                censoring_thresh = NULL) {
@@ -767,6 +873,14 @@ get_censoring_inds <- function(M,
 }
 
 
+#' Title
+#'
+#' @param stan_data 
+#'
+#' @return
+#' @export
+#'
+#' @examples
 compute_mean_rate <- function(stan_data) {
   
   y_tfrac <- tibble::tibble(
@@ -804,6 +918,14 @@ standardize <- function(x){
   (x-mean(x))/sd(x)
 }
 
+#' Title
+#'
+#' @param M 
+#'
+#' @return
+#' @export
+#'
+#' @examples
 standardize_covar <- function(M){
   cbind(
     M[, 1], 
@@ -811,6 +933,14 @@ standardize_covar <- function(M){
   )
 }
 
+#' Title
+#'
+#' @param stan_data 
+#'
+#' @return
+#' @export
+#'
+#' @examples
 compute_pop_loctimes <- function(stan_data) {
   # Initialize 
   K2 <- length(stan_data$map_loc_grid_loc)
