@@ -859,7 +859,7 @@ get_map_obs_loctime_obs <- function(x, obs_changer) {
 #' @export
 #'
 #' @examples
-get_censoring_inds <- function(M, 
+get_censoring_inds <- function(stan_data, 
                                ind_mapping_resized,
                                censoring_thresh = NULL) {
   
@@ -869,7 +869,7 @@ get_censoring_inds <- function(M,
   }
   
   purrr::map_chr(
-    1:M, 
+    1:stan_data$M, 
     function(x) {
       # Get all tfracs for the given observation
       tfracs <- ind_mapping_resized$tfrac[stan_data$map_obs_loctime_obs == x]
