@@ -58,7 +58,8 @@ prepare_stan_input <- function(
   model_time_slices <- sort(unique(sf_grid$s))
   
   adjacency <- taxdat::make_adjacency(smooth_grid = smooth_grid,
-                                      model_time_slices = model_time_slices)
+                                      model_time_slices = model_time_slices,
+                                      grid_changer = grid_changer)
   
   # Stan inputs ------------------------------------------------------------------
   cat("---- Preparing Stan input data \n")
