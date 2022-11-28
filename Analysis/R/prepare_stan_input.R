@@ -196,7 +196,7 @@ prepare_stan_input <- function(
   stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= stan_params$censoring_thresh)
   
   # Extract censoring information
-  censoring_inds <- taxdat::get_censoring_inds(M = stan_data$M,
+  censoring_inds <- taxdat::get_censoring_inds(stan_data = stan_data,
                                                ind_mapping_resized = ind_mapping_resized,
                                                censoring_thresh = stan_params$censoring_thresh)
   
@@ -255,8 +255,9 @@ prepare_stan_input <- function(
       stan_data$M <- nrow(sf_cases_resized)
       
       # Extract censoring information
-      censoring_inds <-  taxdat::get_censoring_inds(M = stan_data$M,
-                                                    ind_mapping_resized = ind_mapping_resized)
+      censoring_inds <-  taxdat::get_censoring_inds(stan_data = stan_data,
+                                                    ind_mapping_resized = ind_mapping_resized,
+                                                    censoring_thresh = stan_params$censoring_thresh)
       
       # Then overwrite tfrac with user-specified value
       if (!is.null(set_tfrac) && (set_tfrac)) {
