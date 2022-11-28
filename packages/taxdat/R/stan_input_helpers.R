@@ -553,7 +553,9 @@ compute_n_neighbors <- function(adjacency_list,
 #'
 make_adjacency <- function(smooth_grid,
                            model_time_slices,
-                           grid_changer) {
+                           non_na_gridcells) {
+  
+  grid_changer <- make_changer(x = non_na_gridcells)
   
   # this is the mapping between the grid ids (from 1 to number of cells that intersect
   # location_periods) and the model ids in space (from 1 to the number of non-NA cells,

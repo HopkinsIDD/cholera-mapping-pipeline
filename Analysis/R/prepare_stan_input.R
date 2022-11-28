@@ -59,7 +59,7 @@ prepare_stan_input <- function(
   
   adjacency <- taxdat::make_adjacency(smooth_grid = smooth_grid,
                                       model_time_slices = model_time_slices,
-                                      grid_changer = grid_changer)
+                                      non_na_gridcells = non_na_gridcells)
   
   # Stan inputs ------------------------------------------------------------------
   cat("---- Preparing Stan input data \n")
