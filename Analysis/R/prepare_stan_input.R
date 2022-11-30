@@ -480,6 +480,15 @@ prepare_stan_input <- function(
     stan_data$map_loc_grid_sfrac <- array(data = 0, dim = 0)
   }
   
+  if (stan_params$use_pop_weight) {
+    # Check if sfrac is valid
+    if (any(stan_data$map_loc_grid_sfrac > 1.01)) {
+      stop("Invalid sfrac values > 1").
+    }
+    # Make sure all values are <= 1 (possible rounding errors)
+    stan_data$map_loc_grid_sfrac <- pmin(1, stan_data$map_loc_grid_sfrac)
+  }
+  
   y_tfrac <- tibble::tibble(tfrac = stan_data$tfrac, 
                             map_obs_loctime_obs = stan_data$map_obs_loctime_obs) %>% 
     dplyr::group_by(map_obs_loctime_obs) %>% 
@@ -659,9 +668,18 @@ prepare_stan_input <- function(
   
   if (stan_params$use_pop_weight) {
     stan_data$map_loc_grid_sfrac_output <- ind_mapping_output$u_loc_grid_weights
+    
+    # Check if sfrac is valid
+    if (any(stan_data$map_loc_grid_sfrac_output > 1.01)) {
+      stop("Invalid sfrac values > 1 in outputs.").
+    }
+    # Make sure all values are <= 1 (possible rounding errors)
+    stan_data$map_loc_grid_sfrac_output <- pmin(1, stan_data$map_loc_grid_sfrac_output)
+    
   } else {
     stan_data$map_loc_grid_sfrac_output <- array(data = 0, dim = 0)
   }
+  
   
   # Data for people at risk
   risk_cat_low <- c(0, 1, 10, 100)*1e-5
