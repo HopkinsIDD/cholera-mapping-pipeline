@@ -400,21 +400,29 @@ make_smooth_grid <- function(sf_grid,
 # First connect all vertices
 #' Title
 #'
-#' @param nn_mat 
+#' @param nn_mat
+#' @param smooth_grid_it
 #'
 #' @return
 #' @export
 #'
-connect_vertices <- function(nn_mat) {
+connect_vertices <- function(nn_mat,
+                             smooth_grid_it) {
   isolated_vertices <- which(Matrix::rowSums(nn_mat) == 0)
   
   if(length(isolated_vertices) > 1){
     cat("Found", length(isolated_vertices), "isolated vertices in time slice", it ,", adding edges until only one remains.\n")
     
     for(vertex in isolated_vertices[-1]){
-      dist_to_main <- as.vector(sf::st_distance(smooth_grid_it[vertex, ], smooth_grid_it[seq_len(vertex-1), ] ))
+      
+      dist_to_main <- sf::st_distance(
+        smooth_grid_it[vertex, ], 
+        smooth_grid_it[seq_len(vertex-1), ]
+      ) %>% 
+        as.vector()
+      
       new_neighbor <- which.min(dist_to_main)
-      nn_mat[vertex,new_neighbor] <- 1
+      nn_mat[vertex, new_neighbor] <- 1
       nn_mat[new_neighbor, vertex] <- 1
     }
   }
@@ -426,11 +434,13 @@ connect_vertices <- function(nn_mat) {
 #' Title
 #'
 #' @param nn_mat 
+#' @param smooth_grid_it
 #'
 #' @return
 #' @export
 #'
-connect_islands <- function(nn_mat) {
+connect_islands <- function(nn_mat,
+                            smooth_grid_it) {
   
   # Create graph to extract disconnected islands
   ng <- igraph::graph_from_adjacency_matrix(nn_mat)
@@ -446,6 +456,7 @@ connect_islands <- function(nn_mat) {
     
     # Loop over island
     smooth_centroids <- sf::st_geometry(sf::st_centroid(smooth_grid_it))
+    
     for (i in cluster_ids[-mainland]) {
       island_ids <- which(ng_cl$membership == i)
       # find closest mainland pixels (n_pix_islands x n_pix_mainland matrix)
@@ -457,16 +468,14 @@ connect_islands <- function(nn_mat) {
       nearest_isl_id <- which(nearest_dist == min(nearest_dist))[1]
       # connect the nearest island to the mainland (symetry)
       nn_mat[island_ids[nearest_isl_id], mainland_ids[nearest_main_ids[nearest_isl_id] ] ] <- 1
-      nn_mat[mainland_ids[nearest_main_ids[nearest_isl_id] ], island_ids[nearest_isl_id] ] <- 1
+      nn_mat[mainland_ids[nearest_main_ids[nearest_isl_id]], island_ids[nearest_isl_id] ] <- 1
     }
     
     # Check that everything is connected now
     if (igraph::clusters(igraph::graph_from_adjacency_matrix(nn_mat))$no > 1) {
       print(unique(igraph::clusters(igraph::graph_from_adjacency_matrix(nn_mat))$no > 1))
       stop("Something went wrong with island connection.")
-    } else {
-      cat("Done island connection for time slice", it, "\n")
-    }
+    } 
   }
   
   nn_mat
@@ -592,9 +601,13 @@ make_adjacency <- function(smooth_grid,
     # Make fully connected graph
     nn_mat <- nn_mat %>% 
       # Connect isolated vertices
-      connect_vertices() %>%
+      connect_vertices(nn_mat = .,
+                       smooth_grid_it = smooth_grid_it) %>%
       # Connect islands to mainland
-      connect_islands()
+      connect_islands(nn_mat = .,
+                      smooth_grid_it = smooth_grid_it)
+    
+    cat("Done island connection for time slice", it, "\n")
     
     # Reorder nodes in directed graph to have a single source using the breadth-
     # first algorithm. for DAGAR
