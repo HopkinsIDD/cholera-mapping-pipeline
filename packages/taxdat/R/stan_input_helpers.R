@@ -537,21 +537,24 @@ compute_n_neighbors <- function(adjacency_list,
                                 smooth_grid) {
   
   # Get number of neighboors (here both in space AND time)
-  positive_neighbors <- dplyr::mutate(
-    dplyr::summarize(
-      dplyr::group_by(
-        as.data.frame(adjacency_list),
-        row
-      ),
-      n = length(col)
-    )
-  )
+  positive_neighbors <- adjacency_list %>% 
+    dplyr::as_tibble() %>% 
+    dplyr::count(row)
+  
   number_of_neighbors <- rep(0, times = nrow(smooth_grid))
   number_of_neighbors[positive_neighbors$row] <- positive_neighbors$n
   
   number_of_neighbors
 }
 
+#' Title
+#'
+#' @return
+#' @export
+#'
+get_crs_africa <- function() {
+  sf::st_crs("+proj=sinu +lon_0=15 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +type=crs")
+}
 
 #' Title
 #'
@@ -582,6 +585,11 @@ make_adjacency <- function(smooth_grid,
     smooth_grid_it <- smooth_grid %>%
       dplyr::filter(s == it) %>%
       dplyr::select(id) 
+    
+    # Snap to grid to fix neighborhoods
+    smooth_grid_it <- smooth_grid_it %>% 
+      sf::st_transform(get_crs_africa()) %>% 
+      lwgeom::st_snap_to_grid(1)
     
     # Extract neighborhood
     poly_adj <- spdep::poly2nb(smooth_grid_it)
