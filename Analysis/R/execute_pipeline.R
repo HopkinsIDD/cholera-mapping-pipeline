@@ -312,6 +312,28 @@ if (config[["processing"]][["remove_overlaps"]][["perform"]]) {
   print("Finished removing overlaps")
 }
 
+if (config[["processing"]][["remove_short_time_observations"]][["perform"]]) {
+  print(paste("Removing observations tfrac less than ", config[["processing"]][["remove_short_time_observations"]][["threshold"]]))
+  temporally_linked_observations <- observation_data %>%
+    dplyr::inner_join(observation_temporal_location_mapping, by = c(
+      "observation_id",
+      "location_period_id"
+    ))
+
+  observation_data_filtered <- dplyr::filter(temporally_linked_observations, tfrac >= config[["processing"]][["remove_short_time_observations"]][["threshold"]])
+
+  observation_data <- sf::st_as_sf(taxdat::project_to_groups(
+    observation_data_filtered,
+    "observation_id", observation_data
+  ))
+
+  observation_temporal_location_mapping <- taxdat::project_to_groups(
+    observation_data_filtered,
+    c("observation_id", "temporal_location_id"), observation_temporal_location_mapping
+  )
+
+  print("Finished removing observations with small tfracs")
+}
 
 if (config[["processing"]][["censor_incomplete_observations"]][["perform"]]) {
   print("Censoring incomplete observations")
@@ -782,7 +804,7 @@ stan_data <- list(
   narrower_prior = config[["stan"]][["narrower_prior"]], # QZ: added narrower prior option in config
   has_data_year = has_data_year,
   mat_grid_time = mat_grid_time,
-  debug = FALSE
+  debug = config[["stan"]][["enable_debug_logging"]]
 )
 
 print("Finished creating stan data")
