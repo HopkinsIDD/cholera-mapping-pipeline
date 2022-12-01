@@ -370,10 +370,11 @@ make_smooth_grid <- function(sf_grid,
   sf_grid <- sf_grid %>% 
     dplyr::mutate(s = (t-1) %% smooth_covariate_number_timesteps + 1)
   
-  # sf_grid$s <- (sf_grid$t - 1) %% smooth_covariate_number_timesteps + 1
   temporally_inconsistant_cells <- sf_grid %>%
+    sf::st_drop_geometry() %>% 
+    tibble::as_tibble() %>% 
     dplyr::group_by(id) %>%
-    dplyr::summarize(bad_percentage = sum(!(id %in% non_na_gridcells))/length(id)) %>%
+    dplyr::summarize(bad_percentage = sum(!(long_id %in% non_na_gridcells))/length(id)) %>%
     dplyr::filter(bad_percentage != 0, bad_percentage != 1)
   
   if (nrow(temporally_inconsistant_cells)) {
@@ -381,13 +382,22 @@ make_smooth_grid <- function(sf_grid,
     print(temporally_inconsistant_cells)
   }
   
+  # Drop cells with NAs
+  sf_grid_drop <- sf_grid %>% 
+    dplyr::filter(!(long_id %in% non_na_gridcells))
+  
+  cat("---- Dropping", nrow(sf_grid_drop), "space-time cells corresponding to",
+      length(unique(sf_grid_drop$id)), "space cells because of NA values, with space ids:",
+      unique(sf_grid_drop$id))
+  
   sf_grid <- sf_grid %>% 
     dplyr::filter(long_id %in% non_na_gridcells) %>% 
     dplyr::mutate(upd_id = grid_changer[as.character(long_id)])
   
   smooth_grid <- sf_grid %>% 
-    dplyr::group_by(id,s) %>% 
-    dplyr::summarize() %>% 
+    dplyr::select(id, s) %>% 
+    dplyr::group_by(id, s) %>% 
+    dplyr::slice(1) %>% 
     dplyr::ungroup() %>% 
     dplyr::mutate(smooth_id = dplyr::row_number())
   
@@ -616,7 +626,7 @@ make_adjacency <- function(smooth_grid,
       connect_islands(nn_mat = .,
                       smooth_grid_it = smooth_grid_it)
     
-    cat("Done island connection for time slice", it, "\n")
+    cat("Done island connection for smooth time slice", it, "\n")
     
     # Reorder nodes in directed graph to have a single source using the breadth-
     # first algorithm. for DAGAR
@@ -639,7 +649,7 @@ make_adjacency <- function(smooth_grid,
     # Append to adjacency list
     adjacency_list <- rbind(adjacency_list, nonzero_ind)
     
-    # Update the counter to account for the time slices. Note that n_entries for now
+    # Update the counter to account for the smooth time slices. Note that n_entries for now
     # is the same for all time slices, since the non-NA cells are determined across
     # time slices of covariates
     cnt <- cnt + n_entries
