@@ -408,10 +408,11 @@ make_smooth_grid <- function(sf_grid,
 #'
 connect_vertices <- function(nn_mat,
                              smooth_grid_it) {
+  
   isolated_vertices <- which(Matrix::rowSums(nn_mat) == 0)
   
   if(length(isolated_vertices) > 1){
-    cat("Found", length(isolated_vertices), "isolated vertices in time slice", it ,", adding edges until only one remains.\n")
+    cat("Found", length(isolated_vertices), "isolated vertices in time slice", smooth_grid_it$s ,", adding edges until only one remains.\n")
     
     for(vertex in isolated_vertices[-1]){
       
