@@ -168,7 +168,7 @@ reorder_single_source <- function(A,
   bfs_order <- as.vector(bfs_ordering$order)
   
   # Extract directed reodered matrix
-  A_bfs <- A[bfs_order, bfs_order]
+  A_bfs <- Atopleft[bfs_order, bfs_order]
   A_bfs_directed <- Matrix::triu(A_bfs)
   
   return(list(A = A_bfs_directed, 
