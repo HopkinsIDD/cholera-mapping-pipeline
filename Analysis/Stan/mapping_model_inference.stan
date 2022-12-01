@@ -491,16 +491,3 @@ model {
     }
   }
 }
-
-generated quantities {
-  vector<lower=0>[L] location_cases; //cases modeled in each (temporal) location.
-  
-  
-  // calculate number of cases for each location
-  for(i in 1:L){
-    location_cases[i] = 0;
-  }
-  for(i in 1:K2){
-    location_cases[map_loc_grid_loc[i]] += grid_cases[map_loc_grid_grid[i]] * map_loc_grid_sfrac[i];
-  }
-}
