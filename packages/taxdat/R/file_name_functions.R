@@ -427,7 +427,7 @@ get_filenames <- function (config, cholera_directory) {
   rc <- list(
     data = preprocessed_data_fname,
     covar = preprocessed_covar_fname,
-    stan_input = stan_output_fname,
+    stan_input = stan_input_fname,
     initial_values = initial_values_fname,
     stan_output = stan_output_fname,
     stan_genquant = stan_genquant_fname
