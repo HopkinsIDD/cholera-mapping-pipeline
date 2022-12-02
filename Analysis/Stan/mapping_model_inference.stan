@@ -351,7 +351,7 @@ model {
   // ---- 2. Temporal priors ----
   
   if (do_time_slice_effect == 1) {
-    sum(eta) ~ normal(0, 0.001 * T); // soft sum to 0 constraint
+    sum(eta) ~ normal(0, T); // soft sum to 0 constraint and loosen up the constraint on the variance 
     
     if (do_time_slice_effect_autocor == 1) {
       // For the autocorrelated model sigma is the sd of the increments in the random effects
