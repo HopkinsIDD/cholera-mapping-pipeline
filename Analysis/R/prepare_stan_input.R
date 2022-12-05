@@ -1,5 +1,3 @@
-# Preamble ---------------------------------------------------------------------
-
 #' @title Perapre stan input
 #' @description Prepares the data for the Stan code
 #'
@@ -41,227 +39,84 @@ prepare_stan_input <- function(
   covariate_choices <- dimnames(covar_cube)[[3]][-1]
   
   # Adjacency --------------------------------------------------------------------
-  cat("Computing adjacency \n")
-  # extract the adjacency matrix
-  grid_changer <- setNames(seq_len(length(non_na_gridcells)), non_na_gridcells) #(already in prepare_map_data ?)
-  # sf_grid <- filter(sf_grid, as.logical(st_intersects(sf_grid, st_read("/home/perez/temporary/tmp.shp")))) %>%
-  #   dplyr::mutate(long_id = row_number())
-  # sf_grid <-  dplyr::mutate(sf_grid, long_id = row_number())
   
-  sf_grid$s <- (sf_grid$t - 1) %% smooth_covariate_number_timesteps + 1
+  cat("Computing adjacency \n")
+  
+  grid_changer <- taxdat::make_changer(x = non_na_gridcells)
+  
+  # make the smooth grid
+  smooth_grid_obj <- taxdat::make_smooth_grid(sf_grid = sf_grid,
+                                              non_na_gridcells = non_na_gridcells,
+                                              smooth_covariate_number_timesteps = smooth_covariate_number_timesteps)
+  
+  # Unpack
+  sf_grid <- smooth_grid_obj$sf_grid            # updated sf_grid with column "s" for smooth grid index
+  smooth_grid <- smooth_grid_obj$smooth_grid    # smooth grid sf object
+  rm(smooth_grid_obj)
+  
+  # Define model time slices
   model_time_slices <- sort(unique(sf_grid$s))
   
-  temporally_inconsistant_cells <- sf_grid %>%
-    dplyr::group_by(id) %>%
-    dplyr::summarize(bad_percentage = sum(!(id %in% non_na_gridcells))/length(id)) %>%
-    dplyr::filter(bad_percentage != 0, bad_percentage != 1)
-  
-  if (nrow(temporally_inconsistant_cells)) {
-    warning("The following cells were included at some time points, but not others. See output for details")
-    print(temporally_inconsistant_cells)
-  }
-  
-  sf_grid <- sf_grid %>% dplyr::filter(long_id %in% non_na_gridcells)
-  sf_grid$upd_id <- grid_changer[as.character(sf_grid$long_id)]
-  smooth_grid <- sf_grid %>% dplyr::group_by(id,s) %>% dplyr::summarize() %>% dplyr::ungroup() %>% dplyr::mutate(smooth_id = dplyr::row_number())
-  # nearest_neighbor_matrices <- list()
-  
-  # this is the mapping between the grid ids (from 1 to number of cells that intersect
-  # location_periods) and the model ids in space (from 1 to the number of non-NA cells,
-  # i.e. cells for which all covariates are non-NA). Note that model ids here do not
-  # consider time slices, this is done when computing the adjacency list
-  cell_id_mapping <- data.frame()
-  
-  # Adjacency list
-  adjacency_list <- matrix(nrow = 0, ncol = 2)
-  
-  # Counter for nunber of cells
-  cnt <- 0
-  
-  # Iterate over time slices of space-time grid-level random effects
-  for (it in model_time_slices) {
-    
-    smooth_grid_it <- smooth_grid %>%
-      dplyr::filter(s == it) %>%
-      dplyr::select(id) 
-    
-    poly_adj <- smooth_grid_it %>%
-      spdep::poly2nb(.)
-    
-    adj_dat <- taxdat::nb2graph(poly_adj) #[non_na_gridcells, ]))
-    
-    N <- adj_dat$N    # number of spatial units at the level of spatial interactions
-    node1 <- adj_dat$node1    # "origine" node list
-    node2 <- adj_dat$node2    # "destination" node
-    N_edges <- adj_dat$N_edges # number of edges
-    
-    nn_mat <- Matrix::sparseMatrix(i = node1, j = node2, x = 1, symmetric = TRUE, dims = c(N,N))
-    
-    isolated_vertices <- which(Matrix::rowSums(nn_mat) == 0)
-    
-    if(length(isolated_vertices) > 1){
-      cat("Found", length(isolated_vertices), "isolated vertices in time slice", it ,", adding edges until only one remains.\n")
-      
-      for(vertex in isolated_vertices[-1]){
-        dist_to_main <- as.vector(sf::st_distance(smooth_grid_it[vertex, ], smooth_grid_it[seq_len(vertex-1), ] ))
-        new_neighbor <- which.min(dist_to_main)
-        nn_mat[vertex,new_neighbor] <- 1
-        nn_mat[new_neighbor, vertex] <- 1
-      }
-    }
-    
-    # Create graph to extract disconnected islands
-    ng <- igraph::graph_from_adjacency_matrix(nn_mat)
-    # Get the clusters
-    ng_cl <- igraph::clusters(ng)
-    
-    if (ng_cl$no > 1) {
-      cat("Found", ng_cl$no, "clusters of sizes {", paste(ng_cl$csize, collapse = ","), "} in time slice", it ,", adding edges from islands to mainland. \n")
-      
-      cluster_ids <- seq_len(ng_cl$no)
-      mainland <- which(ng_cl$csize == max(ng_cl$csize))[1]
-      mainland_ids <- which(ng_cl$membership == mainland)
-      
-      # Loop over island
-      smooth_centroids <- sf::st_geometry(sf::st_centroid(smooth_grid_it))
-      for (i in cluster_ids[-mainland]) {
-        island_ids <- which(ng_cl$membership == i)
-        # find closest mainland pixels (n_pix_islands x n_pix_mainland matrix)
-        dist_to_main <- sf::st_distance(smooth_centroids[island_ids], smooth_centroids[mainland_ids])
-        # get nearest ids for each island pixel
-        nearest_main_ids <- apply(dist_to_main, 1, function(x) which(x == min(x))[1])
-        nearest_dist <- unlist(mapply(x = 1:length(island_ids), y = nearest_main_ids, function(x, y) dist_to_main[x, y]))
-        # get overall nearest mainland pixel
-        nearest_isl_id <- which(nearest_dist == min(nearest_dist))[1]
-        # connect the nearest island to the mainland (symetry)
-        nn_mat[island_ids[nearest_isl_id], mainland_ids[nearest_main_ids[nearest_isl_id] ] ] <- 1
-        nn_mat[mainland_ids[nearest_main_ids[nearest_isl_id] ], island_ids[nearest_isl_id] ] <- 1
-      }
-      
-      # Check that everything is connected now
-      if (igraph::clusters(igraph::graph_from_adjacency_matrix(nn_mat))$no > 1) {
-        print(unique(igraph::clusters(igraph::graph_from_adjacency_matrix(nn_mat))$no > 1))
-        stop("Something went wrong with island connection.")
-      } else {
-        cat("Done island connection for time slice", it, "\n")
-      }
-    }
-    
-    # Extract lower trianglur matrix (to make directed graph)
-    # This is deprecated with the new re-ordering
-    # nn_mat <- Matrix::tril(nn_mat)
-    
-    # if (!Matrix::isSymmetric(nn_mat)) {
-    #   stop("This should not happen")
-    # }
-    
-    # Reorder nodes in directed graph to have a single source using the breadth-
-    # first algorithm. for DAGAR
-    smooth_centroids <- sf::st_geometry(sf::st_centroid(smooth_grid_it))
-    
-    nn_mat_reordereding <- taxdat::reorder_single_source(A = nn_mat, 
-                                                         coords = sf::st_coordinates(smooth_centroids))
-    
-    # nearest_neighbor_matrices <- append(nearest_neighbor_matrices, list(nn_mat))
-    
-    
-    # Update adjacency list
-    n_entries <- nrow(nn_mat_reordereding$A)
-    reorderered_adj_list <- Matrix::which(nn_mat_reordereding$A > 0, arr.ind = T)
-    # Reorder using previous cell id
-    nonzero_ind <- apply(reorderered_adj_list, 2, function(x) nn_mat_reordereding$reordering[x]) + cnt
-    
-    # Append to adjacency list
-    adjacency_list <- rbind(adjacency_list, nonzero_ind)
-    
-    # Update the counter to account for the time slices. Note that n_entries for now
-    # is the same for all time slices, since the non-NA cells are determined across
-    # time slices of covariates
-    cnt <- cnt + n_entries
-    
-    ids <- smooth_grid %>%
-      dplyr::filter(s == it, id %in% non_na_gridcells)
-    
-    cell_id_mapping <- rbind(cell_id_mapping,
-                             data.frame(s = it,
-                                        id = ids$id,
-                                        upd_id = grid_changer[as.character(ids$id)]))
-  }
-  
-  # Bind all matrices
-  N <- nrow(adjacency_list)
-  # Initialize adjacency list (list of row, col indices for non-0 entries)
-  # adjacency_list <- matrix(nrow = 0, ncol = 2)
-  # cnt <- 0
-  # for (i in seq_along(nearest_neighbor_matrices)) {
-  #   n_entries <- nrow(nearest_neighbor_matrices[[i]])
-  #   nonzero_ind <- as.matrix(Matrix::which(nearest_neighbor_matrices[[i]]>0, arr.ind = T)) + cnt
-  #   adjacency_list <- rbind(adjacency_list, nonzero_ind)
-  #   # Update the counter to account for the time slices. Note that n_entries for now
-  #   # is the same for all time slices, since the non-NA cells are determined across
-  #   # time slices of covariates
-  #   cnt <- cnt + n_entries
-  # }
-  # adjacency_list <- adjacency_list[!is.na(adjacency_list[, 1]), ]
-  
-  # flag for time adjacency
-  flag_adj <- F
-  if (flag_adj) {
-    stop("Time Adjacency has not been implemented")
-    # Add time adjacency
-    # time_adj_inds <- matrix(ncol = 2)
-    # for (i in seq_along(grid_changer)) {
-    #   # Get all overall grid ids
-    #   ids <- sf_grid$long_id[sf_grid$id == grid_changer[i]]
-    #   # ! THIS CONNECTS ALL TIMES, should change this
-    #   for (j in ids) {
-    #     for (k in ids) {
-    #       from_id <- cell_id_mapping$long_id[cell_id_mapping$ids == j]
-    #       to_id <- cell_id_mapping$long_id[cell_id_mapping$ids == k]
-    #       if (length(from_id) > 0 & length(to_id) > 0)
-    #         if (from_id != to_id)
-    #           time_adj_inds <- rbind(time_adj_inds, matrix(c(from_id, to_id), ncol = 2))
-    #     }
-    #   }
-    # }
-    # time_adj_inds <- time_adj_inds[!is.na(time_adj_inds[, 1]), ]
-    # adjacency_list <- rbind(adjacency_list, time_adj_inds)
-  }
-  
-  adjacency_list <- adjacency_list[order(adjacency_list[, 1]), ]
-  # Get number of neighboors (here both in space AND time)
-  positive_neighbors <- dplyr::mutate(
-    dplyr::summarize(
-      dplyr::group_by(
-        as.data.frame(adjacency_list),
-        row
-      ),
-      n = length(col)
-    )
-  )
-  number_of_neighbors <- rep(0,times = nrow(smooth_grid))
-  number_of_neighbors[positive_neighbors$row] <- positive_neighbors$n
-  
-  ## create fundamental period
-  for (it in model_time_slices) {
-    
-  }
-  #Matrix::rowSums(nearest_neighbor_matrix)
+  adjacency <- taxdat::make_adjacency(smooth_grid = smooth_grid,
+                                      model_time_slices = model_time_slices,
+                                      non_na_gridcells = non_na_gridcells)
   
   # Stan inputs ------------------------------------------------------------------
   cat("---- Preparing Stan input data \n")
   
+  # ---- A. Adjacency ----
   stan_data <- list()
   
   stan_data$rho <- 0.999
   stan_data$N <-  length(non_na_gridcells)
-  stan_data$N_edges <- nrow(adjacency_list)
-  stan_data$node1 <- adjacency_list[, 1]
-  stan_data$node2 <- adjacency_list[, 2]
-  stan_data$diag <- number_of_neighbors
+  stan_data$N_edges <- nrow(adjacency$adjacency_list)
+  stan_data$node1 <- adjacency$adjacency_list[, 1]
+  stan_data$node2 <- adjacency$adjacency_list[, 2]
+  stan_data$diag <- adjacency$number_of_neighbors
   
-  # the first covariate is always the population (n_grid_cells x n_obs_t_units x n_covar)
-  stan_data$pop <- as.numeric(covar_cube[, , 1])[non_na_gridcells]
+  # ---- B. Covariates ----
+  stan_data$pop <- taxdat::extract_population(covar_cube = covar_cube,
+                                              non_na_gridcells = non_na_gridcells)
+  
+  if (length(covariate_choices) > 0) {
+    # Case when covariates are used
+    # Flatten covariate cube to 2d array: [n_pix * n_time_units] * [n_cov]
+    # Here the first covariate corresponds to the population raster, so needs to be
+    # excluded. Data flattened by pixels first, meaning that
+    # stan_data$covar[1:10] = covar_cube[1:10, 1, 2]
+    # TODO check if the index removing the first covarcub column which should correspond
+    # to population is correct
+    
+    stan_data$ncovar <- length(covariate_choices)
+    stan_data$covar <- matrix(
+      apply(covar_cube, 3, function(x) x[non_na_gridcells])[, -1], 
+      nrow = length(non_na_gridcells)
+    )
+    
+    for (i in rev(seq_len(stan_data$ncovar:1))) {
+      # Throw out constant covariates since they mess up the model
+      # TODO check whether the indexing in the if is correct (no indexing before)
+      if ((max(stan_data$covar[, i]) - min(stan_data$covar[, i])) < 1e-6) {
+        stan_data$covar <- stan_data$covar[, -i]
+        stan_data$ncovar <- stan_data$ncovar - 1
+        print(paste("Threw out covariate", covariate_choices[i]))
+      } else {
+        print(paste("Kept covariate", covariate_choices[i]))
+      }
+    }
+    
+    for (i in seq_len(stan_data$ncovar)) {
+      # standardize
+      stan_data$covar <- taxdat::standardize_covar(stan_data$covar)
+    }
+    
+  } else {
+    # Case when no covariates are used
+    stan_data$covar <- array(0, dim = c(length(non_na_gridcells), 0))
+    stan_data$ncovar <- 0
+  }
+  
+  # ---- C. Aggregation ----
   
   # Mapping between observations to location periods and between
   # location periods and grid cells
@@ -276,66 +131,16 @@ prepare_stan_input <- function(
   non_na_obs <- sort(unique(ind_mapping$map_obs_loctime_obs))
   sf_cases_resized <- sf_cases[non_na_obs, ]
   
+  
   if (config$aggregate) {
+    
     print("---- AGGREGATING CHOLERA DATA TO MODELING TIME RES ----")
-    ## aggregate observations:
-    sf_cases_resized$loctime <- NA
-    for(i in seq_len(length(non_na_obs))){
-      sf_cases_resized$loctime[i] <- paste(ind_mapping$map_obs_loctime_loc[
-        ind_mapping$map_obs_loctime_obs == non_na_obs[[i]]
-      ], 
-      collapse = ', '
-      )
-    }
-    ocrs <- sf::st_crs(sf_cases_resized)
-    sf_cases_resized <- sf_cases_resized %>%
-      dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
-      dplyr::group_modify(function(.x,.y){
-        cat("iter", unlist(.y), "\n")
-        if(nrow(.x) <= 1 ){return(.x %>% dplyr::select(TL,TR,!!rlang::sym(cases_column)))}
-        ## combine non-adjacent but overlapping observations
-        .x <- dplyr::arrange(dplyr::mutate(.x, set=as.integer(NA)),desc(TR))
-        .x$set[[1]] <- 0
-        current_set <- 1
-        something_changed <- TRUE
-        while(any(is.na(.x$set))){
-          # print("LOOPING")
-          # print(.x$set)
-          new_set_indices <- (rev(cummax(rev(!is.na(.x$set)))) == 1) & is.na(.x$set)
-          if(any(new_set_indices) & (!something_changed)){
-            .x$set[[which(new_set_indices)[[1]] ]] <- current_set
-            # print("Assigning from new_set_indices")
-            # print(.x$set)
-            current_set <- current_set + 1
-            something_changed <- TRUE
-          } else if(!something_changed){
-            .x$set[[which(is.na(.x$set))[[1]] ]] <- current_set
-            # print("Starting a new set")
-            # print(.x$set)
-            current_set <- current_set + 1
-            something_changed <- TRUE
-          }
-          something_changed <- FALSE
-          for(set_idx in (seq_len(current_set) - 1) ){
-            possible_extensions <- (.x$TR < .x$TL[max(which((.x$set == set_idx) & !is.na(.x$set)))]) & is.na(.x$set)
-            if(any(possible_extensions)){
-              .x$set[[min(which(possible_extensions))]] <- set_idx
-              # print(paste("Extending an existing set",set_idx))
-              # print(.x$set)
-              something_changed <- TRUE
-            }
-          }
-        }
-        ## The TL calculation here is made up
-        .ox <- .x
-        .x$duration <- .x$TR - .x$TL + 1
-        .x <- .x %>% group_by(set) %>% summarize(TL = min(TL), TR = min(TL) + sum(duration) - 1 , !!cases_column := sum(!!rlang::sym(cases_column),na.rm=TRUE)) %>% ungroup() %>% dplyr::select(-set)
-        return(.x[!duplicated(.x),])
-      }) %>% 
-      ungroup() 
-    # sf_cases_resized$geom <- sf::st_as_sfc(sf_cases_resized$geom)
-    sf_cases_resized <- sf::st_as_sf(sf_cases_resized)
-    sf::st_crs(sf_cases_resized) <- ocrs
+    
+    sf_cases_resized <- taxdat::aggregate_observations(sf_cases_resized = sf_cases_resized,
+                                                       non_na_obs = non_na_obs,
+                                                       ind_mapping = ind_mapping,
+                                                       cases_column = cases_column,
+                                                       verbose = opt$verbose)
     
     # Re-compute space-time indices based on aggretated data
     ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
@@ -345,10 +150,14 @@ prepare_stan_input <- function(
       res_time = res_time,
       n_cpus = ncore,
       do_parallel = F)
+    
   } else {
     print("---- USING RAW CHOLERA DATA ----")
     ind_mapping_resized <- ind_mapping
   }
+  
+  
+  #  ---- D. Drop tfrac threshold ----
   
   # If specified threshold of minimum tfrac filter out data
   if (!is.null(config$tfrac_thresh)) {
@@ -376,22 +185,20 @@ prepare_stan_input <- function(
   
   stan_data$M <- nrow(sf_cases_resized)
   non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
-  obs_changer <- setNames(seq_len(length(non_na_obs_resized)),non_na_obs_resized)
-  stan_data$map_obs_loctime_obs <- as.array(obs_changer[as.character(ind_mapping_resized$map_obs_loctime_obs)])
-  stan_data$map_obs_loctime_loc <- as.array(ind_mapping_resized$map_obs_loctime_loc)
+  obs_changer <- taxdat::make_changer(x = non_na_obs_resized) 
+  stan_data$map_obs_loctime_obs <- taxdat::get_map_obs_loctime_obs(x = ind_mapping_resized$map_obs_loctime_obs,
+                                                                   obs_changer = obs_changer)
+  stan_data$map_obs_loctime_loc <- as.array(ind_mapping_resized$map_obs_loctime_loc) 
+  
+  # ---- E. Censoring ----
   
   # First define censored observations
   stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= stan_params$censoring_thresh)
   
   # Extract censoring information
-  censoring_inds <- purrr::map_chr(
-    1:stan_data$M, 
-    function(x) {
-      # Get all tfracs for the given observation
-      tfracs <- ind_mapping_resized$tfrac[stan_data$map_obs_loctime_obs == x]
-      # Define right-censored if any tfrac is smaller than 95% of the time slice
-      ifelse(any(tfracs < stan_params$censoring_thresh), "right-censored", "full")
-    })
+  censoring_inds <- taxdat::get_censoring_inds(stan_data = stan_data,
+                                               ind_mapping_resized = ind_mapping_resized,
+                                               censoring_thresh = stan_params$censoring_thresh)
   
   # Then overwrite tfrac with user-specified value
   if (!is.null(set_tfrac) && (set_tfrac)) {
@@ -403,23 +210,17 @@ prepare_stan_input <- function(
   stan_data$map_loc_grid_loc <- as.array(ind_mapping_resized$map_loc_grid_loc)
   stan_data$map_loc_grid_grid <- as.array(ind_mapping_resized$map_loc_grid_grid)
   stan_data$u_loctime <- ind_mapping_resized$u_loctimes
+  stan_data$L <- length(ind_mapping_resized$u_loctimes)
   
-  # Add 1km population fraction
+  # ---- F. Spatial fraction ----
+  # Add 1km population fraction (this is deprecated in new stan model)
   stan_data$use_pop_weight <- stan_params$use_pop_weight
   
   if (stan_params$use_pop_weight) {
     # Make sure that all observations for have a pop_loctime > 0
     stan_data$pop_weight <- ind_mapping_resized$u_loc_grid_weights
     
-    # Initialize 
-    K2 <- length(stan_data$map_loc_grid_loc)
-    L <- length(ind_mapping_resized$u_loctimes)
-    
-    # Compute pop_loctimes
-    pop_loctimes <- rep(0, L)
-    for (i in 1:K2) {
-      pop_loctimes[stan_data$map_loc_grid_loc[i]] <- pop_loctimes[stan_data$map_loc_grid_loc[i]] + stan_data$pop[stan_data$map_loc_grid_grid[i]]  * stan_data$pop_weight[i]
-    }
+    pop_loctimes <- taxdat::compute_pop_loctimes(stan_data = stan_data)
     
     if (any(pop_loctimes == 0)) {
       # Remove pop_loctimes == 0
@@ -445,7 +246,7 @@ prepare_stan_input <- function(
       
       # Reset stan_data
       non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
-      obs_changer <- setNames(seq_len(length(non_na_obs_resized)),non_na_obs_resized)
+      obs_changer <- taxdat::make_changer(x = non_na_obs_resized)
       stan_data$map_obs_loctime_obs <- as.array(obs_changer[as.character(ind_mapping_resized$map_obs_loctime_obs)])
       stan_data$map_obs_loctime_loc <- as.array(ind_mapping_resized$map_obs_loctime_loc)
       
@@ -454,14 +255,9 @@ prepare_stan_input <- function(
       stan_data$M <- nrow(sf_cases_resized)
       
       # Extract censoring information
-      censoring_inds <- purrr::map_chr(
-        1:stan_data$M, 
-        function(x) {
-          # Get all tfracs for the given observation
-          tfracs <- ind_mapping_resized$tfrac[stan_data$map_obs_loctime_obs == x]
-          # Define right-censored if any tfrac is smaller than 95% of the time slice
-          ifelse(any(tfracs < stan_params$censoring_thresh), "right-censored", "full")
-        })
+      censoring_inds <-  taxdat::get_censoring_inds(stan_data = stan_data,
+                                                    ind_mapping_resized = ind_mapping_resized,
+                                                    censoring_thresh = stan_params$censoring_thresh)
       
       # Then overwrite tfrac with user-specified value
       if (!is.null(set_tfrac) && (set_tfrac)) {
@@ -480,12 +276,7 @@ prepare_stan_input <- function(
     stan_data$pop_weight <- array(data = 0, dim = 0)
   }
   
-  y_tfrac <- tibble::tibble(tfrac = stan_data$tfrac, 
-                            map_obs_loctime_obs = stan_data$map_obs_loctime_obs) %>% 
-    dplyr::group_by(map_obs_loctime_obs) %>% 
-    dplyr::summarize(tfrac = mean(tfrac)) %>%  # We take the average over time so we can sum population over time
-    .[["tfrac"]]
-  
+  #  ---- G. Observations ----
   stan_data$y <- as.array(sf_cases_resized[[cases_column]])
   
   # Get censoring indexes 
@@ -498,103 +289,26 @@ prepare_stan_input <- function(
   stan_data$M_right <- length(stan_data$ind_right)
   stan_data$censoring_inds <- censoring_inds
   
-  # bad_data <- as.data.frame(sf_cases)[
-  #   !(seq_len(nrow(sf_cases)) %in% non_na_obs_resized),
-  #   c('id','TL','TR',cases_column,'valid','attributes.location_period_id')
-  # ]
-  # if (nrow(bad_data) > 0) {
-  #   cat(paste(
-  #     "The following observations were thrown out because they did not cover any gridcells\n ",
-  #     "id,TL,TR,cases,valid,location_period_id\n ",
-  #     paste(
-  #       bad_data$id,
-  #       bad_data$TL,
-  #       bad_data$TR,
-  #       bad_data[[cases_column]],
-  #       bad_data$valid,
-  #       bad_data$attributes.location_period_id,
-  #       sep=',',
-  #       collapse='\n  '
-  #     ),
-  #     "\n"
-  #   ))
-  # } else {
-  #   cat("All observations cover modeling grid cells, none were dropped \n")
-  # }
+  # ---- H. Mean rate ----
+  stan_data$meanrate <- taxdat::compute_mean_rate(stan_data = stan_data)
   
+  # ---- I. Mappings ----
   stan_data$K1 <- length(stan_data$map_obs_loctime_obs)
   stan_data$K2 <- length(stan_data$map_loc_grid_loc)
   stan_data$L <- length(ind_mapping_resized$u_loctimes)
   
-  if (length(covariate_choices) > 0) {
-    # Case when covariates are used
-    # Flatten covariate cube to 2d array: [n_pix * n_time_units] * [n_cov]
-    # Here the first covariate corresponds to the population raster, so needs to be
-    # excluded. Data flattened by pixels first, meaning that
-    # stan_data$covar[1:10] = covar_cube[1:10, 1, 2]
-    # TODO check if the index removing the first covarcub column which should correspond
-    # to population is correct
-    
-    stan_data$ncovar <- length(covariate_choices)
-    stan_data$covar <- matrix(apply(covar_cube, 3, function(x) x[non_na_gridcells])[, -1], nrow = length(non_na_gridcells))
-    
-    for (i in rev(seq_len(stan_data$ncovar:1))) {
-      # Throw out constant covariates since they mess up the model
-      # TODO check whether the indexing in the if is correct (no indexing before)
-      if ((max(stan_data$covar[, i]) - min(stan_data$covar[, i])) < 1e-6) {
-        stan_data$covar <- stan_data$covar[, -i]
-        stan_data$ncovar <- stan_data$ncovar - 1
-        print(paste("Threw out covariate", covariate_choices[i]))
-      } else {
-        print(paste("Kept covariate", covariate_choices[i]))
-      }
-    }
-    
-    # normalize data
-    standardize=function(x) (x-mean(x))/sd(x)
-    standardize_covar=function(M) cbind(M[,1],apply(M[,-1,drop=F],2,standardize))
-    for (i in seq_len(stan_data$ncovar)) {
-      # standardize
-      standardize_covar(stan_data$covar)
-    }
-    
-  } else {
-    # Case when no covariates are used
-    stan_data$covar <- array(0, dim = c(length(non_na_gridcells), 0))
-    stan_data$ncovar <- 0
-  }
-  
-  full_grid <- dplyr::left_join(sf::st_drop_geometry(sf_grid),sf::st_drop_geometry(smooth_grid))[,c('upd_id','smooth_id', 't')]
-  nobs <- length(unique(stan_data$map_obs_loctime_obs))
-  # Compute population corresponding to each observation
-  aggpop <- rep(0, nobs)
-  for(i in 1:nobs) {
-    lps <- stan_data$map_obs_loctime_loc[which(stan_data$map_obs_loctime_obs==i)]
-    for (lp in lps) { # This is summed over years so tfrac is averaged over years
-      aggpop[i] <- aggpop[i] + sum(stan_data$pop[stan_data$map_loc_grid_grid[stan_data$map_loc_grid_loc == lp]])
-    }
-  }
-  
-  # Compute the mean incidence
-  # Note that this is in the model's temporal resolution
-  stan_data$meanrate <- sum(stan_data$y * y_tfrac)/sum(aggpop)
-  if(stan_data$meanrate < 1e-10){
-    stan_data$meanrate <- 1e-10
-    print("The mean rate was less than 1e-10, so increased it to 1e-10")
-    warning("The mean rate was less than 1e-10, so increased it to 1e-10")
-  }
-  cat("----\nMean cholera incidence is of", formatC(stan_data$meanrate*1e5, format = "e", digits = 2),
-      "cases per 100'000 people per", res_time, "\n----")
+  full_grid <- sf::st_drop_geometry(sf_grid) %>% 
+    dplyr::left_join(sf::st_drop_geometry(smooth_grid)) %>% 
+    dplyr::select(upd_id, smooth_id, t)
   
   stan_data$smooth_grid_N <- nrow(smooth_grid)
   stan_data$map_smooth_grid <- full_grid$smooth_id
   stan_data$map_grid_time <- full_grid$t
   stan_data['T'] <- nrow(time_slices)
-  
   stan_data$map_full_grid <- full_grid$upd_id
   
+  # ---- J. Data for output summaries ----
   
-  # Data for output summaries ---------------------------------------
   # Set user-specific name for location_periods table to use
   output_lp_name <- taxdat::make_output_locationperiods_table_name(dbuser = dbuser, map_name = map_name)
   
@@ -606,7 +320,9 @@ prepare_stan_input <- function(
   output_cntrds_table <- taxdat::make_output_grid_centroids_table_name(dbuser = dbuser,
                                                                        map_name = map_name)
   
+  # Connect to database
   conn_pg <- taxdat::connect_to_db(dbuser)
+  
   output_location_periods_table <- taxdat::make_location_periods_dict(
     conn_pg = conn_pg,
     lp_name = output_lp_name,
@@ -661,6 +377,7 @@ prepare_stan_input <- function(
     stan_data$pop_weight_output <- array(data = 0, dim = 0)
   }
   
+  # ---- K. Population at risk ----
   # Data for people at risk
   risk_cat_low <- c(0, 1, 10, 100)*1e-5
   risk_cat_high <- c(risk_cat_low[-1], 1e6)
@@ -671,26 +388,24 @@ prepare_stan_input <- function(
   
   # Map from space x time grid to space grid
   sf_grid <- sf_grid %>% 
-    group_by(rid, x, y) %>% 
-    mutate(space_id = min(upd_id)) %>% 
-    ungroup()
+    dplyr::group_by(rid, x, y) %>% 
+    dplyr::mutate(space_id = min(upd_id)) %>% 
+    dplyr::ungroup()
   
   stan_data$N_space <- length(unique(sf_grid$space_id))
   stan_data$map_spacetime_space_grid <- sf_grid$space_id[sf_grid$upd_id]
   
-  # Add quasi-poisson parameter
+  # ---- L. Observation model ----
   stan_data$lambda <- stan_params$lambda
   
-  if (stringr::str_detect(config$stan$model, "quasipoisson_estlambda")) {
-    cat("---- Estimating lambda of quasipoisson model, setting lambda to NULL in stan_input\n")
-    stan_data$lambda <- NULL
-  }
   
   cat("**** FINISHED PREPARING STAN INPUT \n")
   
-  return(list(stan_data = stan_data,
-              sf_cases_resized = sf_cases_resized,
-              sf_grid = sf_grid,
-              smooth_grid  = smooth_grid,
-              fake_output_obs = fake_output_obs))
+  return(
+    list(stan_data = stan_data,
+         sf_cases_resized = sf_cases_resized,
+         sf_grid = sf_grid,
+         smooth_grid  = smooth_grid,
+         fake_output_obs = fake_output_obs)
+  )
 }
