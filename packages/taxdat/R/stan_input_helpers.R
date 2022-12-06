@@ -172,7 +172,7 @@ reorder_single_source <- function(A,
   A_bfs_directed <- Matrix::triu(A_bfs)
   
   return(list(A = A_bfs_directed, 
-              reordering = bfs_order))
+              reordering = topleftorder[bfs_order]))
 }
 
 #' @title Get space time index
