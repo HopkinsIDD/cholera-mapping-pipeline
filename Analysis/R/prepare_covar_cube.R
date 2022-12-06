@@ -152,9 +152,12 @@ prepare_covar_cube <- function(
   low_sfrac <- location_periods_dict  %>% 
     dplyr::group_by(rid, x, y) %>% 
     dplyr::slice_max(pop_weight) %>% 
-    dplyr::filter(pop_weight < 1e-4) %>% 
+    dplyr::filter(pop_weight < 1e-3) %>% 
     dplyr::select(rid, x, y) %>% 
     dplyr::inner_join(sf_grid %>% sf::st_drop_geometry())
+  
+  cat("---- Dropping", nrow(low_sfrac), "space grid cells because the max sfrac is below",
+      "1e-3. \n")
   
   # Re-define grid cells to remove cells with low sf_frac
   non_na_gridcells <- setdiff(non_na_gridcells, low_sfrac$long_id)
