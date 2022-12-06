@@ -172,7 +172,7 @@ prepare_covar_cube <- function(
   
   # Drop grid cells to location periods connections
   location_periods_dict <- location_periods_dict %>%
-    dplyr::mutate(connect_id = row_number())
+    dplyr::mutate(connect_id = dplyr::row_number())
   
   low_sfrac_connections <- location_periods_dict %>% 
     dplyr::filter(pop_weight < 1e-3)
