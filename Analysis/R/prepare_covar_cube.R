@@ -152,7 +152,7 @@ prepare_covar_cube <- function(
   low_sfrac <- location_periods_dict  %>% 
     dplyr::group_by(rid, x, y) %>% 
     dplyr::slice_max(pop_weight) %>% 
-    dplyr::filter(pop_weight < 1e-4) %>% 
+    dplyr::filter(pop_weight < 1e-3) %>% 
     dplyr::select(rid, x, y) %>% 
     dplyr::inner_join(sf_grid %>% sf::st_drop_geometry())
   
