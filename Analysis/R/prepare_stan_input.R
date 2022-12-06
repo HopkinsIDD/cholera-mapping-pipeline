@@ -279,7 +279,8 @@ prepare_stan_input <- function(
   if (stan_params$use_pop_weight) {
     # Check if sfrac is valid
     if (any(stan_data$map_loc_grid_sfrac > 1.01)) {
-      stop("Invalid sfrac values > 1")
+      stop("Invalid sfrac values > 1", " Maximum value of ", 
+           max(stan_data$map_loc_grid_sfrac))
     }
     # Make sure all values are <= 1 (possible rounding errors)
     stan_data$map_loc_grid_sfrac <- pmin(1, stan_data$map_loc_grid_sfrac)
@@ -388,7 +389,8 @@ prepare_stan_input <- function(
     
     # Check if sfrac is valid
     if (any(stan_data$map_loc_grid_sfrac_output > 1.01)) {
-      stop("Invalid sfrac values > 1 in outputs.")
+      stop("Invalid sfrac values > 1 in outputs.", " Maximum value of ", 
+           max(stan_data$map_loc_grid_sfrac_output))
     }
     # Make sure all values are <= 1 (possible rounding errors)
     stan_data$map_loc_grid_sfrac_output <- pmin(1, stan_data$map_loc_grid_sfrac_output)
