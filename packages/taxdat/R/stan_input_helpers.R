@@ -986,7 +986,7 @@ compute_pop_loctimes <- function(stan_data) {
   # Compute pop_loctimes
   pop_loctimes <- rep(0, stan_data$L)
   for (i in 1:K2) {
-    pop_loctimes[stan_data$map_loc_grid_loc[i]] <- pop_loctimes[stan_data$map_loc_grid_loc[i]] + stan_data$pop[stan_data$map_loc_grid_grid[i]]  * stan_data$pop_weight[i]
+    pop_loctimes[stan_data$map_loc_grid_loc[i]] <- pop_loctimes[stan_data$map_loc_grid_loc[i]] + stan_data$pop[stan_data$map_loc_grid_grid[i]]  * stan_data$map_loc_grid_sfrac[i]
   }
   
   pop_loctimes
