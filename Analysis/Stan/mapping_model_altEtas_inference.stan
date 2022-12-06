@@ -356,6 +356,7 @@ model {
       // The increments of the time-slice random effects are assumed to have mean 0 and variance 1/tau
       // Sorbye and Rue (2014) https://doi.org/10.1016/j.spasta.2013.06.004
       target += (T-1.0)/2.0 * log(tau) - tau/2 * (dot_self(eta[2:T] - eta[1:(T-1)]));
+      sum(eta) ~ normal(0, 0.001 * T); // soft sum to 0 constraint 
     } else {
       eta_tilde ~ std_normal();
     }
