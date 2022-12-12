@@ -13,21 +13,50 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, aesthetic
   get_sf_cases_resized(name="sf_cases_resized",config=config, cache=cache, cholera_directory=cholera_directory)
   who_annual_cases <- cache[["sf_cases_resized"]]
   
-  if(!"data_fidelity" %in% names(cache)){
-    cache[["data_fidelity"]] <- get_data_fidelity(cache = cache, cholera_directory = cholera_directory, config = config)
-  }
-  chains <- cache[["data_fidelity"]] %>% 
-    filter(str_detect(variable, "tfrac", negate = T)) %>% 
-    group_by(variable) %>% 
-    summarise(modeled = paste0(format(round(mean(`modeled cases`),0),big.mark=","),"(",format(round(quantile(`modeled cases`,prob=0.025),0),big.mark=","),"-",format(round(quantile(`modeled cases`,prob=0.975),0),big.mark=","),")"))
+  ### Stashed code 
+  # if(!"data_fidelity" %in% names(cache)){
+  #   cache[["data_fidelity"]] <- get_data_fidelity(cache = cache, cholera_directory = cholera_directory, config = config)
+  # }
+  # chains <- cache[["data_fidelity"]] %>% 
+  #   filter(str_detect(variable, "tfrac", negate = T)) %>% 
+  #   group_by(variable) %>% 
+  #   summarise(modeled = paste0(format(round(mean(`modeled cases`),0),big.mark=","),
+  #                             "(",format(round(quantile(`modeled cases`,prob=0.025),0),big.mark=","),
+  #                             "-",format(round(quantile(`modeled cases`,prob=0.975),0),big.mark=","),
+  #                             ")")
+  #             )
+  # who_annual_cases$modeled <-   chains$modeled
+
+  ### First get the non-na grid cells and their associated time 
+  grid_time <- cache$covar_cube_output$sf_grid %>% 
+    filter(long_id %in% cache$covar_cube_output$non_na_gridcells) %>%
+    sf::st_drop_geometry() %>%
+    dplyr::select(t)
   
-  who_annual_cases$modeled <-   chains$modeled
-  who_annual_cases$observed <- who_annual_cases$attributes.fields.suspected_cases # fix me
+  ### Get the grid-level modeled cases 
+  list_of_draws <- rstan::extract(cache$model.rand)
+  grid_cases_tmp <- t(list_of_draws$grid_cases)
+  yearly_total_modeled_cases <- unlist(lapply(unique(grid_time$t), 
+                                              function(x){
+                                                yearly_vector <- apply(grid_cases_tmp[which(grid_time$t == x), ], 2, sum)
+                                                paste0(   format(round(mean(yearly_vector),0),big.mark=","),
+                                                          "(", format(round(quantile(yearly_vector, prob=0.025),0),big.mark=","),
+                                                          "-", format(round(quantile(yearly_vector, prob=0.975),0),big.mark=","),
+                                                          ")"
+                                                      )
+                                              }
+                                            )
+                                      )
+
+  ### Get the WHO table and combine them 
+  # who_annual_cases$observed <- who_annual_cases$attributes.fields.suspected_cases # fix me
+  who_annual_cases <- who_annual_cases %>% rename(observed = attributes.fields.suspected_cases)
   who_annual_cases_from_db <- NULL
 
   who_annual_cases_from_db <- taxdat::pull_output_by_source(who_annual_cases, "%WHO Annual Cholera Reports%",
-                                                              database_api_key_rfile = stringr::str_c(cholera_directory, "/Analysis/R/database_api_key.R"))
- 
+                                                            database_api_key_rfile = stringr::str_c(cholera_directory, "/Analysis/R/database_api_key.R")) %>%
+                              mutate(modeled = tmp)
+
   if(!is.null(who_annual_cases_from_db)) {
     if(aesthetic){
       who_annual_cases_from_db %>%
