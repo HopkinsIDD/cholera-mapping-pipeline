@@ -644,10 +644,13 @@ if (config[["initial_values"]][["warmup"]]) {
     include_time_slice_effect = config[["stan"]][["do_time_slice"]][["perform"]] && (length(unique(covar_cube$updated_t)) > 1)
   )
 
+  gam_offset_vals <- taxdat::compute_gam_offset(initial_values_df)
+
   gam_fit <- mgcv::gam(
     gam_formula,
     family = "poisson",
     data = initial_values_df,
+    gam_offset = gam_offset_vals,
     drop.unused.levels = FALSE,
   )
   gam_predict <- mgcv::predict.gam(
