@@ -55,7 +55,7 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, aesthetic
 
   who_annual_cases_from_db <- taxdat::pull_output_by_source(who_annual_cases, "%WHO Annual Cholera Reports%",
                                                             database_api_key_rfile = stringr::str_c(cholera_directory, "/Analysis/R/database_api_key.R")) %>%
-                              mutate(modeled = tmp)
+                              mutate(modeled = yearly_total_modeled_cases)
 
   if(!is.null(who_annual_cases_from_db)) {
     if(aesthetic){
