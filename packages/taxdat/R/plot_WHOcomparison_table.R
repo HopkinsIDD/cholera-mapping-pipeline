@@ -7,10 +7,10 @@
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment
 #' @param cholera_directory  the directory of cholera mapping pipeline folder
-#' @param WHO_data_is_country_level whether the WHO data is at the country level
+#' @param observation_level_modeled_cases whether the WHO data is at the country level
 #' @param aesthetic whether to return the kable object
 #' @return table with who comparison statistics
-plot_WHOcomparison_table <- function(config, cache, cholera_directory, WHO_data_is_country_level = TRUE, aesthetic = TRUE) {
+plot_WHOcomparison_table <- function(config, cache, cholera_directory, observation_level_modeled_cases = TRUE, aesthetic = TRUE) {
   get_sf_cases_resized(name="sf_cases_resized",config=config, cache=cache, cholera_directory=cholera_directory)
   who_annual_cases <- cache[["sf_cases_resized"]]
   
@@ -28,8 +28,8 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, WHO_data_
   #             )
   # who_annual_cases$modeled <-   chains$modeled
 
-  ## if WHO_data_is_country_level 
-  if(WHO_data_is_country_level){
+  ## if to get the sum of the grid-level modeled cases  
+  if(!observation_level_modeled_cases){
     ### First get the non-na grid cells and their associated time 
     grid_time <- cache$covar_cube_output$sf_grid %>% 
       filter(long_id %in% cache$covar_cube_output$non_na_gridcells) %>%

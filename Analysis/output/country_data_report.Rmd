@@ -237,7 +237,7 @@ obs_years <- min(lubridate::year(cache[["sf_cases_resized"]]$TL)):max(lubridate:
 ### Modeled cases
 **Modeled cases raster by time slices:**
 ```{r caserast, fig.cap=capFig("Modeled cases"), fig.height=5, fig.width=10}
-plot_disaggregated_modeled_cases_time_varying(config_file=config_file, disaggregated_case_sf=cache[["disaggregated_case_sf"]])
+plot_disaggregated_modeled_cases_time_varying(config_file=config_file, disaggregated_case_sf=cache[["disaggregated_case_sf"]], add_shp_from_stan_input = T)
 ```
 
 ```{r out-cases,fig.height=5,fig.width=10,fig.cap=capFig("Mean cases per year")}
@@ -285,7 +285,7 @@ cases_summ %>%
 ### Modeled incidence rates
 **Modeled incidence rates raster by time slices:**
 ```{r raterast, fig.cap=capFig("Modeled rates by time"), fig.height=5, fig.width=10}
-plot_modeled_rates_time_varying(config_file=config_file, disaggregated_rate_sf=cache[["disaggregated_rate_sf"]], render = T)
+plot_modeled_rates_time_varying(config_file=config_file, disaggregated_rate_sf=cache[["disaggregated_rate_sf"]], add_shp_from_stan_input = T, render = T)
 ```
 
 ```{r out-rates,fig.height=5,fig.width=10,fig.cap=capFig("Mean rate per year")}
@@ -413,9 +413,13 @@ plot_model_fidelity_by_chain(cache=cache,cholera_directory=params$cholera_direct
 }
 ```
 
-**Table 5. Observed and estimates of WHO annual cholera reports:**
-```{r WHO output, fig.height=510, fig.width=10, fig.cap = "comparison with WHO Output"}
+**Table 5.1 Observed and estimates of WHO annual cholera reports based on the observation-level modeled cases:**
+```{r WHO output1, fig.height=510, fig.width=10, fig.cap = "comparison with WHO Output 1"}
 plot_WHOcomparison_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
+```
+**Table 5.2 Observed and estimates of WHO annual cholera reports based on the sum of grid-level modeled cases:**
+```{r WHO output2, fig.height=510, fig.width=10, fig.cap = "comparison with WHO Output 2"}
+plot_WHOcomparison_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory, observation_level_modeled_cases = FALSE)
 ```
 
 ## Model Convergence 
