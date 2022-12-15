@@ -25,6 +25,9 @@ data {
   int<lower=0, upper=1> use_rho_prior;      // Prior for high values of autocorrelation of spatial random effects
   int<lower=0, upper=1> exp_prior;          // Double-exponential prior on covariate regression coefficients 
   int<lower=1, upper=3> obs_model;          // Observation model, 1:poisson, 2:quasi-poisson, 3:neg-binomial
+  int<lower=0, upper=1> use_intercept;      // Whether to include an intercept in the model or not
+  int<lower=0, upper=1> do_zerosum_cnst;    // Whether to enforce a 0-sum constraint on the yearly random effects
+  int<lower=0, upper=1> do_infer_sd_eta;    // Whether to enforce a 0-sum constraint on the yearly random effects
   
   // Spatial adjacency
   // Note: The adjacency matrix node1 should be sorted and lower triangular
@@ -67,7 +70,7 @@ data {
   real<lower=0> sigma_eta_scale;    // the scale of temporal random effects sd
   
   // Observation model Likelihood
-  real<lower=0> lambda; 
+  real<lower=0> od_param; 
   
   // For output summaries
   //  Data sizes
@@ -134,7 +137,7 @@ transformed data {
 
 parameters {
   // Intercept
-  real alpha;    
+  real alpha[use_intercept];    
   
   // Spatial random effects
   real <lower=0, upper=1> rho;    // spatial correlation parameter
@@ -143,7 +146,7 @@ parameters {
   
   // Temporal random effects
   vector[T*do_time_slice_effect] eta_tilde;    // uncentered temporal random effects
-  real <lower=0> sigma_eta_tilde[do_time_slice_effect];    // sd of temporal random effects
+  real <lower=0> sigma_eta[do_time_slice_effect*do_infer_sd_eta];    // sd of temporal random effects
   
   // Covariate effects
   vector[ncovar] betas;
@@ -161,6 +164,7 @@ generated quantities {
   
   vector<lower=0>[L] location_cases; //cases modeled in each (temporal) location.
   vector[T*do_time_slice_effect] eta; // yearly random effects
+  real sigma_eta_val;        // value of sigma_eta. This is either fixed to sigma_eta_scale if do_infer_sd_eta==0, or sigma_eta otherwise
   
   // Outputs at given admin levels
   vector<lower=0>[L_output] location_cases_output; //cases modeled in each (temporal) location.
@@ -186,15 +190,25 @@ generated quantities {
   
   
   // ---- Part A: Grid-level rates and cases ----
+  if (do_infer_sd_eta == 1) {
+    sigma_eta_val = sigma_eta[1];
+  } else {
+    sigma_eta_val = sigma_eta_scale;
+  }
+  
   if (do_time_slice_effect == 1) {
     for(i in 1:T) {
       // scale yearly random effects
-      eta[i] = sigma_eta_scale * sigma_eta_tilde[1] * eta_tilde[i];
+      eta[i] = sigma_eta_val * eta_tilde[i];
     }
   }
   
   // log-rates without time-slice effects
-  log_lambda =  w[map_smooth_grid] + log_meanrate + alpha;
+  log_lambda =  w[map_smooth_grid] + log_meanrate;
+  
+  if (use_intercept == 1) {
+    log_lambda += alpha[1];
+  }
   
   // covariates if applicable
   if (ncovar > 1) {
@@ -382,10 +396,10 @@ generated quantities {
         log_lik[i] = poisson_lpmf(y[i] | modeled_cases[i]);
       } else if (obs_model == 2) {
         // Quasi-poisson likelihood
-        log_lik[i] = neg_binomial_2_lpmf(y[i] | modeled_cases[i], lambda * modeled_cases[i]);
+        log_lik[i] = neg_binomial_2_lpmf(y[i] | modeled_cases[i], od_param * modeled_cases[i]);
       } else {
         // Neg-binom likelihood
-        log_lik[i] = neg_binomial_2_lpmf(y[i] | modeled_cases[i], lambda);
+        log_lik[i] = neg_binomial_2_lpmf(y[i] | modeled_cases[i], od_param);
       }
     }
     
@@ -397,10 +411,10 @@ generated quantities {
         log_lik[ind_full[i]] = poisson_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]]);
       } else if (obs_model == 2) {
         // Quasi-poisson likelihood
-        log_lik[ind_full[i]] = neg_binomial_2_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]], lambda * modeled_cases[ind_full[i]]);
+        log_lik[ind_full[i]] = neg_binomial_2_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]], od_param * modeled_cases[ind_full[i]]);
       } else {
         // Neg-binom likelihood
-        log_lik[ind_full[i]] = neg_binomial_2_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]], lambda);
+        log_lik[ind_full[i]] = neg_binomial_2_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]], od_param);
       }
     }
     // rigth-censored observations
@@ -411,10 +425,10 @@ generated quantities {
         lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
       } else if (obs_model == 2) {
         // Quasi-poisson likelihood
-        lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], lambda * modeled_cases[ind_right[i]]);
+        lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param * modeled_cases[ind_right[i]]);
       } else {
         // Neg-binom likelihood
-        lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], lambda);
+        lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param);
       }
       
       // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
@@ -425,10 +439,10 @@ generated quantities {
           lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
         } else if (obs_model == 2) {
           // Quasi-poisson likelihood
-          lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], lambda * modeled_cases[ind_right[i]]);
+          lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param * modeled_cases[ind_right[i]]);
         } else {
           // Neg-binom likelihood
-          lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], lambda);
+          lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param);
         }
         lls[2] = lpmf;
         log_lik[ind_right[i]] = log_sum_exp(lls);

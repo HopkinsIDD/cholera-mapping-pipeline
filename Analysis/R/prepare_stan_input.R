@@ -30,7 +30,8 @@ prepare_stan_input <- function(
     non_na_gridcells,
     sf_grid,
     location_periods_dict,
-    covar_cube
+    covar_cube,
+    stan_params
 ) {
   
   library(sf)
@@ -432,11 +433,30 @@ prepare_stan_input <- function(
   }
   
   # ---- L. Observation model ----
-  # Add quasi-poisson/neg-binom parameter
-  stan_data$lambda <- stan_params$lambda
+  # Add quasi-poisson/neg-binom overdispersion parameter
+  stan_data$od_param <- stan_params$od_param
   
   # Option for double-exponential prior on betas
   stan_data$exp_prior <- stan_params$exp_prior
+  
+
+  # ---- M. Other options for stan ----
+  # Use intercept
+  stan_data$use_intercept <- stan_params$use_intercept
+  
+  # 0-sum constraint on yerly random effects
+  stan_data$do_zerosum_cnst <- stan_params$do_zerosum_cnst
+  
+  # Infer the sd of the prior on yearly random effects
+  stan_data$do_infer_sd_eta <- stan_params$do_infer_sd_eta
+  
+  
+  # ---- N. Priors ----
+  # Set sigma_eta_scale for all models (not used for models without time effect)
+  stan_data$sigma_eta_scale <- stan_params$sigma_eta_scale
+  
+  # Add scale of prior on the sd of regression coefficients
+  stan_data$beta_sigma_scale <- stan_params$beta_sigma_scale
   
   
   cat("**** FINISHED PREPARING STAN INPUT \n")
