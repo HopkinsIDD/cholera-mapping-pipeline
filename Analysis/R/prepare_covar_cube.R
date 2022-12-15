@@ -157,6 +157,9 @@ prepare_covar_cube <- function(
     dplyr::select(rid, x, y) %>% 
     dplyr::inner_join(sf_grid %>% sf::st_drop_geometry())
   
+  cat("---- Dropping", nrow(low_sfrac), "space grid cells because the max sfrac is below",
+      "1e-3. \n")
+  
   # Re-define grid cells to remove cells with low sf_frac
   non_na_gridcells <- setdiff(non_na_gridcells, low_sfrac$long_id)
   grid_changer <- setNames(seq_len(length(non_na_gridcells)), non_na_gridcells)
@@ -170,7 +173,7 @@ prepare_covar_cube <- function(
   
   # Drop grid cells to location periods connections
   location_periods_dict <- location_periods_dict %>%
-    dplyr::mutate(connect_id = row_number())
+    dplyr::mutate(connect_id = dplyr::row_number())
   
   low_sfrac_connections <- location_periods_dict %>% 
     dplyr::filter(pop_weight < sfrac_thresh)
