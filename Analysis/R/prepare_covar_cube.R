@@ -25,7 +25,8 @@ prepare_covar_cube <- function(
     res_space,
     res_time,
     username,
-    covariate_transformations
+    covariate_transformations,
+    sfrac_thresh
 ) {
   
   
@@ -152,7 +153,7 @@ prepare_covar_cube <- function(
   low_sfrac <- location_periods_dict  %>% 
     dplyr::group_by(rid, x, y) %>% 
     dplyr::slice_max(pop_weight) %>% 
-    dplyr::filter(pop_weight < 1e-3) %>% 
+    dplyr::filter(pop_weight < sfrac_thresh) %>% 
     dplyr::select(rid, x, y) %>% 
     dplyr::inner_join(sf_grid %>% sf::st_drop_geometry())
   
@@ -172,11 +173,11 @@ prepare_covar_cube <- function(
     dplyr::mutate(connect_id = row_number())
   
   low_sfrac_connections <- location_periods_dict %>% 
-    dplyr::filter(pop_weight < 1e-3)
+    dplyr::filter(pop_weight < sfrac_thresh)
   
   cat("Dropping", nrow(low_sfrac_connections), "/", nrow(location_periods_dict),
       "connections between grid cells",
-      "and location periods which have sfrac < 1e-3. \n")
+      "and location periods which have sfrac <", sfrac_thresh,  "\n")
   
   location_periods_dict <- location_periods_dict %>% 
     dplyr::filter(!(connect_id %in% low_sfrac_connections$connect_id))
