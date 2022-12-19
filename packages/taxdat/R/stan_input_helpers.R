@@ -259,84 +259,87 @@ get_space_time_ind_speedup <- function(df,
                 temporal_bands,
                 function(x) {
                   suppressMessages(
-                    lubridate::days(lubridate::days(1) + min(r$TR[1], model_time_slices$TR[x]) - max(r$TL[1], model_time_slices$TL[x])) /
-                      lubridate::days(lubridate::days(1) + model_time_slices$TR[x] - model_time_slices$TL[x])
+                    compute_tfrac(TL = r$TL[1],
+                                  TR = r$TR[1],
+                                  TL_ref = model_time_slices$TL[x],
+                                  TR_ref =  model_time_slices$TR[x])
                   )
+              )
                 })
-            ) %>% 
-              setNames(temporal_bands)
-            
-            # Outputs:
-            # K1: length of the mapping from observation to location periods
-            # K2: length of the mapping from location periods to cells
-            
-            timefracs <- tf[as.character(lp_loctime_t$t)]
-            
-            tibble::tibble(obs = i,
-                           map_obs_loctime_obs = list(rep(i, nrow(lp_loctime_t))), 
-                           map_obs_loctime_loc = list(lp_loctime_t$loctime_id),
-                           map_loc_grid_loc = list(lp_inds),
-                           map_loc_grid_grid = list(cell_ind), 
-                           tfrac = list(timefracs))
+      ) %>% 
+        setNames(temporal_bands)
+      
+      # Outputs:
+      # K1: length of the mapping from observation to location periods
+      # K2: length of the mapping from location periods to cells
+      
+      timefracs <- tf[as.character(lp_loctime_t$t)]
+      
+      tibble::tibble(obs = i,
+                     map_obs_loctime_obs = list(rep(i, nrow(lp_loctime_t))), 
+                     map_obs_loctime_loc = list(lp_loctime_t$loctime_id),
+                     map_loc_grid_loc = list(lp_inds),
+                     map_loc_grid_grid = list(cell_ind), 
+                     tfrac = list(timefracs))
           }
         }
-      )
+  )
     }
   ) 
+
+if (do_parallel) 
+  parallel::stopCluster(cl)
+
+# Reorder based on observation
+res <- dplyr::arrange(res, obs)
+
+# Unpack results
+map_obs_loctime_obs <- unlist(res$map_obs_loctime_obs)
+map_obs_loctime_loc <- unlist(res$map_obs_loctime_loc)
+map_loc_grid_loc_all <- unlist(res$map_loc_grid_loc)
+map_loc_grid_grid_all <- unlist(res$map_loc_grid_grid)
+tfrac <- unlist(res$tfrac)
+obs <- unlist(purrr::map(1:nrow(res), function(i) rep(res$obs[i], length(res$tfrac[[i]])))) 
+
+# Get unique location periods
+u_loctimes <- sort(unique(map_obs_loctime_loc))
+# Create new index of unique location periods
+u_loctimes_ind <- 1:length(u_loctimes)
+names(u_loctimes_ind) <- as.character(u_loctimes)
+
+# Get unique set of mappings between location periods and grid cells
+map_loc_grid_loc <- vector("integer", 0)
+map_loc_grid_grid <- vector("integer", 0)
+
+for (i in u_loctimes_ind) {
+  # Get set of grid cells that cover the location period
+  cell_ind <- map_loc_grid_grid_all[map_loc_grid_loc_all == u_loctimes[i]] %>% 
+    unique() %>% 
+    sort()
   
-  if (do_parallel) 
-    parallel::stopCluster(cl)
-  
-  # Reorder based on observation
-  res <- dplyr::arrange(res, obs)
-  
-  # Unpack results
-  map_obs_loctime_obs <- unlist(res$map_obs_loctime_obs)
-  map_obs_loctime_loc <- unlist(res$map_obs_loctime_loc)
-  map_loc_grid_loc_all <- unlist(res$map_loc_grid_loc)
-  map_loc_grid_grid_all <- unlist(res$map_loc_grid_grid)
-  tfrac <- unlist(res$tfrac)
-  obs <- unlist(purrr::map(1:nrow(res), function(i) rep(res$obs[i], length(res$tfrac[[i]])))) 
-  
-  # Get unique location periods
-  u_loctimes <- sort(unique(map_obs_loctime_loc))
-  # Create new index of unique location periods
-  u_loctimes_ind <- 1:length(u_loctimes)
-  names(u_loctimes_ind) <- as.character(u_loctimes)
-  
-  # Get unique set of mappings between location periods and grid cells
-  map_loc_grid_loc <- vector("integer", 0)
-  map_loc_grid_grid <- vector("integer", 0)
-  
-  for (i in u_loctimes_ind) {
-    # Get set of grid cells that cover the location period
-    cell_ind <- map_loc_grid_grid_all[map_loc_grid_loc_all == u_loctimes[i]] %>% 
-      unique() %>% 
-      sort()
-    
-    # Append results
-    map_loc_grid_loc <- c(map_loc_grid_loc, rep(i, length(cell_ind)))
-    map_loc_grid_grid <- c(map_loc_grid_grid, cell_ind)
-  }
-  
-  # Get set of population 1km weights
-  u_loc_grid_weights <- purrr::map_dbl(
-    1:length(map_loc_grid_loc),
-    ~ with(lp_dict, pop_weight[upd_long_id == map_loc_grid_grid[.] & 
-                                 loctime_id == u_loctimes[map_loc_grid_loc[.]]]))
-  
-  # Adjust location period mapping ids to reindexed ids
-  map_obs_loctime_loc <- u_loctimes_ind[as.character(map_obs_loctime_loc)]
-  
-  return(list(obs = obs, 
-              map_obs_loctime_obs = map_obs_loctime_obs, 
-              map_obs_loctime_loc = map_obs_loctime_loc,
-              map_loc_grid_loc = map_loc_grid_loc,
-              map_loc_grid_grid = map_loc_grid_grid,
-              u_loctimes = u_loctimes,
-              u_loctimes_ind = u_loctimes_ind,
-              u_loc_grid_weights = u_loc_grid_weights,
-              tfrac = tfrac))
+  # Append results
+  map_loc_grid_loc <- c(map_loc_grid_loc, rep(i, length(cell_ind)))
+  map_loc_grid_grid <- c(map_loc_grid_grid, cell_ind)
+}
+
+# Get set of population 1km weights
+u_loc_grid_weights <- purrr::map_dbl(
+  1:length(map_loc_grid_loc),
+  ~ with(lp_dict, pop_weight[upd_long_id == map_loc_grid_grid[.] & 
+                               loctime_id == u_loctimes[map_loc_grid_loc[.]]]))
+
+# Adjust location period mapping ids to reindexed ids
+map_obs_loctime_loc <- u_loctimes_ind[as.character(map_obs_loctime_loc)]
+
+return(list(obs = obs, 
+            map_obs_loctime_obs = map_obs_loctime_obs, 
+            map_obs_loctime_loc = map_obs_loctime_loc,
+            map_loc_grid_loc = map_loc_grid_loc,
+            map_loc_grid_grid = map_loc_grid_grid,
+            u_loctimes = u_loctimes,
+            u_loctimes_ind = u_loctimes_ind,
+            u_loc_grid_weights = u_loc_grid_weights,
+            tfrac = tfrac))
 }
 
 
