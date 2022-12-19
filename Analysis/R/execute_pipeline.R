@@ -644,7 +644,7 @@ if (config[["initial_values"]][["warmup"]]) {
     include_time_slice_effect = config[["stan"]][["do_time_slice"]][["perform"]] && (length(unique(covar_cube$updated_t)) > 1)
   )
 
-  gam_offset_vals <- taxdat::compute_gam_offset(initial_values_df)
+  gam_offset_vals <- taxdat::compute_gam_offset(initial_values_df, observation_data)
 
   gam_fit <- mgcv::gam(
     gam_formula,
@@ -812,6 +812,7 @@ stan_data <- list(
 
 print("Finished creating stan data")
 
+save(stan_data, file = "stan_data.Rdata")
 
 # Save input
 print("Creating model input")
