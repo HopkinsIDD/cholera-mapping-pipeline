@@ -42,6 +42,12 @@ snap_to_time_period <- function(TL,
   ref_period_R <- c("TL" = aggregate_to_start(time_change_func(TR)),
                     "TR" = aggregate_to_end(time_change_func(TR)))
   
+  # Check if observation covers more than 2 time slices
+  if (difftime(ref_period_R["TL"], ref_period_L["TR"], units = "days") > 1) {
+    warning("---- Observations spans more than two time slices, skipping snap to period.")
+    return(c("TL" = TL, "TR" = TR))
+  }
+  
   if (identical(ref_period_L, ref_period_R)) {
     return(c("TL" = TL, "TR" = TR))
   }
