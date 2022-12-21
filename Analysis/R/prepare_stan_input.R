@@ -146,11 +146,11 @@ prepare_stan_input <- function(
                                                        verbose = opt$verbose)
     
     # Snap to time period after aggregation
-    sf_cases_resized <- taxdat::snap_to_time_period(df = sf_cases_resized,
-                                                    TL_col = "TL",
-                                                    TR_col = "TR",
-                                                    res_time = res_time,
-                                                    tol = snap_tol)
+    sf_cases_resized <- taxdat::snap_to_time_period_df(df = sf_cases_resized,
+                                                       TL_col = "TL",
+                                                       TR_col = "TR",
+                                                       res_time = res_time,
+                                                       tol = snap_tol)
     
     # Re-compute space-time indices based on aggretated data
     ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
