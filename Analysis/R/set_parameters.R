@@ -444,7 +444,7 @@ for(t_idx in 1:length(all_test_idx)){
       sf_grid = covar_cube_output$sf_grid,
       location_periods_dict = covar_cube_output$location_periods_dict,
       covar_cube = covar_cube_output$covar_cube,
-      set_tfrac = set_tfrac
+      set_tfrac = set_tfrac,
       snap_tol = snap_tol,
       opt = opt
     )
