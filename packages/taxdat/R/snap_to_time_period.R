@@ -78,11 +78,11 @@ snap_to_time_period <- function(TL,
 #' @export
 #'
 #' @examples
-snap_to_period_df <- function(df,
-                              TL_col = "TL",
-                              TR_col = "TR",
-                              res_time,
-                              tol) {
+snap_to_time_period_df <- function(df,
+                                   TL_col = "TL",
+                                   TR_col = "TR",
+                                   res_time,
+                                   tol) {
   
   dfcols <- colnames(df)
   
