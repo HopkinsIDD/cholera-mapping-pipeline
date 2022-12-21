@@ -4,7 +4,7 @@
 #' @param TR 
 #' @param TL_ref 
 #' @param TR_ref 
-
+#' @export
 compute_tfrac <- function(TL, 
                           TR, 
                           TL_ref, 
@@ -67,4 +67,37 @@ snap_to_time_period <- function(TL,
   }
   
   return(c("TL" = TL_out, "TR" = TR_out))
+}
+
+
+#' Title
+#'
+#' @param df 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+snap_to_period_df <- function(df,
+                              TL_col = "TL",
+                              TR_col = "TR",
+                              res_time,
+                              tol) {
+  
+  dfcols <- colnames(df)
+  
+  if (!((TL_col %in% dfcols) & (TR_col %in% dfcols))) {
+    stop("Dataframe needs columns left:", TL_col,  " and right:", TR_col, " to exist but could not find them among colnames.")
+  }
+  
+  for (i in 1:nrow(df)) {
+    new_ts <- snap_to_time_period(TL = df[[TL_col]][i], 
+                                  TR = df[[TR_col]][i], 
+                                  res_time = res_time,
+                                  tol = tol)
+    df[[TL_col]][i] <- new_ts[1]
+    df[[TR_col]][i] <- new_ts[2]
+  }
+  
+  df
 }

@@ -270,6 +270,14 @@ if (any(sf::st_is_empty(sf_cases))) {
 sf_cases$TL <- lubridate::ymd(sf_cases$TL)
 sf_cases$TR <- lubridate::ymd(sf_cases$TR)
 
+
+# Snap to time period
+sf_cases <- taxdat::snap_to_time_period(df = sf_cases,
+                                        TL_col = "TL",
+                                        TR_col = "TR",
+                                        res_time = res_time,
+                                        tol = snap_tol)
+
 save(sf_cases,
   full_grid_name,
   output_shapefiles,

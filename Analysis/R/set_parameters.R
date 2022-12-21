@@ -162,6 +162,9 @@ time_change_func <- taxdat::time_unit_to_aggregate_function(res_time)
 aggregate_to_start <- taxdat::time_unit_to_start_function(res_time)
 # Function to convert from temporal grid to end date
 aggregate_to_end <- taxdat::time_unit_to_end_function(res_time)
+# Tolerance for snap_to_period function
+snap_tol <- taxdat::check_snap_tol(snap_tol = config$snap_tol, 
+                                   res_time = res_time)
 
 # - - - -
 # What case definition should be used
@@ -440,7 +443,10 @@ for(t_idx in 1:length(all_test_idx)){
       non_na_gridcells = covar_cube_output$non_na_gridcells,
       sf_grid = covar_cube_output$sf_grid,
       location_periods_dict = covar_cube_output$location_periods_dict,
-      covar_cube = covar_cube_output$covar_cube
+      covar_cube = covar_cube_output$covar_cube,
+      set_tfrac = set_tfrac
+      snap_tol = snap_tol,
+      opt = opt
     )
     
     # Save data
