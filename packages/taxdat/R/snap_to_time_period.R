@@ -56,7 +56,7 @@ snap_to_time_period <- function(TL,
       TR_out <- ref_period_L["TR"]
       names(TR_out) <- NULL
     } else {
-      TL_out <- ref_period_L["TL"]
+      TL_out <- ref_period_R["TL"]
       names(TL_out) <- NULL
       TR_out <- TR
     }
