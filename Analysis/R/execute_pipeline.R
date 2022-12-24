@@ -13,7 +13,7 @@ taxdat::set_error_handling(is_interactive = Sys.getenv("INTERACTIVE_RUN", "FALSE
 ### Libraries TODO : Update this list
 taxdat::update_libraries(perform = Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE), package_list = c(
   "optparse", "DBI", "RPostgres", "sf", "magrittr", "dplyr",
-  "rstan", "xfun", "kableExtra", "MCMCvis"
+  "rstan", "xfun", "kableExtra", "MCMCvis", "stars", "raster", "cmdstanr"
 ))
 
 library(magrittr)

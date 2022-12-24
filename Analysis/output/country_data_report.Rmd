@@ -35,25 +35,13 @@ sf::sf_use_s2(FALSE)
 ### other new packages (mainly for "rgeoboundaries")
 chooseCRANmirror(ind = 77)
 
-package_list <- c(
+taxdat::update_libraries(perform = Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE), package_list = c(
+  "pandoc",
+  "readr",
   "fasterize",
   "remotes",
   "rgeoboundaries"
-)
-
-for (package in package_list) {
-  if (!require(package = package, character.only = T)) {
-    if (package == "rgeoboundaries") {
-      try({
-        remotes::install_gitlab("dickoa/rgeoboundaries")
-        remotes::install_github("wmgeolab/rgeoboundaries")
-      })
-    } else {
-      install.packages(pkgs = package)
-      library(package = package, character.only = T)
-    }
-  }
-}
+))
 
 # Figure Caption Numbering,
 capFigNo <- 1
