@@ -403,6 +403,7 @@ prepare_stan_input <- function(
   
   return(
     list(stan_data = stan_data,
+         stan_params = stan_params,
          sf_cases_resized = sf_cases_resized,
          sf_grid = sf_grid,
          smooth_grid  = smooth_grid,
