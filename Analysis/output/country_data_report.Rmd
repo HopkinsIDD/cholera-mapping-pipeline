@@ -14,7 +14,87 @@ params:
 ---
 
 ```{r setup, include=FALSE, dev="CairoPNG",message=FALSE}
-library(knitr)
+### All packages
+chooseCRANmirror(ind = 77)
+
+package_list <- c(
+  "knitr", 
+  "stringr", 
+  "cli", 
+  "purrr",
+  "dplyr", 
+  "magrittr", 
+  "readr", 
+  "ggplot2", 
+  "kableExtra", 
+  "ISOcodes", 
+  "igraph", 
+  #"taxdat", #tmp commented out
+  "sf", 
+  "sp", 
+  "raster",
+  "abind", 
+  "stars", 
+  "ggthemes",
+  "scales",  
+  "fasterize", 
+  "remotes",
+  "rgeoboundaries", 
+  "MCMCvis", 
+  "coda", 
+  "ggrepel", 
+  "urltools", 
+  "RPostgres"
+)
+
+run_on_marcc <- as.logical(Sys.getenv("RUN_ON_MARCC",FALSE))
+if(run_on_marcc){
+  r_library_directory <- Sys.getenv("R_LIBRARY_DIRECTORY", FALSE)
+  package_exp <- 
+    'for (package in package_list) {
+      if (!require(package = package, character.only = T, lib = r_library_directory)) {
+        if (package == "rgeoboundaries"){
+          try({
+            remotes::install_gitlab("dickoa/rgeoboundaries", lib = r_library_directory)
+            remotes::install_github("wmgeolab/rgeoboundaries", lib = r_library_directory)
+          })
+        }else{
+          install.packages(pkgs = package, lib = r_library_directory)
+          library(package = package, character.only = T, lib = r_library_directory)
+        }
+      }else{
+        library(package = package, character.only = T, lib = r_library_directory)
+      }
+    }
+    library(rstan)
+    '
+
+}else{
+  package_exp <- 
+    'for (package in package_list) {
+      if (!require(package = package, character.only = T)) {
+        if (package == "rgeoboundaries"){
+          try({
+            remotes::install_gitlab("dickoa/rgeoboundaries")
+            remotes::install_github("wmgeolab/rgeoboundaries")
+          })
+        }else{
+          install.packages(pkgs = package)
+          library(package = package, character.only = T)
+        }
+      }else{
+        library(package = package, character.only = T)
+      }
+    }'
+}
+package_exp <- parse(text = c(package_exp))
+invisible(purrr::map(package_exp, eval))
+library(package = "taxdat", character.only = T, lib = "/home/kzou7/rlibs/cmp/4.0.2/gcc/9.3.0/") #tmp
+library(package = "cmdstanr", character.only = T, lib = "/home/kzou7/rlibs/cmp/4.0.2/gcc/9.3.0/") #tmp
+library(package = "Cairo", character.only = T) #tmp
+sf::sf_use_s2(FALSE)
+
+### Rmarkdown file settings
 knitr::opts_chunk$set(
   cache=FALSE,
   cache.lazy = FALSE,
@@ -24,55 +104,16 @@ knitr::opts_chunk$set(
   fig.align = "center",
   message = TRUE,
   warning = TRUE
-  )
-library(stringr)
-library(dplyr)
-library(magrittr)
-library(purrr)
-library(readr)
-library(ggplot2)
-library(kableExtra)
-library(taxdat)
-library(sf)
-library(raster)
-library(stars)
-library(taxdat)
-library(ggthemes)
-library(scales)
-sf::sf_use_s2(FALSE)
-
-### other new packages (mainly for "rgeoboundaries")
-chooseCRANmirror(ind = 77)
-
-package_list <- c(
-  "fasterize", 
-  "remotes",
-  "rgeoboundaries"
 )
-
-for (package in package_list) {
-  if (!require(package = package, character.only = T)) {
-    if (package == "rgeoboundaries"){
-      try({
-        remotes::install_gitlab("dickoa/rgeoboundaries")
-        remotes::install_github("wmgeolab/rgeoboundaries")
-      })
-    }else{
-      install.packages(pkgs = package)
-      library(package = package, character.only = T)
-    }
-  }
-}
-
-#Figure Caption Numbering,
 capFigNo = 1
-#Function to add the Figure Number
+
 capFig = function(x){
-    x = paste0("Figure ",capFigNo,". ",x)
-    capFigNo <<- capFigNo + 1
-    x
+  x = paste0("Figure ",capFigNo,". ",x)
+  capFigNo <<- capFigNo + 1
+  x
 }
-#Debug
+
+### Debug
 options(error = traceback)
 
 ```
@@ -415,11 +456,23 @@ plot_model_fidelity_by_chain(cache=cache,cholera_directory=params$cholera_direct
 
 **Table 5.1 Observed and estimates of WHO annual cholera reports based on the observation-level modeled cases:**
 ```{r WHO output1, fig.height=510, fig.width=10, fig.cap = "comparison with WHO Output 1"}
-plot_WHOcomparison_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
+plot_WHOcomparison_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory, 
+  allow_data_pull = !run_on_marcc)
 ```
 **Table 5.2 Observed and estimates of WHO annual cholera reports based on the sum of grid-level modeled cases:**
 ```{r WHO output2, fig.height=510, fig.width=10, fig.cap = "comparison with WHO Output 2"}
-plot_WHOcomparison_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory, observation_level_modeled_cases = FALSE)
+plot_WHOcomparison_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory, 
+  observation_level_modeled_cases = FALSE, allow_data_pull = !run_on_marcc)
+```
+**Table 5.3 Observed and estimates of WHO annual cholera reports based on the observation-level modeled cases with other sources of annual data added:**
+```{r WHO output3, fig.height=510, fig.width=10, fig.cap = "comparison with WHO Output 3"}
+plot_WHOcomparison_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory, 
+  allow_data_pull = !run_on_marcc, add_other_source = TRUE)
+```
+**Table 5.4 Observed and estimates of WHO annual cholera reports based on the sum of grid-level modeled cases with other sources of annual data added:**
+```{r WHO output4, fig.height=510, fig.width=10, fig.cap = "comparison with WHO Output 4"}
+plot_WHOcomparison_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory, observation_level_modeled_cases = FALSE, 
+  allow_data_pull = !run_on_marcc, add_other_source = TRUE)
 ```
 
 ## Model Convergence 

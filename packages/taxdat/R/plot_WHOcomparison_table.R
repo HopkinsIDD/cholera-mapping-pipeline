@@ -8,11 +8,14 @@
 #' @param cache the cached environment
 #' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @param observation_level_modeled_cases whether the WHO data is at the country level
+#' @param allow_data_pull whether to pull WHO data from the database 
+#' @param add_other_source whether to add non-WHO country annual cases data
 #' @param aesthetic whether to return the kable object
 #' @return table with who comparison statistics
-plot_WHOcomparison_table <- function(config, cache, cholera_directory, observation_level_modeled_cases = TRUE, aesthetic = TRUE) {
+plot_WHOcomparison_table <- function(config, cache, cholera_directory, observation_level_modeled_cases = TRUE, 
+                                     allow_data_pull = TRUE, add_other_source = FALSE, aesthetic = TRUE) {
   get_sf_cases_resized(name="sf_cases_resized",config=config, cache=cache, cholera_directory=cholera_directory)
-  who_annual_cases <- cache[["sf_cases_resized"]]
+  who_annual_cases <- cache[["sf_cases_resized"]] %>% sf::st_drop_geometry()
   
   ### Stashed code 
   # if(!"data_fidelity" %in% names(cache)){
@@ -55,9 +58,15 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
     who_annual_cases <- who_annual_cases %>% rename(observed = attributes.fields.suspected_cases)
     who_annual_cases_from_db <- NULL
 
-    who_annual_cases_from_db <- taxdat::pull_output_by_source(who_annual_cases, "%WHO Annual Cholera Reports%",
-                                                              database_api_key_rfile = stringr::str_c(cholera_directory, "/Analysis/R/database_api_key.R")) %>%
-                                mutate(modeled = yearly_total_modeled_cases)
+    if(allow_data_pull){
+      who_annual_cases_from_db <- taxdat::pull_output_by_source(who_annual_cases, "%WHO Annual Cholera Reports%",
+                                                                database_api_key_rfile = stringr::str_c(cholera_directory, "/Analysis/R/database_api_key.R")) %>%
+                                  mutate(modeled = yearly_total_modeled_cases)
+    }else{
+      who_annual_cases_from_db <- who_annual_cases %>% filter(stringr::str_length(OC_UID) == 3) %>%
+        mutate(modeled = yearly_total_modeled_cases)
+    }
+
   }else{
     ### get the distribution of the observation-level modeled cases 
     get_genquant(name="genquant",cache=cache,config=config,cholera_directory = cholera_directory)
@@ -77,22 +86,44 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
     who_annual_cases <- who_annual_cases %>% rename(observed = attributes.fields.suspected_cases)
     who_annual_cases_from_db <- NULL
 
-    who_annual_cases_from_db <- taxdat::pull_output_by_source(who_annual_cases, "%WHO Annual Cholera Reports%",
+    if(allow_data_pull){
+      who_annual_cases_from_db <- taxdat::pull_output_by_source(who_annual_cases, "%WHO Annual Cholera Reports%",
                                                               database_api_key_rfile = stringr::str_c(cholera_directory, "/Analysis/R/database_api_key.R"))
+    }else{
+      who_annual_cases_from_db <- who_annual_cases %>% filter(stringr::str_length(OC_UID) == 3)
+    }
+    
   }
 
+  ### Only need certain variables 
+  who_annual_cases_from_db <- who_annual_cases_from_db %>%
+        as.data.frame() %>%
+        dplyr::select(OC_UID, TL, TR, observed, modeled)
+
+  ### Whether add more rows that compare modeled cases with other annual country-level observed cases 
+  if(add_other_source){
+    sf_cases_country_level <- cache[["sf_cases"]] %>%
+      sf::st_drop_geometry() %>%
+      filter(stringr::str_count(location_name, "::") == 1 & stringr::str_length(OC_UID) != 3)
+    country_level_ids <- unique(sf_cases_country_level$locationPeriod_id)
+    country_level_agg_cases <- cache[["stan_input"]]$sf_cases_resized %>% 
+      sf::st_drop_geometry() %>%
+      filter(locationPeriod_id %in% country_level_ids & stringr::str_length(OC_UID) != 3) %>%
+      mutate(observed = attributes.fields.suspected_cases, modeled = NA) %>%
+      select(OC_UID, TL, TR, observed, modeled)
+    
+    who_annual_cases_from_db <- rbind(who_annual_cases_from_db, country_level_agg_cases) %>%
+      arrange(TL, desc(TR))
+  }
+
+  ### Whether make it pretty 
   if(!is.null(who_annual_cases_from_db)) {
     if(aesthetic){
       who_annual_cases_from_db %>%
-        as.data.frame() %>%
-        dplyr::select(OC_UID, TL, TR, observed, modeled) %>%
         dplyr::mutate_if(is.numeric, function(x) {format(round(x) , big.mark=",")}) %>%
         kableExtra::kable(col.names = c("OC id", "start time", "end time", "# Observed cases", "# Modeled Cases (2.5%-97.5%)")) %>%
         kableExtra::kable_styling(bootstrap_options = c("striped"))
     }else{
-      who_annual_cases_from_db %>%
-        as.data.frame() %>%
-        dplyr::select(OC_UID, TL, TR, observed, modeled)
       return(who_annual_cases_from_db)
     }
     
