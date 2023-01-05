@@ -442,7 +442,8 @@ for(t_idx in 1:length(all_test_idx)){
       non_na_gridcells = covar_cube_output$non_na_gridcells,
       sf_grid = covar_cube_output$sf_grid,
       location_periods_dict = covar_cube_output$location_periods_dict,
-      covar_cube = covar_cube_output$covar_cube
+      covar_cube = covar_cube_output$covar_cube,
+      stan_params = stan_params
     )
     
     # Save data
