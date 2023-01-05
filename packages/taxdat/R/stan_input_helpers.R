@@ -36,6 +36,6 @@ reorder_single_source <- function(A,
 
   return(list(
     A = A_bfs_directed,
-    reordering = bfs_order
+    reordering = topleftorder[bfs_order]
   ))
 }
