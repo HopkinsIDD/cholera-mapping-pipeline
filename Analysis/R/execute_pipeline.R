@@ -627,8 +627,7 @@ if (config[["initial_values"]][["warmup"]]) {
       .x[[cases_column]] <- diff(c(0, round(cumsum(.x[[cases_column]]))))
       .x[[paste("log", cases_column, sep = "_")]] <- log(.x[[cases_column]])
       return(.x)
-    }) %>%
-    dplyr::mutate(log_y = log(y), gam_offset = log_y)
+    })
 
   number_of_gridcells <- covar_cube %>%
     dplyr::group_by(x, y) %>%
