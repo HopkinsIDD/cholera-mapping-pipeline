@@ -153,7 +153,7 @@ prepare_covar_cube <- function(
                                   statement = glue::glue_sql(
                                     "SELECT DISTINCT rid, x, y 
                                     FROM {`{DBI::SQL(output_cntrd_table)}`}",
-                                    .conn = conn_pg
+                                    .con = conn_pg
                                   ))
   
   
