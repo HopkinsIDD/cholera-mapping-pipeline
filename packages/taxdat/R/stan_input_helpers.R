@@ -448,12 +448,13 @@ connect_vertices <- function(nn_mat,
 #'
 #' @param nn_mat 
 #' @param smooth_grid_it
-#'
+#' @param it
 #' @return
 #' @export
 #'
 connect_islands <- function(nn_mat,
-                            smooth_grid_it) {
+                            smooth_grid_it, 
+                            it) {
   
   # Create graph to extract disconnected islands
   ng <- igraph::graph_from_adjacency_matrix(nn_mat)
@@ -626,7 +627,8 @@ make_adjacency <- function(smooth_grid,
                        smooth_grid_it = smooth_grid_it) %>%
       # Connect islands to mainland
       connect_islands(nn_mat = .,
-                      smooth_grid_it = smooth_grid_it)
+                      smooth_grid_it = smooth_grid_it, 
+                      it = it)
     
     cat("Done island connection for smooth time slice", it, "\n")
     
