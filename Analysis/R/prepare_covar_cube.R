@@ -174,9 +174,6 @@ prepare_covar_cube <- function(
     cat("---- All cells within output summary shapefiles.\n")
   }
   
-  sf_grid <- sf_grid %>% 
-    dplyr::inner_join(output_cells, by = c("rid", "x", "y"))
-  
   # Drop cells from location period dict that do not intersect the output summary shapefiles (rgeoboundaries)
   location_periods_dict <- location_periods_dict %>% 
     dplyr::inner_join(output_cells, by = c("rid", "x", "y"))
