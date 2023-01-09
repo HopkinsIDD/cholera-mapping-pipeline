@@ -153,6 +153,7 @@ res_space <- as.numeric(config$res_space)
 res_time <- taxdat::check_time_res(config$res_time)
 # number of time slices in spatial random effect
 smooth_covariate_number_timesteps <- config$smoothing_period
+sfrac_thresh <- taxdat::check_sfrac_thresh(config$sfrac_thresh)
 
 # - - - -
 ### Get various functions to convert between time units and dates
@@ -415,7 +416,8 @@ for(t_idx in 1:length(all_test_idx)){
       res_space = res_space,
       res_time = res_time,
       username = dbuser,
-      covariate_transformations = config[["covariate_transformations"]]
+      covariate_transformations = config[["covariate_transformations"]],
+      sfrac_thresh = sfrac_thresh
     )
     
     # Save results to file
@@ -446,7 +448,8 @@ for(t_idx in 1:length(all_test_idx)){
       covar_cube = covar_cube_output$covar_cube,
       set_tfrac = set_tfrac,
       snap_tol = snap_tol,
-      opt = opt
+      opt = opt,
+      stan_params = stan_params
     )
     
     # Save data

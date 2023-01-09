@@ -8,28 +8,28 @@
 #' @return res_time if valid
 #' @export
 check_time_res <- function(res_time) {
-
+  
   err_message <- "Time resolution should be specified as a string in the from '<n> <period>' where n is the number of time units of period <period>. Example: '1 year'."
-
+  
   parts <- stringr::str_split(res_time, " ")[[1]]
   if (length(parts) != 2)
     stop(err_message)
-
+  
   n_units <- as.numeric(parts[1])
   if (is.na(n_units))
     stop(paste(err_message, "[Units not valid]"))
-
+  
   allowed_time_periods <- c("month", "year")
   allowed_time_periods <- c(allowed_time_periods, paste0(allowed_time_periods, "s"))
   time_period <- parts[2]
   if (!(time_period %in% allowed_time_periods))
     stop(paste(err_message, "[Time period not valid]"))
-
+  
   # Standardize to always have an s at the end
   if (!stringr::str_detect(res_time, "s$")) {
     res_time <- stringr::str_c(res_time, "s")
   }
-
+  
   cat("-- Running with valid time resolution:", res_time, "\n")
   return(res_time)
 }
@@ -44,7 +44,7 @@ check_time_res <- function(res_time) {
 check_case_definition <- function(case_col) {
   if (!(case_col %in% c("suspected", "confirmed")))
     stop("Cholera case definition not in allowed options (suspected or confirmed).")
-
+  
   cat("-- Running with valid case defitinion: '", case_col, "'\n", sep = "")
   return(case_col)
 }
@@ -67,16 +67,16 @@ check_model_date_range <- function(start_time,
                                    time_change_func,
                                    aggregate_to_start,
                                    aggregate_to_end) {
-
+  
   if(any(c(!lubridate::is.Date(start_time), !lubridate::is.Date(end_time))))
     stop("Start and end times need to be in date format")
-
+  
   if (start_time > end_time)
     stop("Start time is after end time")
-
+  
   model_TL <- aggregate_to_start(time_change_func(start_time))
   model_TR <- aggregate_to_end(time_change_func(end_time))
-
+  
   if (start_time != model_TL | end_time != model_TR) {
     warning("--- User-defined modeling time range does not cover the whole range",
             "as defined with the time resoltion: \n user-defined range:\t",
@@ -99,13 +99,13 @@ check_model_date_range <- function(start_time,
 #' @export
 check_covariate_choices <- function(covar_choices,
                                     available_choices){
-
+  
   if (any(purrr::map_lgl(covar_choices, ~ !(. %in% available_choices))))
     stop("Covariate choices [", stringr::str_c(setdiff(covar_choices, available_choices), collapse = ", "), "] not available. \n",
          "Choose among: [", stringr::str_c(available_choices, collapse = ", "),"]")
-
+  
   cat("---- Running with covariates:", stringr::str_c(covar_choices, collapse = ", "), "\n")
-
+  
   return(covar_choices)
 }
 
@@ -120,12 +120,12 @@ check_covariate_choices <- function(covar_choices,
 #' @export
 check_stan_model <- function(stan_model_path,
                              stan_dir) {
-
+  
   if (!file.exists(stan_model_path))
     stop("Could not find stan model. Choose among:\n",
          stringr::str_c(dir(stan_dir), collapse = "\n"))
   cat("---- Running with stan model:", stringr::str_replace(stan_model_path, stan_dir, ""), "\n")
-
+  
   return(stan_model_path)
 }
 
@@ -174,6 +174,27 @@ check_snap_tol <- function(snap_tol,
   return(snap_tol)
 }
 
+#' Check sfrac thresh
+#'
+#' @param sfrac_thresh 
+#'
+#' @return
+#' @export
+#'
+check_sfrac_thresh <- function(sfrac_thresh) {
+  
+  if (is.null(sfrac_thresh)) {
+    cat("---- Sfrac thresh not specified, setting to default: 1e-3")
+    sfrac_thresh <- 1e-3
+  }
+  
+  if (sfrac_thresh < 0 | sfrac_thresh > 1) {
+    stop("---- sfract thresh cannot be < 0 or > 1, value passed: ", sfrac_thresh)
+  }
+  
+  sfrac_thresh
+}
+
 #' @title Modeling time slices
 #' @description Defines the modeling time slicez
 #'
@@ -191,14 +212,14 @@ modeling_time_slices <- function(start_time,
                                  time_change_func,
                                  aggregate_to_start,
                                  aggregate_to_end) {
-
+  
   left_bounds <- seq.Date(start_time, end_time, by = res_time)
   left_bounds <- aggregate_to_start(time_change_func(left_bounds))
   right_bounds <- aggregate_to_end(time_change_func(left_bounds))
-
+  
   time_slices <- tibble::tibble(TL = left_bounds[left_bounds <= end_time],
                                 TR = right_bounds[right_bounds <= end_time])
-
+  
   cat("-- Model consists of", nrow(time_slices), "time slices of duration", res_time,":\n")
   print(time_slices)
   cat("\n")

@@ -22,7 +22,7 @@ time_effect_autocorr: no
 use_weights: no
 stan:
   ncores: 4
-  model: update_yearly_dagar_timevary_speedup_flexible.stan
-  genquant: update_yearly_dagar_timevary_speedup_flexible_generate.stan
+  model: mapping_model_inference.stan
+  genquant: mapping_model_generate.stan
   niter: 100
   recompile: yes
