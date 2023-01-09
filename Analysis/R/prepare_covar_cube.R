@@ -150,7 +150,7 @@ prepare_covar_cube <- function(
   # Get cell ids in output summary shapefiles
   output_cntrd_table <- taxdat::make_output_grid_centroids_table_name(dbuser = dbuser, map_name = map_name)
   output_cells <- DBI::dbGetQuery(conn = conn_pg,
-                                  query = glue::glue_sql(
+                                  statement = glue::glue_sql(
                                     "SELECT DISTINCT rid, x, y 
                                     FROM {`{DBI::SQL(output_cntrd_table)}`}",
                                     .conn = conn_pg
