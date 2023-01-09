@@ -146,28 +146,68 @@ prepare_covar_cube <- function(
                                                               sf_grid = sf_grid,
                                                               grid_changer = grid_changer)
   
-  # Filter out pixels with pop_weight spatial fraction bellow threshold
-  # We hardcode the threshold to 1e-4 for now.
   
+  # Get cell ids in output summary shapefiles
+  output_cntrd_table <- taxdat::make_output_grid_centroids_table_name(dbuser = dbuser, map_name = map_name)
+  output_cells <- DBI::dbGetQuery(conn = conn_pg,
+                                  query = glue::glue_sql(
+                                    "SELECT DISTINCT rid, x, y 
+                                    FROM {`{DBI::SQL(output_cntrd_table)}`}",
+                                    .conn = conn_pg
+                                  ))
+  
+  
+  # Drop cells from sf_grid that do not intersect the output summary shapefiles (rgeoboundaries)
+  sf_grid_drop <- sf_grid %>%
+    dplyr::left_join(output_cells %>% 
+                       mutate(include = T), 
+                     by = c("rid", "x", "y")) %>% 
+    dplyr::filter(is.na(include))
+  
+  if (nrow(sf_grid_drop) > 0) {
+    cat("---- Dropping", nrow(sf_grid_drop), "spacetime cells that do not overalp with output shapefiles.\n")
+    
+    # Redefine non_na_gridcells
+    non_na_gridcells <- setdiff(non_na_gridcells, sf_grid_drop$long_id)
+    
+  } else {
+    cat("---- All cells within output summary shapefiles.\n")
+  }
+  
+  sf_grid <- sf_grid %>% 
+    dplyr::inner_join(output_cells, by = c("rid", "x", "y"))
+  
+  # Drop cells from location period dict that do not intersect the output summary shapefiles (rgeoboundaries)
+  location_periods_dict <- location_periods_dict %>% 
+    dplyr::inner_join(output_cells, by = c("rid", "x", "y"))
+  
+  
+  # Filter out pixels with pop_weight spatial fraction bellow threshold
   # Get pixels with low sfrac
-  low_sfrac <- location_periods_dict  %>% 
+  low_sfrac <- location_periods_dict %>% 
     dplyr::group_by(rid, x, y) %>% 
     dplyr::slice_max(pop_weight) %>% 
     dplyr::filter(pop_weight < sfrac_thresh) %>% 
     dplyr::select(rid, x, y) %>% 
     dplyr::inner_join(sf_grid %>% sf::st_drop_geometry())
   
-  cat("---- Dropping", nrow(low_sfrac), "space grid cells because the max sfrac is below",
-      "1e-3. \n")
+  if (nrow(low_sfrac) > 0) {
+    cat("---- Dropping", nrow(low_sfrac), "space grid cells because the max sfrac is below",
+        sfrac_thresh, ". \n")
+    
+    # Re-define grid cells to remove cells with low sf_frac
+    non_na_gridcells <- setdiff(non_na_gridcells, low_sfrac$long_id)
+    
+  } else {
+    cat("---- No cells with sfrac below", sfrac_thresh, ".\n")
+  }
   
-  # Re-define grid cells to remove cells with low sf_frac
-  non_na_gridcells <- setdiff(non_na_gridcells, low_sfrac$long_id)
-  grid_changer <- setNames(seq_len(length(non_na_gridcells)), non_na_gridcells)
+  grid_changer <- taxdat::make_changer(x = non_na_gridcells)
   
   # Drop from gridcells with low sfrac from location_periods_dict
   location_periods_dict <- location_periods_dict %>% 
     dplyr::filter(!(long_id %in% low_sfrac$long_id)) %>% 
-    # Resect upd_long_id with new grid_changer after removing gird cells with low pop_weight
+    # Reset upd_long_id with new grid_changer after removing gird cells with low pop_weight
     dplyr::mutate(upd_long_id = grid_changer[as.character(long_id)])
   
   
