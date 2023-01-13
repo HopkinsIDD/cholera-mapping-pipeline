@@ -130,29 +130,88 @@ check_stan_model <- function(stan_model_path,
 }
 
 #' @title Check set tfrac
-#' @description Checks whether the user-specified value of tfrac is valid
+#' @description Checks whether tfrac should be set to 1. If not set_tfrac is specified, the default is FALSE.
 #'
-#' @param config the config
+#' @param set_tfrac set_tfrac parameter
 #'
 #' @return if valid the stan model path
 #' @export
 check_set_tfrac <- function(set_tfrac) {
   if (!is.null(set_tfrac)) {
-    if (set_tfrac < 0) {
-      stop("Cannot specifiy negative tfrac values")
+    if (!is.logical(set_tfrac)){
+      stop("set_tfrac must be a logical value")
     }
-    if (set_tfrac > 1) {
-      warning("-- Running with a tfrac value larger than 1")
+    if (set_tfrac){
+      cat("---- Non-censored observations will have tfrac = 1 \n")
     } else {
-      cat("---- Running with user-specified value of tfrac:", set_tfrac, "\n")
+      cat("---- Non-censored observations will keep their original tfrac values \n")
     }
+
+  } else{
+    set_tfrac <- FALSE
+    cat("---- By default, non-censored observations will keep their original tfrac values \n")
   }
+
+
   return(set_tfrac)
 }
 
-#' Check sfrac thresh
+
+#' @title Check tfrac threshold
+#' @description Checks what tfrac threshold should be applied, with a default of 0.
 #'
-#' @param sfrac_thresh 
+#' @param tfrac_thresh tfrac_thresh parameter
+#'
+#' @return if valid the stan model path
+#' @export
+check_tfrac_thresh <- function(tfrac_thresh) {
+  if (!is.null(tfrac_thresh)) {
+    if (!is.numeric(tfrac_thresh) | tfrac_thresh < 0 | tfrac_thresh > 1){
+      stop("tfrac_thresh must be a numeric value between 0 and 1")
+    }
+
+    cat("---- Observations with tfrac greater than ", tfrac_thresh, " will be kept \n")
+
+  } else{
+    tfrac_thresh <- 0
+    cat("---- By default, observations with tfrac greater than ", tfrac_thresh, " will be kept \n")
+  }
+
+  return(tfrac_thresh)
+}
+
+
+#' @title Check aggregate
+#' @description Checks what aggregate setting should be applied, with a default of true.
+#'
+#' @param aggregate_param aggregate parameter
+#'
+#' @return if valid the stan model path
+#' @export
+check_aggregate <- function(aggregate_param) {
+  if (!is.null(aggregate_param)) {
+    if (!is.logical(aggregate_param)){
+      stop("aggregate parameter must be a logical value")
+    }
+
+    if (aggregate_param){
+      cat("---- Observations will be aggregated \n")
+    } else{
+      cat("---- Observations will not be aggregated \n")
+    }
+
+
+  } else{
+    aggregate_param <- TRUE
+    cat("---- By default, observations will be aggregated \n")
+  }
+
+  return(aggregate_param)
+}
+
+
+#' @title check_sfrac_thresh
+#' @param sfrac_thresh sfrac_thresh parameter
 #'
 #' @return
 #' @export

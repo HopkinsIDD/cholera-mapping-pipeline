@@ -133,7 +133,7 @@ prepare_stan_input <- function(
   sf_cases_resized <- sf_cases[non_na_obs, ]
   
   
-  if (config$aggregate) {
+  if (taxdat::check_aggregate(config$aggregate)) {
     
     print("---- AGGREGATING CHOLERA DATA TO MODELING TIME RES ----")
     
@@ -161,14 +161,14 @@ prepare_stan_input <- function(
   #  ---- D. Drop tfrac threshold ----
   
   # If specified threshold of minimum tfrac filter out data
-  if (!is.null(config$tfrac_thresh)) {
+  if (tfrac_thresh > 0) {
     # Which observations to remove
-    obs_remove_thresh <- unique(ind_mapping_resized$obs[ind_mapping_resized$tfrac < as.numeric(config$tfrac_thresh)])
+    obs_remove_thresh <- unique(ind_mapping_resized$obs[ind_mapping_resized$tfrac < as.numeric(tfrac_thresh)])
     
     if (length(obs_remove_thresh) == 0){
-      cat("---- FOUND none of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", config$tfrac_thresh, "\n")
+      cat("---- FOUND none of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", tfrac_thresh, "\n")
     } else {
-      cat("---- REMOVING", length(obs_remove_thresh), "of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", config$tfrac_thresh, "\n")
+      cat("---- REMOVING", length(obs_remove_thresh), "of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", tfrac_thresh, "\n")
       
       # Remove observations
       sf_cases_resized <- sf_cases_resized[-c(obs_remove_thresh), ]
@@ -202,8 +202,8 @@ prepare_stan_input <- function(
                                                censoring_thresh = stan_params$censoring_thresh)
   
   # Then overwrite tfrac with user-specified value
-  if (!is.null(set_tfrac) && (set_tfrac)) {
-    cat("-- Overwriting tfrac with user-specified value of ", set_tfrac)
+  if (set_tfrac) {
+    cat("-- Overwriting tfrac for non-censored observations with 1")
     ind_mapping_resized$tfrac <- rep(1.0, length(ind_mapping_resized$tfrac))
   }
   

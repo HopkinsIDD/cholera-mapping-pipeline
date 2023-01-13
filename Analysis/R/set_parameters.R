@@ -173,11 +173,7 @@ cases_column <- taxdat::case_definition_to_column_name(suspected_or_confirmed,
                                                        database = T)
 # - - - -
 # Is there a threshold on tfrac?
-if (!is.null(config$tfrac_thresh)) {
-  cat("---- Running with tfrac threshold of", config$tfrac_thresh, "\n")
-} else {
-  cat("---- No tfrac thershold used\n")
-}
+tfrac_thresh <- taxdat::check_tfrac_thresh(config$tfrac_thresh)
 
 # - - - -
 # User-specified value to set tfrac
