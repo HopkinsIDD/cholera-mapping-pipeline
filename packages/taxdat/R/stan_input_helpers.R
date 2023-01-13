@@ -446,12 +446,13 @@ connect_vertices <- function(nn_mat,
 #'
 #' @param nn_mat 
 #' @param smooth_grid_it
-#'
+#' @param it
 #' @return
 #' @export
 #'
 connect_islands <- function(nn_mat,
-                            smooth_grid_it) {
+                            smooth_grid_it, 
+                            it) {
   
   # Create graph to extract disconnected islands
   ng <- igraph::graph_from_adjacency_matrix(nn_mat)
@@ -624,7 +625,8 @@ make_adjacency <- function(smooth_grid,
                        smooth_grid_it = smooth_grid_it) %>%
       # Connect islands to mainland
       connect_islands(nn_mat = .,
-                      smooth_grid_it = smooth_grid_it)
+                      smooth_grid_it = smooth_grid_it, 
+                      it = it)
     
     cat("Done island connection for smooth time slice", it, "\n")
     
@@ -986,7 +988,7 @@ compute_pop_loctimes <- function(stan_data) {
   # Compute pop_loctimes
   pop_loctimes <- rep(0, stan_data$L)
   for (i in 1:K2) {
-    pop_loctimes[stan_data$map_loc_grid_loc[i]] <- pop_loctimes[stan_data$map_loc_grid_loc[i]] + stan_data$pop[stan_data$map_loc_grid_grid[i]]  * stan_data$pop_weight[i]
+    pop_loctimes[stan_data$map_loc_grid_loc[i]] <- pop_loctimes[stan_data$map_loc_grid_loc[i]] + stan_data$pop[stan_data$map_loc_grid_grid[i]]  * stan_data$map_loc_grid_sfrac[i]
   }
   
   pop_loctimes

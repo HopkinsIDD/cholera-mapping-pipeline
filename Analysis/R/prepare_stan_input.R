@@ -30,7 +30,8 @@ prepare_stan_input <- function(
     non_na_gridcells,
     sf_grid,
     location_periods_dict,
-    covar_cube
+    covar_cube,
+    stan_params
 ) {
   
   library(sf)
@@ -218,7 +219,7 @@ prepare_stan_input <- function(
   
   if (stan_params$use_pop_weight) {
     # Make sure that all observations for have a pop_loctime > 0
-    stan_data$pop_weight <- ind_mapping_resized$u_loc_grid_weights
+    stan_data$map_loc_grid_sfrac <- ind_mapping_resized$u_loc_grid_weights
     
     pop_loctimes <- taxdat::compute_pop_loctimes(stan_data = stan_data)
     
@@ -269,11 +270,26 @@ prepare_stan_input <- function(
       stan_data$map_loc_grid_loc <- as.array(ind_mapping_resized$map_loc_grid_loc)
       stan_data$map_loc_grid_grid <- as.array(ind_mapping_resized$map_loc_grid_grid)
       stan_data$u_loctime <- ind_mapping_resized$u_loctimes
-      stan_data$pop_weight <- ind_mapping_resized$u_loc_grid_weights
+      stan_data$map_loc_grid_sfrac <- ind_mapping_resized$u_loc_grid_weights
     }
     
   } else {
-    stan_data$pop_weight <- array(data = 0, dim = 0)
+    stan_data$map_loc_grid_sfrac <- array(data = 0, dim = 0)
+  }
+  
+  if (stan_params$use_pop_weight) {
+    # Check if sfrac is valid
+    if (any(stan_data$map_loc_grid_sfrac > 1.01)) {
+      
+      warning("Invalid sfrac values > 1", " Maximum value of ", 
+              max(stan_data$map_loc_grid_sfrac), ".",
+              "Caping all values to 1.")
+      
+      stan_data$map_loc_grid_sfrac <- pmin(stan_data$map_loc_grid_sfrac, 1) 
+    }
+    
+    # Make sure all values are <= 1 (possible rounding errors)
+    stan_data$map_loc_grid_sfrac <- pmin(1, stan_data$map_loc_grid_sfrac)
   }
   
   #  ---- G. Observations ----
@@ -306,6 +322,9 @@ prepare_stan_input <- function(
   stan_data$map_grid_time <- full_grid$t
   stan_data['T'] <- nrow(time_slices)
   stan_data$map_full_grid <- full_grid$upd_id
+  
+  # What observation model to use
+  stan_data$obs_model <- stan_params$obs_model
   
   # ---- J. Data for output summaries ----
   
@@ -372,9 +391,20 @@ prepare_stan_input <- function(
   stan_data$map_output_loc_adminlev <- output_lps_space$admin_lev
   
   if (stan_params$use_pop_weight) {
-    stan_data$pop_weight_output <- ind_mapping_output$u_loc_grid_weights
+    stan_data$map_loc_grid_sfrac_output <- ind_mapping_output$u_loc_grid_weights
+    
+    # Check if sfrac is valid
+    if (any(stan_data$map_loc_grid_sfrac_output > 1.01)) {
+      warning("Invalid sfrac values > 1 in outputs.", " Maximum value of ", 
+              max(stan_data$map_loc_grid_sfrac_output), ".",
+              "Caping all values to 1.")
+      stan_data$map_loc_grid_sfrac_output <- pmin(stan_data$map_loc_grid_sfrac_output, 1) 
+    }
+    # Make sure all values are <= 1 (possible rounding errors)
+    stan_data$map_loc_grid_sfrac_output <- pmin(1, stan_data$map_loc_grid_sfrac_output)
+    
   } else {
-    stan_data$pop_weight_output <- array(data = 0, dim = 0)
+    stan_data$map_loc_grid_sfrac_output <- array(data = 0, dim = 0)
   }
   
   # ---- K. Population at risk ----
@@ -395,14 +425,45 @@ prepare_stan_input <- function(
   stan_data$N_space <- length(unique(sf_grid$space_id))
   stan_data$map_spacetime_space_grid <- sf_grid$space_id[sf_grid$upd_id]
   
+  # Option for debug mode
+  if (is.null(config$debug)) {
+    stan_data$debug <- 0
+  } else {
+    stan_data$debug <- config$debug
+  }
+  
   # ---- L. Observation model ----
-  stan_data$lambda <- stan_params$lambda
+  # Add quasi-poisson/neg-binom overdispersion parameter
+  stan_data$od_param <- stan_params$od_param
+  
+  # Option for double-exponential prior on betas
+  stan_data$exp_prior <- stan_params$exp_prior
+  
+
+  # ---- M. Other options for stan ----
+  # Use intercept
+  stan_data$use_intercept <- stan_params$use_intercept
+  
+  # 0-sum constraint on yerly random effects
+  stan_data$do_zerosum_cnst <- stan_params$do_zerosum_cnst
+  
+  # Infer the sd of the prior on yearly random effects
+  stan_data$do_infer_sd_eta <- stan_params$do_infer_sd_eta
+  
+  
+  # ---- N. Priors ----
+  # Set sigma_eta_scale for all models (not used for models without time effect)
+  stan_data$sigma_eta_scale <- stan_params$sigma_eta_scale
+  
+  # Add scale of prior on the sd of regression coefficients
+  stan_data$beta_sigma_scale <- stan_params$beta_sigma_scale
   
   
   cat("**** FINISHED PREPARING STAN INPUT \n")
   
   return(
     list(stan_data = stan_data,
+         stan_params = stan_params,
          sf_cases_resized = sf_cases_resized,
          sf_grid = sf_grid,
          smooth_grid  = smooth_grid,

@@ -133,17 +133,14 @@ warmup <- stan_params$warmup
 # Specifiy whether covariates are included in the warmup
 covar_warmup <- stan_params$covar_warmup
 
-# Set sigma_eta_scale for all models (not used for models without time effect)
-stan_data$sigma_eta_scale <- stan_params$sigma_eta_scale
-
-# Add scale of prior on the sd of regression coefficients
-stan_data$beta_sigma_scale <- stan_params$beta_sigma_scale
-
-
 if (warmup) {
   
   # Create gam frml
-  frml <- "y ~ s(sx,sy) - 1"
+  if (stan_data$use_intercept) {
+    frml <- "y ~ s(sx,sy)"
+  } else {
+    frml <- "y ~ s(sx,sy) - 1"
+  }
   
   if (stan_data$ncovar >= 1 & covar_warmup) {
     frml <- paste(c(frml, paste0("beta_", 1:stan_data$ncovar)), collapse = " + ")
