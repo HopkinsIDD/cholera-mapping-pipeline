@@ -3,7 +3,7 @@
 #'
 #' @param dbuser
 #' @param cholera_directory
-#' @param smooth_covariate_number_timesteps
+#' @param grid_rand_effects_N
 #' @param ncore
 #' @param res_time
 #' @param res_space
@@ -20,7 +20,7 @@
 prepare_stan_input <- function(
     dbuser,
     cholera_directory,
-    smooth_covariate_number_timesteps,
+    grid_rand_effects_N,
     ncore,
     res_time,
     res_space,
@@ -51,7 +51,7 @@ prepare_stan_input <- function(
   # make the smooth grid
   smooth_grid_obj <- taxdat::make_smooth_grid(sf_grid = sf_grid,
                                               non_na_gridcells = non_na_gridcells,
-                                              smooth_covariate_number_timesteps = smooth_covariate_number_timesteps)
+                                              grid_rand_effects_N = grid_rand_effects_N)
   
   # Unpack
   sf_grid <- smooth_grid_obj$sf_grid            # updated sf_grid with column "s" for smooth grid index

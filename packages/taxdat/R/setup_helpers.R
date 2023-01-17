@@ -34,6 +34,28 @@ check_time_res <- function(res_time) {
   return(res_time)
 }
 
+#' @title Check the number of grid-level random effect time slices (formerly, "smoothing period")
+#' @description Checks whether the smoothing period (number of time slices of the spatial random effects) is 1. Default is 1.
+#'
+#' @param grid_rand_effects_N number of grid-level random effect time slices
+#'
+#' @return grid_rand_effects_N if valid
+#' @export
+check_grid_rand_effects_N <- function(grid_rand_effects_N) {
+  if(is.null(grid_rand_effects_N)){
+    grid_rand_effects_N <- 1
+    cat("-- By default, running with grid_rand_effects_N: 1 \n'")
+  } else if (!(is.numeric(grid_rand_effects_N))){
+    stop("Grid_rand_effects_N must be numeric.")
+  } else if(grid_rand_effects_N != 1){
+    stop("Grid_rand_effects_N must be 1. Other values still need to be tested and validated.")
+  } else{
+    cat("-- Running with grid_rand_effects_N:", grid_rand_effects_N, "\n", sep = "")
+  }
+
+  return(grid_rand_effects_N)
+}
+
 #' @title Check case definition
 #' @description Checks whether the column name for case definition is valid
 #'
@@ -45,7 +67,7 @@ check_case_definition <- function(case_col) {
   if (!(case_col %in% c("suspected", "confirmed")))
     stop("Cholera case definition not in allowed options (suspected or confirmed).")
   
-  cat("-- Running with valid case defitinion: '", case_col, "'\n", sep = "")
+  cat("-- Running with valid case defitinion: ", case_col, "\n", sep = "")
   return(case_col)
 }
 
@@ -159,11 +181,11 @@ check_set_tfrac <- function(set_tfrac) {
 
 #' @title Check snap tolerance
 #' @description Checks that snap_tol is valid, with a default of 7/365.
-#' @param snap_tol 
+#' @param snap_tol
 #'
 #' @export
 #'
-check_snap_tol <- function(snap_tol, 
+check_snap_tol <- function(snap_tol,
                            res_time) {
   if (!is.null(snap_tol)) {
     if (snap_tol < 0) {
@@ -176,7 +198,7 @@ check_snap_tol <- function(snap_tol,
     }
   } else {
     snap_tol <- 7/365
-    cat("---- Running with deftaul value of snap tolerance 7/365:", snap_tol, "[", res_time, "]\n")
+    cat("---- By default, running with value of snap tolerance 7/365:", snap_tol, "[", res_time, "]\n")
   }
   return(snap_tol)
 }
