@@ -31,6 +31,9 @@ prepare_stan_input <- function(
     sf_grid,
     location_periods_dict,
     covar_cube,
+    set_tfrac,
+    snap_tol,
+    opt,
     stan_params
 ) {
   
@@ -143,6 +146,13 @@ prepare_stan_input <- function(
                                                        cases_column = cases_column,
                                                        verbose = opt$verbose)
     
+    # Snap to time period after aggregation
+    sf_cases_resized <- taxdat::snap_to_time_period_df(df = sf_cases_resized,
+                                                       TL_col = "TL",
+                                                       TR_col = "TR",
+                                                       res_time = res_time,
+                                                       tol = snap_tol)
+    
     # Re-compute space-time indices based on aggretated data
     ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
       df = sf_cases_resized, 
@@ -155,6 +165,7 @@ prepare_stan_input <- function(
   } else {
     print("---- USING RAW CHOLERA DATA ----")
     ind_mapping_resized <- ind_mapping
+    sf_cases_resized <- sf_cases
   }
   
   

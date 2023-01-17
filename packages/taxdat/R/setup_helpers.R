@@ -157,9 +157,33 @@ check_set_tfrac <- function(set_tfrac) {
 }
 
 
+#' @title Check snap tolerance
+#' @description Checks that snap_tol is valid, with a default of 7/365.
+#' @param snap_tol 
+#'
+#' @export
+#'
+check_snap_tol <- function(snap_tol, 
+                           res_time) {
+  if (!is.null(snap_tol)) {
+    if (snap_tol < 0) {
+      stop("Cannot specifiy negative snap tolerance values")
+    }
+    if (snap_tol > 1) {
+      warning("---- Running with a tfrac value larger than 1")
+    } else {
+      cat("---- Running with user-specified value of snap tolerance:", snap_tol, "[", res_time, "]\n")
+    }
+  } else {
+    snap_tol <- 7/365
+    cat("---- Running with deftaul value of snap tolerance 7/365:", snap_tol, "[", res_time, "]\n")
+  }
+  return(snap_tol)
+}
+
+
 #' @title Check tfrac threshold
 #' @description Checks what tfrac threshold should be applied, with a default of 0.
-#'
 #' @param tfrac_thresh tfrac_thresh parameter
 #'
 #' @return if valid the stan model path
