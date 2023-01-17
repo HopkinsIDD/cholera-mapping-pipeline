@@ -6,7 +6,7 @@ start_time: '2001-01-01'
 end_time: '2001-12-31'
 res_time: 1 years
 res_space: 20
-smoothing_period: 1
+grid_rand_effects_N: 1
 case_definition: suspected
 covariate_choices:
  - pop
