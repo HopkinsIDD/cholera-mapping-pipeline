@@ -1528,6 +1528,11 @@ make_location_periods_dict <- function(conn_pg,
          str_c(u_lps_missing, collaspe = " - "))
   }
   
+  # Keep distinct entries
+  location_periods_dict <- location_periods_dict %>%
+    dplyr::as_tibble() %>% 
+    dplyr::distinct()
+  
   return(location_periods_dict)
 }
 
