@@ -259,8 +259,10 @@ get_space_time_ind_speedup <- function(df,
                 temporal_bands,
                 function(x) {
                   suppressMessages(
-                    lubridate::days(lubridate::days(1) + min(r$TR[1], model_time_slices$TR[x]) - max(r$TL[1], model_time_slices$TL[x])) /
-                      lubridate::days(lubridate::days(1) + model_time_slices$TR[x] - model_time_slices$TL[x])
+                    compute_tfrac(TL = r$TL[1],
+                                  TR = r$TR[1],
+                                  TL_ref = model_time_slices$TL[x],
+                                  TR_ref =  model_time_slices$TR[x])
                   )
                 })
             ) %>% 
