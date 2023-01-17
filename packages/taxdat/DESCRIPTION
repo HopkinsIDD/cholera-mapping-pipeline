@@ -58,6 +58,7 @@ Collate:
     'run_stan_helpers.R'
     'shapefile_manipulation.R'
     'simulation_framework_helpers.R'
+    'snap_to_time_period.R'
     'stan_input_helpers.R'
     'stitch_caches.R'
     'transform_covariates.R'
