@@ -17,19 +17,6 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
   get_sf_cases_resized(name="sf_cases_resized",config=config, cache=cache, cholera_directory=cholera_directory)
   who_annual_cases <- cache[["sf_cases_resized"]] %>% sf::st_drop_geometry()
   
-  ### Stashed code 
-  # if(!"data_fidelity" %in% names(cache)){
-  #   cache[["data_fidelity"]] <- get_data_fidelity(cache = cache, cholera_directory = cholera_directory, config = config)
-  # }
-  # chains <- cache[["data_fidelity"]] %>% 
-  #   filter(str_detect(variable, "tfrac", negate = T)) %>% 
-  #   group_by(variable) %>% 
-  #   summarise(modeled = paste0(format(round(mean(`modeled cases`),0),big.mark=","),
-  #                             "(",format(round(quantile(`modeled cases`,prob=0.025),0),big.mark=","),
-  #                             "-",format(round(quantile(`modeled cases`,prob=0.975),0),big.mark=","),
-  #                             ")")
-  #             )
-  # who_annual_cases$modeled <-   chains$modeled
 
   ## if to get the sum of the grid-level modeled cases  
   if(!observation_level_modeled_cases){
@@ -102,15 +89,21 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
 
   ### Whether add more rows that compare modeled cases with other annual country-level observed cases 
   if(add_other_source){
+    get_sf_cases(name="sf_cases",cache=cache,config=config,cholera_directory=cholera_directory)
     sf_cases_country_level <- cache[["sf_cases"]] %>%
       sf::st_drop_geometry() %>%
       filter(stringr::str_count(location_name, "::") == 1 & stringr::str_length(OC_UID) != 3)
     country_level_ids <- unique(sf_cases_country_level$locationPeriod_id)
+
+    config_file <- yaml::read_yaml(paste0(cholera_directory, "/", config), eval.expr = TRUE)
+    censoring_threshold <- ifelse(!is.null(config_file$censoring_thresh), as.numeric(config_file$censoring_thresh), 0.95)
+    get_stan_input(name="stan_input",cache=cache,config = config,cholera_directory = cholera_directory)
     country_level_agg_cases <- cache[["stan_input"]]$sf_cases_resized %>% 
+      mutate(observed = attributes.fields.suspected_cases, modeled = modeled_obs_level_cases) %>%
       sf::st_drop_geometry() %>%
       filter(locationPeriod_id %in% country_level_ids & stringr::str_length(OC_UID) != 3) %>%
-      mutate(observed = attributes.fields.suspected_cases, modeled = NA) %>%
-      select(OC_UID, TL, TR, observed, modeled)
+      filter(((TR - TL)/365) >= censoring_threshold) %>%
+      dplyr::select(OC_UID, TL, TR, observed, modeled)
     
     who_annual_cases_from_db <- rbind(who_annual_cases_from_db, country_level_agg_cases) %>%
       arrange(TL, desc(TR))

@@ -358,7 +358,8 @@ plot_disaggregated_modeled_cases_time_varying <- function(config_file,
                                                           render = T,
                                                           plot_file = NULL,
                                                           width = NULL,
-                                                          height = NULL){
+                                                          height = NULL, 
+                                                          ...){
   iso_code <- as.character(stringr::str_extract(config_file$name, "[A-Z]{3}"))
 
   if(iso_code == "ZNZ"){
@@ -375,7 +376,7 @@ plot_disaggregated_modeled_cases_time_varying <- function(config_file,
 
 # Get the country-level shape file from the stan input and plot it against the country-level shape file in the modeled case figure
 if(add_shp_from_stan_input){
-  shp_from_stan_input <- get_country_shp_from_stan_input(cache=cache, config=params$config, cholera_directory=params$cholera_directory)
+  shp_from_stan_input <- get_country_shp_from_stan_input(cache=cache, config=params$config, cholera_directory=params$cholera_directory, ...)
 }
 
 plt <- ggplot2::ggplot()
@@ -461,7 +462,8 @@ plot_modeled_rates_time_varying <- function(config_file,
                                             render = T,
                                             plot_file = NULL,
                                             width = NULL,
-                                            height = NULL){
+                                            height = NULL, 
+                                            ...){
   iso_code <- as.character(stringr::str_extract(config_file$name, "[A-Z]{3}"))
 
   if(iso_code == "ZNZ"){
@@ -478,7 +480,7 @@ plot_modeled_rates_time_varying <- function(config_file,
 
   # Get the country-level shape file from the stan input and plot it against the country-level shape file in the modeled case figure
   if(add_shp_from_stan_input){
-    shp_from_stan_input <- get_country_shp_from_stan_input(cache=cache, config=params$config, cholera_directory=params$cholera_directory)
+    shp_from_stan_input <- get_country_shp_from_stan_input(cache=cache, config=params$config, cholera_directory=params$cholera_directory, ...)
   }
   
    plt <- ggplot2::ggplot()

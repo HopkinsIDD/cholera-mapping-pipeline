@@ -5,8 +5,8 @@ output:
     toc: true
     toc_float: true
 params: 
-  cholera_directory: "/home/.../cholera-mapping-pipeline"
-  config: "Analysis/.../config.yml"
+  cholera_directory: "/.../cholera-mapping-pipeline"
+  config: "Analysis/configs/.../*.yml"
   drop_nodata_years: TRUE
   admin_level_for_summary_table: '1'
   args: 'myarg'
@@ -18,8 +18,9 @@ params:
 chooseCRANmirror(ind = 77)
 
 package_list <- c(
+  "yaml", 
   "knitr", 
-  "stringr", 
+  #"stringr", 
   "cli", 
   "purrr",
   "dplyr", 
@@ -29,7 +30,7 @@ package_list <- c(
   "kableExtra", 
   "ISOcodes", 
   "igraph", 
-  #"taxdat", #tmp commented out
+  "taxdat",
   "sf", 
   "sp", 
   "raster",
@@ -44,7 +45,7 @@ package_list <- c(
   "coda", 
   "ggrepel", 
   "urltools", 
-  "RPostgres"
+  "cmdstanr"
 )
 
 run_on_marcc <- as.logical(Sys.getenv("RUN_ON_MARCC",FALSE))
@@ -67,6 +68,7 @@ if(run_on_marcc){
       }
     }
     library(rstan)
+    library(package = Cairo)
     '
 
 }else{
@@ -89,9 +91,7 @@ if(run_on_marcc){
 }
 package_exp <- parse(text = c(package_exp))
 invisible(purrr::map(package_exp, eval))
-library(package = "taxdat", character.only = T, lib = "/home/kzou7/rlibs/cmp/4.0.2/gcc/9.3.0/") #tmp
-library(package = "cmdstanr", character.only = T, lib = "/home/kzou7/rlibs/cmp/4.0.2/gcc/9.3.0/") #tmp
-library(package = "Cairo", character.only = T) #tmp
+library(stringr)
 sf::sf_use_s2(FALSE)
 
 ### Rmarkdown file settings
@@ -278,7 +278,7 @@ obs_years <- min(lubridate::year(cache[["sf_cases_resized"]]$TL)):max(lubridate:
 ### Modeled cases
 **Modeled cases raster by time slices:**
 ```{r caserast, fig.cap=capFig("Modeled cases"), fig.height=5, fig.width=10}
-plot_disaggregated_modeled_cases_time_varying(config_file=config_file, disaggregated_case_sf=cache[["disaggregated_case_sf"]], add_shp_from_stan_input = T)
+plot_disaggregated_modeled_cases_time_varying(config_file=config_file, disaggregated_case_sf=cache[["disaggregated_case_sf"]], add_shp_from_stan_input = T, run_on_marcc = run_on_marcc)
 ```
 
 ```{r out-cases,fig.height=5,fig.width=10,fig.cap=capFig("Mean cases per year")}
@@ -326,7 +326,7 @@ cases_summ %>%
 ### Modeled incidence rates
 **Modeled incidence rates raster by time slices:**
 ```{r raterast, fig.cap=capFig("Modeled rates by time"), fig.height=5, fig.width=10}
-plot_modeled_rates_time_varying(config_file=config_file, disaggregated_rate_sf=cache[["disaggregated_rate_sf"]], add_shp_from_stan_input = T, render = T)
+plot_modeled_rates_time_varying(config_file=config_file, disaggregated_rate_sf=cache[["disaggregated_rate_sf"]], add_shp_from_stan_input = T, render = T, run_on_marcc = run_on_marcc)
 ```
 
 ```{r out-rates,fig.height=5,fig.width=10,fig.cap=capFig("Mean rate per year")}
@@ -454,26 +454,12 @@ plot_model_fidelity_by_chain(cache=cache,cholera_directory=params$cholera_direct
 }
 ```
 
-**Table 5.1 Observed and estimates of WHO annual cholera reports based on the observation-level modeled cases:**
-```{r WHO output1, fig.height=510, fig.width=10, fig.cap = "comparison with WHO Output 1"}
-plot_WHOcomparison_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory, 
-  allow_data_pull = !run_on_marcc)
-```
-**Table 5.2 Observed and estimates of WHO annual cholera reports based on the sum of grid-level modeled cases:**
-```{r WHO output2, fig.height=510, fig.width=10, fig.cap = "comparison with WHO Output 2"}
-plot_WHOcomparison_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory, 
-  observation_level_modeled_cases = FALSE, allow_data_pull = !run_on_marcc)
-```
-**Table 5.3 Observed and estimates of WHO annual cholera reports based on the observation-level modeled cases with other sources of annual data added:**
-```{r WHO output3, fig.height=510, fig.width=10, fig.cap = "comparison with WHO Output 3"}
+**Table 5. Observed and estimates of WHO annual cholera reports based on the observation-level modeled cases with other sources of annual data added:**
+```{r WHO output, fig.height=510, fig.width=10, fig.cap = "comparison with WHO Output"}
 plot_WHOcomparison_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory, 
   allow_data_pull = !run_on_marcc, add_other_source = TRUE)
 ```
-**Table 5.4 Observed and estimates of WHO annual cholera reports based on the sum of grid-level modeled cases with other sources of annual data added:**
-```{r WHO output4, fig.height=510, fig.width=10, fig.cap = "comparison with WHO Output 4"}
-plot_WHOcomparison_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory, observation_level_modeled_cases = FALSE, 
-  allow_data_pull = !run_on_marcc, add_other_source = TRUE)
-```
+
 
 ## Model Convergence 
 **Stan trace plots:**
@@ -502,6 +488,13 @@ print(paste("There are",format(round(total_cases), big.mark=","),"total cases"))
 ```
 
 ## Others 
+### Config Parameters
+**Table 7. Parameters used within the model:**
+```{r echo = FALSE}
+config_file <- yaml::read_yaml(paste0(params$cholera_directory, "/", params$config), eval.expr = TRUE)
+print(config_file)
+```
+
 ### GAM Input
 **Observations input for the GAM model:**
 ```{r gam input of cases,fig.height=10, fig.width=15, fig.cap=capFig("Observations input for the GAM model (cases)")}
@@ -550,7 +543,7 @@ plot_stan_output_vs_gam_output_case_scatter_plot(cache = cache) #this will outpu
 plot_time_varying_pop_raster(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 ```
 
-**Table 7. Population by admin level:**
+**Table 8. Population by admin level:**
 ```{r echo = FALSE}
 plot_pop_by_admin(cache=cache,cholera_directory=params$cholera_directory,config=params$config,admin_level_for_summary_table=params$admin_level_for_summary_table)
 warning("Here we're using 20*20 km pop raster to estimate the population!")
@@ -566,7 +559,7 @@ plot_raster_covariates(cache=cache,cholera_directory=params$cholera_directory,co
 }
 ```
 
-**Table 8. Time for each chain:**
+**Table 9. Time for each chain:**
 ```{r analysisyears}
 obs_years <- min(lubridate::year(cache[["stan_input"]]$sf_cases_resized$TL)):max(lubridate::year(cache[["stan_input"]]$sf_cases_resized$TR))
 time_tmp <- rstan::get_elapsed_time(cache[["model.rand"]])
