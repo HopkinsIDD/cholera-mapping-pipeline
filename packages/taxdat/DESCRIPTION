@@ -24,6 +24,7 @@ Collate:
     'db_table_creation_functions.R'
     'file_name_functions.R'
     'geo_lookup_helpers.R'
+    'get_country_shp_from_stan_input.R'
     'get_covar_cube.R'
     'get_data_fidelity.R'
     'get_gam_output.R'
