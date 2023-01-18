@@ -198,20 +198,20 @@ if (warmup) {
   }
   
   # Initial parameter values
-  if (stan_params$time_effect | config$smoothing_period != 1) {
+  if (stan_params$time_effect | grid_rand_effects_N != 1) {
     sd_w <- sd(w.init)
     
-    if (stan_params$time_effect & config$smoothing_period != 1) {
-      stop("Current code does not allow smoothing_period != 1 and time_effect = true")
+    if (stan_params$time_effect & grid_rand_effects_N != 1) {
+      stop("Current code does not allow grid_rand_effects_N != 1 and time_effect = true")
     }
     
-    if (config$smoothing_period != 1) {
+    if (grid_rand_effects_N != 1) {
       init.list <- lapply(1:nchain, 
                           function(i) {
                             list(
                               # Perturbation of spatial random effects
-                              w = rnorm(length(w.init) * config$smoothing_period, 
-                                        rep(w.init, config$smoothing_period), .1)
+                              w = rnorm(length(w.init) * grid_rand_effects_N,
+                                        rep(w.init, grid_rand_effects_N), .1)
                             )})
     }
     
