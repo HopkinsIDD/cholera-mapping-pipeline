@@ -31,7 +31,7 @@ automate_mapping_config <- function(p, covariate_names, countries_names, countri
     "aoi: '", p$aoi, "'\n",
     "res_space: ", p$res_space, "\n",
     "res_time: '", p$res_time, "'\n",
-    "smoothing_period: ", p$smoothing_period, "\n",
+    "grid_rand_effects_N: ", p$grid_rand_effects_N, "\n",
     "case_definition: '", p$case_definition, "'\n",
     "start_time: '", as.Date(p$start_time), "'\n",
     "end_time: '", as.Date(p$end_time), "'\n",
@@ -79,4 +79,5 @@ automate_mapping_config <- function(p, covariate_names, countries_names, countri
     "  recompile: ", p$recompile, "\n"
   ))
 }
+
 

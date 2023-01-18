@@ -3,7 +3,7 @@
 #'
 #' @param dbuser
 #' @param cholera_directory
-#' @param smooth_covariate_number_timesteps
+#' @param grid_rand_effects_N
 #' @param ncore
 #' @param res_time
 #' @param res_space
@@ -20,7 +20,7 @@
 prepare_stan_input <- function(
     dbuser,
     cholera_directory,
-    smooth_covariate_number_timesteps,
+    grid_rand_effects_N,
     ncore,
     res_time,
     res_space,
@@ -32,9 +32,11 @@ prepare_stan_input <- function(
     location_periods_dict,
     covar_cube,
     set_tfrac,
+    tfrac_thresh,
     snap_tol,
     opt,
-    stan_params
+    stan_params,
+    config
 ) {
   
   library(sf)
@@ -51,7 +53,7 @@ prepare_stan_input <- function(
   # make the smooth grid
   smooth_grid_obj <- taxdat::make_smooth_grid(sf_grid = sf_grid,
                                               non_na_gridcells = non_na_gridcells,
-                                              smooth_covariate_number_timesteps = smooth_covariate_number_timesteps)
+                                              grid_rand_effects_N = grid_rand_effects_N)
   
   # Unpack
   sf_grid <- smooth_grid_obj$sf_grid            # updated sf_grid with column "s" for smooth grid index
@@ -136,7 +138,7 @@ prepare_stan_input <- function(
   sf_cases_resized <- sf_cases[non_na_obs, ]
   
   
-  if (config$aggregate) {
+  if (taxdat::check_aggregate(config$aggregate)) {
     
     print("---- AGGREGATING CHOLERA DATA TO MODELING TIME RES ----")
     
@@ -172,14 +174,14 @@ prepare_stan_input <- function(
   #  ---- D. Drop tfrac threshold ----
   
   # If specified threshold of minimum tfrac filter out data
-  if (!is.null(config$tfrac_thresh)) {
+  if (tfrac_thresh > 0) {
     # Which observations to remove
-    obs_remove_thresh <- unique(ind_mapping_resized$obs[ind_mapping_resized$tfrac < as.numeric(config$tfrac_thresh)])
+    obs_remove_thresh <- unique(ind_mapping_resized$obs[ind_mapping_resized$tfrac < as.numeric(tfrac_thresh)])
     
     if (length(obs_remove_thresh) == 0){
-      cat("---- FOUND none of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", config$tfrac_thresh, "\n")
+      cat("---- FOUND none of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", tfrac_thresh, "\n")
     } else {
-      cat("---- REMOVING", length(obs_remove_thresh), "of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", config$tfrac_thresh, "\n")
+      cat("---- REMOVING", length(obs_remove_thresh), "of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", tfrac_thresh, "\n")
       
       # Remove observations
       sf_cases_resized <- sf_cases_resized[-c(obs_remove_thresh), ]
@@ -213,8 +215,8 @@ prepare_stan_input <- function(
                                                censoring_thresh = stan_params$censoring_thresh)
   
   # Then overwrite tfrac with user-specified value
-  if (!is.null(set_tfrac) && (set_tfrac)) {
-    cat("-- Overwriting tfrac with user-specified value of ", set_tfrac)
+  if (set_tfrac) {
+    cat("-- Overwriting tfrac for non-censored observations with 1")
     ind_mapping_resized$tfrac <- rep(1.0, length(ind_mapping_resized$tfrac))
   }
   

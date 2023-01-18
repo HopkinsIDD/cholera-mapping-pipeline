@@ -34,6 +34,28 @@ check_time_res <- function(res_time) {
   return(res_time)
 }
 
+#' @title Check the number of grid-level random effect time slices (formerly, "smoothing period")
+#' @description Checks whether the smoothing period (number of time slices of the spatial random effects) is 1. Default is 1.
+#'
+#' @param grid_rand_effects_N number of grid-level random effect time slices
+#'
+#' @return grid_rand_effects_N if valid
+#' @export
+check_grid_rand_effects_N <- function(grid_rand_effects_N) {
+  if(is.null(grid_rand_effects_N)){
+    grid_rand_effects_N <- 1
+    cat("-- By default, running with grid_rand_effects_N: 1 \n'")
+  } else if (!(is.numeric(grid_rand_effects_N))){
+    stop("Grid_rand_effects_N must be numeric.")
+  } else if(grid_rand_effects_N != 1){
+    stop("Grid_rand_effects_N must be 1. Other values still need to be tested and validated.")
+  } else{
+    cat("-- Running with grid_rand_effects_N:", grid_rand_effects_N, "\n", sep = "")
+  }
+
+  return(grid_rand_effects_N)
+}
+
 #' @title Check case definition
 #' @description Checks whether the column name for case definition is valid
 #'
@@ -45,7 +67,7 @@ check_case_definition <- function(case_col) {
   if (!(case_col %in% c("suspected", "confirmed")))
     stop("Cholera case definition not in allowed options (suspected or confirmed).")
   
-  cat("-- Running with valid case defitinion: '", case_col, "'\n", sep = "")
+  cat("-- Running with valid case defitinion: ", case_col, "\n", sep = "")
   return(case_col)
 }
 
@@ -130,33 +152,40 @@ check_stan_model <- function(stan_model_path,
 }
 
 #' @title Check set tfrac
-#' @description Checks whether the user-specified value of tfrac is valid
+#' @description Checks whether tfrac should be set to 1. If not set_tfrac is specified, the default is FALSE.
 #'
-#' @param config the config
+#' @param set_tfrac set_tfrac parameter
 #'
 #' @return if valid the stan model path
 #' @export
 check_set_tfrac <- function(set_tfrac) {
   if (!is.null(set_tfrac)) {
-    if (set_tfrac < 0) {
-      stop("Cannot specifiy negative tfrac values")
+    if (!is.logical(set_tfrac)){
+      stop("set_tfrac must be a logical value")
     }
-    if (set_tfrac > 1) {
-      warning("-- Running with a tfrac value larger than 1")
+    if (set_tfrac){
+      cat("---- Non-censored observations will have tfrac = 1 \n")
     } else {
-      cat("---- Running with user-specified value of tfrac:", set_tfrac, "\n")
+      cat("---- Non-censored observations will keep their original tfrac values \n")
     }
+
+  } else{
+    set_tfrac <- FALSE
+    cat("---- By default, non-censored observations will keep their original tfrac values \n")
   }
+
+
   return(set_tfrac)
 }
 
-#' check snap tolerance
-#'
-#' @param snap_tol 
+
+#' @title Check snap tolerance
+#' @description Checks that snap_tol is valid, with a default of 7/365.
+#' @param snap_tol
 #'
 #' @export
 #'
-check_snap_tol <- function(snap_tol, 
+check_snap_tol <- function(snap_tol,
                            res_time) {
   if (!is.null(snap_tol)) {
     if (snap_tol < 0) {
@@ -169,14 +198,66 @@ check_snap_tol <- function(snap_tol,
     }
   } else {
     snap_tol <- 7/365
-    cat("---- Running with deftaul value of snap tolerance 7/365:", snap_tol, "[", res_time, "]\n")
+    cat("---- By default, running with value of snap tolerance 7/365:", snap_tol, "[", res_time, "]\n")
   }
   return(snap_tol)
 }
 
-#' Check sfrac thresh
+
+#' @title Check tfrac threshold
+#' @description Checks what tfrac threshold should be applied, with a default of 0.
+#' @param tfrac_thresh tfrac_thresh parameter
 #'
-#' @param sfrac_thresh 
+#' @return if valid the stan model path
+#' @export
+check_tfrac_thresh <- function(tfrac_thresh) {
+  if (!is.null(tfrac_thresh)) {
+    if (!is.numeric(tfrac_thresh) | tfrac_thresh < 0 | tfrac_thresh > 1){
+      stop("tfrac_thresh must be a numeric value between 0 and 1")
+    }
+
+    cat("---- Observations with tfrac greater than ", tfrac_thresh, " will be kept \n")
+
+  } else{
+    tfrac_thresh <- 0
+    cat("---- By default, observations with tfrac greater than ", tfrac_thresh, " will be kept \n")
+  }
+
+  return(tfrac_thresh)
+}
+
+
+#' @title Check aggregate
+#' @description Checks what aggregate setting should be applied, with a default of true.
+#'
+#' @param aggregate_param aggregate parameter
+#'
+#' @return if valid the stan model path
+#' @export
+check_aggregate <- function(aggregate_param) {
+  if (!is.null(aggregate_param)) {
+    if (!is.logical(aggregate_param)){
+      stop("aggregate parameter must be a logical value")
+    }
+
+    if (aggregate_param){
+      cat("---- Observations will be aggregated \n")
+    } else{
+      cat("---- Observations will not be aggregated \n")
+    }
+
+
+  } else{
+    aggregate_param <- TRUE
+    cat("---- By default, observations will be aggregated \n")
+  }
+
+  return(aggregate_param)
+}
+
+
+#' @title check_sfrac_thresh
+#' @param sfrac_thresh sfrac_thresh parameter
 #'
 #' @return
 #' @export
@@ -184,7 +265,7 @@ check_snap_tol <- function(snap_tol,
 check_sfrac_thresh <- function(sfrac_thresh) {
   
   if (is.null(sfrac_thresh)) {
-    cat("---- Sfrac thresh not specified, setting to default: 1e-3")
+    cat("---- Sfrac thresh not specified, setting to default: 1e-3 \n")
     sfrac_thresh <- 1e-3
   }
   
