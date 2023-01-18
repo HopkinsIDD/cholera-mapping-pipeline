@@ -278,8 +278,8 @@ if (is.null(config$summary_admin_levels)) {
   if (testing) {
     config$summary_admin_levels <- NA
   } else {
-    cat("-- Did not find specification for summary admin levels, setting to 1-2")
-    config$summary_admin_levels <- c(0, 1,2)
+    cat("-- Did not find specification for summary admin levels, setting to 0-1-2 \n")
+    config$summary_admin_levels <- c(0, 1, 2)
   }
 }
 

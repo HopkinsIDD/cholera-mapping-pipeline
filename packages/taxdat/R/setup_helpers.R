@@ -265,7 +265,7 @@ check_aggregate <- function(aggregate_param) {
 check_sfrac_thresh <- function(sfrac_thresh) {
   
   if (is.null(sfrac_thresh)) {
-    cat("---- Sfrac thresh not specified, setting to default: 1e-3")
+    cat("---- Sfrac thresh not specified, setting to default: 1e-3 \n")
     sfrac_thresh <- 1e-3
   }
   
