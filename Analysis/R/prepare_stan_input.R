@@ -32,9 +32,11 @@ prepare_stan_input <- function(
     location_periods_dict,
     covar_cube,
     set_tfrac,
+    tfrac_thresh,
     snap_tol,
     opt,
-    stan_params
+    stan_params,
+    config
 ) {
   
   library(sf)

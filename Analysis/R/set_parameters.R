@@ -443,9 +443,11 @@ for(t_idx in 1:length(all_test_idx)){
       location_periods_dict = covar_cube_output$location_periods_dict,
       covar_cube = covar_cube_output$covar_cube,
       set_tfrac = set_tfrac,
+      tfrac_thresh = tfrac_thresh,
       snap_tol = snap_tol,
       opt = opt,
-      stan_params = stan_params
+      stan_params = stan_params,
+      config = config
     )
     
     # Save data
