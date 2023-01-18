@@ -95,21 +95,21 @@ print("Finding Locations")
 if (sum(!cases$shapefile.exists) > 0) {
   warning("There was a problem with at least one shapefile. See output for details.")
   print(paste(sum(!cases$shapefile.exists), "of", length(cases$shapefile.exists), "observations have shapefile problems."))
-
+  
   problem_cases <- dplyr::filter(cases, !shapefile.exists)
   problem_indices <- which(!cases$shapefile.exists)
   problem_OCs <- unique(problem_cases$OC_UID) ## relationships.observation_collection.data.id)
-
+  
   # print(paste("The following indexes are affected:", paste(problem_indices, collapse = ", ")))
   print(paste("The following OC UIDs are affected:", paste(problem_OCs, collapse = ", ")))
   print(paste(sum(problem_cases[[cases_column]]), "/", sum(cases[[cases_column]]), cases_column, "are missing due to shapefile problems."))
-
+  
   print("Observations attached to problematic location-periods will be ignored. Here are the problematic location-periods *****************")
   print(dplyr::select(problem_cases, location_name) %>%
-    as.data.frame() %>%
-    dplyr::distinct(location_name) %>%
-    dplyr::arrange(location_name))
-
+          as.data.frame() %>%
+          dplyr::distinct(location_name) %>%
+          dplyr::arrange(location_name))
+  
   cases <- cases %>%
     dplyr::filter(shapefile.exists)
 }
@@ -250,8 +250,8 @@ sf::st_crs(cases) <- sf::st_crs(shapefiles) ## same crs needed for st_join
 sf::st_geometry(cases) <- NULL
 sf_cases <- sf::st_as_sf(
   dplyr::left_join(cases,
-    shapefiles,
-    by = c("attributes.location_period_id" = "location_period_id")
+                   shapefiles,
+                   by = c("attributes.location_period_id" = "location_period_id")
   )
 )
 
@@ -270,10 +270,18 @@ if (any(sf::st_is_empty(sf_cases))) {
 sf_cases$TL <- lubridate::ymd(sf_cases$TL)
 sf_cases$TR <- lubridate::ymd(sf_cases$TR)
 
+
+# Snap to time period
+sf_cases <- taxdat::snap_to_time_period_df(df = sf_cases,
+                                           TL_col = "TL",
+                                           TR_col = "TR",
+                                           res_time = res_time,
+                                           tol = snap_tol)
+
 save(sf_cases,
-  full_grid_name,
-  output_shapefiles,
-  file = file_names[["data"]]
+     full_grid_name,
+     output_shapefiles,
+     file = file_names[["data"]]
 )
 
 # close database

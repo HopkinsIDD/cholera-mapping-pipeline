@@ -346,6 +346,7 @@ plot_disaggregated_modeled_cases <- function(case_raster,
 #' @param config_file the actual config file 
 #' @param disaggregated_case_sf disaggregated case raster object
 #' @param country_iso the iso code of the country
+#' @param add_shp_from_stan_input whether to add the country-level shape file from the stan input 
 #' @param render default is TRUE
 #' @param plot_file default is NULL
 #' @param width plot width
@@ -353,10 +354,12 @@ plot_disaggregated_modeled_cases <- function(case_raster,
 #' @return ggplot object with modeled cases map
 plot_disaggregated_modeled_cases_time_varying <- function(config_file, 
                                                           disaggregated_case_sf,
+                                                          add_shp_from_stan_input = FALSE, 
                                                           render = T,
                                                           plot_file = NULL,
                                                           width = NULL,
-                                                          height = NULL){
+                                                          height = NULL, 
+                                                          ...){
   iso_code <- as.character(stringr::str_extract(config_file$name, "[A-Z]{3}"))
 
   if(iso_code == "ZNZ"){
@@ -371,13 +374,19 @@ plot_disaggregated_modeled_cases_time_varying <- function(config_file,
     boundary_sf <- rgeoboundaries::gb_adm0(iso_code)
   }
 
+# Get the country-level shape file from the stan input and plot it against the country-level shape file in the modeled case figure
+if(add_shp_from_stan_input){
+  shp_from_stan_input <- get_country_shp_from_stan_input(cache=cache, config=params$config, cholera_directory=params$cholera_directory, ...)
+}
+
 plt <- ggplot2::ggplot()
-plt <-   ggplot2::ggplot() +
+plt <- ggplot2::ggplot() +
   ggplot2::geom_sf(
     data = disaggregated_case_sf,
     ggplot2::aes(fill = value),color=NA,size=0.00001)+
   taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = TRUE)+
   ggplot2::geom_sf(data=boundary_sf,fill=NA,color="black",size=0.05)+
+  {if(add_shp_from_stan_input) ggplot2::geom_sf(data=shp_from_stan_input,fill=NA,color="red",size=0.05)} +
   ggplot2::labs(fill="Incidence\n [cases/year]")+
   ggplot2::theme_bw() +
   ggplot2::theme(legend.position = "bottom") +
@@ -441,6 +450,7 @@ plot_modeled_rates <- function(case_raster,
 #' @description add
 #' @param config_file the actual config file 
 #' @param disaggregated_rate_sf disaggregated_rate_sf object
+#' @param add_shp_from_stan_input whether to add the country-level shape file from the stan input 
 #' @param render default is TRUE
 #' @param plot_file default is NULL
 #' @param width plot width
@@ -448,10 +458,12 @@ plot_modeled_rates <- function(case_raster,
 #' @return ggplot object with modeled rates map
 plot_modeled_rates_time_varying <- function(config_file, 
                                             disaggregated_rate_sf,
+                                            add_shp_from_stan_input = FALSE, 
                                             render = T,
                                             plot_file = NULL,
                                             width = NULL,
-                                            height = NULL){
+                                            height = NULL, 
+                                            ...){
   iso_code <- as.character(stringr::str_extract(config_file$name, "[A-Z]{3}"))
 
   if(iso_code == "ZNZ"){
@@ -465,14 +477,20 @@ plot_modeled_rates_time_varying <- function(config_file,
   }else{
     boundary_sf <- rgeoboundaries::gb_adm0(iso_code)
   }
+
+  # Get the country-level shape file from the stan input and plot it against the country-level shape file in the modeled case figure
+  if(add_shp_from_stan_input){
+    shp_from_stan_input <- get_country_shp_from_stan_input(cache=cache, config=params$config, cholera_directory=params$cholera_directory, ...)
+  }
   
    plt <- ggplot2::ggplot()
-   plt <-   ggplot2::ggplot() +
+   plt <- ggplot2::ggplot() +
    ggplot2::geom_sf(
     data = disaggregated_rate_sf,
     ggplot2::aes(fill = value),color=NA,size=0.00001)+
     taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
     ggplot2::geom_sf(data=boundary_sf,fill=NA,color="black",size=0.05)+
+    {if(add_shp_from_stan_input) ggplot2::geom_sf(data=shp_from_stan_input,fill=NA,color="red",size=0.05)} +
     ggplot2::labs(fill="Incidence rate\n [cases/10'000/year]")+
     ggplot2::theme_bw() +
     ggplot2::theme(legend.position = "bottom") +
