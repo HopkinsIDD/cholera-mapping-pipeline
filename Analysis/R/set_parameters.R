@@ -300,7 +300,7 @@ config_user <- config
 
 # Update config parameters
 for (param in c(names(config), names(stan_params))) {
-  if (exists(param) & params != "stan") {
+  if (exists(param) & param != "stan") {
     config[[param]] <- get(param)
   }
 }
