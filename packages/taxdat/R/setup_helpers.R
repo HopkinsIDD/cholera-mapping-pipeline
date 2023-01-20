@@ -306,3 +306,25 @@ modeling_time_slices <- function(start_time,
   cat("\n")
   return(time_slices)
 }
+
+
+#' Title
+#'
+#' @param debug 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_stan_debug <- function(debug) {
+  if (is.null(debug)) {
+    # Default behavior
+    debug <- FALSE
+  }
+  
+  if (!is.logical(debug)) {
+    stop("Debug needs to be boolean.")
+  }
+  
+  debug
+}
