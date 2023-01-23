@@ -22,6 +22,7 @@ automate_mapping_config <- function(p, covariate_names, countries_names, countri
       "name: '", ifelse(unspecified_parameter_check(p$name), map_name, p$name), "'\n",
       "countries: ['", paste(countries_ids, collapse="','"), "']\n",
       "countries_name: ['", paste(countries_names, collapse="','"), "']\n",
+      "country_data_report_filename: '", p$country_data_report_filename, "'\n",
       "aoi: '", p$aoi, "'\n",
       "res_space: ", p$res_space, "\n",
       "res_time: '", p$res_time, "'\n",
@@ -84,7 +85,7 @@ automate_mapping_config <- function(p, covariate_names, countries_names, countri
   }
 
   ### Check and update the config file 
-  check_update_config(config_fname)
+  taxdat::check_update_config(config_fname)
 
 }
 
@@ -98,7 +99,7 @@ automate_mapping_config <- function(p, covariate_names, countries_names, countri
 unspecified_parameter_check <- function(param = NULL, null_check = is.null(param)){
     if(null_check){return(TRUE)}
 
-    if(is.null(param) | identical(param, character(0)) | (stringr::str_count(param, " ") == nchar(param))){
+    if(identical(param, character(0)) | (stringr::str_count(param, " ") == nchar(param))){
       return(TRUE)
     }else{
       return(FALSE)

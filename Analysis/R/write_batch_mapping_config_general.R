@@ -1,6 +1,6 @@
 # install.packages("packages/taxdat", type="source", repos=NULL)
 library(readr)
-
+library(taxdat)
 #========================================================READ ME========================================================#
 # This new general config writer is updated for the general pipeline run in Jan, 2023 
 # This new writer with the updated "automate_mapping_config" function in the config_helpers.R 
@@ -12,13 +12,12 @@ library(readr)
 ####       Modify the following settings      ############## 
 working_directory <- "/home/kaiyuezou/mapping_pipeline/new_testing/cholera-mapping-pipeline" 
 setwd(working_directory)
-library(taxdat)
-config_path <- "Analysis/configs/production_tests/dev_drop_by_rgeo_testing" #<-----dependent on where to save the configs
+config_path <- "Analysis/configs/production_tests/config_writer_test" #<-----dependent on where to save the configs
 dir.create(file.path(working_directory, config_path), FALSE)
 
 Sys.setenv("CHOLERA_TESTING" = "FALSE")
 scale <- "country" ## country or region maps
-specified_countries <- c("KEN", "SDN") ## by default empty
+specified_countries <- c("AGO", "KEN") ## by default empty
 # covar_names <- c("dist_to_water", "water_access", "san_access", "open_defe", "stunting", "wasting", "access_cities")
 covar_names <- c() ## no covar run 
 Sys.setenv("CHOLERA_START_TIME" = "2016-01-01")
@@ -41,6 +40,7 @@ config_end_time <- Sys.getenv("CHOLERA_END_TIME","2020-12-31")
 
 params_df <- data.frame(
     name = '', 
+    country_data_report_filename = '', 
     aoi = 'raw',
     res_space = 20,
     res_time = '1 years', 
@@ -70,7 +70,7 @@ params_df <- data.frame(
     tfrac_thresh = 0,
     censoring = 'yes',
     censoring_thresh = 0.95, 
-    set_tfrac = 1,
+    set_tfrac = 'yes',
     snap_tol =  '7/365', 
     use_pop_weight = 'yes', 
     sfrac_thresh = '', 
@@ -80,7 +80,7 @@ params_df <- data.frame(
     model = 'mapping_model_inference', 
     genquant = 'mapping_model_generate', 
     niter = 2000,
-    recompile = TRUE
+    recompile = 'yes'
               )
 
 
