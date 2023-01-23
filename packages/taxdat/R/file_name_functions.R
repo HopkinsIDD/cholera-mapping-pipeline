@@ -86,7 +86,7 @@ make_stan_input_filename <- function(cholera_directory,
   
   # Processing configs
   to_add <- "pc"
-  for (par in c("smoothing_period", "aggregate", "tfrac_thresh", "set_tfrac", "censoring_thresh")) {
+  for (par in c("grid_rand_effects_N", "aggregate", "tfrac_thresh", "set_tfrac", "censoring_thresh")) {
     if(!is.null(config[[par]])) {
       to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, config[[par]])
     } else {

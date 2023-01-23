@@ -357,20 +357,21 @@ make_changer <- function(x) {
 #' Title
 #'
 #' @param sf_grid 
-#' @param smooth_covariate_number_timesteps 
+#' @param non_na_gridcells
+#' @param grid_rand_effects_N
 #'
 #' @return
 #' @export
 #'
 make_smooth_grid <- function(sf_grid,
                              non_na_gridcells,
-                             smooth_covariate_number_timesteps) {
+                             grid_rand_effects_N) {
   
   grid_changer <- make_changer(x = non_na_gridcells)
   
   # Set the index of smooth grid time slices
   sf_grid <- sf_grid %>% 
-    dplyr::mutate(s = (t-1) %% smooth_covariate_number_timesteps + 1)
+    dplyr::mutate(s = (t-1) %% grid_rand_effects_N + 1)
   
   temporally_inconsistant_cells <- sf_grid %>%
     sf::st_drop_geometry() %>% 

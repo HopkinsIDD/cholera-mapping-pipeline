@@ -4,7 +4,7 @@ countries: "Cote D'Ivoire"
 countries_name: 'KEN'
 res_space: 20
 res_time: '1 years'
-smoothing_period: 1
+grid_rand_effects_N: 1
 case_definition: 'suspected'
 start_time: '2000-01-01'
 end_time: '2000-12-31'

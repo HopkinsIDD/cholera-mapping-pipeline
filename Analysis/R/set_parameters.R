@@ -152,7 +152,7 @@ res_space <- as.numeric(config$res_space)
 # temporal resolution of analysis
 res_time <- taxdat::check_time_res(config$res_time)
 # number of time slices in spatial random effect
-smooth_covariate_number_timesteps <- config$smoothing_period
+grid_rand_effects_N <- taxdat::check_grid_rand_effects_N(config$grid_rand_effects_N)
 sfrac_thresh <- taxdat::check_sfrac_thresh(config$sfrac_thresh)
 
 # - - - -
@@ -176,11 +176,7 @@ cases_column <- taxdat::case_definition_to_column_name(suspected_or_confirmed,
                                                        database = T)
 # - - - -
 # Is there a threshold on tfrac?
-if (!is.null(config$tfrac_thresh)) {
-  cat("---- Running with tfrac threshold of", config$tfrac_thresh, "\n")
-} else {
-  cat("---- No tfrac thershold used\n")
-}
+tfrac_thresh <- taxdat::check_tfrac_thresh(config$tfrac_thresh)
 
 # - - - -
 # User-specified value to set tfrac
@@ -282,8 +278,8 @@ if (is.null(config$summary_admin_levels)) {
   if (testing) {
     config$summary_admin_levels <- NA
   } else {
-    cat("-- Did not find specification for summary admin levels, setting to 1-2")
-    config$summary_admin_levels <- c(0, 1,2)
+    cat("-- Did not find specification for summary admin levels, setting to 0-1-2 \n")
+    config$summary_admin_levels <- c(0, 1, 2)
   }
 }
 
@@ -439,7 +435,7 @@ for(t_idx in 1:length(all_test_idx)){
       res_time = res_time,
       res_space = res_space,
       time_slices = time_slices,
-      smooth_covariate_number_timesteps = smooth_covariate_number_timesteps,
+      grid_rand_effects_N = grid_rand_effects_N,
       cases_column = cases_column,
       sf_cases = sf_cases,
       non_na_gridcells = covar_cube_output$non_na_gridcells,
@@ -447,9 +443,11 @@ for(t_idx in 1:length(all_test_idx)){
       location_periods_dict = covar_cube_output$location_periods_dict,
       covar_cube = covar_cube_output$covar_cube,
       set_tfrac = set_tfrac,
+      tfrac_thresh = tfrac_thresh,
       snap_tol = snap_tol,
       opt = opt,
-      stan_params = stan_params
+      stan_params = stan_params,
+      config = config
     )
     
     # Save data
