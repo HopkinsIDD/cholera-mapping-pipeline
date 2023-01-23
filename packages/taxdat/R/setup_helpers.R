@@ -1,3 +1,147 @@
+#' @include config_helpers.R file_name_functions.R run_stan_helpers.R
+#' @title check_update_config
+#' @description Check whether parameter values exist or are valid and then update them 
+#' @param config_fname pathway to the config 
+#' @return the actual config file 
+#' @export
+check_update_config <- function(config_fname){
+  
+  ### Read in the config file first 
+  cholera_testing <- as.logical(Sys.getenv("CHOLERA_TESTING", "FALSE"))
+  config_file <- yaml::read_yaml(config_fname)
+  
+  ### Make the check list 
+  check_list <- list(
+    name = "no-check", 
+    countries = "no-check", 
+    countries_name = "no-check", 
+    aoi = function(param){
+        if(cholera_testing){return(param)}
+        return("raw")
+      }, 
+    res_space = "no-check", 
+    res_time = as.function(check_time_res), 
+    grid_rand_effects_N = as.function(check_grid_rand_effects_N), 
+    case_definition = as.function(check_case_definition), 
+    start_time = function(param){
+                if(stringr::str_count(param, " ") == nchar(param)){stop("The start_time parameter should not be blank because there is no default")}
+                return(param)
+              },   
+    end_time = function(param){
+              if(stringr::str_count(param, " ") == nchar(param)){stop("The end_time parameter should not be blank because there is no default")}
+              return(param)
+            }, 
+    data_source = function(param){
+                if(stringr::str_count(param, " ") == nchar(param)){return("sql")}
+                return(param)
+              }, 
+    ovrt_metadata_table = function(param){
+                        if(stringr::str_count(param, " ") == nchar(param)){return("no")}
+                        return(param)
+                      }, 
+    OCs = "no-check", 
+    taxonomy = function(param){
+              if(stringr::str_count(param, " ") == nchar(param)){return("taxonomy-working/working-entry1")}
+              return(param)
+            },  
+    covariate_choices = as.function(check_covariate_choices), 
+    obs_model = function(param){
+              if(!as.numeric(param) %in% 1:3){return(1)}
+              return(as.numeric(param))
+            }, 
+    od_param = function(param1, param2){
+              if(as.numeric(param1) == 2 | as.numeric(param1) == 3){return(as.numeric(param2))}
+              return(NULL)
+            }, 
+    time_effect = "stan-check", 
+    time_effect_autocor = "stan-check", 
+    use_intercept = "stan-check", 
+    covariate_transformations = "no-check", 
+    beta_sigma_scale = "stan-check", 
+    sigma_eta_scale = "stan-check", 
+    exp_prior = "stan-check", 
+    do_infer_sd_eta = "stan-check", 
+    do_zerosum_cnst = "stan-check", 
+    use_weights = "stan-check", 
+    covar_warmup = "stan-check", 
+    warmup = "stan-check", 
+    aggregate = as.function(check_aggregate), 
+    tfrac_thresh = as.function(check_tfrac_thresh), 
+    censoring = function(param){
+              if(stringr::str_count(param, " ") == nchar(param)){return("no")}
+              return(param)
+            }, 
+    censoring_thresh = function(param){
+                      if(stringr::str_count(param, " ") == nchar(param)){return(0.95)}
+                      return(as.numeric(param))
+                    }, 
+    set_tfrac = as.function(check_set_tfrac),
+    snap_tol = as.function(check_snap_tol),
+    use_pop_weight = function(param){
+                    if(stringr::str_count(param, " ") == nchar(param)){return("yes")}
+                    return(param)
+                  }, 
+    sfrac_thresh = as.function(check_sfrac_thresh), 
+    ingest_covariates = function(param){
+                      if(stringr::str_count(param, " ") == nchar(param)){return("no")}
+                      return(param)
+                    },
+    ingest_new_covariates = function(param){
+                          if(stringr::str_count(param, " ") == nchar(param)){return("no")}
+                          return(param)
+                        },
+    stan = function(param_list){
+          param_list[["ncores"]] <- 4
+          param_list[["model"]] <- ifelse(stringr::str_count(param_list[["model"]], " ") == nchar(param_list[["model"]]), 
+                                          "mapping_model_inference.stan", param_list[["model"]])
+          param_list[["genquant"]] <- ifelse(stringr::str_count(param_list[["genquant"]], " ") == nchar(param_list[["genquant"]]), 
+                                            "mapping_model_generate.stan", param_list[["genquant"]])
+          param_list[["niter"]] <- ifelse(stringr::str_count(param_list[["niter"]], " ") == nchar(param_list[["niter"]]), 
+                                          2000, as.numeric(param_list[["niter"]]))
+          param_list[["recompile"]] <- ifelse(stringr::str_count(param_list[["recompile"]], " ") == nchar(param_list[["recompile"]]), 
+                                              "yes", param_list[["recompile"]])
+          return(param_list)
+        }
+  )
+
+  ### First make sure it has all the parameters and then update the values 
+  for(nm in names(check_list)){
+    if(taxdat::unspecified_parameter_check(config_file[[nm]])){
+      eval(parse(text = paste0("tmp_list <- list(", nm, " = '')")))
+      config_file <- append(config_file, tmp_list, after = match(nm, names(check_list)))
+    } 
+
+    if(nm == "od_param"){
+      config_file[[nm]] <- check_list[[nm]](config_file[["obs_model"]], config_file[[nm]])
+    }else if(is.function(check_list[[nm]])){
+      config_file[[nm]] <- check_list[[nm]](config_file[[nm]])
+    }else if(check_list[[nm]] != "no-check" & check_list[[nm]] != "stan-check"){
+      config_file[[nm]] <- check_list[[nm]]
+    }     
+
+    if(identical(config_file[[nm]], '')){config_file[[nm]] <- NULL}             
+  }
+
+  ### The stan check
+  config_file <- get_stan_parameters(config_file)
+
+  ### Reorder all the parameters 
+  names(config_file) <- names(check_list)
+
+  ### Remove certain optional parameters if they're not specified (taxonomy, covariate_transformations, use_weights, set_tfrac)
+  for(param in c("taxonomy", "covariate_transformations", "use_weights", "set_tfrac")){
+    if(taxdat::unspecified_parameter_check(config_file[[param]])){
+      rm(param, envir = config_file)
+    }
+  }
+
+  ### Save the config file 
+  yaml::write_yaml(config_file, config_fname)
+
+}
+
+
+
 #' @include file_name_functions.R
 
 #' @title Check time resolution
