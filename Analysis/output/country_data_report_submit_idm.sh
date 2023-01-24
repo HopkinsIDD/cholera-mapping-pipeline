@@ -18,7 +18,7 @@ $RSCRIPT -e "rmarkdown::render('Analysis/output/country_data_report.Rmd',
                                 params = list(cholera_directory = '$TAXDIR', config = '$CHOLERA_CONFIG', args = 'myarg'), 
                                 output_file = ifelse(!is.null(yaml::read_yaml(paste0('$TAXDIR', '/', '$CHOLERA_CONFIG'))[['country_data_report_filename']]), 
                                                     yaml::read_yaml(paste0('$TAXDIR', '/', '$CHOLERA_CONFIG'))[['country_data_report_filename']], 
-                                                    dplyr::last(stringr::str_replace(unlist(stringr::str_split($CHOLERA_CONFIG, '/')), '.yml', ''))
+                                                    dplyr::last(stringr::str_replace(unlist(stringr::str_split('$CHOLERA_CONFIG', '/')), '.yml', ''))
                                                     ) 
                                 )" || exit 1
 
