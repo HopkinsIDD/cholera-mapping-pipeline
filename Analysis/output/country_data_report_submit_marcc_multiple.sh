@@ -2,12 +2,13 @@
 #SBATCH --job-name diag
 #SBATCH --time=2-23:59:00
 #SBATCH --mem=30G
-#SBATCH --ntasks=1
+#SBATCH --array=0-43%10
 #SBATCH --partition=defq
 #SBATCH --account=aazman1
 
-# Specify manually which config to use
-export CHOLERA_CONFIG=Analysis/configs/.../*.yml
+# Specify manually which config directory to use
+export CHOLERA_CONFIG_DIRECTORY=/data/aazman1/$USER/cholera-configs/...
+export CONFIGNAMES=($(ls $CHOLERA_CONFIG_DIRECTORY | tr ' ' '\n'))
 
 # Setup on MARCC
 export GCC_VERSION=9.3.0
@@ -92,10 +93,10 @@ Rscript -e "Sys.setenv(R_LIBRARY_DIRECTORY='$R_LIBRARY_DIRECTORY');
             Sys.setenv(RUN_ON_MARCC=TRUE); 
             library(rmarkdown, lib = '$R_LIBRARY_DIRECTORY'); 
             rmarkdown::render(  'Analysis/output/country_data_report.Rmd', 
-                                params = list(cholera_directory = '$CHOLERA_DIRECTORY', config = '$CHOLERA_CONFIG', args = 'myarg'), 
-                                output_file = ifelse(!is.null(yaml::read_yaml(paste0('$CHOLERA_DIRECTORY', '/', '$CHOLERA_CONFIG'))[['country_data_report_filename']]), 
-                                                    yaml::read_yaml(paste0('$CHOLERA_DIRECTORY', '/', '$CHOLERA_CONFIG'))[['country_data_report_filename']], 
-                                                    dplyr::last(stringr::str_replace(unlist(stringr::str_split('$CHOLERA_CONFIG', '/')), '.yml', ''))
+                                params = list(cholera_directory = '$CHOLERA_DIRECTORY', config = '$CONFIGDIR/${CONFIGNAMES[$SLURM_ARRAY_TASK_ID]}', args = 'myarg'), 
+                                output_file = ifelse(!is.null(yaml::read_yaml(paste0('$CHOLERA_DIRECTORY', '/', '$CONFIGDIR/${CONFIGNAMES[$SLURM_ARRAY_TASK_ID]}'))[['country_data_report_filename']]), 
+                                                    yaml::read_yaml(paste0('$CHOLERA_DIRECTORY', '/', '$CONFIGDIR/${CONFIGNAMES[$SLURM_ARRAY_TASK_ID]}'))[['country_data_report_filename']], 
+                                                    dplyr::last(stringr::str_replace(unlist(stringr::str_split('$CONFIGDIR/${CONFIGNAMES[$SLURM_ARRAY_TASK_ID]}', '/')), '.yml', ''))
                                                     ) 
                                 )" || exit 1
 
