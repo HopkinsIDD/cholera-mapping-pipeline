@@ -898,12 +898,7 @@ get_map_obs_loctime_obs <- function(x, obs_changer) {
 #' @examples
 get_censoring_inds <- function(stan_data, 
                                ind_mapping_resized,
-                               censoring_thresh = NULL) {
-  
-  if (is.null(censoring_thresh)) {
-    cat("-- No censoring thresh specified, considering all observations as full.\n")
-    censoring_thresh <- 1
-  }
+                               censoring_thresh) {
   
   purrr::map_chr(
     1:stan_data$M, 
