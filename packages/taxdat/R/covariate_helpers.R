@@ -1326,21 +1326,26 @@ get_country_admin_units <- function(iso_code,
             please check and change the parameters for the country data report before running again. ')
   }
   
-  if (iso_code == "ZNZ" & admin_level == 0){
-    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
-                                                    c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
-    unionized <- sf::st_union(boundary_sf)
-    boundary_sf <- boundary_sf[1, ]
-    sf::st_geometry(boundary_sf) <- unionized
-    boundary_sf$shapeName <- "Zanzibar"
-    boundary_sf$shapeType <- "ADM0"
-  } else if (iso_code == "ZNZ" & admin_level == 1){
-    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
-                                                    c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
-  } else if (iso_code == "ZNZ" & admin_level == 2){
-    boundary_sf <- rgeoboundaries::gb_adm2("TZA")[rgeoboundaries::gb_adm2("TZA")$shapeName %in% 
-                                                    c("Micheweni", "Wete", "Chake Chake", "Mkoani", 
-                                                      "Kaskazini A", "Kaskazini B", "Mjini", "Magharibi", "Kati", "Kusini"), ]
+  if (iso_code == "ZNZ" ) {
+    if(admin_level==0){
+      boundary_sf =sf::st_as_sf(geodata::gadm(country="TZA", level=1, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
+      unionized <- sf::st_union(boundary_sf)
+      boundary_sf <- boundary_sf[1, ]
+      sf::st_geometry(boundary_sf) <- unionized
+      } else {
+      boundary_sf =sf::st_as_sf(gadm(country="TZA", level=admin_level, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
+    }
+     # Fix colnames for compatibility with rest of code
+    boundary_sf <- boundary_sf %>% 
+    janitor::clean_names() %>%
+       mutate(country="Zanzibar",
+              gid_0="ZAN")%>%
+       mutate(name_0 = country,
+              shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
+              shapeType = paste0("ADM", admin_level))%>% 
+       dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
+                shapeID,
+                shapeType)
   } else {
     
     boundary_sf <- geodata::gadm(country = iso_code, 
