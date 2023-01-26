@@ -38,8 +38,11 @@ echo "START"
 date 
 
 cd $CHOLERA_PIPELINE_DIRECTORY
-Rscript -e "library(taxdat, lib.loc='$R_LIBRARY_DIRECTORY'); library(cmdstanr, lib.loc='$R_LIBRARY_DIRECTORY'); library(withr, lib.loc='$R_LIBRARY_DIRECTORY'); library(processx, lib.loc='$R_LIBRARY_DIRECTORY'); cmdstanr::set_cmdstan_path('$CMDSTAN_LOCATION'); 
-            Sys.setenv(CHOLERA_CONFIG='$CHOLERA_CONFIG_DIRECTORY/${CONFIGNAMES[$SLURM_ARRAY_TASK_ID]}'); source('Analysis/R/set_parameters.R')" || exit 1
+Rscript -e "invisible(lapply(c('ISOcodes','igraph', 'roxygen2', 'ggplot2', 'taxdat', 'cmdstanr', 'withr', 'processx'), 
+                require, character.only = TRUE, lib.loc='$R_LIBRARY_DIRECTORY')); 
+            cmdstanr::set_cmdstan_path('$CMDSTAN_LOCATION'); 
+            Sys.setenv(CHOLERA_CONFIG='$CHOLERA_CONFIG_DIRECTORY/${CONFIGNAMES[$SLURM_ARRAY_TASK_ID]}'); 
+            source('Analysis/R/set_parameters.R')" || exit 1
 
 echo "DONE"
 date
