@@ -1357,6 +1357,9 @@ get_country_admin_units <- function(iso_code,
   boundary_sf <- boundary_sf %>% 
     dplyr::rename(location_period_id = shapeID)
   
+  # Fix geometry collections if any
+  boundary_sf <- fix_geomcollections(boundary_sf)
+  
   # Combine into multipolygons
   boundary_sf <- sf::st_cast(boundary_sf, "MULTIPOLYGON")
   boundary_sf <- boundary_sf %>% 
@@ -1364,10 +1367,6 @@ get_country_admin_units <- function(iso_code,
     dplyr::summarise(location_period_id = stringr::str_c(location_period_id, 
                                                          collapse = "_"),
                      shapeType = shapeType[1])
-  
-  
-  # Fix geometry collections if any
-  boundary_sf <- fix_geomcollections(boundary_sf)
   
   return(boundary_sf)
 }
@@ -1407,6 +1406,9 @@ get_multi_country_admin_units <- function(iso_code,
     adm_sf <- adm_sf %>% 
       dplyr::mutate(geom = sf::st_intersection(geom, adm0_geom$geom))
   }
+  
+  # Fix geometry collections if any
+  adm_sf <- fix_geomcollections(adm_sf)
   
   adm_sf
 }
