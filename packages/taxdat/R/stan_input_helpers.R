@@ -390,7 +390,7 @@ make_smooth_grid <- function(sf_grid,
     dplyr::filter(!(long_id %in% non_na_gridcells))
   
   cat("---- Dropping", nrow(sf_grid_drop), "space-time cells corresponding to",
-      length(unique(sf_grid_drop$id)), "space cells because of NA values, with space ids:",
+      length(unique(sf_grid_drop$id)), "space cells with space ids:",
       unique(sf_grid_drop$id))
   
   sf_grid <- sf_grid %>% 
