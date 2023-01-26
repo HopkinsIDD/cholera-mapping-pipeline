@@ -30,20 +30,20 @@ if(nrow(cache[["sf_grid"]]) == prod(dim(pop_layer))){
   iso_code <- as.character(stringr::str_extract(config, "[A-Z]{3}"))
   admin_level <- as.numeric(admin_level_for_summary_table)
   if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config)))){
-    boundary_sf =sf::st_as_sf(gadm(country="TZA", level=admin_level, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
+    boundary_sf =sf::st_as_sf(geodata::gadm(country="TZA", level=admin_level, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
     boundary_sf%>%
     janitor::clean_names() %>%
-    mutate(country="Zanzibar",
-         gid_0="ZAN") %>%
-    mutate(name_0 = country,
-         shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
-         shapeType = paste0("ADM", admin_level)) %>% 
+    dplyr::mutate(country="Zanzibar",
+                  gid_0="ZAN") %>%
+    dplyr::mutate(name_0 = country,
+                  shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
+                  shapeType = paste0("ADM", admin_level)) %>% 
     dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
                 shapeID,
                 shapeType)
   } else {
     if (admin_level == 1|admin_level == 2|admin_level==3){
-      boundary_sf <- sf::st_as_sf(gadm(country= iso_code, level=admin_level, path=tempdir()))
+      boundary_sf <- sf::st_as_sf(geodata::gadm(country= iso_code, level=admin_level, path=tempdir()))
       warning(paste0('The current admin level is set at ',admin_level,'. '))
       boundary_sf <- boundary_sf %>% 
       sf::st_as_sf() %>% 

@@ -1333,14 +1333,14 @@ get_country_admin_units <- function(iso_code,
       boundary_sf <- boundary_sf[1, ]
       sf::st_geometry(boundary_sf) <- unionized
       } else {
-      boundary_sf =sf::st_as_sf(gadm(country="TZA", level=admin_level, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
+      boundary_sf =sf::st_as_sf(geodata::gadm(country="TZA", level=admin_level, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
     }
      # Fix colnames for compatibility with rest of code
     boundary_sf <- boundary_sf %>% 
     janitor::clean_names() %>%
-       mutate(country="Zanzibar",
+       dplyr::mutate(country="Zanzibar",
               gid_0="ZAN")%>%
-       mutate(name_0 = country,
+       dplyr::mutate(name_0 = country,
               shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
               shapeType = paste0("ADM", admin_level))%>% 
        dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
