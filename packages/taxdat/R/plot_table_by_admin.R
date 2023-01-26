@@ -29,23 +29,32 @@ if(nrow(cache[["sf_grid"]]) == prod(dim(pop_layer))){
   ### Use the geo package
   iso_code <- as.character(stringr::str_extract(config, "[A-Z]{3}"))
   admin_level <- as.numeric(admin_level_for_summary_table)
-  if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config))) & admin_level == 1){
-    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
-      c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
-  } else if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config))) & admin_level == 2){
-    boundary_sf <- rgeoboundaries::gb_adm2("TZA")[rgeoboundaries::gb_adm2("TZA")$shapeName %in% 
-      c("Micheweni", "Wete", "Chake Chake", "Mkoani", 
-        "Kaskazini A", "Kaskazini B", "Mjini", "Magharibi", "Kati", "Kusini"), ]
+  if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config)))){
+    boundary_sf =sf::st_as_sf(gadm(country="TZA", level=admin_level, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
+    boundary_sf%>%
+    janitor::clean_names() %>%
+    mutate(country="Zanzibar",
+         gid_0="ZAN") %>%
+    mutate(name_0 = country,
+         shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
+         shapeType = paste0("ADM", admin_level)) %>% 
+    dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
+                shapeID,
+                shapeType)
   } else {
-    if (admin_level == 1){
-      boundary_sf <- rgeoboundaries::gb_adm1(iso_code)
-    }else if (admin_level == 2){
-      boundary_sf <- rgeoboundaries::gb_adm2(iso_code)
-      warning('The current admin level is set at 2. ')
-    }else if (admin_level == 3){
-      boundary_sf <- rgeoboundaries::gb_adm3(iso_code)
-      warning('The current admin level is set at 3. ')
-    }else{
+    if (admin_level == 1|admin_level == 2|admin_level==3){
+      boundary_sf <- sf::st_as_sf(gadm(country= iso_code, level=admin_level, path=tempdir()))
+      warning(paste0('The current admin level is set at ',admin_level,'. '))
+      boundary_sf <- boundary_sf %>% 
+      sf::st_as_sf() %>% 
+      janitor::clean_names() %>% 
+      dplyr::mutate(name_0 = country,
+                shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
+                shapeType = paste0("ADM", admin_level)) %>% 
+      dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
+                shapeID,
+                shapeType)
+    } else {
       stop('Error: the current admin level is unnecessarily high or invalid, 
     please check and change the parameters for the country data report before running again. ')
     }
