@@ -186,80 +186,6 @@ plot_raw_observed_cases <- function(disjoint_set_sf_cases,
   }
 }
 
-
-#' @export
-#' @name plot_area_adjusted_observed_cases
-#' @title plot_area_adjusted_observed_cases
-#' @description add
-#' @param disjoint_set_sf_cases disjoint set of sf cases object
-#' @param render default is FALSE
-#' @param plot_file default is NULL
-#' @param width plot width
-#' @param height plot height
-#' @return ggplot object with area-adjusted observed cases
-plot_area_adjusted_observed_cases <- function(
-    disjoint_set_sf_cases,
-    render = F,
-    plot_file = NULL,
-    width = NULL,
-    height = NULL){
-  plt <- ggplot2::ggplot()
-  plt <- plt +
-    ggplot2::geom_sf(
-      data = disjoint_set_sf_cases,
-      ggplot2::aes(fill = area_adjusted_cases)
-    ) +
-    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)+
-    ggplot2::labs(fill="Area-adjusted cases")+
-    ggplot2::theme_bw() +
-    ggplot2::theme(legend.position = "bottom") +
-    ggplot2::facet_wrap(~set)
-  
-  if (!is.null(plot_file)) {
-    ggplot2::ggsave(plt, plot_file, width = width , heigth = height)
-  }
-  if(render){
-    plt
-  }
-}
-
-
-#' @export
-#' @name plot_area_adjusted_observed_cases
-#' @title plot_area_adjusted_observed_cases
-#' @description add
-#' @param disjoint_set_sf_cases disjoint set of sf cases object
-#' @param render default is FALSE
-#' @param plot_file default is NULL
-#' @param width plot width
-#' @param height plot height
-#' @return ggplot object with number of observations observed by unique location periods
-plot_raw_observations <- function(disjoint_set_sf_cases,
-                                  render = F,
-                                  plot_file = NULL,
-                                  width = NULL,
-                                  height = NULL){
-  plt <- ggplot2::ggplot()
-  plt <- plt +
-    ggplot2::geom_sf(
-      data = disjoint_set_sf_cases,
-      ggplot2::aes(fill = observations)
-    ) +
-    ggplot2::scale_fill_viridis_c("Observation") +
-    ggplot2::facet_wrap(~set, ncol = 5) +
-    ggplot2::theme_bw() +
-    ggplot2::theme(legend.position = "bottom")
-  
-  if (!is.null(plot_file)) {
-    ggplot2::ggsave(plt, plot_file, width = width , heigth = height)
-  }
-  
-  if (render) {
-    plt
-  }
-}
-
-
 #' @export
 #' @name plot_raster_population
 #' @title plot_raster_population
@@ -311,142 +237,6 @@ plot_raster_population <- function(covar_data_filename,
 }
 
 
-
-#' @export
-#' @name plot_raster_covariates
-#' @title plot_raster_covariates
-#' @description add
-#' @param covar_data_filename covariates rdata filename
-#' @param render default is FALSE
-#' @return ggplot object with covariate raster
-plot_raster_covariates <- function(covar_data_filename,
-                                   render = T) {
-  # plt <- ggplot2::ggplot()
-  covar_cube_output <- read_file_of_type(covar_data_filename, "covar_cube_output")
-  covar_cube <- covar_cube_output$covar_cube
-  sf_grid <- covar_cube_output$sf_grid
-  covar_layers <- covar_cube[,,-1, drop = F]
-  ncovar <- ifelse(length(dim(covar_layers))==2, 1, dim(covar_layers)[3])
-  
-  if(nrow(sf_grid) == prod(dim(covar_cube[,,1, drop = F]))){
-    
-    covar_df <- purrr::map_dfc(seq_len(ncovar), function(x){
-      if(ncovar>1){
-        covar_layer <- cbind(covar_layers[,,x])
-      } else {
-        covar_layer <- abind::adrop(covar_layers, 3)
-      }
-      unlist(lapply(1:ncol(covar_layers), function(x){
-        covar_layer[,x]
-      }))
-    })
-    covar_df <- purrr::set_names(covar_df, dimnames(covar_cube_output$covar_cube)[[3]][-1])
-    
-    pltdata <- dplyr::bind_cols(sf_grid, covar_df)
-    
-    ## plot first time point of all covariates for now
-    pltdata_dummy <-
-      tidyr::gather(
-        dplyr::filter(
-          pltdata,
-          t == 1
-        ),
-        one_of(dimnames(covar_cube_output$covar_cube)[[3]]), key = "covars", value = "value"
-      )
-    
-    # plt <- plt +
-    #   ggplot2::geom_sf(
-    #     data = pltdata_dummy,
-    #     ggplot2::aes(fill = value, color = value)
-    #   ) +
-    #   ggplot2::scale_fill_viridis_c(aesthetics = c("colour", "fill"),
-    #                                 guide = ggplot2::guide_colorbar(title = "Covariate at time 1"),
-    #                                 option = "B",
-    #                                 na.value = "white")  +
-    #   ggplot2::theme_bw() +
-    #   # ggplot2::scale_fill_continuous("Covariate at time 1") +
-    #   ggplot2::theme(legend.position = "bottom") +
-    #   ggplot2::facet_wrap(~covars)
-    plt<-pltdata_dummy%>%group_by(covars)%>%
-      do(gg={
-        ggplot(.,ggplot2::aes(fill = value, color = value)) + ggplot2::geom_sf()+
-          ggplot2::facet_wrap(~covars)+
-          ggplot2::scale_fill_viridis_c(aesthetics = c("colour", "fill"),
-                                        guide = ggplot2::guide_colorbar(title = "Covariate at time 1"),
-                                        option = "B", na.value = "white") + 
-          ggplot2::theme_bw() + 
-          ggplot2::theme(legend.position = "bottom",
-                         legend.key.size = unit(0.5, 'cm'),
-                         legend.title =element_text(size=10))})%>%
-      .$gg%>%gridExtra::grid.arrange(grobs=.,nrow=2)
-    
-  } else{
-    warning("sf_grid has a different number of cells or timepoints than covar_cube")
-  }
-  
-  if (render) {
-    plt
-  }
-}
-
-
-#' @export
-#' @name get_case_raster
-#' @title get_case_raster
-#' @description add
-#' @param covar_data_filename covariates rdata filename
-#' @param genquant_filenames model generated quantities filenames
-#' @return
-get_case_raster <- function(covar_data_filename,
-                            genquant_filenames
-) {
-  covar_cube_output <- read_file_of_type(covar_data_filename, "covar_cube_output")
-  case_raster <- covar_cube_output$sf_grid
-  
-  nchains <- 0
-  non_na_gridcells <- get_non_na_gridcells(covar_data_filename)
-  
-  for (filename in genquant_filenames) {
-    nchains <- nchains + 1
-    
-    # Get the generated quantities
-    genquant <- read_file_of_type(filename, "chol_gen")
-    
-    varnames <- dimnames(genquant$draws())[[3]]    # All available parameters
-    
-    # Get cases and rates
-    modeled_cases <- as.array(genquant$draws())[, , grepl("grid_case", varnames),drop=FALSE]
-    modeled_cases_mean <- apply(modeled_cases, 3, mean)
-    modeled_rates <- exp(as.array(genquant$draws())[, , grepl("log_lambda", varnames), drop = FALSE])
-    modeled_rates_mean <- apply(modeled_rates, 3, mean)
-    
-    case_raster <- dplyr::mutate(case_raster,
-                                 modeled_cases_mean = NA,
-                                 modeled_rates_mean = NA)
-    case_raster[non_na_gridcells,]$modeled_cases_mean <- modeled_cases_mean
-    names(case_raster)[which(names(case_raster)=="modeled_cases_mean")] <- paste("modeled cases\n",
-                                                                                 paste(filename_to_stubs(filename)[2:3], collapse = " "), "\niterations: Chain",
-                                                                                 filename_to_stubs(filename)[5])
-    case_raster[non_na_gridcells,]$modeled_rates_mean <- modeled_rates_mean
-    names(case_raster)[which(names(case_raster)=="modeled_rates_mean")] <- paste("modeled rates\n",
-                                                                                 paste(filename_to_stubs(filename)[2:3], collapse = " "), "\niterations: Chain",
-                                                                                 filename_to_stubs(filename)[5])
-  }
-  case_raster
-}
-
-
-#' @name get_non_na_gridcells
-#' @title get_non_na_gridcells
-#' @description add
-#' @param covar_data_filename covariates rdata filename
-#' @return
-#' @export
-get_non_na_gridcells <- function(covar_data_filename){
-  covar_cube_output <- read_file_of_type(covar_data_filename, "covar_cube_output")
-  non_na_gridcells <- covar_cube_output$non_na_gridcells
-  non_na_gridcells
-}
 
 
 #' @export
@@ -549,8 +339,67 @@ plot_disaggregated_modeled_cases <- function(case_raster,
 }
 
 
+#' @export
+#' @name plot_disaggregated_modeled_cases_time_varying
+#' @title plot_disaggregated_modeled_cases_time_varying
+#' @description add
+#' @param config_file the actual config file 
+#' @param disaggregated_case_sf disaggregated case raster object
+#' @param country_iso the iso code of the country
+#' @param add_shp_from_stan_input whether to add the country-level shape file from the stan input 
+#' @param render default is TRUE
+#' @param plot_file default is NULL
+#' @param width plot width
+#' @param height plot height
+#' @return ggplot object with modeled cases map
+plot_disaggregated_modeled_cases_time_varying <- function(config_file, 
+                                                          disaggregated_case_sf,
+                                                          add_shp_from_stan_input = FALSE, 
+                                                          render = T,
+                                                          plot_file = NULL,
+                                                          width = NULL,
+                                                          height = NULL, 
+                                                          ...){
+  iso_code <- as.character(stringr::str_extract(config_file$name, "[A-Z]{3}"))
 
+  if(iso_code == "ZNZ"){
+    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+      c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
+    unionized <- sf::st_union(boundary_sf)
+    boundary_sf <- boundary_sf[1, ]
+    sf::st_geometry(boundary_sf) <- unionized
+    boundary_sf$shapeName <- "Zanzibar"
+    boundary_sf$shapeType <- "ADM0"
+  }else{
+    boundary_sf <- rgeoboundaries::gb_adm0(iso_code)
+  }
 
+# Get the country-level shape file from the stan input and plot it against the country-level shape file in the modeled case figure
+if(add_shp_from_stan_input){
+  shp_from_stan_input <- get_country_shp_from_stan_input(cache=cache, config=params$config, cholera_directory=params$cholera_directory, ...)
+}
+
+plt <- ggplot2::ggplot()
+plt <- ggplot2::ggplot() +
+  ggplot2::geom_sf(
+    data = disaggregated_case_sf,
+    ggplot2::aes(fill = value),color=NA,size=0.00001)+
+  taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = TRUE)+
+  ggplot2::geom_sf(data=boundary_sf,fill=NA,color="black",size=0.05)+
+  {if(add_shp_from_stan_input) ggplot2::geom_sf(data=shp_from_stan_input,fill=NA,color="red",size=0.05)} +
+  ggplot2::labs(fill="Incidence\n [cases/year]")+
+  ggplot2::theme_bw() +
+  ggplot2::theme(legend.position = "bottom") +
+  ggplot2::theme(legend.text =  ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))+
+  ggplot2::facet_wrap(~t,ncol = length(unique(disaggregated_case_sf$t))) 
+
+  if (!is.null(plot_file)) {
+    ggplot2::ggsave(plt, plot_file, width = width , heigth = height)
+  }
+  if(render) {
+    plt
+  }
+}
 
 
 #' @export
@@ -596,72 +445,64 @@ plot_modeled_rates <- function(case_raster,
 
 
 #' @export
-#' @name get_data_fidelity
-#' @title get_data_fidelity
+#' @name plot_modeled_rates_time_varying
+#' @title plot_modeled_rates_time_varying
 #' @description add
-#' @param genquant_filenames genquant_filenames
-#' @return
-get_data_fidelity <- function(stan_input_filenames, 
-                              genquant_filenames){
-  
-  if (length(stan_input_filenames) != length(genquant_filenames))
-    stop("Need to provide same number of stan_input and stan_output files")
-  
-  rc <- list()
-  layer_index <- 1
-  
-  for (i in 1:length(genquant_filenames)) {
-    i=1
-    filename <- genquant_filenames[i]
-    
-    genquant <- read_file_of_type(filename, "chol_gen")
-    nchain <- length(genquant$metadata()$id)
-    
-    # ####important added -- 11/12/2021
-    # taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$OC_UID
-    # taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$"attributes.fields.suspected_cases"
-    # taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$stan_data$y
-    
-    # Get daata
-    stan_data <- read_file_of_type(stan_input_filenames[i], "stan_input")$stan_data
-    
-    # Get modeled cases
-    varnames <- dimnames(genquant$draws())[[3]]    # All available parameters
-    modeled_cases <- as.array(genquant$draws())[, , grepl("modeled_cases", varnames), drop = FALSE]
-    modeled_cases_chain_mean <- apply(modeled_cases, c(2, 3), mean)
-    actual_cases <- matrix(stan_data$y, nrow(modeled_cases_chain_mean), ncol(modeled_cases_chain_mean), byrow=TRUE)
-    dimnames(actual_cases) <- dimnames(modeled_cases_chain_mean)
-    
-    modeled_cases_chain_mean <- reshape2::melt(modeled_cases_chain_mean)
-    actual_cases <- reshape2::melt(actual_cases)
-    actual_cases$censoring <- rep(stan_data$censoring_inds, each = nchain)
-    actual_cases$oc_uid <- rep(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$OC_UID, 
-                               each = nchain) #newly added
-    actual_cases$oc_year <- rep(paste0(format(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$TL, '%Y'),
-                                       "_",
-                                       format(taxdat::read_file_of_type(stan_input_filenames[i], "stan_input")$sf_cases_resized$TR, '%Y')),
-                                each = nchain) #newly added
-    
-    obs_tfrac=data.frame(
-      obs = stan_data$map_obs_loctime_obs,
-      tfrac = stan_data$tfrac
-    ) %>%
-      dplyr::group_by(obs) %>%
-      dplyr::summarize(tfrac = sum(tfrac))
-    actual_cases$tfrac<-1
-    actual_cases[stringr::str_detect(actual_cases$variable,"tfrac"),]$tfrac<-rep(obs_tfrac$tfrac,each=nchain)
-    
-    comparison <- dplyr::left_join(modeled_cases_chain_mean, actual_cases, by = c(chain = "chain", variable = "variable"))
-    names(comparison)[3:4] <- c("modeled cases", "actual cases")
-    comparison$chain <- factor(comparison$chain)
-    
-    rc[[filename]] <- comparison
-    names(rc)[[layer_index]] <- paste(
-      paste(filename_to_stubs(filename)[2:3], collapse = " "),
-      "\niterations: Chain", filename_to_stubs(filename)[5])
-    layer_index <- layer_index + 1
+#' @param config_file the actual config file 
+#' @param disaggregated_rate_sf disaggregated_rate_sf object
+#' @param add_shp_from_stan_input whether to add the country-level shape file from the stan input 
+#' @param render default is TRUE
+#' @param plot_file default is NULL
+#' @param width plot width
+#' @param height plot height
+#' @return ggplot object with modeled rates map
+plot_modeled_rates_time_varying <- function(config_file, 
+                                            disaggregated_rate_sf,
+                                            add_shp_from_stan_input = FALSE, 
+                                            render = T,
+                                            plot_file = NULL,
+                                            width = NULL,
+                                            height = NULL, 
+                                            ...){
+  iso_code <- as.character(stringr::str_extract(config_file$name, "[A-Z]{3}"))
+
+  if(iso_code == "ZNZ"){
+    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+      c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
+    unionized <- sf::st_union(boundary_sf)
+    boundary_sf <- boundary_sf[1, ]
+    sf::st_geometry(boundary_sf) <- unionized
+    boundary_sf$shapeName <- "Zanzibar"
+    boundary_sf$shapeType <- "ADM0"
+  }else{
+    boundary_sf <- rgeoboundaries::gb_adm0(iso_code)
   }
-  return(rc)
+
+  # Get the country-level shape file from the stan input and plot it against the country-level shape file in the modeled case figure
+  if(add_shp_from_stan_input){
+    shp_from_stan_input <- get_country_shp_from_stan_input(cache=cache, config=params$config, cholera_directory=params$cholera_directory, ...)
+  }
+  
+   plt <- ggplot2::ggplot()
+   plt <- ggplot2::ggplot() +
+   ggplot2::geom_sf(
+    data = disaggregated_rate_sf,
+    ggplot2::aes(fill = value),color=NA,size=0.00001)+
+    taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
+    ggplot2::geom_sf(data=boundary_sf,fill=NA,color="black",size=0.05)+
+    {if(add_shp_from_stan_input) ggplot2::geom_sf(data=shp_from_stan_input,fill=NA,color="red",size=0.05)} +
+    ggplot2::labs(fill="Incidence rate\n [cases/10'000/year]")+
+    ggplot2::theme_bw() +
+    ggplot2::theme(legend.position = "bottom") +
+  ggplot2::theme(legend.text =  ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))+
+  ggplot2::facet_wrap(~t,ncol = length(unique(disaggregated_rate_sf$t)))
+
+  if (!is.null(plot_file)) {
+    ggplot2::ggsave(plt, plot_file, width = width , heigth = height)
+  }
+  if (render) {
+    plt
+  }
 }
 
 
@@ -706,22 +547,24 @@ plot_model_fidelity <- function(data_fidelity,
 #' @name plot_model_fidelity_tfrac_adjusted
 #' @title plot_model_fidelity_tfrac_adjusted
 #' @description add
-#' @param data_fidelity data_fidelity object
-#' @param case_raster case_raster object
+#' @param cache 
+#' @param cholera_directory
+#' @param config
 #' @param render default is TRUE
 #' @return ggplot object with modeled vs actual cases by observation
-plot_model_fidelity_tfrac_adjusted <- function(data_fidelity,
-                                               case_raster,
-                                               render = T){
-  comparison <- data_fidelity
-  rate_raster <- case_raster
+plot_model_fidelity_tfrac_adjusted <- function(cache,cholera_directory,config,
+                                              render = T){
+  cache[["data_fidelity"]]<-get_data_fidelity(cache=cache,cholera_directory=cholera_directory,config=config)
+  comparison <-  cache[["data_fidelity"]]
+  cache[["case_raster"]] <-get_case_raster(cache=cache,config=config,cholera_directory=cholera_directory)
+  rate_raster <- cache[["case_raster"]]
   
-  plt <- ggplot2::ggplot(comparison[[1]]  %>% 
-                           dplyr::filter(!stringr::str_detect(variable, 'tfrac'))) +
+  plt <- ggplot2::ggplot(comparison %>% 
+                           dplyr::filter(!stringr::str_detect(censoring, 'tfrac'))) +
     ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = oc_uid)) +
     ggplot2::labs(x="Actual cases",y="Modeled cases")+
     ggplot2::geom_abline(intercept = 0, slope = 1) +
-    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[[1]][,3:4])), ylim = c(0, max(comparison[[1]][,3:4]))) +
+    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[,3:4])), ylim = c(0, max(comparison[,3:4]))) +
     ggplot2::theme_bw()
   
   
@@ -735,22 +578,24 @@ plot_model_fidelity_tfrac_adjusted <- function(data_fidelity,
 #' @name plot_model_fidelity_tfrac_converted
 #' @title plot_model_fidelity_tfrac_converted
 #' @description add
-#' @param data_fidelity data_fidelity object
-#' @param case_raster case_raster object
+#' @param cache 
+#' @param cholera_directory
+#' @param config
 #' @param render default is TRUE
 #' @return ggplot object with modeled vs actual cases by observation
-plot_model_fidelity_tfrac_converted <- function(data_fidelity,
-                                                case_raster,
-                                                render = T){
-  comparison <- data_fidelity
-  rate_raster <- case_raster
+plot_model_fidelity_tfrac_converted <- function(cache,cholera_directory,config,
+                                               render = T){
+  cache[["data_fidelity"]]<-get_data_fidelity(cache=cache,cholera_directory=cholera_directory,config=config)
+  comparison <-  cache[["data_fidelity"]]
+  cache[["case_raster"]] <-get_case_raster(cache=cache,config=config,cholera_directory=cholera_directory)
+  rate_raster <- cache[["case_raster"]]
   
-  plt <- ggplot2::ggplot(comparison[[1]]  %>% 
-                           dplyr::filter(stringr::str_detect(variable, 'tfrac'))) +
+  plt <- ggplot2::ggplot(comparison %>% 
+                           dplyr::filter(stringr::str_detect(censoring, 'tfrac'))) +
     ggplot2::geom_point(ggplot2::aes(y = `modeled cases`/tfrac, x = `actual cases`/tfrac, col = oc_uid)) +
     ggplot2::labs(x="Actual cases/tfrac",y="tfrac_modeled_cases/tfrac")+
     ggplot2::geom_abline(intercept = 0, slope = 1) +
-    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[[1]][,3:4])), ylim = c(0, max(comparison[[1]][,3:4]))) +
+    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[,3:4])), ylim = c(0, max(comparison[,3:4]))) +
     ggplot2::theme_bw()
   
   
@@ -763,22 +608,25 @@ plot_model_fidelity_tfrac_converted <- function(data_fidelity,
 #' @name plot_model_fidelity_tfrac_adjusted_by_year
 #' @title plot_model_fidelity_tfrac_adjusted_by_year
 #' @description add
-#' @param data_fidelity data_fidelity object
-#' @param case_raster case_raster object
+#' @param cache 
+#' @param cholera_directory
+#' @param config
 #' @param render default is TRUE
 #' @return ggplot object with modeled vs actual cases by observation
-plot_model_fidelity_tfrac_adjusted_by_year <- function(data_fidelity,
-                                                       case_raster,
-                                                       render = T){
-  comparison <- data_fidelity
-  rate_raster <- case_raster
+plot_model_fidelity_tfrac_adjusted_by_year <- function(cache,cholera_directory,config,
+                                                      render = T){
+  cache[["data_fidelity"]]<-get_data_fidelity(cache=cache,cholera_directory=cholera_directory,config=config)
+  comparison <-  cache[["data_fidelity"]]
+  cache[["case_raster"]] <-get_case_raster(cache=cache,config=config,cholera_directory=cholera_directory)
+  rate_raster <- cache[["case_raster"]]
   
-  plt <- ggplot2::ggplot(comparison[[1]]  %>% 
-                           dplyr::filter(!stringr::str_detect(variable, 'tfrac'))) +
+  
+  plt <- ggplot2::ggplot(comparison  %>% 
+                           dplyr::filter(!stringr::str_detect(censoring, 'tfrac'))) +
     ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = oc_uid)) +
     ggplot2::labs(x="Actual cases",y="Modeled cases")+
     ggplot2::geom_abline(intercept = 0, slope = 1) +
-    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[[1]][,3:4])), ylim = c(0, max(comparison[[1]][,3:4]))) +
+    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[,3:4])), ylim = c(0, max(comparison[,3:4]))) +
     ggplot2::theme_bw() +
     ggplot2::facet_wrap(~oc_year, ncol = 2)
   
@@ -791,24 +639,57 @@ plot_model_fidelity_tfrac_adjusted_by_year <- function(data_fidelity,
 #' @name plot_model_fidelity_tfrac_unadjusted
 #' @title plot_model_fidelity_tfrac_unadjusted
 #' @description add
-#' @param data_fidelity data_fidelity object
-#' @param case_raster case_raster object
+#' @param cache 
+#' @param cholera_directory
+#' @param config
 #' @param render default is TRUE
 #' @return ggplot object with modeled vs actual cases by observation
-plot_model_fidelity_tfrac_unadjusted <- function(data_fidelity,
-                                                 case_raster,
+plot_model_fidelity_tfrac_unadjusted <- function(cache,cholera_directory,config,
                                                  render = T){
-  comparison <- data_fidelity
-  rate_raster <- case_raster
+  cache[["data_fidelity"]]<-get_data_fidelity(cache=cache,cholera_directory=cholera_directory,config=config)
+  comparison <-  cache[["data_fidelity"]]
+  cache[["case_raster"]] <-get_case_raster(cache=cache,config=config,cholera_directory=cholera_directory)
+  rate_raster <- cache[["case_raster"]]
   
-  plt <- ggplot2::ggplot(comparison[[1]] %>% 
-                           dplyr::filter(!stringr::str_detect(variable, 'tfrac'))) +
+  plt <- ggplot2::ggplot(comparison%>% 
+                           dplyr::filter(!stringr::str_detect(censoring, 'tfrac'))) +
     ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = oc_uid)) +
     ggplot2::labs(x="Actual cases",y="modeled_cases")+
     ggplot2::geom_abline(intercept = 0, slope = 1) +
-    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[[1]][,3:4])), ylim = c(0, max(comparison[[1]][,3:4]))) +
+    ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[,3:4])), ylim = c(0, max(comparison[,3:4]))) +
     ggplot2::theme_bw() +
     ggplot2::facet_wrap(~censoring, ncol = 2)
+  
+  if (render) {
+    plt
+  }
+}
+
+#' @export
+#' @name plot_model_fidelity_by_chain
+#' @title plot_model_fidelity_by_chain
+#' @description add
+#' @param cache 
+#' @param cholera_directory
+#' @param config
+#' @param render default is TRUE
+#' @return ggplot object with modeled vs actual cases by chain
+plot_model_fidelity_by_chain <- function(cache,cholera_directory,config,
+                                         render = T){
+  cache[["data_fidelity"]]<-get_data_fidelity(cache=cache,cholera_directory=cholera_directory,config=config)
+  data_fidelity <-  cache[["data_fidelity"]]
+  
+  data_fidelity$chain=as.factor(data_fidelity$chain)
+  if(!is.null(data_fidelity)){
+    plt <- ggplot2::ggplot(data_fidelity) +
+      ggplot2::geom_point(ggplot2::aes(y = `modeled cases`, x = `actual cases`, col = chain)) +
+      ggplot2::geom_abline(intercept = 0, slope = 1) +
+      ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(data_fidelity[,3:4])), ylim = c(0, max(data_fidelity[,3:4]))) +
+      ggplot2::theme_bw()
+    plt
+  } else{
+    warning("data_fidelity is NULL")
+  }
   
   if (render) {
     plt
@@ -915,8 +796,8 @@ get_spatial_coverage <- function(config,
                                  area_cuts = c(0, 1e2, 1e3, 1e4, Inf)) {
   # Get stan input and covar cube
   file_names <- get_filenames(config, cholera_directory)
-  stan_input <- read_file_of_type(file_names["stan_input"], "stan_input")
-  sf_cases <- stan_input$sf_cases_resized #read_file_of_type(file_names["data"], "sf_cases")
+  stan_input <- cache[["stan_input"]]
+  sf_cases <- stan_input$sf_cases_resized
   sf_cases$location_name <- NA
   
   covar_cube_output <- read_file_of_type(file_names["covar"], "covar_cube_output")
@@ -1003,64 +884,4 @@ get_spatial_coverage <- function(config,
     dplyr::mutate(coverage = n_pix/tot_n_pix)
   
   return(lp_input)
-}
-
-#' @export
-#' @name get_gam_values
-#' @description gets the predicted GAM rate and case incidence values that are used 
-#' for initializing the model
-#' @param config the configuration file
-#' @param cholera_directory the cholera directory where the data is stored
-#' @return a dataframe based on sf_grid with a column for the log predictions of
-#' cases (log_y) and of rates (log_lambda)
-get_gam_values <- function(config,
-                           cholera_directory) {
-  
-  # Get stan input and covar cube
-  file_names <- get_filenames(config, cholera_directory)
-  stan_input <- read_file_of_type(file_names["stan_input"], "stan_input")
-  initial_values_data <- read_file_of_type(file_names["initial_values"], "initial_values_data")
-  
-  coord_frame <- tibble::as_tibble(sf::st_coordinates(stan_input$sf_grid)) %>% 
-    dplyr::group_by(L2) %>% 
-    dplyr::summarise(x = mean(X), 
-                     y = mean(Y))
-  
-  # Create matrix of time
-  year_df <- tibble::tibble(year = stan_input$stan_data$map_grid_time)
-  year_df$year <- factor(year_df$year)
-  
-  ## one random effect per year
-  if (length(unique(year_df$year)) == 1) {
-    mat_grid_time <- matrix(1, nrow(year_df))
-  } else {
-    mat_grid_time <- model.matrix(as.formula("~ year - 1"), data = year_df)
-  }
-  
-  predict_df <- tibble::tibble(sx = coord_frame$x,
-                               sy = coord_frame$y) %>% 
-    # Set all years to 0 to get the reference year
-    cbind(mat_grid_time %>% 
-            tibble::as_tibble() %>%
-            magrittr::set_colnames(paste0("year_", 1:ncol(mat_grid_time)))) %>% 
-    # Extract the covariates
-    cbind(stan_input$stan_data$covar %>% 
-            matrix(ncol = stan_input$stan_data$ncovar) %>% 
-            magrittr::set_colnames(paste0("beta_", 1:stan_input$stan_data$ncovar))) %>% 
-    tibble::as_tibble() %>% 
-    mutate(logpop = log(stan_input$stan_data$pop),
-           logoffset = logpop + log(stan_input$stan_data$meanrate))
-  
-  # Predict log(lambda) for the reference year with covariates
-  log_y_pred_mean <- mgcv::predict.gam(initial_values_data$gam_fit_output, predict_df)
-  
-  y_pred_df <- stan_input$sf_grid %>% 
-    dplyr::mutate(log_y = log_y_pred_mean + predict_df$logoffset,
-                  y = exp(y),
-                  log_lambda = log_y_pred_mean + log(stan_input$stan_data$meanrate),
-                  lambda = exp(log_lambda),
-                  sx=predict_df$sx,
-                  sy=predict_df$sy)
-  
-  return(y_pred_df)
 }

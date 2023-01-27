@@ -86,7 +86,7 @@ make_stan_input_filename <- function(cholera_directory,
   
   # Processing configs
   to_add <- "pc"
-  for (par in c("smoothing_period", "aggregate", "tfrac_thresh", "set_tfrac")) {
+  for (par in c("grid_rand_effects_N", "aggregate", "tfrac_thresh", "set_tfrac", "censoring_thresh")) {
     if(!is.null(config[[par]])) {
       to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, config[[par]])
     } else {
@@ -154,7 +154,7 @@ make_initial_values_filename <- function(cholera_directory,
   }
   
   # Modeling configs
-  for (par in c("censoring", "time_effect", "time_effect_autocorr", "use_weights", "use_rho_prior")) {
+  for (par in c("censoring", "time_effect", "time_effect_autocorr", "use_weights", "use_rho_prior", "use_pop_weight", "beta_sigma_scale")) {
     if(!is.null(stan_pars[[par]])) {
       to_add <- paste0(to_add, "-", config_dict[[par]]$abbreviation, stan_pars[[par]])
     } else {
@@ -222,7 +222,11 @@ make_stan_output_filename <- function(cholera_directory,
   }
   
   # Add stan filename and iterations
-  to_add <- paste0(to_add, "-model:", stringr::str_remove(config$stan$model, "\\.stan"))
+  model_name <- stringr::str_remove(config$stan$model, "\\.stan") %>% 
+    stringr::str_split("_") %>% 
+    .[[1]] %>% 
+    last()
+  to_add <- paste0(to_add, "-model:", model_name)
   to_add <- paste0(to_add, "-niter", config$stan$niter)
   
   to_add <- stringr::str_replace_all(to_add, "TRUE", "T")
@@ -283,7 +287,11 @@ make_stan_genquant_filename <- function(cholera_directory,
   }
   
   # Add stan filename and iterations
-  to_add <- paste0(to_add, "-model:", stringr::str_remove(config$stan$model, "\\.stan"))
+  model_name <- stringr::str_remove(config$stan$model, "\\.stan") %>% 
+    stringr::str_split("_") %>% 
+    .[[1]] %>% 
+    last()
+  to_add <- paste0(to_add, "-model:", model_name)
   to_add <- paste0(to_add, "-niter", config$stan$niter)
   
   to_add <- stringr::str_replace_all(to_add, "TRUE", "T")
@@ -419,7 +427,7 @@ get_filenames <- function (config, cholera_directory) {
   rc <- list(
     data = preprocessed_data_fname,
     covar = preprocessed_covar_fname,
-    stan_input = stan_output_fname,
+    stan_input = stan_input_fname,
     initial_values = initial_values_fname,
     stan_output = stan_output_fname,
     stan_genquant = stan_genquant_fname

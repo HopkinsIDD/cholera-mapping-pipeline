@@ -44,7 +44,7 @@ df <- purrr::map_dfr(
       print(paste(i,"/", stan_data$M))
       old_percent <<- new_percent
     }
-    # Get the location period covered by observation
+    # Get the location period x time slice covered by observation
     ind_obs <- which(stan_data$map_obs_loctime_obs == i)
     ind_lp <- stan_data$map_obs_loctime_loc[ind_obs]
     # ind_lp <- stan_data$map_obs_loctime_loc[which(stan_data$map_obs_loctime_obs == stan_data$ind_full[i])]
@@ -57,17 +57,27 @@ df <- purrr::map_dfr(
     obs_year <- stan_data$map_grid_time[ind]
     u_obs_years <- unique(obs_year)
     tfrac <- stan_data$tfrac[ind_obs]
-    # Expand observations to account for multiple tfracs
-    y_new <- purrr::map(seq_along(ind_obs), function(x)
-      rep(stan_data$y[i] * tfrac[x]/sum(tfrac), 
-          sum(obs_year == u_obs_years[x]))) %>% 
-      unlist()
+    tfrac_tot <- sum(unique(tfrac))
+    
+    # Expand observations to space x time gridcells
+    y_grid <- purrr::map(seq_along(ind_obs), function(x) {
+      # Get grid indices of loctime
+      sub_ind <- stan_data$map_loc_grid_grid[which(stan_data$map_loc_grid_loc %in% stan_data$map_obs_loctime_loc[ind_obs[x]])] 
+      # Get the time slice
+      ts <- stan_data$map_grid_time[sub_ind] %>% unique()
+      # Get the population in the time slice
+      pop_ts <- sum(pop[obs_year == ts])
+      
+      # Disaggregate
+      stan_data$y[i] * tfrac[x]/tfrac_tot * stan_data$pop[sub_ind]/pop_ts
+      
+    }) %>%
+      unlist() %>% 
+      round()
     
     tfrac_vec <- purrr::map(seq_along(ind_obs), function(x)
       rep(tfrac[x], sum(obs_year == u_obs_years[x]))) %>% 
       unlist()
-    
-    y <- round(y_new * pop/sum(pop))
     
     sx <- coord_frame$x[ind]
     sy <- coord_frame$y[ind]
@@ -85,7 +95,7 @@ df <- purrr::map_dfr(
     return(
       tibble::tibble(obs = i,
                      raw_y = stan_data$y[i],
-                     y = y,
+                     y = y_grid,
                      sx = sx,
                      sy = sy,
                      ind = ind,
@@ -110,7 +120,7 @@ df <- purrr::map_dfr(
   dplyr::mutate(obs_year = factor(obs_year),
                 log_ey = log(ey),
                 log_tfrac = log(tfrac),
-                gam_offset = log_ey + log_tfrac,
+                gam_offset = log_ey + log_tfrac * (1-stan_params$censoring),
                 # To apply censoring
                 right_threshold = dplyr::case_when(
                   censored == "right-censored" ~ y,
@@ -123,33 +133,28 @@ warmup <- stan_params$warmup
 # Specifiy whether covariates are included in the warmup
 covar_warmup <- stan_params$covar_warmup
 
-# Set sigma_eta_scale for all models (not used for models without time effect)
-stan_data$sigma_eta_scale <- stan_params$sigma_eta_scale
-
-# Add scale of prior on the sd of regression coefficients
-stan_data$beta_sigma_scale <- stan_params$beta_sigma_scale
-
-
 if (warmup) {
   
   # Create gam frml
-  frml <- "y ~ s(sx,sy) - 1"
+  if (stan_data$use_intercept) {
+    frml <- "y ~ s(sx,sy)"
+  } else {
+    frml <- "y ~ s(sx,sy) - 1"
+  }
   
   if (stan_data$ncovar >= 1 & covar_warmup) {
     frml <- paste(c(frml, paste0("beta_", 1:stan_data$ncovar)), collapse = " + ")
   }
   
   # Is the model one with a time-specific random effect?
-  timevary_model <- stringr::str_detect(config$stan$model, "timevary") & config$time_effect
-  
-  if (config$time_effect & timevary_model) {
+  if (stan_params$time_effect) {
     frml <- paste(c(frml, colnames(df %>% dplyr::select(dplyr::contains("year_")))), collapse = " + ")
   }
   
   # Formula for gam model
   gam_frml <- as.formula(frml)
   
-  if (config$censoring) {
+  if (stan_params$censoring) {
     # Removed censored data for which cases are 0
     df <- df %>% dplyr::filter(!(y == 0 & right_threshold == 0))
   }
@@ -193,24 +198,24 @@ if (warmup) {
   }
   
   # Initial parameter values
-  if (config$time_effect | config$smoothing_period != 1) {
+  if (stan_params$time_effect | grid_rand_effects_N != 1) {
     sd_w <- sd(w.init)
     
-    if (config$time_effect & config$smoothing_period != 1) {
-      stop("Current code does not allow smoothing_period != 1 and time_effect = true")
+    if (stan_params$time_effect & grid_rand_effects_N != 1) {
+      stop("Current code does not allow grid_rand_effects_N != 1 and time_effect = true")
     }
     
-    if (config$smoothing_period != 1) {
+    if (grid_rand_effects_N != 1) {
       init.list <- lapply(1:nchain, 
                           function(i) {
                             list(
                               # Perturbation of spatial random effects
-                              w = rnorm(length(w.init) * config$smoothing_period, 
-                                        rep(w.init, config$smoothing_period), .1)
+                              w = rnorm(length(w.init) * grid_rand_effects_N,
+                                        rep(w.init, grid_rand_effects_N), .1)
                             )})
     }
     
-    if (config$time_effect) {
+    if (stan_params$time_effect) {
       stan_data$mat_grid_time <- mat_grid_time %>% as.matrix()
       eta <- coef(gam_fit) %>% .[stringr::str_detect(names(.), "year")]
       init.list <- lapply(1:nchain, 
@@ -238,13 +243,13 @@ if (warmup) {
   
 } else {
   # Set to random initial draws if no covar warmup
-  init.list <- "random"
+  init.list <- NULL #QZ: change from "random" to list()
   
-  if (config$time_effect) {
+  if (stan_params$time_effect) {
     stan_data$mat_grid_time <- mat_grid_time %>% as.matrix()
   }
 }
-if (!(config$time_effect)) {
+if (!(stan_params$time_effect)) {
   stan_data$mat_grid_time <- as.array(matrix(0,2,2))
 }
 

@@ -33,7 +33,7 @@ cmdstan_fit <- chol_model$sample(
   iter_sampling = round(niter/2),
   max_treedepth = 15,
   init = initial_values_data$init.list,
-  sig_figs = 5,
+  sig_figs = 14,
   save_warmup = F,
   refresh = 100
 )
@@ -43,20 +43,3 @@ model.rand <- rstan::read_stan_csv(cmdstan_fit$output_files())
 
 # Save output
 save(model.rand, file = file_names[["stan_output"]])
-
-# Run generated quantities ------------------------------------------------
-
-# Compile cmdstanr gen quantities
-gen_path <- stringr::str_replace(stan_model_path, "\\.", "_generate.")
-
-chol_gen_model <- cmdstanr::cmdstan_model(gen_path,
-                                          quiet = FALSE,
-                                          force_recompile = F)
-
-# Generate posterior probabilities
-chol_gen <- chol_gen_model$generate_quantities(fitted_params = cmdstan_fit,
-                                               data = initial_values_data$stan_data,
-                                               parallel_chains = nchain)
-
-# Save generated quantities
-chol_gen$save_object(file = file_names[["stan_genquant"]])

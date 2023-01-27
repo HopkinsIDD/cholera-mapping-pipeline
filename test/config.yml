@@ -6,15 +6,15 @@ start_time: '2001-01-01'
 end_time: '2001-12-31'
 res_time: 1 years
 res_space: 20
-smoothing_period: 1
+grid_rand_effects_N: 1
 case_definition: suspected
 covariate_choices:
  - pop
  - dist_to_water
 data_source: api
-ovrt_metadata_table: yes
-ingest_covariates: yes
-ingest_new_covariates: yes
+ovrt_metadata_table: no
+ingest_covariates: no
+ingest_new_covariates: no
 censoring: no
 aggregate: no
 time_effect: yes
@@ -22,6 +22,7 @@ time_effect_autocorr: no
 use_weights: no
 stan:
   ncores: 4
-  model: update_yearly_dagar_timevary_speedup_flexible.stan
+  model: mapping_model_inference.stan
+  genquant: mapping_model_generate.stan
   niter: 100
   recompile: yes

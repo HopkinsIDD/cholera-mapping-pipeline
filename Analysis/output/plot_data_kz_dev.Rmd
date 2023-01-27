@@ -7,9 +7,9 @@ output:
     toc_float: true
   pdf_document: default
 params:
-  config: "Analysis/.../~.yml"
-  cholera_directory: "/home/.../cholera-mapping-pipeline"
-  local_output_dir: "/home/.../cholera-mapping-output"
+  config: "Analysis/configs/production_tests/Dev_nocovar/2015_2019_country/config_AGO_2015_2019.yml" #change this parameter accordingly 
+  cholera_directory: "/home/kaiyuezou/mapping_pipeline/dev_production/cholera-mapping-pipeline" #change this parameter accordingly 
+  local_output_dir: "" #this is the absolute directory of model output if a folder other than "data" is used to store the output 
   credential_directory: ""
   args: 'run-comparison'
   filter_zeros: 'FALSE'
@@ -48,6 +48,9 @@ params:
 ### 12/22/2021 New updates -- fixed the disagreement error, added more to the summary table
 ### 02/17/2022 New updates -- fixed ZNZ issue; fixed plot height issue
 ### 02/23/2022 New updates -- fixed the comparison table 3.  
+### 05/11/2022 New updates -- added new table and plotted dropped observations 
+### 05/13/2022 New updates -- added back table 5 to distinguish partially and fully dropped observation collections 
+### 06/3/2022 New updates -- fixed some small error related to taxonomy data
 
 ```
 
@@ -75,7 +78,7 @@ Sys.setlocale("LC_ALL","English")
 # Load config
 config <- paste0(params$cholera_directory, "/", params$config) %>% yaml::read_yaml() #get the config file
 files <- taxdat::get_filenames(config, params$cholera_directory)
-if(!is.null(params$local_output_dir)){
+if(!is.null(params$local_output_dir) & nchar(params$local_output_dir) > 1){
   files <- unlist(lapply(names(files), function(file){
                   gsub("^.*?/Analysis/data", params$local_output_dir, files[file])
                   }))
@@ -149,25 +152,108 @@ params_setting %>%
 
 ## Table 2. Summary table for the pre-processed dataset
 ```{r echo=FALSE, warning=FALSE}
-sum_obs <- sf::st_drop_geometry(raw_data)
+print(paste0("There are ", sum(is.na(raw_data$locationPeriod_id)), " NA for location period in the pre-processed data. "))
+NA_cases <- sum(raw_data[is.na(raw_data$locationPeriod_id), ]$suspected_cases, na.rm = T)
+NA_obs <- nrow(raw_data[is.na(raw_data$locationPeriod_id), ])
+NA_ocs <- length(unique(raw_data[is.na(raw_data$locationPeriod_id), ]$OC_UID))
+non_NA_ocs <- unique(raw_data[is.na(raw_data$locationPeriod_id), ]$OC_UID)
+non_NA_ocs2 <- non_NA_ocs[!all(is.na(raw_data[raw_data$OC_UID %in% non_NA_ocs, ]$locationPeriod_id))]
+print(paste0("These NA location periods correspond to ", NA_cases, " cases and ", NA_obs, " observations and ", NA_ocs, " OC in the pre-processed data. "))
+if(length(non_NA_ocs) > 0){
+  print(paste0("Among the OC with NA location periods, including ", paste(non_NA_ocs, collapse = ', '), ", the following are those with non-NA location periods: ", paste(non_NA_ocs2, collapse = ', ')))
+}
 
-sum_obs <- sum_obs %>%
+sum_obs <- raw_data %>%
+  sf::st_drop_geometry() %>% 
   group_by(year) %>%
   summarise(observation = n(), 
             cases = sum(suspected_cases, na.rm = TRUE), 
-            location_period = length(unique(locationPeriod_id)), 
-            oc = length(unique(OC_UID)))
+            location_period = length(unique(locationPeriod_id)),
+            all_location_period = paste(unique(locationPeriod_id), collapse = ', '), 
+            oc = length(unique(OC_UID)), 
+            all_oc = paste(unique(OC_UID), collapse = ', '))
 
 sum_obs %>%
-  kableExtra::kable(col.names = c("Year", "#observations", "#suspected cases", "#location-periods", "#observation collections")) %>%
+  kableExtra::kable(col.names = c("Year", "#observations", "#suspected cases", "#location-periods", "location-periods", 
+                                  "#observation collections", "observation collections")) %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+  kableExtra::kable_paper(full_width = F)
+rm(sum_obs)
+
+```
+
+
+
+## Table 3. Summary table for the dataset directly drawn from taxonomy database
+```{r echo=FALSE, warning=FALSE}
+print(paste0("There are ", sum(is.na(taxonomy_data$location_period_id)), " NA for location period in the dataset from taxonomy database. "))
+NA_cases <- sum(taxonomy_data[is.na(taxonomy_data$location_period_id), ]$suspected_cases, na.rm = T)
+NA_obs <- nrow(taxonomy_data[is.na(taxonomy_data$location_period_id), ])
+NA_ocs <- length(unique(taxonomy_data[is.na(taxonomy_data$location_period_id), ]$observation_collection_id))
+non_NA_ocs <- unique(taxonomy_data[is.na(taxonomy_data$location_period_id), ]$observation_collection_id)
+non_NA_ocs2 <- non_NA_ocs[!all(is.na(taxonomy_data[taxonomy_data$observation_collection_id %in% non_NA_ocs, ]$location_period_id))]
+print(paste0("These NA location periods correspond to ", NA_cases, " cases and ", NA_obs, " observations and ", NA_ocs, " OC in the dataset from taxonomy database. "))
+if(length(non_NA_ocs) > 0){
+  print(paste0("Among the OC with NA location periods, including ", paste(non_NA_ocs, collapse = ', '), ", the following are those with non-NA location periods: ", paste(non_NA_ocs2, collapse = ', ')))
+}
+
+sum_obs <- sf::st_drop_geometry(taxonomy_data) %>% 
+  mutate(OC_UID = observation_collection_id, 
+         locationPeriod_id = location_period_id, 
+         year = lubridate::year(time_left)) %>% 
+  select(year, suspected_cases, locationPeriod_id, OC_UID) %>% 
+  group_by(year) %>%
+  summarise(num_observations = n(), 
+            num_cases = sum(suspected_cases, na.rm = TRUE), 
+            num_locationPeriod_id = length(unique(locationPeriod_id)), 
+            all_locationPeriod_id = paste(unique(locationPeriod_id), collapse = ', '), 
+            num_OC_UID = length(unique(OC_UID)), 
+            all_OC_UID = paste(unique(OC_UID), collapse = ', '))
+
+sum_obs %>%
+  kableExtra::kable(col.names = c("Year", "#observations", "#suspected cases", "#location-periods", "location-periods", 
+                                  "#observation collections", "observation collections")) %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+  kableExtra::kable_paper(full_width = F)
+rm(sum_obs)
+
+```
+
+
+
+## Table 4. Summary table for the difference between pre-processed dataset and the dataset directly drawn from taxonomy
+### Noted: the dropped observation collections listed below may be or not be fully dropped
+```{r echo=FALSE, warning=FALSE}
+# try to get the diff dataframe
+taxonomy_data_ori <- taxonomy_data
+
+diff_id <- setdiff(taxonomy_data$id, raw_data$id)
+taxonomy_data_compare <- taxonomy_data %>% 
+  mutate(OC_UID = observation_collection_id, 
+         locationPeriod_id = location_period_id, 
+         year = lubridate::year(time_left)) %>% 
+  select(id, year, suspected_cases, locationPeriod_id, OC_UID)
+diff_df <- taxonomy_data_compare[taxonomy_data_compare$id %in% diff_id, ]
+
+taxonomy_data <- sf::st_drop_geometry(taxonomy_data) %>%
+  rename(OC_UID = observation_collection_id, TL = time_left, TR = time_right, locationPeriod_id = location_period_id) %>%
+  mutate(dropped = ifelse(id %in% diff_id, TRUE, FALSE)) %>% 
+  select(id, year, OC_UID, TL, TR, suspected_cases, location_name, location_id, locationPeriod_id, dropped)
+
+diff_df <- sf::st_drop_geometry(diff_df) %>% 
+  dplyr::group_by(year, OC_UID, locationPeriod_id) %>%
+  dplyr::summarise(dropped_obs = n(), dropped_cases = sum(suspected_cases, na.rm = T))
+
+diff_df %>%
+  kableExtra::kable(col.names = c("Year", "dropped observation collections", "dropped location-periods", 
+                                  "dropped observations", "dropped cases")) %>%
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
   kableExtra::kable_paper(full_width = F)
 
 ```
 
 
-
-## Table 3. Summary table for the difference between pre-processed dataset and the dataset directly drawn from taxonomy
+## Table 5. Summary table for --fully-- dropped location periods and observation collections 
 ```{r echo=FALSE, warning=FALSE}
 sum_obs1 <- sf::st_drop_geometry(raw_data) %>% 
   select(year, suspected_cases, locationPeriod_id, OC_UID) %>% 
@@ -177,10 +263,7 @@ sum_obs1 <- sf::st_drop_geometry(raw_data) %>%
             num_locationPeriod_id = length(unique(locationPeriod_id)), 
             num_OC_UID = length(unique(OC_UID)))
 
-sum_obs2 <- sf::st_drop_geometry(taxonomy_data) %>% 
-  mutate(OC_UID = observation_collection_id, 
-         locationPeriod_id = location_period_id, 
-         year = lubridate::year(time_left)) %>% 
+sum_obs2 <- sf::st_drop_geometry(taxonomy_data) %>% #QZ: remove the mutate code part
   select(year, suspected_cases, locationPeriod_id, OC_UID) %>% 
   group_by(year) %>%
   summarise(num_observations = n(), 
@@ -211,7 +294,7 @@ dropped_locationPeriod_id <- c()
 dropped_OC_UID <- c()
 for (years in sum_obs2$year){
   list1 <- unique(raw_data[raw_data$year == years, ]$locationPeriod_id)
-  list2 <- unique(taxonomy_data[taxonomy_data$year == years, ]$location_period_id)
+  list2 <- unique(taxonomy_data_ori[taxonomy_data_ori$year == years, ]$location_period_id)
   if(length(setdiff(list2, list1)) == 0){
     dropped_locationPeriod_id <- c(dropped_locationPeriod_id, "0")
   }else{
@@ -220,7 +303,7 @@ for (years in sum_obs2$year){
   }
   
   list1 <- unique(raw_data[raw_data$year == years, ]$OC_UID)
-  list2 <- unique(taxonomy_data[taxonomy_data$year == years, ]$observation_collection_id)
+  list2 <- unique(taxonomy_data_ori[taxonomy_data_ori$year == years, ]$observation_collection_id)
   if(length(setdiff(list2, list1)) == 0){
     dropped_OC_UID <- c(dropped_OC_UID, "0")
   }else{
@@ -243,6 +326,7 @@ sum_obs %>%
 rm(sum_obs)
 rm(sum_obs1)
 rm(sum_obs2)
+rm(taxonomy_data_ori)
 
 ```
 
@@ -264,7 +348,7 @@ if(filter_zeros){
                     & raw_data$year == years, ]$suspected_cases) == 0){
         raw_data <- raw_data[- which(raw_data$location_name == locations 
                               & raw_data$year == years), ]
-        if (!exists('plot1_ncol_factor')) {plot1_ncol_factor <- 1}
+        if (!exists('fig1_ncol_factor')) {fig1_ncol_factor <- 1}
                 }
     }
   }
@@ -283,14 +367,14 @@ if(any(raw_across_year_data_temp$TL_year != raw_across_year_data_temp$TR_year)){
   rm(raw_across_year_data_temp)
   across_year_indicator <- TRUE
 
-    #deal with observations spanning cross two or multiple year seperately 
+  #deal with observations spanning cross two or multiple year seperately 
   raw_across_year_data_filtered <- raw_data %>% 
     mutate(TL_year = as.numeric(format(as.Date(TL), format="%Y")), TR_year = as.numeric(format(as.Date(TR), format="%Y"))) %>% 
     filter(!is.na(suspected_cases)) %>% 
     filter(TL_year != TR_year) %>% 
     mutate(year = paste0(TL_year, '-', TR_year)) 
     
-    #cut the multi-year observations into seperate years and then reconnect
+  #cut the multi-year observations into seperate years and then reconnect
   if(cut_across_year_observations){
     raw_across_year_data_cut <- raw_data %>% 
       mutate(TL_year = as.numeric(format(as.Date(TL), format="%Y")), TR_year = as.numeric(format(as.Date(TR), format="%Y"))) %>% 
@@ -408,8 +492,8 @@ if (report_testing & (length(unique(raw_data_filtered$OC_UID)) == 1)){
 **The daily-based observations are represented in vertical lines **
 **The period-based observations are represented in rectangles **
 ```{r echo=FALSE}
-plot1pre_ncol_factor <- 1 
-plot1pre_height_factor <- 5 * length(unique(raw_data_filtered$location_name)) / plot1pre_ncol_factor
+fig1_ncol_factor <- 1 
+fig1_height_factor <- 5 * length(unique(raw_data_filtered$location_name)) / fig1_ncol_factor
 
 if (period_OC_divided_by_timelength) {
   print('The rectangles represent daily-averaged cases (total cases/length of period). ')
@@ -417,24 +501,24 @@ if (period_OC_divided_by_timelength) {
 
 ```
 
-```{r echo=FALSE, fig.height=as.numeric(plot1pre_height_factor), fig.width=10}
-if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 | 
-      nrow(raw_data[raw_data$TL == raw_data$TR, ]) == 0)  ){
+```{r echo=FALSE, fig.height=as.numeric(fig1_height_factor), fig.width=10}
+if ( (nrow(raw_data_filtered[raw_data_filtered$TL != raw_data_filtered$TR, ]) == 0 | 
+      nrow(raw_data_filtered[raw_data_filtered$TL == raw_data_filtered$TR, ]) == 0)  ){
   
-  if ( nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 ){
+  if ( nrow(raw_data_filtered[raw_data_filtered$TL != raw_data_filtered$TR, ]) == 0 ){
       
-      raw_data_filtered %>% 
-        filter(TR == TL) %>%
-        ggplot(colour = OC_UID) + 
-        geom_segment( aes(x=ymd(TL), xend=ymd(TL), y=0, yend=suspected_cases), 
-                      size=0.3, alpha=0.5) + 
-        geom_point( aes(x=ymd(TL), y=suspected_cases),
-                    size = 0.7, alpha=0.5, shape=23) +
-        scale_x_date(date_labels = "%m-%Y") + 
-        facet_wrap(~location_name, ncol = as.integer(plot1pre_ncol_factor), scales = "free") +
-        theme_bw()
+    raw_data_filtered %>% 
+      filter(TR == TL) %>%
+      ggplot(aes(colour = OC_UID)) + 
+      geom_segment( aes(x=ymd(TL), xend=ymd(TL), y=0, yend=suspected_cases), 
+                    size=0.3, alpha=0.5) + 
+      geom_point( aes(x=ymd(TL), y=suspected_cases),
+                  size = 0.7, alpha=0.5, shape=23) +
+      scale_x_date(date_labels = "%m-%Y") + 
+      facet_wrap(~location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
+      theme_bw()
     
-  } else if ( nrow(raw_data[raw_data$TL == raw_data$TR, ]) == 0 ){
+  } else if ( nrow(raw_data_filtered[raw_data_filtered$TL == raw_data_filtered$TR, ]) == 0 ){
   
     if (period_OC_divided_by_timelength){
       raw_data_filtered %>% 
@@ -444,11 +528,11 @@ if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 |
         geom_rect(aes(xmin = TL, xmax = TR, ymin = 0, 
                       ymax = suspected_cases/(time_length(interval(TL, TR), 'day') + 1), 
                       colour = OC_UID),
-                  fill = NA, size = 0.35 * plot1pre_ncol_factor, alpha = 0.3, 
+                  fill = NA, size = 0.35 * fig1_ncol_factor, alpha = 0.3, 
                   stat = "identity") +
         scale_x_date(date_labels = "%m-%Y") + 
         ylab('Average Daily Cases') + 
-        facet_wrap(~location_name, ncol = as.integer(plot1pre_ncol_factor), scales = "free") +
+        facet_wrap(~location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
         theme_bw()
     } else{
       raw_data_filtered %>% 
@@ -458,11 +542,11 @@ if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 |
         geom_rect(aes(xmin = TL, xmax = TR, ymin = 0, 
                       ymax = suspected_cases/1, 
                       colour = OC_UID),
-                  fill = NA, size = 0.35 * plot1pre_ncol_factor, alpha = 0.3, 
+                  fill = NA, size = 0.35 * fig1_ncol_factor, alpha = 0.3, 
                   stat = "identity") +
         scale_x_date(date_labels = "%m-%Y") + 
         labs(y = 'Total Cases over Period') + 
-        facet_wrap(~location_name, ncol = as.integer(plot1pre_ncol_factor), scales = "free") +
+        facet_wrap(~location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
         theme_bw()
     }  
     
@@ -488,7 +572,7 @@ if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 |
                 size = 0.7, alpha=0.5, shape=23) +
       scale_x_date(date_labels = "%m-%Y") + 
       labs(y = 'Average Daily Cases') + 
-      facet_wrap(~location_name, ncol = as.integer(plot1pre_ncol_factor), scales = "free") +
+      facet_wrap(~location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
       theme_bw()
   } else{
     raw_data_filtered %>% 
@@ -508,7 +592,7 @@ if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 |
                 size = 0.7, alpha=0.5, shape=23) +
       scale_x_date(date_labels = "%m-%Y") + 
       labs(y = 'Total Cases for Period OC and Daily Cases for Daily OC') + 
-      facet_wrap(~location_name, ncol = as.integer(plot1pre_ncol_factor), scales = "free") +
+      facet_wrap(~location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
       theme_bw()
   }
 }
@@ -517,17 +601,133 @@ if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 |
 
 
 
-## Fig 2. Overall figure -- all observations by location AND year
+## Fig 2. Overall figure -- all observations with dropped cases denoted
+**This comprehensive figure includes all (or specified) taxonomy observations. **
+**The dropped taxonomy observations are denoted in dashed lines **
+**The daily-based observations are represented in vertical lines **
+**The period-based observations are represented in rectangles **
+```{r echo=FALSE}
+fig2_ncol_factor <- 1 
+fig2_height_factor <- 5 * length(unique(taxonomy_data$location_name)) / fig2_ncol_factor
+
+if (period_OC_divided_by_timelength) {
+  print('The rectangles represent daily-averaged cases (total cases/length of period). ')
+  }else{print('The rectangles represent total cases over periods. ')}
+
+```
+
+```{r echo=FALSE, fig.height=as.numeric(fig2_height_factor), fig.width=10}
+if ( (nrow(taxonomy_data[taxonomy_data$TL != taxonomy_data$TR, ]) == 0 | 
+      nrow(taxonomy_data[taxonomy_data$TL == taxonomy_data$TR, ]) == 0)  ){
+  
+  if ( nrow(taxonomy_data[taxonomy_data$TL != taxonomy_data$TR, ]) == 0 ){
+      
+    taxonomy_data %>% 
+      filter(TR == TL) %>%
+      ggplot(aes(colour = OC_UID)) + 
+      geom_segment( aes(x=ymd(TL), xend=ymd(TL), y=0, yend=suspected_cases, group = dropped, linetype = dropped), 
+                    size=0.3, alpha=0.5) + 
+      geom_point( aes(x=ymd(TL), y=suspected_cases),
+                  size = 0.7, alpha=0.5, shape=23) +
+      scale_x_date(date_labels = "%m-%Y") + 
+      facet_wrap(~location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
+      theme_bw()
+    
+  } else if ( nrow(taxonomy_data[taxonomy_data$TL == taxonomy_data$TR, ]) == 0 ){
+  
+    if (period_OC_divided_by_timelength){
+      taxonomy_data %>% 
+        filter(TL != TR) %>% 
+        ggplot(aes(x = ymd(TL), y = suspected_cases/(time_length(interval(TL, TR), 'day') + 1), 
+                  color = OC_UID)) +
+        geom_rect(aes(xmin = TL, xmax = TR, ymin = 0, 
+                      ymax = suspected_cases/(time_length(interval(TL, TR), 'day') + 1), 
+                      group = dropped, linetype = dropped),
+                  fill = NA, size = 0.35 * fig1_ncol_factor, alpha = 0.3, 
+                  stat = "identity") +
+        scale_x_date(date_labels = "%m-%Y") + 
+        ylab('Average Daily Cases') + 
+        facet_wrap(~location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
+        theme_bw()
+    } else{
+      taxonomy_data %>% 
+        filter(TL != TR) %>% 
+        ggplot(aes(x = ymd(TL), y = suspected_cases/1, 
+                  color = OC_UID)) +
+        geom_rect(aes(xmin = TL, xmax = TR, ymin = 0, 
+                      ymax = suspected_cases/1, 
+                      group = dropped, linetype = dropped),
+                  fill = NA, size = 0.35 * fig1_ncol_factor, alpha = 0.3, 
+                  stat = "identity") +
+        scale_x_date(date_labels = "%m-%Y") + 
+        labs(y = 'Total Cases over Period') + 
+        facet_wrap(~location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
+        theme_bw()
+    }  
+    
+  }
+  
+} else {
+        
+  if (period_OC_divided_by_timelength){
+    taxonomy_data %>% 
+      filter(TL != TR) %>% 
+      ggplot(aes(x = ymd(TL), y = suspected_cases/(time_length(interval(TL, TR), 'day') + 1), 
+                color = OC_UID)) +
+      geom_rect(aes(xmin = TL, xmax = TR, ymin = 0, 
+                    ymax = suspected_cases/(time_length(interval(TL, TR), 'day') + 1), 
+                    group = dropped, linetype = dropped),
+                fill = NA, size = 0.7, alpha = 0.3, 
+                stat = "identity") +
+      geom_segment( data = (taxonomy_data %>% filter(TR == TL)),
+                    aes(x=ymd(TL), xend=ymd(TL), y=0, yend=suspected_cases, group = dropped, linetype = dropped), 
+                    size=0.3, alpha=0.5) + 
+      geom_point(data = (taxonomy_data %>% filter(TR == TL)),
+                aes(x=ymd(TL), y=suspected_cases),
+                size = 0.7, alpha=0.5, shape=23) +
+      scale_x_date(date_labels = "%m-%Y") + 
+      labs(y = 'Average Daily Cases') + 
+      facet_wrap(~location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
+      theme_bw()
+  } else{
+    taxonomy_data %>% 
+      filter(TL != TR) %>% 
+      ggplot(aes(x = ymd(TL), y = suspected_cases/1, 
+                color = OC_UID)) +
+      geom_rect(aes(xmin = TL, xmax = TR, ymin = 0, 
+                    ymax = suspected_cases/1, 
+                    group = dropped, linetype = dropped),
+                fill = NA, size = 0.7, alpha = 0.3, 
+                stat = "identity") +
+      geom_segment( data = (taxonomy_data %>% filter(TR == TL)),
+                    aes(x=ymd(TL), xend=ymd(TL), y=0, yend=suspected_cases, group = dropped, linetype = dropped), 
+                    size=0.3, alpha=0.5) + 
+      geom_point(data = (taxonomy_data %>% filter(TR == TL)),
+                aes(x=ymd(TL), y=suspected_cases),
+                size = 0.7, alpha=0.5, shape=23) +
+      scale_x_date(date_labels = "%m-%Y") + 
+      labs(y = 'Total Cases for Period OC and Daily Cases for Daily OC') + 
+      facet_wrap(~location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
+      theme_bw()
+  }
+}
+
+```
+
+
+
+## Fig 3. Overall figure -- all observations by location AND year
 **This comprehensive figure includes all (or specified) pre-processed observations. **
 **The daily-based observations are represented in vertical lines **
 **The period-based observations are represented in rectangles **
 ```{r echo=FALSE}
-plot1_ncol_factor <- 2 #for now
+fig3_ncol_factor <- 2 #for now
+fig4_ncol_factor <- 1
 
-plot1_height_factor <- 3 * nrow(unique(raw_data_filtered[, c('location_name', 'year')])) / plot1_ncol_factor #fixed on 2/17
+fig3_height_factor <- 3 * nrow(unique(raw_data_filtered[, c('location_name', 'year')])) / fig3_ncol_factor #fixed on 2/17
 if(across_year_indicator){ 
-  plot1_height_factor_2 <- 3 * length( unique(raw_across_year_data_filtered[c('location_name', 'year'), ]) ) / plot1_ncol_factor
-} else {plot1_height_factor_2 <- 10} #10 won't be used
+  fig4_height_factor <- 3 * length( unique(raw_across_year_data_filtered[c('location_name', 'year'), ]) ) / fig4_ncol_factor
+} else {fig4_height_factor <- 10} #10 won't be used
 
 if (period_OC_divided_by_timelength) {
   print('The rectangles represent daily-averaged cases (total cases/length of period). ')
@@ -535,23 +735,23 @@ if (period_OC_divided_by_timelength) {
 
 ```
 
-```{r echo=FALSE, fig.height=as.numeric(plot1_height_factor), fig.width=10}
-if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 | 
-      nrow(raw_data[raw_data$TL == raw_data$TR, ]) == 0)  ){
+```{r echo=FALSE, fig.height=as.numeric(fig3_height_factor), fig.width=10}
+if ( (nrow(raw_data_filtered[raw_data_filtered$TL != raw_data_filtered$TR, ]) == 0 | 
+      nrow(raw_data_filtered[raw_data_filtered$TL == raw_data_filtered$TR, ]) == 0)  ){
   
-  if ( nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 ){
+  if ( nrow(raw_data_filtered[raw_data_filtered$TL != raw_data_filtered$TR, ]) == 0 ){
       
       raw_data_filtered %>% 
         filter(TR == TL) %>%
-        ggplot(color = OC_UID) + 
+        ggplot(aes(color = OC_UID)) + 
         geom_segment( aes(x=ymd(TL), xend=ymd(TL), y=0, yend=suspected_cases), 
                       size=0.3, alpha=0.5) + 
         geom_point( aes(x=ymd(TL), y=suspected_cases),
                     size = 0.7, alpha=0.5, shape=23) +
-        facet_wrap(~year + location_name, ncol = as.integer(plot1_ncol_factor), scales = "free") +
+        facet_wrap(~year + location_name, ncol = as.integer(fig3_ncol_factor), scales = "free") +
         theme_bw()
     
-  } else if ( nrow(raw_data[raw_data$TL == raw_data$TR, ]) == 0 ){
+  } else if ( nrow(raw_data_filtered[raw_data_filtered$TL == raw_data_filtered$TR, ]) == 0 ){
   
     if (period_OC_divided_by_timelength){
       raw_data_filtered %>% 
@@ -561,10 +761,10 @@ if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 |
         geom_rect(aes(xmin = TL, xmax = TR, ymin = 0, 
                       ymax = suspected_cases/(time_length(interval(TL, TR), 'day') + 1), 
                       colour = OC_UID),
-                  fill = NA, size = 0.35 * plot1_ncol_factor, alpha = 0.3, 
+                  fill = NA, size = 0.35 * fig3_ncol_factor, alpha = 0.3, 
                   stat = "identity") +
         ylab('Average Daily Cases') + 
-        facet_wrap(~year + location_name, ncol = as.integer(plot1_ncol_factor), scales = "free") +
+        facet_wrap(~year + location_name, ncol = as.integer(fig3_ncol_factor), scales = "free") +
         theme_bw()
     } else{
       raw_data_filtered %>% 
@@ -574,10 +774,10 @@ if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 |
         geom_rect(aes(xmin = TL, xmax = TR, ymin = 0, 
                       ymax = suspected_cases/1, 
                       colour = OC_UID),
-                  fill = NA, size = 0.35 * plot1_ncol_factor, alpha = 0.3, 
+                  fill = NA, size = 0.35 * fig3_ncol_factor, alpha = 0.3, 
                   stat = "identity") +
         labs(y = 'Total Cases over Period') + 
-        facet_wrap(~year + location_name, ncol = as.integer(plot1_ncol_factor), scales = "free") +
+        facet_wrap(~year + location_name, ncol = as.integer(fig3_ncol_factor), scales = "free") +
         theme_bw()
     }  
     
@@ -602,7 +802,7 @@ if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 |
                 aes(x=ymd(TL), y=suspected_cases),
                 size = 0.7, alpha=0.5, shape=23) +
       labs(y = 'Average Daily Cases') + 
-      facet_wrap(~year + location_name, ncol = as.integer(plot1_ncol_factor), scales = "free") +
+      facet_wrap(~year + location_name, ncol = as.integer(fig3_ncol_factor), scales = "free") +
       theme_bw()
   } else{
     raw_data_filtered %>% 
@@ -621,7 +821,7 @@ if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 |
                 aes(x=ymd(TL), y=suspected_cases),
                 size = 0.7, alpha=0.5, shape=23) +
       labs(y = 'Total Cases for Period OC and Daily Cases for Daily OC') + 
-      facet_wrap(~year + location_name, ncol = as.integer(plot1_ncol_factor), scales = "free") +
+      facet_wrap(~year + location_name, ncol = as.integer(fig3_ncol_factor), scales = "free") +
       theme_bw()
   }
 }
@@ -630,10 +830,10 @@ if ( (nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 |
 
 
 
-## Fig 3. Overall figure -- all pre-processed observations that span across multiple years by location
+## Fig 4. Overall figure -- all pre-processed observations that span across multiple years by location
 **The daily-based observations are represented in vertical lines **
 **The period-based observations are represented in rectangles **
-```{r echo=FALSE, eval=across_year_indicator, include=across_year_indicator, fig.height=as.numeric(plot1_height_factor_2), fig.width=10}
+```{r echo=FALSE, eval=across_year_indicator, include=across_year_indicator, fig.height=as.numeric(fig4_height_factor), fig.width=10}
 if (period_OC_divided_by_timelength) {
   print('The rectangles represent daily-averaged cases (total cases/length of period). ')
   }else{print('The rectangles represent total cases over periods. ')}
@@ -648,10 +848,10 @@ if(across_year_indicator){
       geom_rect(aes(xmin = TL, xmax = TR, ymin = 0, 
                     ymax = suspected_cases/(time_length(interval(TL, TR), 'day') + 1), 
                     colour = OC_UID),
-                fill = NA, size = 0.35 * plot1_ncol_factor, alpha = 0.3, 
+                fill = NA, size = 0.35 * fig1_ncol_factor, alpha = 0.3, 
                 stat = "identity") +
       ylab('Average Daily Cases') + 
-      facet_wrap(~year + location_name, ncol = as.integer(plot1_ncol_factor), scales = "free") +
+      facet_wrap(~year + location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
       theme_bw()
   } else{
     raw_across_year_data_filtered %>% 
@@ -661,10 +861,10 @@ if(across_year_indicator){
       geom_rect(aes(xmin = TL, xmax = TR, ymin = 0, 
                     ymax = suspected_cases/1, 
                     colour = OC_UID),
-                fill = NA, size = 0.35 * plot1_ncol_factor, alpha = 0.3, 
+                fill = NA, size = 0.35 * fig1_ncol_factor, alpha = 0.3, 
                 stat = "identity") +
       labs(y = 'Total Cases over Period') + 
-      facet_wrap(~year + location_name, ncol = as.integer(plot1_ncol_factor), scales = "free") +
+      facet_wrap(~year + location_name, ncol = as.integer(fig1_ncol_factor), scales = "free") +
       theme_bw()
   }  
 
@@ -680,8 +880,8 @@ if(across_year_indicator){
 #######################Whether run the specific figures?#######################
 same_OC_UID_daily_compare <- FALSE #call this first
 
-if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 & 
-      nrow(raw_data[raw_data$TL == raw_data$TR, ]) == 0  ){
+if (  nrow(raw_data_filtered[raw_data_filtered$TL != raw_data_filtered$TR, ]) > 0 & 
+      nrow(raw_data_filtered[raw_data_filtered$TL == raw_data_filtered$TR, ]) == 0  ){
   eval_value2 = FALSE
   include_value2 = FALSE
   eval_value3 = FALSE
@@ -689,10 +889,10 @@ if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 &
   eval_value4 = FALSE
   include_value4 = FALSE
   print('The rest of the disagreement figures will not be generated because the daily OCs are missing. ')
-} else if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 & 
-             nrow(raw_data[raw_data$TL == raw_data$TR, ]) > 0  ){
+} else if (  nrow(raw_data_filtered[raw_data_filtered$TL != raw_data_filtered$TR, ]) == 0 & 
+             nrow(raw_data_filtered[raw_data_filtered$TL == raw_data_filtered$TR, ]) > 0  ){
   ##what if there is only one kind of OC_UID for daily OCs
-  if ( length(unique(raw_data[raw_data$TL == raw_data$TR, ]$OC_UID)) >= 2 ){
+  if ( length(unique(raw_data_filtered[raw_data_filtered$TL == raw_data_filtered$TR, ]$OC_UID)) >= 2 ){
     eval_value2 = TRUE
     include_value2 = TRUE
     eval_value3 = TRUE
@@ -701,7 +901,7 @@ if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 &
     include_value4 = FALSE
 
     ##what if different daily cases don't converge in same location on the same day
-    raw_data_temp <- raw_data %>%
+    raw_data_temp <- raw_data_filtered %>%
       filter(TL == TR) %>%
       group_by(year, location_name, TL) %>%
       mutate(num_diff_daily = length(unique(OC_UID))) %>%
@@ -722,14 +922,14 @@ if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 &
     include_value4 = FALSE
   }
   
-} else if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) == 0 & 
-             nrow(raw_data[raw_data$TL == raw_data$TR, ]) == 0  ){
+} else if (  nrow(raw_data_filtered[raw_data_filtered$TL != raw_data_filtered$TR, ]) == 0 & 
+             nrow(raw_data_filtered[raw_data_filtered$TL == raw_data_filtered$TR, ]) == 0  ){
   
   stop('There is no valid data for this data comparison report. ')
   
 } else{
   ##what if there is only one kind of OC_UID for daily OCs
-  if ( length(unique(raw_data[raw_data$TL == raw_data$TR, ]$OC_UID)) >= 2 ){
+  if ( length(unique(raw_data_filtered[raw_data_filtered$TL == raw_data_filtered$TR, ]$OC_UID)) >= 2 ){
     eval_value2 = TRUE
     include_value2 = TRUE
     eval_value3 = TRUE
@@ -738,7 +938,7 @@ if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 &
     include_value4 = TRUE
 
     ##what if different daily cases don't converge in same location on the same day
-    raw_data_temp <- raw_data %>%
+    raw_data_temp <- raw_data_filtered %>%
       filter(TL == TR) %>%
       group_by(year, location_name, TL) %>%
       mutate(num_diff_daily = length(unique(OC_UID))) %>%
@@ -759,7 +959,7 @@ if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 &
     include_value4 = FALSE
     
     ##what if the daily cases and period cases don't converge over the same period
-    raw_data_temp <- raw_data
+    raw_data_temp <- raw_data_filtered
     for(locations in unique(raw_data_temp$location_name)){
       if(eval_value4 == TRUE){break}
       daily_TLs <- unique(raw_data_temp[raw_data_temp$location_name == locations
@@ -787,9 +987,9 @@ if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 &
 }
 
 ### Another situation is when there are very few daily cases (they are actually period cases instead)
-if (  nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 & 
-      nrow(raw_data[raw_data$TL == raw_data$TR, ]) > 0 &
-      nrow(raw_data[raw_data$TL == raw_data$TR, ]) < 365 ){
+if (  nrow(raw_data_filtered[raw_data_filtered$TL != raw_data_filtered$TR, ]) > 0 & 
+      nrow(raw_data_filtered[raw_data_filtered$TL == raw_data_filtered$TR, ]) > 0 &
+      nrow(raw_data_filtered[raw_data_filtered$TL == raw_data_filtered$TR, ]) < 365 ){
   eval_value2 = FALSE
   include_value2 = FALSE
   eval_value3 = FALSE
@@ -809,7 +1009,7 @@ plot4_height_factor <- 10
 
 
 
-## Fig 4. Overall figure -- cumulative cases by location AND year
+## Fig 5. Overall figure -- cumulative cases by location AND year
 **This comprehensive figure includes all (or specified) pre-processed observations. **
 **The daily-based observations are cumulative and represented in connected dots **
 **The period-based observations (total number of cases) are represented in rectangles **
@@ -820,8 +1020,8 @@ plot2_height_factor <- 3 * nrow(unique(raw_data_filtered[, c('location_name', 'y
 ```
 
 ```{r eval=eval_value2, include=include_value2, echo=FALSE, fig.height=as.numeric(plot2_height_factor), fig.width=10}
-if ( nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 & 
-     nrow(raw_data[raw_data$TL == raw_data$TR, ]) > 0  ) {
+if ( nrow(raw_data_filtered[raw_data_filtered$TL != raw_data_filtered$TR, ]) > 0 & 
+     nrow(raw_data_filtered[raw_data_filtered$TL == raw_data_filtered$TR, ]) > 0  ) {
   raw_data_filtered %>% 
     filter(TL != TR) %>% 
     ggplot(aes(x = ymd(TL), y = suspected_cases, 
@@ -849,7 +1049,7 @@ if ( nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 &
               size = 0.3, alpha=0.5) +
     facet_wrap(~year + location_name, ncol = as.integer(plot2_ncol_factor), scales = "free") +
     theme_bw()
-}else if (nrow(raw_data[raw_data$TL == raw_data$TR, ]) > 0){
+}else if (nrow(raw_data_filtered[raw_data_filtered$TL == raw_data_filtered$TR, ]) > 0){
   raw_data_filtered %>%
     ggplot() +  
     geom_point(data = (raw_data_filtered %>% 
@@ -877,7 +1077,7 @@ if ( nrow(raw_data[raw_data$TL != raw_data$TR, ]) > 0 &
 
 
 
-## Fig 5. Disagreement figure -- daily incidence v.s daily incidence from different OC
+## Fig 6. Disagreement figure -- daily incidence v.s daily incidence from different OC
 **This figure compares the discrepancies between all daily-based observations between any two different observation collections for a certain location and a certain year, and only includes those disagree with specified disagreement threshold (default is 0). **
 **The daily-based observations are represented in vertical lines **
 ```{r include=FALSE}
@@ -1017,7 +1217,7 @@ raw_data_filtered_dis_daily_stack %>%
 
 
 
-## Fig 6. Disagreement figure -- daily incidence v.s daily incidence from the same OC
+## Fig 7. Disagreement figure -- daily incidence v.s daily incidence from the same OC
 **This figure compares the discrepancies between all daily-based observations within the same observation collections for a certain location and a certain year, and only includes those disagree with specified disagreement threshold (default is 0). **
 **The daily-based observations are represented in vertical lines **
 ```{r echo=FALSE, eval=same_OC_UID_daily_compare, include=same_OC_UID_daily_compare}
@@ -1054,7 +1254,7 @@ raw_data_filtered_dis_daily_same %>%
 
 
 
-## Fig 7. Disagreement figure -- number of cases over periods v.s daily incidence
+## Fig 8. Disagreement figure -- number of cases over periods v.s daily incidence
 **This figure compares the discrepancies between daily-based and period-based observations between any two same or different observation collections for a certain location and a certain year, and only includes those disagree with specified disagreement threshold (default is 0). **
 **The daily-based observations are represented in vertical lines **
 **The period-based observations (total number of cases) are represented in rectangles **
@@ -1202,7 +1402,7 @@ raw_data_filtered_dis_period_stack %>%
 
 
 
-## Fig 8. Stan input data -- number of cases by OC_UID over periods and locations
+## Fig 9. Stan input data -- number of cases by OC_UID over periods and locations
 **This figure illustrates the stan input cases data (stan_input$sf_cases_resized) **
 ```{r echo=FALSE}
 # Just to calculate the width and height

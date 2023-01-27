@@ -1,5 +1,6 @@
 #' @include plot_cache_function.R
 
+#' @export
 #' @name plot_raster_with_fill
 #' @title plot_raster_with_fill
 #' @description plot the rasters with cases or rates information
@@ -18,6 +19,7 @@ plot_raster_with_fill <- function(name, color_scale_type, fill_column, cache) {
 }
 
 # plot modeled cases raster
+#' @export
 #' @name plot_modeled_cases_raster
 #' @title plot_modeled_cases_raster
 #' @description plot the rasters with modeled cases
@@ -34,6 +36,7 @@ plot_modeled_cases_mean_raster <- function(config, cache, cholera_directory) {
 
 
 # plot modeled rates raster
+#' @export
 #' @name plot_modeled_rates_raster
 #' @title plot_modeled_rates_raster
 #' @description plot the rasters with modeled rates
@@ -49,160 +52,11 @@ plot_modeled_rates_raster <- function(config, cache, cholera_directory) {
 
 }
 
-########################################################### pull raster object
-########################################################### from covar file
-#' @name get_covar_cube_no_cache
-#' @title get_covar_cube_no_cache
-#' @description load stan input
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return covar cube
-get_covar_cube_no_cache <- function(config, cache, cholera_directory, self_defined_output_dir = NULL) {
-    config <- yaml::read_yaml(config_filename)
-    file_names <- taxdat::get_filenames(config, cholera_directory)
-    print(paste0("The self_defined_output_dir is ", self_defined_output_dir))
-    if(!is.null(self_defined_output_dir)){
-        local_output_dir <- paste0(cholera_directory, "/", self_defined_output_dir)
-        file_names <- unlist(lapply(names(file_names), function(file_name){
-                                    gsub("^.*?/Analysis/data", local_output_dir, file_names[file_name])
-                                    }))
-    }
-    
-    covar_cube <- taxdat::read_file_of_type(file_names[["covar"]], "covar_cube_output")
-    require(bit64)
-    require(sf)
-    return(covar_cube)
-}
-# cache the results
-get_covar_cube <- cache_fun_results(name = "covar_cube", fun = get_covar_cube_no_cache,
-    overwrite = T, config = config)
-# get_covar_cube(config=config,cache)
 
-#' @name get_raster_object_no_cache
-#' @title get_raster_object_no_cache
-#' @description load covar_cube from stan input
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return covar_cube (raster object)
-get_raster_object_no_cache <- function(config, cache, cholera_directory, ...) {
-    get_covar_cube(config, cache, cholera_directory, ...) 
-    sf_grid <- cache[["covar_cube"]]$sf_grid
-    return(sf_grid)
-}
-# cache the results
-get_raster_object <- cache_fun_results(name = "sf_grid", fun = get_raster_object_no_cache,
-    overwrite = T, config = config)
-# get_raster_object(config=config,cache)
-
-##### pull stan non-cached model.rand
-#' @name get_model_rand_no_cache
-#' @title get_model_rand_no_cache
-#' @description load model.rand from stan output
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return model.rand
-get_model_rand_no_cache <- function(config, cache, cholera_directory, self_defined_output_dir = NULL) {
-    config <- yaml::read_yaml(config_filename)
-    file_names <- taxdat::get_filenames(config, cholera_directory)
-    print(paste0("The self_defined_output_dir is ", self_defined_output_dir))
-    if(!is.null(self_defined_output_dir)){
-        local_output_dir <- paste0(cholera_directory, "/", self_defined_output_dir)
-        file_names <- unlist(lapply(names(file_names), function(file_name){
-                                    gsub("^.*?/Analysis/data", local_output_dir, file_names[file_name])
-                                    }))
-    }
-
-    model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
-    require(bit64)
-    require(sf)
-    return(model.rand)
-}
-get_model_rand <- cache_fun_results(name = "model.rand", fun = get_model_rand_no_cache,
-    overwrite = T, config = config)
-# get_model_rand(config=config,cache)
-
-
-# pull non-cached modeled cases (for modeled cases)
-#' @name get_modeled_cases_no_cache
-#' @title get_modeled_cases_no_cache
-#' @description extrac modeled cases from model.rand
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return  modeled_cases
-get_modeled_cases_no_cache <- function(config, cache, cholera_directory, ...) {
-    get_model_rand(config, cache, cholera_directory, ...)
-    modeled_cases <- MCMCvis::MCMCchains(cache[["model.rand"]], params = "grid_cases")
-    return(modeled_cases)
-}
-# cache the results
-get_modeled_cases <- cache_fun_results("modeled_cases", get_modeled_cases_no_cache,
-    overwrite = T, config = config)
-# get_modeled_cases(config=config,cache)
-
-# pull non-cached grid rates (for modeled cases)
-#' @name get_modeled_rates_no_cache
-#' @title get_modeled_rates_no_cache
-#' @description extrac modeled rates (from log lambda) from model.rand
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return  modeled_rates
-get_modeled_rates_no_cache <- function(config, cache, cholera_directory, ...) {
-    get_model_rand(config, cache, cholera_directory, ...) 
-    modeled_rates <- exp(MCMCvis::MCMCchains(cache[["model.rand"]], params = "log_lambda"))
-    return(modeled_rates)
-}
-# cache the results
-get_modeled_rates <- cache_fun_results("modeled_rates", get_modeled_rates_no_cache,
-    overwrite = T, config = config)
-# get_modeled_rates(config=config,cache)
-
-
-# get new aggregated data: get_modeled_cases_mean
-get_modeled_cases_mean_no_cache <- function(config, cache, cholera_directory, ...) {
-    get_modeled_cases(config, cache, cholera_directory, ...)
-    modeled_cases_mean <- aggregate_to_modeled_cases_mean(cache[["modeled_cases"]],
-        funs = "mean")
-    return(modeled_cases_mean)
-}
-get_modeled_cases_mean <- cache_fun_results("modeled_cases_mean", get_modeled_cases_mean_no_cache,
-    overwrite = T, config = config)
-# get_modeled_cases_mean(config,cache)
-
-#' @name aggregate_to_modeled_cases_mean
-#' @title aggregate_to_modeled_cases_mean
-#' @description get the mean of the modeled cases for each grid cell
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return  modeled cases mean for each grid cell by times
-aggregate_to_modeled_cases_mean <- function(modeled_cases, funs = "mean") {
-    modeled_cases_mean <- apply(modeled_cases, 2, mean)
-    return(modeled_cases_mean)
-}
-
-# get new aggregated data: get_modeled_rates_mean
-get_modeled_rates_mean_no_cache <- function(config, cache, cholera_directory, ...) {
-    get_modeled_rates(config, cache, cholera_directory, ...)
-    modeled_rates_mean <- aggregate_to_modeled_rates_mean(cache[["modeled_rates"]],
-        funs = "mean")
-    return(modeled_rates_mean)
-}
-get_modeled_rates_mean <- cache_fun_results("modeled_rates_mean", get_modeled_rates_mean_no_cache,
-    overwrite = T, config = config)
-# get_modeled_rates_mean(config=config,cache)
-
-#' @name aggregate_to_modeled_rates_mean
-#' @title aggregate_to_modeled_rates_mean
-#' @description get the mean of the modeled rates each grid cell
-#' @param config config file that contains the parameter information
-#' @param cache the cached environment that contains all the parameter information
-#' @return  modeled rates mean for each grid cell by times
-aggregate_to_modeled_rates_mean <- function(modeled_rates, funs = "mean") {
-    modeled_rates_mean <- apply(modeled_rates, 2, mean)
-    return(modeled_rates_mean)
-}
 
 ###############'merge/attach' functions############################
 # integrate grid cases mean into the raster
+#' @export
 #' @name merge_modeled_cases_mean_into_raster
 #' @title merge_modeled_cases_mean_into_raster
 #' @description merge the modeled cases mean into raster
@@ -210,18 +64,86 @@ aggregate_to_modeled_rates_mean <- function(modeled_rates, funs = "mean") {
 #' @param cache the cached environment that contains all the parameter information
 #' @return  raster filled with modeled cases mean for each grid cell by times
 merge_modeled_cases_mean_into_raster_no_cache <- function(config, cache, cholera_directory, ...) {
-    get_raster_object(config, cache, cholera_directory, ...)
+    get_sf_grid(name="sf_grid", config, cache, cholera_directory)
     modeled_cases_mean_raster <- cache[["sf_grid"]]
-    get_modeled_cases_mean(config, cache, cholera_directory, ...)
+    modeled_cases_mean_raster$pop <- array( cache$covar_cube_output$covar_cube, 
+                                            dim = c(dim(cache$covar_cube_output$covar_cube)[1] * 
+                                                    dim(cache$covar_cube_output$covar_cube)[2]
+                                                    )
+                                          )
+    non_na_gridcells <- get_non_na_gridcells(cache=cache,config=config,cholera_directory = cholera_directory)
+    modeled_cases_mean_raster <- modeled_cases_mean_raster %>% subset(long_id %in% non_na_gridcells)
+
+    get_modeled_cases_mean(name="modeled_cases_mean", config, cache, cholera_directory)
     modeled_cases_mean <- cache[["modeled_cases_mean"]]
     modeled_cases_mean_raster$modeled_cases_mean <- modeled_cases_mean
+    
     return(modeled_cases_mean_raster)
 }
+#' @export
+#' @name merge_modeled_cases_mean_into_raster
 merge_modeled_cases_mean_into_raster <- cache_fun_results("modeled_cases_mean_raster",
     merge_modeled_cases_mean_into_raster_no_cache, overwrite = T, config)
-# merge_modeled_cases_mean_into_raster(config,cache)
+
+#' @export
+#' @name continent_map_mean_across_years
+#' @title continent_map_mean_across_years
+#' @description calculate the mean modeled cases/rates across years for continent map
+#' @param cache the cached environment that contains all the parameter information
+#' @param sf_type for cases or rates 
+#' @return  sf object saved in the cache environment 
+continent_map_mean_across_years <- function(cache, sf_type){
+  # If it's just for the cases, straightforward
+  if(grepl("case", tolower(sf_type))){
+    for(time_point in unique(cache$modeled_cases_mean_raster$t)){
+      if(time_point == 1){year_mean <- cache$modeled_cases_mean_raster[cache$modeled_cases_mean_raster$t == time_point, ]}else{
+        year_mean_tmp <- cache$modeled_cases_mean_raster[cache$modeled_cases_mean_raster$t == time_point, ] %>% 
+          sf::st_drop_geometry() %>% 
+          rename_at(vars(modeled_cases_mean), function(x){paste0(x, get("time_point"))}) %>% 
+          select(-t, -long_id)
+        year_mean <- dplyr::left_join(year_mean, year_mean_tmp, by = c("rid", "x", "y", "id"))
+      }
+    }
+    year_mean <- year_mean %>% 
+      select(-t) %>% 
+      rowwise() %>%
+      mutate(modeled_cases_mean_across_years = mean(c_across(starts_with("modeled_cases_mean"))))
+    cache$modeled_cases_mean_raster_mean_across_years <- year_mean
+    return(invisible())
+
+  # For rates, it needs to be weighted on time-varying population 
+  }else if(grepl("rate", tolower(sf_type))){
+    for(time_point in unique(cache$modeled_rates_mean_raster$t)){
+      if(time_point == 1){
+        year_mean <- cache$modeled_rates_mean_raster[cache$modeled_rates_mean_raster$t == time_point, ] %>%
+          mutate(modeled_cases_mean = modeled_rates_mean * pop)
+      }else{
+        year_mean_tmp <- cache$modeled_rates_mean_raster[cache$modeled_rates_mean_raster$t == time_point, ] %>% 
+          sf::st_drop_geometry() %>% 
+          mutate(modeled_cases_mean = modeled_rates_mean * pop) %>% 
+          rename_at(vars(modeled_cases_mean), function(x){paste0(x, get("time_point"))}) %>% 
+          rename_at(vars(pop), function(x){paste0(x, get("time_point"))}) %>% 
+          rename_at(vars(modeled_rates_mean), function(x){paste0(x, get("time_point"))}) %>% 
+          select(-t, -long_id)
+        year_mean <- dplyr::left_join(year_mean, year_mean_tmp, by = c("rid", "x", "y", "id"))
+      }
+    }
+    year_mean <- year_mean %>% 
+      select(-t) %>% 
+      rowwise() %>%
+      mutate( modeled_cases_total = sum(c_across(starts_with("modeled_cases_mean"))), 
+              pop_total = sum(c_across(starts_with("pop"))), 
+              modeled_rates_mean_across_years = modeled_cases_total/pop_total
+            )
+
+    cache$modeled_rates_mean_raster_mean_across_years <- year_mean
+    return(invisible())
+  }
+  
+}
 
 # integrate modeled rates mean into the raster
+#' @export
 #' @name merge_modeled_rates_mean_into_raster
 #' @title merge_modeled_rates_mean_into_raster
 #' @description merge the modeled rates into raster
@@ -229,17 +151,28 @@ merge_modeled_cases_mean_into_raster <- cache_fun_results("modeled_cases_mean_ra
 #' @param cache the cached environment that contains all the parameter information
 #' @return  raster filled with modeled rates mean for each grid cell by times
 merge_modeled_rates_mean_into_raster_no_cache <- function(config, cache, cholera_directory, ...) {
-    get_raster_object(config, cache, cholera_directory, ...)
-    grid_rates_mean_raster <- cache[["sf_grid"]]
-    get_modeled_rates_mean(config, cache, cholera_directory, ...)
+    get_sf_grid(name="sf_grid", config, cache, cholera_directory)
+    modeled_rates_mean_raster <- cache[["sf_grid"]]
+    modeled_rates_mean_raster$pop <- array( cache$covar_cube_output$covar_cube, 
+                                            dim = c(dim(cache$covar_cube_output$covar_cube)[1] * 
+                                                    dim(cache$covar_cube_output$covar_cube)[2]
+                                                    )
+                                          )
+    non_na_gridcells <- get_non_na_gridcells(cache=cache,config=config,cholera_directory = cholera_directory)
+    modeled_rates_mean_raster <- modeled_rates_mean_raster %>% subset(long_id %in% non_na_gridcells)
+
+    get_modeled_rates_mean(name="modeled_rates_mean", config, cache, cholera_directory)
     modeled_rates_mean <- cache[["modeled_rates_mean"]]
-    grid_rates_mean_raster$modeled_rates_mean <- modeled_rates_mean
-    return(grid_rates_mean_raster)
+    modeled_rates_mean_raster$modeled_rates_mean <- modeled_rates_mean
+    return(modeled_rates_mean_raster)
 }
+#' @export
+#' @name merge_modeled_rates_mean_into_raster
 merge_modeled_rates_mean_into_raster <- cache_fun_results("modeled_rates_mean_raster",
     merge_modeled_rates_mean_into_raster_no_cache, overwrite = T, config)
 
 # stitch rate rasters from different single years together 
+#' @export
 #' @name stitch_rate_raster_stack
 #' @title stitch_rate_raster_stack
 #' @description stitch rate rasters from different single years together 
@@ -259,10 +192,14 @@ stitch_rate_raster_stack_no_cache <- function(output_cache, input_caches, choler
                 config_filename, 
                 output_dir)
 }
+
+#' @export
+#' @name stitch_rate_raster_stack
 stitch_rate_raster_stack <- cache_fun_results("modeled_rates_raster",
     stitch_rate_raster_stack_no_cache, overwrite = T, config_filename) 
 
 # get the mean of the rates
+#' @export
 #' @name get_mean_rate_raster_in_sf
 #' @title get_mean_rate_raster_in_sf
 #' @description get the mean of the rates 
@@ -285,9 +222,13 @@ get_mean_rate_raster_in_sf_no_cache <- function(output_cache){
   }
   
 }
+
+#' @export
+#' @name get_mean_rate_raster_in_sf
 get_mean_rate_raster_in_sf <- cache_fun_results("modeled_cases_mean_raster", get_mean_rate_raster_in_sf_no_cache, overwrite = T) 
 
 # stitch case rasters from different single years together 
+#' @export
 #' @name stitch_case_raster_stack
 #' @title stitch_case_raster_stack
 #' @description stitch case rasters from different single years together 
@@ -307,10 +248,14 @@ stitch_case_raster_stack_no_cache <- function(output_cache, input_caches, choler
                 config_filename, 
                 output_dir)
 }
+
+#' @export
+#' @name stitch_case_raster_stack
 stitch_case_raster_stack <- cache_fun_results("modeled_cases_raster",
     stitch_case_raster_stack_no_cache, overwrite = T, config_filename)
 
 # get the mean of the cases 
+#' @export
 #' @name get_mean_case_raster_in_sf
 #' @title get_mean_case_raster_in_sf
 #' @description get the mean of the cases 
@@ -333,40 +278,13 @@ get_mean_case_raster_in_sf_no_cache <- function(output_cache){
   }
   
 }
+
+#' @export
+#' @name get_mean_case_raster_in_sf
 get_mean_case_raster_in_sf <- cache_fun_results("modeled_cases_mean_raster", get_mean_case_raster_in_sf_no_cache, overwrite = T) 
 
-# general stitch function
-#' @name stitch_caches
-#' @title stitch_caches
-#' @description general stitch function that can take different combination function calls 
-#' @param output_cache cached output
-#' @param name name of the field in the cached output that will be updated 
-#' @param input_caches cached configs
-#' @param initial_value initial values 
-#' @param combination_function specific function than can stitch cached output 
-#' @return  cached output 
-stitch_caches_no_cache <- function(
-  output_cache,
-  name,
-  input_caches,
-  initial_value = list(type = "first", value = NULL),
-  combination_function = function(x,y,...) {return(x + y)},
-  ...
-  ){
-  if (initial_value$type == "first") {
-    output_cache[[paste0(name, "_config")]] <- input_caches[[1]]
-    input_caches <- input_caches[-1]
-  } else if (initial_value$type == "fixed") {
-    output_cache[[paste0(name, "_config")]] <- initial_value$value
-  }
-  
-  combination_function(output_cache, name, ...) 
-  
-  return(invisible())
-}
-stitch_caches <- cache_fun_results("modeled_cases",stitch_caches_no_cache, overwrite = T) #this may be problematic
-
 #  a specific stitch function that can stack model output from different year together 
+#' @export
 #' @name stack_case_rate_raster_in_sf
 #' @title stack_case_rate_raster_in_sf
 #' @description a specific stitch function that can stack model output from different year together 
@@ -406,19 +324,23 @@ stack_case_rate_raster_in_sf_no_cache <- function( output_cache,
     output_cache[[name]] <- rbind(output_cache[[name]], modeled_cases_rates_raster)
   } 
 }
+
+#' @export
+#' @name stack_case_rate_raster_in_sf
 stack_case_rate_raster_in_sf <- cache_fun_results("modeled_cases",
-    stack_case_rate_raster_in_sf_no_cache, overwrite = T, config_filename)#this may be problematic
+    stack_case_rate_raster_in_sf_no_cache, overwrite = T, config)
 
 # drop the years with invalid model output 
+#' @export
 #' @name remove_dropped_years
 #' @title remove_dropped_years
 #' @description drop the years with invalid model output
 #' @param output_cache cached output that is an environment variable
 #' @param country country code 
 #' @param dropped_years a vector of country codes and corresponding dropped years 
-#' @param full_year_vector a vector of years simulated in the model (the default is 2015:2019)
+#' @param full_year_vector a vector of years simulated in the model
 #' @return  cached output, which is a sf dataframe with rate values or case values
-remove_dropped_years <- function(output_cache, country, dropped_years = NULL, full_year_vector = 2015:2019){
+remove_dropped_years <- function(output_cache, country, dropped_years = NULL, full_year_vector){
   if(country %in% names(dropped_years)){
 
     if("modeled_cases_mean_raster" %in% names(output_cache)){
@@ -427,7 +349,7 @@ remove_dropped_years <- function(output_cache, country, dropped_years = NULL, fu
         output_cache$modeled_cases_mean_raster <- output_cache$modeled_cases_mean_raster %>%
           filter(!t %in% index_to_remove)
       }else{
-        warning(paste0("The dropped years check in country ", country, " did not get passed, be cautions with the output. "))
+        warning(paste0("The dropped years check in country ", country, " did not get passed, be cautious with the output. "))
         return(invisible())
       }
 
@@ -446,7 +368,8 @@ remove_dropped_years <- function(output_cache, country, dropped_years = NULL, fu
 
 }
 
-# check whether a certain config doesn't have any corresponding model output 
+# check whether a certain config doesn't have any corresponding model output
+#' @export
 #' @name check_unused_config_by_output
 #' @title check_unused_config_by_output
 #' @description check whether a certain config doesn't have any corresponding model output, deleting the config is optional 
@@ -506,6 +429,7 @@ check_unused_config_by_output <- function(config_filename,
 }
 
 #  plot the continent 
+#' @export
 #' @name plot_raster_with_fill_and_continent_shp
 #' @title plot_raster_with_fill_and_continent_shp
 #' @description plot the continent 
@@ -536,4 +460,77 @@ plot_raster_with_fill_and_continent_shp <- function(name, color_scale_type, fill
     }
     
     return(plot)
+}
+
+#' @export
+#' @name plot_continent_map_sf
+#' @title plot_continent_map_sf
+#' @description plot the continent 
+#' @param shapefile_dir where the folder of shape files is stored 
+#' @param country_borders whether to plot the country borders 
+#' @param continent_sf the actual continent sf object 
+#' @param sf_type cases or rates
+#' @param render 
+#' @param plot_file
+#' @param width
+#' @param height
+#' @return ggplot object 
+plot_continent_map_sf <- function(shapefile_dir, 
+                                  country_borders = TRUE, 
+                                  continent_sf,
+                                  sf_type, 
+                                  render = T,
+                                  plot_file = NULL,
+                                  width = NULL,
+                                  height = NULL){
+  # Get the country list for the whole Africa
+  country_list <- readr::read_csv(paste(shapefile_dir, "Africa_country_list.csv", sep="/"))$ISO_3
+  
+  # Get the continent-level shape files
+  dir.create(file.path(shapefile_dir, "shapefiles/"), showWarnings = FALSE)
+  shp <- GADMTools::gadm_sf_loadCountries(country_list, level = 0, 
+                                          basefile = file.path(shapefile_dir, "shapefiles/"))$sf
+  
+  # Combine or unionize all countries together 
+  if(country_borders){
+    countinent_shp <- sf::st_as_sf(sf::st_combine(shp))
+  }else{
+    countinent_shp <- sf::st_as_sf(sf::st_union(shp))
+  }
+  
+  # Plot the continent map 
+  plt <- ggplot2::ggplot()
+
+  if(grepl("case", tolower(sf_type))){
+    plt <- ggplot2::ggplot() +
+      ggplot2::geom_sf(
+        data = continent_sf,
+        ggplot2::aes(fill = modeled_cases_mean_across_years), color=NA, size=0.00001)+
+      taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = TRUE)+
+      ggplot2::geom_sf(data=countinent_shp,fill=NA,color="black",size=0.05)+
+      ggplot2::labs(fill="Incidence\n [cases/year]")+
+      ggplot2::theme_bw() +
+      ggplot2::theme(legend.position = "bottom") +
+      ggplot2::theme(legend.text = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1)) 
+      # ggplot2::facet_wrap(~t,ncol = length(unique(continent_sf$t))) 
+  }else if(grepl("rate", tolower(sf_type))){
+    plt <- ggplot2::ggplot() +
+      ggplot2::geom_sf(
+        data = continent_sf,
+        ggplot2::aes(fill = modeled_rates_mean_across_years), color=NA, size=0.00001)+
+      taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
+      ggplot2::geom_sf(data=countinent_shp,fill=NA,color="black",size=0.05)+
+      ggplot2::labs(fill="Incidence rate\n [cases/10'000/year]")+
+      ggplot2::theme_bw() +
+      ggplot2::theme(legend.position = "bottom") +
+      ggplot2::theme(legend.text = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1)) 
+  }
+
+  if (!is.null(plot_file)) {
+    ggplot2::ggsave(plt, plot_file, width = width, heigth = height)
+  }
+  if(render) {
+    plt
+  }
+
 }

@@ -19,20 +19,27 @@ if (data_source == "api") {
   worldpop_region <- unique(sapply(countries_name, taxdat::lookup_WorldPop_region))
   username <- Sys.getenv("CHOLERA_API_USERNAME", "NONE")
   password <- Sys.getenv("CHOLERA_API_KEY", "NONE")
+  website <- Sys.getenv("CHOLERA_API_WEBSITE", "")
   if (any(c(username, password) == "NONE")) {
     source("Analysis/R/database_api_key.R")
     username <- database_username
     password <- database_api_key
   }
-  cat("cntry:", long_countries, "u:", ifelse(nchar(username) > 0, "****" ,"") , "psswd:", ifelse(nchar(password) > 0, "****" ,"") , "st:", start_time, "et:", end_time, "\n")
+  cat("cntry:", long_countries, "u:", ifelse(nchar(username) > 0, "****", ""), "psswd:", ifelse(nchar(password) > 0, "****", ""), "st:", start_time, "et:", end_time, "\n")
 } else if (data_source == "sql") {
   long_countries <- countries
   username <- Sys.getenv("CHOLERA_SQL_USERNAME", "NONE")
   password <- Sys.getenv("CHOLERA_SQL_PASSWORD", "NONE")
+  website <- Sys.getenv("CHOLERA_SQL_WEBSITE", "")
   if (any(c(username, password) == "NONE")) {
     source("Analysis/R/database_api_key.R")
-    username <- taxonomy_username
-    password <- taxonomy_password
+    try(
+      {
+        username <- taxonomy_username
+        password <- taxonomy_password
+      },
+      silent = TRUE
+    )
   }
 } else {
   stop("Unknown data source, must be one of 'api', 'sql', found ", data_source)
@@ -48,11 +55,12 @@ cases <- taxdat::pull_taxonomy_data(
   time_right = end_time,
   source = data_source,
   uids = filter_OCs,
+  website = website
 ) %>%
   taxdat::rename_database_fields(source = data_source)
+
 index <- sf::st_geometry_type(cases) == sf::st_geometry_type(sf::st_geometrycollection())
 sf::st_geometry(cases[index, ]) <- sf::st_as_sfc(lapply(sf::st_geometry(cases[index, ]), sf::st_collection_extract, type = "POLYGON"))
-
 
 # Get OC UIDs for all extracted data
 uids <- sort(unique(as.numeric(cases$OC_UID)))
@@ -69,7 +77,6 @@ if ("truncate" %in% names(config)) {
   if (config$truncate$method == "truncate") {
     cases$depth <- stringr::str_count(pattern = ":", cases$location_name) / 2
     cases <- cases %>% dplyr::filter(depth <= config$truncate$smallest_spatial_scale)
-
   } else {
     stop(paste("method", method, "is not implemented"))
   }
@@ -88,21 +95,21 @@ print("Finding Locations")
 if (sum(!cases$shapefile.exists) > 0) {
   warning("There was a problem with at least one shapefile. See output for details.")
   print(paste(sum(!cases$shapefile.exists), "of", length(cases$shapefile.exists), "observations have shapefile problems."))
-
+  
   problem_cases <- dplyr::filter(cases, !shapefile.exists)
   problem_indices <- which(!cases$shapefile.exists)
   problem_OCs <- unique(problem_cases$OC_UID) ## relationships.observation_collection.data.id)
-
+  
   # print(paste("The following indexes are affected:", paste(problem_indices, collapse = ", ")))
   print(paste("The following OC UIDs are affected:", paste(problem_OCs, collapse = ", ")))
   print(paste(sum(problem_cases[[cases_column]]), "/", sum(cases[[cases_column]]), cases_column, "are missing due to shapefile problems."))
-
+  
   print("Observations attached to problematic location-periods will be ignored. Here are the problematic location-periods *****************")
   print(dplyr::select(problem_cases, location_name) %>%
           as.data.frame() %>%
           dplyr::distinct(location_name) %>%
           dplyr::arrange(location_name))
-
+  
   cases <- cases %>%
     dplyr::filter(shapefile.exists)
 }
@@ -136,6 +143,7 @@ if (any(grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles)))) {
 }
 
 # Write location periods in data ---------------------------------------
+cat("-- Creating tables for observed lps in database \n")
 
 # Database connection
 conn_pg <- taxdat::connect_to_db(dbuser)
@@ -148,61 +156,93 @@ shapefiles <- sf::st_cast(shapefiles, "MULTIPOLYGON") %>%
   dplyr::rename(geom = geojson)
 
 # Write to database
-sf::st_write(obj = shapefiles,
-             dsn = conn_pg,
-             layer = lp_name,
-             append = F)
+taxdat::write_shapefiles_table(
+  conn_pg = conn_pg,
+  shapefiles = shapefiles,
+  table_name = lp_name
+)
 
-# Creat spatial index
-DBI::dbClearResult(DBI::dbSendStatement(conn_pg, glue::glue_sql("UPDATE {`{DBI::SQL(lp_name)}`} SET geom = ST_SetSRID(geom, 4326);", .con = conn_pg)))
-DBI::dbClearResult(DBI::dbSendStatement(conn_pg, glue::glue_sql("CREATE INDEX  {`{DBI::SQL(paste0(lp_name, '_idx'))}`} ON  {`{DBI::SQL(lp_name)}`} USING GIST(geom);", .con = conn_pg)))
-DBI::dbClearResult(DBI::dbSendStatement(conn_pg, glue::glue_sql("VACUUM ANALYZE {`{DBI::SQL(lp_name)}`};", .con = conn_pg)))
+# Create mapping from location periods to grid cells
+taxdat::make_grid_lp_mapping_table(
+  conn_pg = conn_pg,
+  lp_name = lp_name
+)
 
-# Table of correspondence between location periods and grid cells
-location_periods_table <- paste0(lp_name, "_dict")
+# Create table of spatial intersections between grid polygons and shapefile
+# borders to compute population-weighted fractions
+intersections_table <- taxdat::make_grid_intersections_table_name(dbuser = dbuser, map_name = map_name)
 
-DBI::dbClearResult(DBI::dbSendStatement(
-  conn_pg,
-  glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(location_periods_table)}`};",
-                 .con = conn_pg)
-))
-DBI::dbClearResult(DBI::dbSendStatement(
-  conn_pg,
-  glue::glue_sql("CREATE TABLE {`{DBI::SQL(location_periods_table)}`} AS (
-                  SELECT location_period_id , b.rid, b.x, b.y
-                  FROM {`{DBI::SQL(lp_name)}`} a
-                  JOIN {`{DBI::SQL(paste0(full_grid_name, '_centroids'))}`} b
-                  ON ST_Within(b.geom, a.geom)
-                );",
-                 .con = conn_pg
-  )
-))
+taxdat::make_grid_intersections_table(
+  conn_pg = conn_pg,
+  full_grid_name = full_grid_name,
+  lp_name = lp_name,
+  intersections_table = intersections_table
+)
 
 # Get the dictionary of location periods to pixel ids
 cntrd_table <- taxdat::make_grid_centroids_table_name(dbuser = dbuser, map_name = map_name)
 
-# Create table of grid centroids included in the model
-DBI::dbClearResult(DBI::dbSendStatement(
-  conn_pg,
-  glue::glue_sql(
-    "DROP TABLE IF EXISTS {`{DBI::SQL(cntrd_table)}`};", .con = conn_pg)))
-DBI::dbClearResult(DBI::dbSendStatement(
-  conn_pg,
-  glue::glue_sql(
-    "CREATE TABLE {`{DBI::SQL(cntrd_table)}`} AS (
-        SELECT DISTINCT g.*
-        FROM {`{DBI::SQL(paste0(full_grid_name, '_centroids'))}`} g
-        JOIN {`{DBI::SQL(lp_name)}`} l
-        ON ST_Intersects(g.geom, l.geom)
-      );", .con = conn_pg
-  )
-))
-DBI::dbClearResult(DBI::dbSendStatement(
-  conn_pg,
-  glue::glue_sql(
-    "CREATE INDEX {`{DBI::SQL(paste0(cntrd_table, '_gidx'))}`} on {`{DBI::SQL(cntrd_table)}`} USING GIST(geom);",
-    .con = conn_pg)))
-DBI::dbSendStatement(conn_pg, glue::glue_sql("VACUUM ANALYZE {`{DBI::SQL(cntrd_table)}`};", .con = conn_pg))
+taxdat::make_grid_lp_centroids_table(
+  conn_pg = conn_pg,
+  full_grid_name = full_grid_name,
+  lp_name = lp_name,
+  cntrd_table = cntrd_table
+)
+
+# Process data for summaries ----------------------------------------------
+cat("-- Creating tables for output summary lps in database \n")
+
+# !! This assumes only one country present, would need to be changed if list of countries
+iso_code <- taxdat::get_country_isocode(config)
+
+output_shapefiles <- taxdat::get_multi_country_admin_units(
+  iso_code = iso_code,
+  admin_levels = config$summary_admin_levels,
+  lps = shapefiles
+)
+
+# Name for output location periods
+output_lp_name <- taxdat::make_output_locationperiods_table_name(
+  dbuser = dbuser,
+  map_name = map_name
+)
+
+# Write to database
+taxdat::write_shapefiles_table(
+  conn_pg = conn_pg,
+  shapefiles = output_shapefiles,
+  table_name = output_lp_name
+)
+
+# Create mapping from location periods to grid cells
+taxdat::make_grid_lp_mapping_table(
+  conn_pg = conn_pg,
+  lp_name = output_lp_name
+)
+
+# Create table of spatial intersections between grid polygons and shapefile
+# borders to compute population-weighted fractions
+output_intersections_table <- taxdat::make_output_grid_intersections_table_name(
+  dbuser = dbuser,
+  map_name = map_name
+)
+
+taxdat::make_grid_intersections_table(
+  conn_pg = conn_pg,
+  full_grid_name = full_grid_name,
+  lp_name = output_lp_name,
+  intersections_table = output_intersections_table
+)
+
+# Get the dictionary of location periods to pixel ids
+output_cntrd_table <- taxdat::make_output_grid_centroids_table_name(dbuser = dbuser, map_name = map_name)
+
+taxdat::make_grid_lp_centroids_table(
+  conn_pg = conn_pg,
+  full_grid_name = full_grid_name,
+  lp_name = output_lp_name,
+  cntrd_table = output_cntrd_table
+)
 
 # Create sf_chol ---------------------------------------------------------------
 
@@ -211,21 +251,38 @@ sf::st_geometry(cases) <- NULL
 sf_cases <- sf::st_as_sf(
   dplyr::left_join(cases,
                    shapefiles,
-                   by = c("attributes.location_period_id" = "location_period_id")))
+                   by = c("attributes.location_period_id" = "location_period_id")
+  )
+)
 
 if (any(sf::st_is_empty(sf_cases))) {
   warning(
-    paste("Missing shapefiles for ",
-          sum(sf::st_is_empty(sf_cases)),
-          "observations. They correspond to the following location period IDs:",
-          paste(sf_cases[sf::st_is_empty(sf_cases), ]$locationPeriod_id, collapse = ", ")))
+    paste(
+      "Missing shapefiles for ",
+      sum(sf::st_is_empty(sf_cases)),
+      "observations. They correspond to the following location period IDs:",
+      paste(sf_cases[sf::st_is_empty(sf_cases), ]$locationPeriod_id, collapse = ", ")
+    )
+  )
   sf_cases <- sf_cases[!sf::st_is_empty(sf_cases), ]
 }
 
 sf_cases$TL <- lubridate::ymd(sf_cases$TL)
 sf_cases$TR <- lubridate::ymd(sf_cases$TR)
 
-save(sf_cases, full_grid_name, file = file_names[["data"]])
+
+# Snap to time period
+sf_cases <- taxdat::snap_to_time_period_df(df = sf_cases,
+                                           TL_col = "TL",
+                                           TR_col = "TR",
+                                           res_time = res_time,
+                                           tol = snap_tol)
+
+save(sf_cases,
+     full_grid_name,
+     output_shapefiles,
+     file = file_names[["data"]]
+)
 
 # close database
 DBI::dbDisconnect(conn_pg)
