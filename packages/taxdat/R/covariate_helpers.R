@@ -1323,6 +1323,7 @@ get_country_admin_units <- function(iso_code,
   
   if (admin_level > 3) {
     stop('Error: the current admin level is unnecessarily high or invalid, 
+
             please check and change the parameters for the country data report before running again. ')
   }
   
@@ -1375,6 +1376,9 @@ get_country_admin_units <- function(iso_code,
   boundary_sf <- boundary_sf %>% 
     dplyr::rename(location_period_id = shapeID)
   
+  # Fix geometry collections if any
+  boundary_sf <- fix_geomcollections(boundary_sf)
+  
   # Combine into multipolygons
   boundary_sf <- sf::st_cast(boundary_sf, "MULTIPOLYGON")
   boundary_sf <- boundary_sf %>% 
@@ -1397,19 +1401,35 @@ get_country_admin_units <- function(iso_code,
 #'
 get_multi_country_admin_units <- function(iso_code,
                                           admin_levels = 0:2,
-                                          lps = shapefiles) {
+                                          lps = NULL,
+                                          clip_to_adm0 = TRUE) {
   
   if (iso_code == "testing") {
     # If testing run return the same shapefiles as the ones on location periods
-    shapefiles
-  } else {
-    purrr::map_df(admin_levels, 
-                  ~ get_country_admin_units(iso_code = iso_code, 
-                                            admin_level = .) %>% 
-                    dplyr::rename(admin_level = shapeType) %>% 
-                    dplyr::arrange(location_period_id)
-    )
+    return(lps)
+  } 
+  
+  if (clip_to_adm0 & !(0 %in% admin_levels)) {
+    stop("Admin level 0 needs to be included if clip_to_adm0 = TRUE.")
   }
+  
+  adm_sf <- purrr::map_df(admin_levels, 
+                          ~ get_country_admin_units(iso_code = iso_code, 
+                                                    admin_level = .) %>% 
+                            dplyr::rename(admin_level = shapeType) %>% 
+                            dplyr::arrange(location_period_id)
+  )
+  
+  if (clip_to_adm0) {
+    adm0_geom <- adm_sf %>% dplyr::slice(1)
+    adm_sf <- adm_sf %>% 
+      dplyr::mutate(geom = sf::st_intersection(geom, adm0_geom$geom))
+  }
+  
+  # Fix geometry collections if any
+  adm_sf <- fix_geomcollections(adm_sf)
+  
+  adm_sf
 }
 
 
@@ -1539,6 +1559,31 @@ make_location_periods_dict <- function(conn_pg,
     dplyr::distinct()
   
   return(location_periods_dict)
+}
+
+#' Fix geometry collections
+#'
+#' @param shapefiles shapefiles to modify (sfc object)
+#'
+#' @return
+#' @export
+#'
+fix_geomcollections <- function(shapefiles) {
+  
+  for (i in 1:nrow(shapefiles)) {
+    tmp <- shapefiles[i,]
+    if (stringr::str_detect(sf::st_geometry_type(tmp), "COLL")) {
+      new_geom <- tmp  %>% 
+        sf::st_collection_extract(type = "POLYGON") %>% 
+        dplyr::summarise(geom = sf::st_union(geom))
+      
+      sf::st_geometry(shapefiles[i, ]) <- sf::st_geometry(new_geom)
+      
+      cat("---- Found GEOMETRYCOLLECTION, converting to MULTIPOLYGON. \n")
+    }
+  }
+  
+  shapefiles
 }
 
 # Modifications of the gdalUtils package ---------------------------------------
