@@ -47,10 +47,17 @@ ml r-stringi
 ml r-rstan
 
 
-## Actually install cmdstanr including dependent r packages and cmdstan
+## Install new packages required by the taxdat package and the taxdat package itself
 cd $CHOLERA_PIPELINE_DIRECTORY
 mkdir -p $R_LIBRARY_DIRECTORY \
- && Rscript -e "options(error=quit, status = 1); install.packages(c('ISOcodes','igraph', 'roxygen2'), lib='$R_LIBRARY_DIRECTORY')" \
+ && Rscript -e "options(error=quit, status = 1); 
+                if (!require(package = 'ISOcodes', character.only = T, lib='$R_LIBRARY_DIRECTORY')) {
+                    install.packages('ISOcodes', lib='$R_LIBRARY_DIRECTORY') }; 
+                if (!require(package = 'igraph', character.only = T, lib='$R_LIBRARY_DIRECTORY')) {
+                    install.packages('igraph', lib='$R_LIBRARY_DIRECTORY') }; 
+                if (!require(package = 'roxygen2', character.only = T, lib='$R_LIBRARY_DIRECTORY')) {
+                    install.packages('roxygen2', lib='$R_LIBRARY_DIRECTORY') }
+                " \
  && Rscript -e "options(error=quit, status = 1); 
                 install.packages('$CHOLERA_PIPELINE_DIRECTORY/packages/taxdat', type='source', repos = NULL, lib='$R_LIBRARY_DIRECTORY')"
  ## We need to install these packages again, since they need newer versions than rockfish has available
