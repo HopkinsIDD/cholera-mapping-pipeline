@@ -10,10 +10,10 @@ library(taxdat)
 
 
 ####       Modify the following settings      ############## 
-working_directory <- "/home/kaiyuezou/mapping_pipeline/new_testing/cholera-mapping-pipeline" 
-setwd(working_directory)
+cholera_directory <- "/home/kaiyuezou/mapping_pipeline/tmp_config/cholera-mapping-pipeline" 
+setwd(cholera_directory)
 config_path <- "Analysis/configs/production_tests/config_writer_test" #<-----dependent on where to save the configs
-dir.create(file.path(working_directory, config_path), FALSE)
+dir.create(file.path(cholera_directory, config_path), FALSE)
 
 Sys.setenv("CHOLERA_TESTING" = "FALSE")
 scale <- "country" ## country or region maps
@@ -39,8 +39,7 @@ config_start_time <- Sys.getenv("CHOLERA_START_TIME","2016-01-01")
 config_end_time <- Sys.getenv("CHOLERA_END_TIME","2020-12-31")
 
 params_df <- data.frame(
-    name = '', 
-    country_data_report_filename = '', 
+    name = '',  
     aoi = 'raw',
     res_space = 20,
     res_time = '1 years', 
@@ -80,8 +79,17 @@ params_df <- data.frame(
     model = 'mapping_model_inference', 
     genquant = 'mapping_model_generate', 
     niter = 2000,
-    recompile = 'yes'
-              )
+    recompile = 'yes', 
+    output_directory = '', 
+    observations_filename = '', 
+    covariate_filename = '', 
+    stan_input_filename = '', 
+    initial_values_filename = '', 
+    stan_output_filename = '', 
+    stan_genquant_filename = '', 
+    country_data_report_filename = '', 
+    data_comparison_report_filename = ''
+    )
 
 
 
@@ -102,7 +110,7 @@ if(scale == "region"){
 
     config_fname <- paste0(config_path2, "/config_", regions[i], "_", start_year, "_", end_year, ".yml")
     # sink(file = config_fname)
-    taxdat::automate_mapping_config(par, covar_names, ctry_names, ctry_ids, config_fname, check_existing_config = FALSE)
+    taxdat::automate_mapping_config(cholera_directory, par, covar_names, ctry_names, ctry_ids, config_fname)
     # sink()
 
   }
@@ -117,7 +125,7 @@ if(scale == "region"){
 
     config_fname <- paste0(config_path2, "/config_", ctry_name, "_", start_year, "_", end_year, ".yml")
     # sink(file = config_fname)
-    taxdat::automate_mapping_config(par, covar_names, ctry_name, ctry_id, config_fname, check_existing_config = FALSE)
+    taxdat::automate_mapping_config(cholera_directory, par, covar_names, ctry_name, ctry_id, config_fname)
     # sink()
   }
 

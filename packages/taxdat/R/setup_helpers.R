@@ -1,77 +1,39 @@
 #' @include config_helpers.R file_name_functions.R run_stan_helpers.R
 #' @title check_update_config
 #' @description Check whether parameter values exist or are valid and then update them 
+#' @param cholera_directory the cholera directory 
 #' @param config_fname pathway to the config 
-#' @param covariate_list where to find the file that lists all the covariate names 
+#' @param covariate_list_dir where to find the file that lists all the covariate names 
 #' @return the actual config file 
 #' @export
-check_update_config <- function(config_fname, covariate_list = NULL){
+check_update_config <- function(cholera_directory, config_fname, covariate_list_dir = "Layers/covariate_dictionary.yml"){
   
   ### Read in the config file first 
   cholera_testing <- as.logical(Sys.getenv("CHOLERA_TESTING", "FALSE"))
   config_file <- yaml::read_yaml(config_fname)
 
-  ### If no file exists to tell us what covariates exist, here's a hard coded list
-  if(is.null(covariate_list)){
-    all_covariates <- c("", "pop", "dist_to_water",              
-                        "dist_to_lakes", "dist_to_rivers",              
-                        "dist_to_coast", "san_access",                  
-                        "water_access", "open_defe",            
-                        "stunting", "wasting", 
-                        "access_cities", "access_healthcare_motorized", 
-                        "access_healthcare_walking")
-  }else{
-    all_covariates <- names(yaml::read_yaml(covariate_list)) #tmp default: "Layers/middle-distance_covariates.yml"
-  }
+  ### Use the default .yaml file to get the list of covariates 
+  all_covariates <- c("", names(yaml::read_yaml(paste0(cholera_directory, '/', covariate_list_dir))))
 
   ### Make the check list 
   check_list <- list(
     name = "no-check", 
     countries = "no-check", 
     countries_name = "no-check", 
-    country_data_report_filename = function(nm, cty, ctynm, param){
-                if(is.null(param)){return(paste(nm, cty, ctynm, "country-data-report.html", sep="_"))}
-                return(param)
-              }, 
-    aoi = function(param){
-        if(cholera_testing){return(param)}
-        return("raw")
-      }, 
+    aoi = as.function(check_aoi), 
     res_space = "no-check", 
     res_time = as.function(check_time_res), 
     grid_rand_effects_N = as.function(check_grid_rand_effects_N), 
     case_definition = as.function(check_case_definition), 
-    start_time = function(param){
-                if(is.null(param)){stop("The start_time parameter should not be blank because there is no default")}
-                return(param)
-              },   
-    end_time = function(param){
-              if(is.null(param)){stop("The end_time parameter should not be blank because there is no default")}
-              return(param)
-            }, 
-    data_source = function(param){
-                if(is.null(param)){return("sql")}
-                return(param)
-              }, 
-    ovrt_metadata_table = function(param){
-                        if(is.null(param)){return("no")}
-                        return(param)
-                      }, 
+    start_time = as.function(check_time),   
+    end_time = as.function(check_time),
+    data_source = as.function(check_data_source), 
+    ovrt_metadata_table = as.function(check_ovrt_metadata_table), 
     OCs = "no-check", 
-    taxonomy = function(param){
-              if(is.null(param)){return("taxonomy-working/working-entry1")}
-              return(param)
-            },  
+    taxonomy = as.function(check_taxonomy),  
     covariate_choices = as.function(check_covariate_choices), 
-    obs_model = function(param){
-              if(is.null(param)){return(1)}
-              if(!as.numeric(param) %in% 1:3){return(1)}
-              return(as.numeric(param))
-            }, 
-    od_param = function(param1, param2){
-              if(as.numeric(param1) == 2 | as.numeric(param1) == 3){return(as.numeric(param2))}
-              return(NULL)
-            }, 
+    obs_model = as.function(check_obs_model), 
+    od_param = as.function(check_od_param), 
     time_effect = "stan-check", 
     time_effect_autocorr = "stan-check", 
     use_intercept = "stan-check", 
@@ -82,45 +44,26 @@ check_update_config <- function(config_fname, covariate_list = NULL){
     do_infer_sd_eta = "stan-check", 
     do_zerosum_cnst = "stan-check", 
     use_weights = "stan-check", 
+    overdispersion = "stan-check", 
+    use_rho_prior = "stan-check", 
     covar_warmup = "stan-check", 
     warmup = "stan-check", 
     aggregate = as.function(check_aggregate), 
     tfrac_thresh = as.function(check_tfrac_thresh), 
-    censoring = function(param){
-              if(is.null(param)){return("no")}
-              return(param)
-            }, 
-    censoring_thresh = function(param){
-                      if(is.null(param)){return(0.95)}
-                      return(as.numeric(param))
-                    }, 
+    censoring = as.function(check_censoring), 
+    censoring_thresh = as.function(check_censoring_thresh), 
     set_tfrac = as.function(check_set_tfrac),
     snap_tol = as.function(check_snap_tol),
-    use_pop_weight = function(param){
-                    if(is.null(param)){return("yes")}
-                    return(param)
-                  }, 
+    use_pop_weight = as.function(check_use_pop_weight), 
     sfrac_thresh = as.function(check_sfrac_thresh), 
-    ingest_covariates = function(param){
-                      if(is.null(param)){return("no")}
-                      return(param)
-                    },
-    ingest_new_covariates = function(param){
-                          if(is.null(param)){return("no")}
-                          return(param)
-                        },
-    stan = function(param_list){
-          param_list[["ncores"]] <- 4
-          param_list[["model"]] <- ifelse(is.null(param_list[["model"]]), 
-                                          "mapping_model_inference.stan", param_list[["model"]])
-          param_list[["genquant"]] <- ifelse(is.null(param_list[["genquant"]]), 
-                                            "mapping_model_generate.stan", param_list[["genquant"]])
-          param_list[["niter"]] <- ifelse(is.null(param_list[["niter"]]), 
-                                          2000, as.numeric(param_list[["niter"]]))
-          param_list[["recompile"]] <- ifelse(is.null(param_list[["recompile"]]), 
-                                              "yes", param_list[["recompile"]])
-          return(param_list)
-        }
+    ingest_covariates = as.function(check_ingest_covariates),
+    ingest_new_covariates = as.function(check_ingest_covariates),
+    stan = c("ncores", "model", "genquant", "niter", "recompile"), 
+    file_names = list(data = "observations_filename", covar = "covariate_filename", 
+                      stan_input = "stan_input_filename", initial_values = "initial_values_filename", 
+                      stan_output = "stan_output_filename", stan_genquant = "stan_genquant_filename", 
+                      country_data_report_filename = "country_data_report_filename", 
+                      data_comparison_report_filename = "data_comparison_report_filename")
   )
 
   ### First make sure it has all the parameters and then update the values 
@@ -129,12 +72,10 @@ check_update_config <- function(config_fname, covariate_list = NULL){
       config_file[[nm]] <- check_list[[nm]](config_file[["obs_model"]], config_file[[nm]])
     }else if(nm == "covariate_choices"){
       config_file[[nm]] <- check_list[[nm]](config_file[[nm]], all_covariates)
-    }else if(nm == "country_data_report_filename"){
-      config_file[[nm]] <- check_list[[nm]](config_file[["name"]], config_file[["countries"]], config_file[["countries_name"]], config_file[[nm]])
     }else if(is.function(check_list[[nm]])){
       config_file[[nm]] <- check_list[[nm]](config_file[[nm]])
-    }else if(check_list[[nm]] != "no-check" & check_list[[nm]] != "stan-check"){
-      config_file[[nm]] <- check_list[[nm]]
+    }else{
+      config_file[[nm]] <- config_file[[nm]]
     }   
 
     if(!nm %in% names(config_file)){
@@ -144,20 +85,187 @@ check_update_config <- function(config_fname, covariate_list = NULL){
   }
 
   ### The stan check
-  config_file <- append(config_file, get_stan_parameters(config_file))
+  iteration_params <- check_list[['stan']]
+  updated_stan_parameters <- get_stan_parameters(config_file)
+  iteration_unrelated <- updated_stan_parameters[!names(updated_stan_parameters) %in% iteration_params]
+  config_file <- append(config_file[!names(config_file) %in% names(iteration_unrelated)], iteration_unrelated)
+  
+  config_file$stan <- lapply(iteration_params, function(x){
+    updated_stan_parameters[[x]]
+  })
+  names(config_file$stan) <- iteration_params
 
   ### Reorder all the parameters 
   config_file <- config_file[names(check_list)]
-  
-  ### Remove certain optional parameters if they're not specified (taxonomy, covariate_transformations, use_weights, set_tfrac)
-  config_file <- config_file[!names(config_file) %in% c("taxonomy", "covariate_transformations", "use_weights")]
+
+  ### Get the _filenames 
+  config_file$file_names <- as.list(get_filenames(config_file, cholera_directory))
+  names(config_file$file_names) <- sapply(names(config_file$file_names), function(x){check_list$file_names[[x]]})
+
+  ### Remove certain optional parameters if they're not specified (taxonomy, covariate_transformations, use_weights)
+  for(optional_names in c("taxonomy", "covariate_transformations", "use_weights")){
+    if(is.null(config_file[[optional_names]])){config_file <- config_file[names(config_file) != optional_names]}
+  }
 
   ### Save the config file 
   yaml::write_yaml(config_file, config_fname)
 
 }
 
+#' @include file_name_functions.R
+#' @title check_aoi 
+#' @description Checks whether the aoi is valid
+#' @param aoi the aoi parameter in the config
+#' @return aoi if valid
+#' @export
+check_aoi <- function(aoi) {
+  cholera_testing <- as.logical(Sys.getenv("CHOLERA_TESTING", "FALSE"))
+  if(cholera_testing){
+    return(aoi)
+  }else{
+    return("raw")
+  } 
+}
 
+#' @include file_name_functions.R
+#' @title check_time
+#' @description Checks whether the start_time/end_time is valid
+#' @param time the start_time/end_time parameter in the config
+#' @return start_time/end_time if valid
+#' @export
+check_time <- function(time) {
+  if(is.null(time)){
+    stop("The start_time/end_time parameter should not be blank because there is no default")
+  }else{
+    time_updated <- lubridate::ymd(time)
+    if(inherits(time_updated, 'Date')){
+      return(time)
+    }else{
+      stop("The start_time/end_time parameter is not in the valid form")
+    }
+  }
+}
+
+#' @include file_name_functions.R
+#' @title check_data_source
+#' @description Checks whether the data_source is valid
+#' @param data_source the data_source parameter in the config
+#' @return data_source if valid
+#' @export
+check_data_source <- function(data_source) {
+  if(is.null(data_source) | data_source == "sql"){
+    return("sql")
+  }else if(to_lower(data_source) == "api"){
+    warning("The API is not currently functional for mapping pipeline purposes. ")
+    return(data_source)
+  }else{
+    warning("The data_source parameter can only be either api or sql, now using the default. ")
+    return("sql")
+  }
+}
+
+#' @include file_name_functions.R
+#' @title check_ovrt_metadata_table
+#' @description Checks whether the ovrt_metadata_table is valid
+#' @param ovrt_metadata_table the ovrt_metadata_table parameter in the config
+#' @return ovrt_metadata_table if valid
+#' @export
+check_ovrt_metadata_table <- function(ovrt_metadata_table) {
+  if(is.null(ovrt_metadata_table)){return("no")}
+  return(ovrt_metadata_table)
+}
+
+#' @include file_name_functions.R
+#' @title check_taxonomy
+#' @description Checks whether the taxonomy is valid
+#' @param taxonomy the taxonomy parameter in the config
+#' @return taxonomy if valid
+#' @export
+check_taxonomy <- function(taxonomy) {
+  if(is.null(taxonomy)){return("taxonomy-working/working-entry1")}
+  return(taxonomy)
+}
+
+#' @include file_name_functions.R
+#' @title check_obs_model
+#' @description Checks whether the obs_model is valid
+#' @param obs_model the obs_model parameter in the config
+#' @return obs_model if valid
+#' @export
+check_obs_model <- function(obs_model) {
+  if(is.null(obs_model)){return(1)}
+  if(!as.numeric(obs_model) %in% 1:3){return(1)}
+  return(as.numeric(obs_model))
+}
+
+#' @include file_name_functions.R
+#' @title check_od_param
+#' @description Checks whether the od_param is valid
+#' @param obs_model the obs_model parameter in the config
+#' @param od_param the od_param parameter in the config
+#' @return od_param if valid
+#' @export
+check_od_param <- function(obs_model, od_param) {
+  if(as.numeric(obs_model) == 2 | as.numeric(obs_model) == 3){
+    return(as.numeric(od_param))
+  }
+  return(NULL)
+}
+
+#' @include file_name_functions.R
+#' @title check_censoring
+#' @description Checks whether the censoring is valid
+#' @param censoring the obs_model parameter in the config
+#' @return censoring if valid
+#' @export
+check_censoring <- function(censoring) {
+  if(is.null(censoring)){return("no")}
+  return(censoring)
+}
+
+#' @include file_name_functions.R
+#' @title check_censoring_thresh
+#' @description Checks whether the censoring_thresh is valid
+#' @param censoring_thresh the obs_model parameter in the config
+#' @return censoring_thresh if valid
+#' @export
+check_censoring_thresh <- function(censoring_thresh) {
+  if(is.null(censoring_thresh)){return(0.95)}
+  return(as.numeric(censoring_thresh))
+}
+
+#' @include file_name_functions.R
+#' @title check_use_pop_weight
+#' @description Checks whether the use_pop_weight is valid
+#' @param use_pop_weight the use_pop_weight parameter in the config
+#' @return use_pop_weight if valid
+#' @export
+check_use_pop_weight <- function(use_pop_weight) {
+  if(is.null(use_pop_weight)){return("yes")}
+  return(use_pop_weight)
+}
+
+#' @include file_name_functions.R
+#' @title check_ingest_covariates
+#' @description Checks whether the ingest_covariates is valid
+#' @param ingest_covariates the ingest_covariates parameter in the config
+#' @return ingest_covariates if valid
+#' @export
+check_ingest_covariates <- function(ingest_covariates) {
+  if(is.null(ingest_covariates)){return("no")}
+  return(ingest_covariates)
+}
+
+#' @include file_name_functions.R
+#' @title check_ingest_new_covariates
+#' @description Checks whether the ingest_new_covariates is valid
+#' @param ingest_new_covariates the ingest_new_covariates parameter in the config
+#' @return ingest_new_covariates if valid
+#' @export
+check_ingest_covariates <- function(ingest_new_covariates) {
+  if(is.null(ingest_new_covariates)){return("no")}
+  return(ingest_new_covariates)
+}
 
 #' @include file_name_functions.R
 

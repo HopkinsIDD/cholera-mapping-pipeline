@@ -301,6 +301,60 @@ make_stan_genquant_filename <- function(cholera_directory,
   paste0(base_filename, to_add, ".stan_genquant.rds")
 }
 
+#' @title Make country data report filename
+#' @name make_country_data_report_filename
+#' @description Make string for country data report file name
+#'
+#' @param cholera_directory cholera mapping directory
+#' @param map_name map name
+#' @param config the imported config file 
+#' @return a string with the country data report file name
+#' @export
+make_country_data_report_filename <- function(cholera_directory,
+                                              map_name,
+                                              config = NULL) {
+  if (!is.null(config)) {
+    if ("file_names" %in% names(config)) {
+      filename <- paste(cholera_directory, "Analysis", "data", sep = "/")
+      if ("output_directory" %in% names(config[["file_names"]])) {
+        filename <- config[["file_names"]][["output_directory"]]
+      }
+      if ("country_data_report_filename" %in% names(config[["file_names"]])) {
+        return(paste(filename, config[["file_names"]][["country_data_report_filename"]], sep = "/"))
+      }
+    }
+  }
+  paste(cholera_directory, "/Analysis/", "data/",
+        map_name, '.country-data-report', '.html', sep = '')
+}
+
+#' @title Make data comparison report filename
+#' @name make_data_comparison_report_filename
+#' @description Make string for the data comparison report file name
+#'
+#' @param cholera_directory cholera mapping directory
+#' @param map_name map name
+#' @param config the imported config file 
+#' @return a string with the data comparison report file name
+#' @export
+make_data_comparison_report_filename <- function(cholera_directory,
+                                                map_name,
+                                                config = NULL) {
+  if (!is.null(config)) {
+    if ("file_names" %in% names(config)) {
+      filename <- paste(cholera_directory, "Analysis", "data", sep = "/")
+      if ("output_directory" %in% names(config[["file_names"]])) {
+        filename <- config[["file_names"]][["output_directory"]]
+      }
+      if ("data_comparison_report_filename" %in% names(config[["file_names"]])) {
+        return(paste(filename, config[["file_names"]][["data_comparison_report_filename"]], sep = "/"))
+      }
+    }
+  }
+  paste(cholera_directory, "/Analysis/", "data/",
+        map_name, '.data-comparison-report', '.html', sep = '')
+}
+
 #' @title Make map output filename
 #' @name make_map_output_filename
 #' @description Make string for map pdf file name
@@ -424,19 +478,28 @@ get_filenames <- function (config, cholera_directory) {
                                                      config = config,
                                                      config_dict = config_dict)
   
+  country_data_report_filename <- make_country_data_report_filename(cholera_directory = cholera_directory,
+                                                                map_name = map_name)
+
+  data_comparison_report_filename <- make_data_comparison_report_filename(cholera_directory = cholera_directory,
+                                                                      map_name = map_name)
+
   rc <- list(
     data = preprocessed_data_fname,
     covar = preprocessed_covar_fname,
     stan_input = stan_input_fname,
     initial_values = initial_values_fname,
     stan_output = stan_output_fname,
-    stan_genquant = stan_genquant_fname
+    stan_genquant = stan_genquant_fname, 
+    country_data_report_filename = country_data_report_filename, 
+    data_comparison_report_filename = data_comparison_report_filename
   )
   
   rc <- setNames(c(preprocessed_data_fname, preprocessed_covar_fname,
                    stan_input_fname, initial_values_fname, stan_output_fname,
-                   stan_genquant_fname), 
-                 c("data", "covar", "stan_input", "initial_values", "stan_output", "stan_genquant"))
+                   stan_genquant_fname, country_data_report_filename, data_comparison_report_filename), 
+                 c("data", "covar", "stan_input", "initial_values", "stan_output", "stan_genquant", 
+                  "country_data_report_filename", "data_comparison_report_filename"))
   return(rc)
 }
 

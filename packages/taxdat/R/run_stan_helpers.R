@@ -24,7 +24,12 @@ get_stan_parameters <- function(config,
                                 exp_prior = 0,
                                 use_intercept = 0,
                                 do_zerosum_cnst = 0,
-                                do_infer_sd_eta = 0
+                                do_infer_sd_eta = 0, 
+                                ncores = 4,
+                                model = 'mapping_model_inference.stan',
+                                genquant = 'mapping_model_generate.stan',
+                                niter = 2000,
+                                recompile = T
 ) {
   
   default_params <- list(sigma_eta_scale = sigma_eta_scale,
@@ -35,8 +40,8 @@ get_stan_parameters <- function(config,
                          time_effect_autocorr = time_effect_autocorr,
                          censoring = censoring,
                          use_weights = use_weights,
-                         overdispersion = overdispersion,
-                         use_rho_prior = use_rho_prior,
+                         overdispersion = overdispersion, #this is not included in the wiki
+                         use_rho_prior = use_rho_prior, #this one as well
                          use_pop_weight = use_pop_weight,
                          censoring_thresh = censoring_thresh,
                          od_param = od_param,
@@ -44,7 +49,12 @@ get_stan_parameters <- function(config,
                          exp_prior = exp_prior,
                          use_intercept = use_intercept,
                          do_zerosum_cnst = do_zerosum_cnst,
-                         do_infer_sd_eta = do_infer_sd_eta)
+                         do_infer_sd_eta = do_infer_sd_eta, 
+                         ncores = ncores,
+                         model = model,
+                         genquant = genquant,
+                         niter = niter,
+                         recompile = recompile)
   
   # For each parameter check if specified in config, if not use default value
   params <- purrr::map(names(default_params), 
