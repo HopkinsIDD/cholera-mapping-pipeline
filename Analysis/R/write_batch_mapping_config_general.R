@@ -80,8 +80,8 @@ params_df <- data.frame(
     genquant = 'mapping_model_generate', 
     niter = 2000,
     recompile = 'yes', 
-    output_directory = '', 
-    observations_filename = '', 
+    output_directory = '/home/kaiyuezou/mapping_pipeline/tmp_config/cholera-mapping-pipeline/Analysis/data/testing', 
+    observations_filename = 'test_preprocess.rdata', 
     covariate_filename = '', 
     stan_input_filename = '', 
     initial_values_filename = '', 
@@ -110,7 +110,7 @@ if(scale == "region"){
 
     config_fname <- paste0(config_path2, "/config_", regions[i], "_", start_year, "_", end_year, ".yml")
     # sink(file = config_fname)
-    taxdat::automate_mapping_config(cholera_directory, par, covar_names, ctry_names, ctry_ids, config_fname)
+    automate_mapping_config(cholera_directory, par, covar_names, ctry_names, ctry_ids, config_fname)
     # sink()
 
   }
@@ -125,7 +125,7 @@ if(scale == "region"){
 
     config_fname <- paste0(config_path2, "/config_", ctry_name, "_", start_year, "_", end_year, ".yml")
     # sink(file = config_fname)
-    taxdat::automate_mapping_config(cholera_directory, par, covar_names, ctry_name, ctry_id, config_fname)
+    automate_mapping_config(cholera_directory, par, covar_names, ctry_name, ctry_id, config_fname)
     # sink()
   }
 

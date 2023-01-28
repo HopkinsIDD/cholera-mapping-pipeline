@@ -59,7 +59,7 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
     ingest_covariates = as.function(check_ingest_covariates),
     ingest_new_covariates = as.function(check_ingest_covariates),
     stan = c("ncores", "model", "genquant", "niter", "recompile"), 
-    file_names = list(data = "observations_filename", covar = "covariate_filename", 
+    file_names = list(output_directory = "output_directory", data = "observations_filename", covar = "covariate_filename", 
                       stan_input = "stan_input_filename", initial_values = "initial_values_filename", 
                       stan_output = "stan_output_filename", stan_genquant = "stan_genquant_filename", 
                       country_data_report_filename = "country_data_report_filename", 
@@ -182,7 +182,7 @@ check_ovrt_metadata_table <- function(ovrt_metadata_table) {
 #' @return taxonomy if valid
 #' @export
 check_taxonomy <- function(taxonomy) {
-  if(is.null(taxonomy)){return("taxonomy-working/working-entry1")}
+  if(!is.null(taxonomy)){return("taxonomy-working/working-entry1")}
   return(taxonomy)
 }
 

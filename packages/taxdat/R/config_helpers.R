@@ -15,9 +15,10 @@ automate_mapping_config <- function(cholera_directory, p, covariate_names, count
   ### First make the initial config file no matter if it's correct or not 
   map_name <- paste0(paste(countries_names, collapse="_"), "_", lubridate::year(as.Date(p$start_time)), "_", lubridate::year(as.Date(p$end_time)), "_", p$res_space, "km")
 
-  start = match("  non_loop_part <- paste0(", readLines(paste0(cholera_directory, '/', 'packages/taxdat/R/config_helpers.R')))
-  end = match("  ) #the end of non_loop_part", readLines(paste0(cholera_directory, '/', 'packages/taxdat/R/config_helpers.R')))
-  file.lines <- scan(paste0(cholera_directory, '/', 'packages/taxdat/R/config_helpers.R'), what=character(), skip=start-1, nlines=end-start+1, sep='\n')
+  this_script_path <- paste0(cholera_directory, '/', 'packages/taxdat/R/config_helpers.R')
+  start = match("  non_loop_part <- paste0(", readLines(this_script_path))
+  end = match("  ) #the end of non_loop_part", readLines(this_script_path))
+  file.lines <- scan(this_script_path, what=character(), skip=start-1, nlines=end-start+1, sep='\n')
   non_loop_list <- stringr::str_replace_all(unlist(stringr::str_extract_all(file.lines, "[[A-Za-z]+[_]+]*[A-Za-z]+:")), ":", "")
   loopable_list <- names(p)[!names(p) %in% non_loop_list]
 
