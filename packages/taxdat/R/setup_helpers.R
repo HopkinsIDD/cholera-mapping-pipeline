@@ -99,7 +99,7 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
   config_file <- config_file[names(check_list)]
 
   ### Get the _filenames 
-  config_file$file_names <- as.list(get_filenames(config_file, cholera_directory))
+  config_file$file_names <- as.list(get_filenames(config_file, cholera_directory, for_config = TRUE))
   names(config_file$file_names) <- sapply(names(config_file$file_names), function(x){check_list$file_names[[x]]})
 
   ### Remove certain optional parameters if they're not specified (taxonomy, covariate_transformations, use_weights)
@@ -137,11 +137,20 @@ check_time <- function(time) {
   if(is.null(time)){
     stop("The start_time/end_time parameter should not be blank because there is no default")
   }else{
-    time_updated <- lubridate::ymd(time)
+    tryCatch(
+      expr = {
+        time_updated <- lubridate::ymd(time)
+      },
+      error = function(e){
+        message('Caught an error, the start_time/end_time parameter cannot be easily transformed into "Date" variable. ')
+        print(e)
+      }
+    )    
+
     if(inherits(time_updated, 'Date')){
-      return(time)
+      return(time_updated)
     }else{
-      stop("The start_time/end_time parameter is not in the valid form")
+      stop("The start_time/end_time parameter is not in the valid form. ")
     }
   }
 }
@@ -153,11 +162,10 @@ check_time <- function(time) {
 #' @return data_source if valid
 #' @export
 check_data_source <- function(data_source) {
-  if(is.null(data_source) | data_source == "sql"){
+  if(is.null(data_source) | tolower(data_source) == "sql"){
     return("sql")
-  }else if(to_lower(data_source) == "api"){
-    warning("The API is not currently functional for mapping pipeline purposes. ")
-    return(data_source)
+  }else if(tolower(data_source) == "api"){
+    stop("The API is not currently functional for mapping pipeline purposes. ")
   }else{
     warning("The data_source parameter can only be either api or sql, now using the default. ")
     return("sql")
@@ -172,6 +180,12 @@ check_data_source <- function(data_source) {
 #' @export
 check_ovrt_metadata_table <- function(ovrt_metadata_table) {
   if(is.null(ovrt_metadata_table)){return("no")}
+  if(!tolower(ovrt_metadata_table) %in% c("yes", "no")){
+    if(!tolower(ovrt_metadata_table) %in% c("true", "false")){
+      stop("The ovrt_metadata_table parameter has to be true/false or yer/no. ")
+    }
+    return(as.logical(ovrt_metadata_table))
+  }
   return(ovrt_metadata_table)
 }
 
@@ -182,8 +196,13 @@ check_ovrt_metadata_table <- function(ovrt_metadata_table) {
 #' @return taxonomy if valid
 #' @export
 check_taxonomy <- function(taxonomy) {
-  if(!is.null(taxonomy)){return("taxonomy-working/working-entry1")}
-  return(taxonomy)
+  if(!is.null(taxonomy)){
+    if(!identical(taxonomy, "taxonomy-working/working-entry1")){
+      warning('The taxonomy parameter can only be "taxonomy-working/working-entry1", now using this default. ')
+    }
+  }
+  
+  return("taxonomy-working/working-entry1")
 }
 
 #' @include file_name_functions.R
@@ -193,9 +212,27 @@ check_taxonomy <- function(taxonomy) {
 #' @return obs_model if valid
 #' @export
 check_obs_model <- function(obs_model) {
-  if(is.null(obs_model)){return(1)}
-  if(!as.numeric(obs_model) %in% 1:3){return(1)}
-  return(as.numeric(obs_model))
+  if(is.null(obs_model)){
+    warning("The obs_model parameter cannot be null, now returning the default value 1, meaning the poisson observation model will be used in Stan. ")
+    return(1)
+  }
+
+  tryCatch(
+    expr = {
+      updated_obs_model <- as.numeric(obs_model)
+    },
+    error = function(e){
+      message('Caught an error, the obs_model parameter cannot be easily transformed into "numeric" variable. ')
+      print(e)
+    }
+  )    
+  
+  if(!updated_obs_model %in% 1:3){
+    warning("The obs_model parameter can only be 1, 2, or 3, now returning the default value 1, meaning the poisson observation model will be used in Stan. ")
+    return(1)
+  }
+
+  return(updated_obs_model)
 }
 
 #' @include file_name_functions.R
@@ -206,9 +243,20 @@ check_obs_model <- function(obs_model) {
 #' @return od_param if valid
 #' @export
 check_od_param <- function(obs_model, od_param) {
+  if(is.null(od_param)){return(NULL)}
   if(as.numeric(obs_model) == 2 | as.numeric(obs_model) == 3){
-    return(as.numeric(od_param))
+    tryCatch(
+      expr = {
+        updated_od_param <- as.numeric(od_param)
+      },
+      error = function(e){
+        message('Caught an error, the od_param parameter cannot be easily transformed into "numeric" variable. ')
+        print(e)
+      }
+    )    
+    return(updated_od_param)
   }
+
   return(NULL)
 }
 
@@ -219,7 +267,15 @@ check_od_param <- function(obs_model, od_param) {
 #' @return censoring if valid
 #' @export
 check_censoring <- function(censoring) {
-  if(is.null(censoring)){return("no")}
+  if(is.null(censoring)){
+    return("no")
+  }
+  if(!tolower(censoring) %in% c("yes", "no")){
+    if(!tolower(censoring) %in% c("true", "false")){
+      stop("The censoring parameter has to be true/false or yer/no. ")
+    }
+    return(as.logical(censoring))
+  }
   return(censoring)
 }
 
@@ -231,7 +287,18 @@ check_censoring <- function(censoring) {
 #' @export
 check_censoring_thresh <- function(censoring_thresh) {
   if(is.null(censoring_thresh)){return(0.95)}
-  return(as.numeric(censoring_thresh))
+
+  tryCatch(
+    expr = {
+      updated_censoring_thresh <- as.numeric(censoring_thresh)
+    },
+    error = function(e){
+      message('Caught an error, the censoring_thresh parameter cannot be easily transformed into "numeric" variable. ')
+      print(e)
+    }
+  )    
+
+  return(updated_censoring_thresh)
 }
 
 #' @include file_name_functions.R
@@ -242,6 +309,12 @@ check_censoring_thresh <- function(censoring_thresh) {
 #' @export
 check_use_pop_weight <- function(use_pop_weight) {
   if(is.null(use_pop_weight)){return("yes")}
+  if(!tolower(use_pop_weight) %in% c("yes", "no")){
+    if(!tolower(use_pop_weight) %in% c("true", "false")){
+      stop("The use_pop_weight parameter has to be true/false or yer/no. ")
+    }
+    return(as.logical(use_pop_weight))
+  }
   return(use_pop_weight)
 }
 
@@ -253,6 +326,12 @@ check_use_pop_weight <- function(use_pop_weight) {
 #' @export
 check_ingest_covariates <- function(ingest_covariates) {
   if(is.null(ingest_covariates)){return("no")}
+  if(!tolower(ingest_covariates) %in% c("yes", "no")){
+    if(!tolower(ingest_covariates) %in% c("true", "false")){
+      stop("The ingest_covariates parameter has to be true/false or yer/no. ")
+    }
+    return(as.logical(ingest_covariates))
+  }
   return(ingest_covariates)
 }
 
@@ -264,6 +343,12 @@ check_ingest_covariates <- function(ingest_covariates) {
 #' @export
 check_ingest_covariates <- function(ingest_new_covariates) {
   if(is.null(ingest_new_covariates)){return("no")}
+  if(!tolower(ingest_new_covariates) %in% c("yes", "no")){
+    if(!tolower(ingest_new_covariates) %in% c("true", "false")){
+      stop("The ingest_new_covariates parameter has to be true/false or yer/no. ")
+    }
+    return(as.logical(ingest_new_covariates))
+  }
   return(ingest_new_covariates)
 }
 

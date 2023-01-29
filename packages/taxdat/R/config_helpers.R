@@ -2,6 +2,7 @@
 #' @title Automate generation of config files
 #' @name automate_mapping_config
 #' @description Automate generation of model configuration files from a dataframe of parameters. Generates one config per row in the p dataframe.
+#' @include setup_helpers.R
 #' @param cholera_directory the cholera mapping directory 
 #' @param p dataframe with config parameters, one config per row
 #' @param covariate_names character vector with names of covariates to include in the model
@@ -71,7 +72,7 @@ automate_mapping_config <- function(cholera_directory, p, covariate_names, count
   sink()
   
   ### Check and update the config file 
-  taxdat::check_update_config(cholera_directory, config_fname)
+  check_update_config(cholera_directory, config_fname)
 
 }
 
