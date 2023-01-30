@@ -48,6 +48,7 @@ jobs:
         env:
           CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
           CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
+          CHOLERA_POSTGRES_PORT: 5432
         run: |
           chown app:app -R ./
           chmod 777 -R ./
@@ -60,6 +61,7 @@ jobs:
         env:
           CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
           CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
+          CHOLERA_POSTGRES_PORT: 5432
         run: |
           chown app:app -R ./
           chmod 777 -R ./
@@ -73,6 +75,7 @@ jobs:
         env:
           CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
           CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
+          CHOLERA_POSTGRES_PORT: 5432
         run: |
           chown app:app -R ./
           chmod 777 -R ./
