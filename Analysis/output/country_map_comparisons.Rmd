@@ -41,8 +41,6 @@ knitr::opts_chunk$set(
 ```
 
 ```{r dir_settings}
-
-
 dir.create(params$shapefiles_dir, showWarnings = FALSE)
 dir.create(stringr::str_c(params$cholera_directory, params$output_dir), showWarnings = FALSE)
 ```
@@ -255,7 +253,6 @@ plot_df2 %>%
 ## Examine new model estimates
 
 ```{r bar_incid_t_chain, fig.height=12, fig.width=8, fig.cap = "Truncated modeled case estimates by country, chain, and year (facets)"}
-
 p_bar_incid <- ggplot2::ggplot(dplyr::filter(plot_df, type == "cases"), ggplot2::aes(x = chain, y = modeled_trunc)) +
   ggplot2::geom_col() +
   ggplot2::scale_y_continuous("modeled cases (trunc > 1.5E4)") +
@@ -277,7 +274,6 @@ ggplot2::ggsave(paste0(params$cholera_directory, params$output_dir, "eta_chain.p
 ## Incidence comparison 
 
 ```{r plot_incid, fig.height=10, fig.width=8, fig.cap = "Log 10 modeled incidence, new vs old (NA chain)"}
-
 p_case <- ggplot2::ggplot(dplyr::filter(plot_df2, grepl("case", type)), ggplot2::aes(x = country, y = modeled)) +
   ggplot2::geom_point(ggplot2::aes(colour = type), alpha = 0.7) +
   ggplot2::coord_flip() +
@@ -288,7 +284,6 @@ p_case
 ```
 
 ```{r plot_incid_zm, fig.height=10, fig.width=8}
-
 p_case_zm <- ggplot2::ggplot(dplyr::filter(plot_df2, grepl("case", type)), ggplot2::aes(x = country, y = modeled_trunc)) +
   ggplot2::geom_point(ggplot2::aes(colour = type), alpha = 0.7) +
   ggplot2::coord_flip() +
@@ -303,7 +298,6 @@ ggplot2::ggsave(paste0(params$cholera_directory, params$output_dir, "national_in
 Note that these are only approximations of the incidence rate in that country (mean value across cells). It would be more appropriate to actually do a population-weighted average across lambdas in order to estimate country incidence rate.
 
 ```{r plot_incidrate, fig.height=10, fig.width=8}
-
 p_ir <- ggplot2::ggplot(dplyr::filter(plot_df2, grepl("rate", type)), ggplot2::aes(x = country, y = modeled)) +
   ggplot2::geom_point(ggplot2::aes(colour = type), alpha = 0.7) +
   ggplot2::coord_flip() +
@@ -315,7 +309,6 @@ p_ir
 
 
 ```{r plot_incidrate_zm, fig.height=10, fig.width=8}
-
 p_ir_zm <- ggplot2::ggplot(dplyr::filter(plot_df2, grepl("rate", type)), ggplot2::aes(x = country, y = modeled_trunc)) +
   ggplot2::geom_point(ggplot2::aes(colour = type), alpha = 0.7) +
   ggplot2::coord_flip() +

@@ -1,5 +1,3 @@
-
-
 ## Basic test to make sure that testing setup works
 context("Test 2 : Grid Adjacency")
 
