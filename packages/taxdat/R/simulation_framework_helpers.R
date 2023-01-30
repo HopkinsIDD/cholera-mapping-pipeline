@@ -625,7 +625,7 @@ create_underlying_distribution <- function(covariates = create_multiple_test_cov
                                            }, family = "Poisson", seed) {
   seed <- get_or_set_seed(seed)
   offset <- 10^covariates[[1]][["covariate"]] + 1
-  offset[offset >= 2^(32)] <- 2^32 - 1
+  offset[offset >= 8e9] <- 8e9 - 1
   if (length(covariates) > 1) {
     covariates <- covariates[-1]
   } else {

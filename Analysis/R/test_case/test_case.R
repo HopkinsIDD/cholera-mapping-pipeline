@@ -35,7 +35,7 @@ option_list <- list(
   ), type = "character", help = "Postgres database name"),
   optparse::make_option(c("-p", "--postgres_database_port"),
     action = "store",
-    default = Sys.getenv("CHOLERA_POSTGRES_PORT", 5435), type = "character",
+    default = Sys.getenv("CHOLERA_POSTGRES_PORT", 5432), type = "character",
     help = "Postgres database port"
   ), optparse::make_option(c("-u", "--postgres_database_user"),
     action = "store", default = Sys.getenv("USER", "app"), type = "character",
