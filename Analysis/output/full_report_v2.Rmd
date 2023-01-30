@@ -264,7 +264,6 @@ case_comp %>%
 
 ### Observed vs. modeled with CrIs
 ```{r casecomp2, fig.height=30, fig.width=8, fig.cap="Observations against mean modeled cases. Colors indicate the MCMC chain."}
-
 tfrac_cuts <- c(0, .1, .5, .9, 1)
 all_comp <- map(unique(rhats$country), function(cntry) {
   dat <- rhats %>%
@@ -327,7 +326,6 @@ gridExtra::grid.arrange(grobs = all_comp, ncol = 1)
 
 ### Observed vs. modeled with CrIs by year
 ```{r casecomp3, fig.height=30, fig.width=8, fig.cap="Observations against mean modeled cases. Colors indicate the MCMC chain."}
-
 tfrac_cuts <- c(0, .1, .5, .9, 1)
 all_comp <- map(unique(rhats$country), function(cntry) {
   dat <- rhats %>%
@@ -450,7 +448,6 @@ cowplot::plot_grid(
 ### Incidence [cases\year]
 
 ```{r casemaps, fig.width=8, fig.height=10, fig.cap="Maximum modeled case incidence rate on the log10-scale, with limtis 1e-3 - 1e5 cases/year (values lower and larger than these are shown in gray)"}
-
 all_maps <- map(unique(case_rast$country), function(cntry) {
   taxdat::plot_map(
     case_rast %>%
@@ -497,7 +494,6 @@ ggplot(betas, aes(x = mean, y = country)) +
 ```
 ## Negative binomial aggregation
 ```{r negbinom, fig.height=8, fig.width=6, fig.cap="Covariate coefficients by country"}
-
 if (str_detect(params$config_directory, "negbinom")) {
   phis <- dir(out_dir,
     pattern = "negbinom", full.names = T

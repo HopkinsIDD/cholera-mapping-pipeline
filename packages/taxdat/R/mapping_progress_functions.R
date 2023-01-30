@@ -1,4 +1,3 @@
-
 #' @title create_mapping_progress_table
 #' @name create_mapping_progress_table
 #' @description From a list of configs (or directories containing only configs), create a table displaying the files which exist for those configs, detailing which are present and which are absent

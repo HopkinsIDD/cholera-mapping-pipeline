@@ -28,7 +28,6 @@ library(taxdat)
 # Check progress along mapping pipeline
 
 ```{r tab_progress, fig.cap = "Model progress report"}
-
 print(params$config_directory)
 
 taxdat::create_mapping_progress_table(
@@ -60,7 +59,6 @@ taxdat::create_mapping_progress_table(
 # Extract Stan outputs
 
 ```{r extract_stan_output}
-
 all_configs <- list.files(stringr::str_c(params$cholera_directory, params$config_directory), full.names = TRUE)
 print(all_configs)
 
@@ -131,7 +129,6 @@ for (i in 1:length(all_configs)) {
 # Check if cases exceed population
 
 ```{r cases_check}
-
 pop_failures <- dplyr::mutate(cases_check,
   failure_pop = ifelse(cases_mean > pop, TRUE, FALSE)
 ) %>%
