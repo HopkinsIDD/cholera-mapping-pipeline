@@ -13,7 +13,7 @@ taxdat::set_error_handling(is_interactive = Sys.getenv("INTERACTIVE_RUN", "FALSE
 ### Libraries TODO : Update this list
 taxdat::update_libraries(perform = Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE), package_list = c(
   "optparse", "DBI", "RPostgres", "sf", "magrittr", "dplyr",
-  "rstan", "xfun", "kableExtra", "MCMCvis"
+  "rstan", "xfun", "kableExtra", "MCMCvis", "stars", "raster", "cmdstanr"
 ))
 
 library(magrittr)
@@ -85,7 +85,7 @@ if (!taxdat::check_config(config)) {
 ### Setup postgres
 conn_pg <- taxdat::connect_to_db(
   dbname = opt[["postgres_database_name"]], dbuser = opt[["postgres_database_user"]],
-  port = opt[["postgres_database_port"]], host = opt[["host"]]
+  port = opt[["postgres_database_port"]], host = opt[["postgres_database_host"]]
 )
 
 cases_column <- "suspected_cases"

@@ -36,7 +36,6 @@ knitr::opts_chunk$set(
 ```
 
 ```{r dir_settings}
-
 dir.create(stringr::str_c(params$cholera_directory, params$output_dir), showWarnings = FALSE)
 ```
 

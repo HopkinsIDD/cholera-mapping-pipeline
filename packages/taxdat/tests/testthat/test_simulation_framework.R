@@ -1,4 +1,3 @@
-
 test_that("get or set seed works", {
   expect_error(seed <- get_or_set_seed(), NA)
   seed <- get_or_set_seed()

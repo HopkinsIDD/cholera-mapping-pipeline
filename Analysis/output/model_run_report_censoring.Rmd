@@ -24,7 +24,6 @@ source(str_c(params$cholera_directory, "/packages/taxdat/R/readData.R"))
 ## Cholera input data
 **Data input:**
 ```{r cases, echo=FALSE, message=FALSE, warning=FALSE}
-
 # Load data directory
 config <- yaml::read_yaml(params$config)
 

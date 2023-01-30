@@ -27,6 +27,10 @@ set_error_handling <- function(is_interactive = FALSE) {
   invisible(NULL)
 }
 
+github_repos <- list(
+  "cmdstanr" = "stan-dev",
+  "rgeoboundaries" = "wmgeolab"
+)
 #' @description Update libraries required for taxdat from a list of packages
 #' @param perform logical Whether or not to perform the update
 #' @param package_list a list of packages (in addition to taxdat) to update
@@ -37,7 +41,11 @@ update_libraries <- function(perform, package_list) {
     for (package in package_list) {
       if (!require(package = package, character.only = T)) {
         utils::chooseCRANmirror(ind = 1)
-        install.packages(pkgs = package)
+        if (package %in% names(github_repos)) {
+          remotes::install_github(paste(github_repos[package], package, sep = "/"))
+        } else {
+          install.packages(pkgs = package)
+        }
         library(package = package, character.only = T)
       }
     }

@@ -217,7 +217,6 @@ covar %>%
 **Data input:**
 
 ```{r load data}
-
 # Load data directory
 config <- yaml::read_yaml(params$config_filename)
 
@@ -436,7 +435,6 @@ obs_years <- min(lubridate::year(stan_input$observation_data$time_left)):max(lub
 
 
 ```{r importcase}
-
 loc_sf <- stan_input$observation_data[, colnames(stan_input$observation_data) %in% c("shape", "location_name")]
 covar_grid <- merge(stan_input$temporal_location_grid_mapping %>% subset(!qualified_name == 1), stan_input$covar_cube, by = c("spacetime_grid_id", "x", "y", "rid", "t"))
 empty_raster <- merge(covar_grid, loc_sf, by.x = "qualified_name", by.y = "location_name") %>% select("updated_id", "x", "y", "qualified_name", "shape", "t", "spacetime_grid_id")
@@ -624,7 +622,6 @@ data_fidelity <- rc
 ```
 
 ```{r datafidelity, fig.cap="Figure 6. Observations vs. modeled cases", fig.height=6, fig.width=6}
-
 if (!is.null(data_fidelity)) {
   # taxdat::plot_model_fidelity(data_fidelity = data_fidelity,case_raster=case_raster,render = T)
   plt <- ggplot2::ggplot(data_fidelity[[1]]) +
@@ -639,7 +636,6 @@ if (!is.null(data_fidelity)) {
 ```
 
 ```{r traceplots, fig.height=8, fig.width=10, fig.cap="Figure 7. Stan trace plots"}
-
 if (!is.null(model.rand)) {
   ## No eta in the model right now
   ## taxdat::plot_chain_convergence(file_names[["stan_output"]], pars =  c("rho", "betas", "log_std_dev_w", "eta"), render = T)
@@ -669,7 +665,6 @@ if (!is.null(model.rand)) {
 ## Table 3. Estimated cases by chain and time slice
 
 ```{r cases_chain_table, fig.width=10, fig.cap = "Sum of grid cases by chain and year"}
-
 if (!is.null(model.rand) && !is.null(stan_input)) {
   covar_cube <- stan_input$covar_cube
   covar_cube[, paste("cases", "chain", seq_len(ncol(cases_chains)), sep = "_")] <- cases_chains
@@ -699,7 +694,6 @@ if (!is.null(model.rand) && !is.null(stan_input)) {
 ```
 
 ```{r full country modeled cases, fig.cap = "comparison with WHO Output"}
-
 if (!is.null(stan_input$observation_data) & !is.null(model.rand)) {
   grid_cases_mean <- apply(cases_chains, 1, mean)
   total_cases <- sum(grid_cases_mean)
