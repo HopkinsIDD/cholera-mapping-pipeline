@@ -63,7 +63,7 @@ jobs:
         run: |
           chown app:app -R ./
           chmod 777 -R ./
-          chmod 777 -R ./.cache
+          chmod 777 -R $HOME/.cache
           service postgresql start
           sudo -E -u app Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
           cd tests
