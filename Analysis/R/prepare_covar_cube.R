@@ -160,7 +160,7 @@ prepare_covar_cube <- function(
   # Drop cells from sf_grid that do not intersect the output summary shapefiles (rgeoboundaries)
   sf_grid_drop <- sf_grid %>%
     dplyr::left_join(output_cells %>% 
-                       mutate(include = T), 
+                       dplyr::mutate(include = T), 
                      by = c("rid", "x", "y")) %>% 
     dplyr::filter(is.na(include))
   
