@@ -328,3 +328,62 @@ check_stan_debug <- function(debug) {
   
   debug
 }
+
+
+#' Get all config options
+#'
+#' @return
+#' @export
+#'
+get_all_config_options <- function() {
+  config_options <- list(
+    name = "no-check", 
+    countries = "no-check", 
+    countries_name = "no-check", 
+    aoi = "no-check", 
+    res_space = "no-check", 
+    res_time = as.function(check_time_res), 
+    grid_rand_effects_N = as.function(check_grid_rand_effects_N), 
+    case_definition = as.function(check_case_definition), 
+    start_time = "no-check",   
+    end_time = "no-check",
+    data_source = "no-check", 
+    ovrt_metadata_table = "no-check", 
+    OCs = "no-check", 
+    taxonomy = "no-check",  
+    covariate_choices = as.function(check_covariate_choices), 
+    obs_model = "no-check", 
+    od_param = "no-check", 
+    time_effect = "stan-check", 
+    time_effect_autocorr = "stan-check", 
+    use_intercept = "stan-check", 
+    covariate_transformations = "no-check", 
+    beta_sigma_scale = "stan-check", 
+    sigma_eta_scale = "stan-check", 
+    exp_prior = "stan-check", 
+    do_infer_sd_eta = "stan-check", 
+    do_zerosum_cnst = "stan-check", 
+    use_weights = "stan-check", 
+    overdispersion = "stan-check", 
+    use_rho_prior = "stan-check", 
+    covar_warmup = "stan-check", 
+    warmup = "stan-check", 
+    aggregate = as.function(check_aggregate), 
+    tfrac_thresh = as.function(check_tfrac_thresh), 
+    censoring = "no-check", 
+    censoring_thresh = "no-check", 
+    set_tfrac = as.function(check_set_tfrac),
+    snap_tol = as.function(check_snap_tol),
+    use_pop_weight = "no-check", 
+    sfrac_thresh = as.function(check_sfrac_thresh), 
+    ingest_covariates = "no-check",
+    ingest_new_covariates = "no-check",
+    stan = c("ncores", "model", "genquant", "niter", "recompile"), 
+    file_names = list(output_directory = "output_directory", data = "observations_filename", covar = "covariate_filename", 
+                      stan_input = "stan_input_filename", initial_values = "initial_values_filename", 
+                      stan_output = "stan_output_filename", stan_genquant = "stan_genquant_filename", 
+                      country_data_report_filename = "country_data_report_filename", 
+                      data_comparison_report_filename = "data_comparison_report_filename")
+  )
+  config_options
+}

@@ -299,7 +299,7 @@ dbuser <- Sys.getenv("USER", "app")
 config_user <- config
 
 # Update config parameters
-for (param in c(names(config), names(stan_params))) {
+for (param in names(taxdat::get_all_config_options())) {
   if (exists(param) & param != "stan") {
     config[[param]] <- get(param)
   }
