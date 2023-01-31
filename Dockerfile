@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y locales && locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
-ENV R_VERSION 4.1.0-1.2004.0
+ENV R_VERSION 4.2.2.20221110-1.2004.0
 
 # set noninteractive installation
 ENV DEBIAN_FRONTEND noninteractive
