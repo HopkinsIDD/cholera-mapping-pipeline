@@ -66,7 +66,18 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
                       data_comparison_report_filename = "data_comparison_report_filename")
   )
 
-  ### First make sure it has all the parameters and then update the values 
+  ### The stan check
+  iteration_params <- check_list[['stan']]
+  updated_stan_parameters <- get_stan_parameters(config_file)
+  iteration_unrelated <- updated_stan_parameters[!names(updated_stan_parameters) %in% iteration_params]
+  config_file <- append(config_file[!names(config_file) %in% names(iteration_unrelated)], iteration_unrelated)
+  
+  config_file$stan <- lapply(iteration_params, function(x){
+    updated_stan_parameters[[x]]
+  })
+  names(config_file$stan) <- iteration_params
+
+  ### The general check 
   for(nm in names(check_list)){
     if(nm == "od_param"){
       config_file[[nm]] <- check_list[[nm]](config_file[["obs_model"]], config_file[[nm]])
@@ -84,28 +95,17 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
     }  
   }
 
-  ### The stan check
-  iteration_params <- check_list[['stan']]
-  updated_stan_parameters <- get_stan_parameters(config_file)
-  iteration_unrelated <- updated_stan_parameters[!names(updated_stan_parameters) %in% iteration_params]
-  config_file <- append(config_file[!names(config_file) %in% names(iteration_unrelated)], iteration_unrelated)
-  
-  config_file$stan <- lapply(iteration_params, function(x){
-    updated_stan_parameters[[x]]
-  })
-  names(config_file$stan) <- iteration_params
-
   ### Reorder all the parameters 
   config_file <- config_file[names(check_list)]
-
-  ### Get the _filenames 
-  config_file$file_names <- as.list(get_filenames(config_file, cholera_directory, for_config = TRUE))
-  names(config_file$file_names) <- sapply(names(config_file$file_names), function(x){check_list$file_names[[x]]})
 
   ### Remove certain optional parameters if they're not specified (taxonomy, covariate_transformations, use_weights)
   for(optional_names in c("taxonomy", "covariate_transformations", "use_weights")){
     if(is.null(config_file[[optional_names]])){config_file <- config_file[names(config_file) != optional_names]}
   }
+
+  ### Get the _filenames 
+  config_file$file_names <- as.list(get_filenames(config_file, cholera_directory, for_config = TRUE, short_names = TRUE))
+  names(config_file$file_names) <- sapply(names(config_file$file_names), function(x){check_list$file_names[[x]]})
 
   ### Save the config file 
   yaml::write_yaml(config_file, config_fname)
@@ -148,7 +148,7 @@ check_time <- function(time) {
     )    
 
     if(inherits(time_updated, 'Date')){
-      return(time_updated)
+      return(as.character(time))
     }else{
       stop("The start_time/end_time parameter is not in the valid form. ")
     }
