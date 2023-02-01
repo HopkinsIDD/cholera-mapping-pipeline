@@ -225,7 +225,7 @@ make_stan_output_filename <- function(cholera_directory,
   model_name <- stringr::str_remove(config$stan$model, "\\.stan") %>% 
     stringr::str_split("_") %>% 
     .[[1]] %>% 
-    last()
+    data.table::last()
   to_add <- paste0(to_add, "-model:", model_name)
   to_add <- paste0(to_add, "-niter", config$stan$niter)
   
@@ -290,7 +290,7 @@ make_stan_genquant_filename <- function(cholera_directory,
   model_name <- stringr::str_remove(config$stan$model, "\\.stan") %>% 
     stringr::str_split("_") %>% 
     .[[1]] %>% 
-    last()
+    data.table::last()
   to_add <- paste0(to_add, "-model:", model_name)
   to_add <- paste0(to_add, "-niter", config$stan$niter)
   
