@@ -44,7 +44,6 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
     do_infer_sd_eta = "stan-check", 
     do_zerosum_cnst = "stan-check", 
     use_weights = "stan-check", 
-    overdispersion = "stan-check", 
     use_rho_prior = "stan-check", 
     covar_warmup = "stan-check", 
     warmup = "stan-check", 
@@ -406,7 +405,7 @@ check_grid_rand_effects_N <- function(grid_rand_effects_N) {
   } else{
     cat("-- Running with grid_rand_effects_N:", grid_rand_effects_N, "\n", sep = "")
   }
-
+  
   return(grid_rand_effects_N)
 }
 
@@ -522,13 +521,13 @@ check_set_tfrac <- function(set_tfrac) {
     } else {
       cat("---- Non-censored observations will keep their original tfrac values \n")
     }
-
+    
   } else{
     set_tfrac <- FALSE
     cat("---- By default, non-censored observations will keep their original tfrac values \n")
   }
-
-
+  
+  
   return(set_tfrac)
 }
 
@@ -569,14 +568,14 @@ check_tfrac_thresh <- function(tfrac_thresh) {
     if (!is.numeric(tfrac_thresh) | tfrac_thresh < 0 | tfrac_thresh > 1){
       stop("tfrac_thresh must be a numeric value between 0 and 1")
     }
-
+    
     cat("---- Observations with tfrac greater than ", tfrac_thresh, " will be kept \n")
-
+    
   } else{
     tfrac_thresh <- 0
     cat("---- By default, observations with tfrac greater than ", tfrac_thresh, " will be kept \n")
   }
-
+  
   return(tfrac_thresh)
 }
 
@@ -593,19 +592,19 @@ check_aggregate <- function(aggregate_param) {
     if (!is.logical(aggregate_param)){
       stop("aggregate parameter must be a logical value")
     }
-
+    
     if (aggregate_param){
       cat("---- Observations will be aggregated \n")
     } else{
       cat("---- Observations will not be aggregated \n")
     }
-
-
+    
+    
   } else{
     aggregate_param <- TRUE
     cat("---- By default, observations will be aggregated \n")
   }
-
+  
   return(aggregate_param)
 }
 
@@ -660,3 +659,4 @@ modeling_time_slices <- function(start_time,
   cat("\n")
   return(time_slices)
 }
+
