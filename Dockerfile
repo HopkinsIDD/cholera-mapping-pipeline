@@ -120,7 +120,7 @@ RUN sudo service postgresql start \
 
 RUN sudo Rscript -e "install.packages('renv',repos='https://cloud.r-project.org/')" \
     && cd /home/app \
-    # && Rscript -e "renv::restore()"
+    && Rscript -e "renv::restore()"
     # && Rscript -e "cmdstanr::install_cmdstan()"
 COPY --chown=app:app renv.cache $HOME/.cache
 COPY --chown=app:app renv.lock $HOME/renv.lock
