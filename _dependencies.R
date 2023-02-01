@@ -1,2 +1,0 @@
-library(geodata)
-library(ggrepel)
