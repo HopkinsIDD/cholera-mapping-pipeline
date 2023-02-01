@@ -204,6 +204,9 @@ time_slices <- taxdat::modeling_time_slices(start_time = start_time,
                                             aggregate_to_start = aggregate_to_start,
                                             aggregate_to_end = aggregate_to_end)
 
+# - - - -
+# Data processing
+aggregate <- taxdat::check_aggregate(config$aggregate)
 
 # - - - -
 # Model covariates
@@ -225,6 +228,7 @@ if (is.null(config$covariate_choices)) {
 
 # - - - -
 # STAN parameters
+debug <- taxdat::check_stan_debug(config$debug)
 ncore <- config$stan$ncores
 nchain <- ncore
 if(ncore == 1) {nchain = 2}
@@ -288,6 +292,20 @@ if (is.null(config$summary_admin_levels)) {
 # cholera_covariates database connection settings
 # Get username of user (docker doesn't provide username so default to app)
 dbuser <- Sys.getenv("USER", "app")
+
+
+
+# Rewrite final config with runtime parameters -----------------------------
+# Backup config provided by user
+config_user <- config
+
+# Update config parameters
+for (param in names(taxdat::get_all_config_options())) {
+  if (exists(param) & param != "stan") {
+    config[[param]] <- get(param)
+  }
+}
+
 
 # Pipeline steps ---------------------------------------------------------------
 
@@ -448,6 +466,8 @@ for(t_idx in 1:length(all_test_idx)){
       snap_tol = snap_tol,
       opt = opt,
       stan_params = stan_params,
+      aggregate = aggregate,
+      debug = debug, 
       config = config
     )
     
