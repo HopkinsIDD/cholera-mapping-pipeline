@@ -280,6 +280,18 @@ if (stan_params$time_effect) {
   stan_data$has_data_year <- array(dim = c(0))
 }
 
+# Set value of negative binomial models with fixed overdispersion parameter
+# Javier 17-01-2023: This section is deprecated because we are not using this typoe of function anymore
+# if (stringr::str_detect(stan_model, "fixedphi")) {
+#   if (is.null(config$overdispersion)) {
+#     stop("Please provid the value for negative binomial models with fixed overdispersion parameter")
+#   } else if (is.na(stan_params$overdispersion)) {
+#     stop("Please provid the value for negative binomial models with fixed overdispersion parameter")
+#   } else {
+#     stan_data$phi <- stan_params$overdispersion
+#   }
+# }
+
 initial_values_data <- list(
   stan_data = stan_data,
   init.list = init.list,
