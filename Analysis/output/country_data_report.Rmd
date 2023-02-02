@@ -462,7 +462,7 @@ risk_cat_num %>%
     dplyr::select(shapeName, admin_level, TL, contains("pop")) %>% 
     mutate(TL = as.character(lubridate::year(TL))) %>% 
     bind_rows(tot_pop %>% 
-                rename(cases = mean) %>% 
+                rename(pop = mean) %>% 
                 dplyr::select(shapeName, admin_level, contains("pop")) %>% 
                 mutate(TL = "Total")) %>% 
     mutate(text = str_c(
