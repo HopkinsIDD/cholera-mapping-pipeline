@@ -31,7 +31,7 @@ if(nrow(cache[["sf_grid"]]) == prod(dim(pop_layer))){
   admin_level <- as.numeric(admin_level_for_summary_table)
   if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config)))){
     boundary_sf =sf::st_as_sf(geodata::gadm(country="TZA", level=admin_level, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
-    boundary_sf%>%
+    boundary_sf <- boundary_sf%>%
     janitor::clean_names() %>%
     dplyr::mutate(country="Zanzibar",
                   gid_0="ZAN") %>%
@@ -101,8 +101,8 @@ if(nrow(cache[["sf_grid"]]) == prod(dim(pop_layer))){
   
   for(layer in 1:raster::nlayers(pop_raster_data)){
     for (locs in admin_pop_table$adminlevel){
-      cropped <- raster::crop(pop_raster_data[[layer]], boundary_sf[boundary_sf$shapeName == locs, layer+1], snap = "out")
-      masked <- raster::mask(cropped, boundary_sf[boundary_sf$shapeName == locs, layer+1], updatevalue = NA)
+      cropped <- raster::crop(pop_raster_data[[layer]], boundary_sf[boundary_sf$shapeName == locs, ], snap = "out")
+      masked <- raster::mask(cropped, boundary_sf[boundary_sf$shapeName == locs, ], updatevalue = NA)
       sum_pop <- sum(raster::getValues(masked), na.rm = TRUE)
       admin_pop_table[match(locs, admin_pop_table$adminlevel), layer+1]<-round(sum_pop,4) 
       rm(cropped, masked)
