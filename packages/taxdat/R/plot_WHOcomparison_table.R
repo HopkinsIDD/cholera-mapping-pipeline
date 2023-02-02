@@ -102,7 +102,7 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
       mutate(observed = attributes.fields.suspected_cases, modeled = modeled_obs_level_cases) %>%
       sf::st_drop_geometry() %>%
       filter(locationPeriod_id %in% country_level_ids & stringr::str_length(OC_UID) != 3) %>%
-      filter(((TR - TL)/365) >= censoring_threshold) %>%
+      filter(((TR - TL+1)/365) >= censoring_threshold & ((TR - TL+1)/365) <=1) %>%
       dplyr::select(OC_UID, TL, TR, observed, modeled)
     
     who_annual_cases_from_db <- rbind(who_annual_cases_from_db, country_level_agg_cases) %>%
