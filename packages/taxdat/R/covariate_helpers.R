@@ -1338,7 +1338,7 @@ get_country_admin_units <- function(iso_code,
     }
      # Fix colnames for compatibility with rest of code
     boundary_sf <- boundary_sf %>% 
-       magrittr::set_colnames(.,c("gid_1","gid_0","country","name_1","varname_1","nl_name_1","type_1","engtype_1","cc_1","hasc_1","iso_1","geometry")) %>%
+       magrittr::set_colnames(.,tolower(colnames(boundary_sf))) %>%
        dplyr::mutate(country="Tanzania",
               gid_0="TZA")%>%
        dplyr::mutate(name_0 = country,
@@ -1360,7 +1360,7 @@ get_country_admin_units <- function(iso_code,
     # Fix colnames for compatibility with rest of code
     boundary_sf <- boundary_sf %>% 
       sf::st_as_sf() %>% 
-      magrittr::set_colnames(.,c("gid_1","gid_0","country","name_1","varname_1","nl_name_1","type_1","engtype_1","cc_1","hasc_1","iso_1","geometry")) %>%
+      magrittr::set_colnames(.,tolower(colnames(boundary_sf))) %>%
       dplyr::mutate(name_0 = country,
                     shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
                     shapeType = paste0("ADM", admin_level)) %>% 
