@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y locales && locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
+ENV R_VERSION 4.2.2.20221110-1.2004.0
 
 # set noninteractive installation
 ENV DEBIAN_FRONTEND noninteractive
@@ -72,7 +73,7 @@ RUN apt-get update && \
     gdal-bin \
     supervisor \
     awscli \
-    r-base-dev=4.1.0-1.2004.0 \
+    r-base-core=$R_VERSION \
     postgresql \
     postgis \
     postgresql-12-postgis-3 \
@@ -118,8 +119,8 @@ RUN sudo service postgresql start \
 #####
 
 RUN sudo Rscript -e "install.packages('renv',repos='https://cloud.r-project.org/')" \
-    && cd /home/app
-    # && Rscript -e "renv::restore()" \
+    && cd /home/app \
+    && Rscript -e "renv::restore()"
     # && Rscript -e "cmdstanr::install_cmdstan()"
 COPY --chown=app:app renv.cache $HOME/.cache
 COPY --chown=app:app renv.lock $HOME/renv.lock

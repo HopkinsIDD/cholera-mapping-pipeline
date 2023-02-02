@@ -36,6 +36,8 @@ prepare_stan_input <- function(
     snap_tol,
     opt,
     stan_params,
+    aggregate,
+    debug,
     config
 ) {
   
@@ -138,7 +140,7 @@ prepare_stan_input <- function(
   sf_cases_resized <- sf_cases[non_na_obs, ]
   
   
-  if (taxdat::check_aggregate(config$aggregate)) {
+  if (aggregate) {
     
     print("---- AGGREGATING CHOLERA DATA TO MODELING TIME RES ----")
     
@@ -439,10 +441,10 @@ prepare_stan_input <- function(
   stan_data$map_spacetime_space_grid <- sf_grid$space_id[sf_grid$upd_id]
   
   # Option for debug mode
-  if (is.null(config$debug)) {
+  if (debug) {
     stan_data$debug <- 0
   } else {
-    stan_data$debug <- config$debug
+    stan_data$debug <- debug
   }
   
   # ---- L. Observation model ----
@@ -480,6 +482,7 @@ prepare_stan_input <- function(
          sf_cases_resized = sf_cases_resized,
          sf_grid = sf_grid,
          smooth_grid  = smooth_grid,
-         fake_output_obs = fake_output_obs)
+         fake_output_obs = fake_output_obs,
+         config = config)
   )
 }
