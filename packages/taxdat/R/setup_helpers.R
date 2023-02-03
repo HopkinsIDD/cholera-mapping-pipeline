@@ -16,54 +16,7 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
   all_covariates <- c("", names(yaml::read_yaml(paste0(cholera_directory, '/', covariate_list_dir))))
 
   ### Make the check list 
-  check_list <- list(
-    name = "no-check", 
-    countries = "no-check", 
-    countries_name = "no-check", 
-    aoi = as.function(check_aoi), 
-    res_space = "no-check", 
-    res_time = as.function(check_time_res), 
-    grid_rand_effects_N = as.function(check_grid_rand_effects_N), 
-    case_definition = as.function(check_case_definition), 
-    start_time = as.function(check_time),   
-    end_time = as.function(check_time),
-    data_source = as.function(check_data_source), 
-    ovrt_metadata_table = as.function(check_ovrt_metadata_table), 
-    OCs = "no-check", 
-    taxonomy = as.function(check_taxonomy),  
-    covariate_choices = as.function(check_covariate_choices), 
-    obs_model = as.function(check_obs_model), 
-    od_param = as.function(check_od_param), 
-    time_effect = "stan-check", 
-    time_effect_autocorr = "stan-check", 
-    use_intercept = "stan-check", 
-    covariate_transformations = "no-check", 
-    beta_sigma_scale = "stan-check", 
-    sigma_eta_scale = "stan-check", 
-    exp_prior = "stan-check", 
-    do_infer_sd_eta = "stan-check", 
-    do_zerosum_cnst = "stan-check", 
-    use_weights = "stan-check", 
-    use_rho_prior = "stan-check", 
-    covar_warmup = "stan-check", 
-    warmup = "stan-check", 
-    aggregate = as.function(check_aggregate), 
-    tfrac_thresh = as.function(check_tfrac_thresh), 
-    censoring = as.function(check_censoring), 
-    censoring_thresh = as.function(check_censoring_thresh), 
-    set_tfrac = as.function(check_set_tfrac),
-    snap_tol = as.function(check_snap_tol),
-    use_pop_weight = as.function(check_use_pop_weight), 
-    sfrac_thresh = as.function(check_sfrac_thresh), 
-    ingest_covariates = as.function(check_ingest_covariates),
-    ingest_new_covariates = as.function(check_ingest_covariates),
-    stan = c("ncores", "model", "genquant", "niter", "recompile"), 
-    file_names = list(output_directory = "output_directory", data = "observations_filename", covar = "covariate_filename", 
-                      stan_input = "stan_input_filename", initial_values = "initial_values_filename", 
-                      stan_output = "stan_output_filename", stan_genquant = "stan_genquant_filename", 
-                      country_data_report_filename = "country_data_report_filename", 
-                      data_comparison_report_filename = "data_comparison_report_filename")
-  )
+  check_list <- get_all_config_options()
 
   ### The stan check
   iteration_params <- check_list[['stan']]
@@ -124,6 +77,34 @@ check_aoi <- function(aoi) {
   }else{
     return("raw")
   } 
+}
+
+#' @include file_name_functions.R
+#' @title check_res_space
+#' @description Checks whether the spatial resolution is valid
+#' @param res_space the spatial resolution parameter in the config
+#' @return res_space if valid
+#' @export
+check_res_space <- function(res_space) {
+  if(is.null(res_space)){
+    stop("The res_space parameter should not be blank because there is no default")
+  }else{
+    tryCatch(
+      expr = {
+        res_space_udpated <- as.numeric(res_space)
+      },
+      error = function(e){
+        message('Caught an error, the res_space parameter cannot be easily transformed into "numeric" variable. ')
+        print(e)
+      }
+    )    
+
+    if(is.numeric(res_space_udpated)){
+      return(res_space_udpated)
+    }else{
+      stop("The res_space parameter is not in the valid form. ")
+    }
+  }
 }
 
 #' @include file_name_functions.R
@@ -693,20 +674,20 @@ get_all_config_options <- function() {
     name = "no-check", 
     countries = "no-check", 
     countries_name = "no-check", 
-    aoi = "no-check", 
-    res_space = "no-check", 
+    aoi = as.function(check_aoi), 
+    res_space = as.function(check_res_space), 
     res_time = as.function(check_time_res), 
     grid_rand_effects_N = as.function(check_grid_rand_effects_N), 
     case_definition = as.function(check_case_definition), 
-    start_time = "no-check",   
-    end_time = "no-check",
-    data_source = "no-check", 
-    ovrt_metadata_table = "no-check", 
+    start_time = as.function(check_time),   
+    end_time = as.function(check_time),
+    data_source = as.function(check_data_source), 
+    ovrt_metadata_table = as.function(check_ovrt_metadata_table), 
     OCs = "no-check", 
-    taxonomy = "no-check",  
+    taxonomy = as.function(check_taxonomy),  
     covariate_choices = as.function(check_covariate_choices), 
-    obs_model = "no-check", 
-    od_param = "no-check", 
+    obs_model = as.function(check_obs_model), 
+    od_param = as.function(check_od_param), 
     time_effect = "stan-check", 
     time_effect_autocorr = "stan-check", 
     use_intercept = "stan-check", 
@@ -722,14 +703,14 @@ get_all_config_options <- function() {
     warmup = "stan-check", 
     aggregate = as.function(check_aggregate), 
     tfrac_thresh = as.function(check_tfrac_thresh), 
-    censoring = "no-check", 
-    censoring_thresh = "no-check", 
+    censoring = as.function(check_censoring), 
+    censoring_thresh = as.function(check_censoring_thresh), 
     set_tfrac = as.function(check_set_tfrac),
     snap_tol = as.function(check_snap_tol),
-    use_pop_weight = "no-check", 
+    use_pop_weight = as.function(check_use_pop_weight), 
     sfrac_thresh = as.function(check_sfrac_thresh), 
-    ingest_covariates = "no-check",
-    ingest_new_covariates = "no-check",
+    ingest_covariates = as.function(check_ingest_covariates),
+    ingest_new_covariates = as.function(check_ingest_covariates),
     stan = c("ncores", "model", "genquant", "niter", "recompile"), 
     file_names = list(output_directory = "output_directory", data = "observations_filename", covar = "covariate_filename", 
                       stan_input = "stan_input_filename", initial_values = "initial_values_filename", 

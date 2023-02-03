@@ -39,7 +39,7 @@ get_stan_parameters <- function(config,
                          time_effect_autocorr = time_effect_autocorr,
                          censoring = censoring,
                          use_weights = use_weights,
-                         use_rho_prior = use_rho_prior, #this one as well
+                         use_rho_prior = use_rho_prior,
                          use_pop_weight = use_pop_weight,
                          censoring_thresh = censoring_thresh,
                          od_param = od_param,

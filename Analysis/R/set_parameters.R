@@ -134,7 +134,7 @@ print("---- Reading Parameters ----\n")
 # - - - -
 ### Source for cholera data
 #### either the taxonomy website of an sql call
-data_source <- config$data_source
+data_source <- taxdat::check_data_source(config$data_source)
 
 # - - - -
 ### Countries over which to run the model
@@ -148,7 +148,7 @@ filter_OCs <- config$OCs
 # - - - -
 ### Grid Size
 # km by km resolution of analysis
-res_space <- as.numeric(config$res_space)
+res_space <- taxdat::check_res_space(config$res_space)
 # temporal resolution of analysis
 res_time <- taxdat::check_time_res(config$res_time)
 # number of time slices in spatial random effect
@@ -184,8 +184,8 @@ set_tfrac <- taxdat::check_set_tfrac(config$set_tfrac)
 
 # - - - -
 # What range of times should be considered?
-start_time <- lubridate::ymd(config$start_time)
-end_time <- lubridate::ymd(config$end_time)
+start_time <- lubridate::ymd(taxdat::check_time(config$start_time))
+end_time <- lubridate::ymd(taxdat::check_time(config$end_time))
 
 taxdat::check_model_date_range(start_time = start_time,
                                end_time = end_time,
