@@ -89,20 +89,10 @@ check_res_space <- function(res_space) {
   if(is.null(res_space)){
     stop("The res_space parameter should not be blank because there is no default")
   }else{
-    tryCatch(
-      expr = {
-        res_space_udpated <- as.numeric(res_space)
-      },
-      error = function(e){
-        message('Caught an error, the res_space parameter cannot be easily transformed into "numeric" variable. ')
-        print(e)
-      }
-    )    
-
-    if(is.numeric(res_space_udpated)){
-      return(res_space_udpated)
+    if(is.numeric(res_space)){
+      return(res_space)
     }else{
-      stop("The res_space parameter is not in the valid form. ")
+      stop("The res_space parameter is not in the numeric type")
     }
   }
 }
@@ -114,7 +104,14 @@ check_res_space <- function(res_space) {
 #' @return start_time/end_time if valid
 #' @export
 check_time <- function(time) {
+  defaultW <- getOption("warn") 
+  options(warn = -1) 
+ 
   if(is.null(time)){
+    options(warn = defaultW)
+    stop("The start_time/end_time parameter should not be blank because there is no default")
+  }else if(is.na(time)){
+    options(warn = defaultW)
     stop("The start_time/end_time parameter should not be blank because there is no default")
   }else{
     tryCatch(
@@ -127,10 +124,12 @@ check_time <- function(time) {
       }
     )    
 
-    if(inherits(time_updated, 'Date')){
+    if(inherits(time_updated, 'Date') & !is.na(time_updated)){
+      options(warn = defaultW)
       return(as.character(time))
     }else{
-      stop("The start_time/end_time parameter is not in the valid form. ")
+      options(warn = defaultW)
+      stop("The start_time/end_time parameter is not in the Date type")
     }
   }
 }
@@ -142,7 +141,9 @@ check_time <- function(time) {
 #' @return data_source if valid
 #' @export
 check_data_source <- function(data_source) {
-  if(is.null(data_source) | tolower(data_source) == "sql"){
+  if(is.null(data_source)){
+    return("sql")
+  }else if(tolower(data_source) == "sql"){
     return("sql")
   }else if(tolower(data_source) == "api"){
     warning("The API is not currently functional for mapping pipeline purposes, use with caution. ")
@@ -177,7 +178,9 @@ check_ovrt_metadata_table <- function(ovrt_metadata_table) {
 #' @return taxonomy if valid
 #' @export
 check_taxonomy <- function(taxonomy) {
-  if(!is.null(taxonomy)){
+  if(is.null(taxonomy)){
+    return(NULL)
+  }else if(!is.null(taxonomy)){
     if(!identical(taxonomy, "taxonomy-working/working-entry1")){
       warning('The taxonomy parameter can only be "taxonomy-working/working-entry1", now using this default. ')
     }
@@ -207,8 +210,11 @@ check_obs_model <- function(obs_model) {
       print(e)
     }
   )    
-  
-  if(!updated_obs_model %in% 1:3){
+
+  if(is.na(updated_obs_model)){
+    warning("The obs_model parameter can only be 1, 2, or 3, now returning the default value 1, meaning the poisson observation model will be used in Stan. ")
+    return(1)
+  }else if(!updated_obs_model %in% 1:3){
     warning("The obs_model parameter can only be 1, 2, or 3, now returning the default value 1, meaning the poisson observation model will be used in Stan. ")
     return(1)
   }
@@ -279,7 +285,20 @@ check_censoring_thresh <- function(censoring_thresh) {
     }
   )    
 
-  return(updated_censoring_thresh)
+  if(!is.na(updated_censoring_thresh)){
+    if(updated_censoring_thresh > 1){
+      warning("The censoring_thresh parameter is bigger than 1, now returning 1. ")
+      return(1)
+    }else if(updated_censoring_thresh < 0){
+      stop("The censoring_thresh parameter should not be under 0")
+    }else{
+      return(updated_censoring_thresh)
+    }
+    
+  }else{
+    return(0.95)
+  }
+  
 }
 
 #' @include file_name_functions.R
