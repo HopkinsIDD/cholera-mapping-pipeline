@@ -145,7 +145,8 @@ check_data_source <- function(data_source) {
   if(is.null(data_source) | tolower(data_source) == "sql"){
     return("sql")
   }else if(tolower(data_source) == "api"){
-    stop("The API is not currently functional for mapping pipeline purposes. ")
+    warning("The API is not currently functional for mapping pipeline purposes, use with caution. ")
+    return(data_source)
   }else{
     warning("The data_source parameter can only be either api or sql, now using the default. ")
     return("sql")
