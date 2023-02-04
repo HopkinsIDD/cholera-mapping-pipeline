@@ -15,6 +15,14 @@ ml gcc/$GCC_VERSION
 ml openmpi
 ml gdal
 ml r/$R_VERSION
+ml udunits
+ml proj
+ml libjpeg
+ml sqlite
+ml geos
+ml libpng
+ml curl
+
 ml r-magrittr
 ml r-optparse
 ml r-yaml
@@ -38,7 +46,7 @@ echo "START"
 date 
 
 cd $CHOLERA_PIPELINE_DIRECTORY
-Rscript -e "invisible(lapply(c('ISOcodes','igraph', 'roxygen2', 'ggplot2', 'taxdat', 'cmdstanr', 'withr', 'processx'), 
+Rscript -e "invisible(lapply(c('ISOcodes','igraph', 'roxygen2', 'ggplot2', 'taxdat', 'cmdstanr', 'withr', 'processx', 'terra', 'geodata'), 
                 require, character.only = TRUE, lib.loc='$R_LIBRARY_DIRECTORY')); 
             cmdstanr::set_cmdstan_path('$CMDSTAN_LOCATION'); 
             Sys.setenv(CHOLERA_CONFIG='$CHOLERA_CONFIG_DIRECTORY/${CONFIGNAMES[$SLURM_ARRAY_TASK_ID]}'); 
