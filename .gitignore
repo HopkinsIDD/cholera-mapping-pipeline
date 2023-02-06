@@ -30,4 +30,4 @@ todo.org
 !tests/**/*.yml
 !Analysis/R/test_case/**.yml
 *.rs
-*.html
+Analysis/output/*.html
