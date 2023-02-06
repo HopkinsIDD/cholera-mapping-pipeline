@@ -125,6 +125,8 @@ options(error = traceback)
 ```{r load data,message=FALSE}
 # Load data
 cache<-new.env()
+config_file<-yaml::read_yaml(paste0(params$cholera_directory,"/",params$config))
+
 get_stan_input(name="stan_input",cache=cache,config = params$config,cholera_directory = params$cholera_directory)
 get_sf_cases_resized(name="sf_cases_resized",cache=cache,config = params$config,cholera_directory = params$cholera_directory)
 get_sf_cases(name="sf_cases",cache=cache,config=params$config,cholera_directory=params$cholera_directory)
@@ -141,7 +143,9 @@ cache[["nchain"]]<-get_stan_model_nchain_no_cache(cache=cache,config = params$co
 cache[["stan_output"]]<-get_stan_output_no_cache(cache=cache,config = params$config,cholera_directory = params$cholera_directory)
 
 get_initial_values(name="initial_values_data",cache=cache,config = params$config,cholera_directory = params$cholera_directory)
+if(config_file$warmup){
 cache[["gam_output_df"]]<-get_gam_values_no_cache(cache=cache,config = params$config,cholera_directory = params$cholera_directory)
+}
 
 get_covar_cube (name="covar_cube", config = params$config,cache=cache,cholera_directory = params$cholera_directory)
 get_sf_grid(name="sf_grid",config = params$config,cache=cache,cholera_directory = params$cholera_directory)
@@ -175,6 +179,13 @@ rates <- chol_gen$summary(variables = "location_rates_output",
   mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
          location_period_id = stan_input$fake_output_obs$locationPeriod_id[id],
          TL = stan_input$fake_output_obs$TL[id])
+pop <- chol_gen$summary(variables = "pop_loctimes_output",
+                          c(posterior::default_summary_measures(),
+                            posterior::default_convergence_measures()),
+                          .cores = 4)%>% 
+  mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
+         location_period_id = stan_input$fake_output_obs$locationPeriod_id[id],
+         TL = stan_input$fake_output_obs$TL[id])
 
 output_data <- output_shapefiles %>% 
   inner_join(cases %>% dplyr::select(cases = mean, 
@@ -184,11 +195,18 @@ output_data <- output_shapefiles %>%
   inner_join(rates %>% dplyr::select(rate = mean, 
                                      rate_q5 = q5,
                                      rate_q95 = q95,
+                                     location_period_id, TL)) %>%
+  inner_join(pop %>% dplyr::select(pop = mean,
                                      location_period_id, TL))
 
 # Data over whole period
 
 # Sum of cases by location for whole period
+
+if(config_file$countries_name=="ZNZ"){
+  output_shapefiles<-output_shapefiles[str_detect(output_shapefiles$location_period_id,"TZA-ADM0-TZA|TZA-ADM1-TZA.18_1|TZA-ADM1-TZA.19_1|TZA-ADM1-TZA.28_1|TZA-ADM1-TZA.29_1|TZA-ADM1-TZA.30_1|TZA-ADM2-TZA.19.1_1|TZA-ADM2-TZA.28.1_1|TZA-ADM2-TZA.28.2_1|TZA-ADM2-TZA.29.1_1|TZA-ADM2-TZA.29.2_1|TZA-ADM2-TZA.30.3_1|TZA-ADM2-TZA.30.4_1|TZA-ADM2-TZA.18.1_1|TZA-ADM2-TZA.30.2_1|TZA-ADM2-TZA.19.2_1|TZA-ADM2-TZA.18.2_1"),]
+}
+
 tot_cases <- chol_gen$summary(variables = "location_total_cases_output", 
                               c(posterior::default_summary_measures(),
                                 posterior::default_convergence_measures()),
@@ -200,6 +218,16 @@ tot_cases <- chol_gen$summary(variables = "location_total_cases_output",
 
 # Mean rates by location for whole period
 tot_rates <- chol_gen$summary(variables = "location_total_rates_output", 
+                              c(posterior::default_summary_measures(),
+                                posterior::default_convergence_measures()),
+                              .cores = 4) %>% 
+  mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
+         location_period_id = output_shapefiles$location_period_id[id],
+         shapeName = output_shapefiles$shapeName[id],
+         admin_level = output_shapefiles$admin_level[id])
+
+# Mean pop by location for whole period
+tot_pop <- chol_gen$summary(variables = "pop_loctimes_output", 
                               c(posterior::default_summary_measures(),
                                 posterior::default_convergence_measures()),
                               .cores = 4) %>% 
@@ -259,7 +287,6 @@ cache[["case_raster"]] <-get_case_raster(cache=cache,config=params$config,choler
 cache[["disaggregated_rate_sf"]]<-get_disaggregated_rates_sf(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 cache[["disaggregated_case_sf"]]<-get_disaggregated_cases_sf (cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 
-config_file<-yaml::read_yaml(paste0(params$cholera_directory,"/",params$config))
 analysis_years <- lubridate::year(config_file$start_time):lubridate::year(config_file$end_time)
 obs_years <- min(lubridate::year(cache[["sf_cases_resized"]]$TL)):max(lubridate::year(cache[["sf_cases_resized"]]$TR))
 
@@ -416,6 +443,45 @@ risk_cat_num %>%
 
 ```
 
+### Population
+```{r out-pop,fig.height=5,fig.width=10,fig.cap=capFig("Mean pop per year")}
+  output_data %>% 
+    ggplot(aes(fill = log10(pop))) +
+    geom_sf(col = "white", size = .05) +
+    facet_grid(admin_level ~ TL) +
+    scale_fill_viridis_c() +
+    ggthemes::theme_map() +
+    theme(legend.position = "right")
+
+```
+
+**Table 5. Pop by location and year:**
+```{r out-table-pop}
+  pop_summ <- output_data %>%
+    st_drop_geometry() %>% 
+    dplyr::select(shapeName, admin_level, TL, contains("pop")) %>% 
+    mutate(TL = as.character(lubridate::year(TL))) %>% 
+    bind_rows(tot_pop %>% 
+                rename(pop = mean) %>% 
+                dplyr::select(shapeName, admin_level, contains("pop")) %>% 
+                mutate(TL = "Total")) %>% 
+    mutate(text = str_c(
+      round(pop)
+    )) %>% 
+    dplyr::select(shapeName, admin_level, TL, text) %>% 
+    subset(is.na(shapeName)==F) %>%
+    pivot_wider(values_from = "text",
+                names_from = "TL") %>% 
+    arrange(admin_level, shapeName)
+  
+  pop_summ %>% 
+    dplyr::select(-admin_level,-Total) %>% 
+    kableExtra::kbl(caption = "Pop by location and year") %>% 
+    kableExtra::kable_styling(full_width = FALSE) %>% 
+    kableExtra::pack_rows(index = table(pop_summ$admin_level))
+
+```
+
 ## Validation
 ```{r import_modelfidel}
 cache[["data_fidelity"]]<-get_data_fidelity(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
@@ -454,7 +520,7 @@ plot_model_fidelity_by_chain(cache=cache,cholera_directory=params$cholera_direct
 }
 ```
 
-**Table 5. Observed and estimates of WHO annual cholera reports based on the observation-level modeled cases with other sources of annual data added:**
+**Table 6. Observed and estimates of WHO annual cholera reports based on the observation-level modeled cases with other sources of annual data added:**
 ```{r WHO output, fig.height=510, fig.width=10, fig.cap = "comparison with WHO Output"}
 plot_WHOcomparison_table(config=params$config, cache=cache, cholera_directory=params$cholera_directory, 
   allow_data_pull = !run_on_marcc, add_other_source = TRUE)
@@ -477,7 +543,7 @@ plot_MCMCpars(name="model.rand",cache=cache)
 plot_Rhat(name="model.rand",cache)
 ```
 
-**Table 6. Estimated cases by chain and time slice:**
+**Table 7. Estimated cases by chain and time slice:**
 ```{r cases_chain_table, fig.width=10, fig.cap = "Sum of grid cases by chain and year"}
 plot_modeled_cases_by_chain_time (config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
@@ -489,7 +555,7 @@ print(paste("There are",format(round(total_cases), big.mark=","),"total cases"))
 
 ## Others 
 ### Config Parameters
-**Table 7. Parameters used within the model:**
+**Table 8. Parameters used within the model:**
 ```{r echo = FALSE}
 config_file <- yaml::read_yaml(paste0(params$cholera_directory, "/", params$config), eval.expr = TRUE)
 print(config_file)
@@ -498,57 +564,61 @@ print(config_file)
 ### GAM Input
 **Observations input for the GAM model:**
 ```{r gam input of cases,fig.height=10, fig.width=15, fig.cap=capFig("Observations input for the GAM model (cases)")}
+if(config_file$warmup){
 plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="cases")
+}
 ```
 
 ```{r gam input of rates,fig.height=10, fig.width=15, fig.cap=capFig("Observations input for the GAM model (rates)")}
+if(config_file$warmup){
 plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="rates")
+}
 ```
 
 ### GAM Output
 **Observations output of the GAM model:**
 ```{r gam output of cases,fig.height=10, fig.width=15, fig.cap=capFig("Observations output from the GAM model (cases)")}
+if(config_file$warmup){
 plot_gam_fit_output(name="gam_output_df",cache=cache,type='cases')
+}
 ```
 
 ```{r gam output of rates,fig.height=10, fig.width=15, fig.cap=capFig("Observations output from the GAM model (rates)")}
+if(config_file$warmup){
 plot_gam_fit_output(name="gam_output_df",cache=cache,type='rates')
+}
 ```
 
 ### GAM Output v.s GAM Input Comparison
 **GAM Output v.s Raw GAM Input Rates Scatterplot:**
 ```{r gam output input rates comparison,fig.height=10, fig.width=15, fig.cap=capFig("GAM Output v.s Raw GAM Input Rates")}
+if(config_file$warmup){
 plot_gam_input_vs_output_rate_scatter_plot(cache = cache, type = 'raw') 
+}
 ```
 **GAM Output v.s Averaged GAM Input Rates Scatterplot:**
 ```{r gam output input rates comparison averaged,fig.height=10, fig.width=15, fig.cap=capFig("GAM Output v.s Averaged GAM Input Rates")}
+if(config_file$warmup){
 plot_gam_input_vs_output_rate_scatter_plot(cache = cache, type = 'averaged') 
+}
 ```
 
 ### Stan Output v.s GAM Output
 **Stan Output v.s GAM Output Rates by Time Slices:**
 ```{r stangamrates, fig.cap=capFig("Stan Output v.s GAM Output Rates"), fig.height=5, fig.width=10}
+if(config_file$warmup){
 plot_stan_output_vs_gam_output_rate_scatter_plot(cache = cache)
+}
 ```
 
 **Stan Output v.s GAM Output Cases by Time Slices:**
 ```{r stangamcates, fig.cap=capFig("Stan Output v.s GAM Output Cases"), fig.height=5, fig.width=10}
+if(config_file$warmup){
 plot_stan_output_vs_gam_output_case_scatter_plot(cache = cache) #this will output plots 
+}
 ```
 
 ### Covariates
-#### Population
-**Population raster by time slices:**
-```{r pop, fig.height=5, fig.width=10, fig.cap=capFig("Population density")}
-plot_time_varying_pop_raster(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
-```
-
-**Table 8. Population by admin level:**
-```{r echo = FALSE}
-plot_pop_by_admin(cache=cache,cholera_directory=params$cholera_directory,config=params$config,admin_level_for_summary_table=params$admin_level_for_summary_table)
-warning("Here we're using 20*20 km pop raster to estimate the population!")
-```
-
 #### Other covariates
 **Covariate rasters:**
 ```{r covars, fig.height=5, fig.width=10, fig.cap=capFig("Covariate rasters")}
