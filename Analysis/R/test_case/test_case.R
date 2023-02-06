@@ -202,15 +202,15 @@ max_time_right <- query_time_right
 
 ## todo: Convert test_covariates_modeling :
 ### Make these covariates match the time scale of model (at least population) /QZ: if covariates is time-varying (especially population), then we should do transformations on the covariates if the time slices of covariates are different from the modeling time scale. code isn't done, need to decide how to do the transformations.
-if (
-  (config[["test_metadata"]][["covariates"]][[1]][["nontemporal"]] || config[["test_metadata"]][["covariates"]][[1]][["temporally_smooth"]]) &
-  (config[["general"]][["time_scale"]] != config[["test_metadata"]][["raster"]][["units"]])
-) {
-  if (config[["test_metadata"]][["processing"]][["adjust_covariates_for_modeling_timescale"]][["perform"]]) {
-    stop("We didn't write this code yet")
-  }
-  ## Otherwise don't do the adjustment
-}
+# if (
+#   (config[["test_metadata"]][["covariates"]][[1]][["nontemporal"]] || config[["test_metadata"]][["covariates"]][[1]][["temporally_smooth"]]) &
+#   (config[["general"]][["time_scale"]] != config[["test_metadata"]][["raster"]][["units"]])
+# ) {
+#   if (config[["test_metadata"]][["processing"]][["adjust_covariates_for_modeling_timescale"]][["perform"]]) {
+#     stop("We didn't write this code yet")
+#   }
+#   ## Otherwise don't do the adjustment
+# }
 
 covariate_raster_funs_modeling <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(
   test_covariates_modeling,
