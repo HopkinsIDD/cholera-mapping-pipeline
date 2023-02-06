@@ -9,7 +9,7 @@
 
 plot_chain_convergence <- function(cache, name, pars= c("rho", "alpha", "log_std_dev_w", "eta")){
   model.rand <- cache[[name]]
-  if("betas" %in% names(model.rand)){pars <- c("betas", pars[pars != "alpha"])}
+  pars<-pars[unlist(lapply(pars,function(x){any(str_detect(names(model.rand),x))}))]  
   plot<- rstan::traceplot(model.rand, pars = pars)
   return(plot)
 }
@@ -25,7 +25,7 @@ plot_chain_convergence <- function(cache, name, pars= c("rho", "alpha", "log_std
 
 plot_MCMCpars <- function(name,cache,pars = c("rho", "alpha", "log_std_dev_w", "eta")) {
   model.rand <- cache[[name]]
-  if("betas" %in% names(model.rand)){pars <- c("betas", pars[pars != "alpha"])}
+  pars<-pars[unlist(lapply(pars,function(x){any(str_detect(names(model.rand),x))}))]  
   plot <- rstan::plot(model.rand, pars = pars)
   return(plot)
 }

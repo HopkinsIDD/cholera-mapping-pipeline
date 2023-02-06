@@ -55,7 +55,8 @@ package_list <- c(
   "stringr",
   "tidync",
   "tibble",
-  "zoo"
+  "zoo",
+  "geodata"
 )
 
 library(magrittr)
