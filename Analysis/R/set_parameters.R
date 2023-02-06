@@ -147,7 +147,7 @@ aoi <- taxdat::check_aoi(config$aoi)
 # km by km resolution of analysis
 res_space <- taxdat::check_res_space(config$res_space)
 # temporal resolution of analysis
-res_time <- taxdat::check_time_res(config$res_time)
+res_time <- taxdat::check_res_time(config$res_time)
 # number of time slices in spatial random effect
 grid_rand_effects_N <- taxdat::check_grid_rand_effects_N(config$grid_rand_effects_N)
 
@@ -215,8 +215,7 @@ if (is.null(config$covariate_choices)) {
   print("---- Running with no covariates (spatial random effects only)")
 } else {
   # User-defined covariates names and abbreviations
-  covariate_choices <- taxdat::check_covariate_choices(covar_choices = config$covariate_choices,
-                                                       available_choices = all_covariate_choices)
+  covariate_choices <- taxdat::check_covariate_choices(covar_choices = config$covariate_choices, available_choices = all_covariate_choices)
   short_covariates <- short_covariate_choices[covariate_choices]
 }
 

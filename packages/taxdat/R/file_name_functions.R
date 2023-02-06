@@ -573,7 +573,7 @@ make_map_name <- function(config, .f = NULL) {
   # km by km resolution of analysis
   res_space <- as.numeric(config$res_space)
   # temporal resolution of analysis
-  res_time <- suppressMessages(check_time_res(config$res_time))
+  res_time <- suppressMessages(check_res_time(config$res_time))
   # Modeling start and end times
   start_time <- lubridate::ymd(config$start_time)
   end_time <- lubridate::ymd(config$end_time)
