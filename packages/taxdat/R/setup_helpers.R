@@ -308,6 +308,8 @@ check_od_param <- function(obs_model, od_param) {
             print(e)
         })
         od_param <- updated_od_param
+    } else{
+        od_param <- NULL
     }
     return(od_param)
 }
@@ -390,11 +392,9 @@ check_censoring_thresh <- function(censoring_thresh) {
         message("No censoring_thresh was assigned. Setting default to 0.95.")
         censoring_thresh <- 0.95
     }
-    censoring_thresh <- as.numeric(censoring_thresh)
-    if (is.na(as.numeric(censoring_thresh))) {
+    if (!is.numeric(censoring_thresh)) {
         stop("Invalid censoring threshold. Must be numeric.")
     }
-
     if (censoring_thresh > 1) {
         warning("The censoring_thresh parameter cannot be bigger than 1. Replacing value with 1.")
         censoring_thresh <- 1

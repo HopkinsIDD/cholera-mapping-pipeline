@@ -40,6 +40,43 @@ test_that("check_res_space works", {
 
 })
 
+## check_res_time
+
+test_that("check_grid_rand_effects_N works", {
+  tmpfile <- tempfile(fileext = ".yml")
+
+  yaml::write_yaml(data.frame(grid_rand_effects_N = 1), tmpfile)
+  config <- yaml::read_yaml(tmpfile)
+  expect_equal(
+    check_grid_rand_effects_N(config$grid_rand_effects_N),
+    1
+  )
+
+  yaml::write_yaml(data.frame(grid_rand_effects_N = 2), tmpfile)
+  config <- yaml::read_yaml(tmpfile)
+  expect_error(
+    check_grid_rand_effects_N(config$grid_rand_effects_N),
+    "must be 1."
+  )
+
+  yaml::write_yaml(data.frame(grid_rand_effects_N = TRUE), tmpfile)
+  config <- yaml::read_yaml(tmpfile)
+  expect_error(
+    check_grid_rand_effects_N(config$grid_rand_effects_N),
+    "must be numeric."
+  )
+
+  yaml::write_yaml(data.frame(other_arg = TRUE), tmpfile)
+  config <- yaml::read_yaml(tmpfile)
+  expect_equal(
+    check_grid_rand_effects_N(config$grid_rand_effects_N),
+    1
+  )
+
+})
+
+## check_case_definition
+
 test_that("check_time works", {
   tmpfile <- tempfile(fileext = ".yml")
 
@@ -61,14 +98,14 @@ test_that("check_time works", {
   config <- yaml::read_yaml(tmpfile)
   expect_error(
     check_time(config$time),
-    "The start_time/end_time parameter is not in the Date type"
+    "not a Date type"
   )
 
   yaml::write_yaml(data.frame(time = "200-0010-1"), tmpfile)
   config <- yaml::read_yaml(tmpfile)
   expect_error(
     check_time(config$time),
-    "The start_time/end_time parameter is not in the Date type"
+    "not a Date type"
   )
 
   yaml::write_yaml(data.frame(time = "2000-01-01"), tmpfile)
@@ -79,6 +116,9 @@ test_that("check_time works", {
   )
 
 })
+
+## check_model_date_range
+## modeling_time_slices
 
 test_that("check_data_source works", {
   tmpfile <- tempfile(fileext = ".yml")
@@ -101,7 +141,7 @@ test_that("check_data_source works", {
   config <- yaml::read_yaml(tmpfile)
   expect_warning(
     check_data_source(config$data_source),
-    "The API is not currently functional for mapping pipeline purposes, use with caution. "
+    "API is not currently functional "
   )
 
   yaml::write_yaml(data.frame(data_source = "other string"), tmpfile)
@@ -120,28 +160,46 @@ test_that("check_ovrt_metadata_table works", {
   config <- yaml::read_yaml(tmpfile)
   expect_equal(
     check_ovrt_metadata_table(config$ovrt_metadata_table),
-    "no"
+    FALSE
   )
 
-  yaml::write_yaml(data.frame(ovrt_metadata_table = "yes"), tmpfile)
-  config <- yaml::read_yaml(tmpfile)
-  expect_equal(
-    check_ovrt_metadata_table(config$ovrt_metadata_table),
-    "yes"
-  )
-
-  yaml::write_yaml(data.frame(ovrt_metadata_table = "true"), tmpfile)
+  yaml::write_yaml(data.frame(ovrt_metadata_table = TRUE), tmpfile)
   config <- yaml::read_yaml(tmpfile)
   expect_equal(
     check_ovrt_metadata_table(config$ovrt_metadata_table),
     TRUE
   )
 
+  sink(file = tmpfile)
+  cat(paste0("ovrt_metadata_table: yes\n"))
+  sink()
+  config <- yaml::read_yaml(tmpfile)
+  expect_equal(
+    check_ovrt_metadata_table(config$ovrt_metadata_table),
+    TRUE
+  )
+
+  sink(file = tmpfile)
+  cat(paste0("ovrt_metadata_table: no\n"))
+  sink()
+  config <- yaml::read_yaml(tmpfile)
+  expect_equal(
+    check_ovrt_metadata_table(config$ovrt_metadata_table),
+    FALSE
+  )
+
   yaml::write_yaml(data.frame(ovrt_metadata_table = "random string"), tmpfile)
   config <- yaml::read_yaml(tmpfile)
   expect_error(
     check_ovrt_metadata_table(config$ovrt_metadata_table),
-    "The ovrt_metadata_table parameter has to be true/false or yer/no. "
+    "must be logical"
+  )
+
+  yaml::write_yaml(data.frame(ovrt_metadata_table = "true"), tmpfile)
+  config <- yaml::read_yaml(tmpfile)
+  expect_error(
+    check_ovrt_metadata_table(config$ovrt_metadata_table),
+    "must be logical"
   )
 
 })
@@ -174,6 +232,8 @@ test_that("check_taxonomy works", {
   options(warn = defaultW)
 
 })
+
+## check_covariate_choices
 
 test_that("check_obs_model works", {
   tmpfile <- tempfile(fileext = ".yml")
@@ -271,6 +331,64 @@ test_that("check_od_param works", {
 
 })
 
+test_that("check_aggregate works",{
+  tmpfile <- tempfile(fileext = ".yml")
+
+  yaml::write_yaml(data.frame(aggregate = TRUE), tmpfile)
+  config_true <- yaml::read_yaml(tmpfile)
+  expect_true(
+    check_aggregate(config_true$aggregate)
+  )
+
+  yaml::write_yaml(data.frame(aggregate = FALSE), tmpfile)
+  config_false <- yaml::read_yaml(tmpfile)
+  expect_false(
+    check_aggregate(config_false$aggregate)
+  )
+
+  yaml::write_yaml(data.frame(other_arg = TRUE), tmpfile)
+  config_null <- yaml::read_yaml(tmpfile)
+  expect_true(
+    check_aggregate(config_null$aggregate)
+  )
+
+})
+
+test_that("check_tfrac_thresh works",{
+  tmpfile <- tempfile(fileext = ".yml")
+
+  yaml::write_yaml(data.frame(tfrac_thresh = 0.4), tmpfile)
+  config_04 <- yaml::read_yaml(tmpfile)
+  expect_equal(
+    check_tfrac_thresh(config_04$tfrac_thresh),
+    0.4
+  )
+
+  yaml::write_yaml(data.frame(other_arg = TRUE), tmpfile)
+  config_null <- yaml::read_yaml(tmpfile)
+  expect_equal(
+    check_tfrac_thresh(config_null$tfrac_thresh),
+    0
+  )
+
+  yaml::write_yaml(data.frame(tfrac_thresh = "non-num"), tmpfile)
+  config_error <- yaml::read_yaml(tmpfile)
+  expect_error(
+    check_tfrac_thresh(config_error$tfrac_thresh),
+    "must be a numeric"
+  )
+
+  yaml::write_yaml(data.frame(tfrac_thresh = 1.1), tmpfile)
+  config_error <- yaml::read_yaml(tmpfile)
+  expect_error(
+    check_tfrac_thresh(config_error$tfrac_thresh),
+    "between 0 and 1"
+  )
+
+})
+
+## check_censoring
+
 test_that("check_censoring_thresh works", {
   tmpfile <- tempfile(fileext = ".yml")
 
@@ -280,76 +398,37 @@ test_that("check_censoring_thresh works", {
     check_censoring_thresh(config$censoring_thresh),
     0.95
   )
-
-  yaml::write_yaml(data.frame(censoring_thresh = NA), tmpfile)
-  config <- yaml::read_yaml(tmpfile)
-  expect_equal(
-    check_censoring_thresh(config$censoring_thresh),
-    0.95
-  )
-
   yaml::write_yaml(data.frame(censoring_thresh = "random string"), tmpfile)
-  config <- yaml::read_yaml(tmpfile)
-  defaultW <- getOption("warn")
-  options(warn = -1) 
-  expect_equal(
-    check_censoring_thresh(config$censoring_thresh),
-    0.95
-  )
-  options(warn = defaultW)
-
-  yaml::write_yaml(data.frame(censoring_thresh = "-1"), tmpfile)
   config <- yaml::read_yaml(tmpfile)
   expect_error(
     check_censoring_thresh(config$censoring_thresh),
-    "The censoring_thresh parameter should not be under 0"
+    "Must be numeric"
   )
-
-  yaml::write_yaml(data.frame(censoring_thresh = "1.2"), tmpfile)
+  yaml::write_yaml(data.frame(censoring_thresh = -1), tmpfile)
   config <- yaml::read_yaml(tmpfile)
   expect_warning(
     check_censoring_thresh(config$censoring_thresh),
-    "The censoring_thresh parameter is bigger than 1, now returning 1. "
+    "cannot be less than 0"
   )
-
+  expect_equal(
+    check_censoring_thresh(config$censoring_thresh),
+    0
+  )
+  yaml::write_yaml(data.frame(censoring_thresh = 1.2), tmpfile)
+  config <- yaml::read_yaml(tmpfile)
+  expect_warning(
+    check_censoring_thresh(config$censoring_thresh),
+    "cannot be bigger than 1"
+  )
+  expect_equal(
+    check_censoring_thresh(config$censoring_thresh),
+    1
+  )
   yaml::write_yaml(data.frame(censoring_thresh = 0.80), tmpfile)
   config <- yaml::read_yaml(tmpfile)
   expect_equal(
     check_censoring_thresh(config$censoring_thresh),
     0.80
-  )
-
-})
-
-test_that("check_grid_rand_effects_N works", {
-  tmpfile <- tempfile(fileext = ".yml")
-
-  yaml::write_yaml(data.frame(grid_rand_effects_N = 1), tmpfile)
-  config <- yaml::read_yaml(tmpfile)
-  expect_equal(
-    check_grid_rand_effects_N(config$grid_rand_effects_N),
-    1
-  )
-
-  yaml::write_yaml(data.frame(grid_rand_effects_N = 2), tmpfile)
-  config <- yaml::read_yaml(tmpfile)
-  expect_error(
-    check_grid_rand_effects_N(config$grid_rand_effects_N),
-    "must be 1."
-  )
-
-  yaml::write_yaml(data.frame(grid_rand_effects_N = TRUE), tmpfile)
-  config <- yaml::read_yaml(tmpfile)
-  expect_error(
-    check_grid_rand_effects_N(config$grid_rand_effects_N),
-    "must be numeric."
-  )
-
-  yaml::write_yaml(data.frame(other_arg = TRUE), tmpfile)
-  config <- yaml::read_yaml(tmpfile)
-  expect_equal(
-    check_grid_rand_effects_N(config$grid_rand_effects_N),
-    1
   )
 
 })
@@ -377,51 +456,4 @@ test_that("check_set_tfrac works",{
 
 })
 
-test_that("check_tfrac_thresh works",{
-  tmpfile <- tempfile(fileext = ".yml")
-
-  yaml::write_yaml(data.frame(tfrac_thresh = 0.4), tmpfile)
-  config_04 <- yaml::read_yaml(tmpfile)
-  expect_equal(
-    check_tfrac_thresh(config_04$tfrac_thresh),
-    0.4
-  )
-
-  yaml::write_yaml(data.frame(other_arg = TRUE), tmpfile)
-  config_null <- yaml::read_yaml(tmpfile)
-  expect_equal(
-    check_tfrac_thresh(config_null$tfrac_thresh),
-    0
-  )
-
-  yaml::write_yaml(data.frame(tfrac_thresh = TRUE), tmpfile)
-  config_error <- yaml::read_yaml(tmpfile)
-  expect_error(
-    check_tfrac_thresh(config_error$tfrac_thresh),
-    "must be a numeric"
-  )
-
-})
-
-test_that("check_aggregate works",{
-  tmpfile <- tempfile(fileext = ".yml")
-
-  yaml::write_yaml(data.frame(aggregate = TRUE), tmpfile)
-  config_true <- yaml::read_yaml(tmpfile)
-  expect_true(
-    check_aggregate(config_true$aggregate)
-  )
-
-  yaml::write_yaml(data.frame(aggregate = FALSE), tmpfile)
-  config_false <- yaml::read_yaml(tmpfile)
-  expect_false(
-    check_aggregate(config_false$aggregate)
-  )
-
-  yaml::write_yaml(data.frame(other_arg = TRUE), tmpfile)
-  config_null <- yaml::read_yaml(tmpfile)
-  expect_true(
-    check_aggregate(config_null$aggregate)
-  )
-
-})
+## check_snap_tol, check_use_pop_weight, check_sfrac_thresh, check_ingest_covariates, check_ingest_new_covariates, check_stan_debug, check_stan_model, get_all_config_options, check_update_config
