@@ -120,7 +120,7 @@ df <- purrr::map_dfr(
   dplyr::mutate(obs_year = factor(obs_year),
                 log_ey = log(ey),
                 log_tfrac = log(tfrac),
-                gam_offset = log_ey + log_tfrac * (1-stan_params$censoring),
+                gam_offset = log_ey + log_tfrac * (1-config$censoring),
                 # To apply censoring
                 right_threshold = dplyr::case_when(
                   censored == "right-censored" ~ y,
@@ -128,10 +128,10 @@ df <- purrr::map_dfr(
   )
 
 # Use warmup?
-warmup <- stan_params$warmup
+warmup <- config$warmup
 
 # Specifiy whether covariates are included in the warmup
-covar_warmup <- stan_params$covar_warmup
+covar_warmup <- config$covar_warmup
 
 if (warmup) {
   
@@ -147,14 +147,14 @@ if (warmup) {
   }
   
   # Is the model one with a time-specific random effect?
-  if (stan_params$time_effect) {
+  if (config$time_effect) {
     frml <- paste(c(frml, colnames(df %>% dplyr::select(dplyr::contains("year_")))), collapse = " + ")
   }
   
   # Formula for gam model
   gam_frml <- as.formula(frml)
   
-  if (stan_params$censoring) {
+  if (config$censoring) {
     # Removed censored data for which cases are 0
     df <- df %>% dplyr::filter(!(y == 0 & right_threshold == 0))
   }
@@ -198,10 +198,10 @@ if (warmup) {
   }
   
   # Initial parameter values
-  if (stan_params$time_effect | grid_rand_effects_N != 1) {
+  if (config$time_effect | grid_rand_effects_N != 1) {
     sd_w <- sd(w.init)
     
-    if (stan_params$time_effect & grid_rand_effects_N != 1) {
+    if (config$time_effect & grid_rand_effects_N != 1) {
       stop("Current code does not allow grid_rand_effects_N != 1 and time_effect = true")
     }
     
@@ -215,7 +215,7 @@ if (warmup) {
                             )})
     }
     
-    if (stan_params$time_effect) {
+    if (config$time_effect) {
       stan_data$mat_grid_time <- mat_grid_time %>% as.matrix()
       eta <- coef(gam_fit) %>% .[stringr::str_detect(names(.), "year")]
       init.list <- lapply(1:nchain, 
@@ -245,22 +245,22 @@ if (warmup) {
   # Set to random initial draws if no covar warmup
   init.list <- NULL #QZ: change from "random" to list()
   
-  if (stan_params$time_effect) {
+  if (config$time_effect) {
     stan_data$mat_grid_time <- mat_grid_time %>% as.matrix()
   }
 }
-if (!(stan_params$time_effect)) {
+if (!(config$time_effect)) {
   stan_data$mat_grid_time <- as.array(matrix(0,2,2))
 }
 
 # Set censoring and time effect and autocorrelation
-stan_data$do_censoring <- ifelse(stan_params$censoring, 1, 0)
-stan_data$do_time_slice_effect <- ifelse(stan_params$time_effect, 1, 0)
-stan_data$do_time_slice_effect_autocor <- ifelse(stan_params$time_effect_autocor, 1, 0)
-stan_data$use_weights <- ifelse(stan_params$use_weights, 1, 0)
-stan_data$use_rho_prior<- ifelse(stan_params$use_rho_prior, 1, 0)
+stan_data$do_censoring <- ifelse(config$censoring, 1, 0)
+stan_data$do_time_slice_effect <- ifelse(config$time_effect, 1, 0)
+stan_data$do_time_slice_effect_autocor <- ifelse(config$time_effect_autocor, 1, 0)
+stan_data$use_weights <- ifelse(config$use_weights, 1, 0)
+stan_data$use_rho_prior<- ifelse(config$use_rho_prior, 1, 0)
 
-if (stan_params$use_rho_prior) {
+if (config$use_rho_prior) {
   if (init.list != "random") {
     for (i in 1:length(init.list)) {
       init.list[[i]] <- append(init.list[[i]], list(rho = runif(1, .6, 1)))
@@ -268,7 +268,7 @@ if (stan_params$use_rho_prior) {
   }
 }
 
-if (stan_params$time_effect) {
+if (config$time_effect) {
   # Extract number of observations per year
   obs_per_year <- df %>% dplyr::count(obs_year) %>% 
     dplyr::mutate(obs_year = as.numeric(as.character(obs_year)))
@@ -285,10 +285,10 @@ if (stan_params$time_effect) {
 # if (stringr::str_detect(stan_model, "fixedphi")) {
 #   if (is.null(config$overdispersion)) {
 #     stop("Please provid the value for negative binomial models with fixed overdispersion parameter")
-#   } else if (is.na(stan_params$overdispersion)) {
+#   } else if (is.na(config$overdispersion)) {
 #     stop("Please provid the value for negative binomial models with fixed overdispersion parameter")
 #   } else {
-#     stan_data$phi <- stan_params$overdispersion
+#     stan_data$phi <- config$overdispersion
 #   }
 # }
 

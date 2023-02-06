@@ -209,12 +209,12 @@ prepare_stan_input <- function(
   # ---- E. Censoring ----
   
   # First define censored observations
-  stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= stan_params$censoring_thresh)
+  stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
   
   # Extract censoring information
   censoring_inds <- taxdat::get_censoring_inds(stan_data = stan_data,
                                                ind_mapping_resized = ind_mapping_resized,
-                                               censoring_thresh = stan_params$censoring_thresh)
+                                               censoring_thresh = config$censoring_thresh)
   
   # Then overwrite tfrac with user-specified value
   if (set_tfrac) {
@@ -230,9 +230,9 @@ prepare_stan_input <- function(
   
   # ---- F. Spatial fraction ----
   # Add 1km population fraction (this is deprecated in new stan model)
-  stan_data$use_pop_weight <- stan_params$use_pop_weight
+  stan_data$use_pop_weight <- config$use_pop_weight
   
-  if (stan_params$use_pop_weight) {
+  if (config$use_pop_weight) {
     # Make sure that all observations for have a pop_loctime > 0
     stan_data$map_loc_grid_sfrac <- ind_mapping_resized$u_loc_grid_weights
     
@@ -267,13 +267,13 @@ prepare_stan_input <- function(
       stan_data$map_obs_loctime_loc <- as.array(ind_mapping_resized$map_obs_loctime_loc)
       
       # First define censored observations
-      stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= stan_params$censoring_thresh)
+      stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
       stan_data$M <- nrow(sf_cases_resized)
       
       # Extract censoring information
       censoring_inds <-  taxdat::get_censoring_inds(stan_data = stan_data,
                                                     ind_mapping_resized = ind_mapping_resized,
-                                                    censoring_thresh = stan_params$censoring_thresh)
+                                                    censoring_thresh = config$censoring_thresh)
       
       # Then overwrite tfrac with user-specified value
       if (!is.null(set_tfrac) && (set_tfrac)) {
@@ -292,7 +292,7 @@ prepare_stan_input <- function(
     stan_data$map_loc_grid_sfrac <- array(data = 0, dim = 0)
   }
   
-  if (stan_params$use_pop_weight) {
+  if (config$use_pop_weight) {
     # Check if sfrac is valid
     if (any(stan_data$map_loc_grid_sfrac > 1.01)) {
       
@@ -339,7 +339,7 @@ prepare_stan_input <- function(
   stan_data$map_full_grid <- full_grid$upd_id
   
   # What observation model to use
-  stan_data$obs_model <- stan_params$obs_model
+  stan_data$obs_model <- config$obs_model
   
   # ---- J. Data for output summaries ----
   
@@ -405,7 +405,7 @@ prepare_stan_input <- function(
                                                      ~ which(output_lps_space$locationPeriod_id == .))
   stan_data$map_output_loc_adminlev <- output_lps_space$admin_lev
   
-  if (stan_params$use_pop_weight) {
+  if (config$use_pop_weight) {
     stan_data$map_loc_grid_sfrac_output <- ind_mapping_output$u_loc_grid_weights
     
     # Check if sfrac is valid
@@ -449,29 +449,29 @@ prepare_stan_input <- function(
   
   # ---- L. Observation model ----
   # Add quasi-poisson/neg-binom overdispersion parameter
-  stan_data$od_param <- stan_params$od_param
+  stan_data$od_param <- config$od_param
   
   # Option for double-exponential prior on betas
-  stan_data$exp_prior <- stan_params$exp_prior
+  stan_data$exp_prior <- config$exp_prior
   
 
   # ---- M. Other options for stan ----
   # Use intercept
-  stan_data$use_intercept <- stan_params$use_intercept
+  stan_data$use_intercept <- config$use_intercept
   
   # 0-sum constraint on yerly random effects
-  stan_data$do_zerosum_cnst <- stan_params$do_zerosum_cnst
+  stan_data$do_zerosum_cnst <- config$do_zerosum_cnst
   
   # Infer the sd of the prior on yearly random effects
-  stan_data$do_infer_sd_eta <- stan_params$do_infer_sd_eta
+  stan_data$do_infer_sd_eta <- config$do_infer_sd_eta
   
   
   # ---- N. Priors ----
   # Set sigma_eta_scale for all models (not used for models without time effect)
-  stan_data$sigma_eta_scale <- stan_params$sigma_eta_scale
+  stan_data$sigma_eta_scale <- config$sigma_eta_scale
   
   # Add scale of prior on the sd of regression coefficients
-  stan_data$beta_sigma_scale <- stan_params$beta_sigma_scale
+  stan_data$beta_sigma_scale <- config$beta_sigma_scale
   
   
   cat("**** FINISHED PREPARING STAN INPUT \n")
