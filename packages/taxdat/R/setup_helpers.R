@@ -532,12 +532,11 @@ check_stan_debug <- function(debug) {
         # Default behavior
         debug <- FALSE
     }
-
     if (!is.logical(debug)) {
-        stop("Debug needs to be boolean.")
+        stop("Debug needs to be logical")
     }
 
-    debug
+    return(debug)
 }
 
 #' @title Check stan model
