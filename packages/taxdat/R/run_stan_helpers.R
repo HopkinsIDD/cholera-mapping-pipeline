@@ -20,18 +20,42 @@
 #' @param recompile default recompile
 #' @return a list with parameter values
 #' @export 
-get_stan_parameters <- function(config, sigma_eta_scale = 1, beta_sigma_scale = 1,
-    warmup = T, covar_warmup = T, time_effect = F, time_effect_autocorr = F, use_weights = F,
-    use_rho_prior = F, exp_prior = 0, use_intercept = 0, do_zerosum_cnst = 0, do_infer_sd_eta = 0,
-    ncores = 4, model = "mapping_model_inference.stan", genquant = "mapping_model_generate.stan",
-    niter = 2000, recompile = T) {
+get_stan_parameters <- function(config, 
+                                sigma_eta_scale = 1, 
+                                beta_sigma_scale = 1, 
+                                warmup = T, 
+                                covar_warmup = T, 
+                                time_effect = F, 
+                                time_effect_autocorr = F, 
+                                use_weights = F, 
+                                use_rho_prior = F, 
+                                exp_prior = 0, 
+                                use_intercept = 0, 
+                                do_zerosum_cnst = 0, 
+                                do_infer_sd_eta = 0,
+                                ncores = 4, 
+                                model = "mapping_model_inference.stan", 
+                                genquant = "mapping_model_generate.stan",
+                                niter = 2000, 
+                                recompile = T) {
 
-    default_params <- list(sigma_eta_scale = sigma_eta_scale, beta_sigma_scale = beta_sigma_scale,
-        warmup = warmup, covar_warmup = covar_warmup, time_effect = time_effect,
-        time_effect_autocorr = time_effect_autocorr, use_weights = use_weights, use_rho_prior = use_rho_prior,
-        exp_prior = exp_prior, use_intercept = use_intercept, do_zerosum_cnst = do_zerosum_cnst,
-        do_infer_sd_eta = do_infer_sd_eta, ncores = ncores, model = model, genquant = genquant,
-        niter = niter, recompile = recompile)
+    default_params <- list(sigma_eta_scale = sigma_eta_scale,
+                          beta_sigma_scale = beta_sigma_scale,
+                          warmup = warmup, 
+                          covar_warmup = covar_warmup, 
+                          time_effect = time_effect,
+                          time_effect_autocorr = time_effect_autocorr, 
+                          use_weights = use_weights, 
+                          use_rho_prior = use_rho_prior,
+                          exp_prior = exp_prior, 
+                          use_intercept = use_intercept, 
+                          do_zerosum_cnst = do_zerosum_cnst,
+                          do_infer_sd_eta = do_infer_sd_eta, 
+                          ncores = ncores, 
+                          model = model, 
+                          genquant = genquant,
+                          niter = niter, 
+                          recompile = recompile)
 
     # For each parameter check if specified in config, if not use default value
     params <- purrr::map(names(default_params), ~ifelse(is.null(config[[.]]), default_params[[.]],

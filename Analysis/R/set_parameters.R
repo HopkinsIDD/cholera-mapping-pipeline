@@ -196,7 +196,7 @@ ovrt_metadata_table <- taxdat::check_ovrt_metadata_table(config$ovrt_metadata_ta
 # - - - -
 ### Optional arguments
 # Specific OCs to use (string vector)
-filter_OCs <- config$OCs
+OCs <- config$OCs
 taxonomy <- taxdat::check_taxonomy(config$taxonomy)
 
 # - - - - - - - - - - - - - -
