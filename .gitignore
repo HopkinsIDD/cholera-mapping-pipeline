@@ -26,7 +26,8 @@ Analysis/Stan/*
 *.pdf
 todo.org
 *.swp
-**.yml
+*.yml
 !tests/**/*.yml
 !Analysis/R/test_case/**.yml
 *.rs
+*.html
