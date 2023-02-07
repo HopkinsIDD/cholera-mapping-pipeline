@@ -121,7 +121,7 @@ covar_cube <- DBI::dbGetQuery(conn = conn_pg, glue::glue_sql(.con = conn_pg, "SE
        {config[[\"general\"]][[\"time_scale\"]]}
     )")) %>%
   dplyr::filter(!is.na(value)) %>%
-  tidyr::pivot_wider(names_from = covariate_name, values_from = value,values_fn = sum)#QZ: change back to sum becuase of tiles
+  tidyr::pivot_wider(names_from = covariate_name, values_from = value, values_fn = sum) # QZ: change back to sum becuase of tiles
 covar_cube[["geometry"]] <- sf::st_as_sfc(covar_cube[["geometry"]])
 covar_cube <- sf::st_as_sf(covar_cube)
 print("Pulled covariates")
@@ -749,7 +749,7 @@ stan_model_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, co
 options(mc.cores = config[["stan"]][["ncores"]])
 
 standardize_covar <- function(M) {
-  return(apply(M, 2,  taxdat::my_scale))
+  return(apply(M, 2, taxdat::my_scale))
 }
 
 print("Creating stan data")

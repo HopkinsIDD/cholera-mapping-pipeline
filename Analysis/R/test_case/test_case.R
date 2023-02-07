@@ -141,53 +141,58 @@ test_covariates <- taxdat::create_multiple_test_covariates(
   test_raster = test_raster,
   covariates_parameters = lapply(config[["test_metadata"]][["covariates"]], function(covariate_spec) {
     rc <- list(
-      independent_parameters=list(
-        varies_spatially=covariate_spec[["nonspatial"]],
-        varies_temporally=covariate_spec[["nontemporal"]],
-        weight=0.3
+      independent_parameters = list(
+        varies_spatially = covariate_spec[["nonspatial"]],
+        varies_temporally = covariate_spec[["nontemporal"]],
+        weight = 0.3
       ),
-      smooth_parameters=list(
-        spatially_smooth= covariate_spec[["spatially_smooth"]],
-        temporally_smooth= covariate_spec[["temporally_smooth"]],
-        rho=0.999999,
-        smoothing_function=function(n,mu, covariance, centers) {
+      smooth_parameters = list(
+        spatially_smooth = covariate_spec[["spatially_smooth"]],
+        temporally_smooth = covariate_spec[["temporally_smooth"]],
+        rho = 0.999999,
+        smoothing_function = function(n, mu, covariance, centers) {
           return(taxdat::my_scale(MASS::mvrnorm(n = n, mu = mu, Matrix::solve(covariance))))
         },
-        weight=1
+        weight = 1
       ),
-      polygonal_parameters=list(
-        polygonal=covariate_spec[["polygonal"]],
-        
-        polygons = taxdat::create_test_layered_polygons(test_raster=test_raster),
-        weight=1
+      polygonal_parameters = list(
+        polygonal = covariate_spec[["polygonal"]],
+        polygons = taxdat::create_test_layered_polygons(test_raster = test_raster),
+        weight = 1
       ),
-      radiating_parameters=list(
-        radiating=covariate_spec[["radiating"]],
-        radiating_polygons=taxdat::create_test_polygons(dimension = 0,number = 2),
-        radiation_function=function(x, mu) {
-          mu * exp(-(x/10000)^2)
+      radiating_parameters = list(
+        radiating = covariate_spec[["radiating"]],
+        radiating_polygons = taxdat::create_test_polygons(dimension = 0, number = 2),
+        radiation_function = function(x, mu) {
+          mu * exp(-(x / 10000)^2)
         },
         radiating_means = rnorm(2),
-        weight=1
+        weight = 1
       ),
-      constant_parameters=list(
-          constant=covariate_spec[["constant"]],
-          weight=1
+      constant_parameters = list(
+        constant = covariate_spec[["constant"]],
+        weight = 1
       ),
-      magnitude=1
+      magnitude = 1
     )
   }),
-  seed=global_seed
+  seed = global_seed
 )
-  
 
-names(test_covariates) <- sapply(config[["test_metadata"]][["covariates"]], function(x){x$name})
+
+names(test_covariates) <- sapply(config[["test_metadata"]][["covariates"]], function(x) {
+  x$name
+})
 
 global_seed <- .GlobalEnv$.Random.seed
 
-test_covariates_simulation <- test_covariates[sapply(config[["test_metadata"]][["covariates"]], function(x){x$include_in_simulation})]
+test_covariates_simulation <- test_covariates[sapply(config[["test_metadata"]][["covariates"]], function(x) {
+  x$include_in_simulation
+})]
 
-test_covariates_modeling <- test_covariates[sapply(config[["test_metadata"]][["covariates"]], function(x){x$include_in_model})]
+test_covariates_modeling <- test_covariates[sapply(config[["test_metadata"]][["covariates"]], function(x) {
+  x$include_in_model
+})]
 
 min_time_left <- query_time_left
 max_time_right <- query_time_right
@@ -289,23 +294,23 @@ all_dfs$observations_df <- test_observations %>%
     qualified_name = location, primary = TRUE, phantom = FALSE, suspected_cases = cases,
     deaths = NA, confirmed_cases = NA
   )
-true_grid_data<-test_underlying_distribution$mean #QZ: instead of true observed grid, here it should be from the true_underlying_distribution$mean
+true_grid_data <- test_underlying_distribution$mean # QZ: instead of true observed grid, here it should be from the true_underlying_distribution$mean
 
 buffer <- min(c(
   (sf::st_bbox(test_extent)$xmax - sf::st_bbox(test_extent)$xmin) / config[["test_metadata"]][["raster"]][["ncol"]],
   (sf::st_bbox(test_extent)$ymax - sf::st_bbox(test_extent)$ymin) / config[["test_metadata"]][["raster"]][["nrow"]]
 )) * 100 * 1000 * .05
-lhs <- t(sf::st_contains(sf::st_buffer(test_observations, buffer), true_grid_data))#test_observations contains test_observed_grid
-rhs <- sf::st_contains(sf::st_buffer(true_grid_data, buffer), test_observations)#test_observed_grid contains test_observations
+lhs <- t(sf::st_contains(sf::st_buffer(test_observations, buffer), true_grid_data)) # test_observations contains test_observed_grid
+rhs <- sf::st_contains(sf::st_buffer(true_grid_data, buffer), test_observations) # test_observed_grid contains test_observations
 
 rds_file <- config[["test_metadata"]][["file_names"]][["true_grid_cases"]]
 if (!dir.exists(dirname(rds_file))) {
   dir.create(dirname(rds_file))
 }
-true_grid_data$observed<- mapply(
+true_grid_data$observed <- mapply(
   idx = seq_len(length(lhs)),
-  lhs,#col
-  rhs,#row
+  lhs, # col
+  rhs, # row
   FUN = function(idx, x, y) {
     rc <- intersect(x, y)
     rc <- rc[true_grid_data$t[idx] == test_observations$tmin[rc]]

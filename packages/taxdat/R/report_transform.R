@@ -350,12 +350,12 @@ aggregate_modeled_cases_mean_by_chain <- cache_fun_results(
 #' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return long_modeled_grid_case_by_grid_no_cache
 aggregate_long_modeled_grid_case_by_grid_no_cache <- function(config, cache, cholera_directory) {
-  get_long_modeled_grid_case(cache=cache,cholera_directory=params$cholera_directory,config=params$config)#remove in functions
+  get_long_modeled_grid_case(cache = cache, cholera_directory = params$cholera_directory, config = params$config) # remove in functions
   get_long_modeled_grid_case(config = config, cache = cache, cholera_directory = cholera_directory)
-  long_modeled_grid_case_by_grid = merge(cache[["long_modeled_grid_case"]] %>% group_by(row,col) %>% summarise(
+  long_modeled_grid_case_by_grid <- merge(cache[["long_modeled_grid_case"]] %>% group_by(row, col) %>% summarise(
     mean_model = mean(`modeled grid cases`),
     mean_true  = mean(`true grid cases`)
-  ),unique(cache[["long_modeled_grid_case"]][,c('row','col','observed')]))
+  ), unique(cache[["long_modeled_grid_case"]][, c("row", "col", "observed")]))
   return(long_modeled_grid_case_by_grid)
 }
 
@@ -367,36 +367,44 @@ aggregate_long_modeled_grid_case_by_grid <- cache_fun_results(
 )
 
 
-get_error_by_grid_spatial_scale <- function(cache,config,cholera_directory,tfrac_function = function(x, tfrac) {
-  return(x)
-}, inv_tfrac_function = function(x, tfrac) {
-  return(x)
-}){
+get_error_by_grid_spatial_scale <- function(cache, config, cholera_directory, tfrac_function = function(x, tfrac) {
+                                              return(x)
+                                            }, inv_tfrac_function = function(x, tfrac) {
+                                              return(x)
+                                            }) {
   get_data_fidelity_df(config = config, cache = cache, cholera_directory = cholera_directory)
-  spatial_scale = cache[["data_fidelity_df"]] %>%
+  spatial_scale <- cache[["data_fidelity_df"]] %>%
     dplyr::mutate(
       modeled_cases = inv_tfrac_function(modeled_cases, tfrac),
       observed_cases = tfrac_function(observed_cases, tfrac)
     )
-  spatial_scale_bychain<-spatial_scale %>% group_by(updated_observation_id) %>% summarise(
-    mean_model = mean(modeled_cases),
-    mean_observe  = mean(observed_cases)
-  )
-  spatial_scale_bychain = merge(spatial_scale_bychain , unique(spatial_scale[,c('updated_observation_id','spatial_scale')]))
-  
-  spatial_sum = spatial_scale_bychain %>% group_by(spatial_scale) %>% summarise(
-    observed_national = mean(mean_observe),
-    modeled_sum = sum(mean_model)
-  )
-  
-  spatial_scale_bychain_byspatial<-spatial_scale %>% group_by(updated_observation_id,spatial_scale) %>% summarise(
-    mean_model = mean(modeled_cases),
-    mean_observe  = mean(observed_cases)
-  ) 
-  spatial_scale_bychain_byspatial$error = spatial_scale_bychain_byspatial$mean_model - spatial_scale_bychain_byspatial$mean_observe
-  spatial_scale_bychain_byspatial<-spatial_scale_bychain_byspatial %>% group_by(spatial_scale) %>% summarise(
-    MSE = mean((error)^2),
-    error_sd  = sd((error))
-  ) 
+  spatial_scale_bychain <- spatial_scale %>%
+    group_by(updated_observation_id) %>%
+    summarise(
+      mean_model = mean(modeled_cases),
+      mean_observe = mean(observed_cases)
+    )
+  spatial_scale_bychain <- merge(spatial_scale_bychain, unique(spatial_scale[, c("updated_observation_id", "spatial_scale")]))
+
+  spatial_sum <- spatial_scale_bychain %>%
+    group_by(spatial_scale) %>%
+    summarise(
+      observed_national = mean(mean_observe),
+      modeled_sum = sum(mean_model)
+    )
+
+  spatial_scale_bychain_byspatial <- spatial_scale %>%
+    group_by(updated_observation_id, spatial_scale) %>%
+    summarise(
+      mean_model = mean(modeled_cases),
+      mean_observe = mean(observed_cases)
+    )
+  spatial_scale_bychain_byspatial$error <- spatial_scale_bychain_byspatial$mean_model - spatial_scale_bychain_byspatial$mean_observe
+  spatial_scale_bychain_byspatial <- spatial_scale_bychain_byspatial %>%
+    group_by(spatial_scale) %>%
+    summarise(
+      MSE = mean((error)^2),
+      error_sd = sd((error))
+    )
   return(spatial_scale_bychain_byspatial)
 }

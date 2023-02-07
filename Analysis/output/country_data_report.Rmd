@@ -86,7 +86,7 @@ if (!is.null(cache[["config"]][["test_metadata"]])) {
     lapply(function(observation_spec) {
       as.data.frame(observation_spec)
     }) %>%
-    do.call(what=bind_rows) %>%
+    do.call(what = bind_rows) %>%
     dplyr::mutate(
       tfrac = mapply(s = start_date, e = end_date, FUN = function(s, e) {
         as.numeric(lubridate::as.period(lubridate::interval(lubridate::ymd(s), lubridate::ymd(e) + 1), units = cache[["config"]][["general"]][["time_scale"]]), units = cache[["config"]][["general"]][["time_scale"]])
@@ -213,11 +213,11 @@ warning("Took this one out because it was identical to the adjusted figure. Must
 
 ### Error Tables
 ```{r echo=FALSE }
-plot_error_by_grid(cache=cache,cholera_directory = params$cholera_directory,config=params$config)
+plot_error_by_grid(cache = cache, cholera_directory = params$cholera_directory, config = params$config)
 ```
 
 ```{r echo=FALSE}
-plot_error_by_grid_spatial_scale(cache=cache,cholera_directory = params$cholera_directory,config=params$config)
+plot_error_by_grid_spatial_scale(cache = cache, cholera_directory = params$cholera_directory, config = params$config)
 ```
 
 **Stan trace plots:**
@@ -233,7 +233,7 @@ taxdat::plot_stan_parameter_violin(config = params$config, cache = cache, choler
 
 **w distribution**
 ```{r w_distribution,fig.height=8,fig.width=10,fig.cap=capFig("Distribution of mean w across chains and iterations")}
-plot_w_mean(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
+plot_w_mean(cache = cache, config = params$config, cholera_directory = params$cholera_directory)
 ```
 
 **Gelman-Rubin Rhat:**
