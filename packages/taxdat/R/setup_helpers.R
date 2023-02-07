@@ -1,4 +1,18 @@
 
+#' @title check_countries_name 
+#' @description Checks whether the countries_name is a valid ISO code
+#' @param countries_name the countries_name parameter in the config
+#' @return countries_name if valid
+#' @export
+check_countries_name <- function(countries_name) {
+    iso_codes <- geodata::country_codes()$ISO3
+    if(!all(countries_name %in% iso_codes)){
+        invalid_cc <- countries_name[which(!countries_name %in% iso_codes)]
+        stop(paste(invalid_cc, "in countries_name is not a valid ISO3 code."))
+    }
+    return(countries_name)
+}
+
 #' @include file_name_functions.R
 #' @title check_aoi 
 #' @description Checks whether the aoi is valid
@@ -567,7 +581,7 @@ get_all_config_options <- function() {
     config_options <- list(
       name = "no-check", 
       countries = "no-check", 
-      countries_name = "no-check",
+      countries_name = as.function(check_countries_name),
       aoi = as.function(check_aoi), 
       res_space = as.function(check_res_space), 
       res_time = as.function(check_res_time),

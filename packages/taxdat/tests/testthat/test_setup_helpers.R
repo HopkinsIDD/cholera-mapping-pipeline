@@ -1,5 +1,37 @@
 ## testing for setup_helpers functions
 
+test_that("check_countries_name works", {
+  tmpfile <- tempfile(fileext = ".yml")
+
+  yaml::write_yaml(data.frame(countries_name = "invalid string"), tmpfile)
+  config <- yaml::read_yaml(tmpfile)
+  expect_error(
+    check_countries_name(config$countries_name),
+    "not a valid ISO3"
+  )
+
+  yaml::write_yaml(data.frame(countries_name = c("KEN", "fake")), tmpfile)
+  config <- yaml::read_yaml(tmpfile)
+  expect_error(
+    check_countries_name(config$countries_name),
+    "fake in countries_name is not a valid"
+  )
+
+  yaml::write_yaml(data.frame(countries_name = "KEN"), tmpfile)
+  config <- yaml::read_yaml(tmpfile)
+  expect_equal(
+    check_countries_name(config$countries_name),
+    "KEN"
+  )
+
+  yaml::write_yaml(data.frame(countries_name = c("KEN", "SEN")), tmpfile)
+  config <- yaml::read_yaml(tmpfile)
+  expect_equal(
+    check_countries_name(config$countries_name),
+    c("KEN", "SEN")
+  )
+})
+
 test_that("check_aoi works", {
   tmpfile <- tempfile(fileext = ".yml")
 

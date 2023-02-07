@@ -1490,7 +1490,7 @@ get_country_isocode <- function(config) {
     # Testing runs
     return("testing")
   } else {
-    return(as.character(stringr::str_extract(config$name, "[A-Z]{3}")))
+    return(as.character(config$countries_name))
   }
 }
 

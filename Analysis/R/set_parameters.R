@@ -139,7 +139,7 @@ print("---- Reading Parameters ----\n")
 #### For sql, use numeric ids
 #### For api, use scoped string names
 countries <- config$countries
-countries_name <- config$countries_name
+countries_name <- taxdat::check_countries_name(config$countries_name)
 aoi <- taxdat::check_aoi(config$aoi)
 
 # - - - -
