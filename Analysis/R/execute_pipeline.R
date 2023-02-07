@@ -13,7 +13,11 @@ taxdat::set_error_handling(is_interactive = Sys.getenv("INTERACTIVE_RUN", "FALSE
 ### Libraries TODO : Update this list
 taxdat::update_libraries(perform = Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE), package_list = c(
   "optparse", "DBI", "RPostgres", "sf", "magrittr", "dplyr",
+<<<<<<< HEAD
   "rstan", "xfun", "kableExtra", "MCMCvis", "stars", "raster", "cmdstanr"
+=======
+  "rstan", "xfun", "kableExtra", "MCMCvis"
+>>>>>>> parent of e4a4b619 (trying to solve conflicts)
 ))
 
 library(magrittr)
@@ -56,8 +60,11 @@ option_list <- list(
     help = "Postgres database user"
   ), optparse::make_option(c("--testing_run"),
     action = "store", default = FALSE, type = "logical", help = "Is this run a testing run or a production run"
+<<<<<<< HEAD
   ), optparse::make_option(c("-H", "--postgres_database_host"),
     action = "store", default = "localhost", type = "character", help = "Postgres hostname"
+=======
+>>>>>>> parent of e4a4b619 (trying to solve conflicts)
   )
 )
 
@@ -85,7 +92,11 @@ if (!taxdat::check_config(config)) {
 ### Setup postgres
 conn_pg <- taxdat::connect_to_db(
   dbname = opt[["postgres_database_name"]], dbuser = opt[["postgres_database_user"]],
+<<<<<<< HEAD
   port = opt[["postgres_database_port"]], host = opt[["postgres_database_host"]]
+=======
+  port = opt[["postgres_database_port"]]
+>>>>>>> parent of e4a4b619 (trying to solve conflicts)
 )
 
 cases_column <- "suspected_cases"
@@ -121,7 +132,11 @@ covar_cube <- DBI::dbGetQuery(conn = conn_pg, glue::glue_sql(.con = conn_pg, "SE
        {config[[\"general\"]][[\"time_scale\"]]}
     )")) %>%
   dplyr::filter(!is.na(value)) %>%
+<<<<<<< HEAD
   tidyr::pivot_wider(names_from = covariate_name, values_from = value, values_fn = sum) # QZ: change back to sum becuase of tiles
+=======
+  tidyr::pivot_wider(names_from = covariate_name, values_from = value,values_fn = sum)#QZ: change back to sum becuase of tiles
+>>>>>>> parent of e4a4b619 (trying to solve conflicts)
 covar_cube[["geometry"]] <- sf::st_as_sfc(covar_cube[["geometry"]])
 covar_cube <- sf::st_as_sf(covar_cube)
 print("Pulled covariates")
@@ -312,6 +327,7 @@ if (config[["processing"]][["remove_overlaps"]][["perform"]]) {
   print("Finished removing overlaps")
 }
 
+<<<<<<< HEAD
 if (config[["processing"]][["remove_short_time_observations"]][["perform"]]) {
   print(paste("Removing observations tfrac less than ", config[["processing"]][["remove_short_time_observations"]][["threshold"]]))
   temporally_linked_observations <- observation_data %>%
@@ -334,6 +350,8 @@ if (config[["processing"]][["remove_short_time_observations"]][["perform"]]) {
 
   print("Finished removing observations with small tfracs")
 }
+=======
+>>>>>>> parent of e4a4b619 (trying to solve conflicts)
 
 if (config[["processing"]][["censor_incomplete_observations"]][["perform"]]) {
   print("Censoring incomplete observations")
@@ -627,7 +645,12 @@ if (config[["initial_values"]][["warmup"]]) {
       .x[[cases_column]] <- diff(c(0, round(cumsum(.x[[cases_column]]))))
       .x[[paste("log", cases_column, sep = "_")]] <- log(.x[[cases_column]])
       return(.x)
+<<<<<<< HEAD
     })
+=======
+    }) %>%
+    dplyr::mutate(log_y = log(y), gam_offset = log_y)
+>>>>>>> parent of e4a4b619 (trying to solve conflicts)
 
   number_of_gridcells <- covar_cube %>%
     dplyr::group_by(x, y) %>%
@@ -749,7 +772,11 @@ stan_model_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, co
 options(mc.cores = config[["stan"]][["ncores"]])
 
 standardize_covar <- function(M) {
+<<<<<<< HEAD
   return(apply(M, 2, taxdat::my_scale))
+=======
+  return(apply(M, 2,  taxdat::my_scale))
+>>>>>>> parent of e4a4b619 (trying to solve conflicts)
 }
 
 print("Creating stan data")
@@ -793,22 +820,35 @@ stan_data <- list(
   )]])) + sum(!is.na(observation_data[[paste0(cases_column, "_R")]])))),
   do_time_slice_effect = config[["stan"]][["do_time_slice"]][["perform"]],
   do_time_slice_effect_autocor = config[["stan"]][["do_time_slice"]][["autocorrelated_prior"]],
+<<<<<<< HEAD
   exp_prior = config[["stan"]][["exp_prior"]], # QZ: added exponential betas option in config
   narrower_prior = config[["stan"]][["narrower_prior"]], # QZ: added narrower prior option in config
   has_data_year = has_data_year,
   mat_grid_time = mat_grid_time,
   debug = config[["stan"]][["enable_debug_logging"]]
+=======
+  exp_prior=config[["stan"]][["exp_prior"]],#QZ: added exponential betas option in config
+  narrower_prior=config[["stan"]][["narrower_prior"]],#QZ: added narrower prior option in config
+  has_data_year = has_data_year,
+  mat_grid_time = mat_grid_time,
+  debug = FALSE
+>>>>>>> parent of e4a4b619 (trying to solve conflicts)
 )
 
 print("Finished creating stan data")
 
 
 # Save input
+<<<<<<< HEAD
 print("Creating model input")
+=======
+print("Saving model input")
+>>>>>>> parent of e4a4b619 (trying to solve conflicts)
 stan_input <- list(
   stan_data = stan_data, covar_cube = covar_cube, observation_data = observation_data,
   grid_adjacency = grid_adjacency, observation_temporal_location_mapping = observation_temporal_location_mapping,
   temporal_location_grid_mapping = temporal_location_grid_mapping, initial_values_list = initial_values_list,
+<<<<<<< HEAD
   initial_values_df = initial_values_df, boundary_polygon = boundary_polygon
 )
 print("Saving model input")
@@ -826,6 +866,11 @@ minimal_grid_population$raster_filename <- raster_filenames
 minimal_grid_population$rid <- taxdat::cast_to_int32(minimal_grid_population$rid)
 minimal_grid_population$temporal_grid_id <- taxdat::cast_to_int32(minimal_grid_population$temporal_grid_id)
 readr::write_csv(minimal_grid_population, config[["file_names"]][["minimal_grid_population"]])
+=======
+  initial_values_df = initial_values_df, boundary_polygon = boundary_polygon, minimal_grid_population = minimal_grid_population
+)
+save(stan_input, file = config[["file_names"]][["stan_input"]])
+>>>>>>> parent of e4a4b619 (trying to solve conflicts)
 print("Finished saving model input")
 
 print("Running STAN")
