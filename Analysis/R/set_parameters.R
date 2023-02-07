@@ -346,9 +346,11 @@ config_user <- config
 for (param in names(taxdat::get_all_config_options())) {
   if (exists(param) & param != "stan") {
     config[[param]] <- get(param)
+  } else if (!exists(param) & param != "stan"){
+    config[[param]] <- stan_params[[param]]
   }
 }
-print("This is the explicit runtime config (debugging).")
+print("This is the explicit runtime config (printed for debugging).")
 print(config)
 
 # Pipeline steps ---------------------------------------------------------------
