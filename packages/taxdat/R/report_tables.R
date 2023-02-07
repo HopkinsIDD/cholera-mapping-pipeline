@@ -208,10 +208,10 @@ table_population_by_admin <- function(config, cache, cholera_directory) {
 table_modeled_cases_by_chain_time <- function(config, cache, cholera_directory) {
   aggregate_grid_cases_mean_by_chain(config = config, cache = cache, cholera_directory = cholera_directory)
   get_covar_cube(config = config, cache = cache, cholera_directory = cholera_directory)
-  covar_cube_tbl <- cache[["covar_cube"]] %>%
+  cache[["covar_cube"]] <- cache[["covar_cube"]] %>%
     dplyr::ungroup() %>%
     dplyr::select(t, id)
-  covar_cube_tbl[, paste("cases", "chain", seq_len(ncol(cache[["grid_cases_mean_by_chain"]])), sep = "_")] <- cache[["grid_cases_mean_by_chain"]]
+  cache[["covar_cube"]][, paste("cases", "chain", seq_len(ncol(cache[["grid_cases_mean_by_chain"]])), sep = "_")] <- cache[["grid_cases_mean_by_chain"]]
 
   get_modeled_years(config = config, cache = cache, cholera_directory = cholera_directory)
   get_analysis_years(config = config, cache = cache, cholera_directory = cholera_directory)
@@ -220,10 +220,10 @@ table_modeled_cases_by_chain_time <- function(config, cache, cholera_directory) 
   if (params$drop_nodata_years & !all(cache[["modeled_years"]] %in% cache[["analysis_years"]])) {
     drop_year_ix <- which(!cache[["modeled_years"]] %in% cache[["analysis_years"]])
     message(paste("Dropping", paste(cache[["modeled_years"]][drop_year_ix], collapse = ", "), "from cases_chains"))
-    covar_cube_tbl <- dplyr::filter(covar_cube_tbl, !(t %in% drop_year_ix))
+    cache[["covar_cube"]] <- dplyr::filter(cache[["covar_cube"]], !(t %in% drop_year_ix))
   }
 
-  sf_grid_wider <- sf::st_drop_geometry(covar_cube_tbl)
+  sf_grid_wider <- sf::st_drop_geometry(cache[["covar_cube"]])
 
   by_years <- sf_grid_wider %>%
     dplyr::group_by(t) %>%
