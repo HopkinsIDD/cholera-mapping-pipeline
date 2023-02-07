@@ -46,12 +46,11 @@ remove_inconsistent_duplicates <- function(case_data, columns_to_mean_over, uniq
     ) %>%
     dplyr::summarize(
       dplyr::across(columns_to_mean_over, mean, na.rm = TRUE),
-      unique_observation_ids = paste(
-        sort(unique(sprintf(paste0(
-          "%0",
-          ceiling(log(max(case_data$observation_id)) / log(10)), "d"
-        ), as.integer(observation_id)))),
-        collapse = " "
+      unique_observation_ids = paste(sort(unique(sprintf(paste0(
+        "%0",
+        ceiling(log(max(case_data$observation_id)) / log(10)), "d"
+      ), as.integer(observation_id)))),
+      collapse = " "
       )
       ## Do something to account for other columns which are relatively unique here
     ) %>%
@@ -107,12 +106,11 @@ aggregate_case_data <- function(case_data, unique_column_names = c("loctime"), c
           unique_observation_ids = ifelse(
             "unique_observation_ids" %in% names(.x),
             paste(unique_observation_ids, collapse = " "),
-            paste(
-              sort(unique(sprintf(paste0(
-                "%0",
-                ceiling(log(max(case_data$observation_id)) / log(10)), "d"
-              ), as.integer(observation_id)))),
-              collapse = " "
+            paste(sort(unique(sprintf(paste0(
+              "%0",
+              ceiling(log(max(case_data$observation_id)) / log(10)), "d"
+            ), as.integer(observation_id)))),
+            collapse = " "
             )
           ), .groups = "drop"
         ) %>%
@@ -214,6 +212,7 @@ reorder_adjacency_matrix <- function(adjacency_frame, element_bias, id_cols = c(
                                        "id_1",
                                        "id_2"
                                      )) {
+
   ## element_bias <- covar_cube %>% dplyr::filter(t == min(t)) %>%
   ## mutate(bias = x - y) %>% .[['bias']]
 
