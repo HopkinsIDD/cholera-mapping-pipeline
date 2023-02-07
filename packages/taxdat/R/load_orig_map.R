@@ -4,20 +4,25 @@
 #' @description load original cholera data estimates (tif or grd) as raster
 #' @param filename object representing the imported YAML config file for the model
 #' @return raster of mean or samples of cholera data estimates
-load_orig_map <- function(filename) {
-  if (grepl(".tif$", filename)) { ## tif files on website have no crs
+load_orig_map <- function(filename){
+  
+  if(grepl(".tif$", filename)){ ## tif files on website have no crs
     orig <- raster::brick(filename)
-  } else if (grepl(".grd$", filename)) {
+  
+  } else if(grepl(".grd$", filename)){
     orig <- raster::brick(filename)
-  } else {
+     
+  } else{
     stop(paste("Loading a file type of", filename, "is not supported"))
   }
 
   ## add missing CRS as needed
-  if (is.na(raster::crs(orig))) {
+  if(is.na(raster::crs(orig))){
     ## this is the CRS for all of the old raster products
     raster::crs(orig) <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
   }
 
   return(orig)
 }
+
+
