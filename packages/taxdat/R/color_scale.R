@@ -115,13 +115,25 @@ color_scale <- function(type = "cases", use_case = "leaflet", use_log = FALSE) {
     limits <- c(-3, 3)
   } else if (type %in% c("population")) {
     colors <- scales::viridis_pal(alpha = 1, begin = 0, end = 1, direction = 1)(5)
+    limits <- c(100, 1e+6)
+    breaks <- function(x) {
+      return(c(1e3, 1e4, 1e5))
+    }
     if (use_log) {
-      transform <- scales::log10_trans()
+      transform <- scales::trans_new(
+        name = "log10per1e5",
+        transform = function(x) {
+          log10(x * 1e5)
+        },
+        inverse = function(x) {
+          (10^x) / 1e5
+        },
+        domain = c(100, 1e+6),
+        breaks = breaks
+      )
     } else {
       transform <- scales::identity_trans()
     }
-
-    limits <- c(1, 1e+5)
   } else {
     stop(paste("The type", type, "is not recognized"))
   }

@@ -4,9 +4,9 @@
 #' @description Takes a line ist and adds daily primary phantom observations for locations and dates not present in the linelist
 #' @param linelist A linelist.  The following columns are required:
 #'   - location
-#'   - TL 
+#'   - TL
 #'   - TR
-#'   - at least one of 
+#'   - at least one of
 #'     - sCh (suspected cases)
 #'     - cCh (confirmed cases)
 #'     - deaths
@@ -21,49 +21,47 @@
 #'  - case_column
 #'  - each of the location_columns
 #'  - each of the confirmed_cases
-linelist2phantom <- function(
-  linelist,
-  assumed_complete_location,
-  assumed_complete_TL,
-  assumed_complete_TR,
-  location_columns = "Location",
-  case_columns = c('sCh','cCh', 'deaths')
-){
-  if(any(sapply(linelist,class) == c('factor'))){
-    badness <- which(sapply(linelist,class) == 'factor')
-    for(bad in badness){
+linelist2phantom <- function(linelist,
+                             assumed_complete_location,
+                             assumed_complete_TL,
+                             assumed_complete_TR,
+                             location_columns = "Location",
+                             case_columns = c("sCh", "cCh", "deaths")) {
+  if (any(sapply(linelist, class) == c("factor"))) {
+    badness <- which(sapply(linelist, class) == "factor")
+    for (bad in badness) {
       linelist[[bad]] <- as.character(linelist[[bad]])
     }
   }
   ## Check names
-  names2check <- c('TL', 'TR')
+  names2check <- c("TL", "TR")
   missing_names <- names2check[!names2check %in% names(linelist)]
-  if (length(missing_names) > 0){
-    stop(paste("linelist requires columns named",paste(missing_names,collapse = ", ")))
+  if (length(missing_names) > 0) {
+    stop(paste("linelist requires columns named", paste(missing_names, collapse = ", ")))
   }
-  if(!any(location_columns %in% names(linelist))){
-    stop(paste("At least one of ",paste(location_columns, sep=", "),"is required"))
+  if (!any(location_columns %in% names(linelist))) {
+    stop(paste("At least one of ", paste(location_columns, sep = ", "), "is required"))
   }
   location_columns <- location_columns[location_columns %in% names(linelist)]
-  for(col in location_columns){
+  for (col in location_columns) {
     linelist[[col]] <- as.character(linelist[[col]])
   }
-  if(!any(case_columns %in% names(linelist))){
-    stop(paste("At least one of ",paste(case_columns,sep=", "),"is required"))
+  if (!any(case_columns %in% names(linelist))) {
+    stop(paste("At least one of ", paste(case_columns, sep = ", "), "is required"))
   }
   case_columns <- case_columns[case_columns %in% names(linelist)]
-  if(class(linelist$TL) == 'character'){
-    linelist$TL = lubridate::ymd(linelist$TL)
+  if (class(linelist$TL) == "character") {
+    linelist$TL <- lubridate::ymd(linelist$TL)
   }
-  if(class(linelist$TR) == 'character'){
-    linelist$TR = lubridate::ymd(linelist$TR)
+  if (class(linelist$TR) == "character") {
+    linelist$TR <- lubridate::ymd(linelist$TR)
   }
-  if(any(linelist$TL != linelist$TR)){
+  if (any(linelist$TL != linelist$TR)) {
     stop("Linelist data should have the same TL and TR")
   }
-  linelist <- tidyr::unite(linelist,"Location",!!location_columns,sep='::',na.rm=TRUE)
+  linelist <- tidyr::unite(linelist, "Location", !!location_columns, sep = "::", na.rm = TRUE)
   original_linelist <- linelist
-  linelist <- dplyr::select(linelist,Location,!!names2check,!!case_columns)
+  linelist <- dplyr::select(linelist, Location, !!names2check, !!case_columns)
   test <- dplyr::bind_rows(dplyr::group_map(
     dplyr::group_by(
       linelist,
@@ -75,27 +73,27 @@ linelist2phantom <- function(
     assumed_complete_location = assumed_complete_location
   ))
   ## time range
-  if(missing(assumed_complete_TL)){
+  if (missing(assumed_complete_TL)) {
     assumed_complete_TL <- min(linelist$TL)
   }
-  if(missing(assumed_complete_TR)){
+  if (missing(assumed_complete_TR)) {
     assumed_complete_TR <- max(linelist$TR)
   }
   # last_time <- max(linelist$TR)
   # Get range of all observed times
-  #time_range <- assumed_complete_TL + lubridate::days(0:as.numeric(lubridate::day(lubridate::days(assumed_complete_TR - assumed_complete_TL))))
+  # time_range <- assumed_complete_TL + lubridate::days(0:as.numeric(lubridate::day(lubridate::days(assumed_complete_TR - assumed_complete_TL))))
 
   # Compute sums by location TL and TR
   test <- dplyr::ungroup(
     dplyr::summarize_all(
-      dplyr::group_by(test,TL,TR,Location,lowest_level),
-      list(~ sum(.,na.rm=T))
+      dplyr::group_by(test, TL, TR, Location, lowest_level),
+      list(~ sum(., na.rm = T))
     )
   )
-  
+
   # Create combination of all locations and times
   # all_combinations <- tidyr::expand(
-  #   test, 
+  #   test,
   #   TL = time_range,
   #   tidyr::nesting(Location,lowest_level)
   #   )
@@ -103,37 +101,38 @@ linelist2phantom <- function(
   #   all_combinations,
   #   TR = TL
   #   )
-  
-##QZ version: one location can be assumed to be complete for a specific time period.
+
+  ## QZ version: one location can be assumed to be complete for a specific time period.
   # Create combination of all locations and times
-  time_range<-data.frame(Location=assumed_complete_location,assumed_complete_TL=assumed_complete_TL,assumed_complete_TR=assumed_complete_TR)
-  
-  all_combinations<-data.frame()
+  time_range <- data.frame(Location = assumed_complete_location, assumed_complete_TL = assumed_complete_TL, assumed_complete_TR = assumed_complete_TR)
+
+  all_combinations <- data.frame()
   for (index in 1:nrow(time_range)) {
-    time_range_tmp=time_range$assumed_complete_TL[index]+lubridate::days(0:as.numeric(lubridate::day(lubridate::days(time_range$assumed_complete_TR[index] - time_range$assumed_complete_TL[index]))))
-    
+    time_range_tmp <- time_range$assumed_complete_TL[index] + lubridate::days(0:as.numeric(lubridate::day(lubridate::days(time_range$assumed_complete_TR[index] - time_range$assumed_complete_TL[index]))))
+
     all_combinations_tmp <- tidyr::expand(
-      test[which(test$Location==time_range$Location[index]),], 
+      test[which(test$Location == time_range$Location[index]), ],
       TL = time_range_tmp,
-      tidyr::nesting(Location,lowest_level)
+      tidyr::nesting(Location, lowest_level)
     )
     all_combinations_tmp <- dplyr::mutate(
       all_combinations_tmp,
       TR = TL
     )
-    all_combinations=dplyr::bind_rows(all_combinations,all_combinations_tmp)
+    all_combinations <- dplyr::bind_rows(all_combinations, all_combinations_tmp)
   }
-  
+
   # Expand to cover all times for all locations
-  test <- dplyr::full_join(test,
+  test <- dplyr::full_join(
+    test,
     all_combinations
   )
 
   # Fill in 0s for all locations for which no linelist information was available
   # at a given time
-  for(cc in case_columns){
+  for (cc in case_columns) {
     cc <- rlang::sym(cc)
-    test <- dplyr::mutate(test,!!cc := ifelse(is.na(!!cc),0,!!cc))
+    test <- dplyr::mutate(test, !!cc := ifelse(is.na(!!cc), 0, !!cc))
   }
   test <- dplyr::summarize_at(
     dplyr::group_by(
@@ -143,20 +142,20 @@ linelist2phantom <- function(
       TR
     ),
     .vars = case_columns,
-    .funs = list(~sum(.))
+    .funs = list(~ sum(.))
   )
-  test <- dplyr::select(test,Location,!!names2check,!!case_columns)
-  test$Primary = TRUE
-  original_linelist$Primary = FALSE
-  test$Phantom = TRUE
-  original_linelist$Phantom = FALSE
-  if(length(location_columns) > 1){
-    linelist <- dplyr::bind_rows(original_linelist,test)
-    linelist <- tidyr::separate(linelist, "Location",location_columns,sep='::')
+  test <- dplyr::select(test, Location, !!names2check, !!case_columns)
+  test$Primary <- TRUE
+  original_linelist$Primary <- FALSE
+  test$Phantom <- TRUE
+  original_linelist$Phantom <- FALSE
+  if (length(location_columns) > 1) {
+    linelist <- dplyr::bind_rows(original_linelist, test)
+    linelist <- tidyr::separate(linelist, "Location", location_columns, sep = "::")
   } else {
-    linelist <- dplyr::bind_rows(original_linelist,test)
+    linelist <- dplyr::bind_rows(original_linelist, test)
     linelist[[location_columns]] <- linelist$Location
-    if(!(location_columns == "Location")){
+    if (!(location_columns == "Location")) {
       linelist$Location <- NULL
     }
   }
@@ -168,8 +167,8 @@ linelist2phantom <- function(
 #' @description Helper function to sum vectors with NA values correctly
 #' @param x vector to sum
 #' @return
-na_smart_sum <- function(x){
-  if(all(is.na(x))){
+na_smart_sum <- function(x) {
+  if (all(is.na(x))) {
     return(as.numeric(NA))
   } else {
     return(sum(x, na.rm = TRUE))
@@ -184,27 +183,29 @@ na_smart_sum <- function(x){
 #' @param assumed_complete_location string with assumed complete location
 #' @param all_locations list of unique locations
 #' @return
-expand_all_locations = function(.x, .y, assumed_complete_location, all_locations){
+expand_all_locations <- function(.x, .y, assumed_complete_location, all_locations) {
   # Compute some of all data columns for specific combination of location, TL and TR
   .x <- dplyr::summarize_all(.x, na_smart_sum)
   # Get all the names of all location levels in location period
   all_location <- strsplit(.y$Location, "::")[[1]]
   # Create consistent location hierarchy
-  for(i in length(all_location):1){
-    all_location[i] <- paste(all_location[1:i],collapse='::')
+  for (i in length(all_location):1) {
+    all_location[i] <- paste(all_location[1:i], collapse = "::")
   }
-  # Keep only locations that are either the assumed_complete_location or locations 
-  # children of the latter 
-  # QZ: update the the code to identify over one assumed_complete_locations. 
-  all_location <- all_location[grepl(paste0(assumed_complete_location,collapse = "|"),all_location)]
-  if(length(all_location) > 0){
+  # Keep only locations that are either the assumed_complete_location or locations
+  # children of the latter
+  # QZ: update the the code to identify over one assumed_complete_locations.
+  all_location <- all_location[grepl(paste0(assumed_complete_location, collapse = "|"), all_location)]
+  if (length(all_location) > 0) {
     # Create full dataframe of the observations at all location levels
     .x <- dplyr::bind_rows(
-    lapply(
-      1:length(all_location),
-      function(x){
-        .x
-      }))
+      lapply(
+        1:length(all_location),
+        function(x) {
+          .x
+        }
+      )
+    )
     # Fill in location information
     .x$Location <- all_location
     .x$lowest_level <- FALSE

@@ -224,7 +224,7 @@ rds_file <- config[["test_metadata"]][["file_names"]][["simulation_covariates"]]
 if (!dir.exists(dirname(rds_file))) {
   dir.create(dirname(rds_file))
 }
-#QZ: this is simulation covariates not modeling covariates
+# QZ: this is simulation covariates not modeling covariates
 saveRDS(test_covariates_simulation, rds_file)
 
 ## ------------------------------------------------------------------------------------------------------------------------
@@ -263,11 +263,11 @@ test_observations <- lapply(config[["test_metadata"]][["observations"]], functio
     observation_time_left = lubridate::ymd(spec[["start_date"]]),
     observation_time_right = lubridate::ymd(spec[["end_date"]]),
     seed = global_seed,
-    time_scale=config[["test_metadata"]][["raster"]][["units"]]
+    time_scale = config[["test_metadata"]][["raster"]][["units"]]
   )
   if (grepl("inflated", spec[["template"]])) {
     rc <- rc %>%
-      dplyr::mutate(cases = ifelse(location == config[["general"]][["location_name"]], cases, cases * spec[["inflation_factor"]]))#QZ: changed qualified_name into location/change location into location_names
+      dplyr::mutate(cases = ifelse(location == config[["general"]][["location_name"]], cases, cases * spec[["inflation_factor"]])) # QZ: changed qualified_name into location/change location into location_names
   }
   if (grepl("iso_level", spec[["template"]])) {
     rc <- rc %>%
@@ -310,10 +310,10 @@ true_grid_data$observed<- mapply(
     rc <- intersect(x, y)
     rc <- rc[true_grid_data$t[idx] == test_observations$tmin[rc]]
     rc <- rc[true_grid_data$t[idx] == test_observations$tmax[rc]]
-    return(ifelse(length(rc) > 0, "Observed grid cells","Unobserved grid cells"))
+    return(ifelse(length(rc) > 0, "Observed grid cells", "Unobserved grid cells"))
   }
 )
-saveRDS(true_grid_data,rds_file)
+saveRDS(true_grid_data, rds_file)
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database

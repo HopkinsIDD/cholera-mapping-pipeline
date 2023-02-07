@@ -1,6 +1,4 @@
 #' @include pull_data_helpers.R
-#' @include setup_helpers.R
-#' @include file_name_functions.R
 
 #' @export
 #' @name read_file_of_type

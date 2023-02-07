@@ -1,4 +1,4 @@
-create or replace function filter_location_periods(location_name text)
+CREATE FUNCTION filter_location_periods(location_name text)
   returns table(id bigint, location_id bigint, qualified_name text, location_period_id bigint) AS $$
   SELECT
     ROW_NUMBER() OVER (ORDER BY 1),

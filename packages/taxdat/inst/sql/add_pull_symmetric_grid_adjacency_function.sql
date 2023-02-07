@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION pull_symmetric_grid_adjacency(location_name text, width_in_km int, height_in_km int)
+CREATE FUNCTION pull_symmetric_grid_adjacency(location_name text, width_in_km int, height_in_km int)
 RETURNS TABLE(id_1 BIGINT, rid_1 INT, x_1 INT, y_1 INT, id_2 BIGINT, rid_2 INT, x_2 INT, y_2 INT)AS $$
   SELECT
     lhs.id AS id_1,

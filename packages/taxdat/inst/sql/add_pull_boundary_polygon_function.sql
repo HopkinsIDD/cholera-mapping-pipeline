@@ -1,4 +1,4 @@
-create or replace function pull_boundary_polygon(location_name text)
+CREATE FUNCTION pull_boundary_polygon(location_name text)
   returns table(
     shape geometry
   ) AS $$

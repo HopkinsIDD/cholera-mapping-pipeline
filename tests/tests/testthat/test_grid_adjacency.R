@@ -1,5 +1,3 @@
-
-
 ## Basic test to make sure that testing setup works
 context("Test 2 : Grid Adjacency")
 
@@ -109,20 +107,22 @@ test_that("pull_symmetric_grid_adjacency has the right size", {
   })
   names(symmetric_grid_neighbors[[1]]) <- c("neighbors_1", "count_1")
   names(symmetric_grid_neighbors[[2]]) <- c("neighbors_2", "count_2")
-  expected_counts <- dplyr::summarize(dplyr::group_by(dplyr::mutate(tidyr::crossing(
-    symmetric_grid_neighbors[[1]],
-    symmetric_grid_neighbors[[2]]
-  ), neighbors = (neighbors_1 + 1) * (neighbors_2 +
-    1) - 1, count = count_1 * count_2, contribution = count * neighbors), neighbors),
-  count = sum(count), contribution = sum(contribution), .groups = "drop"
+  expected_counts <- dplyr::summarize(
+    dplyr::group_by(dplyr::mutate(tidyr::crossing(
+      symmetric_grid_neighbors[[1]],
+      symmetric_grid_neighbors[[2]]
+    ), neighbors = (neighbors_1 + 1) * (neighbors_2 +
+      1) - 1, count = count_1 * count_2, contribution = count * neighbors), neighbors),
+    count = sum(count), contribution = sum(contribution), .groups = "drop"
   )
   expect_equal(nrow(symmetric_grid_adjacency), sum(expected_counts$contribution))
-  expect_equal(dplyr::summarize(dplyr::group_by(dplyr::summarize(dplyr::group_by(
-    symmetric_grid_adjacency,
-    id_1
-  ), neighbors = length(id_2), .groups = "drop"), neighbors),
-  count = length(neighbors),
-  .groups = "drop"
+  expect_equal(dplyr::summarize(
+    dplyr::group_by(dplyr::summarize(dplyr::group_by(
+      symmetric_grid_adjacency,
+      id_1
+    ), neighbors = length(id_2), .groups = "drop"), neighbors),
+    count = length(neighbors),
+    .groups = "drop"
   ), expected_counts[, c("neighbors", "count")])
 })
 
@@ -135,37 +135,40 @@ test_that("pull_grid_adjacency has the right size", {
   })
   names(grid_neighbors[[1]]) <- c("neighbors_1", "count_1")
   names(grid_neighbors[[2]]) <- c("neighbors_2", "count_2")
-  expected_counts <- dplyr::summarize(dplyr::group_by(dplyr::mutate(tidyr::crossing(
-    grid_neighbors[[1]],
-    grid_neighbors[[2]]
-  ), neighbors = grepl("^l", neighbors_1) + grepl(
-    "^l",
-    neighbors_2
-  ) + grepl("^l", neighbors_1) * nchar(neighbors_2), count = count_1 *
-    count_2, contribution = count * neighbors), neighbors),
-  count = sum(count),
-  contribution = sum(contribution), .groups = "drop"
+  expected_counts <- dplyr::summarize(
+    dplyr::group_by(dplyr::mutate(tidyr::crossing(
+      grid_neighbors[[1]],
+      grid_neighbors[[2]]
+    ), neighbors = grepl("^l", neighbors_1) + grepl(
+      "^l",
+      neighbors_2
+    ) + grepl("^l", neighbors_1) * nchar(neighbors_2), count = count_1 *
+      count_2, contribution = count * neighbors), neighbors),
+    count = sum(count),
+    contribution = sum(contribution), .groups = "drop"
   )
   symmetric_grid_neighbors <- lapply(grid_size, function(x) {
     data.frame(neighbors = c(1, 2), count = c(2, x - 2))
   })
   names(symmetric_grid_neighbors[[1]]) <- c("neighbors_1", "count_1")
   names(symmetric_grid_neighbors[[2]]) <- c("neighbors_2", "count_2")
-  symmetric_expected_counts <- dplyr::summarize(dplyr::group_by(dplyr::mutate(tidyr::crossing(
-    symmetric_grid_neighbors[[1]],
-    symmetric_grid_neighbors[[2]]
-  ), neighbors = (neighbors_1 + 1) * (neighbors_2 +
-    1) - 1, count = count_1 * count_2, contribution = count * neighbors), neighbors),
-  count = sum(count), contribution = sum(contribution), .groups = "drop"
+  symmetric_expected_counts <- dplyr::summarize(
+    dplyr::group_by(dplyr::mutate(tidyr::crossing(
+      symmetric_grid_neighbors[[1]],
+      symmetric_grid_neighbors[[2]]
+    ), neighbors = (neighbors_1 + 1) * (neighbors_2 +
+      1) - 1, count = count_1 * count_2, contribution = count * neighbors), neighbors),
+    count = sum(count), contribution = sum(contribution), .groups = "drop"
   )
   expect_equal(nrow(grid_adjacency), sum(symmetric_expected_counts$contribution) / 2)
   expect_equal(nrow(grid_adjacency), sum(expected_counts$contribution))
-  expect_equal(dplyr::summarize(dplyr::group_by(dplyr::summarize(dplyr::group_by(
-    grid_adjacency,
-    id_1
-  ), neighbors = length(id_2), .groups = "drop"), neighbors),
-  count = length(neighbors),
-  .groups = "drop"
+  expect_equal(dplyr::summarize(
+    dplyr::group_by(dplyr::summarize(dplyr::group_by(
+      grid_adjacency,
+      id_1
+    ), neighbors = length(id_2), .groups = "drop"), neighbors),
+    count = length(neighbors),
+    .groups = "drop"
   ), dplyr::filter(
     expected_counts[, c("neighbors", "count")],
     neighbors > 0

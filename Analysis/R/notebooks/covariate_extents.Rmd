@@ -9,7 +9,7 @@ params:
   cholera_directory: "~/projects/cholera-mapping-pipeline"
 ---
 ```{r setup, include=FALSE, dev="CairoPNG"}
-knitr::opts_chunk$set(inlude = FALSE, dev="CairoPNG")
+knitr::opts_chunk$set(inlude = FALSE, dev = "CairoPNG")
 knitr::opts_chunk$set(
   echo = FALSE,
   fig.align = "center",
@@ -36,14 +36,18 @@ library(cowplot)
 covar_dict <- yaml::read_yaml(str_c(params$cholera_directory, "/Layers/covariate_dictionary.yml"))
 
 cat("Available covariate in dictionnary:\n")
-map_df(covar_dict, ~ tibble(covariate = .$name, 
-                            abbrev = .$abbr,
-                            description = .$description)) %>% 
-  mutate(` ` = row_number()) %>% 
-  dplyr::select(` `, covariate, abbrev, description) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F,
-                            bootstrap_options = c("striped"))
+map_df(covar_dict, ~ tibble(
+  covariate = .$name,
+  abbrev = .$abbr,
+  description = .$description
+)) %>%
+  mutate(` ` = row_number()) %>%
+  dplyr::select(` `, covariate, abbrev, description) %>%
+  kableExtra::kable() %>%
+  kableExtra::kable_styling(
+    full_width = F,
+    bootstrap_options = c("striped")
+  )
 ```
 
 ```{r metadata}
@@ -52,19 +56,21 @@ source(str_c(params$cholera_directory, "/Analysis/R/database_api_key.R"))
 thisuser <- Sys.getenv("USER")
 conn <- taxdat::connect_to_db(thisuser)
 cov_meta <- RPostgres::dbGetQuery(conn, "SELECT * FROM covariates.metadata;")
-cov_meta <- filter(cov_meta, res_x == 20 & (res_time != "1 months"  | is.na(res_time)))
+cov_meta <- filter(cov_meta, res_x == 20 & (res_time != "1 months" | is.na(res_time)))
 cat("Covariates in database:\n")
-cov_meta %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(full_width = F,
-                            bootstrap_options = c("striped"))
+cov_meta %>%
+  kableExtra::kable() %>%
+  kableExtra::kable_styling(
+    full_width = F,
+    bootstrap_options = c("striped")
+  )
 ```
 
 ```{r plots, echo=FALSE, message=FALSE, warning=FALSE}
 # Rearrange order to make pretty
 cov_meta$cov <- map2_chr(cov_meta$covariate, cov_meta$res_time, ~ str_split(.x, ifelse(is.na(.y), "__", str_c("_", str_replace(.y, " ", "_"))))[[1]][1])
 
-cov_meta <- cov_meta %>% 
+cov_meta <- cov_meta %>%
   arrange(cov, res_x, res_time)
 
 # load first band of each covariate
@@ -96,29 +102,27 @@ for (cov in unique(cov_meta$cov)) {
   cov_plots <- cov_rasters[ind_cov]
   cov_res_x <- cov_meta$res_x[ind_cov]
   cov_res_t <- cov_meta$res_time[ind_cov]
-  
+
   # cov_title <- cowplot::ggdraw() +
   #   cowplot::draw_label(cov, fontface = 'bold', x = 0, hjust = 0) +
   #   theme(plot.margin = margin(0, 0, 0, 0))
 
   # Plot raters by res_x
   cov_plot_res_x <- lapply(
-    unique(cov_res_x), 
-    function(res_x) 
-    {
+    unique(cov_res_x),
+    function(res_x) {
       # cat(res_x, "\n")
-      # cov_title_res_x <- cowplot::ggdraw() + 
+      # cov_title_res_x <- cowplot::ggdraw() +
       #   cowplot::draw_label(str_c("Spatial resolution: ", res_x, "x", res_x, " km"), x = 0, hjust = 0) +
       #   theme(plot.margin = margin(0, 0, 0, 0))
-      
+
       if (is.na(unique(cov_res_t[cov_res_x == res_x]))) {
         rast <- cov_plots[[cov_res_x == res_x]]
         plot(cov_plots[[cov_res_x == res_x]], main = str_c("Spatial resolution: ", res_x, "x", res_x, " km; static"))
       } else {
         p_res_time <- lapply(
-          unique(cov_res_t[cov_res_x == res_x]), 
-          function(res_time)
-          {
+          unique(cov_res_t[cov_res_x == res_x]),
+          function(res_time) {
             if (sum(cov_res_x == res_x & cov_res_t == res_time) > 0) {
               rast <- try(cov_plots[[cov_res_x == res_x & cov_res_t == res_time]])
               if (inherits(rast, "try-error")) {
@@ -127,10 +131,11 @@ for (cov in unique(cov_meta$cov)) {
             } else {
               break()
             }
-           plot(cov_plots[[cov_res_x == res_x & cov_res_t == res_time]], main = str_c("Spatial resolution: ", res_x, "x", res_x, " km; temporal: ", res_time))
-          })
+            plot(cov_plots[[cov_res_x == res_x & cov_res_t == res_time]], main = str_c("Spatial resolution: ", res_x, "x", res_x, " km; temporal: ", res_time))
+          }
+        )
       }
-      
+
       # gridExtra::arrangeGrob(p_res_time)
       # cowplot::plot_grid(
       #   plotlist = list(cov_title_res_x,
@@ -139,7 +144,8 @@ for (cov in unique(cov_meta$cov)) {
       #                                      align = "h")),
       #   ncol = 1,
       #   rel_heights = c(.1, 1))
-    })
+    }
+  )
   # plot(cov_plot_res_x)
   # print(cowplot::plot_grid(
   #   plotlist = list(cov_title,
@@ -147,12 +153,11 @@ for (cov in unique(cov_meta$cov)) {
   #                                      ncol = 1)),
   #   ncol = 1,
   #   rel_heights = c(.1, 1)))
-  # 
+  #
   l <- l + 1
 }
 
 # cowplot::plot_grid(plotlist = rast_plots, ncol = 2)
-
 ```
 
 

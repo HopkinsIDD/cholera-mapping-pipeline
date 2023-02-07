@@ -1,4 +1,4 @@
-create or replace function resize_spatial_grid(width_in_km int, height_in_km int)
+CREATE FUNCTION resize_spatial_grid(width_in_km int, height_in_km int)
   returns table(rid integer, rast raster)
   as $$
   SELECT

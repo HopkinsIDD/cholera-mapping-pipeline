@@ -1,4 +1,4 @@
-create or replace function filter_resized_spatial_grid_pixels_to_location(location_name text, width_in_km int, height_in_km int)
+CREATE FUNCTION filter_resized_spatial_grid_pixels_to_location(location_name text, width_in_km int, height_in_km int)
   returns table(id bigint, rid int, x int, y int, centroid geometry, polygon geometry) AS $$
  SELECT
     DISTINCT
