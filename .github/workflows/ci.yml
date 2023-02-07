@@ -48,12 +48,12 @@ jobs:
         env:
           CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
           CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
-          CHOLERA_POSTGRES_PORT: 5432
         run: |
           chown app:app -R ./
           chmod 777 -R ./
           service postgresql start
           service postgresql status
+          export CHOLERA_POSTGRES_PORT=5432
           cd packages/taxdat
           sudo -E -u app Rscript -e "devtools::test(stop_on_failure=TRUE)"
         shell: bash
@@ -61,12 +61,11 @@ jobs:
         env:
           CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
           CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
-          CHOLERA_POSTGRES_PORT: 5432
         run: |
           chown app:app -R ./
           chmod 777 -R ./
-          chmod 777 -R $HOME/.cache
           service postgresql start
+          export CHOLERA_POSTGRES_PORT=5432
           sudo -E -u app Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
           cd tests
           sudo -E -u app Rscript -e "devtools::test(stop_on_failure=TRUE)"
@@ -75,7 +74,6 @@ jobs:
         env:
           CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
           CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
-          CHOLERA_POSTGRES_PORT: 5432
         run: |
           chown app:app -R ./
           chmod 777 -R ./
