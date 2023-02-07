@@ -1,4 +1,4 @@
-CREATE MATERIALIZED VIEW location_period_raster_map AS
+CREATE MATERIALIZED VIEW IF NOT EXISTS location_period_raster_map AS
   SELECT
     shapes.id as shape_id,
     location_period_id,
