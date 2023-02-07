@@ -1,4 +1,4 @@
-CREATE FUNCTION resize_temporal_grid(time_unit text)
+create or replace function resize_temporal_grid(time_unit text)
 RETURNS table(id bigint, time_midpoint date, time_min date, time_max date) AS
 $$
   BEGIN
