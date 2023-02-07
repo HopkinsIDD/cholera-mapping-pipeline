@@ -1,7 +1,7 @@
-CREATE FUNCTION pull_covar_cube(location_name text, start_date date, end_date date, width_in_km int, height_in_km int, time_scale text)
+create or replace function pull_covar_cube(location_name text, start_date date, end_date date, width_in_km int, height_in_km int, time_scale text)
 RETURNS TABLE(covariate_name text, t bigint, id bigint, rid int, x int, y int, value double precision, geometry geometry)AS $$
 SELECT
-  raster_covariate_collections.name,
+  resized_covariates.covariate_name,
   temporal_grid.id as t,
   grid_pixels.id as grid_id,
   grid_pixels.rid as grid_rid,
@@ -21,10 +21,6 @@ INNER JOIN
     ON
       resized_covariates.time_left <= temporal_grid.time_midpoint AND
       resized_covariates.time_right >= temporal_grid.time_midpoint
-INNER
-  JOIN public.raster_covariate_collections
-    ON
-      resized_covariates.raster_covariate_collection_id = raster_covariate_collections.id
 WHERE
     temporal_grid.time_midpoint >= start_date AND
     temporal_grid.time_midpoint <= end_date
