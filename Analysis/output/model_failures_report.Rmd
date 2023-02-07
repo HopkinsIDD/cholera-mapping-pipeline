@@ -7,15 +7,15 @@ params:
 ---
 ```{r setup, include=FALSE, dev="CairoPNG"}
 knitr::opts_chunk$set(
-  echo = FALSE,
-  dev = "CairoPNG",
+  echo = FALSE, 
+  dev="CairoPNG", 
   error = TRUE,
   fig.align = "center",
   message = FALSE,
   warning = FALSE,
   fig.width = 10,
   fig.height = 10
-)
+  )
 library(stringr)
 library(dplyr)
 library(magrittr)
@@ -23,11 +23,13 @@ library(tidyr)
 library(readr)
 library(ggplot2)
 library(taxdat)
+
 ```
 
 # Check progress along mapping pipeline
 
 ```{r tab_progress, fig.cap = "Model progress report"}
+
 print(params$config_directory)
 
 taxdat::create_mapping_progress_table(
@@ -48,17 +50,19 @@ taxdat::create_mapping_progress_table(
     ),
     "None"
   )) %>%
-  tidyr::separate(
-    config_path,
-    c(NA, NA, NA, NA, NA, NA, NA, NA, NA, "start_year", "end_year", NA, NA, "country", NA) # This is file path specific
+  tidyr::separate(config_path,
+    c(NA, NA, NA, NA, NA, NA, NA, NA, NA, "start_year","end_year", NA, NA, "country", NA) # This is file path specific
   ) %>%
   ggplot2::ggplot() +
-  ggplot2::geom_tile(ggplot2::aes(x = paste(start_year, end_year, sep = "-"), y = country, fill = stages_complete))
+    ggplot2::geom_tile(ggplot2::aes(x=paste(start_year, end_year, sep = '-'), y=country, fill=stages_complete))
+
+
   ```
 
 # Extract Stan outputs
 
 ```{r extract_stan_output}
+
 all_configs <- list.files(stringr::str_c(params$cholera_directory, params$config_directory), full.names = TRUE)
 print(all_configs)
 
@@ -67,7 +71,7 @@ rhat_check <- list()
 rhat_thresh <- 1.05
 
 
-for (i in 1:length(all_configs)) {
+for (i in 1:length(all_configs)){
   config_filename <- all_configs[i]
   config <- yaml::read_yaml(config_filename)
   file_names <- taxdat::get_filenames(config, params$cholera_directory)
@@ -81,64 +85,68 @@ for (i in 1:length(all_configs)) {
   rhat_summ <- NULL
 
   try({
-    model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
-    niter_per_chain <- dim(MCMCvis::MCMCchains(model.rand, params = "lp__", chain_num = 1))[1]
-    nchain <- dim(MCMCvis::MCMCchains(model.rand, params = "lp__"))[1] / niter_per_chain
-    stan_output <- lapply(rstan::extract(model.rand), function(x) {
-      array(x, c(niter_per_chain, nchain, dim(x)[-1]))
-    })
 
-    cases_chains <- apply(stan_output$grid_cases, c(3, 2), mean)
+    model.rand <- taxdat::read_file_of_type(file_names[["stan_output"]], "model.rand")
+    niter_per_chain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__', chain_num=1))[1]
+    nchain <- dim(MCMCvis::MCMCchains(model.rand, params='lp__'))[1] / niter_per_chain
+    stan_output <- lapply(rstan::extract(model.rand), function(x){array(x,c(niter_per_chain, nchain, dim(x)[-1]))})
+
+    cases_chains <- apply(stan_output$grid_cases, c(3,2), mean)
     # rates_chains <- apply(exp(stan_output$log_lambda), c(3,2), mean)
     # pop_est <- cases_chains[,1]/rates_chains[,1]
     total_cases_chains <- apply(cases_chains, 2, sum)
 
     fit_summary <- rstan::summary(model.rand)
-    rhats <- tibble::tibble(Rhat = round(fit_summary$summary[which(stringr::str_detect(
-      row.names(fit_summary$summary),
-      "modeled_cases"
-    )), "Rhat"], 2)) %>% dplyr::mutate(x = dplyr::row_number())
-    frac_above <- sum(rhats$Rhat > rhat_thresh) / nrow(rhats)
+    rhats <- tibble::tibble(Rhat = round(fit_summary$summary[which(stringr::str_detect(row.names(fit_summary$summary), 
+        "modeled_cases")), "Rhat"], 2)) %>% dplyr::mutate(x = dplyr::row_number())
+    frac_above <- sum(rhats$Rhat > rhat_thresh)/nrow(rhats)
 
-    rhat_summ <- data.frame(cntry = cntry_code, config = config_filename, frac_above = frac_above)
+    rhat_summ <- data.frame(cntry = cntry_code, config = config_filename, frac_above = frac_above)    
 
-    if ("list" %in% class(rhat_check)) {
+    if("list" %in% class(rhat_check)){
       rhat_check <- rhat_summ
     } else {
       rhat_check <- rbind(rhat_check, rhat_summ)
     }
+
   })
 
   try({
+
     covar_cube_output <- taxdat::read_file_of_type(file_names[["covar"]], "covar_cube_output")
-    pop_layer <- covar_cube_output$covar_cube[, , 1]
+    pop_layer <- covar_cube_output$covar_cube[,,1]
+
   })
 
-  if (!is.null(pop_layer) & !is.null(total_cases_chains)) {
-    cases_summ <- data.frame(cntry = cntry_code, config = config_filename, pop = sum(pop_layer[, 1]), chain = 1:length(total_cases_chains), cases_mean = total_cases_chains)
+  if (!is.null(pop_layer) & !is.null(total_cases_chains)){
+      cases_summ <- data.frame(cntry = cntry_code, config = config_filename, pop = sum(pop_layer[,1]), chain = 1:length(total_cases_chains), cases_mean = total_cases_chains) 
 
-    if ("list" %in% class(cases_check)) {
+    if("list" %in% class(cases_check)){
       cases_check <- cases_summ
     } else {
       cases_check <- rbind(cases_check, cases_summ)
     }
-  }
+  } 
+
 }
+
 ```
 
 # Check if cases exceed population
 
 ```{r cases_check}
-pop_failures <- dplyr::mutate(cases_check,
-  failure_pop = ifelse(cases_mean > pop, TRUE, FALSE)
-) %>%
-  dplyr::mutate(cp_label = paste(round(cases_mean, 0), sep = "/"))
+
+pop_failures <- dplyr::mutate(cases_check, 
+  failure_pop = ifelse(cases_mean > pop, TRUE, FALSE)) %>%
+  dplyr::mutate(cp_label = paste(round(cases_mean,0), sep = "/"))
+
 ```
 
 ```{r plot_pop_failures, fig.cap = "Failures for population check (cases/population)"}
 ggplot2::ggplot(pop_failures, ggplot2::aes(x = chain, y = cntry)) +
   ggplot2::geom_tile(ggplot2::aes(fill = failure_pop)) +
   ggplot2::geom_label(ggplot2::aes(label = cp_label))
+
 ```
 
 ```{r plot_pop, fig.cap = "Population estimates"}
@@ -149,6 +157,7 @@ ggplot2::ggplot(pop_df, ggplot2::aes(y = cntry)) +
   ggplot2::geom_col(ggplot2::aes(x = pop)) +
   ggplot2::scale_x_continuous(labels = scales::comma) +
   ggplot2::geom_label(ggplot2::aes(x = x_tick, label = pop))
+
 ```
 
 # Check model convergence by observation Rhat
@@ -156,9 +165,9 @@ ggplot2::ggplot(pop_df, ggplot2::aes(y = cntry)) +
 
 ```{r rhat_check}
 rhat_fail_perc <- 0.05
-rhat_failures <- dplyr::mutate(rhat_check,
-  failure_rhat = ifelse(frac_above > rhat_fail_perc, TRUE, FALSE)
-)
+rhat_failures <- dplyr::mutate(rhat_check, 
+  failure_rhat = ifelse(frac_above > rhat_fail_perc, TRUE, FALSE)) 
+
 ```
 
 Examine the fraction of observations that exceed Rhat of `r rhat_thresh`. If greater than `r rhat_fail_perc*100`% of observations exceed this threshold, then the run is marked as a failure.
@@ -166,6 +175,7 @@ Examine the fraction of observations that exceed Rhat of `r rhat_thresh`. If gre
 ```{r plot_rhat_failures, fig.cap = "Failures for Rhat check"}
 ggplot2::ggplot(rhat_failures, ggplot2::aes(x = config_filename, y = cntry)) +
   ggplot2::geom_tile(ggplot2::aes(fill = failure_rhat)) +
-  ggplot2::geom_label(ggplot2::aes(label = round(frac_above * 100, 1))) +
+  ggplot2::geom_label(ggplot2::aes(label = round(frac_above*100,1))) +
   ggplot2::theme(axis.title.x = element_blank(), axis.ticks.x = element_blank())
+
 ```
