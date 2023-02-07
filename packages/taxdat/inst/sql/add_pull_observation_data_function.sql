@@ -1,4 +1,4 @@
-CREATE FUNCTION pull_observation_data(location_name text, start_date date, end_date date)
+create or replace function pull_observation_data(location_name text, start_date date, end_date date)
   returns table(
     observation_collection_id bigint,
     observation_id bigint,
