@@ -345,11 +345,9 @@ config_user <- config
 # Update config parameters
 for (param in names(taxdat::get_all_config_options())) {
   if (param != "stan"){
-    if(is.null(param)){
-      config[[param]] <- NULL
-    } else if (exists(param) & !is.null(param)){
+    if (exists(param)){
       config[[param]] <- get(param)
-    } else if (!exists(param) & !is.null(param)){
+    } else if (!exists(param) & param %in% names(stan_params)){
       config[[param]] <- stan_params[[param]]
     }
   }

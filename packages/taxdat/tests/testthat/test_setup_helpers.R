@@ -337,7 +337,7 @@ test_that("check_od_param works", {
   config <- yaml::read_yaml(tmpfile)
   expect_equal(
     check_od_param(1, config$od_param),
-    NULL
+    0
   )
 
   yaml::write_yaml(data.frame(obs_model = 2, od_param = 1), tmpfile)
@@ -358,7 +358,7 @@ test_that("check_od_param works", {
   config <- yaml::read_yaml(tmpfile)
   expect_equal(
     check_od_param(config$obs_model, config$od_param),
-    NULL
+    0
   )
 
 })

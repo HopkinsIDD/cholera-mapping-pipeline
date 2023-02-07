@@ -312,7 +312,7 @@ check_obs_model <- function(obs_model) {
 #' @export
 check_od_param <- function(obs_model, od_param) {
     if (is.null(od_param)) {
-        od_param <- NULL
+        od_param <- 0
     }
     if (as.numeric(obs_model) == 2 | as.numeric(obs_model) == 3) {
         tryCatch(expr = {
@@ -323,7 +323,7 @@ check_od_param <- function(obs_model, od_param) {
         })
         od_param <- updated_od_param
     } else{
-        od_param <- NULL
+        od_param <- 0
     }
     return(od_param)
 }
