@@ -17,12 +17,9 @@ reindex <- function(df, index_column, new_index_column = index_column) {
 }
 
 
-#' @export
-#' @name cast_to_int32
-#' @title cast_to_int32
-#' @description For casting int64 to 32 bit integers since R is bad at dealing with them mostly
-#' @param x A 64 bit integer (see bit64)
-#' @return A number equal to x
+#' @description Cast an bit64::integer64 to a normal R integer
+#' @param x The integer64 to convert
+#' @return The normal R integer
 cast_to_int32 <- function(x) {
   if (!is.integer(x)) {
     rc <- as.integer(x)
