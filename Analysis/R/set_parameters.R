@@ -153,10 +153,10 @@ grid_rand_effects_N <- taxdat::check_grid_rand_effects_N(config$grid_rand_effect
 
 # - - - -
 # What case definition should be used
-suspected_or_confirmed <- taxdat::check_case_definition(config$case_definition)
+case_definition <- taxdat::check_case_definition(config$case_definition)
 # Determine the column name that the number of cases is stored in
 # TODO check the flag for use_database
-cases_column <- taxdat::case_definition_to_column_name(suspected_or_confirmed,
+cases_column <- taxdat::case_definition_to_column_name(case_definition,
                                                        database = T)
 
 # - - - -
