@@ -10,32 +10,22 @@ params:
 library(knitr)
 knitr::opts_chunk$set(
 <<<<<<< HEAD
-<<<<<<< HEAD
   cache = FALSE,
   cache.lazy = FALSE,
   echo = FALSE,
   dev = "CairoPNG",
 =======
-=======
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
   cache=FALSE,
   cache.lazy = FALSE,
   echo = FALSE,
   dev="CairoPNG",
-<<<<<<< HEAD
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
-=======
 >>>>>>> parent of e4a4b619 (trying to solve conflicts)
   error = FALSE,
   fig.align = "center",
   message = TRUE,
   warning = TRUE
 <<<<<<< HEAD
-<<<<<<< HEAD
 )
-=======
-  )
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
 =======
   )
 >>>>>>> parent of e4a4b619 (trying to solve conflicts)
@@ -56,28 +46,6 @@ sf::sf_use_s2(FALSE)
 ### other new packages (mainly for "rgeoboundaries")
 chooseCRANmirror(ind = 77)
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-taxdat::update_libraries(perform = Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE), package_list = c(
-  "pandoc",
-  "readr",
-  "fasterize",
-  "remotes",
-  "rgeoboundaries"
-))
-
-# Figure Caption Numbering,
-capFigNo <- 1
-# Function to add the Figure Number
-capFig <- function(x) {
-  x <- paste0("Figure ", capFigNo, ". ", x)
-  capFigNo <<- capFigNo + 1
-  x
-}
-cache <- new.env()
-=======
-=======
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
 package_list <- c(
   "fasterize",
   "remotes",
@@ -108,69 +76,30 @@ capFig = function(x){
 }
 cache<-new.env()
 
-<<<<<<< HEAD
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
-=======
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
 ```
 
 # Mapping results summary for `r stringr::str_extract(params$config, "[A-Z]{3}")` and period `r stringr::str_extract(params$config, "[0-9]{4}_[0-9]{4}")`
 
 
 ``` {r echo=FALSE}
-<<<<<<< HEAD
-<<<<<<< HEAD
-get_config(cache = cache, config = params$config, cholera_directory = params$cholera_directory)
-
-if (!is.null(cache[["config"]][["test_metadata"]])) {
-  general_parameters_table <- cache[["config"]][["test_metadata"]][c("raster", "polygons", "grid_observation")] %>%
-    as.data.frame() %>%
-=======
-=======
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
 get_config(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 
 if(!is.null(cache[["config"]][["test_metadata"]])){
   general_parameters_table <- cache[["config"]][["test_metadata"]][c("raster", "polygons", "grid_observation")] %>%
     as.data.frame() %>%
-
-<<<<<<< HEAD
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
-=======
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
     t() %>%
     as.data.frame() %>%
     tibble::rownames_to_column() %>%
     rbind(data.frame(rowname = "Number of covariates", V1 = length(cache[["config"]][["test_metadata"]][["covariates"]]))) %>%
-<<<<<<< HEAD
-<<<<<<< HEAD
-    kableExtra::kable(
-      col.names = c("Parameter", "Values"),
-      caption = "Table 1. Parameters"
-    ) %>%
-=======
     kableExtra::kable(col.names = c("Parameter","Values"),
       caption = "Table 1. Parameters") %>%
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
-=======
-    kableExtra::kable(col.names = c("Parameter","Values"),
-      caption = "Table 1. Parameters") %>%
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
     kableExtra::kable_styling(bootstrap_options = c("striped"))
 
   covariate_parameters_table <- cache[["config"]][["test_metadata"]][["covariates"]] %>%
     lapply(function(covariate_spec) {
       as.data.frame(covariate_spec)
     }) %>%
-<<<<<<< HEAD
-<<<<<<< HEAD
-    do.call(what = rbind) %>%
-=======
     do.call(what=rbind) %>%
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
-=======
-    do.call(what=rbind) %>%
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
     dplyr::mutate(covariate_name = paste("covariate", seq_len(length(cache[["config"]][["test_metadata"]][["covariates"]])))) %>%
     kableExtra::kable(caption = "Table 2. Covariate Parameters") %>%
     kableExtra::kable_styling(bootstrap_options = c("striped"))
@@ -179,78 +108,33 @@ if(!is.null(cache[["config"]][["test_metadata"]])){
     lapply(function(observation_spec) {
       as.data.frame(observation_spec)
     }) %>%
-<<<<<<< HEAD
-<<<<<<< HEAD
-    do.call(what = bind_rows) %>%
-    dplyr::mutate(
-      tfrac = mapply(s = start_date, e = end_date, FUN = function(s, e) {
-        as.numeric(lubridate::as.period(lubridate::interval(lubridate::ymd(s), lubridate::ymd(e) + 1), units = cache[["config"]][["general"]][["time_scale"]]), units = cache[["config"]][["general"]][["time_scale"]])
-=======
-=======
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
     do.call(what=bind_rows) %>%
     dplyr::mutate(
       tfrac = mapply(s = start_date, e = end_date, FUN= function(s,e){
         as.numeric(lubridate::as.period(lubridate::interval(lubridate::ymd(s),lubridate::ymd(e) + 1), units = cache[["config"]][["general"]][["time_scale"]]), units = cache[["config"]][["general"]][["time_scale"]])
-<<<<<<< HEAD
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
-=======
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
       })
     ) %>%
     kableExtra::kable(caption = "Table 2. Covariate Parameters") %>%
     kableExtra::kable_styling(bootstrap_options = c("striped"))
 
   general_parameters_table
-<<<<<<< HEAD
-<<<<<<< HEAD
-} else {
-=======
 }else {
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
-=======
-}else {
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
   return(invisible(NULL))
 }
 ```
 
 ``` {r echo=FALSE}
-<<<<<<< HEAD
-<<<<<<< HEAD
-if (!is.null(cache[["config"]][["test_metadata"]])) {
-  covariate_parameters_table
-} else {
-=======
 if(!is.null(cache[["config"]][["test_metadata"]])){
   covariate_parameters_table
 }else {
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
-=======
-if(!is.null(cache[["config"]][["test_metadata"]])){
-  covariate_parameters_table
-}else {
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
   return(invisible(NULL))
 }
 ```
 
 ``` {r echo=FALSE}
-<<<<<<< HEAD
-<<<<<<< HEAD
-if (!is.null(cache[["config"]][["test_metadata"]])) {
-  observation_parameters_table
-} else {
-=======
 if(!is.null(cache[["config"]][["test_metadata"]])){
   observation_parameters_table
 }else {
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
-=======
-if(!is.null(cache[["config"]][["test_metadata"]])){
-  observation_parameters_table
-}else {
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
   return(invisible(NULL))
 }
 ```
@@ -259,28 +143,12 @@ if(!is.null(cache[["config"]][["test_metadata"]])){
 
 **Table 1. Data used within the model:**
 ```{r Observation Summary Table, echo = FALSE}
-<<<<<<< HEAD
-<<<<<<< HEAD
-taxdat::table_observation_summary(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-=======
  taxdat::table_observation_summary(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
-=======
- taxdat::table_observation_summary(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
 ```
 
 **Table 2. Data dropped from the model:**
 ```{r echo=FALSE}
-<<<<<<< HEAD
-<<<<<<< HEAD
-taxdat::table_dropped_data(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-=======
 taxdat::table_dropped_data(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
-=======
-taxdat::table_dropped_data(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
 ```
 
 ```{r disjoint set sf cases, message=FALSE}
@@ -290,38 +158,16 @@ taxdat::table_dropped_data(config=params$config, cache=cache, cholera_directory=
 
 **Annual average cases by unique location periods:**
 ```{r rawobsmap, fig.height=5, fig.width=10, fig.cap=capFig("Observed case counts by time adjusted for time fraction cases/year")}
-<<<<<<< HEAD
-<<<<<<< HEAD
-taxdat::plot_observed_cases_polygon_raw(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-=======
 taxdat::plot_observed_cases_polygon_raw(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
-=======
-taxdat::plot_observed_cases_polygon_raw(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
 ```
 
 **Annual average area adjusted cases by unique location periods:**
 ```{r areadjustedmap, fig.height=5, fig.width=10, fig.cap=capFig("Area adjusted average observed case counts by time adjusted for time fraction cases/(year * kilometer)")}
-<<<<<<< HEAD
-<<<<<<< HEAD
-taxdat::plot_area_adjusted_observed_cases(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-=======
 taxdat::plot_area_adjusted_observed_cases(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
-=======
-taxdat::plot_area_adjusted_observed_cases(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
 ```
 
 **Number of observations by unique location periods:**
 ```{r obsmap, fig.height=5, fig.width=10, fig.cap=capFig("Number of observations by unique observed location periods.")}
-<<<<<<< HEAD
-<<<<<<< HEAD
-taxdat::plot_raw_observations(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-=======
-=======
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
 taxdat::plot_raw_observations(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
 ```
 
@@ -399,10 +245,6 @@ if(length(cache[["dropped_years"]]) == 0){
     message(paste("Dropping", paste(cache[["dropped_years"]], collapse = ", "), "from case_raster"))
   }
 }
-<<<<<<< HEAD
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
-=======
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
 ```
 
 #### Modeled cases
@@ -445,18 +287,6 @@ plot_model_fidelity_tfrac_adjusted(
 ```
 
 ``` {r datafidelity2, fig.cap=capFig("True vs. modeled grid cases"), fig.height=10, fig.width=10}
-<<<<<<< HEAD
-<<<<<<< HEAD
-if (!is.null(cache[["config"]][["test_metadata"]])) {
-  plot_true_modeled_grid_cases(
-    config = params$config,
-    cache = cache,
-    cholera_directory = params$cholera_directory
-  )
-} else {
-=======
-=======
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
 if(!is.null(cache[["config"]][["test_metadata"]])){
   plot_true_modeled_grid_cases (
   config = params$config,
@@ -464,10 +294,6 @@ if(!is.null(cache[["config"]][["test_metadata"]])){
   cholera_directory = params$cholera_directory
 )
 }else{
-<<<<<<< HEAD
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
-=======
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
   return(NULL)
   warning("Production runs don't have the true distribution of cases at the grid level.")
 }
@@ -485,25 +311,11 @@ warning("Took this one out because it was identical to the adjusted figure. Must
 
 ### Error Tables
 ```{r echo=FALSE }
-<<<<<<< HEAD
-<<<<<<< HEAD
-plot_error_by_grid(cache = cache, cholera_directory = params$cholera_directory, config = params$config)
-```
-
-```{r echo=FALSE}
-plot_error_by_grid_spatial_scale(cache = cache, cholera_directory = params$cholera_directory, config = params$config)
-=======
-=======
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
 plot_error_by_grid(cache=cache,cholera_directory = params$cholera_directory,config=params$config)
 ```
 
 ```{r echo=FALSE}
 plot_error_by_grid_spatial_scale(cache=cache,cholera_directory = params$cholera_directory,config=params$config)
-<<<<<<< HEAD
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
-=======
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
 ```
 
 **Stan trace plots:**
@@ -519,15 +331,7 @@ taxdat::plot_stan_parameter_violin(config = params$config, cache = cache, choler
 
 **w distribution**
 ```{r w_distribution,fig.height=8,fig.width=10,fig.cap=capFig("Distribution of mean w across chains and iterations")}
-<<<<<<< HEAD
-<<<<<<< HEAD
-plot_w_mean(cache = cache, config = params$config, cholera_directory = params$cholera_directory)
-=======
 plot_w_mean(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
-=======
-plot_w_mean(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
 ```
 
 **Gelman-Rubin Rhat:**
@@ -543,100 +347,6 @@ warning("Skipping this figure for now since I'm not sure what it means for new p
 
 **Table 7. Estimated cases by chain and time slice:**
 ```{r cases_chain_table, fig.width=10, fig.cap = "Sum of grid cases by chain and year"}
-<<<<<<< HEAD
-<<<<<<< HEAD
-table_modeled_cases_by_chain_time(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-```
-
-```{r full country modeled cases, fig.cap = "comparison with WHO Output"}
-warning("This is a weird thing to print")
-total_cases <- sum(cache[["grid_cases_mean"]])
-print(paste("There are", format(round(total_cases), big.mark = ","), "total cases"))
-```
-
-### GAM Input
-**Observations input for the GAM model:**
-```{r gam input of cases,fig.height=5, fig.width=10, fig.cap=capFig("Observations input for the GAM model (cases)")}
-taxdat::plot_gam_fit_input_cases(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-```
-
-```{r gam input of rates,fig.height=5, fig.width=10, fig.cap=capFig("Observations input of the GAM model (rates)")}
-taxdat::plot_gam_fit_input_rates(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-```
-
-### GAM Output
-**Observations output of the GAM model:**
-```{r gam output of cases,fig.height=5, fig.width=10, fig.cap=capFig("Observations output for the GAM model (cases)")}
-taxdat::plot_gam_fit_output_cases(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-```
-
-```{r gam output of rates,fig.height=5, fig.width=10, fig.cap=capFig("Observations output for the GAM model (rates)")}
-taxdat::plot_gam_fit_output_rates(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-```
-
-```{r gam output rates versus gam input rates,fig.height=5, fig.width=10, fig.cap = capFig("GAM input rates versus GAM output rates")}
-taxdat::plot_gam_input_output_scatter(config = params$config, cholera_directory = params$cholera_directory, cache = cache)
-``` 
-
-```{r, results="asis", echo=FALSE}
-if (!is.null(cache[["config"]][["test_metadata"]])) {
-  cat("### True underlying distribution maps", "\n", "#### True grid cases raster by time slices:")
-  plot_true_grid_cases(config = params$config, cholera_directory = params$cholera_directory, cache = cache)
-} else {
-  return(NULL)
-}
-```
-
-```{r, results="asis", echo=FALSE}
-if (!is.null(cache[["config"]][["test_metadata"]])) {
-  cat("#### True grid rate raster by time slices:")
-  plot_true_grid_rates(config = params$config, cholera_directory = params$cholera_directory, cache = cache)
-} else {
-  return(NULL)
-}
-```
-
-### Output maps
-
-```{r importcase}
-get_dropped_years(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-if (length(cache[["dropped_years"]]) == 0) {
-  message("All modeled years are represented by OCs.")
-} else {
-  message(paste(paste(cache[["dropped_years"]], collapse = ", "), "are not represented in OCs"))
-  if (params$drop_nodata_years) {
-    message(paste("Dropping", paste(cache[["dropped_years"]], collapse = ", "), "from case_raster"))
-  }
-}
-```
-
-### Covariates
-
-#### Population
-**Population raster by time slices (log scale):**
-```{r pop, fig.height=5, fig.width=10, fig.cap=capFig("Population density")}
-taxdat::plot_time_varying_pop_raster(cache = cache, config = params$config, cholera_directory = params$cholera_directory)
-```
-
-**Table 3. Population by admin level:**
-```{r echo = FALSE}
-warning("Removed this plot for now")
-# taxdat::plot_pop_by_admin(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
-```
-
-#### Other covariates
-**Covariate rasters:**
-```{r covars, fig.height=10, fig.width=10, fig.cap=capFig("Covariate rasters")}
-taxdat::plot_raster_covariates(cache = cache, cholera_directory = params$cholera_directory, config = params$config)
-```
-
-``` {r covars_data_simulation, fig.height=10, fig.width=10, fig.cap=capFig("Non-population covariate rasters in data simulation process")}
-taxdat::plot_raster_covariates_datagen(cache = cache, cholera_directory = params$cholera_directory, config = params$config)
-```
-
-=======
-=======
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
 table_modeled_cases_by_chain_time(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
 
@@ -645,7 +355,3 @@ table_modeled_cases_by_chain_time(config=params$config, cache=cache, cholera_dir
   total_cases <- sum(cache[["grid_cases_mean"]])
   print(paste("There are",format(round(total_cases), big.mark=","),"total cases"))
 ```
-<<<<<<< HEAD
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
-=======
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
