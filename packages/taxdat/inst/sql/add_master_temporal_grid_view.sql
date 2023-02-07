@@ -1,4 +1,4 @@
-CREATE VIEW grids.master_temporal_grid AS
+CREATE OR REPLACE VIEW grids.master_temporal_grid AS
 SELECT
   generate_series(
     time_bounds.time_left::timestamp,
