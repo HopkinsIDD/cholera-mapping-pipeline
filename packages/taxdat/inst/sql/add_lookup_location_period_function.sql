@@ -1,4 +1,4 @@
-CREATE FUNCTION lookup_location_period(target_location_id bigint, target_start_date date, target_end_date date)
+create or replace function lookup_location_period(target_location_id bigint, target_start_date date, target_end_date date)
   returns bigint
   as $$
   SELECT
