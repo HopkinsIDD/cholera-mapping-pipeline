@@ -37,7 +37,7 @@ csv_dir <- paste0(params$cholera_directory, "/Analysis/R/notebooks/gavi_report_h
 
 # The following 7 lines are from previous version
 bad <- read_csv(paste0(csv_dir_raw, "gavi_summary_bad.csv")) %>% ## lancet numbers are wrong
-  dplyr::select(country, contains("estimate"))
+    dplyr::select(country, contains("estimate"))
 gha <- data.frame(country = "GHA", WHO_estimate = mean(c(692, 175, 0, 1))) ## no data reported for 2018
 tza <- data.frame(country = "TZA", WHO_estimate = mean(c(11563, 11360, 4895, 4777))) ## no 2019 data reported
 gin <- data.frame(country = "GIN", WHO_estimate = NA)
@@ -46,13 +46,13 @@ bad <- dplyr::bind_rows(bad, gha, tza, gin, znz)
 
 # Update the WHO estimates using new data
 new_who <- read_csv(paste0(csv_dir_raw, "who_2010_2019_cases_rates.csv"))
-bad$WHO_estimate <- unlist(lapply(unique(bad$country), function(country_code) {
-  new_estimate <- mean(new_who[new_who$country == country_code & new_who$year %in% (2015:2019), ]$sCh, na.rm = TRUE)
+bad$WHO_estimate <- unlist(lapply(unique(bad$country), function(country_code){
+  new_estimate <- mean(new_who[new_who$country==country_code & new_who$year%in%(2015:2019), ]$sCh, na.rm = TRUE)
   return(new_estimate)
 }))
 
 gavi <- read_csv(paste0(csv_dir, "gavi_summary_new.csv"))
-# we ran ZAF and SWZ, but we don't want to use the estimates, 0 obs would be assumed
+#we ran ZAF and SWZ, but we don't want to use the estimates, 0 obs would be assumed
 gavi[gavi$country %in% c("ZAF", "SWZ"), ]$current_rates_mean <- 0
 gavi[gavi$country %in% c("ZAF", "SWZ"), ]$current_cases_mean <- 0
 gavi[gavi$country %in% c("ZAF", "SWZ"), ]$current_rates_quantile_low <- 0
@@ -61,10 +61,11 @@ gavi[gavi$country %in% c("ZAF", "SWZ"), ]$current_rates_quantile_high <- 0
 gavi[gavi$country %in% c("ZAF", "SWZ"), ]$current_cases_quantile_high <- 0
 
 gavi <- gavi %>%
-  left_join(bad, by = c("country"))
-need_manual_WHO <- gavi[which(!gavi$country %in% bad$country), ]$country
+    left_join(bad, by = c("country"))
+need_manual_WHO <- gavi[which(!gavi$country %in% bad$country),]$country
 
 pop_prop <- read_csv(paste0(csv_dir, "gavi_pop.csv"))
+
 ```
 
 ```{r popdata}
@@ -72,250 +73,238 @@ data(codelist, package = "countrycode")
 data(pop, package = "wpp2019")
 country_cw <- dplyr::select(codelist, iso3n, iso3c) %>%
   dplyr::filter(!is.na(iso3n) & !is.na(iso3c))
-pop <- pop[, c("country_code", "name", "2015", "2020")] ## get 2015 & 2020 estimates only
+pop <- pop[,c("country_code", "name", "2015", "2020")] ## get 2015 & 2020 estimates only
 names(pop) <- c("iso3n", "country", "p2015", "p2020")
 popdf <- dplyr::inner_join(country_cw, pop, by = c("iso3n")) %>%
   dplyr::mutate(pop = rowMeans(cbind(p2015, p2020), na.rm = TRUE) * 1000) %>% ## mean of 2015 & 2020 pop estimates
-  dplyr::select(iso3c, pop)
+  dplyr::select(iso3c, pop)  
 ```
 
 ```{r prepdata}
 datlong <- dplyr::left_join(gavi, popdf, by = c("country" = "iso3c")) %>%
   dplyr::rowwise() %>%
-  dplyr::mutate(
-    WHO_cases_quantile_low = quantile(rpois(1000, WHO_estimate), probs = c(.025), na.rm = TRUE),
-    WHO_cases_quantile_high = quantile(rpois(1000, WHO_estimate), probs = c(.975), na.rm = TRUE)
-  ) %>%
+  dplyr::mutate(WHO_cases_quantile_low = quantile(rpois(1000, WHO_estimate), probs = c(.025), na.rm= TRUE),
+                WHO_cases_quantile_high = quantile(rpois(1000, WHO_estimate), probs = c(.975), na.rm = TRUE)) %>%
   dplyr::ungroup() %>%
-  dplyr::mutate(
-    WHO_rates = WHO_estimate / pop,
-    WHO_rates_quantile_low = WHO_cases_quantile_low / pop,
-    WHO_rates_quantile_high = WHO_cases_quantile_high / pop,
-    UNICEF_rates = UNICEF_estimate / pop
-  ) %>%
+  dplyr::mutate(WHO_rates = WHO_estimate/pop, 
+                WHO_rates_quantile_low = WHO_cases_quantile_low/pop,
+                WHO_rates_quantile_high = WHO_cases_quantile_high/pop,
+                UNICEF_rates = UNICEF_estimate/pop) %>%
   dplyr::select(-pop) %>%
-  dplyr::mutate(swap_current_who = ifelse(current_cases_mean / lancet_cases_mean == 1, T, F)) %>%
-  dplyr::mutate(
-    current_rates_mean = ifelse(swap_current_who, WHO_rates, current_rates_mean),
-    current_rates_quantile_high = ifelse(swap_current_who, WHO_rates_quantile_high, current_rates_quantile_high),
-    current_rates_quantile_low = ifelse(swap_current_who, WHO_rates_quantile_low, current_rates_quantile_low),
-    current_cases_mean = ifelse(swap_current_who, WHO_estimate, current_cases_mean),
-    current_cases_quantile_high = ifelse(swap_current_who, WHO_cases_quantile_high, current_cases_quantile_high),
-    current_cases_quantile_low = ifelse(swap_current_who, WHO_cases_quantile_low, current_cases_quantile_low)
-  ) %>%
-  dplyr::mutate(
-    current_rates_mean = ifelse(is.na(current_rates_mean), 0, current_rates_mean),
-    current_cases_mean = ifelse(is.na(current_cases_mean), 0, current_cases_mean)
-  ) %>%
+  dplyr::mutate(swap_current_who = ifelse(current_cases_mean/lancet_cases_mean==1, T, F)) %>%
+  dplyr::mutate(current_rates_mean = ifelse(swap_current_who, WHO_rates, current_rates_mean),
+                current_rates_quantile_high = ifelse(swap_current_who, WHO_rates_quantile_high, current_rates_quantile_high),
+                current_rates_quantile_low = ifelse(swap_current_who, WHO_rates_quantile_low, current_rates_quantile_low),
+                current_cases_mean = ifelse(swap_current_who, WHO_estimate, current_cases_mean),
+                current_cases_quantile_high = ifelse(swap_current_who, WHO_cases_quantile_high, current_cases_quantile_high),
+                current_cases_quantile_low = ifelse(swap_current_who, WHO_cases_quantile_low, current_cases_quantile_low)) %>%
+  dplyr::mutate(current_rates_mean = ifelse(is.na(current_rates_mean), 0, current_rates_mean),
+                current_cases_mean = ifelse(is.na(current_cases_mean), 0, current_cases_mean)) %>%
   # dplyr::select(-swap_current_who) %>%
   pivot_longer(cols = c(-country, -swap_current_who), names_to = c("source", "type", "q", "dummy"), names_sep = "_", values_to = "value") %>%
-  dplyr::mutate(
-    type = ifelse(type == "estimate", "cases", type),
-    q = ifelse(q == "quantile", dummy, q)
-  ) %>%
+  dplyr::mutate(type = ifelse(type == "estimate", "cases", type),
+              q = ifelse(q == "quantile", dummy, q)) %>%
   dplyr::select(-dummy) %>%
   dplyr::mutate(q = ifelse(is.na(q), "mean", q)) %>%
   pivot_wider(names_from = q, values_from = value) %>%
   dplyr::rename(countrycode = country) %>%
   dplyr::mutate(country = recode(countrycode,
-    AGO = "Angola",
-    BDI = "Burundi",
-    BEN = "Benin",
-    BFA = "Burkina Faso",
-    CAF = "C. African Republic",
-    CIV = "Cote D'Ivoire",
-    CMR = "Cameroon",
-    COD = "DR Congo",
-    COG = "Republic of Congo",
-    ETH = "Ethiopia",
-    GHA = "Ghana",
-    GIN = "Guinea",
-    GNB = "Guinea Bissau",
-    KEN = "Kenya",
-    LBR = "Liberia",
-    MLI = "Mali",
-    MOZ = "Mozambique",
-    MRT = "Mauritania",
-    MWI = "Malawi",
-    NER = "Niger",
-    NGA = "Nigeria",
-    RWA = "Rwanda",
-    SDN = "Sudan",
-    SEN = "Senegal",
-    SLE = "Sierra Leone",
-    SOM = "Somalia",
-    SSD = "South Sudan",
-    SWZ = "Eswatini",
-    TCD = "Chad",
-    TGO = "Togo",
-    TZA_M = "Tanzania mainland",
-    TZA = "Tanzania (incl Zanzibar)",
-    UGA = "Uganda",
-    ZAF = "South Africa",
-    ZMB = "Zambia",
-    ZNZ = "Zanzibar, Tanzania",
-    ZWE = "Zimbabwe"
-  )) %>%
-  # dplyr::mutate(country = ifelse(swap_current_who, paste0(country, "*"), country)) %>%
+                    AGO = "Angola",
+                    BDI = "Burundi",
+                    BEN = "Benin",
+                    BFA = "Burkina Faso",
+                    CAF = "C. African Republic",
+                    CIV = "Cote D'Ivoire",
+                    CMR = "Cameroon",
+                    COD = "DR Congo",
+                    COG = "Republic of Congo",
+                    ETH = "Ethiopia",
+                    GHA = "Ghana",
+                    GIN = "Guinea",
+                    GNB = "Guinea Bissau",
+                    KEN = "Kenya",
+                    LBR = "Liberia",
+                    MLI = "Mali",
+                    MOZ = "Mozambique",
+                    MRT = "Mauritania",
+                    MWI = "Malawi",
+                    NER = "Niger",
+                    NGA = "Nigeria",
+                    RWA = "Rwanda",
+                    SDN = "Sudan",
+                    SEN = "Senegal",
+                    SLE = "Sierra Leone",
+                    SOM = "Somalia",
+                    SSD = "South Sudan",
+                    SWZ = "Eswatini",
+                    TCD = "Chad",
+                    TGO = "Togo",
+                    TZA_M = "Tanzania mainland",
+                    TZA = "Tanzania (incl Zanzibar)", 
+                    UGA = "Uganda",
+                    ZAF = "South Africa",
+                    ZMB = "Zambia",
+                    ZNZ = "Zanzibar, Tanzania", 
+                    ZWE = "Zimbabwe"
+        )) %>%
+  #dplyr::mutate(country = ifelse(swap_current_who, paste0(country, "*"), country)) %>%
   dplyr::filter(source != "UNICEF") %>%
-  dplyr::mutate(
-    data_source = dplyr::case_when(
-      source == "current" ~ "JHU_2015-19",
-      source == "lancet" ~ "JHU_2010-16",
-      source == "WHO" ~ "WHO_2015-19"
-    ),
-    years = dplyr::case_when(
-      source == "current" ~ "2015-2019",
-      source == "lancet" ~ "2010-2016",
-      source == "WHO" ~ "2015-2019"
-    )
+  dplyr::mutate(data_source = dplyr::case_when(
+                    source == "current" ~ "JHU_2015-19",
+                    source == "lancet" ~ "JHU_2010-16",
+                    source == "WHO" ~ "WHO_2015-19"
+                ),
+                years = dplyr::case_when(
+                    source == "current" ~ "2015-2019",
+                    source == "lancet" ~ "2010-2016",
+                    source == "WHO" ~ "2015-2019"
+                )
   )
 
 # Add some missing values -- the above operation doesn't work well with GIN, ZNZ, and TZA_M
 datlong[datlong$countrycode == "GIN", ]$country <- "Guinea"
-datlong[datlong$countrycode == "GIN" & datlong$source == "current" & datlong$type == "cases", ]$mean <-
+datlong[datlong$countrycode == "GIN" & datlong$source == "current" & datlong$type == "cases", ]$mean <- 
   gavi[gavi$country == "GIN", ]$current_cases_mean
-datlong[datlong$countrycode == "GIN" & datlong$source == "current" & datlong$type == "rates", ]$mean <-
+datlong[datlong$countrycode == "GIN" & datlong$source == "current" & datlong$type == "rates", ]$mean <- 
   gavi[gavi$country == "GIN", ]$current_rates_mean
-datlong[datlong$countrycode == "GIN" & datlong$source == "current" & datlong$type == "cases", ]$low <-
+datlong[datlong$countrycode == "GIN" & datlong$source == "current" & datlong$type == "cases", ]$low <- 
   gavi[gavi$country == "GIN", ]$current_cases_quantile_low
-datlong[datlong$countrycode == "GIN" & datlong$source == "current" & datlong$type == "cases", ]$high <-
+datlong[datlong$countrycode == "GIN" & datlong$source == "current" & datlong$type == "cases", ]$high <- 
   gavi[gavi$country == "GIN", ]$current_cases_quantile_high
-datlong[datlong$countrycode == "GIN" & datlong$source == "current" & datlong$type == "rates", ]$low <-
+datlong[datlong$countrycode == "GIN" & datlong$source == "current" & datlong$type == "rates", ]$low <- 
   gavi[gavi$country == "GIN", ]$current_rates_quantile_low
-datlong[datlong$countrycode == "GIN" & datlong$source == "current" & datlong$type == "rates", ]$high <-
+datlong[datlong$countrycode == "GIN" & datlong$source == "current" & datlong$type == "rates", ]$high <- 
   gavi[gavi$country == "GIN", ]$current_rates_quantile_high
 
 datlong[datlong$countrycode == "ZNZ", ]$country <- "Zanzibar, Tanzania"
-datlong[datlong$countrycode == "ZNZ" & datlong$source == "current" & datlong$type == "cases", ]$mean <-
+datlong[datlong$countrycode == "ZNZ" & datlong$source == "current" & datlong$type == "cases", ]$mean <- 
   gavi[gavi$country == "ZNZ", ]$current_cases_mean
-datlong[datlong$countrycode == "ZNZ" & datlong$source == "current" & datlong$type == "rates", ]$mean <-
+datlong[datlong$countrycode == "ZNZ" & datlong$source == "current" & datlong$type == "rates", ]$mean <- 
   gavi[gavi$country == "ZNZ", ]$current_rates_mean
-datlong[datlong$countrycode == "ZNZ" & datlong$source == "current" & datlong$type == "cases", ]$low <-
+datlong[datlong$countrycode == "ZNZ" & datlong$source == "current" & datlong$type == "cases", ]$low <- 
   gavi[gavi$country == "ZNZ", ]$current_cases_quantile_low
-datlong[datlong$countrycode == "ZNZ" & datlong$source == "current" & datlong$type == "cases", ]$high <-
+datlong[datlong$countrycode == "ZNZ" & datlong$source == "current" & datlong$type == "cases", ]$high <- 
   gavi[gavi$country == "ZNZ", ]$current_cases_quantile_high
-datlong[datlong$countrycode == "ZNZ" & datlong$source == "current" & datlong$type == "rates", ]$low <-
+datlong[datlong$countrycode == "ZNZ" & datlong$source == "current" & datlong$type == "rates", ]$low <- 
   gavi[gavi$country == "ZNZ", ]$current_rates_quantile_low
-datlong[datlong$countrycode == "ZNZ" & datlong$source == "current" & datlong$type == "rates", ]$high <-
+datlong[datlong$countrycode == "ZNZ" & datlong$source == "current" & datlong$type == "rates", ]$high <- 
   gavi[gavi$country == "ZNZ", ]$current_rates_quantile_high
 
 datlong[datlong$countrycode == "TZA_M", ]$country <- "Tanzania mainland"
-datlong[datlong$countrycode == "TZA_M" & datlong$source == "current" & datlong$type == "cases", ]$mean <-
+datlong[datlong$countrycode == "TZA_M" & datlong$source == "current" & datlong$type == "cases", ]$mean <- 
   gavi[gavi$country == "TZA_M", ]$current_cases_mean
-datlong[datlong$countrycode == "TZA_M" & datlong$source == "current" & datlong$type == "rates", ]$mean <-
+datlong[datlong$countrycode == "TZA_M" & datlong$source == "current" & datlong$type == "rates", ]$mean <- 
   gavi[gavi$country == "TZA_M", ]$current_rates_mean
-datlong[datlong$countrycode == "TZA_M" & datlong$source == "current" & datlong$type == "cases", ]$low <-
+datlong[datlong$countrycode == "TZA_M" & datlong$source == "current" & datlong$type == "cases", ]$low <- 
   gavi[gavi$country == "TZA_M", ]$current_cases_quantile_low
-datlong[datlong$countrycode == "TZA_M" & datlong$source == "current" & datlong$type == "cases", ]$high <-
+datlong[datlong$countrycode == "TZA_M" & datlong$source == "current" & datlong$type == "cases", ]$high <- 
   gavi[gavi$country == "TZA_M", ]$current_cases_quantile_high
-datlong[datlong$countrycode == "TZA_M" & datlong$source == "current" & datlong$type == "rates", ]$low <-
+datlong[datlong$countrycode == "TZA_M" & datlong$source == "current" & datlong$type == "rates", ]$low <- 
   gavi[gavi$country == "TZA_M", ]$current_rates_quantile_low
-datlong[datlong$countrycode == "TZA_M" & datlong$source == "current" & datlong$type == "rates", ]$high <-
+datlong[datlong$countrycode == "TZA_M" & datlong$source == "current" & datlong$type == "rates", ]$high <- 
   gavi[gavi$country == "TZA_M", ]$current_rates_quantile_high
 datlong[is.nan(datlong$mean), ]$mean <- NA
 
 # Generate some separate datasets out of datlong
 cases <- dplyr::filter(datlong, type == "cases")
 rates <- dplyr::filter(datlong, type == "rates") %>%
-  dplyr::mutate(mean10K = mean * 10000) # we want the rate to be in per 10k
+    dplyr::mutate(mean10K = mean*10000) #we want the rate to be in per 10k
 rateRatio <- dplyr::filter(datlong, type == "rates" & source %in% c("current", "lancet")) %>%
-  dplyr::select(country, source, mean) %>%
-  pivot_wider(names_from = source, values_from = mean) %>%
-  dplyr::mutate(ratio = current / lancet) %>%
-  dplyr::filter(!is.na(ratio)) %>%
-  dplyr::mutate(changes = dplyr::case_when(
-    ratio > 1 ~ "Increased incidence",
-    ratio == 1 ~ "No updated estimates",
-    ratio < 1 ~ "Decreased incidence"
-  )) %>%
-  dplyr::arrange(desc(ratio))
+    dplyr::select(country, source, mean) %>%
+    pivot_wider(names_from = source, values_from = mean) %>%
+    dplyr::mutate(ratio = current/lancet) %>%
+    dplyr::filter(!is.na(ratio)) %>% 
+    dplyr::mutate(changes = dplyr::case_when(
+                    ratio > 1 ~ "Increased incidence",
+                    ratio == 1 ~ "No updated estimates",
+                    ratio < 1 ~ "Decreased incidence")) %>% 
+    dplyr::arrange(desc(ratio))
 
 caseRatio <- dplyr::filter(datlong, type == "cases" & source %in% c("current", "lancet")) %>%
-  dplyr::select(country, source, mean) %>%
-  pivot_wider(names_from = source, values_from = mean) %>%
-  dplyr::mutate(ratio = current / lancet) %>%
-  dplyr::filter(!is.na(ratio)) %>%
-  dplyr::mutate(changes = dplyr::case_when(
-    ratio > 1 ~ "Increased cases",
-    ratio == 1 ~ "No updated estimates",
-    ratio < 1 ~ "Decreased cases"
-  ))
+    dplyr::select(country, source, mean) %>%
+    pivot_wider(names_from = source, values_from = mean) %>%
+    dplyr::mutate(ratio = current/lancet) %>%
+    dplyr::filter(!is.na(ratio)) %>% 
+    dplyr::mutate(changes = dplyr::case_when(
+                    ratio > 1 ~ "Increased cases",
+                    ratio == 1 ~ "No updated estimates",
+                    ratio < 1 ~ "Decreased cases"))
+
 ```
 
 ```{r write_out}
 readr::write_csv(dplyr::select(datlong, -swap_current_who, -source), "prelim_estimates_minireport.csv")
 
-# The data from datlong will be re-organized to generate another .csv file for submission
+# The data from datlong will be re-organized to generate another .csv file for submission 
 pop_prop <- read_csv(paste0(csv_dir, "gavi_pop.csv"))
 csv_output <- read_csv(paste0(csv_dir, "csv_output_template/csv_output_template.csv"))
-csv_output <- csv_output %>%
-  slice(rep(1:n(), length(unique(datlong$countrycode)))) %>%
-  group_by(indicator) %>%
-  mutate(
-    `country code` = unique(datlong$countrycode),
-    country = unique(datlong$country)
-  ) %>%
-  ungroup() %>%
+csv_output <- csv_output %>% 
+  slice(rep(1:n(), length(unique(datlong$countrycode)))) %>% 
+  group_by(indicator) %>% 
+  mutate(`country code` = unique(datlong$countrycode),
+         country = unique(datlong$country)) %>% 
+  ungroup() %>% 
   arrange(`country code`)
-
+  
 country_list <- unique(datlong$countrycode)
-for (country_codes in country_list) {
-  csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "cases", ]$est_mean <-
+for(country_codes in country_list){
+  csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "cases", ]$est_mean <- 
     datlong[datlong$countrycode == country_codes & datlong$source == "current" & datlong$type == "cases", ]$mean
-  csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "cases", ]$est_low <-
+  csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "cases", ]$est_low <- 
     datlong[datlong$countrycode == country_codes & datlong$source == "current" & datlong$type == "cases", ]$low
-  csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "cases", ]$est_high <-
+  csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "cases", ]$est_high <- 
     datlong[datlong$countrycode == country_codes & datlong$source == "current" & datlong$type == "cases", ]$high
-
-  # we want the incidence rate to be in per 10k
-  csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "rate", ]$est_mean <-
-    datlong[datlong$countrycode == country_codes & datlong$source == "current" & datlong$type == "rates", ]$mean * 10000
-  csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "rate", ]$est_low <-
-    datlong[datlong$countrycode == country_codes & datlong$source == "current" & datlong$type == "rates", ]$low * 10000
-  csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "rate", ]$est_high <-
-    datlong[datlong$countrycode == country_codes & datlong$source == "current" & datlong$type == "rates", ]$high * 10000
-
-  if (country_codes %in% pop_prop$country_iso & country_codes != "GNB") {
+  
+  #we want the incidence rate to be in per 10k
+  csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "rate", ]$est_mean <- 
+    datlong[datlong$countrycode == country_codes & datlong$source == "current" & datlong$type == "rates", ]$mean*10000
+  csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "rate", ]$est_low <- 
+    datlong[datlong$countrycode == country_codes & datlong$source == "current" & datlong$type == "rates", ]$low*10000
+  csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "rate", ]$est_high <- 
+    datlong[datlong$countrycode == country_codes & datlong$source == "current" & datlong$type == "rates", ]$high*10000
+  
+  if(country_codes %in% pop_prop$country_iso & country_codes != "GNB"){
     csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "perc_pop_highIncid", ]$est_mean <-
       pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.001_mean_value`
     csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "perc_pop_highIncid", ]$est_low <-
-      as.numeric(strsplit(strsplit(as.character(pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.001`), "[()]")[[1]], "[-]")[[2]][1])
+      as.numeric(strsplit(strsplit(as.character(pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.001`), '[()]')[[1]], '[-]')[[2]][1])
     csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "perc_pop_highIncid", ]$est_high <-
-      as.numeric(strsplit(strsplit(as.character(pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.001`), "[()]")[[1]], "[-]")[[2]][2])
+      as.numeric(strsplit(strsplit(as.character(pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.001`), '[()]')[[1]], '[-]')[[2]][2])
     csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "perc_pop_highIncid", ]$est_median <-
-      as.numeric(strsplit(strsplit(as.character(pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.001`), "[()]")[[1]], "[-]")[[1]][1])
-
+      as.numeric(strsplit(strsplit(as.character(pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.001`), '[()]')[[1]], '[-]')[[1]][1])
+    
     csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "perc_pop_medIncid", ]$est_mean <-
       pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.0001_mean_value`
     csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "perc_pop_medIncid", ]$est_low <-
-      as.numeric(strsplit(strsplit(as.character(pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.0001`), "[()]")[[1]], "[-]")[[2]][1])
+      as.numeric(strsplit(strsplit(as.character(pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.0001`), '[()]')[[1]], '[-]')[[2]][1])
     csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "perc_pop_medIncid", ]$est_high <-
-      as.numeric(strsplit(strsplit(as.character(pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.0001`), "[()]")[[1]], "[-]")[[2]][2])
+      as.numeric(strsplit(strsplit(as.character(pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.0001`), '[()]')[[1]], '[-]')[[2]][2])
     csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "perc_pop_medIncid", ]$est_median <-
-      as.numeric(strsplit(strsplit(as.character(pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.0001`), "[()]")[[1]], "[-]")[[1]][1])
-
+      as.numeric(strsplit(strsplit(as.character(pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.0001`), '[()]')[[1]], '[-]')[[1]][1])
+    
     csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "perc_pop_lowIncid", ]$est_mean <-
       pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.00001_mean_value`
     csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "perc_pop_lowIncid", ]$est_low <-
-      as.numeric(strsplit(strsplit(as.character(pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.00001`), "[()]")[[1]], "[-]")[[2]][1])
+      as.numeric(strsplit(strsplit(as.character(pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.00001`), '[()]')[[1]], '[-]')[[2]][1])
     csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "perc_pop_lowIncid", ]$est_high <-
-      as.numeric(strsplit(strsplit(as.character(pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.00001`), "[()]")[[1]], "[-]")[[2]][2])
+      as.numeric(strsplit(strsplit(as.character(pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.00001`), '[()]')[[1]], '[-]')[[2]][2])
     csv_output[csv_output$`country code` == country_codes & csv_output$indicator == "perc_pop_lowIncid", ]$est_median <-
-      as.numeric(strsplit(strsplit(as.character(pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.00001`), "[()]")[[1]], "[-]")[[1]][1])
+      as.numeric(strsplit(strsplit(as.character(pop_prop[pop_prop$country_iso == country_codes, ]$`>=0.00001`), '[()]')[[1]], '[-]')[[1]][1])
   }
+  
 }
 
 csv_output$indicator <- recode(csv_output$indicator, "rate" = "rate_10k")
-readr::write_csv(dplyr::filter(csv_output, `country code` != "ZNZ"), paste0(csv_dir, "csv_output_done.csv")) # we don't want the data for ZNZ
+readr::write_csv(dplyr::filter(csv_output, `country code` != "ZNZ"), paste0(csv_dir, "csv_output_done.csv")) #we don't want the data for ZNZ
+
 ```
 
 ```{r figsettings}
 ### set colors and dimensions for the figures
 pal <- diverging_hcl(4, palette = "Purple Green")[1:3]
 names(pal) <- c("JHU_2015-19", "JHU_2010-16", "WHO_2015-19")
-w <- 7
-h <- 5
+w=7
+h=5
 ```
 
 In this report, we present preliminary nationwide estimates of mean annual incidence of suspected cholera from 2015-2019 for countries in sub-Saharan Africa. We compare our "JHU_2015_2019" estimates to three other sources of information:
@@ -334,12 +323,12 @@ Exceptions:
 ```{r caseplot, fig.width=5, fig.height=7, fig.cap="Mean annual cholera incident cases, 2010-2016 estimates versus preliminary 2015-2019 estimates. The difference between 2010-16 and 2015-19 estimates is shown with a grey line. Mean annual reports to WHO from 2015-2019 are displayed for reference. WHO reports were used for JHU_2015-19 estimates for countries marked with '*'. "}
 # Case comparison figure, again, we don't want the ZNZ data
 plt_c <- ggplot((cases %>% filter(country != "Zanzibar, Tanzania")), aes(y = country)) +
-  geom_point(aes(x = mean, colour = data_source, group = data_source), alpha = 0.8, size = 2) +
-  geom_path(data = dplyr::filter(cases, source %in% c("lancet", "current") & country != "Zanzibar, Tanzania"), aes(y = country, x = mean), colour = "grey60") +
-  scale_x_sqrt("Cases", breaks = c(0, 100, 1000, 5000, 10000, 20000, 30000, 50000), labels = scales::comma) +
-  scale_colour_manual(values = pal) +
-  theme_bw() +
-  theme(legend.position = "bottom", axis.title.y = element_blank(), legend.title = element_blank())
+    geom_point(aes(x = mean, colour = data_source, group = data_source), alpha = 0.8, size = 2) +
+    geom_path(data = dplyr::filter(cases, source %in% c("lancet", "current") & country != "Zanzibar, Tanzania"), aes(y = country, x = mean), colour = "grey60") +
+    scale_x_sqrt("Cases", breaks = c(0, 100, 1000, 5000, 10000, 20000, 30000, 50000), labels = scales::comma) +
+    scale_colour_manual(values = pal) +
+    theme_bw() +
+    theme(legend.position = "bottom", axis.title.y = element_blank(), legend.title = element_blank())
 
 ggsave("case_comparison_minireport.png", plt_c, width = w, height = h)
 plt_c
@@ -348,121 +337,120 @@ plt_c
 ```{r rateplot, fig.width=5, fig.height=7, fig.cap="Mean annual cholera incidence rate, 2010-2016 estimates versus preliminary 2015-2019 estimates. The difference between 2010-16 and 2015-19 estimates is shown with a grey line. WHO reports were used for JHU_2015-19 estimates for countries marked with '*'."}
 # Rate comparison figure, again, we don't want the ZNZ data
 plt_r <- ggplot((rates %>% filter(country != "Zanzibar, Tanzania")), aes(y = country)) +
-  geom_point(aes(x = mean10K, colour = data_source, group = data_source), alpha = 0.8, size = 2) +
-  geom_path(aes(x = mean10K), colour = "grey60") +
-  scale_x_continuous("Incidence Rate per 10K", labels = scales::comma) +
-  scale_colour_manual(values = pal) +
-  theme_bw() +
-  theme(legend.position = "bottom", axis.title.y = element_blank(), legend.title = element_blank())
+    geom_point(aes(x = mean10K, colour = data_source, group = data_source), alpha = 0.8, size = 2) +
+    geom_path(aes(x = mean10K), colour = "grey60") +
+    scale_x_continuous("Incidence Rate per 10K", labels = scales::comma) +
+    scale_colour_manual(values = pal) +
+    theme_bw() +
+    theme(legend.position = "bottom", axis.title.y = element_blank(), legend.title = element_blank())
 
 ggsave("rate_comparison_minireport.png", plt_r, width = w, height = h)
 plt_r
 ```
 
 ```{r rrplot, fig.width=5, fig.height=7, fig.cap="Rate ratio of preliminary 2015-2019 to 2010-2016 mean annual cholera incidence estimates"}
-rateRatio$country <- with(rateRatio, reorder(country, ratio, median))
+rateRatio$country = with(rateRatio, reorder(country, ratio, median))
 pal_ratio <- c("#F8766D", "#00BFC4")
 names(pal_ratio) <- c("Increased incidence", "Decreased incidence")
 
 plt_rr <- ggplot(rateRatio, aes(y = country)) +
-  geom_point(aes(x = ratio, colour = changes), size = 2) +
-  geom_vline(aes(xintercept = 1)) +
-  scale_x_log10("Rate Ratio (current/lancet)", labels = scales::comma) +
-  scale_colour_manual(values = pal_ratio) +
-  theme_bw() +
-  theme(legend.position = "bottom", axis.title.y = element_blank(), legend.title = element_blank()) +
-  guides(colour = guide_legend(nrow = 2))
+    geom_point(aes(x = ratio, colour = changes), size = 2) +
+    geom_vline(aes(xintercept = 1)) +
+    scale_x_log10("Rate Ratio (current/lancet)", labels = scales::comma) +
+    scale_colour_manual(values = pal_ratio) +
+    theme_bw() +
+    theme(legend.position = "bottom", axis.title.y = element_blank(), legend.title = element_blank()) +
+    guides(colour = guide_legend(nrow=2))
 
 ggsave("rateratio_minireport.png", plt_rr, width = w, height = h)
 plt_rr
 ```
 
 ```{r crplot, fig.width=5, fig.height=7, fig.cap="Case ratio of preliminary 2015-2019 to 2010-2016 mean annual cholera case estimates"}
-caseRatio$country <- with(caseRatio, reorder(country, ratio, median))
+caseRatio$country = with(caseRatio, reorder(country, ratio, median))
 pal_ratio <- c("#F8766D", "#00BFC4")
 names(pal_ratio) <- c("Increased cases", "Decreased cases")
 
 plt_cr <- ggplot(caseRatio, aes(y = country)) +
-  geom_point(aes(x = ratio, colour = changes), size = 2) +
-  geom_vline(aes(xintercept = 1)) +
-  scale_x_log10("Case Ratio (current/lancet)", labels = scales::comma) +
-  scale_colour_manual(values = pal_ratio) +
-  theme_bw() +
-  theme(legend.position = "bottom", axis.title.y = element_blank(), legend.title = element_blank()) +
-  guides(colour = guide_legend(nrow = 2))
+    geom_point(aes(x = ratio, colour = changes), size = 2) +
+    geom_vline(aes(xintercept = 1)) +
+    scale_x_log10("Case Ratio (current/lancet)", labels = scales::comma) +
+    scale_colour_manual(values = pal_ratio) +
+    theme_bw() +
+    theme(legend.position = "bottom", axis.title.y = element_blank(), legend.title = element_blank()) +
+    guides(colour = guide_legend(nrow=2))
 
 ggsave("caseratio_minireport.png", plt_cr, width = w, height = h)
 plt_cr
 ```
 
 ```{r barplot, fig.width=7, fig.height=5, fig.cap="Percentage of the population living in areas with high and medium incidence levels over the 2015-2019 period, by country"}
-# Bar chart for population proportion
+# Bar chart for population proportion 
 pop_prop <- read_csv(paste0(csv_dir, "gavi_pop.csv"))
 
 pop_prop$total_proportion <- pop_prop$`>=0.001_mean_value` + pop_prop$`>=0.0001_mean_value`
-country_order <- pop_prop[order(pop_prop$total_proportion), ]$country_iso
-pop_prop <- pop_prop %>%
-  mutate(
-    High = `>=0.001_mean_value`,
-    Medium = `>=0.0001_mean_value`
-  ) %>%
-  select(country_iso, High, Medium) %>%
-  gather("level", "proportion", "High":"Medium") %>%
-  mutate(level = factor(level, levels = c("Medium", "High"))) %>%
-  rename(`Incidence Level` = level) %>%
-  mutate(country_iso = factor(country_iso, levels = country_order)) %>%
-  filter(!is.na(proportion)) %>%
+country_order <- pop_prop[order(pop_prop$total_proportion),]$country_iso
+pop_prop <- pop_prop %>% 
+  mutate(High = `>=0.001_mean_value`,
+         Medium = `>=0.0001_mean_value`) %>% 
+  select(country_iso, High, Medium) %>% 
+  gather("level", "proportion", "High":"Medium") %>% 
+  mutate(level = factor(level, levels = c("Medium", "High"))) %>% 
+  rename(`Incidence Level` = level) %>% 
+  mutate(country_iso = factor(country_iso, levels = country_order)) %>% 
+  filter(!is.na(proportion)) %>% 
   mutate(country_name = recode(country_iso,
-    AGO = "Angola",
-    BDI = "Burundi",
-    BEN = "Benin",
-    BFA = "Burkina Faso",
-    CAF = "C. African Republic",
-    CIV = "Cote D'Ivoire",
-    CMR = "Cameroon",
-    COD = "DR Congo",
-    COG = "Republic of Congo",
-    ETH = "Ethiopia",
-    GHA = "Ghana",
-    GIN = "Guinea",
-    GNB = "Guinea Bissau",
-    KEN = "Kenya",
-    LBR = "Liberia",
-    MLI = "Mali",
-    MOZ = "Mozambique",
-    MRT = "Mauritania",
-    MWI = "Malawi",
-    NER = "Niger",
-    NGA = "Nigeria",
-    RWA = "Rwanda",
-    SDN = "Sudan",
-    SEN = "Senegal",
-    SLE = "Sierra Leone",
-    SOM = "Somalia",
-    SSD = "South Sudan",
-    SWZ = "Eswatini",
-    TCD = "Chad",
-    TGO = "Togo",
-    TZA_M = "Tanzania mainland",
-    TZA = "Tanzania (incl Zanzibar)",
-    UGA = "Uganda",
-    ZAF = "South Africa",
-    ZMB = "Zambia",
-    ZNZ = "Zanzibar, Tanzania",
-    ZWE = "Zimbabwe"
+                                AGO = "Angola",
+                                BDI = "Burundi",
+                                BEN = "Benin",
+                                BFA = "Burkina Faso",
+                                CAF = "C. African Republic",
+                                CIV = "Cote D'Ivoire",
+                                CMR = "Cameroon",
+                                COD = "DR Congo",
+                                COG = "Republic of Congo",
+                                ETH = "Ethiopia",
+                                GHA = "Ghana",
+                                GIN = "Guinea",
+                                GNB = "Guinea Bissau",
+                                KEN = "Kenya",
+                                LBR = "Liberia",
+                                MLI = "Mali",
+                                MOZ = "Mozambique",
+                                MRT = "Mauritania",
+                                MWI = "Malawi",
+                                NER = "Niger",
+                                NGA = "Nigeria",
+                                RWA = "Rwanda",
+                                SDN = "Sudan",
+                                SEN = "Senegal",
+                                SLE = "Sierra Leone",
+                                SOM = "Somalia",
+                                SSD = "South Sudan",
+                                SWZ = "Eswatini",
+                                TCD = "Chad",
+                                TGO = "Togo",
+                                TZA_M = "Tanzania mainland",
+                                TZA = "Tanzania (incl Zanzibar)", 
+                                UGA = "Uganda",
+                                ZAF = "South Africa",
+                                ZMB = "Zambia",
+                                ZNZ = "Zanzibar, Tanzania", 
+                                ZWE = "Zimbabwe"
   ))
 
-# we don't want ZNZ in the plot
-plt_bar <- ggplot(dplyr::filter(pop_prop, country_name != "Zanzibar, Tanzania"), aes(fill = `Incidence Level`, y = proportion, x = country_name)) +
-  geom_bar(position = "stack", stat = "identity") +
-  scale_fill_manual(values = c("#fa8e41", "#d6610d")) +
+#we don't want ZNZ in the plot
+plt_bar <- ggplot(dplyr::filter(pop_prop, country_name != "Zanzibar, Tanzania"), aes(fill=`Incidence Level`, y=proportion, x=country_name)) + 
+  geom_bar(position="stack", stat="identity") +
+  scale_fill_manual(values = c("#fa8e41", "#d6610d")) + 
   theme_minimal() +
-  xlab("Country Name") +
+  xlab("Country Name") + 
   ylab("Proportion (%)") +
   coord_flip()
 
 ggsave("barchart.png", plt_bar, width = 8, height = 5)
 plt_bar
+
 ```
 
 ```{r barplotcount, fig.width=7, fig.height=5, fig.cap="Size of the population living in areas with high and medium incidence levels over the 2015-2019 period, by country"}
@@ -471,78 +459,77 @@ pop_prop <- read_csv(paste0(csv_dir, "gavi_pop.csv"))
 
 pop_prop$pop_2017 <- NA
 for (country_code in unique(pop_prop$country_iso)) {
-  pop_prop[pop_prop$country_iso == country_code, ]$pop_2017 <- as.numeric(tidyr::world_bank_pop[tidyr::world_bank_pop$country == country_code &
-    tidyr::world_bank_pop$indicator == "SP.POP.TOTL", c("2017")])
+  pop_prop[pop_prop$country_iso == country_code, ]$pop_2017 <- as.numeric(tidyr::world_bank_pop[tidyr::world_bank_pop$country == country_code & 
+                                                     tidyr::world_bank_pop$indicator == "SP.POP.TOTL", c("2017")])
 }
 pop_prop[pop_prop$country_iso == "ZNZ", ]$pop_2017 <- 683687
-pop_prop[pop_prop$country_iso == "TZA_M", ]$pop_2017 <- as.numeric(tidyr::world_bank_pop[tidyr::world_bank_pop$country == "TZA" &
-  tidyr::world_bank_pop$indicator == "SP.POP.TOTL", c("2017")]) - 683687
+pop_prop[pop_prop$country_iso == "TZA_M", ]$pop_2017 <- as.numeric(tidyr::world_bank_pop[tidyr::world_bank_pop$country == "TZA" & 
+                                                        tidyr::world_bank_pop$indicator == "SP.POP.TOTL", c("2017")]) - 683687
 
 pop_prop$total_proportion <- pop_prop$`>=0.001_mean_value` + pop_prop$`>=0.0001_mean_value`
 pop_prop$pop_high_medium <- pop_prop$total_proportion * pop_prop$pop_2017
-country_order <- pop_prop[order(pop_prop$pop_high_medium), ]$country_iso
-pop_prop <- pop_prop %>%
-  mutate(
-    High = `>=0.001_mean_value` * pop_2017 / 1e8,
-    Medium = `>=0.0001_mean_value` * pop_2017 / 1e8
-  ) %>% # 6 for million and 2 for %
-  select(country_iso, High, Medium) %>%
-  gather("level", "pop_size", "High":"Medium") %>%
-  mutate(level = factor(level, levels = c("Medium", "High"))) %>%
-  rename(`Incidence Level` = level) %>%
-  mutate(country_iso = factor(country_iso, levels = country_order)) %>%
-  filter(!is.na(pop_size)) %>%
+country_order <- pop_prop[order(pop_prop$pop_high_medium),]$country_iso
+pop_prop <- pop_prop %>% 
+  mutate(High = `>=0.001_mean_value` * pop_2017 / 1e8,
+         Medium = `>=0.0001_mean_value` * pop_2017 / 1e8) %>% #6 for million and 2 for %
+  select(country_iso, High, Medium) %>% 
+  gather("level", "pop_size", "High":"Medium") %>% 
+  mutate(level = factor(level, levels = c("Medium", "High"))) %>% 
+  rename(`Incidence Level` = level) %>% 
+  mutate(country_iso = factor(country_iso, levels = country_order)) %>% 
+  filter(!is.na(pop_size)) %>% 
   mutate(country_name = recode(country_iso,
-    AGO = "Angola",
-    BDI = "Burundi",
-    BEN = "Benin",
-    BFA = "Burkina Faso",
-    CAF = "C. African Republic",
-    CIV = "Cote D'Ivoire",
-    CMR = "Cameroon",
-    COD = "DR Congo",
-    COG = "Republic of Congo",
-    ETH = "Ethiopia",
-    GHA = "Ghana",
-    GIN = "Guinea",
-    GNB = "Guinea Bissau",
-    KEN = "Kenya",
-    LBR = "Liberia",
-    MLI = "Mali",
-    MOZ = "Mozambique",
-    MRT = "Mauritania",
-    MWI = "Malawi",
-    NER = "Niger",
-    NGA = "Nigeria",
-    RWA = "Rwanda",
-    SDN = "Sudan",
-    SEN = "Senegal",
-    SLE = "Sierra Leone",
-    SOM = "Somalia",
-    SSD = "South Sudan",
-    SWZ = "Eswatini",
-    TCD = "Chad",
-    TGO = "Togo",
-    TZA_M = "Tanzania mainland",
-    TZA = "Tanzania (incl Zanzibar)",
-    UGA = "Uganda",
-    ZAF = "South Africa",
-    ZMB = "Zambia",
-    ZNZ = "Zanzibar, Tanzania",
-    ZWE = "Zimbabwe"
+                                AGO = "Angola",
+                                BDI = "Burundi",
+                                BEN = "Benin",
+                                BFA = "Burkina Faso",
+                                CAF = "C. African Republic",
+                                CIV = "Cote D'Ivoire",
+                                CMR = "Cameroon",
+                                COD = "DR Congo",
+                                COG = "Republic of Congo",
+                                ETH = "Ethiopia",
+                                GHA = "Ghana",
+                                GIN = "Guinea",
+                                GNB = "Guinea Bissau",
+                                KEN = "Kenya",
+                                LBR = "Liberia",
+                                MLI = "Mali",
+                                MOZ = "Mozambique",
+                                MRT = "Mauritania",
+                                MWI = "Malawi",
+                                NER = "Niger",
+                                NGA = "Nigeria",
+                                RWA = "Rwanda",
+                                SDN = "Sudan",
+                                SEN = "Senegal",
+                                SLE = "Sierra Leone",
+                                SOM = "Somalia",
+                                SSD = "South Sudan",
+                                SWZ = "Eswatini",
+                                TCD = "Chad",
+                                TGO = "Togo",
+                                TZA_M = "Tanzania mainland",
+                                TZA = "Tanzania (incl Zanzibar)", 
+                                UGA = "Uganda",
+                                ZAF = "South Africa",
+                                ZMB = "Zambia",
+                                ZNZ = "Zanzibar, Tanzania", 
+                                ZWE = "Zimbabwe"
   ))
 
-# we don't want ZNZ to be in the plot
-plt_bar <- ggplot(dplyr::filter(pop_prop, country_name != "Zanzibar, Tanzania"), aes(fill = `Incidence Level`, y = pop_size, x = country_name)) +
-  geom_bar(position = "stack", stat = "identity") +
-  scale_fill_manual(values = c("#fa8e41", "#d6610d")) +
+#we don't want ZNZ to be in the plot
+plt_bar <- ggplot(dplyr::filter(pop_prop, country_name != "Zanzibar, Tanzania"), aes(fill=`Incidence Level`, y=pop_size, x=country_name)) + 
+  geom_bar(position="stack", stat="identity") +
+  scale_fill_manual(values = c("#fa8e41", "#d6610d")) + 
   theme_minimal() +
-  xlab("Country Name") +
+  xlab("Country Name") + 
   ylab("Population (in millions)") +
   coord_flip()
 
 ggsave("barchart-count.png", plt_bar, width = 8, height = 5)
 plt_bar
+
 ```
 
 ```{r highplot, fig.width=6, fig.height=7, fig.cap="Percentage of the country population living in areas with a mean annual incidence rate ≥1 per 1,000 population over the 2015-2019 period"}
@@ -550,13 +537,11 @@ plt_bar
 africa <- sf::st_read(paste0(csv_dir, "Africa_shapefiles/afr_g2014_2013_0/afr_g2014_2013_0.shp"), quiet = TRUE)
 
 pop_prop <- read_csv(paste0(csv_dir, "gavi_pop.csv"))
-pop_prop <- pop_prop %>%
-  mutate(
-    high = `>=0.001_mean_value`,
-    medium = `>=0.0001_mean_value`,
-    low = `>=0.00001_mean_value`,
-    high_medium = high + medium
-  ) %>%
+pop_prop <- pop_prop %>% 
+  mutate(high = `>=0.001_mean_value`,
+         medium = `>=0.0001_mean_value`,
+         low = `>=0.00001_mean_value`, 
+         high_medium = high + medium) %>% 
   select(country_iso, high, high_medium)
 africa <- left_join(africa, pop_prop, by = c("ISO3" = "country_iso"))
 
@@ -564,11 +549,11 @@ africa <- left_join(africa, pop_prop, by = c("ISO3" = "country_iso"))
 my_colors <- brewer.pal(9, "RdPu")
 my_colors <- colorRampPalette(my_colors)(30)
 
-africa$high <- as.numeric(africa$high)
+africa$high <- as.numeric( africa$high )
 class_of_country <- cut(africa$high, 30)
 my_colors <- my_colors[as.numeric(class_of_country)]
-my_colors[is.na(as.numeric(class_of_country))] <- "#D3D3D3" # make NA grey
-my_colors[as.numeric(africa$high) == 0] <- "#FFFFFF" # make zero white
+my_colors[is.na(as.numeric(class_of_country))] <- "#D3D3D3" #make NA grey
+my_colors[as.numeric(africa$high) == 0] <- "#FFFFFF" #make zero white
 
 color_legend <- sort(unique(my_colors[!my_colors %in% c("#D3D3D3")]))
 color_legend_high <- c(color_legend, "#D3D3D3")
@@ -576,22 +561,22 @@ color_name <- as.character(sort(unique(class_of_country), decreasing = TRUE))
 color_name[length(color_name)] <- "(0,0.818]"
 color_name <- stringr::str_replace(color_name, ",", "%, ")
 color_name <- stringr::str_replace(color_name, "]", "%]")
-color_name_high <- c(color_name, "0%", "NA")
+color_name_high <- c(color_name, '0%', 'NA')
 my_colors_high <- my_colors
 
-africa_high <- africa %>%
-  select(high, geometry) %>%
+africa_high <- africa %>% 
+  select(high, geometry) %>% 
   rename(`Proportion of population living in high incidence rate areas` = high)
 
 ### High-Medium
 my_colors <- brewer.pal(9, "YlOrRd")
 my_colors <- colorRampPalette(my_colors)(30)
 
-africa$high_medium <- as.numeric(africa$high_medium)
+africa$high_medium <- as.numeric( africa$high_medium )
 class_of_country <- cut(africa$high_medium, 30)
 my_colors <- my_colors[as.numeric(class_of_country)]
-my_colors[is.na(as.numeric(class_of_country))] <- "#D3D3D3" # make NA grey
-my_colors[as.numeric(africa$high_medium) == 0] <- "#FFFFFF" # make zero white
+my_colors[is.na(as.numeric(class_of_country))] <- "#D3D3D3" #make NA grey
+my_colors[as.numeric(africa$high_medium) == 0] <- "#FFFFFF" #make zero white
 
 color_legend <- sort(unique(my_colors[!my_colors %in% c("#D3D3D3")]))
 color_legend_high_medium <- c(color_legend, "#D3D3D3")
@@ -599,98 +584,88 @@ color_name <- as.character(sort(unique(class_of_country), decreasing = TRUE))
 color_name[length(color_name)] <- "(0,1.59]"
 color_name <- stringr::str_replace(color_name, ",", "%, ")
 color_name <- stringr::str_replace(color_name, "]", "%]")
-color_name_high_medium <- c(color_name, "0%", "NA")
+color_name_high_medium <- c(color_name, '0%', 'NA')
 my_colors_high_medium <- my_colors
 
-africa_high_medium <- africa %>%
-  select(high_medium, geometry) %>%
+africa_high_medium <- africa %>% 
+  select(high_medium, geometry) %>% 
   rename(`Proportion of population living in high or medium incidence rate areas` = high_medium)
 
 
 
-### Plotting -- high map only
-plot(africa_high,
-  xlim = c(-20, 60), ylim = c(-40, 40), col = my_colors_high, bg = "#FFFFFF",
-  main = "",
-  xlab = "",
-  ylab = "",
-  sub = ""
-)
-legend("bottomleft",
-  legend = color_name_high,
-  col = color_legend_high,
-  pch = c(16),
-  bty = "n",
-  pt.cex = 2,
-  cex = 1.0,
-  text.col = "black",
-  horiz = F,
-  inset = c(0, 0)
-)
+### Plotting -- high map only 
+plot(africa_high, xlim=c(-20,60) , ylim=c(-40,40), col=my_colors_high ,  bg = "#FFFFFF", 
+      main="",
+      xlab="",
+      ylab="",
+      sub="")
+legend("bottomleft", 
+       legend = color_name_high, 
+       col = color_legend_high, 
+       pch = c(16), 
+       bty = "n", 
+       pt.cex = 2, 
+       cex = 1.0, 
+       text.col = "black", 
+       horiz = F , 
+       inset = c(0, 0))
 
-png(file = "high-map.png", width = 1800, height = 2100)
-plot(africa_high,
-  xlim = c(-20, 60), ylim = c(-40, 40), col = my_colors_high, bg = "#FFFFFF",
-  main = "",
-  xlab = "",
-  ylab = "",
-  sub = ""
-)
-legend("bottomleft",
-  legend = color_name_high,
-  col = color_legend_high,
-  pch = c(16),
-  bty = "n",
-  pt.cex = 6,
-  cex = 4,
-  text.col = "black",
-  horiz = F,
-  inset = c(0.1, 0.1)
-)
+png(file="high-map.png", width=1800, height=2100)
+plot(africa_high, xlim=c(-20,60) , ylim=c(-40,40), col=my_colors_high ,  bg = "#FFFFFF", 
+      main="",
+      xlab="",
+      ylab="",
+      sub="")
+legend("bottomleft", 
+       legend = color_name_high, 
+       col = color_legend_high, 
+       pch = c(16), 
+       bty = "n", 
+       pt.cex = 6, 
+       cex = 4, 
+       text.col = "black", 
+       horiz = F , 
+       inset = c(0.1, 0.1))
 dev.off()
+
 ```
 
 ```{r hmplot, fig.width=6, fig.height=7, fig.cap="Percentage of the country population living in areas with a mean annual incidence rate ≥1 per 10,000 population over the 2015-2019 period"}
-# This plot is for high + medium
-plot(africa_high_medium,
-  xlim = c(-20, 60), ylim = c(-40, 40), col = my_colors_high_medium, bg = "#FFFFFF",
-  main = "",
-  xlab = "",
-  ylab = "",
-  sub = ""
-)
-legend("bottomleft",
-  legend = color_name_high_medium,
-  col = color_legend_high_medium,
-  pch = c(16),
-  bty = "n",
-  pt.cex = 2,
-  cex = 0.8,
-  text.col = "black",
-  horiz = F,
-  inset = c(0, 0)
-)
+# This plot is for high + medium  
+plot(africa_high_medium, xlim=c(-20,60) , ylim=c(-40,40), col=my_colors_high_medium ,  bg = "#FFFFFF", 
+      main="",
+      xlab="",
+      ylab="",
+      sub="")
+legend("bottomleft", 
+       legend = color_name_high_medium, 
+       col = color_legend_high_medium, 
+       pch = c(16), 
+       bty = "n", 
+       pt.cex = 2, 
+       cex = 0.8, 
+       text.col = "black", 
+       horiz = F , 
+       inset = c(0, 0))
 
-png(file = "high-medium-map.png", width = 1800, height = 2100)
-plot(africa_high_medium,
-  xlim = c(-20, 60), ylim = c(-40, 40), col = my_colors_high_medium, bg = "#FFFFFF",
-  main = "",
-  xlab = "",
-  ylab = "",
-  sub = ""
-)
-legend("bottomleft",
-  legend = color_name_high_medium,
-  col = color_legend_high_medium,
-  pch = c(16),
-  bty = "n",
-  pt.cex = 6,
-  cex = 4,
-  text.col = "black",
-  horiz = F,
-  inset = c(0.1, 0.1)
-)
+png(file="high-medium-map.png", width=1800, height=2100)
+plot(africa_high_medium, xlim=c(-20,60) , ylim=c(-40,40), col=my_colors_high_medium ,  bg = "#FFFFFF", 
+      main="",
+      xlab="",
+      ylab="",
+      sub="")
+legend("bottomleft", 
+       legend = color_name_high_medium, 
+       col = color_legend_high_medium, 
+       pch = c(16), 
+       bty = "n", 
+       pt.cex = 6, 
+       cex = 4, 
+       text.col = "black", 
+       horiz = F , 
+       inset = c(0.1, 0.1))
 dev.off()
+
 ```
 
 
@@ -703,12 +678,13 @@ table1 <- dplyr::filter(datlong, type == "cases") %>%
   dplyr::arrange(country)
 colnames(table1) <- c("Country", "Source", "Years", "Mean", "2.5%", "97.5%")
 
-table1 %>%
+table1 %>% 
   kableExtra::kable(digits = 0, caption = "Mean annual incidence cases", col.names = c("Country", "Source", "Years", "Mean", "2.5%", "97.5%")) %>%
   kableExtra::kable_styling(full_width = F)
 
-readr::write_csv(dplyr::filter(table1, Source == "JHU" & Years == "2015-2019"), "table1.csv") # JHU data only
-readr::write_csv(dplyr::filter(table1, Country != "Zanzibar, Tanzania"), "table1_full.csv") # we don't want ZNZ
+readr::write_csv(dplyr::filter(table1, Source == "JHU" & Years == "2015-2019"), "table1.csv") #JHU data only 
+readr::write_csv(dplyr::filter(table1, Country != "Zanzibar, Tanzania"), "table1_full.csv") #we don't want ZNZ
+
 ```
 
 ```{r ratetab}
@@ -716,15 +692,16 @@ table2 <- dplyr::filter(datlong, type == "rates") %>%
   dplyr::mutate(source = ifelse(source == "WHO", source, "JHU")) %>%
   dplyr::select(country, source, years, mean, low, high) %>%
   dplyr::arrange(country) %>%
-  dplyr::mutate(mean = mean * 10000, low = low * 10000, high = high * 10000) # rate in per 10k
+  dplyr::mutate(mean = mean*10000, low = low*10000, high = high*10000) #rate in per 10k
 colnames(table2) <- c("Country", "Source", "Years", "Mean", "2.5%", "97.5%")
 
 table2 %>%
   kableExtra::kable(caption = "Mean annual incidence rate per 10,000", col.names = c("Country", "Source", "Years", "Mean", "2.5%", "97.5%")) %>%
   kableExtra::kable_styling(full_width = F)
 
-readr::write_csv(dplyr::filter(table2, Source == "JHU" & Years == "2015-2019"), "table2.csv") # JHU data only
-readr::write_csv(dplyr::filter(table2, Source != "WHO" & Country != "Zanzibar, Tanzania"), "table2_full.csv") # we don't want ZNZ
+readr::write_csv(dplyr::filter(table2, Source == "JHU" & Years == "2015-2019"), "table2.csv") #JHU data only 
+readr::write_csv(dplyr::filter(table2, Source != "WHO" & Country != "Zanzibar, Tanzania"), "table2_full.csv") #we don't want ZNZ
+
 ```
 
 ```{r popproptab}
@@ -732,58 +709,57 @@ pop_prop <- read_csv(paste0(csv_dir, "gavi_pop.csv"))
 
 table3 <- dplyr::filter(pop_prop, country_iso != "GNB") %>%
   mutate(country_name = recode(country_iso,
-    AGO = "Angola",
-    BDI = "Burundi",
-    BEN = "Benin",
-    BFA = "Burkina Faso",
-    CAF = "C. African Republic",
-    CIV = "Cote D'Ivoire",
-    CMR = "Cameroon",
-    COD = "DR Congo",
-    COG = "Republic of Congo",
-    ETH = "Ethiopia",
-    GHA = "Ghana",
-    GIN = "Guinea",
-    GNB = "Guinea Bissau",
-    KEN = "Kenya",
-    LBR = "Liberia",
-    MLI = "Mali",
-    MOZ = "Mozambique",
-    MRT = "Mauritania",
-    MWI = "Malawi",
-    NER = "Niger",
-    NGA = "Nigeria",
-    RWA = "Rwanda",
-    SDN = "Sudan",
-    SEN = "Senegal",
-    SLE = "Sierra Leone",
-    SOM = "Somalia",
-    SSD = "South Sudan",
-    SWZ = "Eswatini",
-    TCD = "Chad",
-    TGO = "Togo",
-    TZA_M = "Tanzania mainland",
-    TZA = "Tanzania (incl Zanzibar)",
-    UGA = "Uganda",
-    ZAF = "South Africa",
-    ZMB = "Zambia",
-    ZNZ = "Zanzibar, Tanzania",
-    ZWE = "Zimbabwe"
-  )) %>%
-  select(country_name, `>=0.001_mean_value`, `>=0.0001_mean_value`, `>=0.00001_mean_value`) %>%
+                                AGO = "Angola",
+                                BDI = "Burundi",
+                                BEN = "Benin",
+                                BFA = "Burkina Faso",
+                                CAF = "C. African Republic",
+                                CIV = "Cote D'Ivoire",
+                                CMR = "Cameroon",
+                                COD = "DR Congo",
+                                COG = "Republic of Congo",
+                                ETH = "Ethiopia",
+                                GHA = "Ghana",
+                                GIN = "Guinea",
+                                GNB = "Guinea Bissau",
+                                KEN = "Kenya",
+                                LBR = "Liberia",
+                                MLI = "Mali",
+                                MOZ = "Mozambique",
+                                MRT = "Mauritania",
+                                MWI = "Malawi",
+                                NER = "Niger",
+                                NGA = "Nigeria",
+                                RWA = "Rwanda",
+                                SDN = "Sudan",
+                                SEN = "Senegal",
+                                SLE = "Sierra Leone",
+                                SOM = "Somalia",
+                                SSD = "South Sudan",
+                                SWZ = "Eswatini",
+                                TCD = "Chad",
+                                TGO = "Togo",
+                                TZA_M = "Tanzania mainland",
+                                TZA = "Tanzania (incl Zanzibar)", 
+                                UGA = "Uganda",
+                                ZAF = "South Africa",
+                                ZMB = "Zambia",
+                                ZNZ = "Zanzibar, Tanzania", 
+                                ZWE = "Zimbabwe"
+  )) %>% 
+  select(country_name, `>=0.001_mean_value`, `>=0.0001_mean_value`, `>=0.00001_mean_value`) %>% 
   dplyr::arrange(country_name)
-colnames(table3) <- c(
-  "Country",
-  "High incidence area proportion (%)",
-  "Medium incidence area proportion (%)",
-  "Low incidence area proportion (%)"
-)
+colnames(table3) <- c("Country", 
+                      "High incidence area proportion (%)", 
+                      "Medium incidence area proportion (%)", 
+                      "Low incidence area proportion (%)")
 
 table3 %>%
   kableExtra::kable(caption = "Percentage of the population living in areas with high, medium, and low incidence levels over the 2015-2019 period", col.names = c("Country", "High incidence area proportion (%)", "Medium incidence area proportion (%)", "Low incidence area proportion (%)")) %>%
   kableExtra::kable_styling(full_width = F)
 
-readr::write_csv(dplyr::filter(table3, Country != "Zanzibar, Tanzania"), "table3.csv") # we don't want ZNZ data
+readr::write_csv(dplyr::filter(table3, Country != "Zanzibar, Tanzania"), "table3.csv") #we don't want ZNZ data
+
 ```
 
 
