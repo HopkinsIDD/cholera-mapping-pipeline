@@ -1,6 +1,6 @@
-CREATE MATERIALIZED VIEW covariate_grid_map AS
+CREATE MATERIALIZED VIEW IF NOT EXISTS covariate_grid_map AS
 SELECT
-  all_covariates.filename,
+  all_covariates.covariate_name,
   all_covariates.time_left,
   all_covariates.time_right,
   all_covariates.rid as covar_rid,
