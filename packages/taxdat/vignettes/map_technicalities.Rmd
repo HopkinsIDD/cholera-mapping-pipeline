@@ -6,14 +6,14 @@ output: html_document
 --- 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE,warning=FALSE,message=FALSE)
 library(taxdat)
-taxdir <- "~/svn/cholera-taxonomy/trunk/taxonomy-verified/"
+taxdir = '~/svn/cholera-taxonomy/trunk/taxonomy-verified/'
 # Get some shape file
-cntry_name <- "SLE"
-year <- 2015
-loc_name <- paste(lookup_WHO_region(cntry_name), cntry_name, sep = "_")
-shp <- get_shape_file(loc_name, taxonomy_dir = taxdir)
+cntry_name <- 'SLE'
+year = 2015
+loc_name <- paste(lookup_WHO_region(cntry_name),cntry_name,sep='_')
+shp <- get_shape_file(loc_name,taxonomy_dir = taxdir)
 google_pop <- 27580000
 res1 <- 1
 res2 <- 20
@@ -23,91 +23,87 @@ res2 <- 20
   We will look at population, since its a ubiquitous covariate.  We first will consider how the gridsize of the raster affects the outcome population.  We consider the population at (`r res1`km)^2 and (`r res2`km)^2 resolutions.
 ```{r}
 # Load a raster, and aggregate it
-lhrl <- raster::raster(paste("~/svn/cholera-taxonomy/trunk/Layers/pop/AFR/AFR_PPP_", year, "_adj_v2.tif", sep = ""))
-lhrl <- raster::aggregate(lhrl, res1, fun = sum)
-rhrl <- raster::aggregate(lhrl, round(res2 / res1), fun = sum)
+lhrl <- raster::raster(paste('~/svn/cholera-taxonomy/trunk/Layers/pop/AFR/AFR_PPP_',year,'_adj_v2.tif',sep=''))
+lhrl <- raster::aggregate(lhrl,res1,fun=sum)
+rhrl <- raster::aggregate(lhrl,round(res2/res1),fun=sum)
 # Crop the rasters to the extent of the shapefile plus a bit extra (should be enough for at least 1 extra row of the aggregate raster)
-lhcrl <- raster::crop(lhrl, expand_extent(raster::extent(sf::as_Spatial(shp$geometry)), (raster::res(rhrl) * 3 + 1)[1]), snap = "out")
-rhcrl <- raster::crop(rhrl, expand_extent(raster::extent(sf::as_Spatial(shp$geometry)), (raster::res(rhrl) * 3 + 1)[1]), snap = "out")
+lhcrl <- raster::crop(lhrl,expand_extent(raster::extent(sf::as_Spatial(shp$geometry)),(raster::res(rhrl) * 3 + 1)[1]),snap='out')
+rhcrl <- raster::crop(rhrl,expand_extent(raster::extent(sf::as_Spatial(shp$geometry)),(raster::res(rhrl) * 3 + 1)[1]),snap='out')
 
 ## convert to shapefiles
 lhshp <- sf::st_as_sf(raster::rasterToPolygons(lhcrl))
 rhshp <- sf::st_as_sf(raster::rasterToPolygons(rhcrl))
 ## We will need area later for aggregation
-lhshp$area_grid <- as.numeric(sf::st_area(lhshp))
-rhshp$area_grid <- as.numeric(sf::st_area(rhshp))
+lhshp$area_grid = as.numeric(sf::st_area(lhshp))
+rhshp$area_grid = as.numeric(sf::st_area(rhshp))
 ## Keep track of which polygon is which
-lhshp$idx_grid <- 1:nrow(lhshp)
-rhshp$idx_grid <- 1:nrow(rhshp)
+lhshp$idx_grid = 1:nrow(lhshp)
+rhshp$idx_grid = 1:nrow(rhshp)
 ## Renaming Population
-lhshp$population <- lhshp[[paste("AFR_PPP_", year, "_adj_v2", sep = "")]]
-rhshp$population <- rhshp[[paste("AFR_PPP_", year, "_adj_v2", sep = "")]]
+lhshp$population = lhshp[[paste('AFR_PPP_',year,'_adj_v2',sep='')]]
+rhshp$population = rhshp[[paste('AFR_PPP_',year,'_adj_v2',sep='')]]
 ## Add in resolution
-lhshp$resol <- res1
-rhshp$resol <- res2
+lhshp$resol = res1
+rhshp$resol = res2
 ```
   There are two factors we consider when computing the area.  We want to consider which raster we use ( (`r res1`km)^2 or (`r res2`km)^2, and whether to adjust for gridcells only partially overlapping shapefiles (partial_cover).  We will compute the population all 4 ways, and look at the differences.
 ```{r}
-# Combine the rasters as separate polygons in a single data frame (we can separate them again later)
-allshp <- rbind(lhshp, rhshp)
-all_intersection <- sf::st_intersection(allshp, shp)
-all_intersection <- dplyr::arrange(all_intersection, resol, idx_grid)
+#Combine the rasters as separate polygons in a single data frame (we can separate them again later)
+allshp = rbind(lhshp,rhshp)
+all_intersection <- sf::st_intersection(allshp,shp)
+all_intersection <- dplyr::arrange(all_intersection,resol,idx_grid)
 # Compute new area / old area to adjust population
 # This mimics the behaviour of partial_cover
-all_intersection$adjustment_factor <- as.numeric(st_area(all_intersection) / all_intersection$area_grid)
+all_intersection$adjustment_factor <- as.numeric(st_area(all_intersection)/all_intersection$area_grid)
 all_intersection_adj <- all_intersection
-all_intersection$adjusted <- FALSE
-all_intersection_adj$adjusted <- TRUE
+all_intersection$adjusted = FALSE
+all_intersection_adj$adjusted = TRUE
 all_intersection_adj$population <- all_intersection$population * all_intersection$adjustment_factor
 
-all_intersection <- rbind(all_intersection, all_intersection_adj)
+all_intersection <- rbind(all_intersection,all_intersection_adj)
 
 all_intersection %>%
-  dplyr::group_by(resol, adjusted) %>%
+  dplyr::group_by(resol,adjusted) %>%
   dplyr::summarize(
     population = sum(population),
-  ) ->
-tmp
-print(paste("At resolution", tmp$resol, ifelse(tmp$adjusted, "with population adjustments", "without population adjustments"), "we obtain a population of", round(tmp$population), "people"))
+  )  ->
+  tmp
+print(paste("At resolution",tmp$resol,ifelse(tmp$adjusted,"with population adjustments","without population adjustments"),"we obtain a population of",round(tmp$population),"people"))
 ```
 Census data tells us that the true popluation of `r cntry_name` in `r year` is `r google_pop`.
 ```{r}
-print(paste("At resolution", tmp$resol, ifelse(tmp$adjusted, "with population adjustments", "without population adjustments"), "we obtain a relative error of", (round(tmp$population) - google_pop) / google_pop))
+print(paste("At resolution",tmp$resol,ifelse(tmp$adjusted,"with population adjustments","without population adjustments"),"we obtain a relative error of",(round(tmp$population) - google_pop)/google_pop))
 ```
   The second task we consider is the following.  Given a region and its districts, compute the population of each district.  We will consider the accuracy in computing the population of the region, and also the information lost by summing the population of each district.
 ```{r}
 # Get the subregion, and give it ids
-subshp <- get_country_sublevels(cntry_name, 2, taxonomy_dir = taxdir)
+subshp <- get_country_sublevels(cntry_name,2,taxonomy_dir = taxdir)
 subshp$idx_sub <- 1:nrow(subshp)
 subshp$area_sub <- as.numeric(st_area(subshp))
 
-sub_intersection <- st_intersection(allshp, subshp)
-sub_intersection$adjustment_factor_sub <- as.numeric(st_area(sub_intersection) / sub_intersection$area_grid)
-sub_intersection_adj <- sub_intersection
-sub_intersection$adjusted <- FALSE
-sub_intersection_adj$adjusted <- TRUE
-sub_intersection_adj$population <- sub_intersection$population * sub_intersection$adjustment_factor_sub
+sub_intersection <- st_intersection(allshp,subshp)
+sub_intersection$adjustment_factor_sub <- as.numeric(st_area(sub_intersection)/sub_intersection$area_grid)
+sub_intersection_adj = sub_intersection
+sub_intersection$adjusted = FALSE
+sub_intersection_adj$adjusted = TRUE
+sub_intersection_adj$population = sub_intersection$population * sub_intersection$adjustment_factor_sub
 
-sub_intersection <- rbind(sub_intersection, sub_intersection_adj)
+sub_intersection <- rbind(sub_intersection,sub_intersection_adj)
 
-dplyr::filter(sub_intersection, resol == res2, !adjusted) %>%
-  .[, c("idx_grid", "idx_sub", "population")] %>%
-  plot()
-dplyr::filter(sub_intersection, resol == res2, adjusted) %>%
-  .[, c("idx_grid", "idx_sub", "population", "adjustment_factor_sub")] %>%
-  plot()
+dplyr::filter(sub_intersection,resol==res2,!adjusted) %>% .[,c('idx_grid','idx_sub','population')] %>% plot
+dplyr::filter(sub_intersection,resol==res2,adjusted) %>% .[,c('idx_grid','idx_sub','population','adjustment_factor_sub')] %>% plot
 
 # sub_intersection$adjustment_factor_sub <- as.numeric(st_area(sub_intersection)/??)
 sub_intersection %>%
-  dplyr::group_by(resol, adjusted) %>%
+  dplyr::group_by(resol,adjusted) %>%
   dplyr::summarize(population = sum(population)) ->
-tmp2
+  tmp2
 
 tmp3 <- dplyr::inner_join(
-  as.data.frame(tmp)[, c("resol", "adjusted", "population")],
-  as.data.frame(tmp2)[, c("resol", "adjusted", "population")],
-  by = c("resol", "adjusted")
+  as.data.frame(tmp)[,c('resol','adjusted','population')],
+  as.data.frame(tmp2)[,c('resol','adjusted','population')],
+  by=c('resol','adjusted')
 )
 
-print(paste("At resolution", tmp3$resol, ifelse(tmp3$adjusted, "with population adjustments", "without population adjustments"), "we obtain a relative error of", (round(tmp3$population.x) - tmp3$population.y) / tmp3$population.y))
+print(paste("At resolution",tmp3$resol,ifelse(tmp3$adjusted,"with population adjustments","without population adjustments"),"we obtain a relative error of",(round(tmp3$population.x) - tmp3$population.y)/tmp3$population.y))
 ```
