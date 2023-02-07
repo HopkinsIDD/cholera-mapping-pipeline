@@ -21,41 +21,41 @@ set.seed(params$seed)
 ```
 
 ```{r}
-setwd("~/svn/cholera-taxonomy/trunk/")
-if (file.exists("taxonomy_data.Rdata")) {
-  load("taxonomy_data.Rdata")
+setwd('~/svn/cholera-taxonomy/trunk/')
+if(file.exists('taxonomy_data.Rdata')){
+  load('taxonomy_data.Rdata')
 } else {
-  taxonomy_data <- suppressWarnings(read_taxonomy_data(taxonomy.directory = "taxonomy-working/working-entry1/"))
-  save(taxonomy_data, file = "taxonomy_data.Rdata")
+  taxonomy_data <- suppressWarnings(read_taxonomy_data(taxonomy.directory = 'taxonomy-working/working-entry1/'))
+  save(taxonomy_data,file = 'taxonomy_data.Rdata')
 }
 taxonomy_rows <- nrow(taxonomy_data)
-unique_source_documents <- unique(taxonomy_data[["source_file"]])
-uids <- unique(taxonomy_data[["uid"]])
-print(paste("There are", taxonomy_rows, "reports of cases from", length(unique_source_documents), "divided into", length(uids), "unique ids"))
+unique_source_documents <- unique(taxonomy_data[['source_file']])
+uids <- unique(taxonomy_data[['uid']])
+print(paste("There are",taxonomy_rows,"reports of cases from",length(unique_source_documents),"divided into",length(uids),"unique ids"))
 ```
 
 ```{r}
-missing_source_files <- dplyr::filter(taxonomy_data, is.na(source_file))
+missing_source_files <- dplyr::filter(taxonomy_data,is.na(source_file))
 uid_with_missing_source_files <- sort(unique(missing_source_files$uid))
-print(paste("There are", length(uid_with_missing_source_files), "uids without a corresponding source file.  The first 10 are", paste(head(uid_with_missing_source_files, 10), collapse = " ")))
+print(paste("There are",length(uid_with_missing_source_files),"uids without a corresponding source file.  The first 10 are",paste(head(uid_with_missing_source_files,10),collapse=' ')))
 ```
 We have chosen these source files at random:
 ```{r}
-chosen_source_files <- sample(unique_source_documents, params$nsamp)
+chosen_source_files <- sample(unique_source_documents,params$nsamp)
 print(chosen_source_files)
 ```
 The chosen source files account for `r sum(taxonomy_data[['source_file']] %in% chosen_source_files)`, or `r sum(taxonomy_data[['source_file']] %in% chosen_source_files) / taxonomy_rows` percent of all rows.
 
 
 ```{r}
-setwd("~/svn/cholera-taxonomy/trunk/taxonomy-working/working-entry1/SourceDocuments/")
+setwd('~/svn/cholera-taxonomy/trunk/taxonomy-working/working-entry1/SourceDocuments/')
 default_exists <- file.exists(chosen_source_files)
-public_exists <- file.exists(paste("Public", chosen_source_files, sep = "/"))
-restricted_exists <- file.exists(paste("Restricted", chosen_source_files, sep = "/"))
+public_exists <- file.exists(paste('Public',chosen_source_files,sep='/'))
+restricted_exists <- file.exists(paste('Restricted',chosen_source_files,sep='/'))
 any_exists <- default_exists | public_exists | restricted_exists
-chosen_source_files[(!default_exists) & public_exists] <- paste("Public", chosen_source_files[(!default_exists) & public_exists], sep = "/")
-chosen_source_files[(!(default_exists | public_exists)) & restricted_exists] <- paste("Public", chosen_source_files[(!default_exists) & restricted_exists], sep = "/")
-print(paste("Could not find the file", chosen_source_files[!any_exists]))
+chosen_source_files[(!default_exists) & public_exists] <- paste("Public",chosen_source_files[(!default_exists) & public_exists],sep='/')
+chosen_source_files[(!(default_exists | public_exists)) & restricted_exists] <- paste("Public",chosen_source_files[(!default_exists) & restricted_exists],sep='/')
+print(paste("Could not find the file",chosen_source_files[!any_exists]))
 chosen_files <- chosen_source_files[any_exists]
 ```
 
