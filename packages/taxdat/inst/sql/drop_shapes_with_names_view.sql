@@ -1,1 +1,1 @@
-DROP MATERIALIZED VIEW IF EXISTS shapes_with_names CASCADE;
+drop materialized view if exists shapes_with_names;
