@@ -1,4 +1,5 @@
 #' @include report_cache.R
+#' @include setup_helpers.R
 
 #' @name get_config_no_cache
 #' @description load config.rdata
@@ -31,7 +32,8 @@ get_config <- cache_fun_results(name = "config", fun = get_config_no_cache)
 #' @return stan_input
 get_stan_input_no_cache <- function(config, cache, cholera_directory) {
   get_config(config = config, cache = cache, cholera_directory = cholera_directory)
-  stan_input <- read_file_of_type(cache[["config"]][["file_names"]][["stan_input"]], "stan_input")
+  file_names <- taxdat::get_filenames(cache[["config"]], cholera_directory)
+  stan_input <- read_file_of_type(file_names[["stan_input"]], "stan_input")
   require(bit64)
   require(sf)
   return(stan_input)
@@ -184,7 +186,8 @@ get_observed_years <- cache_fun_results(name = "observed_years", fun = get_obser
 #' @return cmdstan_fit
 get_cmdstan_fit_no_cache <- function(config, cache, cholera_directory) {
   get_config(config = config, cache = cache, cholera_directory = cholera_directory)
-  cmdstan_fit <- read_file_of_type(cache[["config"]][["file_names"]][["stan_output"]], "cmdstan_fit")
+  file_names <- taxdat::get_filenames(cache[["config"]], cholera_directory)
+  cmdstan_fit <- read_file_of_type(file_names[["stan_output"]], "cmdstan_fit")
   return(cmdstan_fit)
 }
 ## cache the results
@@ -225,7 +228,8 @@ get_model.rand <- cache_fun_results(name = "model.rand", fun = get_model.rand_no
 #' @return elapsed_time
 get_elapsed_time_no_cache <- function(config, cache, cholera_directory) {
   get_config(config = config, cache = cache, cholera_directory = cholera_directory)
-  elapsed_time <- read_file_of_type(cache[["config"]][["file_names"]][["stan_output"]], "elapsed_time")
+  file_names <- taxdat::get_filenames(cache[["config"]], cholera_directory)
+  elapsed_time <- read_file_of_type(file_names[["stan_output"]], "elapsed_time")
   return(elapsed_time)
 }
 ## cache the results
@@ -338,17 +342,9 @@ get_boundary_polygon <- cache_fun_results(name = "boundary_polygon", fun = get_b
 #' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return minimal_grid_population
 get_minimal_grid_population_no_cache <- function(config, cache, cholera_directory) {
-  get_config(config = config, cache = cache, cholera_directory = cholera_directory)
-  require(raster)
-  # rc <- raster::brick(cache[["config"]][["file_names"]][["minimal_grid_population"]])
-  rc <- readr::read_csv(cache[["config"]][["file_names"]][["minimal_grid_population"]])
-  for (row_idx in seq_len(nrow(rc))) {
-    if (row_idx == 1) {
-      rc$rast <- list(stars::read_stars(rc$raster_filename[[row_idx]]))
-    } else {
-      rc$rast[[row_idx]] <- stars::read_stars(rc$raster_filename[[row_idx]])
-    }
-  }
+  get_stan_input(config = config, cache = cache, cholera_directory = cholera_directory)
+  rc <- cache[["stan_input"]][["minimal_grid_population"]]
+  rc$t <- cast_to_int32(rc$t)
   return(rc)
 }
 ## cache the results
