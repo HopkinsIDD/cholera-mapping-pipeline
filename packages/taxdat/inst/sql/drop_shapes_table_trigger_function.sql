@@ -1,1 +1,0 @@
-DROP FUNCTION IF EXISTS trigger_shapes_insert_boundary_and_valid;
