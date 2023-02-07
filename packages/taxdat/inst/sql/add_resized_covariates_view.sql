@@ -1,9 +1,8 @@
-CREATE MATERIALIZED VIEW resized_covariates as (
+CREATE MATERIALIZED VIEW IF NOT EXISTS resized_covariates as (
 select
   resized_spatial_grid_pixels.rid as grid_rid,
   resized_spatial_grid_pixels.id as grid_id,
-  all_covariates.raster_covariate_collection_id,
-  all_covariates.filename,
+  all_covariates.covariate_name,
   all_covariates.time_left,
   all_covariates.time_right,
   all_covariates.rid,
@@ -19,7 +18,7 @@ inner join
 inner join
   covariates.all_covariates
     on
-      all_covariates.filename = covariate_grid_map.filename
+      all_covariates.covariate_name = covariate_grid_map.covariate_name
       and covariate_grid_map.time_left = all_covariates.time_left
       and covariate_grid_map.time_right = all_covariates.time_right
       and covariate_grid_map.covar_rid = all_covariates.rid
