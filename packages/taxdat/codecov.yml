@@ -1,7 +1,5 @@
 comment: false
 
-fixes:
-  - "::packages/taxdat/"
 coverage:
   status:
     project:
