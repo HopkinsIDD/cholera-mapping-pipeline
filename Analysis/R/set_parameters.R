@@ -348,7 +348,8 @@ for (param in names(taxdat::get_all_config_options())) {
     config[[param]] <- get(param)
   }
 }
-
+print("This is the explicit runtime config (debugging).")
+print(config)
 
 # Pipeline steps ---------------------------------------------------------------
 

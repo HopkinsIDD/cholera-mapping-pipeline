@@ -132,7 +132,7 @@ warmup <- config$warmup
 
 # Specifiy whether covariates are included in the warmup
 covar_warmup <- config$covar_warmup
-
+print(paste("Debugging warmup & covar_warmup", warmup, covar_warmup))
 if (warmup) {
   
   # Create gam frml
