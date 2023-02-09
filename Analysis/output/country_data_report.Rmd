@@ -9,17 +9,10 @@ params:
 ```{r setup, include=FALSE, dev="CairoPNG",message=FALSE}
 library(knitr)
 knitr::opts_chunk$set(
-<<<<<<< HEAD
-  cache = FALSE,
-  cache.lazy = FALSE,
-  echo = FALSE,
-  dev = "CairoPNG",
-=======
   cache=FALSE,
   cache.lazy = FALSE,
   echo = FALSE,
   dev="CairoPNG",
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
   error = FALSE,
   fig.align = "center",
   message = TRUE,
