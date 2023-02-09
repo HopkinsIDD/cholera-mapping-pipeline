@@ -17,11 +17,7 @@ knitr::opts_chunk$set(
   fig.align = "center",
   message = TRUE,
   warning = TRUE
-<<<<<<< HEAD
-)
-=======
   )
->>>>>>> parent of e4a4b619 (trying to solve conflicts)
 library(stringr)
 library(dplyr)
 library(magrittr)
