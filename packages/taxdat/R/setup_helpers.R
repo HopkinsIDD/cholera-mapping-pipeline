@@ -698,8 +698,7 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
     }
 
     ### Get the _filenames
-    config_file$file_names <- as.list(get_filenames(config_file, cholera_directory,
-        for_config = TRUE, short_names = TRUE))
+    config_file$file_names <- as.list(get_filenames(config_file, cholera_directory, for_config = TRUE, short_names = TRUE))
     names(config_file$file_names) <- sapply(names(config_file$file_names), function(x) {
         check_list$file_names[[x]]
     })

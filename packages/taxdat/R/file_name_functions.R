@@ -4,15 +4,31 @@
 #'
 #' @param cholera_directory cholera mapping directory
 #' @param config the actual config file
+#' @param for_config whether to put the file name inside the config 
+#' @param short_names whether to use the digest function to get a string for file names
 #' @return a string with the output_directory name
 #' @export
 
 make_output_directory_name <- function(cholera_directory,
-                                       config = NULL) {
+                                       config = NULL, 
+                                       for_config = FALSE, 
+                                       short_names = TRUE) {
+  if(for_config){
+    if (!is.null(config)) {
+      if ("file_names" %in% names(config)) {
+        if ("output_directory" %in% names(config[["file_names"]]) & !is.null(config[["file_names"]]$output_directory)) {
+          dirname <- config[["file_names"]][["output_directory"]]
+          return(dirname)
+        }
+      }
+    }
+    return(NULL)
+  }                                      
+
   dirname <- paste(cholera_directory, "Analysis", "data", sep = "/")
   if (!is.null(config)) {
     if ("file_names" %in% names(config)) {
-      if ("output_directory" %in% names(config[["file_names"]])) {
+      if ("output_directory" %in% names(config[["file_names"]]) & !is.null(config[["file_names"]]$output_directory)) {
         dirname <- config[["file_names"]][["output_directory"]]
       }
     }
@@ -466,31 +482,29 @@ make_stan_genquant_filename <- function(cholera_directory,
 #' @param cholera_directory cholera mapping directory
 #' @param map_name map name
 #' @param config the imported config file 
+#' @param for_config whether to put the file name inside the config
+#' @param short_names whether to use the digest function to get a string for file names
 #' @return a string with the country data report file name
 #' @export
 make_country_data_report_filename <- function(cholera_directory,
                                               map_name,
-                                              config = NULL) {
-  dirname <- paste(cholera_directory, "Analysis", "output", "country-data-reports", sep = "/")
-  dir.create(dirname, showWarnings = FALSE)
+                                              config = NULL, 
+                                              for_config = FALSE, 
+                                              short_names = TRUE) {
+  suffix <- ".country-data-report.html"
 
   if (!is.null(config)) {
     if ("file_names" %in% names(config)) {
       if ("country_data_report_filename" %in% names(config[["file_names"]])) {
-        
         if(grepl(dirname, config[["file_names"]][["country_data_report_filename"]])){
           return(config[["file_names"]][["country_data_report_filename"]])
-        }else if(grepl("/", config[["file_names"]][["country_data_report_filename"]])){
-          return(config[["file_names"]][["country_data_report_filename"]])
-        }else{
-          return(paste(dirname, config[["file_names"]][["country_data_report_filename"]], sep = "/"))
         }
-        
       }
     }
   }
-  paste(dirname, "/",
-        map_name, '.country-data-report', '.html', sep = '')
+
+  filename <- make_short_filename(config, suffix)
+  return(filename)
 }
 
 #' @title Make data comparison report filename
@@ -500,31 +514,29 @@ make_country_data_report_filename <- function(cholera_directory,
 #' @param cholera_directory cholera mapping directory
 #' @param map_name map name
 #' @param config the imported config file 
+#' @param for_config whether to put the file name inside the config
+#' @param short_names whether to use the digest function to get a string for file names
 #' @return a string with the data comparison report file name
 #' @export
-make_data_comparison_report_filename <- function(cholera_directory,
-                                                map_name,
-                                                config = NULL) {
-  dirname <- paste(cholera_directory, "Analysis", "output", "data-comparison-reports", sep = "/")
-  dir.create(dirname, showWarnings = FALSE)
+make_data_comparison_report_filename <- function( cholera_directory,
+                                                  map_name,
+                                                  config = NULL, 
+                                                  for_config = FALSE, 
+                                                  short_names = TRUE) {
+  suffix <- ".data-comparison-reports.html"
 
   if (!is.null(config)) {
     if ("file_names" %in% names(config)) {
       if ("data_comparison_report_filename" %in% names(config[["file_names"]])) {
-
         if(grepl(dirname, config[["file_names"]][["data_comparison_report_filename"]])){
           return(config[["file_names"]][["data_comparison_report_filename"]])
-        }else if(grepl("/", config[["file_names"]][["data_comparison_report_filename"]])){
-          return(config[["file_names"]][["data_comparison_report_filename"]])
-        }else{
-          return(paste(dirname, config[["file_names"]][["data_comparison_report_filename"]], sep = "/"))
         }
-
       }
     }
   }
-  paste(dirname, "/",
-        map_name, '.data-comparison-report', '.html', sep = '')
+
+  filename <- make_short_filename(config, suffix)
+  return(filename)
 }
 
 #' @title Make map output filename
@@ -619,7 +631,7 @@ get_filenames <- function (config, cholera_directory, ...) {
   # Load dictionary of configuration options
   config_dict <- yaml::read_yaml(paste0(cholera_directory, "/Analysis/configs/config_dictionary.yml"))
   
-  output_directory <- make_output_directory_name(cholera_directory = cholera_directory, config = config)
+  output_directory <- make_output_directory_name(cholera_directory = cholera_directory, config = config, ...)
 
   preprocessed_data_fname <- make_observations_filename(cholera_directory = cholera_directory,
                                                         map_name = map_name, 
@@ -673,13 +685,18 @@ get_filenames <- function (config, cholera_directory, ...) {
     country_data_report_filename = country_data_report_filename, 
     data_comparison_report_filename = data_comparison_report_filename
   )
-  
+
+  name_vector <- c("data", "covar", "stan_input", "initial_values", "stan_output", "stan_genquant", 
+                  "country_data_report_filename", "data_comparison_report_filename")
+  if(!is.null(output_directory)){
+    name_vector <- append(name_vector, "output_directory", after=0)
+  }
+
   rc <- setNames(c(output_directory, 
                    preprocessed_data_fname, preprocessed_covar_fname,
                    stan_input_fname, initial_values_fname, stan_output_fname,
                    stan_genquant_fname, country_data_report_filename, data_comparison_report_filename), 
-                 c("output_directory", "data", "covar", "stan_input", "initial_values", "stan_output", "stan_genquant", 
-                  "country_data_report_filename", "data_comparison_report_filename"))
+                 name_vector)
   return(rc)
 }
 
