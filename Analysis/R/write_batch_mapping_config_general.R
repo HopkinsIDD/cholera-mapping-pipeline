@@ -10,16 +10,17 @@ library(taxdat)
 
 
 ####       Modify the following settings      ############## 
-cholera_directory <- "/home/kaiyuezou/mapping_pipeline/tmp_config/cholera-mapping-pipeline" 
+cholera_directory <- "/.../cholera-mapping-pipeline" 
 setwd(cholera_directory)
-config_path <- "Analysis/configs/production_tests/config_writer_test" #<-----dependent on where to save the configs
+config_path <- "Analysis/configs/..." #<-----dependent on where to save the configs
 dir.create(file.path(cholera_directory, config_path), FALSE)
 
 Sys.setenv("CHOLERA_TESTING" = "FALSE")
 scale <- "country" ## country or region maps
-specified_countries <- c("AGO", "KEN") ## by default empty
+specified_countries <- c("AGO", "KEN") #<-----by default NULL if running all countries
 # covar_names <- c("dist_to_water", "water_access", "san_access", "open_defe", "stunting", "wasting", "access_cities")
-covar_names <- c() ## no covar run 
+# ^-----refer to "Layers/covariate_dictionary.yml" for covariate names if running any covariates other than the population 
+covar_names <- c() #<-----if running without using any covariates other than population 
 Sys.setenv("CHOLERA_START_TIME" = "2016-01-01")
 Sys.setenv("CHOLERA_END_TIME" = "2020-12-31")
 
@@ -39,7 +40,7 @@ config_start_time <- Sys.getenv("CHOLERA_START_TIME","2016-01-01")
 config_end_time <- Sys.getenv("CHOLERA_END_TIME","2020-12-31")
 
 params_df <- data.frame(
-    name = '',  
+    name = 'ID-01',  
     aoi = 'raw',
     res_space = 20,
     res_time = '1 years', 
@@ -98,6 +99,7 @@ rm(config_start_time, config_end_time)
 par <- params_df[1,]
 start_year <- lubridate::year(as.Date(par$start_time))
 end_year <- lubridate::year(as.Date(par$end_time))
+run_name <- par$name
 
 if(scale == "region"){
 
@@ -108,7 +110,7 @@ if(scale == "region"){
     config_path2 <- paste0(config_path, "/", start_year, "_", end_year, "_region")
     dir.create(config_path2, showWarnings = FALSE)
 
-    config_fname <- paste0(config_path2, "/config_", regions[i], "_", start_year, "_", end_year, ".yml")
+    config_fname <- paste0(config_path2, "/config_", run_name, "_", regions[i], "_", start_year, "_", end_year, ".yml")
     # sink(file = config_fname)
     automate_mapping_config(cholera_directory, par, covar_names, ctry_names, ctry_ids, config_fname)
     # sink()
@@ -123,7 +125,7 @@ if(scale == "region"){
     config_path2 <- paste0(config_path, "/", start_year, "_", end_year, "_country")
     dir.create(config_path2, showWarnings = FALSE)
 
-    config_fname <- paste0(config_path2, "/config_", ctry_name, "_", start_year, "_", end_year, ".yml")
+    config_fname <- paste0(config_path2, "/config_", run_name, "_", ctry_name, "_", start_year, "_", end_year, ".yml")
     # sink(file = config_fname)
     automate_mapping_config(cholera_directory, par, covar_names, ctry_name, ctry_id, config_fname)
     # sink()
