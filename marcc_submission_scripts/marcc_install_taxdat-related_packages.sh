@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name KEN
+#SBATCH --job-name get_pkg
 #SBATCH --time=3-00:00:00
 #SBATCH --mem=50G
 #SBATCH --ntasks=4
@@ -35,14 +35,17 @@ ml r-rstan
 
 export CHOLERA_ON_MARCC=TRUE
 export CHOLERA_PIPELINE_DIRECTORY=/data/aazman1/$USER/cholera-mapping-pipeline/
-export R_LIBRARY_DIRECTORY=$HOME/rlibs/cmp/$R_VERSION/gcc/$GCC_VERSION/
+export R_LIBS_USER=$HOME/rlibs/cmp/$R_VERSION/gcc/$GCC_VERSION/
 
 cd $CHOLERA_PIPELINE_DIRECTORY
-mkdir -p $R_LIBRARY_DIRECTORY \
+mkdir -p $R_LIBS_USER \
  && Rscript -e "options(error=quit, status = 1); 
-                if (!require(package = 'terra', character.only = T, lib='$R_LIBRARY_DIRECTORY')) {
-                    install.packages('terra', lib='$R_LIBRARY_DIRECTORY') }; 
-                if (!require(package = 'geodata', character.only = T, lib='$R_LIBRARY_DIRECTORY')) {
-                    install.packages('geodata', lib='$R_LIBRARY_DIRECTORY') }"
-
+                package_list <- c('sf', 'terra', 'ISOcodes', 'igraph', 'roxygen2', 'withr', 'processx', 'geodata'); 
+                for (pkg in package_list){
+                    if (!require(package = pkg, lib='$R_LIBS_USER')) {
+                        install.packages(pkg, lib='$R_LIBS_USER') 
+                    }; 
+                }
+                "
+                
 echo "DONE"
