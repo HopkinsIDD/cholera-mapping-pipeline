@@ -54,7 +54,7 @@ cases <- taxdat::pull_taxonomy_data(
   time_left = start_time,
   time_right = end_time,
   source = data_source,
-  uids = filter_OCs,
+  uids = OCs,
   website = website
 ) %>%
   taxdat::rename_database_fields(source = data_source)
