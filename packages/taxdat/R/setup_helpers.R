@@ -656,7 +656,7 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
 
     ### The stan check
     iteration_params <- check_list[["stan"]]
-    updated_stan_parameters <- get_stan_parameters(config_file)
+    updated_stan_parameters <- get_stan_parameters(append(config_file, config_file$stan))
     iteration_unrelated <- updated_stan_parameters[!names(updated_stan_parameters) %in%
         iteration_params]
     config_file <- append(config_file[!names(config_file) %in% names(iteration_unrelated)],
