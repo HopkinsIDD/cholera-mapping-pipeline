@@ -466,6 +466,72 @@ config_checks[["stan"]][["sigma_eta_scale"]] <- function(value, config, index) {
   }
   return(TRUE)
 }
+# QZ added: od_param
+config_checks[["stan"]][["od_param"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['od_param']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['od_param']] is NA")
+    return(FALSE)
+  }
+  if (!is.numeric(value)) {
+    warning(
+      "config[['stan']][['od_param']] should be numeric, but is",
+      value
+    )
+    return(FALSE)
+  }
+  return(TRUE)
+}
+# QZ added: tfrac_censoring
+config_checks[["stan"]][["tfrac_censoring"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['tfrac_censoring']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['tfrac_censoring']] is NA")
+    return(FALSE)
+  }
+  if (!is.numeric(value)) {
+    warning(
+      "config[['stan']][['tfrac_censoring']] should be numeric, but is",
+      value
+    )
+    return(FALSE)
+  }
+  return(TRUE)
+}
+# QZ added: obs_model
+config_checks[["stan"]][["obs_model"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['obs_model']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['obs_model']] is NA")
+    return(FALSE)
+  }
+  if (!is.numeric(value)) {
+    warning(
+      "config[['stan']][['obs_model']] should be 1,2 or 3, but is",
+      value
+    )
+    return(FALSE)
+  }
+  return(TRUE)
+}
 config_checks[["stan"]][["do_time_slice"]] <- list()
 config_checks[["stan"]][["do_time_slice"]][["eta_simplex"]] <- function(value, config, index) {
   if (length(value) != 1) {
@@ -588,21 +654,23 @@ config_checks[["stan"]][["exp_prior"]] <- function(value, config, index) {
   }
   return(TRUE)
 }
+
+## QZ: added narrower prior
 config_checks[["stan"]][["narrower_prior"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
-      "config[['stan']][['narrower_prior']] should be of length 1, but is of length",
+      "config[['stan']][['use_intercept']] should be of length 1, but is of length",
       length(value), "with value", value
     ))
     return(FALSE)
   }
   if (is.na(value)) {
-    warning("config[['stan']][['narrower_prior']] is NA")
+    warning("config[['stan']][['use_intercept']] is NA")
     return(FALSE)
   }
   if (!is.logical(value)) {
     warning(
-      "config[['stan']][['narrower_prior']] should be logical, but is",
+      "config[['stan']][['use_intercept']] should be logical, but is",
       value
     )
     return(FALSE)
@@ -610,6 +678,74 @@ config_checks[["stan"]][["narrower_prior"]] <- function(value, config, index) {
   return(TRUE)
 }
 
+## QZ: added use_intercept
+config_checks[["stan"]][["use_intercept"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['use_intercept']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['use_intercept']] is NA")
+    return(FALSE)
+  }
+  if (!is.logical(value)) {
+    warning(
+      "config[['stan']][['use_intercept']] should be logical, but is",
+      value
+    )
+    return(FALSE)
+  }
+  return(TRUE)
+}
+
+## QZ: added do_zerosum_cnst
+config_checks[["stan"]][["do_zerosum_cnst"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['do_zerosum_cnst']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['do_zerosum_cnst']] is NA")
+    return(FALSE)
+  }
+  if (!is.logical(value)) {
+    warning(
+      "config[['stan']][['do_zerosum_cnst']] should be logical, but is",
+      value
+    )
+    return(FALSE)
+  }
+  return(TRUE)
+}
+
+## QZ: added do_zerosum_cnst
+config_checks[["stan"]][["do_infer_sd_eta"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['do_infer_sd_eta']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['do_infer_sd_eta']] is NA")
+    return(FALSE)
+  }
+  if (!is.logical(value)) {
+    warning(
+      "config[['stan']][['do_infer_sd_eta']] should be logical, but is",
+      value
+    )
+    return(FALSE)
+  }
+  return(TRUE)
+}
 config_checks[["initial_values"]] <- list()
 config_checks[["initial_values"]][["warmup"]] <- function(value, config, index) {
   if (length(value) != 1) {
@@ -1475,6 +1611,12 @@ config_defaults[["stan"]][["beta_sigma_scale"]] <- function(config, index) {
 config_defaults[["stan"]][["sigma_eta_scale"]] <- function(config, index) {
   return(5)
 }
+config_defaults[["stan"]][["od_param"]] <- function(config, index) {
+  return(1)
+}
+config_defaults[["stan"]][["tfrac_censoring"]] <- function(config, index) {
+  return(0)
+}
 config_defaults[["stan"]][["do_time_slice"]] <- list()
 config_defaults[["stan"]][["do_time_slice"]][["perform"]] <- function(config, index) {
   return(TRUE)
@@ -1490,6 +1632,18 @@ config_defaults[["stan"]][["exp_prior"]] <- function(config, index) {
 }
 config_defaults[["stan"]][["narrower_prior"]] <- function(config, index) {
   return(FALSE)
+}
+config_defaults[["stan"]][["use_intercept"]] <- function(config, index) {
+  return(FALSE)
+}
+config_defaults[["stan"]][["do_zerosum_cnst"]] <- function(config, index) {
+  return(FALSE)
+}
+config_defaults[["stan"]][["do_infer_sd_eta"]] <- function(config, index) {
+  return(FALSE)
+}
+config_defaults[["stan"]][["obs_model"]] <- function(config, index) {
+  return(1)
 }
 config_defaults[["generated"]] <- list()
 config_defaults[["generated"]][["perform"]] <- function(config, index) {
