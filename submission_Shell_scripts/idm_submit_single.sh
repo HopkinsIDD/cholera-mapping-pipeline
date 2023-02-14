@@ -17,7 +17,7 @@ CONFIG=$1 #specify it here or in the command line following the Shell script sub
 cd $TAXDIR
 
 export CHOLERA_SKIP_STAN=TRUE
-export PRODUCTION_RUN=FALSE
+export PRODUCTION_RUN=TRUE
 $RSCRIPT $TAXDIR/Analysis/R/set_parameters.R -c $TAXDIR/$CONFIG  || exit 1
 echo "End of script"
 date
