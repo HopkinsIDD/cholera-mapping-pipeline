@@ -10,14 +10,14 @@ library(taxdat)
 
 
 ####       Modify the following settings      ############## 
-cholera_directory <- "/.../cholera-mapping-pipeline" 
+cholera_directory <- "/home/kaiyuezou/mapping_pipeline/tmp_config/cholera-mapping-pipeline" 
 setwd(cholera_directory)
-config_path <- "Analysis/configs/..." #<-----dependent on where to save the configs
+config_path <- "Analysis/configs/production_tests/ptc_2023_1-6" #<-----dependent on where to save the configs
 dir.create(file.path(cholera_directory, config_path), FALSE)
 
 Sys.setenv("CHOLERA_TESTING" = "FALSE")
 scale <- "country" ## country or region maps
-specified_countries <- c("AGO", "KEN") #<-----by default NULL if running all countries
+specified_countries <- c("KEN") #<-----by default NULL if running all countries
 # covar_names <- c("dist_to_water", "water_access", "san_access", "open_defe", "stunting", "wasting", "access_cities")
 # ^-----refer to "Layers/covariate_dictionary.yml" for covariate names if running any covariates other than the population 
 covar_names <- c() #<-----if running without using any covariates other than population 
@@ -53,27 +53,27 @@ params_df <- data.frame(
     OCs = '', 
     taxonomy = '', 
     obs_model = 1, 
-    od_param = '', 
+    od_param = 0, 
     time_effect = 'yes',
     time_effect_autocorr = 'no',
-    use_intercept = '', 
+    use_intercept = 'no', 
     covariate_transformations = '', 
     beta_sigma_scale = 1,
-    sigma_eta_scale = 2,
+    sigma_eta_scale = 5,
     exp_prior = 'no', 
-    do_infer_sd_eta = '', 
-    do_zerosum_cnst = '', 
+    do_infer_sd_eta = 0, 
+    do_zerosum_cnst = 0, 
     use_weights = '', 
     covar_warmup = 'yes',
     warmup = 'yes',
     aggregate = 'yes',
     tfrac_thresh = 0,
     censoring = 'yes',
-    censoring_thresh = 0.95, 
+    censoring_thresh = 0.9, 
     set_tfrac = 'yes',
     snap_tol =  '7/365', 
     use_pop_weight = 'yes', 
-    sfrac_thresh = '', 
+    sfrac_thresh = 1e-02, 
     ingest_covariates = 'no',
     ingest_new_covariates = 'no', 
     ncores = 4,
