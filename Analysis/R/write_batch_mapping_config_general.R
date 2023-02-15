@@ -135,4 +135,3 @@ if(scale == "region"){
   stop(paste("Writing configs at", scale, "scale is not yet implemented."))
 }
 
-

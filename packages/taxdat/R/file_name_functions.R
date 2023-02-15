@@ -496,9 +496,7 @@ make_country_data_report_filename <- function(cholera_directory,
   if (!is.null(config)) {
     if ("file_names" %in% names(config)) {
       if ("country_data_report_filename" %in% names(config[["file_names"]])) {
-        if(grepl(dirname, config[["file_names"]][["country_data_report_filename"]])){
-          return(config[["file_names"]][["country_data_report_filename"]])
-        }
+        return(config[["file_names"]][["country_data_report_filename"]])
       }
     }
   }
@@ -528,9 +526,7 @@ make_data_comparison_report_filename <- function( cholera_directory,
   if (!is.null(config)) {
     if ("file_names" %in% names(config)) {
       if ("data_comparison_report_filename" %in% names(config[["file_names"]])) {
-        if(grepl(dirname, config[["file_names"]][["data_comparison_report_filename"]])){
-          return(config[["file_names"]][["data_comparison_report_filename"]])
-        }
+        return(config[["file_names"]][["data_comparison_report_filename"]])
       }
     }
   }
