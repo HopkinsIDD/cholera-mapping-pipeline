@@ -362,7 +362,7 @@ plot_disaggregated_modeled_cases_time_varying <- function(config_file,
                                                           ...){
   iso_code <- taxdat::get_country_isocode(config_file) 
 
-  if(iso_code == "ZNZ"){
+  if(any(iso_code == "ZNZ")){
     boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
       c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
     unionized <- sf::st_union(boundary_sf)
@@ -466,7 +466,7 @@ plot_modeled_rates_time_varying <- function(config_file,
                                             ...){
   iso_code <- taxdat::get_country_isocode(config_file)
 
-  if(iso_code == "ZNZ"){
+  if(any(iso_code == "ZNZ")){
     boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
       c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
     unionized <- sf::st_union(boundary_sf)
