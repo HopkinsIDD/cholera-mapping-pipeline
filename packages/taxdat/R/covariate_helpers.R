@@ -1490,6 +1490,9 @@ get_country_isocode <- function(config) {
     # Testing runs
     return("testing")
   } else {
+    if(all(nchar(config$countries_name)==3)){
+      warning("Not all countries_names in the config are valid country iso code.")
+    }
     return(as.character(config$countries_name))
   }
 }
