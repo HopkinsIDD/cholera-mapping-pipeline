@@ -52,16 +52,7 @@ test_that("setup works", {
         observation_collection_id = 1, time_left = time_left, time_right = time_right, qualified_name = "1", primary = TRUE, phantom = FALSE, suspected_cases = 0, deaths = NA, confirmed_cases = NA
       )
 
-      test_covariates <- taxdat::create_multiple_test_covariates(
-        test_raster = test_raster, ncovariates = 2,
-        nonspatial = c(FALSE, FALSE), nontemporal = c(FALSE, FALSE), spatially_smooth = c(
-          TRUE,
-          FALSE
-        ), temporally_smooth = c(FALSE, FALSE), polygonal = c(TRUE, TRUE), radiating = c(
-          FALSE,
-          FALSE
-        )
-      )
+      test_covariates <- taxdat::create_multiple_test_covariates(test_raster = test_raster)
       covariate_raster_funs <- taxdat:::convert_simulated_covariates_to_test_covariate_funs(
         test_covariates,
         time_left, time_right
