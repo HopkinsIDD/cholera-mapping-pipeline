@@ -293,8 +293,7 @@ create_test_layered_polygons <- function(test_raster = create_test_raster(), bas
 
 
 ## @name independent_covariate See create_test_covariate for details
-independent_covariate <- function(test_raster, varies_spatially, varies_temporally, weight,
-                                  seed) {
+independent_covariate <- function(test_raster, varies_spatially = FALSE, varies_temporally = FALSE, weight = 1, seed) {
   seed <- get_or_set_seed(seed)
   n_grid <- nrow(test_raster)
   n_spatial <- max(test_raster$id)
@@ -325,8 +324,15 @@ independent_covariate <- function(test_raster, varies_spatially, varies_temporal
 }
 
 ## @name smoothed_covariate See create_test_covariate for details
-smoothed_covariate <- function(test_raster, spatially_smooth, temporally_smooth,
-                               smoothing_function, rho, weight, seed) {
+smoothed_covariate <- function(test_raster,
+                               spatially_smooth = FALSE,
+                               temporally_smooth = FALSE,
+                               smoothing_function = function(n, mu, covariance, centers) {
+                                 return(my_scale(MASS::mvrnorm(n = n, mu = mu, Matrix::solve(covariance))))
+                               },
+                               rho = 0.99,
+                               weight = 1,
+                               seed) {
   seed <- get_or_set_seed(seed)
   n_grid <- nrow(test_raster)
 
@@ -381,7 +387,7 @@ smoothed_covariate <- function(test_raster, spatially_smooth, temporally_smooth,
 }
 
 ## @name polygonal_covariate See create_test_covariate for details
-polygonal_covariate <- function(test_raster, polygonal, polygons, weight, seed) {
+polygonal_covariate <- function(test_raster, polygonal = FALSE, polygons = create_test_layered_polygons(), weight = 1, seed) {
   seed <- get_or_set_seed(seed)
 
   n_grid <- nrow(test_raster)
@@ -411,8 +417,12 @@ polygonal_covariate <- function(test_raster, polygonal, polygons, weight, seed) 
 }
 
 ## @name radiating_covariate See create_test_covariate for details
-radiating_covariate <- function(test_raster, radiating, radiating_polygons, radiating_means,
-                                radiation_function, weight, seed) {
+radiating_covariate <- function(test_raster, radiating = FALSE, radiating_polygons = NULL, radiating_means = NULL, radiation_function = NULL, weight = 1, seed) {
+  if (radiating) {
+    if (is.null(radiating_means) || is.null(radiating_polygons) || is.null(radiation_function)) {
+      stop("The mean, polygon, and function arguments are mandatory for radiating covariates.")
+    }
+  }
   seed <- get_or_set_seed(seed)
   n_grid <- nrow(test_raster)
   n_spatial <- max(test_raster$id)
@@ -435,7 +445,7 @@ radiating_covariate <- function(test_raster, radiating, radiating_polygons, radi
 }
 
 ## @name constant_covariate See create_test_covariate for details
-constant_covariate <- function(test_raster, constant, weight, seed) {
+constant_covariate <- function(test_raster, constant = FALSE, weight = 1, seed) {
   seed <- get_or_set_seed(seed)
   n_spatial <- max(test_raster$id)
   n_temporal <- max(test_raster$t)
@@ -488,7 +498,7 @@ create_test_covariate <- function(test_raster = create_test_raster(),
                                       mu * exp(-(x / 10000)^2)
                                     },
                                     radiating_polygons = sf::st_sf(sf::st_union(create_test_polygons(dimension = 1))),
-                                    radiating_means = rnorm(nrow(radiating_polygons)), weight = 1
+                                    radiating_means = rnorm(1), weight = 1
                                   ),
                                   constant_parameters = list(constant = FALSE, weight = 1),
                                   family = "Gaussian", magnitude, seed) {
@@ -632,7 +642,7 @@ create_multiple_test_covariates <- function(test_raster = create_test_raster(),
                                                   spatially_smooth = TRUE,
                                                   temporally_smooth = TRUE,
                                                   rho = 0.999999,
-                                                  smooth_function = function(n, mu, covariance, centers) {
+                                                  smoothing_function = function(n, mu, covariance, centers) {
                                                     return(my_scale(MASS::mvrnorm(n = n, mu = mu, Matrix::solve(covariance))))
                                                   },
                                                   weight = 1
@@ -659,13 +669,12 @@ create_multiple_test_covariates <- function(test_raster = create_test_raster(),
   rc <- list()
   for (idx in seq_len(length(covariates_parameters))) {
     tmp <- do.call(create_test_covariate, c(covariates_parameters[[idx]], list(seed = seed, test_raster = test_raster)))
-
+    tmp$geometry <- sf::st_geometry(tmp)
+    tmp <- sf::st_as_sf(sf::st_drop_geometry(tmp))
+    tmp$covariate <- as.numeric(tmp$covariate)
+    rc[[idx]] <- tmp
     seed <- .GlobalEnv$.Random.seed
   }
-  tmp$geometry <- sf::st_geometry(tmp)
-  tmp <- sf::st_as_sf(sf::st_drop_geometry(tmp))
-  tmp$covariate <- as.numeric(tmp$covariate)
-  rc[[idx]] <- tmp
   attr(rc, "seed") <- original_seed
   return(rc)
 }
@@ -760,17 +769,39 @@ observe_gridcells <- function(underlying_distribution = create_underlying_distri
   }
   if (temporal_observation_bias) {
     temporal_weights <- create_test_covariate(
-      test_raster = results, nonspatial = FALSE,
-      nontemporal = FALSE, spatially_smooth = FALSE, temporally_smooth = TRUE,
-      polygonal = FALSE, radiating = FALSE, constant = FALSE
+      test_raster = results,
+      independent_parameters = list(varies_spatially = FALSE, varies_temporally = FALSE),
+      smooth_parameters = list(
+        spatially_smooth = FALSE,
+        temporally_smooth = TRUE,
+        weight = 1,
+        smoothing_function = function(n, mu, covariance, centers) {
+          return(my_scale(MASS::mvrnorm(n = n, mu = mu, Matrix::solve(covariance))))
+        }
+      ),
+      polygonal_parameters = list(polygonal = FALSE),
+      radiating_parameters = list(radiating = FALSE),
+      constant_parameters = list(constant = FALSE),
+      magnitude = 1
     )[["covariate"]]
     temporal_weights <- my_scale(temporal_weights)
   }
   if (spatial_observation_bias) {
     spatial_weights <- create_test_covariate(
-      test_raster = results, nonspatial = FALSE,
-      nontemporal = FALSE, spatially_smooth = TRUE, temporally_smooth = FALSE,
-      polygonal = FALSE, radiating = FALSE, constant = FALSE
+      test_raster = results,
+      independent_parameters = list(varies_spatially = FALSE, varies_temporally = FALSE),
+      smooth_parameters = list(
+        spatially_smooth = TRUE,
+        temporally_smooth = FALSE,
+        weight = 1,
+        smoothing_function = function(n, mu, covariance, centers) {
+          return(my_scale(MASS::mvrnorm(n = n, mu = mu, Matrix::solve(covariance))))
+        }
+      ),
+      polygonal_parameters = list(polygonal = FALSE),
+      radiating_parameters = list(radiating = FALSE),
+      constant_parameters = list(constant = FALSE),
+      magnitude = 1
     )[["covariate"]]
     spatial_weights <- my_scale(spatial_weights)
   }
@@ -957,30 +988,69 @@ observe_polygons <- function(test_polygons = create_test_layered_polygons(), tes
 #' @param seed integer A seed to use for the randomly constructed portions of this object
 #' @export
 create_standardized_test_data <- function(nrows = 8, ncols = 8, nlayers = 2, base_number = 4,
-                                          n_layers = 3, factor = 4, snap = FALSE, randomize = FALSE, ncovariates = 5, nonspatial = c(
-                                            TRUE,
-                                            FALSE, FALSE, FALSE, FALSE
-                                          ), nontemporal = c(FALSE, TRUE, FALSE, FALSE, FALSE),
-                                          spatially_smooth = c(FALSE, FALSE, TRUE, TRUE, FALSE), temporally_smooth = c(
-                                            FALSE,
-                                            FALSE, FALSE, TRUE, FALSE
-                                          ), polygonal = c(TRUE, FALSE, FALSE, FALSE, FALSE),
-                                          radiating = c(FALSE, TRUE, FALSE, FALSE, TRUE), constant = c(
-                                            FALSE, FALSE, FALSE,
-                                            FALSE, FALSE
-                                          ), rho = rep(0.999999, times = ncovariates), radiating_polygons = list(
-                                            NA,
-                                            create_test_polygons(dimension = 0, number = 2), NA, NA, sf::st_union(create_test_polygons(dimension = 1))
-                                          ),
-                                          radiation_function = rep(list(function(x, mu) {
-                                            mu * exp(-(x / 10000)^2)
-                                          }), ncovariates), radiating_means = list(NA, rnorm(2), NA, NA, 1), smoothing_function = rep(list(function(n,
-                                                                                                                                                    mu, covariance, centers) {
-                                            return(my_scale(MASS::mvrnorm(n = n, mu = mu, Matrix::solve(covariance))))
-                                          }), ncovariates), weights = rep(list(c(0.3, 1, 1, 1, 1)), ncovariates), magnitude = c(
-                                            6,
-                                            rnorm(ncovariates - 1)
-                                          ), family = "Gaussian", normalization = function(x) {
+                                          n_layers = 3, factor = 4, snap = FALSE, randomize = FALSE, family = "Gaussian", covariates_parameters = list(
+                                            covariate_1_parameters = list(
+                                              independent_parameters = list(
+                                                varies_spatially = FALSE,
+                                                varies_temporally = FALSE,
+                                                weight = 0.3
+                                              ),
+                                              smooth_parameters = list(
+                                                spatially_smooth = FALSE,
+                                                temporally_smooth = FALSE,
+                                                weight = 1
+                                              ),
+                                              polygonal_parameters = list(
+                                                polygonal = FALSE,
+                                                weight = 1
+                                              ),
+                                              radiating_parameters = list(
+                                                radiating = TRUE,
+                                                radiating_polygons = create_test_polygons(dimension = 0, number = 2),
+                                                radiation_function = function(x, mu) {
+                                                  mu * exp(-(x / 10000)^2)
+                                                },
+                                                radiating_means = rnorm(2),
+                                                weight = 1
+                                              ),
+                                              constant_parameters = list(
+                                                constant = TRUE,
+                                                weight = 1
+                                              ),
+                                              magnitude = 1
+                                              ## constant term
+                                            ),
+                                            covariate_2_parameters = list(
+                                              independent_parameters = list(
+                                                varies_spatially = TRUE,
+                                                varies_temporally = TRUE,
+                                                weight = 0.3
+                                              ),
+                                              smooth_parameters = list(
+                                                spatially_smooth = TRUE,
+                                                temporally_smooth = TRUE,
+                                                rho = 0.999999,
+                                                smoothing_function = function(n, mu, covariance, centers) {
+                                                  return(my_scale(MASS::mvrnorm(n = n, mu = mu, Matrix::solve(covariance))))
+                                                },
+                                                weight = 1
+                                              ),
+                                              polygonal_parameters = list(
+                                                polygonal = TRUE,
+                                                polygons = create_test_layered_polygons(),
+                                                weight = 1
+                                              ),
+                                              radiating_parameters = list(
+                                                radiating = FALSE,
+                                                weight = 1
+                                              ),
+                                              constant_parameters = list(
+                                                constant = FALSE,
+                                                weight = 1
+                                              ),
+                                              magnitude = 1
+                                            )
+                                          ), normalization = function(x) {
                                             if (length(unique(x[])) == 1) {
                                               return(x * 0 + 1)
                                             }
@@ -1009,12 +1079,8 @@ create_standardized_test_data <- function(nrows = 8, ncols = 8, nlayers = 2, bas
 
   test_covariates <- create_multiple_test_covariates(
     test_raster = test_raster,
-    ncovariates = ncovariates, nonspatial = nonspatial, nontemporal = nontemporal,
-    spatially_smooth = spatially_smooth, temporally_smooth = temporally_smooth,
-    polygonal = polygonal, radiating = radiating, constant = constant, rho = rho,
-    polygons = test_polygons, radiating_polygons = radiating_polygons, smoothing_function = smoothing_function,
-    radiation_function = radiation_function, radiating_means = radiating_means,
-    weights = weights, magnitude = magnitude, family = family, seed = .GlobalEnv$.Random.seed
+    covariates_parameters = covariates_parameters,
+    family = family, seed = .GlobalEnv$.Random.seed
   )
 
   test_underlying_distribution <- create_underlying_distribution(
@@ -1054,7 +1120,10 @@ create_standardized_test_data <- function(nrows = 8, ncols = 8, nlayers = 2, bas
 my_scale <- function(x) {
   x <- as.vector(scale(x))
   if (any(is.na(x))) {
-    rc[is.na(x)] <- 1
+    if (!all(is.na(x))) {
+      warning("Some values were NA. resetting them to 1")
+    }
+    x[is.na(x)] <- 1
   }
   if (length(unique(x)) == 1) {
     return(x * 0) + 1
