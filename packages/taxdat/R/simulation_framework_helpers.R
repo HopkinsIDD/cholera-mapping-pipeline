@@ -293,7 +293,7 @@ create_test_layered_polygons <- function(test_raster = create_test_raster(), bas
 
 
 ## @name independent_covariate See create_test_covariate for details
-independent_covariate <- function(test_raster, varies_spatially, varies_temporally,weight,
+independent_covariate <- function(test_raster, varies_spatially, varies_temporally, weight,
                                   seed) {
   seed <- get_or_set_seed(seed)
   n_grid <- nrow(test_raster)
@@ -321,7 +321,7 @@ independent_covariate <- function(test_raster, varies_spatially, varies_temporal
     )
   }
   attr(rc, "seed") <- seed
-  return(rc*weight)
+  return(rc * weight)
 }
 
 ## @name smoothed_covariate See create_test_covariate for details
@@ -377,11 +377,11 @@ smoothed_covariate <- function(test_raster, spatially_smooth, temporally_smooth,
     }
   }
   attr(rc, "seed") <- seed
-  return(rc*weight)
+  return(rc * weight)
 }
 
 ## @name polygonal_covariate See create_test_covariate for details
-polygonal_covariate <- function(test_raster, polygonal, polygons,weight, seed) {
+polygonal_covariate <- function(test_raster, polygonal, polygons, weight, seed) {
   seed <- get_or_set_seed(seed)
 
   n_grid <- nrow(test_raster)
@@ -407,7 +407,7 @@ polygonal_covariate <- function(test_raster, polygonal, polygons,weight, seed) {
   }
 
   attr(rc, "seed") <- seed
-  return(rc*weight)
+  return(rc * weight)
 }
 
 ## @name radiating_covariate See create_test_covariate for details
@@ -431,7 +431,7 @@ radiating_covariate <- function(test_raster, radiating, radiating_polygons, radi
   }
 
   attr(rc, "seed") <- seed
-  return(rc*weight)
+  return(rc * weight)
 }
 
 ## @name constant_covariate See create_test_covariate for details
@@ -442,7 +442,7 @@ constant_covariate <- function(test_raster, constant, weight, seed) {
   value <- ifelse(constant, 1, 0)
   rc <- matrix(value, nrow = n_spatial, ncol = n_temporal)
   attr(rc, "seed") <- seed
-  return(rc*weight)
+  return(rc * weight)
 }
 
 
@@ -474,97 +474,95 @@ constant_covariate <- function(test_raster, constant, weight, seed) {
 #' @param weights numeric(5) How heavily each layer contributes to the final result
 #' @param family character Currently unused
 #' @param seed integer A seed to use for the randomly constructed portions of this object ##CHANGE!!!###independent_covariate: independently generated#only the function part
-create_test_covariate <- function(test_raster = create_test_raster(), 
-                                  
-                                  independent_parameters=list(varies_spatially=TURE,varies_temporally=TRUE,weight=0.3),
-                                  
-                                  smooth_parameters=list( spatially_smooth = TRUE, temporally_smooth = TRUE,smoothing_function = function(n,
-                                                                                                                                          mu, covariance, centers) {
+create_test_covariate <- function(test_raster = create_test_raster(),
+                                  independent_parameters = list(varies_spatially = TURE, varies_temporally = TRUE, weight = 0.3),
+                                  smooth_parameters = list(spatially_smooth = TRUE, temporally_smooth = TRUE, smoothing_function = function(n,
+                                                                                                                                            mu, covariance, centers) {
                                     return(my_scale(MASS::mvrnorm(n = n, mu = mu, Matrix::solve(covariance))))
-                                  },weight=1),
-                                  
-                                  polygonal_parameters=list(polygonal=TRUE,polygons = create_test_layered_polygons(),weight=1), 
-                                  
-                                  radiating_parameters=list(radiating = TRUE, 
-                                                 radiation_function = function(x,
-                                                                               mu) {
-                                                   mu * exp(-(x/10000)^2)
-                                                 },
-                                                 radiating_polygons = sf::st_sf(sf::st_union(create_test_polygons(dimension = 1))),
-                                                 radiating_means = rnorm(nrow(radiating_polygons)),weight=1),
-                                  
-                                  constant_parameters = list(constant=FALSE,weight=1), 
-    family = "Gaussian",magnitude, seed) {
-    seed <- get_or_set_seed(seed)
-    original_seed <- seed
-    if (family != "Gaussian") {
-        stop("This is not yet implemented")
-    }
+                                  }, weight = 1),
+                                  polygonal_parameters = list(polygonal = TRUE, polygons = create_test_layered_polygons(), weight = 1),
+                                  radiating_parameters = list(
+                                    radiating = TRUE,
+                                    radiation_function = function(x,
+                                                                  mu) {
+                                      mu * exp(-(x / 10000)^2)
+                                    },
+                                    radiating_polygons = sf::st_sf(sf::st_union(create_test_polygons(dimension = 1))),
+                                    radiating_means = rnorm(nrow(radiating_polygons)), weight = 1
+                                  ),
+                                  constant_parameters = list(constant = FALSE, weight = 1),
+                                  family = "Gaussian", magnitude, seed) {
+  seed <- get_or_set_seed(seed)
+  original_seed <- seed
+  if (family != "Gaussian") {
+    stop("This is not yet implemented")
+  }
 
   n_grid <- nrow(test_raster)
   n_spatial <- max(test_raster$id)
   n_temporal <- max(test_raster$t)
 
-    ## Start at 0 and add covariates
-    test_raster[["covariate"]] <- 0
-    ## Add in covariates covariate functions return appropriately sized
-    ## matrices which are 0 if the covariate is not used
-    # test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(independent_covariate(test_raster,
-    #                                                                                             independent_parameters[["varies_spatially"]], 
-    #                                                                                             independent_parameters[["varies_temporally"]], seed = seed) * independent_parameters[["weight"]])
-    # 
-    # test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(do.call(independent_covariate, c(independent_parameters, list(seed = seed,test_raster=test_raster))))###update this
-    # 
-    # seed <- .GlobalEnv$.Random.seed
-    # test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(smoothed_covariate(test_raster,
-    #                                                                                          smooth_parameters[["spatially_smooth"]], 
-    #                                                                                          smooth_parameters[["temporally_smooth"]], 
-    #                                                                                          smooth_parameters[["smoothing_function"]], 
-    #                                                                                          smooth_parameters[["rho"]], seed = seed))#weight, 
-    # seed <- .GlobalEnv$.Random.seed
-    # test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(polygonal_covariate(test_raster,
-    #                                                                                           polygonal_parameters[["polygonal"]], 
-    #                                                                                           polygonal_parameters[["polygons"]], seed = seed))#weight, 
-    # seed <- .GlobalEnv$.Random.seed
-    # test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(radiating_covariate(test_raster,
-    #                                                                                           radiating_parameters[["radiating"]], 
-    #                                                                                           radiating_parameters[["radiating_polygons"]], 
-    #                                                                                           radiating_parameters[["radiating_means"]], 
-    #                                                                                           radiating_parameters[["radiation_function"]], seed = seed))#weight, 
-    # seed <- .GlobalEnv$.Random.seed
-    # test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(constant_covariate(test_raster,
-    #                                                                                          constant_parameters[["constant"]], seed = seed))#weight, 
-    # seed <- .GlobalEnv$.Random.seed
-    # 
-    # 
-    # 
-    ####
-    covariate_functions <- list(
-      independent = independent_covariate,
-      smooth=smoothed_covariate,
-      polygonal=polygonal_covariate,
-      radiating=radiating_covariate,
-      constant=constant_covariate
-    )
-    covariate_parameters <-list(
-      independent = independent_parameters,
-      smooth=smooth_parameters,
-      polygonal=polygonal_parameters,
-      radiating=radiating_parameters,
-      constant=constant_parameters
-      )
-    for (covariate_component in c("independent", "smooth", "polygonal", "radiating", "constant")) {
+  ## Start at 0 and add covariates
+  test_raster[["covariate"]] <- 0
+  ## Add in covariates covariate functions return appropriately sized
+  ## matrices which are 0 if the covariate is not used
+  # test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(independent_covariate(test_raster,
+  #                                                                                             independent_parameters[["varies_spatially"]],
+  #                                                                                             independent_parameters[["varies_temporally"]], seed = seed) * independent_parameters[["weight"]])
+  #
+  # test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(do.call(independent_covariate, c(independent_parameters, list(seed = seed,test_raster=test_raster))))###update this
+  #
+  # seed <- .GlobalEnv$.Random.seed
+  # test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(smoothed_covariate(test_raster,
+  #                                                                                          smooth_parameters[["spatially_smooth"]],
+  #                                                                                          smooth_parameters[["temporally_smooth"]],
+  #                                                                                          smooth_parameters[["smoothing_function"]],
+  #                                                                                          smooth_parameters[["rho"]], seed = seed))#weight,
+  # seed <- .GlobalEnv$.Random.seed
+  # test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(polygonal_covariate(test_raster,
+  #                                                                                           polygonal_parameters[["polygonal"]],
+  #                                                                                           polygonal_parameters[["polygons"]], seed = seed))#weight,
+  # seed <- .GlobalEnv$.Random.seed
+  # test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(radiating_covariate(test_raster,
+  #                                                                                           radiating_parameters[["radiating"]],
+  #                                                                                           radiating_parameters[["radiating_polygons"]],
+  #                                                                                           radiating_parameters[["radiating_means"]],
+  #                                                                                           radiating_parameters[["radiation_function"]], seed = seed))#weight,
+  # seed <- .GlobalEnv$.Random.seed
+  # test_raster[["covariate"]] <- test_raster[["covariate"]] + as.numeric(constant_covariate(test_raster,
+  #                                                                                          constant_parameters[["constant"]], seed = seed))#weight,
+  # seed <- .GlobalEnv$.Random.seed
+  #
+  #
+  #
+  ####
+  covariate_functions <- list(
+    independent = independent_covariate,
+    smooth = smoothed_covariate,
+    polygonal = polygonal_covariate,
+    radiating = radiating_covariate,
+    constant = constant_covariate
+  )
+  covariate_parameters <- list(
+    independent = independent_parameters,
+    smooth = smooth_parameters,
+    polygonal = polygonal_parameters,
+    radiating = radiating_parameters,
+    constant = constant_parameters
+  )
+  for (covariate_component in c("independent", "smooth", "polygonal", "radiating", "constant")) {
+    test_raster[["covariate"]] <- test_raster[["covariate"]] +
+      as.numeric(do.call(
+        covariate_functions[[covariate_component]],
+        c(covariate_parameters[[covariate_component]], list(seed = seed, test_raster = test_raster))
+      ))
+    seed <- .GlobalEnv$.Random.seed
+  }
 
-      test_raster[["covariate"]] <- test_raster[["covariate"]] + 
-        as.numeric(do.call(covariate_functions[[covariate_component]], 
-                           c(covariate_parameters[[covariate_component]], list(seed = seed,test_raster=test_raster))))
-      seed <- .GlobalEnv$.Random.seed
-    }
-    
-    test_raster[["covariate"]]<-my_scale(test_raster[["covariate"]])*magnitude
+  test_raster[["covariate"]] <- my_scale(test_raster[["covariate"]]) * magnitude
 
-    attr(test_raster, "seed") <- original_seed
-    return(test_raster)
+  attr(test_raster, "seed") <- original_seed
+  return(test_raster)
 }
 
 
@@ -592,86 +590,84 @@ create_test_covariate <- function(test_raster = create_test_raster(),
 #' @param family character Currently unused
 #' @param seed integer A seed to use for the randomly constructed portions of this object
 create_multiple_test_covariates <- function(test_raster = create_test_raster(),
-                                            covariates_parameters=list(
-                                              covariate_1_parameters=list(
-                                                independent_parameters=list(
-                                                  varies_spatially=FALSE,
-                                                  varies_temporally=FALSE,
-                                                  weight=0.3
+                                            covariates_parameters = list(
+                                              covariate_1_parameters = list(
+                                                independent_parameters = list(
+                                                  varies_spatially = FALSE,
+                                                  varies_temporally = FALSE,
+                                                  weight = 0.3
                                                 ),
-                                                smooth_parameters=list(
-                                                  spatially_smooth=FALSE,
-                                                  temporally_smooth=FALSE,
-                                                  weight=1
+                                                smooth_parameters = list(
+                                                  spatially_smooth = FALSE,
+                                                  temporally_smooth = FALSE,
+                                                  weight = 1
                                                 ),
-                                                polygonal_parameters=list(
-                                                  polygonal=FALSE,
-                                                  weight=1
+                                                polygonal_parameters = list(
+                                                  polygonal = FALSE,
+                                                  weight = 1
                                                 ),
-                                                radiating_parameters=list(
-                                                  radiating=TRUE,
-                                                  radiating_polygons=create_test_polygons(dimension = 0,number = 2),
-                                                  radiation_function=function(x, mu) {
-                                                    mu * exp(-(x/10000)^2)
+                                                radiating_parameters = list(
+                                                  radiating = TRUE,
+                                                  radiating_polygons = create_test_polygons(dimension = 0, number = 2),
+                                                  radiation_function = function(x, mu) {
+                                                    mu * exp(-(x / 10000)^2)
                                                   },
                                                   radiating_means = rnorm(2),
-                                                  weight=1
+                                                  weight = 1
                                                 ),
-                                                constant_parameters=list(
-                                                  constant=TRUE,
-                                                  weight=1
+                                                constant_parameters = list(
+                                                  constant = TRUE,
+                                                  weight = 1
                                                 ),
-                                                magnitude=1
-                                                ##constant term
+                                                magnitude = 1
+                                                ## constant term
                                               ),
-                                              covariate_2_parameters=list(
-                                                independent_parameters=list(
-                                                  varies_spatially=TRUE,
-                                                  varies_temporally=TRUE,
-                                                  weight=0.3
+                                              covariate_2_parameters = list(
+                                                independent_parameters = list(
+                                                  varies_spatially = TRUE,
+                                                  varies_temporally = TRUE,
+                                                  weight = 0.3
                                                 ),
-                                                smooth_parameters=list(
-                                                  spatially_smooth=TRUE,
-                                                  temporally_smooth=TRUE,
-                                                  rho=0.999999,
-                                                  smooth_function=function(n,mu, covariance, centers) {
+                                                smooth_parameters = list(
+                                                  spatially_smooth = TRUE,
+                                                  temporally_smooth = TRUE,
+                                                  rho = 0.999999,
+                                                  smooth_function = function(n, mu, covariance, centers) {
                                                     return(my_scale(MASS::mvrnorm(n = n, mu = mu, Matrix::solve(covariance))))
                                                   },
-                                                  weight=1
+                                                  weight = 1
                                                 ),
-                                                polygonal_parameters=list(
-                                                  polygonal=TRUE,
+                                                polygonal_parameters = list(
+                                                  polygonal = TRUE,
                                                   polygons = create_test_layered_polygons(),
-                                                  weight=1
+                                                  weight = 1
                                                 ),
-                                                radiating_parameters=list(
-                                                  radiating=FALSE,
-                                                  weight=1
+                                                radiating_parameters = list(
+                                                  radiating = FALSE,
+                                                  weight = 1
                                                 ),
-                                                constant_parameters=list(
-                                                  constant=FALSE,
-                                                  weight=1
+                                                constant_parameters = list(
+                                                  constant = FALSE,
+                                                  weight = 1
                                                 ),
-                                                magnitude=1
+                                                magnitude = 1
                                               ),
                                             ), family = "Gaussian",
                                             seed) {
-    seed <- get_or_set_seed(seed)
-    original_seed <- seed
-    rc <- list()
-    for (idx in seq_len(length(covariates_parameters))) {
-      
-        tmp <- do.call(create_test_covariate,c(covariates_parameters[[idx]],list(seed = seed,test_raster=test_raster)))
+  seed <- get_or_set_seed(seed)
+  original_seed <- seed
+  rc <- list()
+  for (idx in seq_len(length(covariates_parameters))) {
+    tmp <- do.call(create_test_covariate, c(covariates_parameters[[idx]], list(seed = seed, test_raster = test_raster)))
 
-        seed <- .GlobalEnv$.Random.seed
-
-        tmp$geometry <- sf::st_geometry(tmp)
-        tmp <- sf::st_as_sf(sf::st_drop_geometry(tmp))
-        tmp$covariate <- as.numeric(tmp$covariate)
-        rc[[idx]] <- tmp
-    }
-    attr(rc, "seed") <- original_seed
-    return(rc)
+    seed <- .GlobalEnv$.Random.seed
+  }
+  tmp$geometry <- sf::st_geometry(tmp)
+  tmp <- sf::st_as_sf(sf::st_drop_geometry(tmp))
+  tmp$covariate <- as.numeric(tmp$covariate)
+  rc[[idx]] <- tmp
+  attr(rc, "seed") <- original_seed
+  return(rc)
 }
 
 #' @export
@@ -850,12 +846,12 @@ observe_polygons <- function(test_polygons = create_test_layered_polygons(), tes
       # update the dates of censored observations // QZ: updating time slice from year to the units from the config, replacing this by time_scale
       left_dates <- min_time_left + (seq_len(nlayers) - 1) * lubridate::period(1, time_scale)
       right_dates <- max_time_right - rev(seq_len(nlayers) - 1) * lubridate::period(1, time_scale)
-      if(any(is.na(right_dates))){
-        for ( idx in 1:length(right_dates)) {
-          if(is.na(right_dates[idx])&!idx==1){
-            right_dates[idx]=right_dates[idx-1]+(right_dates[idx+1]-right_dates[idx-1])/2
+      if (any(is.na(right_dates))) {
+        for (idx in 1:length(right_dates)) {
+          if (is.na(right_dates[idx]) & !idx == 1) {
+            right_dates[idx] <- right_dates[idx - 1] + (right_dates[idx + 1] - right_dates[idx - 1]) / 2
           }
-        }       
+        }
       }
 
       if (max(right_dates) != max_time_right) {

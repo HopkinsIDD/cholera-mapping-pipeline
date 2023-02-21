@@ -308,7 +308,7 @@ my_seed <- .GlobalEnv$.Random.seed
 
 test_observations <- observe_polygons(
   test_polygons = dplyr::mutate(all_dfs$shapes_df,
-                                location = qualified_name, geometry = geom
+    location = qualified_name, geometry = geom
   ), test_covariates = raster_df, underlying_distribution = test_underlying_distribution,
   noise = FALSE, number_draws = 1, grid_proportion_observed = 1, polygon_proportion_observed = 1,
   min_time_left = query_time_left, max_time_right = query_time_right, seed = my_seed
@@ -327,7 +327,7 @@ all_dfs$observations_df[which(all_dfs$observations_df$qualified_name == "1"), ]$
   "1::",
   all_dfs$observations_df$qualified_name
 ), ]$suspected_cases)
-all_dfs$observations_df$time_right=as.Date(ifelse(all_dfs$observations_df$time_right=="2001-12-31","2000-12-31",all_dfs$observations_df$time_right),origin="1996-01-01")
+all_dfs$observations_df$time_right <- as.Date(ifelse(all_dfs$observations_df$time_right == "2001-12-31", "2000-12-31", all_dfs$observations_df$time_right), origin = "1996-01-01")
 
 ## ------------------------------------------------------------------------------------------------------------------------
 ## Create Database

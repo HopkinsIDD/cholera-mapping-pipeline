@@ -1,4 +1,4 @@
-create or replace function pull_location_period_grid_map_interior(location_name text, start_date date, end_date date, width_in_km int, height_in_km int, time_scale text)
+CREATE FUNCTION pull_location_period_grid_map_interior(location_name text, start_date date, end_date date, width_in_km int, height_in_km int, time_scale text)
 RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint, shape_id bigint, spatial_grid_id bigint, rid int, x int, y int, t bigint, sfrac double precision) AS $$
   SELECT
     location_periods.qualified_name as qualified_name,
@@ -30,4 +30,4 @@ RETURNS TABLE(qualified_name text, location_id bigint, location_period_id bigint
     AND temporal_grid.time_midpoint >= start_date
     AND spatial_grid.width = width_in_km
     AND spatial_grid.height = height_in_km
-  $$ LANGUAGE SQL;
+  $$ LANGUAGE SQL SECURITY DEFINER;

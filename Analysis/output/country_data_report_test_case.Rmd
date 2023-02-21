@@ -32,7 +32,7 @@ params:
 ```{r setup, include=FALSE, dev="CairoPNG"}
 knitr::opts_chunk$set(
   echo = FALSE,
-  dev="CairoPNG",
+  dev = "CairoPNG",
   error = FALSE,
   fig.align = "center",
   message = TRUE,
@@ -58,27 +58,27 @@ if (!("params" %in% ls())) {
     cholera_directory = "/home/app/cmp/",
     config_filename = "/home/app/cmp/Analysis/R/test_config.yml",
     drop_nodata_years = TRUE,
-    ncols=10,
-    nrows=10,
-    data_type="Grid data",
-    oc_type="Multiple OCs",
-    polygon_type="Fake polygons",
-    grid_coverage_type="90%",
-    randomize="TRUE",
-    ncovariates=2,
-    single_year_run= "no",
-    iteration=10000,
+    ncols = 10,
+    nrows = 10,
+    data_type = "Grid data",
+    oc_type = "Multiple OCs",
+    polygon_type = "Fake polygons",
+    grid_coverage_type = "90%",
+    randomize = "TRUE",
+    ncovariates = 2,
+    single_year_run = "no",
+    iteration = 10000,
     nonspatial = c(FALSE, FALSE),
     nontemporal = c(FALSE, FALSE),
     spatially_smooth = c(TRUE, FALSE),
     temporally_smooth = c(FALSE, FALSE),
     polygonal = c(TRUE, TRUE),
-    radiating = c(FALSE,  FALSE),
-    constant=c(FALSE,FALSE),
-    Data_simulation_covariates=c(TRUE,TRUE),
-    Model_covariates=c(TRUE,TRUE),
-    Observations_with_inconsistent_data="no",
-    Loc_with_inconsistent_data="no"
+    radiating = c(FALSE, FALSE),
+    constant = c(FALSE, FALSE),
+    Data_simulation_covariates = c(TRUE, TRUE),
+    Model_covariates = c(TRUE, TRUE),
+    Observations_with_inconsistent_data = "no",
+    Loc_with_inconsistent_data = "no"
   )
 }
 
@@ -90,37 +90,35 @@ package_list <- c(
 
 for (package in package_list) {
   if (!require(package = package, character.only = T)) {
-    if (package == "rgeoboundaries"){
+    if (package == "rgeoboundaries") {
       try({
         remotes::install_gitlab("dickoa/rgeoboundaries")
         remotes::install_github("wmgeolab/rgeoboundaries")
       })
-    }else{
+    } else {
       install.packages(pkgs = package)
       library(package = package, character.only = T)
     }
   }
 }
 
-#Figure Caption Numbering,
-capFigNo = 1
-#Function to add the Figure Number
-capFig = function(x){
-    x = paste0("Figure ",capFigNo,". ",x)
-    capFigNo <<- capFigNo + 1
-    x
+# Figure Caption Numbering,
+capFigNo <- 1
+# Function to add the Figure Number
+capFig <- function(x) {
+  x <- paste0("Figure ", capFigNo, ". ", x)
+  capFigNo <<- capFigNo + 1
+  x
 }
-cache<-new.env()
-
-
+cache <- new.env()
 ```
 
 # Mapping results summary for `r params$config_filename`
 
 ``` {r echo=FALSE}
- params_table=data.frame(do.call(rbind,params))
+params_table <- data.frame(do.call(rbind, params))
 
- row.names(params_table)=c(
+row.names(params_table) <- c(
   "config_filename",
   "cholera_directory",
   "drop_nodata_years",
@@ -148,99 +146,110 @@ cache<-new.env()
   "Cov_data_simulation_filename"
 )
 
- data.frame(parameter=rownames(params_table)[c(1:11,23)],params_table[c(1:11,23),1])%>%
-  kableExtra::kable(col.names = c("Parameter","Values"),
-                    caption = "Table 1. Parameters")%>%
-    kableExtra::kable_styling(bootstrap_options = c("striped"))
+data.frame(parameter = rownames(params_table)[c(1:11, 23)], params_table[c(1:11, 23), 1]) %>%
+  kableExtra::kable(
+    col.names = c("Parameter", "Values"),
+    caption = "Table 1. Parameters"
+  ) %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped"))
 ```
 
 ``` {r echo=FALSE}
-  covar=data.frame(t(params_table[c(14:19,21,22),]))
-  rownames(covar)=paste("Covariate",1:ncol(params_table))
-  rownames(covar)[1]="Population"
-  covar_table=covar%>%
-  kableExtra::kable(col.names = c(
-  "Spatially-varied layers",
-  "Temporally-varied layers",
-  "Spatially smoothed",
-  "Temporally smoothed",
-  "Polygonal layer",
-  "Radiating layer",
-  "Data simulation covariates",
-  "Model covariates"),
-  caption = "Table 2. Covariates")%>%
+covar <- data.frame(t(params_table[c(14:19, 21, 22), ]))
+rownames(covar) <- paste("Covariate", 1:ncol(params_table))
+rownames(covar)[1] <- "Population"
+covar_table <- covar %>%
+  kableExtra::kable(
+    col.names = c(
+      "Spatially-varied layers",
+      "Temporally-varied layers",
+      "Spatially smoothed",
+      "Temporally smoothed",
+      "Polygonal layer",
+      "Radiating layer",
+      "Data simulation covariates",
+      "Model covariates"
+    ),
+    caption = "Table 2. Covariates"
+  ) %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped"))
+
+
+if (stringr::str_detect(params$oc_type, "Multiple test observations")) {
+  covar <- data.frame(t(params_table[c(14:19, 21, 22), ]))
+  rownames(covar) <- paste("Covariate", 1:ncol(params_table))
+  rownames(covar)[1] <- "Population"
+  covar_table <- covar %>%
+    kableExtra::kable(
+      col.names = c(
+        "Spatially-varied layers",
+        "Temporally-varied layers",
+        "Spatially smoothed",
+        "Temporally smoothed",
+        "Polygonal layer",
+        "Radiating layer",
+        "Data simulation covariates",
+        "Model covariates"
+      ),
+      caption = "Table 2. Covariates"
+    ) %>%
     kableExtra::kable_styling(bootstrap_options = c("striped"))
 
-
-  if(stringr::str_detect(params$oc_type,"Multiple test observations")){
-     covar=data.frame(t(params_table[c(14:19,21,22),]))
-  rownames(covar)=paste("Covariate",1:ncol(params_table))
-  rownames(covar)[1]="Population"
-  covar_table=covar%>%
-  kableExtra::kable(col.names = c(
-  "Spatially-varied layers",
-  "Temporally-varied layers",
-  "Spatially smoothed",
-  "Temporally smoothed",
-  "Polygonal layer",
-  "Radiating layer",
-  "Data simulation covariates",
-  "Model covariates"),
-  caption = "Table 2. Covariates")%>%
+  observation_groups <- nrow(covar) / params$ncovariates
+  rownames(covar)[seq(1, nrow(covar) + 1 - params$ncovariates, params$ncovariates)] <- paste("Population", 1:observation_groups)
+  rownames(covar)[-seq(1, nrow(covar) + 1 - params$ncovariates, params$ncovariates)] <- paste(paste("Covariate", 2:params$ncovariates), paste0("G", 1:observation_groups))
+  covar_table <- covar %>%
+    kableExtra::kable(
+      col.names = c(
+        "Spatially-varied layers",
+        "Temporally-varied layers",
+        "Spatially smoothed",
+        "Temporally smoothed",
+        "Polygonal layer",
+        "Radiating layer",
+        "Data simulation covariates",
+        "Model covariates"
+      ),
+      caption = "Table 2. Covariates"
+    ) %>%
     kableExtra::kable_styling(bootstrap_options = c("striped"))
 
-   observation_groups=nrow(covar)/params$ncovariates
-   rownames(covar)[seq(1,nrow(covar)+1-params$ncovariates,params$ncovariates)]=paste("Population",1:observation_groups)
-   rownames(covar)[-seq(1,nrow(covar)+1-params$ncovariates,params$ncovariates)]=paste(paste("Covariate",2:params$ncovariates),paste0("G",1:observation_groups))
-   covar_table=covar%>%
-     kableExtra::kable(
-       col.names = c(
-  "Spatially-varied layers",
-  "Temporally-varied layers",
-  "Spatially smoothed",
-  "Temporally smoothed",
-  "Polygonal layer",
-  "Radiating layer",
-  "Data simulation covariates",
-  "Model covariates"),
-  caption = "Table 2. Covariates"
-     )%>%
-     kableExtra::kable_styling(bootstrap_options = c("striped"))
-
-#group index for row headers for different test observations
-   group_index=data.frame(matrix(ncol=observation_groups,nrow=1,data = c(rep(params$ncovariates,observation_groups))))
-   colnames(group_index)=paste("Test observations",1:observation_groups)
-   covar_table%>%
-     group_rows(index = group_index)
-  } else{
-      covar=data.frame(t(params_table[c(14:19,21,22),]))
-  rownames(covar)=paste("Covariate",1:ncol(params_table))
-  rownames(covar)[1]="Population"
-  covar%>%
-  kableExtra::kable(col.names = c(
-  "Spatially-varied layers",
-  "Temporally-varied layers",
-  "Spatially smoothed",
-  "Temporally smoothed",
-  "Polygonal layer",
-  "Radiating layer",
-  "Data simulation covariates",
-  "Model covariates"),
-  caption = "Table 2. Covariates")%>%
+  # group index for row headers for different test observations
+  group_index <- data.frame(matrix(ncol = observation_groups, nrow = 1, data = c(rep(params$ncovariates, observation_groups))))
+  colnames(group_index) <- paste("Test observations", 1:observation_groups)
+  covar_table %>%
+    group_rows(index = group_index)
+} else {
+  covar <- data.frame(t(params_table[c(14:19, 21, 22), ]))
+  rownames(covar) <- paste("Covariate", 1:ncol(params_table))
+  rownames(covar)[1] <- "Population"
+  covar %>%
+    kableExtra::kable(
+      col.names = c(
+        "Spatially-varied layers",
+        "Temporally-varied layers",
+        "Spatially smoothed",
+        "Temporally smoothed",
+        "Polygonal layer",
+        "Radiating layer",
+        "Data simulation covariates",
+        "Model covariates"
+      ),
+      caption = "Table 2. Covariates"
+    ) %>%
     kableExtra::kable_styling(bootstrap_options = c("striped"))
-
-  }
+}
 ```
 
 ## Cholera input data
 **Table 1. Data used within the model:**
 ```{r echo = FALSE}
-taxdat::table_observation_summary(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
+taxdat::table_observation_summary(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
 **Table 2. Data dropped from the model:**
 ```{r echo=FALSE}
-taxdat::table_observation_summary(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
+taxdat::table_observation_summary(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
 ```{r disjoint set sf cases, message=FALSE}
@@ -250,17 +259,17 @@ taxdat::table_observation_summary(config=params$config, cache=cache, cholera_dir
 
 **Cases by time:**
 ```{r rawobsmap, fig.height=5, fig.width=10, fig.cap=capFig("Observed case counts by time adjusted for time fraction cases/year")}
-taxdat::plot_observed_cases_polygon_raw(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
+taxdat::plot_observed_cases_polygon_raw(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
 **Area adjusted cases by time:**
 ```{r areadjustedmap, fig.height=5, fig.width=10, fig.cap=capFig("Area adjusted average observed case counts by time adjusted for time fraction cases/(year * kilometer)")}
-taxdat::plot_area_adjusted_observed_cases(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
+taxdat::plot_area_adjusted_observed_cases(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
 **Cases unique location periods:**
 ```{r obsmap, fig.height=5, fig.width=10, fig.cap=capFig("Number of observations by unique observed location periods.")}
-taxdat::plot_raw_observations(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
+taxdat::plot_raw_observations(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
 ## Covariates
@@ -268,7 +277,7 @@ taxdat::plot_raw_observations(config=params$config,cache=cache,cholera_directory
 #### Population
 **Population raster by time slices:**
 ```{r pop, fig.height=5, fig.width=10, fig.cap=capFig("Population density")}
-taxdat::plot_time_varying_pop_raster(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
+taxdat::plot_time_varying_pop_raster(cache = cache, config = params$config, cholera_directory = params$cholera_directory)
 ```
 
 **Table 3. Population by admin level:**
@@ -280,7 +289,7 @@ warning("Removed this plot for now")
 #### Other covariates
 **Covariate rasters:**
 ```{r covars, fig.height=5, fig.width=10, fig.cap=capFig("Covariate rasters")}
-taxdat::plot_raster_covariates(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
+taxdat::plot_raster_covariates(cache = cache, cholera_directory = params$cholera_directory, config = params$config)
 ```
 
 ### GAM Input
@@ -307,11 +316,11 @@ taxdat::plot_gam_fit_output_rates(config = params$config, cache = cache, cholera
 
 ```{r importcase}
 get_dropped_years(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-if(length(cache[["dropped_years"]]) == 0){
+if (length(cache[["dropped_years"]]) == 0) {
   message("All modeled years are represented by OCs.")
 } else {
   message(paste(paste(cache[["dropped_years"]], collapse = ", "), "are not represented in OCs"))
-  if(params$drop_nodata_years){
+  if (params$drop_nodata_years) {
     message(paste("Dropping", paste(cache[["dropped_years"]], collapse = ", "), "from case_raster"))
     ## case_raster <- dplyr::filter(case_raster, !(t %in% drop_year_ix))
   }
@@ -388,7 +397,6 @@ warning("Disabled this for now.")
 #       ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(long_modeled_grid_case[,3])), ylim = c(0, max(long_modeled_grid_case[,5]))) +
 #       ggplot2::theme_bw()
 #  plt
-
 ```
 
 **Stan trace plots:**
@@ -419,7 +427,7 @@ warning("Coming back to this later")
 ```
 
 ```{r full country modeled cases, fig.cap = "comparison with WHO Output"}
-  warning("This is a weird thing to print")
-  total_cases <- sum(cache[["grid_cases_mean"]])
-  print(paste("There are",format(round(total_cases), big.mark=","),"total cases"))
+warning("This is a weird thing to print")
+total_cases <- sum(cache[["grid_cases_mean"]])
+print(paste("There are", format(round(total_cases), big.mark = ","), "total cases"))
 ```

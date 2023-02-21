@@ -16,7 +16,13 @@ assert <- function(test, message = "Assertion failed") {
 #' @param drop Whether to drop an existing table
 add_and_or_drop <- function(psql_connection, add_query, drop_query, drop = FALSE, echo = Sys.getenv("CHOLERA_ECHO_SQL", FALSE)) {
   if (echo) {
-    cat(add_query)
+    sapply(
+      add_query,
+      function(x) {
+        cat(x)
+        cat("\n")
+      }
+    )
   }
   if (drop) {
     lapply(drop_query, function(q) {
@@ -27,6 +33,10 @@ add_and_or_drop <- function(psql_connection, add_query, drop_query, drop = FALSE
   lapply(add_query, function(q) {
     DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, q))
   })
+}
+
+refresh_indices <- function(psql_connection) {
+  add_and_or_drop(psql_connection, "VACUUM ANALYZE", NULL, drop = FALSE)
 }
 
 #' @description Create an observations table for use in testing
@@ -71,8 +81,17 @@ create_location_periods_table <- function(psql_connection, drop = FALSE) {
 #' @param psql_connection a connection to a database made with dbConnect
 #' @param drop Whether to drop an existing table
 create_shapes_table <- function(psql_connection, drop = FALSE) {
-  drop_query <- readr::read_file(system.file("sql", "drop_shapes_table.sql", package = "taxdat"))
-  add_query <- readr::read_file(system.file("sql", "add_shapes_table.sql", package = "taxdat"))
+  drop_query <- c(
+    readr::read_file(system.file("sql", "drop_shapes_table.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "drop_shapes_table_trigger_function.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "drop_shapes_table_trigger_add.sql", package = "taxdat"))
+  )
+
+  add_query <- c(
+    readr::read_file(system.file("sql", "add_shapes_table.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "add_shapes_table_trigger_function.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "add_shapes_table_trigger_add.sql", package = "taxdat"))
+  )
 
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
@@ -134,6 +153,16 @@ create_covariates_schema <- function(psql_connection, drop = FALSE) {
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
+#' @description Create a raster_covariate_collections table for use in testing
+#' @name create_raster_covariate_collections_table
+#' @title create_raster_covariate_collections_table
+#' @param psql_connection a connection to a database made with dbConnect
+#' @param drop Whether to drop an existing table
+create_raster_covariate_collections_table <- function(psql_connection, drop = FALSE) {
+  drop_query <- readr::read_file(system.file("sql", "drop_raster_covariate_collections_table.sql", package = "taxdat"))
+  add_query <- readr::read_file(system.file("sql", "add_raster_covariate_collections_table.sql", package = "taxdat"))
+  add_and_or_drop(psql_connection, add_query, drop_query, drop)
+}
 #' @description Create a all_covariates table for use in testing
 #' @name create_all_covariates_table
 #' @title create_all_covariates_table
@@ -180,7 +209,11 @@ create_master_temporal_grid_view <- function(psql_connection, drop = FALSE) {
 #' @param psql_connection a connection to a database made with dbConnect
 create_resized_spatial_grid_pixels_view <- function(psql_connection, drop = FALSE) {
   drop_query <- readr::read_file(system.file("sql", "drop_resized_spatial_grid_pixels_view.sql", package = "taxdat"))
-  add_query <- readr::read_file(system.file("sql", "add_resized_spatial_grid_pixels_view.sql", package = "taxdat"))
+  add_query <- c(
+    readr::read_file(system.file("sql", "add_resized_spatial_grid_pixels_view.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "add_resized_spatial_grid_pixels_view_index_polygon.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "add_resized_spatial_grid_pixels_view_index_centroid.sql", package = "taxdat"))
+  )
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
@@ -224,38 +257,14 @@ create_covariate_grid_map_view <- function(psql_connection, drop = FALSE) {
 #' @param psql_connection a connection to a database made with dbConnect
 #' @param drop Whether to drop existing database elements
 create_testing_base_database <- function(psql_connection, drop = FALSE) {
+  create_all_covariates_table(psql_connection, drop)
+  create_raster_covariate_collections_table(psql_connection, drop)
   create_locations_table(psql_connection, drop)
   create_location_periods_table(psql_connection, drop)
   create_shapes_table(psql_connection, drop)
   create_observations_table(psql_connection, drop)
   create_location_hierarchies_table(psql_connection, drop)
-  create_master_spatial_grid_table(psql_connection, drop)
-}
-
-## HERE : MOVE ME
-
-#' @description Create the portion of the testing database that we intend
-#' to add to the database located at cholera-taxonomy.middle-distance.com
-#' @name create_testing_additional_database
-#' @title create_testing_additional_database
-#' @param psql_connection a connection to a database made with dbConnect
-#' @param drop Whether to drop existing database elements
-create_testing_additional_database <- function(psql_connection, drop = FALSE) {
-  create_spatial_resolutions_table(psql_connection, drop)
-  create_resize_spatial_grid_function(psql_connection)
-  create_resized_spatial_grids_view(psql_connection, drop)
-  create_all_covariates_table(psql_connection, drop)
-  create_time_bounds_table(psql_connection, drop)
-  create_master_temporal_grid_view(psql_connection, drop)
-  create_resized_spatial_grid_pixels_view(psql_connection, drop)
-  create_master_spatial_grid_centroids_view(psql_connection, drop)
-  create_location_period_raster_map_view(psql_connection, drop)
-  create_covariate_grid_map_view(psql_connection, drop)
-  create_shapes_with_names_view(psql_connection, drop)
-  create_shape_resized_spatial_grid_map_view(psql_connection, drop)
-  create_shape_resized_spatial_grid_populations_view(psql_connection, drop)
-  create_resized_covariates_view(psql_connection, drop)
-  invisible(NULL)
+  create_ingest_covariate_function(psql_connection, drop)
 }
 
 create_resize_spatial_grid_function <- function(psql_connection, drop = FALSE) {
@@ -287,22 +296,18 @@ create_ingest_covariate_function <- function(psql_connection, drop = FALSE) {
 }
 
 create_pull_grid_adjacency_function <- function(psql_connection, drop = FALSE) {
-  create_filter_resized_spatial_grid_pixels_to_location_function(psql_connection)
   drop_query <- readr::read_file(system.file("sql", "drop_pull_grid_adjacency_function.sql", package = "taxdat"))
   add_query <- readr::read_file(system.file("sql", "add_pull_grid_adjacency_function.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
 create_pull_symmetric_grid_adjacency_function <- function(psql_connection, drop = FALSE) {
-  create_filter_resized_spatial_grid_pixels_to_location_function(psql_connection)
   drop_query <- readr::read_file(system.file("sql", "drop_pull_symmetric_grid_adjacency_function.sql", package = "taxdat"))
   add_query <- readr::read_file(system.file("sql", "add_pull_symmetric_grid_adjacency_function.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
 create_filter_resized_spatial_grid_pixels_to_location_function <- function(psql_connection, drop = FALSE) {
-  create_filter_location_periods_function(psql_connection)
-
   drop_query <- readr::read_file(system.file("sql", "drop_filter_resized_spatial_grid_pixels_to_location_function.sql", package = "taxdat"))
   add_query <- readr::read_file(system.file("sql", "add_filter_resized_spatial_grid_pixels_to_location_function.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
@@ -315,22 +320,24 @@ create_filter_location_periods_function <- function(psql_connection, drop = FALS
 }
 
 create_pull_observation_data_function <- function(psql_connection, drop = FALSE) {
-  create_filter_location_periods_function(psql_connection)
   drop_query <- readr::read_file(system.file("sql", "drop_pull_observation_data_function.sql", package = "taxdat"))
   add_query <- readr::read_file(system.file("sql", "add_pull_observation_data_function.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
-create_pull_location_period_grid_map_function <- function(psql_connection, drop = FALSE) {
-  # TODO This function needs work
+create_pull_location_period_grid_map_boundary_function <- function(psql_connection, drop = FALSE) {
   drop_query <- readr::read_file(system.file("sql", "drop_pull_location_period_grid_map_boundary_function.sql", package = "taxdat"))
   add_query <- readr::read_file(system.file("sql", "add_pull_location_period_grid_map_boundary_function.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
+}
 
+create_pull_location_period_grid_map_interior_function <- function(psql_connection, drop = FALSE) {
   drop_query <- readr::read_file(system.file("sql", "drop_pull_location_period_grid_map_interior_function.sql", package = "taxdat"))
   add_query <- readr::read_file(system.file("sql", "add_pull_location_period_grid_map_interior_function.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
+}
 
+create_pull_location_period_grid_map_function <- function(psql_connection, drop = FALSE) {
   drop_query <- readr::read_file(system.file("sql", "drop_pull_location_period_grid_map_function.sql", package = "taxdat"))
   add_query <- readr::read_file(system.file("sql", "add_pull_location_period_grid_map_function.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
@@ -343,7 +350,6 @@ create_resize_temporal_grid_function <- function(psql_connection, drop = FALSE) 
 }
 
 create_pull_covar_cube_function <- function(psql_connection, drop = FALSE) {
-  create_resize_temporal_grid_function(psql_connection)
   drop_query <- readr::read_file(system.file("sql", "drop_pull_covar_cube_function.sql", package = "taxdat"))
   add_query <- readr::read_file(system.file("sql", "add_pull_covar_cube_function.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
@@ -356,28 +362,27 @@ create_pull_observation_location_period_map <- function(psql_connection, drop = 
 }
 
 create_pull_boundary_polygon <- function(psql_connection, drop = FALSE) {
-  create_resize_temporal_grid_function(psql_connection)
   drop_query <- readr::read_file(system.file("sql", "drop_pull_boundary_polygon_function.sql", package = "taxdat"))
   add_query <- readr::read_file(system.file("sql", "add_pull_boundary_polygon_function.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
 create_pull_minimal_grid_population <- function(psql_connection, drop = FALSE) {
-  create_resize_temporal_grid_function(psql_connection)
   drop_query <- readr::read_file(system.file("sql", "drop_pull_minimal_grid_population_function.sql", package = "taxdat"))
   add_query <- readr::read_file(system.file("sql", "add_pull_minimal_grid_population_function.sql", package = "taxdat"))
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
 create_shapes_with_names_view <- function(psql_connection, drop = FALSE) {
-  create_resize_temporal_grid_function(psql_connection)
   drop_query <- readr::read_file(system.file("sql", "drop_shapes_with_names_view.sql", package = "taxdat"))
-  add_query <- readr::read_file(system.file("sql", "add_shapes_with_names_view.sql", package = "taxdat"))
+  add_query <- c(
+    readr::read_file(system.file("sql", "add_shapes_with_names_view.sql", package = "taxdat")),
+    readr::read_file(system.file("sql", "add_shapes_with_names_view_index.sql", package = "taxdat"))
+  )
   add_and_or_drop(psql_connection, add_query, drop_query, drop)
 }
 
 create_shape_resized_spatial_grid_map_view <- function(psql_connection, drop = FALSE) {
-  create_resize_temporal_grid_function(psql_connection)
   drop_query <- readr::read_file(system.file("sql", "drop_shape_resized_spatial_grid_map_view.sql", package = "taxdat"))
   add_query <- c(
     readr::read_file(system.file("sql", "add_shape_resized_spatial_grid_map_view.sql", package = "taxdat")),
@@ -407,13 +412,46 @@ create_resized_covariates_view <- function(psql_connection, drop = FALSE) {
 #' @title create_testing_database_functions
 #' @param psql_connection a connection to a database made with dbConnect
 create_testing_database_functions <- function(psql_connection, drop = FALSE) {
+  create_testing_database_functions_phase_1(psql_connection, drop)
+  create_testing_database_functions_phase_2(psql_connection, drop)
+  create_testing_database_functions_phase_3(psql_connection, drop)
+  # Phase 1
+}
+
+create_testing_database_functions_phase_1 <- function(psql_connection, drop = FALSE) {
+  create_shapes_with_names_view(psql_connection, drop)
   create_lookup_location_period_function(psql_connection, drop)
-  create_ingest_covariate_function(psql_connection, drop)
+  create_filter_location_periods_function(psql_connection, drop)
+}
+
+create_testing_database_functions_phase_2 <- function(psql_connection, drop = FALSE) {
+  create_time_bounds_table(psql_connection, drop)
+  create_master_spatial_grid_table(psql_connection, drop)
+  create_spatial_resolutions_table(psql_connection, drop)
+  ingest_spatial_grid(psql_connection, width = 20, height = 20, do_refresh = FALSE)
+  create_resize_spatial_grid_function(psql_connection, drop)
+  create_resized_spatial_grids_view(psql_connection, drop)
+  create_master_temporal_grid_view(psql_connection, drop)
+  create_resized_spatial_grid_pixels_view(psql_connection, drop)
+  create_master_spatial_grid_centroids_view(psql_connection, drop) # Check if used
+  create_covariate_grid_map_view(psql_connection, drop)
+  create_resize_temporal_grid_function(psql_connection, drop)
+  refresh_indices(psql_connection)
+  create_shape_resized_spatial_grid_map_view(psql_connection, drop)
+  create_shape_resized_spatial_grid_populations_view(psql_connection, drop)
+  create_resized_covariates_view(psql_connection, drop)
+  create_location_period_raster_map_view(psql_connection, drop)
+  create_filter_resized_spatial_grid_pixels_to_location_function(psql_connection, drop)
+}
+
+create_testing_database_functions_phase_3 <- function(psql_connection, drop = FALSE) {
   create_pull_grid_adjacency_function(psql_connection, drop)
   create_pull_symmetric_grid_adjacency_function(psql_connection, drop)
   create_pull_observation_data_function(psql_connection, drop)
   create_pull_covar_cube_function(psql_connection, drop)
   create_pull_observation_location_period_map(psql_connection, drop)
+  create_pull_location_period_grid_map_boundary_function(psql_connection, drop)
+  create_pull_location_period_grid_map_interior_function(psql_connection, drop)
   create_pull_location_period_grid_map_function(psql_connection, drop)
   create_pull_boundary_polygon(psql_connection, drop)
   create_pull_minimal_grid_population(psql_connection, drop)
@@ -427,9 +465,14 @@ create_testing_database_functions <- function(psql_connection, drop = FALSE) {
 refresh_materialized_views <- function(psql_connection) {
   queries <- paste("REFRESH MATERIALIZED VIEW", c(
     "grids.master_spatial_grid",
-    "grids.resized_spatial_grids", "grids.resized_spatial_grid_pixels", "grids.master_spatial_grid_centroids",
-    "location_period_raster_map", "covariate_grid_map", "shapes_with_names",
-    "shape_resized_spatial_grid_map_view", "shape_resized_spatial_grid_populations",
+    "grids.resized_spatial_grids",
+    "grids.resized_spatial_grid_pixels",
+    # "grids.master_spatial_grid_centroids",
+    # "location_period_raster_map",
+    "covariate_grid_map",
+    "shapes_with_names",
+    "shape_resized_spatial_grid_map_view",
+    "shape_resized_spatial_grid_populations",
     "resized_covariates"
   ))
   for (query in queries) {
@@ -448,7 +491,7 @@ setup_testing_database <- function(psql_connection, drop = FALSE) {
     destroy_testing_database(psql_connection)
   }
   create_testing_base_database(psql_connection, drop)
-  create_testing_additional_database(psql_connection, drop)
+  # create_testing_additional_database(psql_connection, drop)
   create_testing_database_functions(psql_connection, drop)
 }
 
@@ -494,12 +537,25 @@ setup_testing_database_from_dataframes <- function(psql_connection, data_frame_l
 
 drop_testing_database_functions <- function(psql_connection) {
   drop_queries <- rev(c(
-    "DROP FUNCTION IF EXISTS resize_spatial_grid CASCADE", "DROP FUNCTION IF EXISTS lookup_location_period CASCADE",
+    "DROP FUNCTION IF EXISTS resize_spatial_grid CASCADE",
+    "DROP FUNCTION IF EXISTS lookup_location_period CASCADE",
     "DROP FUNCTION IF EXISTS ingest_covariate CASCADE",
-    "DROP FUNCTION IF EXISTS filter_resized_spatial_grid_pixels_to_location CASCADE", "DROP FUNCTION IF EXISTS pull_symmetric_grid_adjacency CASCADE",
-    "DROP FUNCTION IF EXISTS pull_observation_data CASCADE", "DROP FUNCTION IF EXISTS filter_location_periods CASCADE",
-    "DROP FUNCTION IF EXISTS resize_temporal_grid CASCADE", "DROP FUNCTION IF EXISTS pull_observation_location_period_map CASCADE",
-    "DROP FUNCTION IF EXISTS pull_location_period_grid_map CASCADE", "DROP FUNCTION IF EXISTS resized_spatial_grid_pixels"
+    "DROP FUNCTION IF EXISTS filter_resized_spatial_grid_pixels_to_location CASCADE",
+    "DROP FUNCTION IF EXISTS pull_symmetric_grid_adjacency CASCADE",
+    "DROP FUNCTION IF EXISTS pull_observation_data CASCADE",
+    "DROP FUNCTION IF EXISTS filter_location_periods CASCADE",
+    "DROP FUNCTION IF EXISTS resize_temporal_grid CASCADE",
+    "DROP FUNCTION IF EXISTS pull_observation_location_period_map CASCADE",
+    "DROP FUNCTION IF EXISTS pull_location_period_grid_map CASCADE",
+    "DROP FUNCTION IF EXISTS resized_spatial_grid_pixels CASCADE",
+    "DROP FUNCTION IF EXISTS pull_grid_adjacency CASCADE",
+    "DROP FUNCTION IF EXISTS pull_symmetric_grid_adjacency CASCADE",
+    "DROP FUNCTION IF EXISTS pull_location_period_grid_map CASCADE",
+    "DROP FUNCTION IF EXISTS pull_location_period_grid_map_interior CASCADE",
+    "DROP FUNCTION IF EXISTS pull_location_period_grid_map_boundary CASCADE",
+    "DROP FUNCTION IF EXISTS pull_boundary_polygon CASCADE",
+    "DROP FUNCTION IF EXISTS pull_minimal_grid_population CASCADE",
+    "DROP FUNCTION IF EXISTS pull_covar_cube CASCADE"
   ))
 
   sapply(drop_queries, function(query) {
@@ -509,19 +565,27 @@ drop_testing_database_functions <- function(psql_connection) {
 }
 
 #' @description delete a testing database
-#' @name destory_testing_database
+#' @name destroy_testing_database
 #' @title destroy_testing_database
 #' @param psql_connection a connection to a database made with dbConnect
 #' @export
 destroy_testing_database <- function(psql_connection) {
   drop_query <- c(
-    "DROP TABLE IF EXISTS location_periods CASCADE", "DROP TABLE IF EXISTS locations CASCADE",
-    "DROP TABLE IF EXISTS shapes CASCADE", "DROP TABLE IF EXISTS observations CASCADE",
-    "DROP TABLE IF EXISTS location_hierarchies CASCADE", "DROP MATERIALIZED VIEW IF EXISTS grids.master_spatial_grid CASCADE",
-    "DROP TABLE IF EXISTS grids.spatial_resolutions CASCADE", "DROP TABLE IF EXISTS grids.time_bounds CASCADE",
-    "DROP TABLE IF EXISTS covariates.all_covariates CASCADE", "DROP MATERIALIZED VIEW IF EXISTS grids.resized_spatial_grid_pixels",
-    "DROP MATERIALIZED VIEW IF EXISTS grids.master_spatial_grid_centroids", "DROP MATERIALIZED VIEW IF EXISTS location_period_raster_map",
-    "DROP MATERIALIZED VIEW IF EXISTS covariate_grid_map CASCADE", "DROP SCHEMA IF EXISTS covariates CASCADE", "DROP MATERIALIZED VIEW IF EXISTS shapes_with_names"
+    "DROP TABLE IF EXISTS location_periods CASCADE",
+    "DROP TABLE IF EXISTS locations CASCADE",
+    "DROP TABLE IF EXISTS shapes CASCADE",
+    "DROP TABLE IF EXISTS observations CASCADE",
+    "DROP TABLE IF EXISTS location_hierarchies CASCADE",
+    "DROP MATERIALIZED VIEW IF EXISTS grids.master_spatial_grid CASCADE",
+    "DROP TABLE IF EXISTS grids.spatial_resolutions CASCADE",
+    "DROP TABLE IF EXISTS grids.time_bounds CASCADE",
+    "DROP TABLE IF EXISTS covariates.all_covariates CASCADE",
+    "DROP MATERIALIZED VIEW IF EXISTS grids.resized_spatial_grid_pixels",
+    "DROP MATERIALIZED VIEW IF EXISTS grids.master_spatial_grid_centroids",
+    "DROP MATERIALIZED VIEW IF EXISTS location_period_raster_map",
+    "DROP MATERIALIZED VIEW IF EXISTS covariate_grid_map CASCADE",
+    "DROP SCHEMA IF EXISTS covariates CASCADE",
+    "DROP MATERIALIZED VIEW IF EXISTS shapes_with_names"
   )
   drop_testing_database_functions(psql_connection)
   sapply(drop_query, function(query) {
@@ -588,9 +652,17 @@ create_testing_dfs_from_api <- function(username, api_key, locations = NULL, tim
       qualified_name = gsub("[.][^:]*$", "", attributes.location_name),
       time_left = lubridate::ymd(attributes.time_left), time_right = lubridate::ymd(attributes.time_right),
       observation_collection_id = relationships.observation_collection.data.id,
-      primary = attributes.primary, phantom = attributes.phantom, suspected_cases = attributes.fields.suspected_cases,
-      confirmed_cases = attributes.fields.confirmed_cases, deaths = attributes.fields.deaths
+      primary = attributes.primary, phantom = attributes.phantom
     )
+  if ("attributes.fields.suspected_cases" %in% names(observations_df)) {
+    observations_df$suspected_cases <- observations_df$attributes.fields.suspected_cases
+  }
+  if ("attributes.fields.confirmed_cases" %in% names(observations_df)) {
+    observations_df$confirmed_cases <- observations_df$attributes.fields.confirmed_cases
+  }
+  if ("attributes.fields.deaths" %in% names(observations_df)) {
+    observations_df$deaths <- observations_df$attributes.fields.deaths
+  }
 
   return(list(
     location_df = location_df, location_period_df = location_period_df,
@@ -738,7 +810,7 @@ insert_testing_shapefiles <- function(psql_connection, shape_df, create_location
     srid <- 4326
     sf::st_crs(shape_df) <- srid
   }
-  shape_df[["box"]] <- sf::st_as_sfc(sf::st_bbox(shape_df[["shape"]]))
+  shape_df[["box"]] <- sf::st_as_sfc(sf::st_bbox(sf::st_geometry(shape_df)))
 
   # insert_query <- paste( 'INSERT INTO shapes(\'location_period_id\',
   # \'shape\', \'box\') VALUES', paste( '(', glue::glue_sql(.con =
@@ -876,6 +948,31 @@ write_raster_to_postgres <- function(psql_connection, raster_to_write, table_nam
   system(glue::glue(command))
 }
 
+create_covariate_if_not_exists <- function(psql_connection, name) {
+  check_query <- "SELECT id FROM raster_covariate_collections WHERE name = {name};"
+  check_query <- glue::glue_sql(.con = psql_connection, check_query)
+  raster_covariate_collection_id <- DBI::dbGetQuery(conn = psql_connection, check_query)
+  if (nrow(raster_covariate_collection_id) > 1) {
+    stop("Something has corrupted the database. Please re-create")
+  }
+  if (nrow(raster_covariate_collection_id) == 0) {
+    check_query <- "SELECT max(id) FROM raster_covariate_collections;"
+    check_query <- glue::glue_sql(.con = psql_connection, check_query)
+    max_collection_id <- DBI::dbGetQuery(conn = psql_connection, check_query)[[1]]
+    if (is.na(max_collection_id)) {
+      max_collection_id <- bit64::as.integer64(0)
+    }
+    max_collection_id <- max_collection_id + bit64::as.integer64(1)
+    add_query <- "INSERT INTO raster_covariate_collections VALUES ({max_collection_id}, {name})"
+    add_query <- glue::glue_sql(.con = psql_connection, add_query)
+    DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, add_query))
+
+    check_query <- "SELECT id FROM raster_covariate_collections WHERE name = {name};"
+    check_query <- glue::glue_sql(.con = psql_connection, check_query)
+    raster_covariate_collection_id <- DBI::dbGetQuery(conn = psql_connection, check_query)
+  }
+  return(raster_covariate_collection_id$id)
+}
 #' @description Tell the postgres database to create a resampled grid with appropriate grid size
 #' @param psql_connection a connection to a database made with dbConnect
 #' @param width width of the grid cells in km
@@ -886,6 +983,7 @@ ingest_covariate_from_raster <- function(psql_connection, covariate_name, covari
   assert(!is.null(time_left), "ingest_covariate requires a time_left argument")
   assert(!is.null(time_right), "ingest_covariate requires a time_right argument")
   assert(!is.null(covariate_name), "ingest_covariate requires a covariate_name argument")
+
   table_name <- paste(covariate_name, time_left, time_right, sep = "_")
   table_name <- gsub("-", "_", table_name)
   table_name <- gsub("[.]", "_", table_name)
@@ -893,9 +991,11 @@ ingest_covariate_from_raster <- function(psql_connection, covariate_name, covari
     raster = covariate_raster, psql_connection = psql_connection,
     table_name = paste0("covariates.", table_name), overwrite = overwrite
   )
+
   # rpostgis::pgWriteRast(raster = covariate_raster, conn = psql_connection,
   # name = c('covariates', table_name))
-  ingest_query <- "SELECT ingest_covariate({covariate_name}, {table_name}, {time_left}, {time_right});"
+  raster_covariate_collection_id <- create_covariate_if_not_exists(psql_connection, covariate_name)
+  ingest_query <- "SELECT ingest_covariate({raster_covariate_collection_id}, {table_name}, {time_left}, {time_right});"
   ingest_query <- glue::glue_sql(.con = psql_connection, ingest_query)
   DBI::dbClearResult(DBI::dbSendQuery(conn = psql_connection, ingest_query))
   invisible(NULL)
@@ -954,7 +1054,7 @@ pull_observation_data <- function(psql_connection, location_name, start_date, en
 #' @export
 convert_simulated_covariates_to_test_covariate_funs <- function(original_simulated_covariates,
                                                                 min_time_left, max_time_right) {
-  max_time_right<-max_time_right+1
+  max_time_right <- max_time_right + 1
   simulated_covariates <- original_simulated_covariates
   simulated_covariates[[1]]$covariate <- 10^simulated_covariates[[1]][["covariate"]] +
     1
@@ -986,7 +1086,7 @@ convert_simulated_covariates_to_test_covariate_funs <- function(original_simulat
           min_time_index) / (max_time_index - min_time_index + 1) * (max_time_right -
           min_time_left),
         end_date = min_time_left + (time_index + 1 - min_time_index) / (max_time_index +
-          -min_time_index + 1) * (max_time_right - min_time_left)-1, fun = function(psql_connection) {#QZ: end_date-1 (so the end_date and start_date aren't the same)
+          -min_time_index + 1) * (max_time_right - min_time_left) - 1, fun = function(psql_connection) { # QZ: end_date-1 (so the end_date and start_date aren't the same)
           rc <- raster::raster(sf::st_sf(sf::st_as_sfc(sf::st_bbox(covariate))),
             nrow = nrow, ncol = ncol, vals = as.numeric(NA)
           )
@@ -1119,26 +1219,38 @@ convert_simulated_data_to_test_dataframes <- function(simulated_data) {
   return(list(dataframes = all_dfs, covariate_function_list = covariate_raster_funs))
 }
 
-#' @export
-#' @name cast_to_int32
-#' @title cast_to_int32
-#' @description For casting int64 to 32 bit integers since R is bad at dealing with them mostly
-#' @param x A 64 bit integer (see bit64)
-#' @return A number equal to x
-cast_to_int32 <- function(x) {
-  if (!is.integer(x)) {
-    rc <- as.integer(x)
-    if (all(rc == x)) {
-      return(rc)
-    }
-    stop(paste("Conversion failed", x[rc != x], "converted to", rc[rc != x]))
-  }
-  return(x)
+generate_sql_file_for_database_creation <- function(psql_connection) {
+  destroy_testing_database(psql_connection)
+  Sys.setenv("CHOLERA_ECHO_SQL" = TRUE)
+  base_commands <- paste(capture.output(tmp <- create_testing_base_database(psql_connection, drop = FALSE)), collapse = "\n")
+  phase_1_commands <- paste(capture.output(tmp <- create_testing_database_functions_phase_1(psql_connection, drop = FALSE)), collapse = "\n")
+  phase_2_commands <- paste(capture.output(tmp <- create_testing_database_functions_phase_2(psql_connection, drop = FALSE)), collapse = "\n")
+  phase_3_commands <- paste(capture.output(tmp <- create_testing_database_functions_phase_3(psql_connection, drop = FALSE)), collapse = "\n")
+  Sys.setenv("CHOLERA_ECHO_SQL" = FALSE)
+  return(list(
+    base_commands = base_commands,
+    phase_1_commands = phase_1_commands,
+    phase_2_commands = phase_2_commands,
+    phase_3_commands = phase_3_commands
+  ))
 }
 
-generate_sql_file_for_database_creation <- function(psql_connection) {
-  Sys.setenv("CHOLERA_ECHO_SQL", TRUE)
-  rc <- capture.output(tmp <- taxdat::setup_testing_database(psql_connection))
-  Sys.setenv("CHOLERA_ECHO_SQL", FALSE)
-  return()
+
+generate_dataframes_from_test_data <- function(all_dfs, covariate_function_list) {
+  lapply(
+    names(all_dfs),
+    function(x) {
+      if (x == "shapes_df") {
+        readr::write_file(x = geojsonsf::sf_geojson(all_dfs[[x]]), file = gsub("_df", ".geojson", x))
+      } else {
+        write.csv(file = gsub("_df", ".csv", x), all_dfs[[x]])
+      }
+    }
+  )
+  lapply(
+    covariate_function_list,
+    function(x) {
+      raster::writeRaster(x$fun(), filename = paste0(paste(x$name, x$start_date, x$end_date, sep = "_"), ".tif"))
+    }
+  )
 }

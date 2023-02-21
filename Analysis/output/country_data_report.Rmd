@@ -9,15 +9,15 @@ params:
 ```{r setup, include=FALSE, dev="CairoPNG",message=FALSE}
 library(knitr)
 knitr::opts_chunk$set(
-  cache=FALSE,
+  cache = FALSE,
   cache.lazy = FALSE,
   echo = FALSE,
-  dev="CairoPNG",
+  dev = "CairoPNG",
   error = FALSE,
   fig.align = "center",
   message = TRUE,
   warning = TRUE
-  )
+)
 library(stringr)
 library(dplyr)
 library(magrittr)
@@ -35,61 +35,49 @@ sf::sf_use_s2(FALSE)
 ### other new packages (mainly for "rgeoboundaries")
 chooseCRANmirror(ind = 77)
 
-package_list <- c(
+taxdat::update_libraries(perform = Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE), package_list = c(
+  "pandoc",
+  "readr",
   "fasterize",
   "remotes",
   "rgeoboundaries"
-)
+))
 
-for (package in package_list) {
-  if (!require(package = package, character.only = T)) {
-    if (package == "rgeoboundaries"){
-      try({
-        remotes::install_gitlab("dickoa/rgeoboundaries")
-        remotes::install_github("wmgeolab/rgeoboundaries")
-      })
-    }else{
-      install.packages(pkgs = package)
-      library(package = package, character.only = T)
-    }
-  }
+# Figure Caption Numbering,
+capFigNo <- 1
+# Function to add the Figure Number
+capFig <- function(x) {
+  x <- paste0("Figure ", capFigNo, ". ", x)
+  capFigNo <<- capFigNo + 1
+  x
 }
-
-#Figure Caption Numbering,
-capFigNo = 1
-#Function to add the Figure Number
-capFig = function(x){
-    x = paste0("Figure ",capFigNo,". ",x)
-    capFigNo <<- capFigNo + 1
-    x
-}
-cache<-new.env()
-
+cache <- new.env()
 ```
 
 # Mapping results summary for `r stringr::str_extract(params$config, "[A-Z]{3}")` and period `r stringr::str_extract(params$config, "[0-9]{4}_[0-9]{4}")`
 
 
 ``` {r echo=FALSE}
-get_config(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
+get_config(cache = cache, config = params$config, cholera_directory = params$cholera_directory)
 
-if(!is.null(cache[["config"]][["test_metadata"]])){
+if (!is.null(cache[["config"]][["test_metadata"]])) {
   general_parameters_table <- cache[["config"]][["test_metadata"]][c("raster", "polygons", "grid_observation")] %>%
     as.data.frame() %>%
-
     t() %>%
     as.data.frame() %>%
     tibble::rownames_to_column() %>%
     rbind(data.frame(rowname = "Number of covariates", V1 = length(cache[["config"]][["test_metadata"]][["covariates"]]))) %>%
-    kableExtra::kable(col.names = c("Parameter","Values"),
-      caption = "Table 1. Parameters") %>%
+    kableExtra::kable(
+      col.names = c("Parameter", "Values"),
+      caption = "Table 1. Parameters"
+    ) %>%
     kableExtra::kable_styling(bootstrap_options = c("striped"))
 
   covariate_parameters_table <- cache[["config"]][["test_metadata"]][["covariates"]] %>%
     lapply(function(covariate_spec) {
       as.data.frame(covariate_spec)
     }) %>%
-    do.call(what=rbind) %>%
+    do.call(what = rbind) %>%
     dplyr::mutate(covariate_name = paste("covariate", seq_len(length(cache[["config"]][["test_metadata"]][["covariates"]])))) %>%
     kableExtra::kable(caption = "Table 2. Covariate Parameters") %>%
     kableExtra::kable_styling(bootstrap_options = c("striped"))
@@ -98,33 +86,33 @@ if(!is.null(cache[["config"]][["test_metadata"]])){
     lapply(function(observation_spec) {
       as.data.frame(observation_spec)
     }) %>%
-    do.call(what=bind_rows) %>%
+    do.call(what = bind_rows) %>%
     dplyr::mutate(
-      tfrac = mapply(s = start_date, e = end_date, FUN= function(s,e){
-        as.numeric(lubridate::as.period(lubridate::interval(lubridate::ymd(s),lubridate::ymd(e) + 1), units = cache[["config"]][["general"]][["time_scale"]]), units = cache[["config"]][["general"]][["time_scale"]])
+      tfrac = mapply(s = start_date, e = end_date, FUN = function(s, e) {
+        as.numeric(lubridate::as.period(lubridate::interval(lubridate::ymd(s), lubridate::ymd(e) + 1), units = cache[["config"]][["general"]][["time_scale"]]), units = cache[["config"]][["general"]][["time_scale"]])
       })
     ) %>%
     kableExtra::kable(caption = "Table 2. Covariate Parameters") %>%
     kableExtra::kable_styling(bootstrap_options = c("striped"))
 
   general_parameters_table
-}else {
+} else {
   return(invisible(NULL))
 }
 ```
 
 ``` {r echo=FALSE}
-if(!is.null(cache[["config"]][["test_metadata"]])){
+if (!is.null(cache[["config"]][["test_metadata"]])) {
   covariate_parameters_table
-}else {
+} else {
   return(invisible(NULL))
 }
 ```
 
 ``` {r echo=FALSE}
-if(!is.null(cache[["config"]][["test_metadata"]])){
+if (!is.null(cache[["config"]][["test_metadata"]])) {
   observation_parameters_table
-}else {
+} else {
   return(invisible(NULL))
 }
 ```
@@ -133,12 +121,12 @@ if(!is.null(cache[["config"]][["test_metadata"]])){
 
 **Table 1. Data used within the model:**
 ```{r Observation Summary Table, echo = FALSE}
- taxdat::table_observation_summary(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
+taxdat::table_observation_summary(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
 **Table 2. Data dropped from the model:**
 ```{r echo=FALSE}
-taxdat::table_dropped_data(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
+taxdat::table_dropped_data(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
 ```{r disjoint set sf cases, message=FALSE}
@@ -148,93 +136,17 @@ taxdat::table_dropped_data(config=params$config, cache=cache, cholera_directory=
 
 **Annual average cases by unique location periods:**
 ```{r rawobsmap, fig.height=5, fig.width=10, fig.cap=capFig("Observed case counts by time adjusted for time fraction cases/year")}
-taxdat::plot_observed_cases_polygon_raw(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
+taxdat::plot_observed_cases_polygon_raw(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
 **Annual average area adjusted cases by unique location periods:**
 ```{r areadjustedmap, fig.height=5, fig.width=10, fig.cap=capFig("Area adjusted average observed case counts by time adjusted for time fraction cases/(year * kilometer)")}
-taxdat::plot_area_adjusted_observed_cases(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
+taxdat::plot_area_adjusted_observed_cases(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
 **Number of observations by unique location periods:**
 ```{r obsmap, fig.height=5, fig.width=10, fig.cap=capFig("Number of observations by unique observed location periods.")}
-taxdat::plot_raw_observations(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
-```
-
-### Covariates
-
-#### Population
-**Population raster by time slices (log scale):**
-```{r pop, fig.height=5, fig.width=10, fig.cap=capFig("Population density")}
-taxdat::plot_time_varying_pop_raster(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
-```
-
-**Table 3. Population by admin level:**
-```{r echo = FALSE}
-warning("Removed this plot for now")
-# taxdat::plot_pop_by_admin(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
-```
-
-#### Other covariates
-**Covariate rasters:**
-```{r covars, fig.height=10, fig.width=10, fig.cap=capFig("Covariate rasters")}
-taxdat::plot_raster_covariates(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
-```
-
-``` {r covars_data_simulation, fig.height=10, fig.width=10, fig.cap=capFig("Non-population covariate rasters in data simulation process")}
-taxdat::plot_raster_covariates_datagen(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
-```
-
-### GAM Input
-**Observations input for the GAM model:**
-```{r gam input of cases,fig.height=5, fig.width=10, fig.cap=capFig("Observations input for the GAM model (cases)")}
-taxdat::plot_gam_fit_input_cases(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-```
-
-```{r gam input of rates,fig.height=5, fig.width=10, fig.cap=capFig("Observations input of the GAM model (rates)")}
-taxdat::plot_gam_fit_input_rates(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-```
-
-### GAM Output
-**Observations output of the GAM model:**
-```{r gam output of cases,fig.height=5, fig.width=10, fig.cap=capFig("Observations output for the GAM model (cases)")}
-taxdat::plot_gam_fit_output_cases(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-```
-
-```{r gam output of rates,fig.height=5, fig.width=10, fig.cap=capFig("Observations output for the GAM model (rates)")}
-taxdat::plot_gam_fit_output_rates(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-```
-
-```{r, results="asis", echo=FALSE}
-if(!is.null(cache[["config"]][["test_metadata"]])){
-cat("### True underlying distribution maps","\n","#### True grid cases raster by time slices:")
-plot_true_grid_cases(config=params$config,cholera_directory=params$cholera_directory,cache=cache)
-}else{
-  return(NULL)
-}
-```
-
-```{r, results="asis", echo=FALSE}
-if(!is.null(cache[["config"]][["test_metadata"]])){
-cat("#### True grid rate raster by time slices:")
-plot_true_grid_rates(config=params$config,cholera_directory=params$cholera_directory,cache=cache)
-}else{
-  return(NULL)
-}
-```
-
-### Output maps
-
-```{r importcase}
-get_dropped_years(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
-if(length(cache[["dropped_years"]]) == 0){
-  message("All modeled years are represented by OCs.")
-} else {
-  message(paste(paste(cache[["dropped_years"]], collapse = ", "), "are not represented in OCs"))
-  if(params$drop_nodata_years){
-    message(paste("Dropping", paste(cache[["dropped_years"]], collapse = ", "), "from case_raster"))
-  }
-}
+taxdat::plot_raw_observations(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
 #### Modeled cases
@@ -277,13 +189,13 @@ plot_model_fidelity_tfrac_adjusted(
 ```
 
 ``` {r datafidelity2, fig.cap=capFig("True vs. modeled grid cases"), fig.height=10, fig.width=10}
-if(!is.null(cache[["config"]][["test_metadata"]])){
-  plot_true_modeled_grid_cases (
-  config = params$config,
-  cache = cache,
-  cholera_directory = params$cholera_directory
-)
-}else{
+if (!is.null(cache[["config"]][["test_metadata"]])) {
+  plot_true_modeled_grid_cases(
+    config = params$config,
+    cache = cache,
+    cholera_directory = params$cholera_directory
+  )
+} else {
   return(NULL)
   warning("Production runs don't have the true distribution of cases at the grid level.")
 }
@@ -337,11 +249,92 @@ warning("Skipping this figure for now since I'm not sure what it means for new p
 
 **Table 7. Estimated cases by chain and time slice:**
 ```{r cases_chain_table, fig.width=10, fig.cap = "Sum of grid cases by chain and year"}
-table_modeled_cases_by_chain_time(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
+table_modeled_cases_by_chain_time(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
 ```
 
 ```{r full country modeled cases, fig.cap = "comparison with WHO Output"}
-  warning("This is a weird thing to print")
-  total_cases <- sum(cache[["grid_cases_mean"]])
-  print(paste("There are",format(round(total_cases), big.mark=","),"total cases"))
+warning("This is a weird thing to print")
+total_cases <- sum(cache[["grid_cases_mean"]])
+print(paste("There are", format(round(total_cases), big.mark = ","), "total cases"))
 ```
+
+### GAM Input
+**Observations input for the GAM model:**
+```{r gam input of cases,fig.height=5, fig.width=10, fig.cap=capFig("Observations input for the GAM model (cases)")}
+taxdat::plot_gam_fit_input_cases(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
+```
+
+```{r gam input of rates,fig.height=5, fig.width=10, fig.cap=capFig("Observations input of the GAM model (rates)")}
+taxdat::plot_gam_fit_input_rates(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
+```
+
+### GAM Output
+**Observations output of the GAM model:**
+```{r gam output of cases,fig.height=5, fig.width=10, fig.cap=capFig("Observations output for the GAM model (cases)")}
+taxdat::plot_gam_fit_output_cases(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
+```
+
+```{r gam output of rates,fig.height=5, fig.width=10, fig.cap=capFig("Observations output for the GAM model (rates)")}
+taxdat::plot_gam_fit_output_rates(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
+```
+
+```{r gam output rates versus gam input rates,fig.height=5, fig.width=10, fig.cap = capFig("GAM input rates versus GAM output rates")}
+taxdat::plot_gam_input_output_scatter(config = params$config, cholera_directory = params$cholera_directory, cache = cache)
+``` 
+
+```{r, results="asis", echo=FALSE}
+if (!is.null(cache[["config"]][["test_metadata"]])) {
+  cat("### True underlying distribution maps", "\n", "#### True grid cases raster by time slices:")
+  plot_true_grid_cases(config = params$config, cholera_directory = params$cholera_directory, cache = cache)
+} else {
+  return(NULL)
+}
+```
+
+```{r, results="asis", echo=FALSE}
+if (!is.null(cache[["config"]][["test_metadata"]])) {
+  cat("#### True grid rate raster by time slices:")
+  plot_true_grid_rates(config = params$config, cholera_directory = params$cholera_directory, cache = cache)
+} else {
+  return(NULL)
+}
+```
+
+### Output maps
+
+```{r importcase}
+get_dropped_years(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
+if (length(cache[["dropped_years"]]) == 0) {
+  message("All modeled years are represented by OCs.")
+} else {
+  message(paste(paste(cache[["dropped_years"]], collapse = ", "), "are not represented in OCs"))
+  if (params$drop_nodata_years) {
+    message(paste("Dropping", paste(cache[["dropped_years"]], collapse = ", "), "from case_raster"))
+  }
+}
+```
+
+### Covariates
+
+#### Population
+**Population raster by time slices (log scale):**
+```{r pop, fig.height=5, fig.width=10, fig.cap=capFig("Population density")}
+taxdat::plot_time_varying_pop_raster(cache = cache, config = params$config, cholera_directory = params$cholera_directory)
+```
+
+**Table 3. Population by admin level:**
+```{r echo = FALSE}
+warning("Removed this plot for now")
+# taxdat::plot_pop_by_admin(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
+```
+
+#### Other covariates
+**Covariate rasters:**
+```{r covars, fig.height=10, fig.width=10, fig.cap=capFig("Covariate rasters")}
+taxdat::plot_raster_covariates(cache = cache, cholera_directory = params$cholera_directory, config = params$config)
+```
+
+``` {r covars_data_simulation, fig.height=10, fig.width=10, fig.cap=capFig("Non-population covariate rasters in data simulation process")}
+taxdat::plot_raster_covariates_datagen(cache = cache, cholera_directory = params$cholera_directory, config = params$config)
+```
+

@@ -1,5 +1,4 @@
 #' @include report_cache.R
-#' @include setup_helpers.R
 
 #' @name get_config_no_cache
 #' @description load config.rdata
@@ -32,8 +31,7 @@ get_config <- cache_fun_results(name = "config", fun = get_config_no_cache)
 #' @return stan_input
 get_stan_input_no_cache <- function(config, cache, cholera_directory) {
   get_config(config = config, cache = cache, cholera_directory = cholera_directory)
-  file_names <- taxdat::get_filenames(cache[["config"]], cholera_directory)
-  stan_input <- read_file_of_type(file_names[["stan_input"]], "stan_input")
+  stan_input <- read_file_of_type(cache[["config"]][["file_names"]][["stan_input"]], "stan_input")
   require(bit64)
   require(sf)
   return(stan_input)
@@ -186,8 +184,7 @@ get_observed_years <- cache_fun_results(name = "observed_years", fun = get_obser
 #' @return cmdstan_fit
 get_cmdstan_fit_no_cache <- function(config, cache, cholera_directory) {
   get_config(config = config, cache = cache, cholera_directory = cholera_directory)
-  file_names <- taxdat::get_filenames(cache[["config"]], cholera_directory)
-  cmdstan_fit <- read_file_of_type(file_names[["stan_output"]], "cmdstan_fit")
+  cmdstan_fit <- read_file_of_type(cache[["config"]][["file_names"]][["stan_output"]], "cmdstan_fit")
   return(cmdstan_fit)
 }
 ## cache the results
@@ -228,8 +225,7 @@ get_model.rand <- cache_fun_results(name = "model.rand", fun = get_model.rand_no
 #' @return elapsed_time
 get_elapsed_time_no_cache <- function(config, cache, cholera_directory) {
   get_config(config = config, cache = cache, cholera_directory = cholera_directory)
-  file_names <- taxdat::get_filenames(cache[["config"]], cholera_directory)
-  elapsed_time <- read_file_of_type(file_names[["stan_output"]], "elapsed_time")
+  elapsed_time <- read_file_of_type(cache[["config"]][["file_names"]][["stan_output"]], "elapsed_time")
   return(elapsed_time)
 }
 ## cache the results
@@ -342,9 +338,17 @@ get_boundary_polygon <- cache_fun_results(name = "boundary_polygon", fun = get_b
 #' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return minimal_grid_population
 get_minimal_grid_population_no_cache <- function(config, cache, cholera_directory) {
-  get_stan_input(config = config, cache = cache, cholera_directory = cholera_directory)
-  rc <- cache[["stan_input"]][["minimal_grid_population"]]
-  rc$t <- cast_to_int32(rc$t)
+  get_config(config = config, cache = cache, cholera_directory = cholera_directory)
+  require(raster)
+  # rc <- raster::brick(cache[["config"]][["file_names"]][["minimal_grid_population"]])
+  rc <- readr::read_csv(cache[["config"]][["file_names"]][["minimal_grid_population"]])
+  for (row_idx in seq_len(nrow(rc))) {
+    if (row_idx == 1) {
+      rc$rast <- list(stars::read_stars(rc$raster_filename[[row_idx]]))
+    } else {
+      rc$rast[[row_idx]] <- stars::read_stars(rc$raster_filename[[row_idx]])
+    }
+  }
   return(rc)
 }
 ## cache the results
@@ -510,7 +514,7 @@ get_data_fidelity_df <- cache_fun_results(name = "data_fidelity_df", fun = get_d
 get_stan_parameters_of_interest_no_cache <- function(config, cache, cholera_directory) {
   get_config(config = config, cache = cache, cholera_directory = cholera_directory)
   warning("This function should do something smarter")
-  return(c("rho", "betas", "eta", "log_std_dev_w","alpha"))
+  return(c("rho", "betas", "eta", "log_std_dev_w", "alpha"))
 }
 ## cache the results
 #' @export
@@ -583,28 +587,28 @@ get_rhat_threshold <- cache_fun_results(name = "rhat_threshold", fun = get_rhat_
 #' @param cache the cached environment
 #' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return long_modeled_grid_case data frame
-get_long_modeled_grid_case_no_cache<- function(config, cache, cholera_directory){
+get_long_modeled_grid_case_no_cache <- function(config, cache, cholera_directory) {
   aggregate_grid_cases_mean_by_chain(config = config, cache = cache, cholera_directory = cholera_directory)
   get_covar_cube(config = config, cache = cache, cholera_directory = cholera_directory)
-  covar_cube<-cache[["covar_cube"]]
+  covar_cube <- cache[["covar_cube"]]
   covar_cube[, paste("cases", "chain", seq_len(ncol(cache[["grid_cases_mean_by_chain"]])), sep = "_")] <- cache[["grid_cases_mean_by_chain"]]
   covar_cube <- sf::st_as_sf(covar_cube)
-  
+
   get_config(config = config, cache = cache, cholera_directory = cholera_directory)
   true_grid_case <- readRDS(cache[["config"]][["test_metadata"]][["file_names"]][["true_grid_cases"]])
-  
+
   # aggregate true_grid_case
   true_grid_case <- true_grid_case %>%
     mutate(layers_per_time_unit = max(true_grid_case$t) / length(unique(covar_cube$t)), new_t = (t - 1) %/% layers_per_time_unit + 1) %>%
     group_by(new_t, row, col, observed) %>%
     summarize(aggregated_cases = sum(cases))
-  
+
   wide_modeled_true_grid_cases <- data.frame(sf::st_join(st_centroid(true_grid_case), covar_cube) %>% dplyr::filter(t == new_t)) %>% dplyr::select(observed, row, col, cases_chain_1, cases_chain_2, cases_chain_3, cases_chain_4, aggregated_cases)
-  
+
   long_modeled_grid_case <- data.frame(reshape2::melt(wide_modeled_true_grid_cases, id.vars = c("row", "col", "aggregated_cases", "observed"), variable.name = "chains")) %>% rename("modeled grid cases" = value, "true grid cases" = aggregated_cases)
-  
-  long_modeled_grid_case$observed<-as.factor(long_modeled_grid_case$observed)
-  
+
+  long_modeled_grid_case$observed <- as.factor(long_modeled_grid_case$observed)
+
   return(long_modeled_grid_case)
 }
 
@@ -625,31 +629,31 @@ get_long_modeled_grid_case <- cache_fun_results(name = "long_modeled_grid_case",
 #' @param cache the cached environment
 #' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return error data frame
-get_error_by_grid_no_cache <- function(config, cache, cholera_directory){
-  aggregate_long_modeled_grid_case_by_grid(cache=cache,cholera_directory = params$cholera_directory,config=params$config)
-  errors<-cache[["long_modeled_grid_case_by_grid"]]%>%
-    mutate(error=mean_model-mean_true)%>%
+get_error_by_grid_no_cache <- function(config, cache, cholera_directory) {
+  aggregate_long_modeled_grid_case_by_grid(cache = cache, cholera_directory = params$cholera_directory, config = params$config)
+  errors <- cache[["long_modeled_grid_case_by_grid"]] %>%
+    mutate(error = mean_model - mean_true) %>%
     dplyr::select(error)
-  
-  MSE=mean(errors$error^2)
-  error_sd=sd(errors$error)
-  
-  max_true_list<-cache[["long_modeled_grid_case_by_grid"]]%>%
-    mutate(error=mean_model-mean_true,MSE=error^2)%>%
+
+  MSE <- mean(errors$error^2)
+  error_sd <- sd(errors$error)
+
+  max_true_list <- cache[["long_modeled_grid_case_by_grid"]] %>%
+    mutate(error = mean_model - mean_true, MSE = error^2) %>%
     summarise(
       max_case = max(mean_true)
     )
-  error_list<-cache[["long_modeled_grid_case_by_grid"]]%>%
-    mutate(error=mean_model-mean_true,MSE=error^2)%>%
+  error_list <- cache[["long_modeled_grid_case_by_grid"]] %>%
+    mutate(error = mean_model - mean_true, MSE = error^2) %>%
     summarise(
       error_mean = mean(error^2)
     )
-  observe_list<-cache[["long_modeled_grid_case_by_grid"]]%>%
-    mutate(error=mean_model-mean_true,MSE=error^2)%>%
+  observe_list <- cache[["long_modeled_grid_case_by_grid"]] %>%
+    mutate(error = mean_model - mean_true, MSE = error^2) %>%
     summarise(
       error_sd = sd(error)
     )
-  error_by_grid_list = data.frame(
+  error_by_grid_list <- data.frame(
     max_true_list = max_true_list,
     error_list = error_list,
     observe_list = observe_list
@@ -665,37 +669,45 @@ get_error_by_grid <- cache_fun_results(
 )
 
 #' @name get_error_by_grid_spatial_scale_no_cache
-get_error_by_grid_spatial_scale_no_cache <- function(cache,config,cholera_directory,tfrac_function = function(x, tfrac) {
-  return(x)
-}, inv_tfrac_function = function(x, tfrac) {
-  return(x)
-}){
+get_error_by_grid_spatial_scale_no_cache <- function(cache, config, cholera_directory, tfrac_function = function(x, tfrac) {
+                                                       return(x)
+                                                     }, inv_tfrac_function = function(x, tfrac) {
+                                                       return(x)
+                                                     }) {
   get_data_fidelity_df(config = config, cache = cache, cholera_directory = cholera_directory)
-  spatial_scale = cache[["data_fidelity_df"]] %>%
+  spatial_scale <- cache[["data_fidelity_df"]] %>%
     dplyr::mutate(
       modeled_cases = inv_tfrac_function(modeled_cases, tfrac),
       observed_cases = tfrac_function(observed_cases, tfrac)
     )
-  spatial_scale_bychain<-spatial_scale %>% group_by(updated_observation_id) %>% summarise(
-    mean_model = mean(modeled_cases),
-    mean_observe  = mean(observed_cases)
-  )
-  spatial_scale_bychain = merge(spatial_scale_bychain , unique(spatial_scale[,c('updated_observation_id','spatial_scale')]))
-  
-  spatial_sum = spatial_scale_bychain %>% group_by(spatial_scale) %>% summarise(
-    observed_national = mean(mean_observe),
-    modeled_sum = sum(mean_model)
-  )
-  
-  error_by_grid_spatial_scale<-spatial_scale %>% group_by(updated_observation_id,spatial_scale) %>% summarise(
-    mean_model = mean(modeled_cases),
-    mean_observe  = mean(observed_cases)
-  ) 
-  error_by_grid_spatial_scale$error = error_by_grid_spatial_scale$mean_model - error_by_grid_spatial_scale$mean_observe
-  error_by_grid_spatial_scale<-error_by_grid_spatial_scale %>% group_by(spatial_scale) %>% summarise(
-    MSE = mean((error)^2),
-    error_sd  = sd((error))
-  ) 
+  spatial_scale_bychain <- spatial_scale %>%
+    group_by(updated_observation_id) %>%
+    summarise(
+      mean_model = mean(modeled_cases),
+      mean_observe = mean(observed_cases)
+    )
+  spatial_scale_bychain <- merge(spatial_scale_bychain, unique(spatial_scale[, c("updated_observation_id", "spatial_scale")]))
+
+  spatial_sum <- spatial_scale_bychain %>%
+    group_by(spatial_scale) %>%
+    summarise(
+      observed_national = mean(mean_observe),
+      modeled_sum = sum(mean_model)
+    )
+
+  error_by_grid_spatial_scale <- spatial_scale %>%
+    group_by(updated_observation_id, spatial_scale) %>%
+    summarise(
+      mean_model = mean(modeled_cases),
+      mean_observe = mean(observed_cases)
+    )
+  error_by_grid_spatial_scale$error <- error_by_grid_spatial_scale$mean_model - error_by_grid_spatial_scale$mean_observe
+  error_by_grid_spatial_scale <- error_by_grid_spatial_scale %>%
+    group_by(spatial_scale) %>%
+    summarise(
+      MSE = mean((error)^2),
+      error_sd = sd((error))
+    )
   return(error_by_grid_spatial_scale)
 }
 

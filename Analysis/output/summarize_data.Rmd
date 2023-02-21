@@ -34,20 +34,19 @@ all_countries <- unique(config[["Country.Name"]])
 We considered data from `r paste(all_countries, collapse = ', ')`.
 
 ```{r Load Populations}
-  data(codelist, package = "countrycode")
-  data(pop, package = "wpp2019")
-  country_cw <- dplyr::select(codelist, iso3n, iso3c) %>%
+data(codelist, package = "countrycode")
+data(pop, package = "wpp2019")
+country_cw <- dplyr::select(codelist, iso3n, iso3c) %>%
   dplyr::filter(!is.na(iso3n) & !is.na(iso3c))
-  pop <- pop[,c("country_code", "name", "2015", "2020")] ## get 2015 & 2020 estimates only
-  names(pop) <- c("iso3n", "country", "p2015", "p2020")
-  popdf <- dplyr::inner_join(country_cw, pop, by = c("iso3n")) %>%
-    dplyr::mutate(pop = rowMeans(cbind(p2015, p2020), na.rm = TRUE) * 1000) %>% ## mean of 2015 & 2020 pop estimates
-    dplyr::select(iso3c, pop)
+pop <- pop[, c("country_code", "name", "2015", "2020")] ## get 2015 & 2020 estimates only
+names(pop) <- c("iso3n", "country", "p2015", "p2020")
+popdf <- dplyr::inner_join(country_cw, pop, by = c("iso3n")) %>%
+  dplyr::mutate(pop = rowMeans(cbind(p2015, p2020), na.rm = TRUE) * 1000) %>% ## mean of 2015 & 2020 pop estimates
+  dplyr::select(iso3c, pop)
 
-  pop_by_country <- setNames(popdf[["pop"]], popdf[["iso3c"]])
+pop_by_country <- setNames(popdf[["pop"]], popdf[["iso3c"]])
 
-  print("Using 2020 populations pulled from the wpp2019 package")
-
+print("Using 2020 populations pulled from the wpp2019 package")
 ```
 
 # Load Data
@@ -72,7 +71,7 @@ fix_stan_output_fname <- function(input_fname) {
     return(input_fname)
   }
   reasonable_files <- list.files(dirname(input_fname))
-  reasonable_files <- reasonable_files[stringr::str_sub(reasonable_files, 1, 33) == stringr::str_sub(basename(input_fname),1,33)]
+  reasonable_files <- reasonable_files[stringr::str_sub(reasonable_files, 1, 33) == stringr::str_sub(basename(input_fname), 1, 33)]
   best_guess <- reasonable_files[which.min(stringdist::stringdist(reasonable_files, input_fname))]
   cat(paste("Could not find filename", input_fname))
   if (length(best_guess) == 0) {
@@ -113,45 +112,48 @@ all_data <- list(
 ```{r Load Lancet Data}
 for (country in config[["Country.Name"]]) {
   print(country)
-  tryCatch({
-    ## Lancet Results
-    country_config <- yaml::read_yaml(
-      paste0(params$cholera_configs_directory, "/2015_2019_full_base/", country, ".yml")
-    )
-    filenames <- taxdat::get_filenames(country_config, cholera_directory = params$cholera_mapping_pipeline_directory)
-    current_observations <- taxdat::read_file_of_type(filenames[["data"]], "sf_cases")
-    current_observations <- current_observations[grepl(paste0(country, "$"), current_observations$location_name), ]
-    if (nrow(current_observations) == 0) {
-      current_observations <- GADMTools::gadm_sf_loadCountries(c(country), level = 0, basefile = params$shapefiles_dir)$sf
-      warning(paste("No observations found in 2015_2019 pull for country", country, ": using gadm shapefile", country))
-    }
-    shapefile <- current_observations[1, ]
+  tryCatch(
+    {
+      ## Lancet Results
+      country_config <- yaml::read_yaml(
+        paste0(params$cholera_configs_directory, "/2015_2019_full_base/", country, ".yml")
+      )
+      filenames <- taxdat::get_filenames(country_config, cholera_directory = params$cholera_mapping_pipeline_directory)
+      current_observations <- taxdat::read_file_of_type(filenames[["data"]], "sf_cases")
+      current_observations <- current_observations[grepl(paste0(country, "$"), current_observations$location_name), ]
+      if (nrow(current_observations) == 0) {
+        current_observations <- GADMTools::gadm_sf_loadCountries(c(country), level = 0, basefile = params$shapefiles_dir)$sf
+        warning(paste("No observations found in 2015_2019 pull for country", country, ": using gadm shapefile", country))
+      }
+      shapefile <- current_observations[1, ]
 
 
-    cropped_cases <- raster::crop(lancet_cases, shapefile)
-    cropped_pops <- raster::crop(lancet_pops, shapefile)
+      cropped_cases <- raster::crop(lancet_cases, shapefile)
+      cropped_pops <- raster::crop(lancet_pops, shapefile)
 
-    raster_shp <- fasterize::fasterize(shapefile, cropped_pops)
-    aggregated_layers <- raster::values(raster::aggregate(
-      cropped_cases * raster_shp,
-      c(ncol(raster_shp), nrow(raster_shp), 1),
-      fun = sum
-    )) /
-      raster::values(raster::aggregate(
-        cropped_pops * raster_shp,
+      raster_shp <- fasterize::fasterize(shapefile, cropped_pops)
+      aggregated_layers <- raster::values(raster::aggregate(
+        cropped_cases * raster_shp,
         c(ncol(raster_shp), nrow(raster_shp), 1),
         fun = sum
-      ))
-    all_data[["Lancet"]][["Mean.Rates"]][[country]] <- mean(aggregated_layers)
-    all_data[["Lancet"]][["975.Rates"]][[country]] <- quantile(aggregated_layers, .975)
-    all_data[["Lancet"]][["025.Rates"]][[country]] <- quantile(aggregated_layers, .025)
+      )) /
+        raster::values(raster::aggregate(
+          cropped_pops * raster_shp,
+          c(ncol(raster_shp), nrow(raster_shp), 1),
+          fun = sum
+        ))
+      all_data[["Lancet"]][["Mean.Rates"]][[country]] <- mean(aggregated_layers)
+      all_data[["Lancet"]][["975.Rates"]][[country]] <- quantile(aggregated_layers, .975)
+      all_data[["Lancet"]][["025.Rates"]][[country]] <- quantile(aggregated_layers, .025)
 
-    all_data[["Lancet"]][["Mean.Cases"]][[country]] <- all_data[["Lancet"]][["Mean.Rates"]][[country]] * pop_by_country[[country]]
-    all_data[["Lancet"]][["975.Cases"]][[country]] <- all_data[["Lancet"]][["975.Rates"]][[country]] * pop_by_country[[country]]
-    all_data[["Lancet"]][["025.Cases"]][[country]] <- all_data[["Lancet"]][["025.Rates"]][[country]] * pop_by_country[[country]]
-  }, error = function(e) {
-    warning(paste("Could not load Lancet Estimates for country", country, "for reason", e$message))
-  })
+      all_data[["Lancet"]][["Mean.Cases"]][[country]] <- all_data[["Lancet"]][["Mean.Rates"]][[country]] * pop_by_country[[country]]
+      all_data[["Lancet"]][["975.Cases"]][[country]] <- all_data[["Lancet"]][["975.Rates"]][[country]] * pop_by_country[[country]]
+      all_data[["Lancet"]][["025.Cases"]][[country]] <- all_data[["Lancet"]][["025.Rates"]][[country]] * pop_by_country[[country]]
+    },
+    error = function(e) {
+      warning(paste("Could not load Lancet Estimates for country", country, "for reason", e$message))
+    }
+  )
   gc()
 }
 gc()
@@ -159,7 +161,7 @@ gc()
 
 ## Load Current Results
 ```{r Load Current Results}
-  ## Current Results
+## Current Results
 
 for (country in config[["Country.Name"]]) {
   local_config <- config[config[["Country.Name"]] == country, ]
@@ -170,9 +172,9 @@ for (country in config[["Country.Name"]]) {
     filenames <- taxdat::get_filenames(country_config, cholera_directory = params$cholera_mapping_pipeline_directory)
     full_output <- taxdat::read_file_of_type(fix_stan_output_fname(filenames[["stan_output"]]), "model.rand")
     stan_input <- taxdat::read_file_of_type(fix_stan_output_fname(filenames[["stan_input"]]), "stan_input")
-    mean_output <-  MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = mean)
-    low_output <-  MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = quantile, probs = 0.025)
-    high_output <-  MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = quantile, probs = 0.975)
+    mean_output <- MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = mean)
+    low_output <- MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = quantile, probs = 0.025)
+    high_output <- MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = quantile, probs = 0.975)
     if (local_config[["Data"]] == "full") {
       all_data[["Current"]][["Mean.Cases"]][[country]] <- sum(mean_output[["mean"]]) / (2019 - 2015 + 1)
       all_data[["Current"]][["025.Cases"]][[country]] <- sum(low_output[["2.5%"]]) / (2019 - 2015 + 1)
@@ -187,82 +189,83 @@ for (country in config[["Country.Name"]]) {
       all_data[["Current"]][["975.Cases"]][[country]] <- sum(high_output[["97.5%"]][unique(stan_input$stan_data$map_loc_grid_grid)]) / (length(used_years))
     }
   } else if (local_config[["Include"]] == "SingleYearModels") {
-    tryCatch({
-      years <- strsplit(split = ":", local_config[["Data"]])[[1]]
-      all_data[["Current"]][["Mean.Cases"]][[country]] <- c()
-      all_data[["Current"]][["025.Cases"]][[country]] <- c()
-      all_data[["Current"]][["975.Cases"]][[country]] <- c()
-      for (year in years) {
-        country_config <- yaml::read_yaml(
-          paste0(
-            params$cholera_configs_directory,
-            "/single_year_configs/1cov/",
-            year,
-            "_poisson_big_1cov/config_",
-            country,
-            "_",
-            year,
-            "_",
-            year,
-            ".yml"
+    tryCatch(
+      {
+        years <- strsplit(split = ":", local_config[["Data"]])[[1]]
+        all_data[["Current"]][["Mean.Cases"]][[country]] <- c()
+        all_data[["Current"]][["025.Cases"]][[country]] <- c()
+        all_data[["Current"]][["975.Cases"]][[country]] <- c()
+        for (year in years) {
+          country_config <- yaml::read_yaml(
+            paste0(
+              params$cholera_configs_directory,
+              "/single_year_configs/1cov/",
+              year,
+              "_poisson_big_1cov/config_",
+              country,
+              "_",
+              year,
+              "_",
+              year,
+              ".yml"
+            )
           )
-        )
-        filenames <- taxdat::get_filenames(
-          config = country_config,
-          cholera_directory = params$cholera_mapping_pipeline_directory
-        )
-        full_output <- taxdat::read_file_of_type(fix_stan_output_fname(filenames[["stan_output"]]), "model.rand")
-        mean_output <-  MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = mean)
-        low_output <-  MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = quantile, probs = 0.025)
-        high_output <-  MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = quantile, probs = 0.975)
-        all_data[["Current"]][["Mean.Cases"]][[country]][as.character(year)] <- sum(mean_output[["mean"]], na.rm = TRUE)
-        all_data[["Current"]][["025.Cases"]][[country]][as.character(year)] <- sum(low_output[["2.5%"]], na.rm = TRUE)
-        all_data[["Current"]][["975.Cases"]][[country]][as.character(year)] <- sum(high_output[["97.5%"]], na.rm = TRUE)
+          filenames <- taxdat::get_filenames(
+            config = country_config,
+            cholera_directory = params$cholera_mapping_pipeline_directory
+          )
+          full_output <- taxdat::read_file_of_type(fix_stan_output_fname(filenames[["stan_output"]]), "model.rand")
+          mean_output <- MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = mean)
+          low_output <- MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = quantile, probs = 0.025)
+          high_output <- MCMCvis::MCMCsummary(full_output, params = "grid_cases", func = quantile, probs = 0.975)
+          all_data[["Current"]][["Mean.Cases"]][[country]][as.character(year)] <- sum(mean_output[["mean"]], na.rm = TRUE)
+          all_data[["Current"]][["025.Cases"]][[country]][as.character(year)] <- sum(low_output[["2.5%"]], na.rm = TRUE)
+          all_data[["Current"]][["975.Cases"]][[country]][as.character(year)] <- sum(high_output[["97.5%"]], na.rm = TRUE)
+        }
+        all_data[["Current"]][["Mean.Cases"]][[country]] <- mean(all_data[["Current"]][["Mean.Cases"]][[country]])
+        all_data[["Current"]][["025.Cases"]][[country]] <- mean(all_data[["Current"]][["025.Cases"]][[country]])
+        all_data[["Current"]][["975.Cases"]][[country]] <- mean(all_data[["Current"]][["975.Cases"]][[country]])
+        cat(paste("Cases for country,", country, "are", mean(all_data[["Current"]][["Mean.Cases"]][[country]])))
+      },
+      error = function(e) {
+        message(paste("Could not produce data for coutry", country, "Failed with error message", e$message))
       }
-      all_data[["Current"]][["Mean.Cases"]][[country]] <- mean(all_data[["Current"]][["Mean.Cases"]][[country]])
-      all_data[["Current"]][["025.Cases"]][[country]] <- mean(all_data[["Current"]][["025.Cases"]][[country]])
-      all_data[["Current"]][["975.Cases"]][[country]] <- mean(all_data[["Current"]][["975.Cases"]][[country]])
-      cat(paste("Cases for country,", country, "are", mean(all_data[["Current"]][["Mean.Cases"]][[country]])))
-    }, error = function(e) {
-      message(paste("Could not produce data for coutry", country, "Failed with error message", e$message))
-    })
-  } else if (local_config[["Include"]] == "Lancet") {
-
-try({
-    country_config <- yaml::read_yaml(
-      paste0(params$cholera_configs_directory, "/2015_2019_full_base/", country, ".yml")
     )
-    filenames <- taxdat::get_filenames(country_config, cholera_directory = params$cholera_mapping_pipeline_directory)
-    current_observations <- taxdat::read_file_of_type(filenames[["data"]], "sf_cases")
-    current_observations <- current_observations[grepl(paste0(country, "$"), current_observations$location_name), ]
-    if (nrow(current_observations) == 0) {
-      current_observations <- GADMTools::gadm_sf_loadCountries(
-        c(country),
-        level = 0,
-        basefile = params$shapefiles_dir
-      )$sf
-      warning(paste("No observations found in 2015_2019 pull for country", country, ": using gadm shapefile", country))
-    }
-    shapefile <- current_observations[1, ]
+  } else if (local_config[["Include"]] == "Lancet") {
+    try({
+      country_config <- yaml::read_yaml(
+        paste0(params$cholera_configs_directory, "/2015_2019_full_base/", country, ".yml")
+      )
+      filenames <- taxdat::get_filenames(country_config, cholera_directory = params$cholera_mapping_pipeline_directory)
+      current_observations <- taxdat::read_file_of_type(filenames[["data"]], "sf_cases")
+      current_observations <- current_observations[grepl(paste0(country, "$"), current_observations$location_name), ]
+      if (nrow(current_observations) == 0) {
+        current_observations <- GADMTools::gadm_sf_loadCountries(
+          c(country),
+          level = 0,
+          basefile = params$shapefiles_dir
+        )$sf
+        warning(paste("No observations found in 2015_2019 pull for country", country, ": using gadm shapefile", country))
+      }
+      shapefile <- current_observations[1, ]
 
-    cropped_cases <- raster::crop(lancet_cases, shapefile)
-    cropped_pops <- raster::crop(lancet_pops, shapefile)
-    raster_shp <- fasterize::fasterize(shapefile, cropped_pops)
-    aggregated_layers <- raster::values(raster::aggregate(
-      cropped_cases * raster_shp,
-      c(ncol(raster_shp), nrow(raster_shp), 1),
-      fun = sum
-    )) /
-      raster::values(raster::aggregate(
-        cropped_pops * raster_shp,
-      c(ncol(raster_shp), nrow(raster_shp), 1),
-      fun = sum
-    )) * pop_by_country[[country]]
-    all_data[["Current"]][["Mean.Cases"]][[country]] <- mean(aggregated_layers)
-    all_data[["Current"]][["975.Cases"]][[country]] <- quantile(aggregated_layers, .975)
-    all_data[["Current"]][["025.Cases"]][[country]] <- quantile(aggregated_layers, .025)
-
-})
+      cropped_cases <- raster::crop(lancet_cases, shapefile)
+      cropped_pops <- raster::crop(lancet_pops, shapefile)
+      raster_shp <- fasterize::fasterize(shapefile, cropped_pops)
+      aggregated_layers <- raster::values(raster::aggregate(
+        cropped_cases * raster_shp,
+        c(ncol(raster_shp), nrow(raster_shp), 1),
+        fun = sum
+      )) /
+        raster::values(raster::aggregate(
+          cropped_pops * raster_shp,
+          c(ncol(raster_shp), nrow(raster_shp), 1),
+          fun = sum
+        )) * pop_by_country[[country]]
+      all_data[["Current"]][["Mean.Cases"]][[country]] <- mean(aggregated_layers)
+      all_data[["Current"]][["975.Cases"]][[country]] <- quantile(aggregated_layers, .975)
+      all_data[["Current"]][["025.Cases"]][[country]] <- quantile(aggregated_layers, .025)
+    })
   } else if (local_config[["Include"]] == "None") {
   } else {
     stop(paste(
@@ -291,15 +294,15 @@ output_list <- lapply(names(all_data[["Current"]][["Mean.Cases"]]), function(nam
   print(all_data[["Lancet"]][["Mean.Rates"]][[name]])
   print(all_data[["Lancet"]][["Mean.Cases"]][[name]])
 
- print(all_data[["Current"]][["025.Rates"]][[name]])
- print(all_data[["Current"]][["025.Cases"]][[name]])
- print(all_data[["Lancet"]][["025.Rates"]][[name]])
- print(all_data[["Lancet"]][["025.Cases"]][[name]])
+  print(all_data[["Current"]][["025.Rates"]][[name]])
+  print(all_data[["Current"]][["025.Cases"]][[name]])
+  print(all_data[["Lancet"]][["025.Rates"]][[name]])
+  print(all_data[["Lancet"]][["025.Cases"]][[name]])
 
- print(all_data[["Current"]][["975.Rates"]][[name]])
- print(all_data[["Current"]][["975.Cases"]][[name]])
- print(all_data[["Lancet"]][["975.Rates"]][[name]])
- print(all_data[["Lancet"]][["975.Cases"]][[name]])
+  print(all_data[["Current"]][["975.Rates"]][[name]])
+  print(all_data[["Current"]][["975.Cases"]][[name]])
+  print(all_data[["Lancet"]][["975.Rates"]][[name]])
+  print(all_data[["Lancet"]][["975.Cases"]][[name]])
   return(data.frame(
     country = name,
     current_rates_mean = all_data[["Current"]][["Mean.Rates"]][[name]],
