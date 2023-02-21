@@ -661,7 +661,7 @@ create_multiple_test_covariates <- function(test_raster = create_test_raster(),
                                                   weight = 1
                                                 ),
                                                 magnitude = 1
-                                              ),
+                                              )
                                             ), family = "Gaussian",
                                             seed) {
   seed <- get_or_set_seed(seed)
