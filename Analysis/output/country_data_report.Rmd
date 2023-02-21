@@ -213,11 +213,15 @@ warning("Took this one out because it was identical to the adjusted figure. Must
 
 ### Error Tables
 ```{r echo=FALSE }
-plot_error_by_grid(cache = cache, cholera_directory = params$cholera_directory, config = params$config)
+if (!is.null(cache[["config"]][["test_metadata"]])) {
+  plot_error_by_grid(cache = cache, cholera_directory = params$cholera_directory, config = params$config)
+}
 ```
 
 ```{r echo=FALSE}
-plot_error_by_grid_spatial_scale(cache = cache, cholera_directory = params$cholera_directory, config = params$config)
+if (!is.null(cache[["config"]][["test_metadata"]])) {
+  plot_error_by_grid_spatial_scale(cache = cache, cholera_directory = params$cholera_directory, config = params$config)
+}
 ```
 
 **Stan trace plots:**

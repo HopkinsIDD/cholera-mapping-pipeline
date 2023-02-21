@@ -552,7 +552,7 @@ config_checks[["stan"]][["model"]] <- function(value, config, index) {
   if (!file.exists(file.path(config[["stan"]][["directory"]], value))) {
     warning(paste(
       "config[['stan']][['model']] should be a path to a file, but",
-      value, "is not a file"
+      value, "is not a file in", config[["stan"]][["directory"]]
     ))
     return(FALSE)
   }
