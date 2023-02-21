@@ -6,7 +6,6 @@ params:
   cholera_directory: "/cholera-mapping-pipeline"
   cholera_config_directory: "/cholera-configs"
   cholera_data_dir: "/cholera-mapping-output/data/"
-  start_year: 2016
 ---
 
 ```{r setup, include=FALSE}
@@ -48,7 +47,6 @@ for(idx in 1:length(config_files)){
 
 ```{r max_tfrac_plot, echo=FALSE}
 fns_filtered <- fns[grepl("stan_input.rdata$", fns)]
-fns_filtered <- fns_filtered[grepl(as.character(params$start_year), fns_filtered)]
 new_file_names<-file_names[file_names$file_name%in%fns_filtered,]
 
 # Loop through all the files
@@ -59,7 +57,8 @@ for(idx in 1:nrow(new_file_names)){
  
   load(paste(params$cholera_directory,params$cholera_data_dir, new_file_names$file_name[idx], sep = "/"))
   country_code<-unique(stringr::str_extract(new_file_names$file_name[idx], "^[A-Z]{3}"))  
-  run_id<-unique(new_file_names$run_id[idx])  
+  run_id<-unique(new_file_names$run_id[idx])
+  start_year= as.numeric(substr(new_file_names$file_name[idx],5,8))
 
   tmp <- stan_input$sf_cases_resized %>%
     sf::st_drop_geometry() %>%
@@ -76,7 +75,7 @@ for(idx in 1:nrow(new_file_names)){
     summarise(max_tfrac = max(tfrac), iso = country_code, zero_case = (sum(suspected_cases) == 0),run_id=run_id)
 
   # the table
-  for(i in (params$start_year):(params$start_year+4)){
+  for(i in (start_year):(start_year+4)){
     if(nrow(tfrac_table_tmp[tfrac_table_tmp$year == i & tfrac_table_tmp$iso == country_code, ]) == 0){
       NA_zero_table <- NA_zero_table %>%
         add_row(iso = country_code, year = i, category = "NA-tfrac")
@@ -88,23 +87,23 @@ for(idx in 1:nrow(new_file_names)){
   
 
   if(nrow(tfrac_table_tmp) < 5){
-    empty_year <- ((params$start_year):(params$start_year+4))[!((params$start_year):(params$start_year+4)) %in% tfrac_table_tmp$year]
+    empty_year <- ((start_year):(start_year+4))[!((start_year):(start_year+4)) %in% tfrac_table_tmp$year]
     tfrac_table_tmp <- tfrac_table_tmp %>% add_row(iso = country_code, year = empty_year, max_tfrac = 0, zero_case = FALSE)
   }
 
   tfrac_table <- rbind(tfrac_table, tfrac_table_tmp)
 }
+```
 
+```{r tfrac max plot,fig.height=10, fig.width=15,echo=FALSE}
 # Plotting
   tfrac_table %>%
   ggplot(aes(x=year, y=max_tfrac)) +
   geom_bar(stat="identity", fill="lightblue") +
   geom_text(aes(label = ifelse(zero_case, as.character("zero-case"), "")), fontface = "bold", size = 1.0) + 
   theme_minimal() + 
-  facet_wrap( ~ iso, scales = "free", ncol = 5) + 
-  scale_x_continuous(breaks=seq(params$start_year,params$start_year+4,1)) + 
   scale_y_continuous(limits=c(0, 1)) + 
   theme_minimal()+
-  facet_wrap(~run_id+iso)
+  facet_wrap(~run_id+iso,ncol=2,scales = "free")
 
 ```
