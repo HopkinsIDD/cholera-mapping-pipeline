@@ -475,7 +475,7 @@ constant_covariate <- function(test_raster, constant, weight, seed) {
 #' @param family character Currently unused
 #' @param seed integer A seed to use for the randomly constructed portions of this object ##CHANGE!!!###independent_covariate: independently generated#only the function part
 create_test_covariate <- function(test_raster = create_test_raster(),
-                                  independent_parameters = list(varies_spatially = TURE, varies_temporally = TRUE, weight = 0.3),
+                                  independent_parameters = list(varies_spatially = TRUE, varies_temporally = TRUE, weight = 0.3),
                                   smooth_parameters = list(spatially_smooth = TRUE, temporally_smooth = TRUE, smoothing_function = function(n,
                                                                                                                                             mu, covariance, centers) {
                                     return(my_scale(MASS::mvrnorm(n = n, mu = mu, Matrix::solve(covariance))))
