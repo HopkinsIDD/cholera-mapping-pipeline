@@ -8,9 +8,9 @@ Maintainer: Joshua Kaminsky <jkaminsky@jhu.edu>
 Description: This package is designed to load and work with taxonomy files in a particular file structure.
 Encoding: UTF-8
 License: GPL (>= 2)
-Depends: R (>= 3.4),ISOcodes,magrittr, dplyr, tidyr, igraph
+Depends: R (>= 3.4),ISOcodes,magrittr, dplyr, tidyr, igraph, geodata
 Suggests: readxl, sf, sp, raster, rgdal, testthat, knitr, rmarkdown
-RoxygenNote: 7.2.1
+RoxygenNote: 7.2.3
 Collate:
     'plot_cache_function.R'
     'get_stan_output.R'
@@ -19,10 +19,12 @@ Collate:
     'aggregate_stan_output.R'
     'color_scale.R'
     'compare_country_data_reports.R'
+    'run_stan_helpers.R'
+    'file_name_functions.R'
+    'setup_helpers.R'
     'config_helpers.R'
     'covariate_helpers.R'
     'db_table_creation_functions.R'
-    'file_name_functions.R'
     'geo_lookup_helpers.R'
     'get_country_shp_from_stan_input.R'
     'get_covar_cube.R'
@@ -38,7 +40,6 @@ Collate:
     'load_orig_map.R'
     'map_theme.R'
     'mapping_progress_functions.R'
-    'setup_helpers.R'
     'pull_data_helpers.R'
     'model_evaluation_helpers.R'
     'output_processing_helper.R'
@@ -55,7 +56,6 @@ Collate:
     'plot_table_by_admin.R'
     'plot_time_varying_pop_raster.R'
     'population_helpers.R'
-    'run_stan_helpers.R'
     'shapefile_manipulation.R'
     'simulation_framework_helpers.R'
     'snap_to_time_period.R'

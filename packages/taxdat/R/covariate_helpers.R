@@ -1320,36 +1320,56 @@ get_pop_weights <- function(res_space,
 get_country_admin_units <- function(iso_code, 
                                     admin_level = 1) {
   library(sf)
-  if (iso_code == "ZNZ" & admin_level == 0){
-    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
-                                                    c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
-    unionized <- sf::st_union(boundary_sf)
-    boundary_sf <- boundary_sf[1, ]
-    sf::st_geometry(boundary_sf) <- unionized
-    boundary_sf$shapeName <- "Zanzibar"
-    boundary_sf$shapeType <- "ADM0"
-  } else if (iso_code == "ZNZ" & admin_level == 1){
-    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
-                                                    c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
-  } else if (iso_code == "ZNZ" & admin_level == 2){
-    boundary_sf <- rgeoboundaries::gb_adm2("TZA")[rgeoboundaries::gb_adm2("TZA")$shapeName %in% 
-                                                    c("Micheweni", "Wete", "Chake Chake", "Mkoani", 
-                                                      "Kaskazini A", "Kaskazini B", "Mjini", "Magharibi", "Kati", "Kusini"), ]
-  } else {
-    if (admin_level == 0){
-      boundary_sf <- rgeoboundaries::gb_adm0(iso_code)
-    }else if (admin_level == 1){
-      boundary_sf <- rgeoboundaries::gb_adm1(iso_code)
-    }else if (admin_level == 2){
-      boundary_sf <- rgeoboundaries::gb_adm2(iso_code)
-      warning('The current admin level is set at 2. ')
-    }else if (admin_level == 3){
-      boundary_sf <- rgeoboundaries::gb_adm3(iso_code)
-      warning('The current admin level is set at 3. ')
-    }else{
-      stop('Error: the current admin level is unnecessarily high or invalid, 
+  
+  if (admin_level > 3) {
+    stop('Error: the current admin level is unnecessarily high or invalid, 
+
             please check and change the parameters for the country data report before running again. ')
+  }
+  
+  if (iso_code == "ZNZ" ) {
+    if(admin_level==0){
+      boundary_sf =sf::st_as_sf(geodata::gadm(country="TZA", level=1, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
+      unionized <- sf::st_union(boundary_sf)
+      boundary_sf <- boundary_sf[1, ]
+      sf::st_geometry(boundary_sf) <- unionized
+      } else {
+      boundary_sf =sf::st_as_sf(geodata::gadm(country="TZA", level=admin_level, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
     }
+     # Fix colnames for compatibility with rest of code
+    boundary_sf <- boundary_sf %>% 
+       magrittr::set_colnames(.,tolower(colnames(boundary_sf))) %>%
+       dplyr::mutate(country="Tanzania",
+              gid_0="TZA")%>%
+       dplyr::mutate(name_0 = country,
+              shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
+              shapeType = paste0("ADM", admin_level))%>% 
+       dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
+                shapeID,
+                shapeType)
+  } else {
+    
+    boundary_sf <- geodata::gadm(country = iso_code, 
+                                 level = admin_level, 
+                                 path = tempdir()) 
+    
+    if (admin_level > 1) {
+      warning('The current admin level is set at ', admin_level)
+    }
+    
+    # Fix colnames for compatibility with rest of code
+    boundary_sf <- boundary_sf %>% 
+      sf::st_as_sf() 
+    boundary_sf <- boundary_sf %>%
+      magrittr::set_colnames(.,tolower(colnames(boundary_sf))) %>%
+      dplyr::mutate(name_0 = country,
+                    shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
+                    shapeType = paste0("ADM", admin_level)) %>% 
+      dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
+                    shapeID,
+                    shapeType)
+    
+    sf::st_crs(boundary_sf) <- sf::st_crs(4326)
   }
   
   sf::st_geometry(boundary_sf) <- "geom"
@@ -1470,7 +1490,10 @@ get_country_isocode <- function(config) {
     # Testing runs
     return("testing")
   } else {
-    return(as.character(stringr::str_extract(config$name, "[A-Z]{3}")))
+    if(!all(nchar(config$countries_name)==3)){
+      warning("Not all countries_names in the config are valid country iso code.")
+    }
+    return(as.character(config$countries_name))
   }
 }
 

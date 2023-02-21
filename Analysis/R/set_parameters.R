@@ -55,7 +55,8 @@ package_list <- c(
   "stringr",
   "tidync",
   "tibble",
-  "zoo"
+  "zoo",
+  "geodata"
 )
 
 library(magrittr)
@@ -131,29 +132,32 @@ if (!as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
 ## Inputs --------------------------------------------------------------------------------------------------------------
 print("---- Reading Parameters ----\n")
 
-# - - - -
-### Source for cholera data
-#### either the taxonomy website of an sql call
-data_source <- config$data_source
-
-# - - - -
+# - - - - - - - - - - - - - -
+## BASIC MODEL SPECIFICATION
+# - - - - - - - - - - - - - -
 ### Countries over which to run the model
 #### For sql, use numeric ids
 #### For api, use scoped string names
 countries <- config$countries
-countries_name <- config$countries_name
-# Specific OCs to use (string vector)
-filter_OCs <- config$OCs
+countries_name <- taxdat::check_countries_name(config$countries_name)
+aoi <- taxdat::check_aoi(config$aoi)
 
 # - - - -
 ### Grid Size
 # km by km resolution of analysis
-res_space <- as.numeric(config$res_space)
+res_space <- taxdat::check_res_space(config$res_space)
 # temporal resolution of analysis
-res_time <- taxdat::check_time_res(config$res_time)
+res_time <- taxdat::check_res_time(config$res_time)
 # number of time slices in spatial random effect
 grid_rand_effects_N <- taxdat::check_grid_rand_effects_N(config$grid_rand_effects_N)
-sfrac_thresh <- taxdat::check_sfrac_thresh(config$sfrac_thresh)
+
+# - - - -
+# What case definition should be used
+case_definition <- taxdat::check_case_definition(config$case_definition)
+# Determine the column name that the number of cases is stored in
+# TODO check the flag for use_database
+cases_column <- taxdat::case_definition_to_column_name(case_definition,
+                                                       database = T)
 
 # - - - -
 ### Get various functions to convert between time units and dates
@@ -163,36 +167,17 @@ time_change_func <- taxdat::time_unit_to_aggregate_function(res_time)
 aggregate_to_start <- taxdat::time_unit_to_start_function(res_time)
 # Function to convert from temporal grid to end date
 aggregate_to_end <- taxdat::time_unit_to_end_function(res_time)
-# Tolerance for snap_to_period function
-snap_tol <- taxdat::check_snap_tol(snap_tol = config$snap_tol, 
-                                   res_time = res_time)
-
-# - - - -
-# What case definition should be used
-suspected_or_confirmed <- taxdat::check_case_definition(config$case_definition)
-# Determine the column name that the number of cases is stored in
-# TODO check the flag for use_database
-cases_column <- taxdat::case_definition_to_column_name(suspected_or_confirmed,
-                                                       database = T)
-# - - - -
-# Is there a threshold on tfrac?
-tfrac_thresh <- taxdat::check_tfrac_thresh(config$tfrac_thresh)
-
-# - - - -
-# User-specified value to set tfrac
-set_tfrac <- taxdat::check_set_tfrac(config$set_tfrac)
 
 # - - - -
 # What range of times should be considered?
-start_time <- lubridate::ymd(config$start_time)
-end_time <- lubridate::ymd(config$end_time)
+start_time <- lubridate::ymd(taxdat::check_time(config$start_time))
+end_time <- lubridate::ymd(taxdat::check_time(config$end_time))
 
 taxdat::check_model_date_range(start_time = start_time,
                                end_time = end_time,
                                time_change_func = time_change_func,
                                aggregate_to_start = aggregate_to_start,
                                aggregate_to_end = aggregate_to_end)
-
 
 # - - - -
 # Define modeling time slices (set of time periods at which the data generating process occurs)
@@ -203,8 +188,21 @@ time_slices <- taxdat::modeling_time_slices(start_time = start_time,
                                             aggregate_to_start = aggregate_to_start,
                                             aggregate_to_end = aggregate_to_end)
 
+# - - - -
+### Source for cholera data
+#### either the taxonomy website of an sql call
+data_source <- taxdat::check_data_source(config$data_source)
+ovrt_metadata_table <- taxdat::check_ovrt_metadata_table(config$ovrt_metadata_table)
 
 # - - - -
+### Optional arguments
+# Specific OCs to use (string vector)
+OCs <- config$OCs
+taxonomy <- taxdat::check_taxonomy(config$taxonomy)
+
+# - - - - - - - - - - - - - -
+## MODEL STRUCTURE AND PRIORS
+# - - - - - - - - - - - - - -
 # Model covariates
 # Get the dictionary of covariates
 covariate_dict <- yaml::read_yaml(paste0(laydir, "/covariate_dictionary.yml"))
@@ -217,37 +215,87 @@ if (is.null(config$covariate_choices)) {
   print("---- Running with no covariates (spatial random effects only)")
 } else {
   # User-defined covariates names and abbreviations
-  covariate_choices <- taxdat::check_covariate_choices(covar_choices = config$covariate_choices,
-                                                       available_choices = all_covariate_choices)
+  covariate_choices <- taxdat::check_covariate_choices(covar_choices = config$covariate_choices, available_choices = all_covariate_choices)
   short_covariates <- short_covariate_choices[covariate_choices]
 }
 
 # - - - -
-# STAN parameters
-ncore <- config$stan$ncores
-nchain <- ncore
-if(ncore == 1) {nchain = 2}
+### Observation model settings
+obs_model <- taxdat::check_obs_model(config$obs_model)
+od_param <- taxdat::check_od_param(obs_model, config$od_param)
+# time_effect, time_effect_autocorr, use_intercept are in get_stan_parameters
+
+# - - - - - - - - - - - - - -
+## PRIORS
+# - - - - - - - - - - - - - -
+# beta_sigma_scale, sigma_eta_scale, exp_prior, do_infer_sd_eta, do_zero_sum_cnst, and optional use_weights are in get_stan_parameters
+# - - - - - - - - - - - - - -
+## GAM WARMUP
+# - - - - - - - - - - - - - -
+# covar_warmup, warmup are in get_stan_parameters
+
+# - - - - - - - - - - - - - -
+## OBSERVATION DATA PROCESSING
+# - - - - - - - - - - - - - -
+# Should observations be aggregated within the modeling time slice?
+aggregate <- taxdat::check_aggregate(config$aggregate)
+# Is there a threshold on tfrac?
+tfrac_thresh <- taxdat::check_tfrac_thresh(config$tfrac_thresh)
+# Should observations below censoring_thresh contribute to the likelihood as censored observations?
+censoring <- taxdat::check_censoring(config$censoring)
+# Set censoring thresh
+censoring_thresh <- taxdat::check_censoring_thresh(config$censoring_thresh)
+# User-specified value to set tfrac
+set_tfrac <- taxdat::check_set_tfrac(config$set_tfrac)
+# Tolerance for snap_to_period function
+snap_tol <- taxdat::check_snap_tol(snap_tol = config$snap_tol, 
+                                   res_time = res_time)
+
+# - - - - - - - - - - - - - -
+## SPATIAL GRID SETTINGS
+# - - - - - - - - - - - - - -
+# turn on subgrid feature
+use_pop_weight <- taxdat::check_use_pop_weight(config$use_pop_weight)
+# drop grid cells with overlaps below the specific sfrac threshold
+sfrac_thresh <- taxdat::check_sfrac_thresh(config$sfrac_thresh)
+
+# - - - - - - - - - - - - - -
+## COVARIATE INGESTION
+# - - - - - - - - - - - - - -
+# ingest covariates to a specific aggregation
+ingest_covariates <- taxdat::check_ingest_covariates(config$ingest_covariates)
+# create a new metadata table for newly ingested covariates
+ingest_new_covariates <- taxdat:: check_ingest_new_covariates(config$ingest_new_covariates)
+
+# - - - - - - - - - - - - - -
+## STAN PARAMETERS
+# - - - - - - - - - - - - - -
+debug <- taxdat::check_stan_debug(config$debug)
+# Pull default stan model options if not specified in config
+stan_params <- taxdat::get_stan_parameters(config$stan)
+
+# set number of cores and chains
+ncores <- stan_params$ncores
+nchain <- ncores
+if(ncores == 1) {nchain = 2}
 rstan::rstan_options(auto_write = FALSE)
-options(mc.cores = ncore)
-niter <- config$stan$niter
+options(mc.cores = ncores)
+# set stan model
 stan_dir <- paste0(cholera_directory, '/Analysis/Stan/')
-stan_model <- config$stan$model
+stan_model <- stan_params$model
 stan_model_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, stan_model, sep=''),
                                             stan_dir = stan_dir)
 # Generated quantities
-stan_genquant <- config$stan$genquant
-stan_genquant_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, stan_genquant, sep=''),
-                                               stan_dir = stan_dir)
+stan_genquant <- stan_params$genquant
+stan_genquant_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, stan_genquant, sep=''), stan_dir = stan_dir)
+# how many iterations
+niter <- stan_params$niter
+# Should the Stan model be recompiled?
+recompile <- stan_params$recompile
 
 # Should we be using a lower-triangular adjacency matrix
 # (this needs to be the case for the DAGAR model)
 lower_triangular_adjacency <- grepl('dagar', stan_model)
-
-# Stan model options
-stan_params <- taxdat::get_stan_parameters(config)
-
-# Should the Stan model be recompiled?
-recompile <- config$stan$recompile
 
 # - - - -
 # Construct some additional parameters based on the above
@@ -287,6 +335,25 @@ if (is.null(config$summary_admin_levels)) {
 # cholera_covariates database connection settings
 # Get username of user (docker doesn't provide username so default to app)
 dbuser <- Sys.getenv("USER", "app")
+
+
+
+# Rewrite final config with runtime parameters -----------------------------
+# Backup config provided by user
+config_user <- config
+
+# Update config parameters
+for (param in names(taxdat::get_all_config_options())) {
+  if (param != "stan"){
+    if (exists(param)){
+      config[[param]] <- get(param)
+    } else if (!exists(param) & param %in% names(stan_params)){
+      config[[param]] <- stan_params[[param]]
+    }
+  }
+}
+print("This is the explicit runtime config (printed for debugging).")
+print(config)
 
 # Pipeline steps ---------------------------------------------------------------
 
@@ -431,7 +498,7 @@ for(t_idx in 1:length(all_test_idx)){
     stan_input <-  prepare_stan_input(
       dbuser = dbuser,
       cholera_directory = cholera_directory,
-      ncore = ncore,
+      ncore = ncores,
       res_time = res_time,
       res_space = res_space,
       time_slices = time_slices,
@@ -447,6 +514,8 @@ for(t_idx in 1:length(all_test_idx)){
       snap_tol = snap_tol,
       opt = opt,
       stan_params = stan_params,
+      aggregate = aggregate,
+      debug = debug, 
       config = config
     )
     

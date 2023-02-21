@@ -1,28 +1,103 @@
+#' @title Make output_directory name
+#' @name make_output_directory_name
+#' @description Make string for output_directory name
+#'
+#' @param cholera_directory cholera mapping directory
+#' @param config the actual config file
+#' @param for_config whether to put the file name inside the config 
+#' @param short_names whether to use the digest function to get a string for file names
+#' @return a string with the output_directory name
+#' @export
+
+make_output_directory_name <- function(cholera_directory,
+                                       config = NULL, 
+                                       for_config = FALSE, 
+                                       short_names = TRUE) {
+  if(for_config){
+    if (!is.null(config)) {
+      if ("file_names" %in% names(config)) {
+        if ("output_directory" %in% names(config[["file_names"]]) & !is.null(config[["file_names"]]$output_directory)) {
+          dirname <- config[["file_names"]][["output_directory"]]
+          return(dirname)
+        }
+      }
+    }
+    return(NULL)
+  }                                      
+
+  dirname <- paste(cholera_directory, "Analysis", "data", sep = "/")
+  if (!is.null(config)) {
+    if ("file_names" %in% names(config)) {
+      if ("output_directory" %in% names(config[["file_names"]]) & !is.null(config[["file_names"]]$output_directory)) {
+        dirname <- config[["file_names"]][["output_directory"]]
+      }
+    }
+  }
+  dir.create(dirname, showWarnings = FALSE)
+  return(dirname)
+}
+
+#' @title Make short filename
+#' @name make_short_filename
+#' @description Make string for short file names for all kinds of data files 
+#'
+#' @param config the imported config file 
+#' @param suffix the end of the file name
+#' @return the file name for a certain kind of data file 
+#' @export
+
+make_short_filename <- function(config, 
+                                suffix){
+  
+  config_hash <- digest::digest(config, algo="md5")
+  filename <- paste0(paste(config$countries_name, config$start_time, config$end_time, config$name, config_hash, sep = "_"), suffix)
+  return(filename)
+}
+
 #' @title Make observations filename
 #' @name make_observations_filename
 #' @description Make string for observations Rdata file name
 #'
 #' @param cholera_directory cholera mapping directory
 #' @param map_name map name
+#' @param config the imported config file 
+#' @param for_config whether to put the file name inside the config 
+#' @param short_names whether to use the digest function to get a string for file names
 #' @return a string with the observation file name
 #' @export
 
 make_observations_filename <- function(cholera_directory,
                                        map_name,
-                                       config = NULL) {
+                                       config = NULL, 
+                                       for_config = FALSE, 
+                                       short_names = TRUE) {
+  dirname <- make_output_directory_name(cholera_directory, config)
+  
+  filename <- NULL
+  suffix = ".preprocess.rdata"
+
   if (!is.null(config)) {
     if ("file_names" %in% names(config)) {
-      filename <- paste(cholera_directory, "Analysis", "data", sep = "/")
-      if ("output_directory" %in% names(config[["file_names"]])) {
-        filename <- config[["file_names"]][["output_directory"]]
-      }
       if ("observations_filename" %in% names(config[["file_names"]])) {
-        return(paste(filename, config[["file_names"]][["observations_filename"]], sep = "/"))
+        filename <- config[["file_names"]][["observations_filename"]]
       }
     }
   }
-  paste(cholera_directory, "/Analysis/", "data/",
-        map_name, '.preprocess', '.rdata', sep = '')
+  if(is.null(filename)){
+    if(short_names){
+      filename <- make_short_filename(config, suffix)
+    }else{
+      filename <- paste0(map_name, suffix)
+    }
+  }
+
+  if(!for_config){
+    fullname <- paste0(dirname, '/', filename)
+  }else{
+    fullname <- filename
+  }
+
+  return(fullname)
 }
 
 
@@ -34,26 +109,44 @@ make_observations_filename <- function(cholera_directory,
 #' @param map_name map name
 #' @param covariate_name_part name of covariate
 #' @param config A config object (not path), used to obtain filenames from
+#' @param for_config whether to put the file name inside the config 
+#' @param short_names whether to use the digest function to get a string for file names
 #' @return a string with the covariate file name
 #' @export
 
 make_covar_filename <- function(cholera_directory,
                                 map_name,
                                 covariate_name_part,
-                                config = NULL) {
+                                config = NULL, 
+                                for_config = FALSE, 
+                                short_names = TRUE) {
+  dirname <- make_output_directory_name(cholera_directory, config)
+  
+  filename <- NULL
+  suffix = ".covar.rdata"
+
   if (!is.null(config)) {
     if ("file_names" %in% names(config)) {
-      filename <- paste(cholera_directory, "Analysis", "data", sep = "/")
-      if ("output_directory" %in% names(config[["file_names"]])) {
-        filename <- config[["file_names"]][["output_directory"]]
-      }
       if ("covariate_filename" %in% names(config[["file_names"]])) {
-        return(paste(filename, config[["file_names"]][["covariate_filename"]], sep = "/"))
+        filename <- config[["file_names"]][["covariate_filename"]]
       }
     }
   }
-  paste(cholera_directory, "/Analysis/", "data/", map_name, ".",
-        covariate_name_part, '.covar', '.rdata', sep = '')
+  if(is.null(filename)){
+    if(short_names){
+      filename <- make_short_filename(config, suffix)
+    }else{
+      filename <- paste0(map_name, ".", covariate_name_part, suffix)
+    }
+  }
+
+  if(!for_config){
+    fullname <- paste0(dirname, '/', filename)
+  }else{
+    fullname <- filename
+  }
+
+  return(fullname)
 }
 
 #' @title Make Stan input filename
@@ -65,6 +158,8 @@ make_covar_filename <- function(cholera_directory,
 #' @param covariate_name_part name of covariate
 #' @param config config object (not path)
 #' @param config_dict dictionary object (not path) with abbreviationas of config
+#' @param for_config whether to put the file name inside the config 
+#' @param short_names whether to use the digest function to get a string for file names
 #' @return a string with the Stan input file name
 #' @export
 
@@ -72,19 +167,33 @@ make_stan_input_filename <- function(cholera_directory,
                                      map_name,
                                      covariate_name_part,
                                      config,
-                                     config_dict) {
+                                     config_dict, 
+                                     for_config = FALSE, 
+                                     short_names = TRUE) {
+  dirname <- make_output_directory_name(cholera_directory, config)
   
+  filename <- NULL
+  suffix = ".stan_input.rdata"
+
   if ("file_names" %in% names(config)) {
-    filename <- paste(cholera_directory, "Analysis", "data", sep = "/")
-    if ("output_directory" %in% names(config[["file_names"]])) {
-      filename <- config[["file_names"]][["output_directory"]]
+    if ("stan_input_filename" %in% names(config[["file_names"]])){
+      filename <- config[["file_names"]][["stan_input_filename"]]
+    }else if(short_names){
+      filename <- make_short_filename(config, suffix)
     }
-    if ("stan_input_filename" %in% names(config[["file_names"]])) {
-      return(paste(filename, config[["file_names"]][["stan_input_filename"]], sep = "/"))
-    }
+  }else if(short_names){
+    filename <- make_short_filename(config, suffix)
   }
   
-  # Processing configs
+  if(!is.null(filename)){
+    if(!for_config){
+      fullname <- paste0(dirname, '/', filename)
+    }else{
+      fullname <- filename
+    }
+    return(fullname)
+  }
+
   to_add <- "pc"
   for (par in c("grid_rand_effects_N", "aggregate", "tfrac_thresh", "set_tfrac", "censoring_thresh")) {
     if(!is.null(config[[par]])) {
@@ -98,8 +207,16 @@ make_stan_input_filename <- function(cholera_directory,
   to_add <- stringr::str_replace_all(to_add, "FALSE", "F")
   to_add <- stringr::str_replace_all(to_add, "NULL", "N")
   
-  paste(cholera_directory, "/Analysis/", "data/", map_name, '.',
-        covariate_name_part, '.', to_add, ".stan_input", '.rdata',sep='')
+  filename <- paste(map_name, '.', covariate_name_part, '.', 
+                    to_add, suffix, sep='')
+  
+  if(!for_config){
+    fullname <- paste0(dirname, '/', filename)
+  }else{
+    fullname <- filename
+  }
+
+  return(fullname)
 }
 
 #' @title Make initial values filename
@@ -111,6 +228,8 @@ make_stan_input_filename <- function(cholera_directory,
 #' @param covariate_name_part name of covariate
 #' @param config config object (not path)
 #' @param config_dict dictionary of configuration options
+#' @param for_config whether to put the file name inside the config 
+#' @param short_names whether to use the digest function to get a string for file names
 #' @return a string with the Stan output file name
 #' @export
 
@@ -118,30 +237,47 @@ make_initial_values_filename <- function(cholera_directory,
                                          map_name,
                                          covariate_name_part,
                                          config,
-                                         config_dict) {
+                                         config_dict, 
+                                         for_config = FALSE, 
+                                         short_names = TRUE) {
   
-    if ("file_names" %in% names(config)) {
-        filename <- paste(cholera_directory, "Analysis", "data", sep = "/")
-        if ("output_directory" %in% names(config[["file_names"]])) {
-            filename <- config[["file_names"]][["output_directory"]]
-        }
-        if ("initial_values_filename" %in% names(config[["file_names"]])) {
-            return(paste(filename, config[["file_names"]][["initial_values_filename"]],
-                sep = "/"))
-        }
+  dirname <- make_output_directory_name(cholera_directory, config)
+  
+  filename <- NULL
+  suffix = ".initial_values.rdata"
+
+  if ("file_names" %in% names(config)) {
+    if ("initial_values_filename" %in% names(config[["file_names"]])){
+      filename <- config[["file_names"]][["initial_values_filename"]]
+    }else if(short_names){
+      filename <- make_short_filename(config, suffix)
     }
+  }else if(short_names){
+    filename <- make_short_filename(config, suffix)
+  }
+
+  if(!is.null(filename)){
+    if(!for_config){
+      fullname <- paste0(dirname, '/', filename)
+    }else{
+      fullname <- filename
+    }
+    return(fullname)
+  }
   
   # Get stan input filename
   base_filename <- make_stan_input_filename(cholera_directory,
                                             map_name,
                                             covariate_name_part,
                                             config,
-                                            config_dict)
+                                            config_dict, 
+                                            for_config, 
+                                            short_names)
   # Base part of output filename
   base_filename <- stringr::str_remove(base_filename, "stan_input\\.rdata")
   
   # Get stan parameters
-  stan_pars <- get_stan_parameters(config)
+  stan_pars <- get_stan_parameters(config$stan)
   
   # Modeling configs
   to_add <- "iv"
@@ -163,12 +299,11 @@ make_initial_values_filename <- function(cholera_directory,
   }
   
   # Add stan filename and iterations
-  
   to_add <- stringr::str_replace_all(to_add, "TRUE", "T")
   to_add <- stringr::str_replace_all(to_add, "FALSE", "F")
   to_add <- stringr::str_replace_all(to_add, "NULL", "N")
   
-  paste0(base_filename, to_add, ".initial_values.rdata")
+  return(paste0(base_filename, to_add, suffix))
 }
 
 #' @title Make Stan output filename
@@ -180,6 +315,8 @@ make_initial_values_filename <- function(cholera_directory,
 #' @param covariate_name_part name of covariate
 #' @param config configuration file
 #' @param config_dict dictionary of configuration options
+#' @param for_config whether to put the file name inside the config 
+#' @param short_names whether to use the digest function to get a string for file names
 #' @return a string with the Stan output file name
 #' @export
 
@@ -187,16 +324,32 @@ make_stan_output_filename <- function(cholera_directory,
                                       map_name,
                                       covariate_name_part,
                                       config,
-                                      config_dict) {
+                                      config_dict, 
+                                      for_config = FALSE, 
+                                      short_names = TRUE) {
   
+  dirname <- make_output_directory_name(cholera_directory, config)
+  
+  filename <- NULL
+  suffix = ".stan_output.rdata"
+
   if ("file_names" %in% names(config)) {
-    filename <- paste(cholera_directory, "Analysis", "data", sep = "/")
-    if ("output_directory" %in% names(config[["file_names"]])) {
-      filename <- config[["file_names"]][["output_directory"]]
+    if ("stan_output_filename" %in% names(config[["file_names"]])){
+      filename <- config[["file_names"]][["stan_output_filename"]]
+    }else if(short_names){
+      filename <- make_short_filename(config, suffix)
     }
-    if ("stan_output_filename" %in% names(config[["file_names"]])) {
-      return(paste(filename, config[["file_names"]][["stan_output_filename"]], sep = "/"))
+  }else if(short_names){
+    filename <- make_short_filename(config, suffix)
+  }
+
+  if(!is.null(filename)){
+    if(!for_config){
+      fullname <- paste0(dirname, '/', filename)
+    }else{
+      fullname <- filename
     }
+    return(fullname)
   }
   
   # Get stan input filename
@@ -204,12 +357,14 @@ make_stan_output_filename <- function(cholera_directory,
                                                 map_name,
                                                 covariate_name_part,
                                                 config,
-                                                config_dict)
+                                                config_dict, 
+                                                for_config, 
+                                                short_names)
   # Base part of output filename
   base_filename <- stringr::str_remove(base_filename, "initial_values\\.rdata")
   
   # Get stan parameters
-  stan_pars <- get_stan_parameters(config)
+  stan_pars <- get_stan_parameters(config$stan)
   
   # Modeling configs
   to_add <- "mc"
@@ -225,7 +380,7 @@ make_stan_output_filename <- function(cholera_directory,
   model_name <- stringr::str_remove(config$stan$model, "\\.stan") %>% 
     stringr::str_split("_") %>% 
     .[[1]] %>% 
-    last()
+    data.table::last()
   to_add <- paste0(to_add, "-model:", model_name)
   to_add <- paste0(to_add, "-niter", config$stan$niter)
   
@@ -233,7 +388,7 @@ make_stan_output_filename <- function(cholera_directory,
   to_add <- stringr::str_replace_all(to_add, "FALSE", "F")
   to_add <- stringr::str_replace_all(to_add, "NULL", "N")
   
-  paste0(base_filename, to_add, ".stan_output.rdata")
+  return(paste0(base_filename, to_add, suffix))
 }
 
 #' @title Make Stan output filename
@@ -245,6 +400,8 @@ make_stan_output_filename <- function(cholera_directory,
 #' @param covariate_name_part name of covariate
 #' @param config configuration file
 #' @param config_dict dictionary of configuration options
+#' @param for_config whether to put the file name inside the config
+#' @param short_names whether to use the digest function to get a string for file names
 #' @return a string with the Stan output file name
 #' @export
 
@@ -252,16 +409,31 @@ make_stan_genquant_filename <- function(cholera_directory,
                                         map_name,
                                         covariate_name_part,
                                         config,
-                                        config_dict) {
+                                        config_dict, 
+                                        for_config = FALSE, 
+                                        short_names = TRUE) {
+  dirname <- make_output_directory_name(cholera_directory, config)
   
+  filename <- NULL
+  suffix = ".stan_genquant.rds"
+
   if ("file_names" %in% names(config)) {
-    filename <- paste(cholera_directory, "Analysis", "data", sep = "/")
-    if ("output_directory" %in% names(config[["file_names"]])) {
-      filename <- config[["file_names"]][["output_directory"]]
+    if ("stan_genquant_filename" %in% names(config[["file_names"]])){
+      filename <- config[["file_names"]][["stan_genquant_filename"]]
+    }else if(short_names){
+      filename <- make_short_filename(config, suffix)
     }
-    if ("stan_genquant_filename" %in% names(config[["file_names"]])) {
-      return(paste(filename, config[["file_names"]][["stan_genquant_filename"]], sep = "/"))
+  }else if(short_names){
+    filename <- make_short_filename(config, suffix)
+  }
+
+  if(!is.null(filename)){
+    if(!for_config){
+      fullname <- paste0(dirname, '/', filename)
+    }else{
+      fullname <- filename
     }
+    return(fullname)
   }
   
   # Get stan input filename
@@ -269,12 +441,14 @@ make_stan_genquant_filename <- function(cholera_directory,
                                                 map_name,
                                                 covariate_name_part,
                                                 config,
-                                                config_dict)
+                                                config_dict, 
+                                                for_config, 
+                                                short_names)
   # Base part of output filename
   base_filename <- stringr::str_remove(base_filename, "initial_values\\.rdata")
   
   # Get stan parameters
-  stan_pars <- get_stan_parameters(config)
+  stan_pars <- get_stan_parameters(config$stan)
   
   # Modeling configs
   to_add <- "mc"
@@ -290,7 +464,7 @@ make_stan_genquant_filename <- function(cholera_directory,
   model_name <- stringr::str_remove(config$stan$model, "\\.stan") %>% 
     stringr::str_split("_") %>% 
     .[[1]] %>% 
-    last()
+    data.table::last()
   to_add <- paste0(to_add, "-model:", model_name)
   to_add <- paste0(to_add, "-niter", config$stan$niter)
   
@@ -298,7 +472,67 @@ make_stan_genquant_filename <- function(cholera_directory,
   to_add <- stringr::str_replace_all(to_add, "FALSE", "F")
   to_add <- stringr::str_replace_all(to_add, "NULL", "N")
   
-  paste0(base_filename, to_add, ".stan_genquant.rds")
+  return(paste0(base_filename, to_add, suffix))
+}
+
+#' @title Make country data report filename
+#' @name make_country_data_report_filename
+#' @description Make string for country data report file name
+#'
+#' @param cholera_directory cholera mapping directory
+#' @param map_name map name
+#' @param config the imported config file 
+#' @param for_config whether to put the file name inside the config
+#' @param short_names whether to use the digest function to get a string for file names
+#' @return a string with the country data report file name
+#' @export
+make_country_data_report_filename <- function(cholera_directory,
+                                              map_name,
+                                              config = NULL, 
+                                              for_config = FALSE, 
+                                              short_names = TRUE) {
+  suffix <- ".country-data-report.html"
+
+  if (!is.null(config)) {
+    if ("file_names" %in% names(config)) {
+      if ("country_data_report_filename" %in% names(config[["file_names"]])) {
+        return(config[["file_names"]][["country_data_report_filename"]])
+      }
+    }
+  }
+
+  filename <- make_short_filename(config, suffix)
+  return(filename)
+}
+
+#' @title Make data comparison report filename
+#' @name make_data_comparison_report_filename
+#' @description Make string for the data comparison report file name
+#'
+#' @param cholera_directory cholera mapping directory
+#' @param map_name map name
+#' @param config the imported config file 
+#' @param for_config whether to put the file name inside the config
+#' @param short_names whether to use the digest function to get a string for file names
+#' @return a string with the data comparison report file name
+#' @export
+make_data_comparison_report_filename <- function( cholera_directory,
+                                                  map_name,
+                                                  config = NULL, 
+                                                  for_config = FALSE, 
+                                                  short_names = TRUE) {
+  suffix <- ".data-comparison-reports.html"
+
+  if (!is.null(config)) {
+    if ("file_names" %in% names(config)) {
+      if ("data_comparison_report_filename" %in% names(config[["file_names"]])) {
+        return(config[["file_names"]][["data_comparison_report_filename"]])
+      }
+    }
+  }
+
+  filename <- make_short_filename(config, suffix)
+  return(filename)
 }
 
 #' @title Make map output filename
@@ -347,7 +581,7 @@ make_map_name <- function(config, .f = NULL) {
   # km by km resolution of analysis
   res_space <- as.numeric(config$res_space)
   # temporal resolution of analysis
-  res_time <- suppressMessages(check_time_res(config$res_time))
+  res_time <- suppressMessages(check_res_time(config$res_time))
   # Modeling start and end times
   start_time <- lubridate::ymd(config$start_time)
   end_time <- lubridate::ymd(config$end_time)
@@ -373,7 +607,7 @@ make_map_name <- function(config, .f = NULL) {
 #' @return
 #' @export
 
-get_filenames <- function (config, cholera_directory) {
+get_filenames <- function (config, cholera_directory, ...) {
   
   if (is.null(config$covariate_choices)) {
     covariate_name_part <- "nocovar"
@@ -393,50 +627,72 @@ get_filenames <- function (config, cholera_directory) {
   # Load dictionary of configuration options
   config_dict <- yaml::read_yaml(paste0(cholera_directory, "/Analysis/configs/config_dictionary.yml"))
   
+  output_directory <- make_output_directory_name(cholera_directory = cholera_directory, config = config, ...)
+
   preprocessed_data_fname <- make_observations_filename(cholera_directory = cholera_directory,
-                                                        map_name = map_name)
+                                                        map_name = map_name, 
+                                                        config = config, ...)
   
   preprocessed_covar_fname <- make_covar_filename(cholera_directory = cholera_directory,
                                                   map_name = map_name,
-                                                  covariate_name_part = covariate_name_part)
+                                                  covariate_name_part = covariate_name_part, 
+                                                  config = config, ...)
   
   stan_input_fname <- make_stan_input_filename(cholera_directory = cholera_directory,
                                                map_name = map_name,
                                                covariate_name_part = covariate_name_part,
                                                config = config,
-                                               config_dict = config_dict)
+                                               config_dict = config_dict, ...)
   
   initial_values_fname <- make_initial_values_filename(cholera_directory = cholera_directory,
                                                        map_name = map_name,
                                                        covariate_name_part = covariate_name_part,
                                                        config = config,
-                                                       config_dict = config_dict)
+                                                       config_dict = config_dict, ...)
   
   stan_output_fname <- make_stan_output_filename(cholera_directory = cholera_directory,
                                                  map_name = map_name,
                                                  covariate_name_part = covariate_name_part,
                                                  config = config,
-                                                 config_dict = config_dict)
+                                                 config_dict = config_dict, ...)
   
   stan_genquant_fname <- make_stan_genquant_filename(cholera_directory = cholera_directory,
                                                      map_name = map_name,
                                                      covariate_name_part = covariate_name_part,
                                                      config = config,
-                                                     config_dict = config_dict)
+                                                     config_dict = config_dict, ...)
   
+  country_data_report_filename <- make_country_data_report_filename(cholera_directory = cholera_directory,
+                                                                    map_name = map_name, 
+                                                                    config = config)
+
+  data_comparison_report_filename <- make_data_comparison_report_filename(cholera_directory = cholera_directory,
+                                                                          map_name = map_name, 
+                                                                          config = config)
+
   rc <- list(
+    output_directory = output_directory, 
     data = preprocessed_data_fname,
     covar = preprocessed_covar_fname,
     stan_input = stan_input_fname,
     initial_values = initial_values_fname,
     stan_output = stan_output_fname,
-    stan_genquant = stan_genquant_fname
+    stan_genquant = stan_genquant_fname, 
+    country_data_report_filename = country_data_report_filename, 
+    data_comparison_report_filename = data_comparison_report_filename
   )
-  
-  rc <- setNames(c(preprocessed_data_fname, preprocessed_covar_fname,
+
+  name_vector <- c("data", "covar", "stan_input", "initial_values", "stan_output", "stan_genquant", 
+                  "country_data_report_filename", "data_comparison_report_filename")
+  if(!is.null(output_directory)){
+    name_vector <- append(name_vector, "output_directory", after=0)
+  }
+
+  rc <- setNames(c(output_directory, 
+                   preprocessed_data_fname, preprocessed_covar_fname,
                    stan_input_fname, initial_values_fname, stan_output_fname,
-                   stan_genquant_fname), 
-                 c("data", "covar", "stan_input", "initial_values", "stan_output", "stan_genquant"))
+                   stan_genquant_fname, country_data_report_filename, data_comparison_report_filename), 
+                 name_vector)
   return(rc)
 }
 

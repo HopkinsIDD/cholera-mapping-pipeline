@@ -1,0 +1,110 @@
+---
+title: "Prestan report"
+output: 
+  html_document
+params:
+  cholera_directory: "/cholera-mapping-pipeline"
+  cholera_config_directory: "/cholera-configs"
+  cholera_data_dir: "/cholera-mapping-output/data/"
+  start_year: 2016
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+```
+
+```{r load data, echo=FALSE}
+#load config:
+config_files<-list.files(paste0(params$cholera_directory,params$cholera_config_directory))
+file_names<-data.frame()
+for (idx in 1:length(config_files)){
+  config_tmp<-yaml::read_yaml(paste0(params$cholera_directory,params$cholera_config_directory,config_files[idx]))
+  tmp<-data.frame(do.call("rbind", config_tmp$file_names))
+  rownames(tmp)<-NULL
+  colnames(tmp)<-"file_name"
+  tmp<-cbind(tmp,run_id=paste(config_tmp$name,config_tmp$countries_name,config_tmp$start_time,config_tmp$end_time,sep="_"))
+  file_names<-data.frame(rbind(file_names,tmp))
+  file_names<-data.frame(file_names[!stringr::str_detect(file_names$file_name,"report|output|genquant"),])
+}
+
+# Find and load the model output 
+fns <- list.files(paste0(params$cholera_directory,params$cholera_data_dir), full.names = FALSE, recursive=FALSE)
+
+#check if all files are in the data folder
+for(idx in 1:length(config_files)){
+  config_tmp<-yaml::read_yaml(paste0(params$cholera_directory,params$cholera_config_directory,config_files[idx]))
+  file_names_tmp<-file_names[file_names$file_name%in%config_tmp$file_names,]
+  
+  if(all(file_names_tmp$file_name %in% fns)){
+     print(paste0(unique(file_names_tmp$run_id)," files are all present. Great job!"))
+   }else{
+     print(paste(unique(file_names_tmp$run_id),"files are missing:"))
+     print(paste("  ",file_names_tmp$file_name[!file_names_tmp$file_name%in%fns]))
+   }
+}
+```
+
+```{r max_tfrac_plot, echo=FALSE}
+fns_filtered <- fns[grepl("stan_input.rdata$", fns)]
+fns_filtered <- fns_filtered[grepl(as.character(params$start_year), fns_filtered)]
+new_file_names<-file_names[file_names$file_name%in%fns_filtered,]
+
+# Loop through all the files
+tfrac_table <- tibble::tibble(iso = as.character(),  year = as.numeric(), max_tfrac = as.numeric(), zero_case = as.logical())
+NA_zero_table <- tibble::tibble(iso = as.character(),  year = as.numeric(), category = as.character())
+
+for(idx in 1:nrow(new_file_names)){
+ 
+  load(paste(params$cholera_directory,params$cholera_data_dir, new_file_names$file_name[idx], sep = "/"))
+  country_code<-unique(stringr::str_extract(new_file_names$file_name[idx], "^[A-Z]{3}"))  
+  run_id<-unique(new_file_names$run_id[idx])  
+
+  tmp <- stan_input$sf_cases_resized %>%
+    sf::st_drop_geometry() %>%
+    mutate(idx = 1:n(), nyears = lubridate::year(TR) - lubridate::year(TL) + 1)
+  tmp <- as.data.frame(lapply(tmp, rep, tmp$nyears)) 
+  tmp <- tmp %>%
+    group_by(idx) %>%
+    mutate(year = lubridate::year(TL) + (1:n()) - 1) %>%
+    rename(suspected_cases = attributes.fields.suspected_cases)
+  tmp$tfrac <- stan_input$stan_data$tfrac
+
+  tfrac_table_tmp <- tmp %>%
+    group_by(year) %>%
+    summarise(max_tfrac = max(tfrac), iso = country_code, zero_case = (sum(suspected_cases) == 0),run_id=run_id)
+
+  # the table
+  for(i in (params$start_year):(params$start_year+4)){
+    if(nrow(tfrac_table_tmp[tfrac_table_tmp$year == i & tfrac_table_tmp$iso == country_code, ]) == 0){
+      NA_zero_table <- NA_zero_table %>%
+        add_row(iso = country_code, year = i, category = "NA-tfrac")
+    }else if(tfrac_table_tmp[tfrac_table_tmp$year == i & tfrac_table_tmp$iso == country_code, ]$max_tfrac == 0){
+      NA_zero_table <- NA_zero_table %>%
+        add_row(iso = country_code, year = i, category = "zero-tfrac")
+    }
+  }
+  
+
+  if(nrow(tfrac_table_tmp) < 5){
+    empty_year <- ((params$start_year):(params$start_year+4))[!((params$start_year):(params$start_year+4)) %in% tfrac_table_tmp$year]
+    tfrac_table_tmp <- tfrac_table_tmp %>% add_row(iso = country_code, year = empty_year, max_tfrac = 0, zero_case = FALSE)
+  }
+
+  tfrac_table <- rbind(tfrac_table, tfrac_table_tmp)
+}
+
+# Plotting
+  tfrac_table %>%
+  ggplot(aes(x=year, y=max_tfrac)) +
+  geom_bar(stat="identity", fill="lightblue") +
+  geom_text(aes(label = ifelse(zero_case, as.character("zero-case"), "")), fontface = "bold", size = 1.0) + 
+  theme_minimal() + 
+  facet_wrap( ~ iso, scales = "free", ncol = 5) + 
+  scale_x_continuous(breaks=seq(params$start_year,params$start_year+4,1)) + 
+  scale_y_continuous(limits=c(0, 1)) + 
+  theme_minimal()+
+  facet_wrap(~run_id+iso)
+
+```
