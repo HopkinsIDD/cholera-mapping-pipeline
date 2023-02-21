@@ -501,7 +501,7 @@ create_test_covariate <- function(test_raster = create_test_raster(),
                                     radiating_means = rnorm(1), weight = 1
                                   ),
                                   constant_parameters = list(constant = FALSE, weight = 1),
-                                  family = "Gaussian", magnitude, seed) {
+                                  family = "Gaussian", magnitude = 1, seed) {
   seed <- get_or_set_seed(seed)
   original_seed <- seed
   if (family != "Gaussian") {
