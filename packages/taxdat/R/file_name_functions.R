@@ -277,7 +277,7 @@ make_initial_values_filename <- function(cholera_directory,
   base_filename <- stringr::str_remove(base_filename, "stan_input\\.rdata")
   
   # Get stan parameters
-  stan_pars <- get_stan_parameters(config$stan)
+  stan_pars <- get_stan_parameters(append(config, config$stan))
   
   # Modeling configs
   to_add <- "iv"
@@ -364,6 +364,8 @@ make_stan_output_filename <- function(cholera_directory,
   base_filename <- stringr::str_remove(base_filename, "initial_values\\.rdata")
   
   # Get stan parameters
+  ## ECL this code is sloppy because some of the parameters with defaults set in get_stan_parameters
+  ## are outside of config$stan - the filename built here may not match the user-specified config
   stan_pars <- get_stan_parameters(config$stan)
   
   # Modeling configs
@@ -448,6 +450,8 @@ make_stan_genquant_filename <- function(cholera_directory,
   base_filename <- stringr::str_remove(base_filename, "initial_values\\.rdata")
   
   # Get stan parameters
+  ## ECL this code is sloppy because some of the parameters with defaults set in get_stan_parameters
+  ## are outside of config$stan - the filename built here may not match the user-specified config
   stan_pars <- get_stan_parameters(config$stan)
   
   # Modeling configs

@@ -272,7 +272,7 @@ ingest_new_covariates <- taxdat:: check_ingest_new_covariates(config$ingest_new_
 # - - - - - - - - - - - - - -
 debug <- taxdat::check_stan_debug(config$debug)
 # Pull default stan model options if not specified in config
-stan_params <- taxdat::get_stan_parameters(config$stan)
+stan_params <- taxdat::get_stan_parameters(append(config, config$stan))
 
 # set number of cores and chains
 ncores <- stan_params$ncores
