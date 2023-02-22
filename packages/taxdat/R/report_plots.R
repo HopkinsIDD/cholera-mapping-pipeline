@@ -512,6 +512,36 @@ plot_rhat <- function(config, cache, cholera_directory) {
 }
 
 #' @export
+plot_error_by_grid <- function(config, cache, cholera_directory) {
+  get_error_by_grid(cache = cache, cholera_directory = cholera_directory, config = config)
+  cache[["error_by_grid_list"]] %>%
+    kableExtra::kable() %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped"))
+}
+
+#' @export
+plot_error_by_grid_spatial_scale <- function(cache, config, cholera_directory) {
+  get_error_by_grid_spatial_scale(cache = cache, cholera_directory = cholera_directory, config = config)
+  cache[["error_by_grid_spatial_scale"]] %>%
+    kableExtra::kable() %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped"))
+}
+
+#' @export
+plot_w_mean <- function(cache, config, cholera_directory) {
+  get_cmdstan_fit(config = params$config, cache = cache, cholera_directory = params$cholera_directory)
+  w_data <- cache[["cmdstan_fit"]]$draws(variables = "w") %>%
+    reshape2::melt()
+  w_mean <- w_data %>%
+    group_by(variable) %>%
+    summarise(mean = mean(value)) # QZ: mean across chain and iterations
+  get_covar_cube(cache = cache, config = params$config, cholera_directory = params$cholera_directory)
+  plot_w_mean_data <- cache[["covar_cube"]] %>% subset(t == 1)
+  plot_w_mean_data$w_mean <- w_mean$mean
+  return(plot(plot_w_mean_data[, c("w_mean", "geometry")]))
+}
+
+#' @export
 #' @name plot_scatters
 #' @title plot_scatters
 #' @description plot gam input versus gam outputs rates

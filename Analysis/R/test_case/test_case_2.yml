@@ -38,7 +38,7 @@ test_metadata:
   - start_date: '2000-01-01'
     end_date: '2001-12-31'
     template: accurate
-    proportion_observed: 0.9
+    proportion_observed: 0.8
 file_names:
   report: test_case_2.html
 seeds:

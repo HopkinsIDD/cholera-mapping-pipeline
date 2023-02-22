@@ -45,7 +45,6 @@ test_metadata:
   - start_date: '2000-01-01'
     end_date: '2000-12-31'
     template: accurate
-    kept_location_periods: all
 file_names:
   report: test_case_47.html
 seeds:

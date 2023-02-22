@@ -4,16 +4,19 @@
 *.Rd
 *.rds
 *.rdata
+*.rs
 *~
 slurm*.out
-*.yml.complete
+**.yml.complete
 *.pdf
 *.swp
-*.html
+**.html
 
 **/.Rproj.user
 **/.Rhistory
 **/.Renviron
+**/psql_credential.txt
+**/database_api_key.R
 
 **.yml
 !tests/**/*.yml
@@ -22,11 +25,6 @@ slurm*.out
 
 Analysis/Stan/*
 !Analysis/Stan/*.stan
-
-packages/taxdat/tests/testthat/psql_credential.txt
-packages/taxdat/R/database_api_key.R
-Analysis/R/database_api_key.R
-database_api_key.R
 
 Analysis/configs/
 Analysis/data/
