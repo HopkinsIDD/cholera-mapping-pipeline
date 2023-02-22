@@ -365,7 +365,7 @@ make_stan_output_filename <- function(cholera_directory,
   
   # Get stan parameters
   ## ECL this code is sloppy because some of the parameters with defaults set in get_stan_parameters
-  are outside of config$stan - the filename built here may not match the user-specified config
+  ## are outside of config$stan - the filename built here may not match the user-specified config
   stan_pars <- get_stan_parameters(config$stan)
   
   # Modeling configs
@@ -451,7 +451,7 @@ make_stan_genquant_filename <- function(cholera_directory,
   
   # Get stan parameters
   ## ECL this code is sloppy because some of the parameters with defaults set in get_stan_parameters
-  are outside of config$stan - the filename built here may not match the user-specified config
+  ## are outside of config$stan - the filename built here may not match the user-specified config
   stan_pars <- get_stan_parameters(config$stan)
   
   # Modeling configs
