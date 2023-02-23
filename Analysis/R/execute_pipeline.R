@@ -794,7 +794,6 @@ stan_data <- list(
   do_time_slice_effect = config[["stan"]][["do_time_slice"]][["perform"]],
   do_time_slice_effect_autocor = config[["stan"]][["do_time_slice"]][["autocorrelated_prior"]],
   exp_prior = config[["stan"]][["exp_prior"]], # QZ: added exponential betas option in config
-  narrower_prior = config[["stan"]][["narrower_prior"]], # QZ: added narrower prior option in config
   obs_model = config[["stan"]][["obs_model"]], # QZ: added obs_model in config
   use_intercept = config[["stan"]][["use_intercept"]], # QZ: added use_intercept option in config
   do_zerosum_cnst = config[["stan"]][["do_zerosum_cnst"]], # QZ: added do_zerosum_cnst option in config
@@ -803,7 +802,8 @@ stan_data <- list(
   tfrac_censoring = config[["stan"]][["tfrac_censoring"]], # QZ: added tfrac_censoring option in config
   has_data_year = has_data_year,
   mat_grid_time = mat_grid_time,
-  debug = config[["stan"]][["enable_debug_logging"]]
+  debug = config[["stan"]][["enable_debug_logging"]],
+  censored=as.array(observation_data_aggregated$tfrac<= config$processing$censor_incomplete_observations$threshold)
 )
 
 print("Finished creating stan data")
