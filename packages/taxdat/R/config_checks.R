@@ -27,7 +27,12 @@ config_docstrings[["stan"]][["do_time_slice"]][["perform"]] <- "Should we comput
 config_docstrings[["stan"]][["do_time_slice"]][["autocorrelated_prior"]] <- "Should the prior associated with the temporal random effect (eta) be autocorrelated. logical. Defaults to TRUE."
 config_docstrings[["stan"]][["model"]] <- "Filename (no directory) of the stan model to use."
 config_docstrings[["stan"]][["exp_prior"]] <- "Should we use a double exponential prior for covariate contributions (beta) to help unused covariates tend toward 0. logical. Defaults to FALSE."
-config_docstrings[["stan"]][["narrower_prior"]] <- "Should we use a narrower prior for the standard deviation of covariate contributions (beta). logical. Defaults to TRUE."
+config_docstrings[["stan"]][["obs_model"]] <- "Which model should we use? Numeric. Defaults to 1 (basic poisson model)"
+config_docstrings[["stan"]][["use_intercept"]] <- "Should we include an intercept in the model. logical. Defaults to FALSE."
+config_docstrings[["stan"]][["do_zerosum_cnst"]] <- "Should we enforce a 0-sum constraint on the yearly random effects. logical. Defaults to FALSE."
+config_docstrings[["stan"]][["do_infer_sd_eta"]] <- "nd toward 0. logical. Defaults to FALSE."
+config_docstrings[["stan"]][["od_param"]] <- "Overdispersion parameter that accompanies the obs_model selection. Numeric. Defaults to 0."
+config_docstrings[["stan"]][["tfrac_censoring"]] <- "tfrac accounting for censoring. Numeric. Defaults to 0."
 config_docstrings[["initial_values"]] <- list()
 config_docstrings[["initial_values"]][["warmup"]] <- "Should we use the gam model to try to find better starting conditions for the stan model. logical. Defaults to TRUE."
 config_docstrings[["processing"]] <- list()
