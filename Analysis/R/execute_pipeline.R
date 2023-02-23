@@ -803,7 +803,7 @@ stan_data <- list(
   has_data_year = has_data_year,
   mat_grid_time = mat_grid_time,
   debug = config[["stan"]][["enable_debug_logging"]],
-  censored=as.array(observation_data_aggregated$tfrac<= config$processing$censor_incomplete_observations$threshold)
+  censored = as.array(observation_data_aggregated$tfrac <= config$processing$censor_incomplete_observations$threshold)
 )
 
 print("Finished creating stan data")
