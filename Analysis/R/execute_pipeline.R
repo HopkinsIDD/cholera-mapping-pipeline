@@ -778,7 +778,8 @@ stan_data <- list(
   tfrac_censoring=config[["stan"]][["tfrac_censoring"]],#QZ: added tfrac_censoring option in config
   has_data_year = has_data_year,
   mat_grid_time = mat_grid_time,
-  debug = FALSE
+  debug = FALSE,
+  censored=as.array(observation_data_aggregated$tfrac<= config$processing$censor_incomplete_observations$threshold)
 )
 
 print("Finished creating stan data")
