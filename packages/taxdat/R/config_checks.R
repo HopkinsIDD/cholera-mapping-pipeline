@@ -20,7 +20,6 @@ config_docstrings[["stan"]][["nchain"]] <- "The number of chains to use when run
 config_docstrings[["stan"]][["ncores"]] <- "The number of parallel processes to use when running stan. integer. Should not be greater than the number of chains. Defaults to 4 or the number of chains, whichever is smaller."
 config_docstrings[["stan"]][["beta_sigma_scale"]] <- "This value is used to rescale the standard deviation associated with the covariate contributions (beta). numeric. Defaults to 1."
 config_docstrings[["stan"]][["sigma_eta_scale"]] <- "This value is used to rescale the eta values. numeric. Defaults to 5."
-config_docstrings[["stan"]][["sigma_eta_scale"]] <- "This value is used to rescale the eta values. numeric. Defaults to 5."
 config_docstrings[["stan"]][["do_time_slice"]] <- list()
 config_docstrings[["stan"]][["do_time_slice"]][["eta_simplex"]] <- "Should we compute initial conditions as though the eta values are part of a simplex. logical. Defaults to FALSE."
 config_docstrings[["stan"]][["do_time_slice"]][["perform"]] <- "Should we compute values for the temporal random effect eta. logical. Defaults to TRUE."
