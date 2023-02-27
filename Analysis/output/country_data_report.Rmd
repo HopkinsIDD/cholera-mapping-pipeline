@@ -154,40 +154,36 @@ get_sf_grid(name="sf_grid",config = params$config,cache=cache,cholera_directory 
 file_names <- taxdat::get_filenames(
   config = str_c(params$cholera_directory, params$config, sep = "/") %>% yaml::read_yaml(), 
   cholera_directory = params$cholera_directory)
-
-load(file_names["data"])
-load(file_names["stan_input"])
-
-chol_gen <- readRDS(file_names["stan_genquant"])
+get_output_shapefiles(name="output_shapefiles", config = params$config,cache=cache,cholera_directory = params$cholera_directory)
 ```
 
 ```{r output}
 #genquant data
 # Get cases and rates summaries
-cases <- chol_gen$summary(variables = "location_cases_output", 
+cases <- cache[["genquant"]]$summary(variables = "location_cases_output", 
                           c(posterior::default_summary_measures(),
                             posterior::default_convergence_measures()),
                           .cores = 4) %>% 
   mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
-         location_period_id = stan_input$fake_output_obs$locationPeriod_id[id],
-         TL = stan_input$fake_output_obs$TL[id])
+         location_period_id = cache[["stan_input"]]$fake_output_obs$locationPeriod_id[id],
+         TL = cache[["stan_input"]]$fake_output_obs$TL[id])
 
-rates <- chol_gen$summary(variables = "location_rates_output", 
+rates <- cache[["genquant"]]$summary(variables = "location_rates_output", 
                           c(posterior::default_summary_measures(),
                             posterior::default_convergence_measures()),
                           .cores = 4) %>% 
   mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
-         location_period_id = stan_input$fake_output_obs$locationPeriod_id[id],
-         TL = stan_input$fake_output_obs$TL[id])
-pop <- chol_gen$summary(variables = "pop_loctimes_output",
+         location_period_id = cache[["stan_input"]]$fake_output_obs$locationPeriod_id[id],
+         TL = cache[["stan_input"]]$fake_output_obs$TL[id])
+pop <- cache[["genquant"]]$summary(variables = "pop_loctimes_output",
                           c(posterior::default_summary_measures(),
                             posterior::default_convergence_measures()),
                           .cores = 4)%>% 
   mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
-         location_period_id = stan_input$fake_output_obs$locationPeriod_id[id],
-         TL = stan_input$fake_output_obs$TL[id])
+         location_period_id = cache[["stan_input"]]$fake_output_obs$locationPeriod_id[id],
+         TL = cache[["stan_input"]]$fake_output_obs$TL[id])
 
-output_data <- output_shapefiles %>% 
+output_data <- cache[["output_shapefiles"]] %>% 
   inner_join(cases %>% dplyr::select(cases = mean, 
                                      cases_q5 = q5,
                                      cases_q95 = q95,
@@ -204,41 +200,41 @@ output_data <- output_shapefiles %>%
 # Sum of cases by location for whole period
 
 if(config_file$countries_name=="ZNZ"){
-  output_shapefiles<-output_shapefiles[str_detect(output_shapefiles$location_period_id,"TZA-ADM0-TZA|TZA-ADM1-TZA.18_1|TZA-ADM1-TZA.19_1|TZA-ADM1-TZA.28_1|TZA-ADM1-TZA.29_1|TZA-ADM1-TZA.30_1|TZA-ADM2-TZA.19.1_1|TZA-ADM2-TZA.28.1_1|TZA-ADM2-TZA.28.2_1|TZA-ADM2-TZA.29.1_1|TZA-ADM2-TZA.29.2_1|TZA-ADM2-TZA.30.3_1|TZA-ADM2-TZA.30.4_1|TZA-ADM2-TZA.18.1_1|TZA-ADM2-TZA.30.2_1|TZA-ADM2-TZA.19.2_1|TZA-ADM2-TZA.18.2_1"),]
+  cache[["output_shapefiles"]]<-cache[["output_shapefiles"]][str_detect(cache[["output_shapefiles"]]$location_period_id,"TZA-ADM0-TZA|TZA-ADM1-TZA.18_1|TZA-ADM1-TZA.19_1|TZA-ADM1-TZA.28_1|TZA-ADM1-TZA.29_1|TZA-ADM1-TZA.30_1|TZA-ADM2-TZA.19.1_1|TZA-ADM2-TZA.28.1_1|TZA-ADM2-TZA.28.2_1|TZA-ADM2-TZA.29.1_1|TZA-ADM2-TZA.29.2_1|TZA-ADM2-TZA.30.3_1|TZA-ADM2-TZA.30.4_1|TZA-ADM2-TZA.18.1_1|TZA-ADM2-TZA.30.2_1|TZA-ADM2-TZA.19.2_1|TZA-ADM2-TZA.18.2_1"),]
 }
 
-tot_cases <- chol_gen$summary(variables = "location_total_cases_output", 
+tot_cases <- cache[["stan_input"]]$summary(variables = "location_total_cases_output", 
                               c(posterior::default_summary_measures(),
                                 posterior::default_convergence_measures()),
                               .cores = 4) %>% 
   mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
-         location_period_id = output_shapefiles$location_period_id[id],
-         shapeName = output_shapefiles$shapeName[id],
-         admin_level = output_shapefiles$admin_level[id])
+         location_period_id = cache[["output_shapefiles"]]$location_period_id[id],
+         shapeName = cache[["output_shapefiles"]]$shapeName[id],
+         admin_level = cache[["output_shapefiles"]]$admin_level[id])
 
 # Mean rates by location for whole period
-tot_rates <- chol_gen$summary(variables = "location_total_rates_output", 
+tot_rates <- cache[["stan_input"]]$summary(variables = "location_total_rates_output", 
                               c(posterior::default_summary_measures(),
                                 posterior::default_convergence_measures()),
                               .cores = 4) %>% 
   mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
-         location_period_id = output_shapefiles$location_period_id[id],
-         shapeName = output_shapefiles$shapeName[id],
-         admin_level = output_shapefiles$admin_level[id])
+         location_period_id = cache[["output_shapefiles"]]$location_period_id[id],
+         shapeName = cache[["output_shapefiles"]]$shapeName[id],
+         admin_level = cache[["output_shapefiles"]]$admin_level[id])
 
 # Mean pop by location for whole period
-tot_pop <- chol_gen$summary(variables = "pop_loctimes_output", 
+tot_pop <- cache[["stan_input"]]$summary(variables = "pop_loctimes_output", 
                               c(posterior::default_summary_measures(),
                                 posterior::default_convergence_measures()),
                               .cores = 4) %>% 
   mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
-         location_period_id = output_shapefiles$location_period_id[id],
-         shapeName = output_shapefiles$shapeName[id],
-         admin_level = output_shapefiles$admin_level[id])
+         location_period_id = cache[["output_shapefiles"]]$location_period_id[id],
+         shapeName = cache[["output_shapefiles"]]$shapeName[id],
+         admin_level = cache[["output_shapefiles"]]$admin_level[id])
 ```
 
 ```{r out-shape,fig.height=5,fig.width=10,fig.cap=capFig("Shapefiles used for output summaries pulled form rgeoboundaries")}
-ggplot(output_shapefiles) +
+ggplot(cache[["output_shapefiles"]]) +
   geom_sf() +
   ggrepel::geom_label_repel(
     aes(label = shapeName, geometry = geom),
@@ -402,13 +398,13 @@ rates_summ %>%
 ```{r risk_prop,fig.height=5,fig.width=10,fig.cap=capFig("Proportion per risk category (per 100'000)")}
 risk_cat_dict <- c("<1", "1-10", "10-100", ">100")
 
-risk_cat_pop <- chol_gen$summary(variables = "location_risk_cat_prop", .cores = 6) %>% 
+risk_cat_pop <- cache[["genquant"]]$summary(variables = "location_risk_cat_prop", .cores = 6) %>% 
   mutate(id = str_extract(variable, "(?<=\\[)[0-9]+") %>% as.numeric(),
          risk_cat = str_extract(variable, "(?<=,)[0-9]+") %>% as.numeric(),
          risk_cat = factor(risk_cat_dict[risk_cat], levels = risk_cat_dict),
-         location_period_id = output_shapefiles$location_period_id[id],
+         location_period_id = cache[["output_shapefiles"]]$location_period_id[id],
          admin_level = str_extract(location_period_id, "ADM[0-2]")) %>% 
-  inner_join(output_shapefiles, ., by = c("location_period_id", "admin_level"))
+  inner_join(cache[["output_shapefiles"]], ., by = c("location_period_id", "admin_level"))
 
 
 risk_cat_pop %>% 
@@ -424,13 +420,13 @@ risk_cat_pop %>%
 ```{r risk_num,fig.height=5,fig.width=10,fig.cap=capFig("Number per risk category  (per 100'000)")}
 risk_cat_dict <- c("<1", "1-10", "10-100", ">100")
 
-risk_cat_num <- chol_gen$summary(variables = "location_risk_cat_num", .cores = 6) %>% 
+risk_cat_num <- cache[["genquant"]]$summary(variables = "location_risk_cat_num", .cores = 6) %>% 
   mutate(id = str_extract(variable, "(?<=\\[)[0-9]+") %>% as.numeric(),
          risk_cat = str_extract(variable, "(?<=,)[0-9]+") %>% as.numeric(),
          risk_cat = factor(risk_cat_dict[risk_cat], levels = risk_cat_dict),
-         location_period_id = output_shapefiles$location_period_id[id],
+         location_period_id = cache[["output_shapefiles"]]$location_period_id[id],
          admin_level = str_extract(location_period_id, "ADM[0-2]")) %>% 
-  inner_join(output_shapefiles, ., by = c("location_period_id", "admin_level"))
+  inner_join(cache[["output_shapefiles"]], ., by = c("location_period_id", "admin_level"))
 
 
 risk_cat_num %>% 
