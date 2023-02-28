@@ -210,7 +210,8 @@ prepare_covar_cube <- function(
   location_periods_dict <- location_periods_dict %>% 
     dplyr::filter(!(long_id %in% low_sfrac$long_id)) %>% 
     # !! Reset upd_long_id with new grid_changer after removing gird cells with low pop_weight
-    dplyr::mutate(upd_long_id = grid_changer[as.character(long_id)])
+    dplyr::mutate(upd_long_id = grid_changer[as.character(long_id)]) %>% 
+    dplyr::filter(!is.na(upd_long_id))
   
   
   # Drop grid cells to location periods connections
