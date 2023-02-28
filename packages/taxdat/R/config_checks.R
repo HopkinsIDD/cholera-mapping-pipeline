@@ -31,7 +31,6 @@ config_docstrings[["stan"]][["use_intercept"]] <- "Should we include an intercep
 config_docstrings[["stan"]][["do_zerosum_cnst"]] <- "Should we enforce a 0-sum constraint on the yearly random effects. logical. Defaults to FALSE."
 config_docstrings[["stan"]][["do_infer_sd_eta"]] <- "nd toward 0. logical. Defaults to FALSE."
 config_docstrings[["stan"]][["od_param"]] <- "Overdispersion parameter that accompanies the obs_model selection. Numeric. Defaults to 0."
-config_docstrings[["stan"]][["tfrac_censoring"]] <- "tfrac accounting for censoring. Numeric. Defaults to 0."
 config_docstrings[["initial_values"]] <- list()
 config_docstrings[["initial_values"]][["warmup"]] <- "Should we use the gam model to try to find better starting conditions for the stan model. logical. Defaults to TRUE."
 config_docstrings[["processing"]] <- list()
@@ -486,28 +485,6 @@ config_checks[["stan"]][["od_param"]] <- function(value, config, index) {
   if (!is.numeric(value)) {
     warning(
       "config[['stan']][['od_param']] should be numeric, but is",
-      value
-    )
-    return(FALSE)
-  }
-  return(TRUE)
-}
-# QZ added: tfrac_censoring
-config_checks[["stan"]][["tfrac_censoring"]] <- function(value, config, index) {
-  if (length(value) != 1) {
-    warning(paste(
-      "config[['stan']][['tfrac_censoring']] should be of length 1, but is of length",
-      length(value), "with value", value
-    ))
-    return(FALSE)
-  }
-  if (is.na(value)) {
-    warning("config[['stan']][['tfrac_censoring']] is NA")
-    return(FALSE)
-  }
-  if (!is.numeric(value)) {
-    warning(
-      "config[['stan']][['tfrac_censoring']] should be numeric, but is",
       value
     )
     return(FALSE)
@@ -1594,9 +1571,6 @@ config_defaults[["stan"]][["sigma_eta_scale"]] <- function(config, index) {
 }
 config_defaults[["stan"]][["od_param"]] <- function(config, index) {
   return(1)
-}
-config_defaults[["stan"]][["tfrac_censoring"]] <- function(config, index) {
-  return(0)
 }
 config_defaults[["stan"]][["do_time_slice"]] <- list()
 config_defaults[["stan"]][["do_time_slice"]][["perform"]] <- function(config, index) {
