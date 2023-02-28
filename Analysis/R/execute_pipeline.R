@@ -775,7 +775,6 @@ stan_data <- list(
   do_zerosum_cnst=config[["stan"]][["do_zerosum_cnst"]],#QZ: added do_zerosum_cnst option in config
   do_infer_sd_eta=config[["stan"]][["do_infer_sd_eta"]],#QZ: added do_infer_sd_eta option in config
   od_param=config[["stan"]][["od_param"]],#QZ: added od_param option in config
-  tfrac_censoring=config[["stan"]][["tfrac_censoring"]],#QZ: added tfrac_censoring option in config
   has_data_year = has_data_year,
   mat_grid_time = mat_grid_time,
   debug = FALSE,
