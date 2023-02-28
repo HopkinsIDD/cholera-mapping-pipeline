@@ -203,7 +203,7 @@ if(config_file$countries_name=="ZNZ"){
   cache[["output_shapefiles"]]<-cache[["output_shapefiles"]][str_detect(cache[["output_shapefiles"]]$location_period_id,"TZA-ADM0-TZA|TZA-ADM1-TZA.18_1|TZA-ADM1-TZA.19_1|TZA-ADM1-TZA.28_1|TZA-ADM1-TZA.29_1|TZA-ADM1-TZA.30_1|TZA-ADM2-TZA.19.1_1|TZA-ADM2-TZA.28.1_1|TZA-ADM2-TZA.28.2_1|TZA-ADM2-TZA.29.1_1|TZA-ADM2-TZA.29.2_1|TZA-ADM2-TZA.30.3_1|TZA-ADM2-TZA.30.4_1|TZA-ADM2-TZA.18.1_1|TZA-ADM2-TZA.30.2_1|TZA-ADM2-TZA.19.2_1|TZA-ADM2-TZA.18.2_1"),]
 }
 
-tot_cases <- cache[["stan_input"]]$summary(variables = "location_total_cases_output", 
+tot_cases <- cache[["genquant"]]$summary(variables = "location_total_cases_output", 
                               c(posterior::default_summary_measures(),
                                 posterior::default_convergence_measures()),
                               .cores = 4) %>% 
@@ -213,7 +213,7 @@ tot_cases <- cache[["stan_input"]]$summary(variables = "location_total_cases_out
          admin_level = cache[["output_shapefiles"]]$admin_level[id])
 
 # Mean rates by location for whole period
-tot_rates <- cache[["stan_input"]]$summary(variables = "location_total_rates_output", 
+tot_rates <- cache[["genquant"]]$summary(variables = "location_total_rates_output", 
                               c(posterior::default_summary_measures(),
                                 posterior::default_convergence_measures()),
                               .cores = 4) %>% 
@@ -223,7 +223,7 @@ tot_rates <- cache[["stan_input"]]$summary(variables = "location_total_rates_out
          admin_level = cache[["output_shapefiles"]]$admin_level[id])
 
 # Mean pop by location for whole period
-tot_pop <- cache[["stan_input"]]$summary(variables = "pop_loctimes_output", 
+tot_pop <- cache[["genquant"]]$summary(variables = "pop_loctimes_output", 
                               c(posterior::default_summary_measures(),
                                 posterior::default_convergence_measures()),
                               .cores = 4) %>% 
