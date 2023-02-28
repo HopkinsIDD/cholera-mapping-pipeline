@@ -600,28 +600,6 @@ config_checks[["stan"]][["od_param"]] <- function(value, config, index) {
   }
   return(TRUE)
 }
-# QZ added: tfrac_censoring
-config_checks[["stan"]][["tfrac_censoring"]] <- function(value, config, index) {
-  if (length(value) != 1) {
-    warning(paste(
-      "config[['stan']][['tfrac_censoring']] should be of length 1, but is of length",
-      length(value), "with value", value
-    ))
-    return(FALSE)
-  }
-  if (is.na(value)) {
-    warning("config[['stan']][['tfrac_censoring']] is NA")
-    return(FALSE)
-  }
-  if (!is.numeric(value)) {
-    warning(
-      "config[['stan']][['tfrac_censoring']] should be numeric, but is",
-      value
-    )
-    return(FALSE)
-  }
-  return(TRUE)
-}
 # QZ added: obs_model
 config_checks[["stan"]][["obs_model"]] <- function(value, config, index) {
   if (length(value) != 1) {
@@ -1588,9 +1566,6 @@ config_defaults[["stan"]][["sigma_eta_scale"]] <- function(config, index) {
 }
 config_defaults[["stan"]][["od_param"]] <- function(config, index) {
   return(1)
-}
-config_defaults[["stan"]][["tfrac_censoring"]] <- function(config, index) {
-  return(0)
 }
 config_defaults[["stan"]][["do_time_slice"]] <- list()
 config_defaults[["stan"]][["do_time_slice"]][["perform"]] <- function(config, index) {
