@@ -778,7 +778,7 @@ stan_data <- list(
   has_data_year = has_data_year,
   mat_grid_time = mat_grid_time,
   debug = FALSE,
-  censored=as.array(observation_data_aggregated$tfrac<= config$processing$censor_incomplete_observations$threshold)
+  censored=as.array(observation_temporal_location_mapping$tfrac<= config$processing$censor_incomplete_observations$threshold)
 )
 
 print("Finished creating stan data")
