@@ -8,6 +8,6 @@ general:
 stan:
   directory: "../../../Analysis/Stan"
   ncores: 1
-  model: dagar_seasonal_flexible.stan
+  model: mapping_model_inference.stan
   niter: 100
   recompile: yes
