@@ -108,8 +108,7 @@ prepare_covar_cube <- function(
   
   # determine the grids cells that have full data
   non_na_gridcells <- which(apply(covar_cube, 1:2, function(x) {(x[1] >= 1) && sum(is.na(x)) == 0}))
-  # non_na_gridcells <- which(as.numeric(apply(covar_cube, c(1,2), function(x) {(x[1] >= 1) && sum(is.na(x)) == 0})>0))
-  grid_changer <- setNames(seq_len(length(non_na_gridcells)), non_na_gridcells)
+  grid_changer <- taxdat::make_changer(x = non_na_gridcells)
   
   # Get the modelling grid
   sf_grid <- sf::st_read(conn_pg,
@@ -199,12 +198,18 @@ prepare_covar_cube <- function(
     cat("---- No cells with sfrac below", sfrac_thresh, ".\n")
   }
   
+  
+  # Update which gridcells to keep to enforce temporal consistency
+  non_na_gridcells <- taxdat::make_temporal_grid_consistency(sf_grid = sf_grid,
+                                                             non_na_gridcells = non_na_gridcells)
+  
+  
   grid_changer <- taxdat::make_changer(x = non_na_gridcells)
   
   # Drop from gridcells with low sfrac from location_periods_dict
   location_periods_dict <- location_periods_dict %>% 
     dplyr::filter(!(long_id %in% low_sfrac$long_id)) %>% 
-    # Reset upd_long_id with new grid_changer after removing gird cells with low pop_weight
+    # !! Reset upd_long_id with new grid_changer after removing gird cells with low pop_weight
     dplyr::mutate(upd_long_id = grid_changer[as.character(long_id)])
   
   
