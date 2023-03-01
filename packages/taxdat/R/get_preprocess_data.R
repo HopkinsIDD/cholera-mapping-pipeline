@@ -52,8 +52,8 @@ get_preprocessed_stan <- cache_fun_results(name = "preprocessed_stan_data", fun 
 #' @param cholera_directory  the directory of cholera mapping pipeline folder
 #' @return output shapefiles from preprocessed data
 get_output_shapefiles_no_cache <- function(config, cache, cholera_directory) {
-  config <- yaml::read_yaml(paste0(cholera_directory,config))
-  file_names <- taxdat::get_filenames(config, "/",cholera_directory)
+  config <- yaml::read_yaml(paste0(cholera_directory,"/",config))
+  file_names <- taxdat::get_filenames(config, cholera_directory)
   output_shapefiles <- taxdat::read_file_of_type(file_names[["data"]], "output_shapefiles")
   require(bit64)
   require(sf)
