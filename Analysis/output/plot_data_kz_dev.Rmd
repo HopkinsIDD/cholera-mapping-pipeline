@@ -1433,7 +1433,7 @@ location_lp <- paste0(params$cholera_directory, "/Analysis/R/loc_lp.csv") %>% re
 unified_oc <- paste0(params$cholera_directory, "/Analysis/R/unified_OC.csv") %>% read.csv() #get unified OC file
 
   
-tmp<-data.frame(stan_input_data%>%subset(!locationPeriod_id%in%c(unified_oc$lp[unified_oc$country==iso])&TR-TL+1>335&TR-TL+1<395)%>%
+tmp<-data.frame(stan_input$sf_cases_resized%>%subset(!locationPeriod_id%in%c(unified_oc$lp[unified_oc$country==iso])&TR-TL+1>335&TR-TL+1<395)%>%
                   mutate(country=iso,year=substr(TL,1,4)))%>%
   group_by(country,OC_UID,year,locationPeriod_id)%>%
   mutate(sCh=mean(attributes.fields.suspected_cases))
