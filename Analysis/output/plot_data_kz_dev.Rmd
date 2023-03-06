@@ -1424,3 +1424,38 @@ stan_input_data %>%
   ggplot2::facet_wrap(~OC_UID + TL + TR)
 
 ```
+
+## Fig 10. Annual data comparison
+**This figure compares annual data from sf_cases_resized in stan_input across different admin levels.**
+```{r echo=FALSE,fig.height=10,fig.width=10}
+iso=config$countries_name
+location_lp <- paste0(params$cholera_directory, "/Analysis/R/loc_lp.csv") %>% read.csv() #get location_peiod_location_id_file
+unified_oc <- paste0(params$cholera_directory, "/Analysis/R/unified_OC.csv") %>% read.csv() #get unified OC file
+
+  
+tmp<-data.frame(stan_input_data%>%subset(!locationPeriod_id%in%c(unified_oc$lp[unified_oc$country==iso])&TR-TL+1>335&TR-TL+1<395)%>%
+                  mutate(country=iso,year=substr(TL,1,4)))%>%
+  group_by(country,OC_UID,year,locationPeriod_id)%>%
+  mutate(sCh=mean(attributes.fields.suspected_cases))
+tmp1<-merge(tmp,location_lp,by=c("locationPeriod_id"))%>%
+  group_by(country,OC_UID,year,admin_level)%>%summarize(total_sCh=aggregated_cases<-sum( sCh ))
+tmp2<-data.frame(stan_input$sf_cases_resized)%>%
+  subset(OC_UID%in%unified_oc$oc[unified_oc$who_annual_report==T])%>%
+  mutate(country=iso,year=substr(TL,1,4))%>%
+  group_by(country,OC_UID,year)%>%
+  summarize(total_sCh=attributes.fields.suspected_cases)%>%
+  select(country,OC_UID,year,total_sCh)
+tmp2$admin_level<-"admin0"
+
+total_data<-bind_rows(tmp1,tmp2)%>%
+  mutate(who_annual_report=ifelse(OC_UID%in%unified_oc$oc[unified_oc$who_annual_report==T],TRUE,FALSE))
+
+ggplot2::ggplot(data=total_data)+
+    geom_point(aes(y=total_sCh,x=year,color=admin_level,shape=who_annual_report),size=5)+
+    theme(axis.line = element_line(colour = "black"),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank())+
+    ggtitle(label=iso)
+```
