@@ -344,15 +344,19 @@ prepare_stan_input <- function(
   # ---- J. Data for output summaries ----
   
   # Set user-specific name for location_periods table to use
-  output_lp_name <- taxdat::make_output_locationperiods_table_name(dbuser = dbuser, map_name = map_name)
+  output_lp_name <- taxdat::make_output_locationperiods_table_name(
+    config = config
+  )
   
   # Add population 1km weights
-  output_intersections_table <- taxdat::make_output_grid_intersections_table_name(dbuser = dbuser,
-                                                                                  map_name = map_name)
+  output_intersections_table <- taxdat::make_output_grid_intersections_table_name(
+    config = config
+  )
   
   # Add population 1km weights
-  output_cntrds_table <- taxdat::make_output_grid_centroids_table_name(dbuser = dbuser,
-                                                                       map_name = map_name)
+  output_cntrds_table <- taxdat::make_output_grid_centroids_table_name(
+    config = config
+  )
   
   # Connect to database
   conn_pg <- taxdat::connect_to_db(dbuser)
@@ -454,7 +458,7 @@ prepare_stan_input <- function(
   # Option for double-exponential prior on betas
   stan_data$exp_prior <- config$exp_prior
   
-
+  
   # ---- M. Other options for stan ----
   # Use intercept
   stan_data$use_intercept <- config$use_intercept
