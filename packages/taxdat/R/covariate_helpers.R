@@ -106,15 +106,15 @@ make_grid_intersections_table_name <- function(config_hash) {
 #' @param dbuser database username
 #' @param map_name A string representing a somewhat unique name for this run
 #' @export
-clean_all_tmp <- function(dbuser, map_name) {
+clean_all_tmp <- function(dbuser, config) {
   print("-- Cleaning temporary tables")
   conn <- connect_to_db(dbuser)
-  lp_name <- make_locationperiods_table_name(dbuser, map_name)
+  lp_name <- make_locationperiods_table_name(config)
   DBI::dbSendStatement(conn, glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(lp_name)}`};",
                                             .con = conn))
   DBI::dbSendStatement(conn, glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(paste0(lp_name, '_dict'))}`};",
                                             .con = conn))
-  cntrd_table <- make_grid_centroids_table_name(dbuser, map_name)
+  cntrd_table <- make_grid_centroids_table_name(config)
   DBI::dbSendStatement(conn, glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(cntrd_table)}`};",
                                             .con = conn))
   DBI::dbDisconnect(conn)

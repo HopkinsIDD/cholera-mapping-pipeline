@@ -968,6 +968,8 @@ compute_mean_rate <- function(stan_data) {
   # Compute the mean incidence
   # Note that this is in the model's temporal resolution
   meanrate <- sum(stan_data$y * y_tfrac)/sum(aggpop)
+  meanrate <- sum(stan_data$y[stan_data$y>0 & !stan_data$censored] * y_tfrac[stan_data$y>0& !stan_data$censored])/sum(aggpop[stan_data$y>0& !stan_data$censored])
+  
   if(meanrate < 1e-10){
     meanrate <- 1e-10
     print("The mean rate was less than 1e-10, so increased it to 1e-10")
