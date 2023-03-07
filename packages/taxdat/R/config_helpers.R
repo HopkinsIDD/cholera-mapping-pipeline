@@ -5,15 +5,19 @@
 #' @include setup_helpers.R
 #' @param cholera_directory the cholera mapping directory 
 #' @param p dataframe with config parameters, one config per row
+#' @param OC_list sometimes we include multiple OCs for one country 
 #' @param covariate_names character vector with names of covariates to include in the model
 #' @param countries_names character vector with country codes to include in the model
 #' @param countries_ids character vector with country location ids to include in the model
 #' @param config_fname the name of the config file that will be generated or checked and updated 
 #' @return string with yaml config file 
 #' @export
-automate_mapping_config <- function(cholera_directory, p, covariate_names, countries_names, countries_ids, config_fname){
+automate_mapping_config <- function(cholera_directory, p, OC_list = NULL, covariate_names, countries_names, countries_ids, config_fname){
   
-  ### First make the initial config file no matter if it's correct or not 
+  ### First of all, check to see if the OCs are added from the external
+  if(is.null(OC_list)){OC_list <- p$OCs}
+
+  ### Secondly, make the initial config file no matter if it's correct or not 
   map_name <- paste0(paste(countries_names, collapse="_"), "_", lubridate::year(as.Date(p$start_time)), "_", lubridate::year(as.Date(p$end_time)), "_", p$res_space, "km")
 
   this_script_path <- paste0(cholera_directory, '/', 'packages/taxdat/R/config_helpers.R')
@@ -32,7 +36,7 @@ automate_mapping_config <- function(cholera_directory, p, covariate_names, count
     "res_time: '", p$res_time, "'\n",
     "start_time: '", as.Date(p$start_time), "'\n",
     "end_time: '", as.Date(p$end_time), "'\n",
-    "OCs: ", ifelse(unspecified_parameter_check(p$OCs), "", paste0("['", paste(p$OCs, collapse="','"), "']")), "\n",
+    "OCs: ", ifelse(unspecified_parameter_check(OC_list), "", paste0("['", paste(OC_list, collapse="','"), "']")), "\n",
     "covariate_choices: ", ifelse(unspecified_parameter_check(covariate_names), "", paste0("['", paste(covariate_names, collapse="','"), "']")), "\n",
     "aggregate: ", ifelse(unspecified_parameter_check(p$aggregate), stop("Parameter aggregate should be specified"), p$aggregate), "\n",
     "snap_tol: '", p$snap_tol, "'\n",

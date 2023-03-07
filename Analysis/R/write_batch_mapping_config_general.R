@@ -107,12 +107,13 @@ if(scale == "region"){
   for (i in 1:length(regions)){
     ctry_names <- locs[which(locs$region == regions[i]),]$country
     ctry_ids <- locs[which(locs$region == regions[i]),]$id
+    if(nrow(locs) == 1){OC_list <- params_df$OCs}else{OC_list <- NULL} #if one country, multiple OCs will be allowed
     config_path2 <- paste0(config_path, "/", start_year, "_", end_year, "_region")
     dir.create(config_path2, showWarnings = FALSE)
 
     config_fname <- paste0(config_path2, "/config_", run_name, "_", regions[i], "_", start_year, "_", end_year, ".yml")
     # sink(file = config_fname)
-    automate_mapping_config(cholera_directory, par, covar_names, ctry_names, ctry_ids, config_fname)
+    automate_mapping_config(cholera_directory, par, OC_list, covar_names, ctry_names, ctry_ids, config_fname)
     # sink()
 
   }
@@ -122,12 +123,13 @@ if(scale == "region"){
   for (j in 1:nrow(locs)){
     ctry_name <- locs[j,]$country
     ctry_id <- locs[j,]$id
+    if(nrow(locs) == 1){OC_list <- params_df$OCs}else{OC_list <- NULL}
     config_path2 <- paste0(config_path, "/", start_year, "_", end_year, "_country")
     dir.create(config_path2, showWarnings = FALSE)
 
     config_fname <- paste0(config_path2, "/config_", run_name, "_", ctry_name, "_", start_year, "_", end_year, ".yml")
     # sink(file = config_fname)
-    automate_mapping_config(cholera_directory, par, covar_names, ctry_name, ctry_id, config_fname)
+    automate_mapping_config(cholera_directory, par, OC_list, covar_names, ctry_name, ctry_id, config_fname)
     # sink()
   }
 
