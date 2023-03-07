@@ -1443,10 +1443,10 @@ get_multi_country_admin_units <- function(iso_code,
 #'
 #' @return the table name
 #' @export
-make_output_locationperiods_table_name <- function(dbuser, map_name) {
-  md5hash <- digest::digest(stringr::str_c(dbuser, "_", map_name, algo = "md5"))
-  cat("-- MD5 hash for location periods table is:", md5hash, "\n")
-  glue::glue("location_periods_output_{md5hash}")
+make_output_locationperiods_table_name <- function(config) {
+  config_hash <- digest::digest(config, algo = "md5")
+  cat("-- MD5 hash for location periods table is:", config_hash, "\n")
+  glue::glue("location_periods_output_{config_hash}")
 }
 
 #' @title make grid centroids table name
@@ -1459,9 +1459,9 @@ make_output_locationperiods_table_name <- function(dbuser, map_name) {
 #'
 #' @return the table name
 #' @export
-make_output_grid_centroids_table_name <- function(dbuser, map_name) {
-  md5hash <- digest::digest(stringr::str_c(dbuser, "_", map_name, algo = "md5"))
-  glue::glue("grid_cntrds_output_{md5hash}")
+make_output_grid_centroids_table_name <- function(config) {
+  config_hash <- digest::digest(config, algo = "md5")
+  glue::glue("grid_cntrds_output_{config_hash}")
 }
 
 #' @title make grid intersections table name
@@ -1474,9 +1474,9 @@ make_output_grid_centroids_table_name <- function(dbuser, map_name) {
 #'
 #' @return the table name
 #' @export
-make_output_grid_intersections_table_name <- function(dbuser, map_name) {
-  md5hash <- digest::digest(stringr::str_c(dbuser, "_", map_name, algo = "md5"))
-  glue::glue("grid_intersections_output_{md5hash}")
+make_output_grid_intersections_table_name <- function(config) {
+  config_hash <- digest::digest(config, algo = "md5")
+  glue::glue("grid_intersections_output_{config_hash}")
 }
 
 #' Get country isocode

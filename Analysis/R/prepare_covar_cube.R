@@ -52,7 +52,7 @@ prepare_covar_cube <- function(
   n_time_slices <- nrow(time_slices)
   n_covar <- length(covar_list)
   # Get the grid centroids corresponding to the location periods centroids table
-  cntrd_table <- taxdat::make_grid_centroids_table_name(dbuser = dbuser, map_name = map_name)
+  cntrd_table <- taxdat::make_grid_centroids_table_name(config = config)
   n_grid_cells <- DBI::dbGetQuery(
     conn_pg,
     glue::glue_sql("SELECT COUNT(*) FROM {`{DBI::SQL(cntrd_table)}`};", .con = conn_pg)
@@ -132,10 +132,10 @@ prepare_covar_cube <- function(
     dplyr::mutate(long_id = dplyr::row_number())  # this is the overall cell id (from 1 to n_space x n_times)
   
   # Set user-specific name for location_periods table to use
-  lp_name <- taxdat::make_locationperiods_table_name(dbuser = dbuser, map_name = map_name)
+  lp_name <- taxdat::make_locationperiods_table_name(config = config)
   
   # Add population 1km weights
-  intersections_table <- taxdat::make_grid_intersections_table_name(dbuser = dbuser, map_name = map_name)
+  intersections_table <- taxdat::make_grid_intersections_table_name(config = config)
   
   location_periods_dict <- taxdat::make_location_periods_dict(conn_pg = conn_pg,
                                                               lp_name = lp_name,
@@ -147,7 +147,7 @@ prepare_covar_cube <- function(
   
   
   # Get cell ids in output summary shapefiles
-  output_cntrd_table <- taxdat::make_output_grid_centroids_table_name(dbuser = dbuser, map_name = map_name)
+  output_cntrd_table <- taxdat::make_output_grid_centroids_table_name(config = config)
   output_cells <- DBI::dbGetQuery(conn = conn_pg,
                                   statement = glue::glue_sql(
                                     "SELECT DISTINCT rid, x, y 

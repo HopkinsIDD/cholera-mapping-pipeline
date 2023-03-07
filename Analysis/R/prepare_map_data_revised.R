@@ -203,8 +203,7 @@ output_shapefiles <- taxdat::get_multi_country_admin_units(
 
 # Name for output location periods
 output_lp_name <- taxdat::make_output_locationperiods_table_name(
-  dbuser = dbuser,
-  map_name = map_name
+  config = config
 )
 
 # Write to database
@@ -223,8 +222,7 @@ taxdat::make_grid_lp_mapping_table(
 # Create table of spatial intersections between grid polygons and shapefile
 # borders to compute population-weighted fractions
 output_intersections_table <- taxdat::make_output_grid_intersections_table_name(
-  dbuser = dbuser,
-  map_name = map_name
+  config = config
 )
 
 taxdat::make_grid_intersections_table(
@@ -235,7 +233,9 @@ taxdat::make_grid_intersections_table(
 )
 
 # Get the dictionary of location periods to pixel ids
-output_cntrd_table <- taxdat::make_output_grid_centroids_table_name(dbuser = dbuser, map_name = map_name)
+output_cntrd_table <- taxdat::make_output_grid_centroids_table_name(
+  config = config
+)
 
 taxdat::make_grid_lp_centroids_table(
   conn_pg = conn_pg,
