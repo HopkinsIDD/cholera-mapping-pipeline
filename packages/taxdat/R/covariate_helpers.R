@@ -64,10 +64,10 @@ db_exists_table_multi <- function(conn, schemas, table_name) {
 #'
 #' @return the table name
 #' @export
-make_locationperiods_table_name <- function(dbuser, map_name) {
-  md5hash <- digest::digest(stringr::str_c(dbuser, "_", map_name, algo = "md5"))
-  cat("-- MD5 hash for location periods table is:", md5hash, "\n")
-  glue::glue("location_periods_{md5hash}")
+make_locationperiods_table_name <- function(config) {
+  config_hash <- digest::digest(config, algo = "md5")
+  cat("-- MD5 hash for location periods table is:", config_hash, "\n")
+  glue::glue("location_periods_{config_hash}")
 }
 
 #' @title make grid centroids table name
@@ -80,9 +80,9 @@ make_locationperiods_table_name <- function(dbuser, map_name) {
 #'
 #' @return the table name
 #' @export
-make_grid_centroids_table_name <- function(dbuser, map_name) {
-  md5hash <- digest::digest(stringr::str_c(dbuser, "_", map_name, algo = "md5"))
-  glue::glue("grid_cntrds_{md5hash}")
+make_grid_centroids_table_name <- function(config) {
+  config_hash <- digest::digest(config, algo = "md5")
+  glue::glue("grid_cntrds_{config_hash}")
 }
 
 #' @title make grid intersections table name
@@ -95,9 +95,9 @@ make_grid_centroids_table_name <- function(dbuser, map_name) {
 #'
 #' @return the table name
 #' @export
-make_grid_intersections_table_name <- function(dbuser, map_name) {
-  md5hash <- digest::digest(stringr::str_c(dbuser, "_", map_name, algo = "md5"))
-  glue::glue("grid_intersections_{md5hash}")
+make_grid_intersections_table_name <- function(config_hash) {
+  config_hash <- digest::digest(config, algo = "md5")
+  glue::glue("grid_intersections_{config_hash}")
 }
 
 #' @title clean all tmp
