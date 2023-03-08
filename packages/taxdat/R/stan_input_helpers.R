@@ -354,6 +354,45 @@ make_changer <- function(x) {
   setNames(seq_len(length(x)), x)
 }
 
+
+
+#' Make temporal grid consistency
+#' This function enforces that all space gridcells are matched to 
+#' space/time gridcells. This is to avoid that some space gridcells appear only 
+#' in certain space/time cells
+#'
+#' @param sf_grid 
+#' @param non_na_gridcells 
+#'
+#' @return
+#' @export
+#'
+make_temporal_grid_consistency <- function(sf_grid,
+                                           non_na_gridcells) {
+  
+  temporally_inconsistant_cells <- sf_grid %>%
+    sf::st_drop_geometry() %>% 
+    tibble::as_tibble() %>% 
+    dplyr::group_by(id) %>%
+    dplyr::summarize(bad_percentage = sum(!(long_id %in% non_na_gridcells))/length(id)) %>%
+    dplyr::filter(bad_percentage != 0, bad_percentage != 1)
+  
+  if (nrow(temporally_inconsistant_cells)) {
+    warning("The following cells were included at some time points, but not others. The corresponding space gridcells will be ecxluded.")
+    print(temporally_inconsistant_cells)
+  }
+  
+  rm_cells <- sf_grid %>% 
+    sf::st_drop_geometry() %>% 
+    tibble::as_tibble() %>% 
+    dplyr::filter(id %in% temporally_inconsistant_cells$id) %>% 
+    dplyr::pull(long_id)
+  
+  non_na_gridcells <- setdiff(non_na_gridcells, rm_cells)
+  
+  return(non_na_gridcells)
+}
+
 #' Title
 #'
 #' @param sf_grid 
@@ -372,18 +411,6 @@ make_smooth_grid <- function(sf_grid,
   # Set the index of smooth grid time slices
   sf_grid <- sf_grid %>% 
     dplyr::mutate(s = (t-1) %% grid_rand_effects_N + 1)
-  
-  temporally_inconsistant_cells <- sf_grid %>%
-    sf::st_drop_geometry() %>% 
-    tibble::as_tibble() %>% 
-    dplyr::group_by(id) %>%
-    dplyr::summarize(bad_percentage = sum(!(long_id %in% non_na_gridcells))/length(id)) %>%
-    dplyr::filter(bad_percentage != 0, bad_percentage != 1)
-  
-  if (nrow(temporally_inconsistant_cells)) {
-    warning("The following cells were included at some time points, but not others. See output for details")
-    print(temporally_inconsistant_cells)
-  }
   
   # Drop cells with NAs
   sf_grid_drop <- sf_grid %>% 
@@ -941,6 +968,8 @@ compute_mean_rate <- function(stan_data) {
   # Compute the mean incidence
   # Note that this is in the model's temporal resolution
   meanrate <- sum(stan_data$y * y_tfrac)/sum(aggpop)
+  meanrate <- sum(stan_data$y[stan_data$y>0 & !stan_data$censored] * y_tfrac[stan_data$y>0& !stan_data$censored])/sum(aggpop[stan_data$y>0& !stan_data$censored])
+  
   if(meanrate < 1e-10){
     meanrate <- 1e-10
     print("The mean rate was less than 1e-10, so increased it to 1e-10")

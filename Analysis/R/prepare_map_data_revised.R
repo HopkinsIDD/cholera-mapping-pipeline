@@ -149,7 +149,7 @@ cat("-- Creating tables for observed lps in database \n")
 conn_pg <- taxdat::connect_to_db(dbuser)
 
 # Set user-specific name for location_periods table to use
-lp_name <- taxdat::make_locationperiods_table_name(dbuser = dbuser, map_name = map_name)
+lp_name <- taxdat::make_locationperiods_table_name(config = config)
 
 # Make sf object to multiploygons to be consistent
 shapefiles <- sf::st_cast(shapefiles, "MULTIPOLYGON") %>%
@@ -170,7 +170,7 @@ taxdat::make_grid_lp_mapping_table(
 
 # Create table of spatial intersections between grid polygons and shapefile
 # borders to compute population-weighted fractions
-intersections_table <- taxdat::make_grid_intersections_table_name(dbuser = dbuser, map_name = map_name)
+intersections_table <- taxdat::make_grid_intersections_table_name(config = config)
 
 taxdat::make_grid_intersections_table(
   conn_pg = conn_pg,
@@ -180,7 +180,7 @@ taxdat::make_grid_intersections_table(
 )
 
 # Get the dictionary of location periods to pixel ids
-cntrd_table <- taxdat::make_grid_centroids_table_name(dbuser = dbuser, map_name = map_name)
+cntrd_table <- taxdat::make_grid_centroids_table_name(config = config)
 
 taxdat::make_grid_lp_centroids_table(
   conn_pg = conn_pg,
@@ -203,8 +203,7 @@ output_shapefiles <- taxdat::get_multi_country_admin_units(
 
 # Name for output location periods
 output_lp_name <- taxdat::make_output_locationperiods_table_name(
-  dbuser = dbuser,
-  map_name = map_name
+  config = config
 )
 
 # Write to database
@@ -223,8 +222,7 @@ taxdat::make_grid_lp_mapping_table(
 # Create table of spatial intersections between grid polygons and shapefile
 # borders to compute population-weighted fractions
 output_intersections_table <- taxdat::make_output_grid_intersections_table_name(
-  dbuser = dbuser,
-  map_name = map_name
+  config = config
 )
 
 taxdat::make_grid_intersections_table(
@@ -235,7 +233,9 @@ taxdat::make_grid_intersections_table(
 )
 
 # Get the dictionary of location periods to pixel ids
-output_cntrd_table <- taxdat::make_output_grid_centroids_table_name(dbuser = dbuser, map_name = map_name)
+output_cntrd_table <- taxdat::make_output_grid_centroids_table_name(
+  config = config
+)
 
 taxdat::make_grid_lp_centroids_table(
   conn_pg = conn_pg,

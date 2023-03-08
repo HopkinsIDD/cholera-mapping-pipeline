@@ -577,7 +577,7 @@ for(t_idx in 1:length(all_test_idx)){
   }
   
   if (!as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
-    taxdat::clean_all_tmp(dbuser = dbuser, map_name = map_name)
+    taxdat::clean_all_tmp(dbuser = dbuser, config = config)
   }
   
 }

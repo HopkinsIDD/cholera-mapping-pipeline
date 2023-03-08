@@ -351,6 +351,10 @@ cases_summ %>%
 ```{r raterast, fig.cap=capFig("Modeled rates by time"), fig.height=5, fig.width=10}
 plot_modeled_rates_time_varying(config_file=config_file, disaggregated_rate_sf=cache[["disaggregated_rate_sf"]], add_shp_from_stan_input = T, render = T, run_on_marcc = run_on_marcc)
 ```
+**Modeled incidence rates raster by time slices and chains:**
+```{r raterast_bygridtimechain, fig.cap=capFig("Modeled rates by time"), fig.height=8, fig.width=8}
+plot_modeled_rates_by_gridtime_chain(config=params$config,cholera_directory=params$cholera_directory,cache=cache,render = T)
+```
 
 ```{r out-rates,fig.height=5,fig.width=10,fig.cap=capFig("Mean rate per year")}
 output_data %>% 
@@ -537,6 +541,10 @@ plot_MCMCpars(name="model.rand",cache=cache)
 **Gelman-Rubin Rhat:**
 ```{r rhat, fig.height=5, fig.width=10, fig.cap=capFig("Gelman-Rubin Rhat")}
 plot_Rhat(name="model.rand",cache)
+```
+**W distribution:**
+```{r w_distribution, fig.height=5, fig.width=5, fig.cap=capFig("W distribution")}
+plot_w_mean(cache = cache, config = params$config, cholera_directory = params$cholera_directory)
 ```
 
 **Table 7. Estimated cases by chain and time slice:**

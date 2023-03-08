@@ -52,7 +52,7 @@ prepare_covar_cube <- function(
   n_time_slices <- nrow(time_slices)
   n_covar <- length(covar_list)
   # Get the grid centroids corresponding to the location periods centroids table
-  cntrd_table <- taxdat::make_grid_centroids_table_name(dbuser = dbuser, map_name = map_name)
+  cntrd_table <- taxdat::make_grid_centroids_table_name(config = config)
   n_grid_cells <- DBI::dbGetQuery(
     conn_pg,
     glue::glue_sql("SELECT COUNT(*) FROM {`{DBI::SQL(cntrd_table)}`};", .con = conn_pg)
@@ -108,8 +108,7 @@ prepare_covar_cube <- function(
   
   # determine the grids cells that have full data
   non_na_gridcells <- which(apply(covar_cube, 1:2, function(x) {(x[1] >= 1) && sum(is.na(x)) == 0}))
-  # non_na_gridcells <- which(as.numeric(apply(covar_cube, c(1,2), function(x) {(x[1] >= 1) && sum(is.na(x)) == 0})>0))
-  grid_changer <- setNames(seq_len(length(non_na_gridcells)), non_na_gridcells)
+  grid_changer <- taxdat::make_changer(x = non_na_gridcells)
   
   # Get the modelling grid
   sf_grid <- sf::st_read(conn_pg,
@@ -133,10 +132,10 @@ prepare_covar_cube <- function(
     dplyr::mutate(long_id = dplyr::row_number())  # this is the overall cell id (from 1 to n_space x n_times)
   
   # Set user-specific name for location_periods table to use
-  lp_name <- taxdat::make_locationperiods_table_name(dbuser = dbuser, map_name = map_name)
+  lp_name <- taxdat::make_locationperiods_table_name(config = config)
   
   # Add population 1km weights
-  intersections_table <- taxdat::make_grid_intersections_table_name(dbuser = dbuser, map_name = map_name)
+  intersections_table <- taxdat::make_grid_intersections_table_name(config = config)
   
   location_periods_dict <- taxdat::make_location_periods_dict(conn_pg = conn_pg,
                                                               lp_name = lp_name,
@@ -148,7 +147,7 @@ prepare_covar_cube <- function(
   
   
   # Get cell ids in output summary shapefiles
-  output_cntrd_table <- taxdat::make_output_grid_centroids_table_name(dbuser = dbuser, map_name = map_name)
+  output_cntrd_table <- taxdat::make_output_grid_centroids_table_name(config = config)
   output_cells <- DBI::dbGetQuery(conn = conn_pg,
                                   statement = glue::glue_sql(
                                     "SELECT DISTINCT rid, x, y 
@@ -199,13 +198,20 @@ prepare_covar_cube <- function(
     cat("---- No cells with sfrac below", sfrac_thresh, ".\n")
   }
   
+  
+  # Update which gridcells to keep to enforce temporal consistency
+  non_na_gridcells <- taxdat::make_temporal_grid_consistency(sf_grid = sf_grid,
+                                                             non_na_gridcells = non_na_gridcells)
+  
+  
   grid_changer <- taxdat::make_changer(x = non_na_gridcells)
   
   # Drop from gridcells with low sfrac from location_periods_dict
   location_periods_dict <- location_periods_dict %>% 
     dplyr::filter(!(long_id %in% low_sfrac$long_id)) %>% 
-    # Reset upd_long_id with new grid_changer after removing gird cells with low pop_weight
-    dplyr::mutate(upd_long_id = grid_changer[as.character(long_id)])
+    # !! Reset upd_long_id with new grid_changer after removing gird cells with low pop_weight
+    dplyr::mutate(upd_long_id = grid_changer[as.character(long_id)]) %>% 
+    dplyr::filter(!is.na(upd_long_id))
   
   
   # Drop grid cells to location periods connections
