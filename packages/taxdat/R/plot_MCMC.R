@@ -54,3 +54,32 @@ plot_Rhat <- function(name, cache,rhat_thresh=1.05){
     ggplot2::ggtitle(glue::glue("Fraction above threshold: {format(round(frac_above*100, 2))}%"))
   return(plot)
 }
+
+# plot spatial random effect
+#' @export
+#' @name plot_w_mean
+#' @description plot the mean w distribution across all iterations
+#' @param cache the cached environment
+#' @param config the config
+#' @param cholera_directory the cholera directory
+#' @return plot object 
+
+plot_w_mean <- function(cache, config, cholera_directory) {
+    get_model_rand(name="model.rand",cache=cache,config = params$config,cholera_directory = params$cholera_directory)
+    get_stan_input(name="stan_input",cache=cache,config = params$config,cholera_directory = params$cholera_directory)
+    w_data <-  rstan::extract(cache[["model.rand"]],pars="w")%>%
+      reshape2::melt()
+    w_data$chain <- rep(1:4,each=1000)
+    w_mean_by_chain <- w_data %>%
+      group_by(Var2,chain) %>%
+      summarise(mean = mean(value)) # QZ: mean across chain and iterations    
+    sf_tmp <- cache[["stan_input"]]$sf_grid %>% subset(t == 1)
+    w_sf <-data.frame()
+    for(chain_idx in unique(w_mean_by_chain$chain)){
+    sf_tmp$w_mean <- w_mean_by_chain[w_mean_by_chain$chain==1,]$mean
+    sf_tmp$chain<-chain_idx
+    w_sf <- rbind(w_sf,sf_tmp)
+    }
+    plot <- w_sf %>% ggplot2::ggplot(.,ggplot2::aes(fill=w_mean,color=w_mean))+geom_sf()+taxdat::map_theme() +facet_wrap(~chain)
+    return(plot)
+}
