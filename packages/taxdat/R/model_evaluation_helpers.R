@@ -507,6 +507,40 @@ plot_modeled_rates_time_varying <- function(config_file,
 
 
 #' @export
+#' @name plot_modeled_rates_by_gridtime_chain
+#' @title plot_modeled_rates_by_gridtime_chain
+#' @description add
+#' @param config the actual config file
+#' @param cholera_directory the cholera directory 
+#' @param render default is TRUE
+#' @return ggplot object with modeled rates map
+
+plot_modeled_rates_by_gridtime_chain<-function(cache,config,cholera_directory, render = T){
+  config_file <- yaml::read_yaml(paste0(cholera_directory,"/",config))
+  get_modeled_rates(cache=cache,config=params$config,cholera_directory=params$cholera_directory,name="modeled_rates")
+  cache[["modeled_rates_by_gridtime_chain"]] <- aggregate_modeled_rates_by_chain_gridtime_no_cache(cache[["modeled_rates"]])
+  get_sf_grid(name="sf_grid",config = config,cache=cache,cholera_directory = cholera_directory)
+  non_na_gridcells <- get_non_na_gridcells(cache=cache,config=config,cholera_directory = cholera_directory)
+  case_raster_non_na<-cache[["sf_grid"]]%>%subset(long_id%in%non_na_gridcells)
+  cache[["rate_raster_by_gridtime_chain"]] <- data.frame()
+  for(chain_idx in 1:nrow(cache[["modeled_rates_by_gridtime_chain"]])){
+    case_raster_non_na$mean<-cache[["modeled_rates_by_gridtime_chain"]][chain_idx,]
+    case_raster_non_na$chain<-paste0("Chain ",chain_idx)
+    cache[["rate_raster_by_gridtime_chain"]]<-rbind(cache[["rate_raster_by_gridtime_chain"]],case_raster_non_na)
+  }
+  cache[["rate_raster_by_gridtime_chain"]]$t <- cache[["rate_raster_by_gridtime_chain"]]$t-1+lubridate::year(config_file$start_time)
+  plot <- ggplot2::ggplot() + 
+    ggplot2::geom_sf(data = cache[["rate_raster_by_gridtime_chain"]],ggplot2::aes(fill = mean), lwd = 0) + 
+    taxdat::color_scale(type = "rates",use_case = "ggplot map") + taxdat::map_theme() + ggplot2::facet_wrap(~t+chain,ncol=4)
+  
+    if (render) {
+    plot
+  }
+
+}
+
+
+#' @export
 #' @name plot_model_fidelity
 #' @title plot_model_fidelity
 #' @description add
