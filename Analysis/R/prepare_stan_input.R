@@ -333,7 +333,7 @@ prepare_stan_input <- function(
   u_admin_levels <- sort(unique(admin_levels))
   
   # index staring at 1
-  stan_data$map_obs_admin_lev <- purrr::map_dbl(admin_levels ~ which(u_admin_levels == .))
+  stan_data$map_obs_admin_lev <- purrr::map_dbl(admin_levels, ~ which(u_admin_levels == .))
   
   # Add unique number of admin levels for use in observation model
   stan_data$N_admin_lev <- length(u_admin_levels)
