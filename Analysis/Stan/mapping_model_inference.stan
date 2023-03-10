@@ -16,6 +16,7 @@ data {
   int <lower=M> K1;    // the length of the mapping of observations to location periods and times
   int <lower=L> K2;    // the length of the mapping of location periods to gridcells
   int <lower=0> ncovar;    // Number of covariates
+  int<lower=1> N_admin_lev;    // the number of unique administrative levels in the data
   
   // Options
   int<lower=0, upper=1> do_censoring;       // Censoring of cases with tfracs bellow threshold
@@ -44,7 +45,7 @@ data {
   int <lower=1, upper=M> ind_left[M_left];      // indexes of left-censored observations
   int <lower=1, upper=M> ind_right[M_right];    // indexes of right-censored observations
   real <lower=0, upper=1> tfrac[K1];            // the time fraction side of the mapping from observations to location/times
-  int <lower=0, upper=1> censored[K1]; // Whether data is censored in the mapping from observations to location/times
+  int <lower=0, upper=1> censored[K1];          // Whether data is censored in the mapping from observations to location/times
   
   // Mappings
   int <lower=0, upper=M> map_obs_loctime_obs[K1];    // the observation side of the mapping from observations to location/times
@@ -53,6 +54,7 @@ data {
   int <lower=0, upper=N> map_loc_grid_grid[K2];      // the gridcell side of the mapping from locations to gridcells
   int <lower=0, upper=smooth_grid_N> map_smooth_grid[N];    // vector with repeating smooth_grid_N indexes repeating 1:N
   real <lower=0, upper=1> map_loc_grid_sfrac[K2];    // the population-weighed location spatial fraction covered by each gridcell
+  int<lower=1, upper=N_admin_lev> map_obs_admin_lev[M];    // administrative level of each observation for observation model
   
   // Time slices
   vector<lower=0, upper=1>[N*do_time_slice_effect] has_data_year;
@@ -67,9 +69,10 @@ data {
   // Priors
   int<lower=0> beta_sigma_scale;    // the scale of regression coefficients
   real<lower=0> sigma_eta_scale;    // the scale of temporal random effects sd
-  
-  // Observation model Likelihood
-  real<lower=0> od_param; 
+  real mu_alpha;             // the mean of the intercept, if used
+  real<lower=0> sd_alpha;    // the sd of the intercept, if used
+  real<lower=0> mu_inv_od[N_admin_lev];    // the means of the inverse over-dispersion parameters
+  real<lower=0> sd_inv_od[N_admin_lev];    // the sds of the inverse over-dispersion parameters
   
   // Debug
   int debug;
@@ -81,6 +84,7 @@ transformed data {
   real<lower=0> weights[M*(1-do_censoring)*use_weights];    // a function of the expected offset for each observation used to downwight the likelihood
   real <lower=0> pop_loctimes[L];        // pre-computed population in each location period
   real <lower=0, upper=1> tfrac_censoring[K1]; // tfrac accounting for censoring
+  int<lower=0, upper=1> do_overdispersion;    // derived option to know whether the models contain overdispertion or not
   
   for (i in 1:K1) {
     if (censored[i] == 1) {
@@ -115,6 +119,13 @@ transformed data {
       weights[i] = sqrt(weights[i]);
     }
   }
+  
+  // If poisson likelihood then no overdispertion
+  if (obs_model == 1) {
+    do_overdispersion = 0;
+  } else {
+    do_overdispersion = 1;
+  }
 }
 
 parameters {
@@ -133,6 +144,9 @@ parameters {
   // Covariate effects
   vector[ncovar] betas;
   
+  // Overdispersion parameters
+  vector<lower=0>[N_admin_lev*do_overdispersion] inv_od_param;
+  
 }
 
 transformed parameters {
@@ -143,6 +157,14 @@ transformed parameters {
   vector[N] grid_cases;       // cases modeled in each gridcell and time point
   real previous_debugs = 0;
   real sigma_eta_val;        // value of sigma_eta. This is either fixed to sigma_eta_scale if do_infer_sd_eta==0, or sigma_eta otherwise
+  vector[N_admin_lev*do_overdispersion] od_param;
+  
+  
+  if (do_overdispersion == 1) {
+    for (i in 1:N_admin_lev) {
+      od_param[i] = 1/inv_od_param[i];
+    }
+  }
   
   if (do_infer_sd_eta == 1) {
     sigma_eta_val = sigma_eta[1];
@@ -398,7 +420,7 @@ model {
   
   if (use_intercept == 1) {
     // prior on intercept
-    alpha ~ normal(0, 5);
+    alpha ~ normal(mu_alpha, sd_alpha);
   }
   
   // prior on regression coefficients
@@ -417,8 +439,16 @@ model {
   if (do_censoring == 1) {
     
     if (M_full > 0) {
-      // data model for estimated rates for full time slice observations
-      target += poisson_lpmf(y[ind_full]| modeled_cases[ind_full]);
+      
+      if (obs_model == 1) {
+        // data model for estimated rates for full time slice observations
+        target += poisson_lpmf(y[ind_full]| modeled_cases[ind_full]);
+      } else if (obs_model == 2) {
+        target += neg_binomial_2_lpmf(y[ind_full] | modeled_cases[ind_full], od_param[map_obs_admin_lev[ind_full]] .* modeled_cases[ind_full]);
+      } else {
+        target += neg_binomial_2_lpmf(y[ind_full] | modeled_cases[ind_full], od_param[map_obs_admin_lev[ind_full]]);
+      }
+      
       if (debug && (previous_debugs == 0)) {
         print("full obs", target());
       }
@@ -442,10 +472,10 @@ model {
           lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
         } else if (obs_model == 2) {
           // Quasi-poisson likelihood
-          lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param * modeled_cases[ind_right[i]]);
+          lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]] * modeled_cases[ind_right[i]]);
         } else {
           // Neg-binom likelihood
-          lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param);
+          lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]]);
         }
         
         // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
@@ -456,10 +486,10 @@ model {
             lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
           } else if (obs_model == 2) {
             // Quasi-poisson likelihood
-            lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param * modeled_cases[ind_right[i]]);
+            lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]] * modeled_cases[ind_right[i]]);
           } else {
             // Neg-binom likelihood
-            lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param);
+            lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]]);
           }
           lls[2] = lpmf;
           lp_censored[i] = log_sum_exp(lls);
@@ -487,10 +517,10 @@ model {
           target += poisson_lpmf(y[i] | modeled_cases[i])/weights[i];
         } else if (obs_model == 2) {
           // Quasi-poisson likelihood
-          target += neg_binomial_2_lpmf(y[i] | modeled_cases[i], od_param * modeled_cases[i])/weights[i];
+          target += neg_binomial_2_lpmf(y[i] | modeled_cases[i], od_param[map_obs_admin_lev[i]] * modeled_cases[i])/weights[i];
         } else {
           // Neg-binom likelihood
-          target += neg_binomial_2_lpmf(y[i] | modeled_cases[i], od_param)/weights[i];
+          target += neg_binomial_2_lpmf(y[i] | modeled_cases[i], od_param[map_obs_admin_lev[i]])/weights[i];
         }
         if (debug && (previous_debugs == 0)) {
           print("weighted obs", target());
@@ -502,10 +532,10 @@ model {
         target += poisson_lpmf(y | modeled_cases);
       } else if (obs_model == 2) {
         // Quasi-poisson likelihood
-        target += neg_binomial_2_lpmf(y | modeled_cases, od_param * modeled_cases);
+        target += neg_binomial_2_lpmf(y | modeled_cases, od_param[map_obs_admin_lev] .* modeled_cases);
       } else {
         // Neg-binom likelihood
-        target += neg_binomial_2_lpmf(y | modeled_cases, od_param);
+        target += neg_binomial_2_lpmf(y | modeled_cases, od_param[map_obs_admin_lev]);
       }
       
       if (debug && (previous_debugs == 0)) {

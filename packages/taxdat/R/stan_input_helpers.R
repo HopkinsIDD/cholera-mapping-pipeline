@@ -884,7 +884,7 @@ aggregate_observations <- function(sf_cases_resized,
   
   
   sf_cases_resized <- sf_cases_resized %>%
-    dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
+    dplyr::group_by(loctime, OC_UID, locationPeriod_id, location_name) %>%
     dplyr::group_modify(.f = aggregate_single_lp, 
                         verbose = verbose, 
                         cases_column = cases_column) %>% 
@@ -1021,3 +1021,18 @@ compute_pop_loctimes <- function(stan_data) {
   pop_loctimes
 }
 
+
+#' Title
+#'
+#' @param location_name 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_admin_level <- function(location_name) {
+  stringr::str_count(location_name, "::") %>% 
+    as.numeric() %>% 
+    # Remove the continent nesting
+    {.-1}
+}

@@ -320,6 +320,20 @@ prepare_stan_input <- function(
   stan_data$M_right <- length(stan_data$ind_right)
   stan_data$censoring_inds <- censoring_inds
   
+  # Administrative levels for observation model
+  admin_levels <- sf_cases_resized$location_name %>% 
+    taxdat::get_admin_level() %>% 
+    as.array()
+  
+  # index staring at 1
+  stan_data$map_obs_admin_lev <- admin_levels + 1
+  
+  # Make sure all admin levels are specified
+  stan_data$map_obs_admin_lev[is.na(stan_data$map_obs_admin_lev)] <- max(stan_data$map_obs_admin_lev, na.rm = T)
+  
+  # Add unique number of admin levels for use in observation model
+  stan_data$N_admin_lev <- length(unique(admin_levels[!is.na(admin_levels)]))
+  
   # ---- H. Mean rate ----
   stan_data$meanrate <- taxdat::compute_mean_rate(stan_data = stan_data)
   
@@ -476,6 +490,18 @@ prepare_stan_input <- function(
   
   # Add scale of prior on the sd of regression coefficients
   stan_data$beta_sigma_scale <- config$beta_sigma_scale
+  
+  # Priors for intercept
+  stan_data$mu_alpha <- 0
+  stan_data$sd_alpha <- 1
+  
+  # Priors for observation model overdispersion parameters in negative-binomial model
+  # We model the od parameter on the 1/tau constrained to be positive scale to facilitate setting priors
+  # We assume that the largest admin level (admin level 0 for national) has
+  # an informative prior so as to produce little overdispersion. The over-dispersion for other
+  # admin levels are allowed to have more prior support for larger amount of over-dispersion.
+  stan_data$mu_inv_od <- rep(0, stan_data$N_admin_lev)   # center at 0 (note that this is on the scale of 1/tau)
+  stan_data$sd_inv_od <- c(1e-3, rep(1e-2, stan_data$N_admin_lev - 1))   # sd
   
   
   cat("**** FINISHED PREPARING STAN INPUT \n")
