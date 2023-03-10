@@ -20,9 +20,10 @@ get_or_set_seed <- function(seed) {
 #' @param seed integer A seed to use for the randomly constructed portions of this object
 create_test_extent <- function(seed) {
   seed <- get_or_set_seed(seed)
+  original_seed<-seed
   rc <- sf::st_bbox(c(xmin = 0, ymin = 0, xmax = 1, ymax = 1))
   sf::st_crs(rc) <- 4326
-  attr(rc, "seed") <- seed
+  attr(rc, "seed") <- original_seed
   return(rc)
 }
 
@@ -38,6 +39,7 @@ create_test_extent <- function(seed) {
 #' @param seed integer A seed to use for the randomly constructed portions of this object
 create_test_raster <- function(nrows = 8, ncols = 8, nlayers = 2, seed, test_extent = create_test_extent(seed)) {
   seed <- get_or_set_seed(seed)
+  original_seed<-seed
   one_rc <- sf::st_sf(sf::st_make_grid(sf::st_as_sfc(test_extent), n = c(
     nrows,
     ncols
@@ -55,7 +57,7 @@ create_test_raster <- function(nrows = 8, ncols = 8, nlayers = 2, seed, test_ext
   }
   rc <- do.call(sf:::rbind.sf, rc)
   sf::st_crs(rc) <- 4326
-  attr(rc, "seed") <- seed
+  attr(rc, "seed") <- original_seed
   return(rc)
 }
 
@@ -64,7 +66,7 @@ create_test_raster <- function(nrows = 8, ncols = 8, nlayers = 2, seed, test_ext
 create_test_2d_polygons <- function(test_raster = create_test_raster(), number = 1,
                                     snap = FALSE, randomize = TRUE, seed) {
   seed <- get_or_set_seed(seed)
-
+  original_seed<-seed
   dims <- c(max(test_raster$row), max(test_raster$col))
   test_points <- suppressWarnings(sf::st_centroid(test_raster))
   if (randomize) {
@@ -90,7 +92,7 @@ create_test_2d_polygons <- function(test_raster = create_test_raster(), number =
     rc <- suppressWarnings(sf::st_intersection(test_boundary, test_polygons))
     rc[sf::st_geometry_type(rc) != "POLYGON"] <- sf::st_collection_extract(rc[sf::st_geometry_type(rc) !=
       "POLYGON"], "POLYGON")
-    attr(rc, "seed") <- seed
+    attr(rc, "seed") <- original_seed
     return(rc)
   } else {
     stop("Not yet implemented")
@@ -101,6 +103,7 @@ create_test_2d_polygons <- function(test_raster = create_test_raster(), number =
 create_test_lines <- function(test_raster = create_test_raster(), number = 10, snap = FALSE,
                               randomize = TRUE, seed) {
   seed <- get_or_set_seed(seed)
+  original_seed<-seed
   if (snap) {
     stop("This functionality is not yet written.")
   }
@@ -145,7 +148,7 @@ create_test_lines <- function(test_raster = create_test_raster(), number = 10, s
   rc2 <- sf::st_transform(rc2, crs = original_crs)
   keep_idx <- sample(nrow(rc2), rpois(1, nrow(rc)))
   rc <- rc2[keep_idx, ]
-  attr(rc, "seed") <- seed
+  attr(rc, "seed") <- original_seed
   return(rc)
 }
 
@@ -153,11 +156,12 @@ create_test_lines <- function(test_raster = create_test_raster(), number = 10, s
 create_test_points <- function(test_raster = create_test_raster(), number = 10, snap = FALSE,
                                randomize = TRUE, seed) {
   seed <- get_or_set_seed(seed)
+  original_seed<-seed
   test_points <- suppressWarnings(sf::st_centroid(test_raster))
   original_crs <- sf::st_crs(test_points)
   dims <- c(max(test_raster$row), max(test_raster$col))
   test_points <- test_points[sample(prod(dims), number), ]
-  attr(test_points, "seed") <- seed
+  attr(test_points, "seed") <- original_seed
   return(test_points)
 }
 
@@ -176,6 +180,7 @@ create_test_points <- function(test_raster = create_test_raster(), number = 10, 
 create_test_polygons <- function(test_raster = create_test_raster(), number = 10,
                                  snap = FALSE, randomize = TRUE, dimension = 2, seed) {
   seed <- get_or_set_seed(seed)
+  original_seed<-seed  
   if (dimension == 2) {
     return(create_test_2d_polygons(
       test_raster = test_raster, number = number,
@@ -248,6 +253,7 @@ make_layered_polygons_explicit <- function(test_polygons) {
 create_test_layered_polygons <- function(test_raster = create_test_raster(), base_number = 2,
                                          n_layers = 3, factor = 2, snap = FALSE, randomize = TRUE, seed) {
   seed <- get_or_set_seed(seed)
+  original_seed<-seed
   test_boundary <- sf::st_as_sfc(sf::st_bbox(test_raster), crs = sf::st_crs(test_raster))
   sf::st_crs(test_boundary) <- sf::st_crs(test_raster)
   layers <- list(`0` = sf::st_sf(geometry = test_boundary, name_0 = "0"))
@@ -287,7 +293,7 @@ create_test_layered_polygons <- function(test_raster = create_test_raster(), bas
     }
   }
   smallest_layer <- make_layered_polygons_explicit(smallest_layer)
-  attr(smallest_layer, "seed") <- seed
+  attr(smallest_layer, "seed") <- original_seed
   return(smallest_layer)
 }
 
@@ -295,6 +301,7 @@ create_test_layered_polygons <- function(test_raster = create_test_raster(), bas
 ## @name independent_covariate See create_test_covariate for details
 independent_covariate <- function(test_raster, varies_spatially = FALSE, varies_temporally = FALSE, weight = 1, seed) {
   seed <- get_or_set_seed(seed)
+  original_seed<-seed
   n_grid <- nrow(test_raster)
   n_spatial <- max(test_raster$id)
   default_val <- 0
@@ -319,8 +326,9 @@ independent_covariate <- function(test_raster, varies_spatially = FALSE, varies_
       byrow = TRUE
     )
   }
-  attr(rc, "seed") <- seed
-  return(rc * weight)
+  weighted_rc<-rc * weight
+  attr(weighted_rc, "seed") <- original_seed
+  return(weighted_rc)
 }
 
 ## @name smoothed_covariate See create_test_covariate for details
@@ -334,6 +342,7 @@ smoothed_covariate <- function(test_raster,
                                weight = 1,
                                seed) {
   seed <- get_or_set_seed(seed)
+  original_seed<-seed
   n_grid <- nrow(test_raster)
 
   n_spatial <- max(test_raster$id)
@@ -382,14 +391,15 @@ smoothed_covariate <- function(test_raster,
       )), nrow = n_spatial, ncol = n_temporal, byrow = TRUE))
     }
   }
-  attr(rc, "seed") <- seed
-  return(rc * weight)
+  weighted_rc<-rc * weight
+  attr(weighted_rc, "seed") <- original_seed
+  return(weighted_rc)
 }
 
 ## @name polygonal_covariate See create_test_covariate for details
 polygonal_covariate <- function(test_raster, polygonal = FALSE, polygons = create_test_layered_polygons(), weight = 1, seed) {
   seed <- get_or_set_seed(seed)
-
+  original_seed<-seed
   n_grid <- nrow(test_raster)
   n_spatial <- max(test_raster$id)
   n_temporal <- max(test_raster$t)
@@ -412,8 +422,9 @@ polygonal_covariate <- function(test_raster, polygonal = FALSE, polygons = creat
     rc <- matrix(my_scale(polygonal_contribution), nrow = n_spatial, ncol = n_temporal)
   }
 
-  attr(rc, "seed") <- seed
-  return(rc * weight)
+  weighted_rc<-rc * weight
+  attr(weighted_rc, "seed") <- original_seed
+  return(weighted_rc)
 }
 
 ## @name radiating_covariate See create_test_covariate for details
@@ -424,6 +435,7 @@ radiating_covariate <- function(test_raster, radiating = FALSE, radiating_polygo
     }
   }
   seed <- get_or_set_seed(seed)
+  original_seed<-seed
   n_grid <- nrow(test_raster)
   n_spatial <- max(test_raster$id)
   n_temporal <- max(test_raster$t)
@@ -440,19 +452,22 @@ radiating_covariate <- function(test_raster, radiating = FALSE, radiating_polygo
     rc <- matrix(my_scale(radiation_contribution), nrow = n_spatial, ncol = n_temporal)
   }
 
-  attr(rc, "seed") <- seed
-  return(rc * weight)
+  weighted_rc<-rc * weight
+  attr(weighted_rc, "seed") <- original_seed
+  return(weighted_rc)
 }
 
 ## @name constant_covariate See create_test_covariate for details
 constant_covariate <- function(test_raster, constant = FALSE, weight = 1, seed) {
   seed <- get_or_set_seed(seed)
+  original_seed<-seed
   n_spatial <- max(test_raster$id)
   n_temporal <- max(test_raster$t)
   value <- ifelse(constant, 1, 0)
   rc <- matrix(value, nrow = n_spatial, ncol = n_temporal)
-  attr(rc, "seed") <- seed
-  return(rc * weight)
+  weighted_rc<-rc * weight
+  attr(weighted_rc, "seed") <- original_seed
+  return(weighted_rc)
 }
 
 
@@ -697,6 +712,7 @@ create_underlying_distribution <- function(covariates = create_multiple_test_cov
                                              return(x)
                                            }, family = "Poisson", seed) {
   seed <- get_or_set_seed(seed)
+  original_seed<-seed
   offset <- 10^covariates[[1]][["covariate"]] + 1
   offset[offset >= 2^(32)] <- 2^32 - 1
   if (length(covariates) > 1) {
@@ -735,7 +751,7 @@ create_underlying_distribution <- function(covariates = create_multiple_test_cov
     return(do.call(sf:::rbind.sf, rc))
   }
   rc <- list(mean = lambdas, rcases = fun)
-  attr(rc, "seed") <- seed
+  attr(rc, "seed") <- original_seed
   return(rc)
 }
 
@@ -755,6 +771,7 @@ observe_gridcells <- function(underlying_distribution = create_underlying_distri
                               proportion_observed = 1, number_draws = 1, spatial_observation_bias = TRUE, temporal_observation_bias = TRUE,
                               value_observation_bias = TRUE, noise = FALSE, seed) {
   seed <- get_or_set_seed(seed)
+  original_seed<-seed
   if (noise) {
     stop("This is not yet implemented")
   }
@@ -812,7 +829,7 @@ observe_gridcells <- function(underlying_distribution = create_underlying_distri
   for (i in seq_len(number_draws)) {
     results[indices, "cases"] <- NA
   }
-  attr(results, "seed") <- seed
+  attr(results, "seed") <- original_seed
   return(results)
 }
 
@@ -1063,6 +1080,7 @@ create_standardized_test_data <- function(nrows = 8, ncols = 8, nlayers = 2, bas
                                           polygon_observation_idx = NA, polygon_size_bias = TRUE, min_time_left = lubridate::ymd("2000-01-01"), max_time_right = lubridate::ymd("2001-01-01"),
                                           seed) {
   seed <- get_or_set_seed(seed)
+  original_seed<-seed
 
   test_extent <- create_test_extent(seed = seed)
 
@@ -1112,7 +1130,7 @@ create_standardized_test_data <- function(nrows = 8, ncols = 8, nlayers = 2, bas
     underlying_distribution_mean = test_underlying_distribution[["mean"]], underlying_distribution_rcases = test_underlying_distribution[["rcases"]],
     raster = test_raster, seed = .GlobalEnv$.Random.seed
   )
-  attr(rc, "seed") <- seed
+  attr(rc, "seed") <- original_seed
   return(rc)
 }
 
