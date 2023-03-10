@@ -16,10 +16,6 @@ taxdat::update_libraries(perform = Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE), 
   "rstan", "xfun", "kableExtra", "MCMCvis", "stars", "raster", "cmdstanr"
 ))
 
-library(magrittr)
-library(bit64)
-# s2 has different ideas about geometry validity than postgis does
-sf::sf_use_s2(FALSE)
 
 
 
