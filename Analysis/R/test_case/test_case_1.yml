@@ -13,6 +13,7 @@ stan:
   niter: 4000.0
   nchain: 4.0
   model: mapping_model_inference.stan
+  use_intercept: yes
 test_metadata:
   raster:
     units: years
