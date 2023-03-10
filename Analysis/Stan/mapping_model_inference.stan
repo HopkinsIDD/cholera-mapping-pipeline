@@ -434,6 +434,12 @@ model {
     print("betas", target());
   }
   
+  // Priors on the over-dispersion parameters
+  
+  if (do_overdispersion == 1) {
+    inv_od_param ~ normal(mu_inv_od, sd_inv_od);
+  }
+  
   // ---- 4. Observations likelihood ----
   
   if (do_censoring == 1) {
