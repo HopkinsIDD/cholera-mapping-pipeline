@@ -16,7 +16,7 @@ taxdat::update_libraries(perform = Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE), 
   "rstan", "xfun", "kableExtra", "MCMCvis", "stars", "raster", "cmdstanr"
 ))
 
-
+sf::sf_use_s2(FALSE)
 
 
 ## Inputs
