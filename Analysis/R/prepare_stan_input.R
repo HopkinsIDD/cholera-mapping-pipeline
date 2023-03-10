@@ -325,14 +325,18 @@ prepare_stan_input <- function(
     taxdat::get_admin_level() %>% 
     as.array()
   
-  # index staring at 1
-  stan_data$map_obs_admin_lev <- admin_levels + 1
-  
   # Make sure all admin levels are specified
-  stan_data$map_obs_admin_lev[is.na(stan_data$map_obs_admin_lev)] <- max(stan_data$map_obs_admin_lev, na.rm = T)
+  admin_levels[is.na(admin_levels)] <- max(admin_levels, na.rm = T)
+  
+  # Get unique levels, this is necessary if not all admin levels are present
+  # in the data
+  u_admin_levels <- sort(unique(admin_levels))
+  
+  # index staring at 1
+  stan_data$map_obs_admin_lev <- purrr::map_dbl(admin_levels ~ which(u_admin_levels == .))
   
   # Add unique number of admin levels for use in observation model
-  stan_data$N_admin_lev <- length(unique(admin_levels[!is.na(admin_levels)]))
+  stan_data$N_admin_lev <- length(u_admin_levels)
   
   # ---- H. Mean rate ----
   stan_data$meanrate <- taxdat::compute_mean_rate(stan_data = stan_data)
@@ -513,6 +517,7 @@ prepare_stan_input <- function(
          sf_grid = sf_grid,
          smooth_grid  = smooth_grid,
          fake_output_obs = fake_output_obs,
-         config = config)
+         config = config,
+         u_admin_levels = u_admin_levels)
   )
 }
