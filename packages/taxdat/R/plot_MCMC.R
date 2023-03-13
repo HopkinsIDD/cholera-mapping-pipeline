@@ -19,17 +19,17 @@ plot_chain_convergence <- function(name,
                                    model_output_filenames,
                                    pars = c("rho", "alpha", "log_std_dev_w", "eta"),
                                    render = T){
-  time_effect_param <- tolower(yaml::read_yaml(paste0(cholera_directory,"/",config))$time_effect)
-  if(time_effect_param == 'no' | time_effect_param == 'false'){
-    pars <- pars[pars != "eta"]
-  }
-  pars<-pars[unlist(lapply(pars,function(x){any(str_detect(names(model.rand),x))}))]
-  
   if(name %in% names(cache)){
     model.rand <- cache[[name]]
   }else{
     model.rand <- read_file_of_type(model_output_filenames,"model.rand")
   }
+  
+  time_effect_param <- tolower(yaml::read_yaml(paste0(cholera_directory,"/",config))$time_effect)
+  if(time_effect_param == 'no' | time_effect_param == 'false'){
+    pars <- pars[pars != "eta"]
+  }
+  pars<-pars[unlist(lapply(pars,function(x){any(str_detect(names(model.rand),x))}))]
   
   if (render) {
     rstan::traceplot(model.rand, pars = pars)
