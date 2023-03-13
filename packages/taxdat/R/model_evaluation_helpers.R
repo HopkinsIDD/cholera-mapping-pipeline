@@ -802,13 +802,21 @@ pull_output_by_source <- function(sf_cases,
 #' @name plot_chain_convergence
 #' @title plot_chain_convergence
 #' @description add
+#' @param config 
+#' @param cholera_directory
 #' @param model_output_filenames model output filenames
 #' @param pars parameters for which to display traceplots
 #' @param render default is TRUE
 #' @return ggplot object with traceplots by parameter
-plot_chain_convergence <- function(model_output_filenames,
-                                   pars = c("rho", "betas", "log_std_dev_w"),
+plot_chain_convergence <- function(config, 
+                                   cholera_directory, 
+                                   model_output_filenames,
+                                   pars = c("rho", "alpha", "log_std_dev_w", "eta"),
                                    render = T){
+  time_effect_param <- tolower(yaml::read_yaml(paste0(cholera_directory,"/",config))$time_effect)
+  if(time_effect_param == 'no' | time_effect_param == 'false'){
+    pars <- c("rho", "log_std_dev_w")
+  }
   model.rand <- read_file_of_type(model_output_filenames,"model.rand")
   
   if (render) {

@@ -530,12 +530,13 @@ plot_WHOcomparison_table(config=params$config, cache=cache, cholera_directory=pa
 ## Model Convergence 
 **Stan trace plots:**
 ```{r traceplots, fig.height=8, fig.width=10, fig.cap=capFig("Stan trace plots")}
-plot_chain_convergence(cache=cache,name="model.rand")
+plot_chain_convergence(name="model.rand",cache=cache,config=params$config,cholera_directory=params$cholera_directory,
+                       model_output_filenames=file_names[["stan_output"]])
 ```
 
 **Parameter posteriors:**
 ```{r params, fig.height=6, fig.width=6, fig.cap=capFig("Parameter posteriors")}
-plot_MCMCpars(name="model.rand",cache=cache)
+plot_MCMCpars(name="model.rand",cache=cache,config=params$config,cholera_directory = params$cholera_directory)
 ```
 
 **Gelman-Rubin Rhat:**

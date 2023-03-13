@@ -2,16 +2,38 @@
 
 #' @export
 #' @name plot_chain_convergence
-#' @description plot the chain convergence
+#' @title plot_chain_convergence
+#' @description add
 #' @param name of the input object which is model.rand
 #' @param cache the cache environment
-#' @param pars a list of parameters which we want to display
-
-plot_chain_convergence <- function(cache, name, pars= c("rho", "alpha", "log_std_dev_w", "eta")){
-  model.rand <- cache[[name]]
-  pars<-pars[unlist(lapply(pars,function(x){any(str_detect(names(model.rand),x))}))]  
-  plot<- rstan::traceplot(model.rand, pars = pars)
-  return(plot)
+#' @param config 
+#' @param cholera_directory
+#' @param model_output_filenames model output filenames
+#' @param pars parameters for which to display traceplots
+#' @param render default is TRUE
+#' @return ggplot object with traceplots by parameter
+plot_chain_convergence <- function(name, 
+                                   cache, 
+                                   config, 
+                                   cholera_directory, 
+                                   model_output_filenames,
+                                   pars = c("rho", "alpha", "log_std_dev_w", "eta"),
+                                   render = T){
+  time_effect_param <- tolower(yaml::read_yaml(paste0(cholera_directory,"/",config))$time_effect)
+  if(time_effect_param == 'no' | time_effect_param == 'false'){
+    pars <- pars[pars != "eta"]
+  }
+  pars<-pars[unlist(lapply(pars,function(x){any(str_detect(names(model.rand),x))}))]
+  
+  if(name %in% names(cache)){
+    model.rand <- cache[[name]]
+  }else{
+    model.rand <- read_file_of_type(model_output_filenames,"model.rand")
+  }
+  
+  if (render) {
+    rstan::traceplot(model.rand, pars = pars)
+  }
 }
 
 # plot parameter posteriors
@@ -23,7 +45,12 @@ plot_chain_convergence <- function(cache, name, pars= c("rho", "alpha", "log_std
 #' @param pars a list of parameters which we want to display
 #' @return ggplot object
 
-plot_MCMCpars <- function(name,cache,pars = c("rho", "alpha", "log_std_dev_w", "eta")) {
+plot_MCMCpars <- function(name,cache,pars = c("rho", "alpha", "log_std_dev_w", "eta"),config,cholera_directory) {
+  time_effect_param <- tolower(yaml::read_yaml(paste0(cholera_directory,"/",config))$time_effect)
+  if(time_effect_param == 'no' | time_effect_param == 'false'){
+    pars <- pars[pars != "eta"]
+  }
+
   model.rand <- cache[[name]]
   pars<-pars[unlist(lapply(pars,function(x){any(str_detect(names(model.rand),x))}))]  
   plot <- rstan::plot(model.rand, pars = pars)
