@@ -3,7 +3,31 @@
 // The aim of the model is to produce inference on grid-level cholera rates.
 //
 
-
+// https://discourse.mc-stan.org/t/test-soft-vs-hard-sum-to-zero-constrain-choosing-the-right-prior-for-soft-constrain/3884/31
+functions {
+  vector Q_sum_to_zero_QR(int N) {
+    vector [2*N] Q_r;
+    
+    for(i in 1:N) {
+      Q_r[i] = -sqrt((N-i)/(N-i+1.0));
+      Q_r[i+N] = inv_sqrt((N-i) * (N-i+1));
+    }
+    return Q_r;
+  }
+  
+  vector sum_to_zero_QR(vector x_raw, vector Q_r) {
+    int N = num_elements(x_raw) + 1;
+    vector [N] x;
+    real x_aux = 0;
+    
+    for(i in 1:N-1){
+      x[i] = x_aux + x_raw[i] * Q_r[i];
+      x_aux = x_aux + x_raw[i] * Q_r[i+N];
+    }
+    x[N] = x_aux;
+    return x;
+  }
+}
 data {
   
   // Data sizes
@@ -85,6 +109,10 @@ transformed data {
   real <lower=0> pop_loctimes[L];        // pre-computed population in each location period
   real <lower=0, upper=1> tfrac_censoring[K1]; // tfrac accounting for censoring
   int<lower=0, upper=1> do_overdispersion;    // derived option to know whether the models contain overdispertion or not
+  vector[2*T] Q_r = Q_sum_to_zero_QR(T);      // this is for the 0-centered temporal random effects if used
+  real eta_zerosum_raw_sigma = inv_sqrt(1 - inv(T));
+  int<lower=0, upper=T> size_eta;
+  int<lower=0, upper=1> size_sd_eta;
   
   for (i in 1:K1) {
     if (censored[i] == 1) {
@@ -126,6 +154,19 @@ transformed data {
   } else {
     do_overdispersion = 1;
   }
+  
+  if (do_time_slice_effect == 1) {
+    if (do_zerosum_cnst == 1) {
+      size_eta = T - 1;
+      size_sd_eta = 0;
+    } else {
+      size_eta = T;
+      size_sd_eta = 1;
+    }
+  } else {
+    size_eta = 0;
+    size_sd_eta = 0;
+  }
 }
 
 parameters {
@@ -138,8 +179,8 @@ parameters {
   vector[smooth_grid_N] w;        // spatial random effect
   
   // Temporal random effects
-  vector[T*do_time_slice_effect] eta_tilde;    // uncentered temporal random effects
-  real <lower=0> sigma_eta[do_time_slice_effect*do_infer_sd_eta];    // sd of temporal random effects
+  vector[size_eta] eta_tilde;    // uncentered temporal random effects
+  real <lower=0> sigma_eta[size_sd_eta];    // sd of temporal random effects
   
   // Covariate effects
   vector[ncovar] betas;
@@ -166,7 +207,7 @@ transformed parameters {
     }
   }
   
-  if (do_infer_sd_eta == 1) {
+  if (size_sd_eta == 1) {
     sigma_eta_val = sigma_eta[1];
   } else {
     sigma_eta_val = sigma_eta_scale;
@@ -177,10 +218,15 @@ transformed parameters {
     vector[N] log_lambda;        // local log rate
     
     if (do_time_slice_effect == 1) {
-      for(i in 1:T) {
-        // scale yearly random effects
-        eta[i] = sigma_eta_val * eta_tilde[i];
-      }
+      if (do_zerosum_cnst == 0) {
+        for(i in 1:T) {
+          // scale yearly random effects
+          eta[i] = sigma_eta_val * eta_tilde[i];
+        }
+      } else {
+        // QR decomposition method
+        eta = sum_to_zero_QR(eta_tilde, Q_r);
+      }    
     }
     
     if (debug && (previous_debugs == 0)) {
@@ -399,10 +445,11 @@ model {
       target += (T-1.0)/2.0 * log(tau) - tau/2 * (dot_self(eta[2:T] - eta[1:(T-1)]));
       sum(eta) ~ normal(0, 0.001 * T); // soft sum to 0 constraint 
     } else {
-      eta_tilde ~ std_normal();
-      
-      if (do_zerosum_cnst) {
-        sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraint 
+      if (do_zerosum_cnst == 1) {
+        eta_tilde ~ normal(0, eta_zerosum_raw_sigma);
+        // sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraint 
+      } else {
+        eta_tilde ~ std_normal();
       }
     }
     
@@ -410,7 +457,7 @@ model {
       print("etas", target());
     }
     
-    if (do_infer_sd_eta == 1) {
+    if (size_sd_eta == 1) {
       // prior on the time_slice random effects
       sigma_eta ~ normal(0, sigma_eta_scale);
     } 
