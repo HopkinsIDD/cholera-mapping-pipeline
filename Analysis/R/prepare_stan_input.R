@@ -227,7 +227,7 @@ prepare_stan_input <- function(
       
       cat("-- Dropping", length(censored_zero_obs), "observations that are 0 and censored.\n")
       
-      sf_cases_resized <- sf_cases_resized[-censored_zero_obs]
+      sf_cases_resized <- sf_cases_resized[-censored_zero_obs, ]
       
       ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
         df = sf_cases_resized, 
