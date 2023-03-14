@@ -218,7 +218,12 @@ prepare_stan_input <- function(
   
   # Drop data that are censored and for which the observations are 0
   if (config$censoring) {
+    
+    cat("-- Checking for 0 censored observations \n")
+    
     censored_zero_obs <- which(stan_data$y[censoring_inds == "right-censored"] == 0)
+    
+    print(censored_zero_obs)
     
     if (length(censored_zero_obs) > 0) {
       
@@ -533,7 +538,7 @@ prepare_stan_input <- function(
   # an informative prior so as to produce little overdispersion. The over-dispersion for other
   # admin levels are allowed to have more prior support for larger amount of over-dispersion.
   stan_data$mu_inv_od <- rep(0, stan_data$N_admin_lev)   # center at 0 (note that this is on the scale of 1/tau)
-  stan_data$sd_inv_od <- c(1e-3, rep(1e-1, stan_data$N_admin_lev - 1))   # sd
+  stan_data$sd_inv_od <- c(5e-3, rep(1e-2, stan_data$N_admin_lev - 1))   # sd
   
   
   cat("**** FINISHED PREPARING STAN INPUT \n")
