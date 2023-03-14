@@ -3,6 +3,31 @@
 // The aim of the model is to produce inference on grid-level cholera rates.
 //
 // 
+// https://discourse.mc-stan.org/t/test-soft-vs-hard-sum-to-zero-constrain-choosing-the-right-prior-for-soft-constrain/3884/31
+functions {
+  vector Q_sum_to_zero_QR(int N) {
+    vector [2*N] Q_r;
+    
+    for(i in 1:N) {
+      Q_r[i] = -sqrt((N-i)/(N-i+1.0));
+      Q_r[i+N] = inv_sqrt((N-i) * (N-i+1));
+    }
+    return Q_r;
+  }
+  
+  vector sum_to_zero_QR(vector x_raw, vector Q_r) {
+    int N = num_elements(x_raw) + 1;
+    vector [N] x;
+    real x_aux = 0;
+    
+    for(i in 1:N-1){
+      x[i] = x_aux + x_raw[i] * Q_r[i];
+      x_aux = x_aux + x_raw[i] * Q_r[i+N];
+    }
+    x[N] = x_aux;
+    return x;
+  }
+}
 data {
   
   // Data sizes
@@ -16,6 +41,7 @@ data {
   int <lower=M> K1;    // the length of the mapping of observations to location periods and times
   int <lower=L> K2;    // the length of the mapping of location periods to gridcells
   int <lower=0> ncovar;    // Number of covariates
+  int<lower=1> N_admin_lev;    // the number of unique administrative levels in the data
   
   // Options
   int<lower=0, upper=1> do_censoring;       // Censoring of cases with tfracs bellow threshold
@@ -54,6 +80,7 @@ data {
   int <lower=0, upper=smooth_grid_N> map_smooth_grid[N];    // vector with repeating smooth_grid_N indexes repeating 1:N
   real <lower=0, upper=1> map_loc_grid_sfrac[K2];    // the population-weighed location spatial fraction covered by each gridcell
   int <lower=1, upper=N_space> map_spacetime_space_grid[N];  // map from spacextime grid cells to space-only grid
+  int<lower=1, upper=N_admin_lev> map_obs_admin_lev[M];    // administrative level of each observation for observation model
   
   // Time slices
   vector<lower=0, upper=1>[N*do_time_slice_effect] has_data_year;
@@ -68,9 +95,6 @@ data {
   // Priors
   int<lower=0> beta_sigma_scale;    // the scale of regression coefficients
   real<lower=0> sigma_eta_scale;    // the scale of temporal random effects sd
-  
-  // Observation model Likelihood
-  real<lower=0> od_param; 
   
   // For output summaries
   //  Data sizes
@@ -100,6 +124,11 @@ transformed data {
   real <lower=0> pop_loctimes[L];        // pre-computed population in each location period
   int N_output_adminlev = max(map_output_loc_adminlev)+1;    // number of admin levels in output
   real <lower=0, upper=1> tfrac_censoring[K1]; // tfrac accounting for censoring
+  int<lower=0, upper=1> do_overdispersion;    // derived option to know whether the models contain overdispertion or not
+  vector[2*T] Q_r = Q_sum_to_zero_QR(T);      // this is for the 0-centered temporal random effects if used
+  real eta_zerosum_raw_sigma = inv_sqrt(1 - inv(T));
+  int<lower=0, upper=T> size_eta;
+  int<lower=0, upper=1> size_sd_eta;
   
   for (i in 1:K1) {
     if (censored[i] == 1) {
@@ -133,6 +162,26 @@ transformed data {
       weights[i] = sqrt(weights[i]);
     }
   }
+  
+  // If poisson likelihood then no overdispertion
+  if (obs_model == 1) {
+    do_overdispersion = 0;
+  } else {
+    do_overdispersion = 1;
+  }
+  
+  if (do_time_slice_effect == 1) {
+    if (do_zerosum_cnst == 1) {
+      size_eta = T - 1;
+      size_sd_eta = 0;
+    } else {
+      size_eta = T;
+      size_sd_eta = 1;
+    }
+  } else {
+    size_eta = 0;
+    size_sd_eta = 0;
+  }
 }
 
 parameters {
@@ -145,13 +194,24 @@ parameters {
   vector[smooth_grid_N] w;        // spatial random effect
   
   // Temporal random effects
-  vector[T*do_time_slice_effect] eta_tilde;    // uncentered temporal random effects
-  real <lower=0> sigma_eta[do_time_slice_effect*do_infer_sd_eta];    // sd of temporal random effects
+  vector[size_eta] eta_tilde;    // uncentered temporal random effects
+  real <lower=0> sigma_eta[size_sd_eta];    // sd of temporal random effects
   
   // Covariate effects
   vector[ncovar] betas;
+  
+  // Overdispersion parameters
+  vector<lower=0>[N_admin_lev*do_overdispersion] inv_od_param;
 }
-
+transformed parameters {
+  vector[N_admin_lev*do_overdispersion] od_param;
+  
+  if (do_overdispersion == 1) {
+    for (i in 1:N_admin_lev) {
+      od_param[i] = 1/inv_od_param[i];
+    }
+  }
+}
 generated quantities {
   
   // Model estimates
@@ -197,10 +257,15 @@ generated quantities {
   }
   
   if (do_time_slice_effect == 1) {
-    for(i in 1:T) {
-      // scale yearly random effects
-      eta[i] = sigma_eta_val * eta_tilde[i];
-    }
+    if (do_zerosum_cnst == 0) {
+      for(i in 1:T) {
+        // scale yearly random effects
+        eta[i] = sigma_eta_val * eta_tilde[i];
+      }
+    } else {
+      // QR decomposition method
+      eta = sum_to_zero_QR(eta_tilde, Q_r);
+    }    
   }
   
   // log-rates without time-slice effects
@@ -396,10 +461,10 @@ generated quantities {
         log_lik[i] = poisson_lpmf(y[i] | modeled_cases[i]);
       } else if (obs_model == 2) {
         // Quasi-poisson likelihood
-        log_lik[i] = neg_binomial_2_lpmf(y[i] | modeled_cases[i], od_param * modeled_cases[i]);
+        log_lik[i] = neg_binomial_2_lpmf(y[i] | modeled_cases[i], od_param[map_obs_admin_lev[i]] * modeled_cases[i]);
       } else {
         // Neg-binom likelihood
-        log_lik[i] = neg_binomial_2_lpmf(y[i] | modeled_cases[i], od_param);
+        log_lik[i] = neg_binomial_2_lpmf(y[i] | modeled_cases[i], od_param[map_obs_admin_lev[i]]);
       }
     }
     
@@ -411,10 +476,10 @@ generated quantities {
         log_lik[ind_full[i]] = poisson_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]]);
       } else if (obs_model == 2) {
         // Quasi-poisson likelihood
-        log_lik[ind_full[i]] = neg_binomial_2_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]], od_param * modeled_cases[ind_full[i]]);
+        log_lik[ind_full[i]] = neg_binomial_2_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]], od_param[map_obs_admin_lev[ind_full[i]]] * modeled_cases[ind_full[i]]);
       } else {
         // Neg-binom likelihood
-        log_lik[ind_full[i]] = neg_binomial_2_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]], od_param);
+        log_lik[ind_full[i]] = neg_binomial_2_lpmf(y[ind_full[i]] | modeled_cases[ind_full[i]], od_param[map_obs_admin_lev[ind_full[i]]]);
       }
     }
     // rigth-censored observations
@@ -425,10 +490,10 @@ generated quantities {
         lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
       } else if (obs_model == 2) {
         // Quasi-poisson likelihood
-        lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param * modeled_cases[ind_right[i]]);
+        lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]] * modeled_cases[ind_right[i]]);
       } else {
         // Neg-binom likelihood
-        lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param);
+        lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]]);
       }
       
       // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
@@ -439,10 +504,10 @@ generated quantities {
           lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
         } else if (obs_model == 2) {
           // Quasi-poisson likelihood
-          lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param * modeled_cases[ind_right[i]]);
+          lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]] * modeled_cases[ind_right[i]]);
         } else {
           // Neg-binom likelihood
-          lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param);
+          lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]]);
         }
         lls[2] = lpmf;
         log_lik[ind_right[i]] = log_sum_exp(lls);
