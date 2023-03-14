@@ -494,7 +494,10 @@ model {
     
     if (N_admin_lev > 1) {
       // Other od params with hierarchical structure
-      inv_od_param[2:N_admin_lev] ~ normal(h_inv_od_mu, h_inv_od_sd);
+      
+      for (i in 2:N_admin_lev) {
+        inv_od_param[i] ~ normal(h_inv_od_mu, h_inv_od_sd);
+      }
       h_inv_od_mu ~ normal(h_mu_mean_inv_od, h_mu_sd_inv_od);
       h_inv_od_sd ~ normal(0, h_sd_sd_inv_od);
     }
