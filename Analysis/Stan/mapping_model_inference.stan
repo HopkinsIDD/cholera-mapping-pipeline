@@ -541,6 +541,7 @@ model {
             // Quasi-poisson likelihood
             lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]] * modeled_cases[ind_right[i]]);
           } else {
+            // print("i: ", i, " y: ", y[ind_right[i]], " mcases: ", modeled_cases[ind_right[i]], " od: ", od_param[map_obs_admin_lev[ind_right[i]]]);
             // Neg-binom likelihood
             lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]]);
           }
