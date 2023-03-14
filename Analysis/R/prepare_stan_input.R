@@ -365,6 +365,13 @@ prepare_stan_input <- function(
     taxdat::get_admin_level() %>% 
     as.array()
   
+  n_na_admin <- sum(is.na(admin_levels))
+  
+  if (n_na_admin > 0) {
+    cat("---- Replacing unknown admin level for ", n_na_admin, " observations corresponding to",
+        sum(stan_data$y[is.na(admin_levels)]), "cases. \n")
+  }
+  
   # Make sure all admin levels are specified
   admin_levels[is.na(admin_levels)] <- max(admin_levels, na.rm = T)
   
