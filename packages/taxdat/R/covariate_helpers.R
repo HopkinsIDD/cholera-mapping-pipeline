@@ -1355,7 +1355,7 @@ get_country_admin_units <- function(iso_code,
     sf::st_crs(boundary_sf) <- sf::st_crs(4326)
     message("Using the rgeoboundaries national shapefile for this country.")
   } else {
-    
+    message("Using the gadm national shapefile for this country.")
     boundary_sf <- geodata::gadm(country = iso_code, 
                                  level = admin_level, 
                                  path = tempdir()) 
