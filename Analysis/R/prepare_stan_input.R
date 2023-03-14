@@ -227,7 +227,7 @@ prepare_stan_input <- function(
       
       cat("-- Dropping", length(censored_zero_obs), "observations that are 0 and censored.\n")
       
-      sf_cases_resized <- sf_cases_resized[-censored_zero_obs, ]
+      sf_cases_resized <- sf_cases_resized[-c(censored_zero_obs), ]
       
       ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
         df = sf_cases_resized, 
@@ -244,6 +244,14 @@ prepare_stan_input <- function(
       censoring_inds <- taxdat::get_censoring_inds(stan_data = stan_data,
                                                    ind_mapping_resized = ind_mapping_resized,
                                                    censoring_thresh = config$censoring_thresh)
+      
+      # Update data
+      stan_data$M <- nrow(sf_cases_resized)
+      non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
+      obs_changer <- taxdat::make_changer(x = non_na_obs_resized) 
+      stan_data$map_obs_loctime_obs <- taxdat::get_map_obs_loctime_obs(x = ind_mapping_resized$map_obs_loctime_obs,
+                                                                       obs_changer = obs_changer)
+      stan_data$map_obs_loctime_loc <- as.array(ind_mapping_resized$map_obs_loctime_loc) 
     }
   }
   
