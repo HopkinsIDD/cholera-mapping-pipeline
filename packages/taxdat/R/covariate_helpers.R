@@ -1348,7 +1348,7 @@ get_country_admin_units <- function(iso_code,
                 shapeID,
                 shapeType)
     sf::st_crs(boundary_sf) <- sf::st_crs(4326)
-    
+    message("Using the aggregated gadm shapefiles for this region")
   } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA")&admin_level==0){
     boundary_sf <- rgeoboundaries::gb_adm0(iso_code) %>%
       select(shapeName,shapeID,shapeType,geometry)
