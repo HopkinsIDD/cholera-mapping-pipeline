@@ -280,6 +280,31 @@ if (config$time_effect) {
   stan_data$has_data_year <- array(dim = c(0))
 }
 
+# This is temporary to handle the overdispersed models
+if (config$obs_model == 3) {
+  init.list <- .1    # This seems to work for the negbinom model
+} else if (config$obs_model == 2) {
+  
+  N_w <- length(w.init)
+  N_eta <- length(eta)
+  if (config$do_zerosum_cnst) {
+    N_eta <- N_eta - 1
+  }
+  N_admin_lev <- stan_data$N_admin_lev
+  
+  init.list <- lapply(
+    1:nchain, 
+    function(i) {
+      list(
+        w = rnorm(N_w, 0, .1),
+        eta_tilde = as.array(rnorm(N_eta, 0, .1)),
+        alpha = rnorm(1, -5, .1),
+        inv_od_param = abs(rnorm(N_admin_lev, 3, 1)),
+        log_std_dev_w = rnorm(1, 0, .1)
+      )})
+}
+
+
 # Set value of negative binomial models with fixed overdispersion parameter
 # Javier 17-01-2023: This section is deprecated because we are not using this typoe of function anymore
 # if (stringr::str_detect(stan_model, "fixedphi")) {
