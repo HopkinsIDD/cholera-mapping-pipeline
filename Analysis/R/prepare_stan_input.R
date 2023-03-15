@@ -516,9 +516,7 @@ prepare_stan_input <- function(
     stan_data$debug <- debug
   }
   
-  # ---- L. Observation model ----
-  # Add quasi-poisson/neg-binom overdispersion parameter
-  stan_data$od_param <- NULL
+  # ---- L. Covariates ----
   
   # Option for double-exponential prior on betas
   stan_data$exp_prior <- config$exp_prior
@@ -552,14 +550,16 @@ prepare_stan_input <- function(
   # an informative prior so as to produce little overdispersion. The over-dispersion for other
   # admin levels are allowed to have more prior support for larger amount of over-dispersion.
   stan_data$mu_inv_od <- rep(0, stan_data$N_admin_lev)   # center at 0 (note that this is on the scale of 1/tau)
-  stan_data$sd_inv_od <- c(5e-3, rep(1e-1, stan_data$N_admin_lev - 1))   # sd
+  stan_data$sd_inv_od <- c(config$inv_od_sd_adm0, 
+                           rep(config$inv_od_sd_nopool,
+                               stan_data$N_admin_lev - 1))
   
   # Also save for hierarchical model
   stan_data$h_mu_mean_inv_od <- 0     # the mean of hierarchical inverse over-dispersion parameters
-  stan_data$h_mu_sd_inv_od <- 1e-2       # the sds  of hierarchical inverse over-dispersion parameters
-  stan_data$h_sd_sd_inv_od <- .05       # the sd of the hierarchical sd of inverse over-dispersion parameters
+  stan_data$h_mu_sd_inv_od <- config$h_mu_sd_inv_od       # the sds  of hierarchical inverse over-dispersion parameters
+  stan_data$h_sd_sd_inv_od <- config$h_sd_sd_inv_od       # the sd of the hierarchical sd of inverse over-dispersion parameters
   stan_data$mu_inv_od_lev0 <- 0       # mean of the inv od param for national level
-  stan_data$sd_inv_od_lev0 <- 5e-3    # sd of the inv od param for national level
+  stan_data$sd_inv_od_lev0 <- config$inv_od_sd_adm0    # sd of the inv od param for national level
   
   cat("**** FINISHED PREPARING STAN INPUT \n")
   
