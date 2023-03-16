@@ -190,7 +190,7 @@ parameters {
   
   // Spatial random effects
   real <lower=0, upper=1> rho;    // spatial correlation parameter
-  real log_std_dev_w;             // precision of the spatial effects
+  real<lower=0> std_dev_w;             // precision of the spatial effects
   vector[smooth_grid_N] w;        // spatial random effect
   
   // Temporal random effects
