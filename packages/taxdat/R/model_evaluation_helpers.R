@@ -798,24 +798,6 @@ pull_output_by_source <- function(sf_cases,
   return(sf_cases[matches,])
 }
 
-#' @export
-#' @name plot_chain_convergence
-#' @title plot_chain_convergence
-#' @description add
-#' @param model_output_filenames model output filenames
-#' @param pars parameters for which to display traceplots
-#' @param render default is TRUE
-#' @return ggplot object with traceplots by parameter
-plot_chain_convergence <- function(model_output_filenames,
-                                   pars = c("rho", "betas", "log_std_dev_w"),
-                                   render = T){
-  model.rand <- read_file_of_type(model_output_filenames,"model.rand")
-  
-  if (render) {
-    rstan::traceplot(model.rand, pars = pars)
-  }
-}
-
 
 #' @export
 #' @name get_spatial_coverage
