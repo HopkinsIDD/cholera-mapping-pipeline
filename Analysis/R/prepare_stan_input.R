@@ -561,6 +561,10 @@ prepare_stan_input <- function(
   stan_data$mu_inv_od_lev0 <- 0       # mean of the inv od param for national level
   stan_data$sd_inv_od_lev0 <- config$inv_od_sd_adm0    # sd of the inv od param for national level
   
+  
+  # Prior on the std_dev_w
+  stan_data$mu_sd_w <- .5
+  
   cat("**** FINISHED PREPARING STAN INPUT \n")
   
   return(
