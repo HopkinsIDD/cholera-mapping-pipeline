@@ -97,6 +97,7 @@ data {
   real<lower=0> sd_alpha;    // the sd of the intercept, if used
   real<lower=0> mu_inv_od[N_admin_lev];    // the means of the inverse over-dispersion parameters
   real<lower=0> sd_inv_od[N_admin_lev];    // the sds of the inverse over-dispersion parameters
+  real<lower=0> mu_sd_w;
   
   // Debug
   int debug;
@@ -175,7 +176,7 @@ parameters {
   
   // Spatial random effects
   real <lower=0, upper=1> rho;    // spatial correlation parameter
-  real log_std_dev_w;             // precision of the spatial effects
+  real<lower=0> std_dev_w;             // precision of the spatial effects
   vector[smooth_grid_N] w;        // spatial random effect
   
   // Temporal random effects
@@ -194,7 +195,7 @@ transformed parameters {
   
   vector[T*do_time_slice_effect] eta;    // temporal random effects
   vector[M] modeled_cases;        // expected number of cases for each observation
-  real std_dev_w = exp(log_std_dev_w);    // sd of spatial random effects
+  // real std_dev_w = exp(log_std_dev_w);    // sd of spatial random effects
   vector[N] grid_cases;       // cases modeled in each gridcell and time point
   real previous_debugs = 0;
   real sigma_eta_val;        // value of sigma_eta. This is either fixed to sigma_eta_scale if do_infer_sd_eta==0, or sigma_eta otherwise
@@ -425,7 +426,7 @@ model {
     }
   }
   
-  log_std_dev_w ~ normal(0,1);
+  std_dev_w ~ inv_gamma(2, mu_sd_w);
   
   if (debug && (previous_debugs == 0)) {
     print("dagar std", target());
