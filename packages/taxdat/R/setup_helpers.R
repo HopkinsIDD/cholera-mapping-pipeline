@@ -662,7 +662,7 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
   
   ### The general check
   for (nm in names(check_list)) {
-    if (nm == "od_param") {
+    if (nm %in% c('inv_od_sd_adm0', 'inv_od_sd_nopool', 'h_mu_sd_inv_od', 'h_sd_sd_inv_od')) {
       config_file[[nm]] <- check_list[[nm]](config_file[["obs_model"]], config_file[[nm]])
     } else if (nm == "covariate_choices") {
       config_file[[nm]] <- check_list[[nm]](config_file[[nm]], all_covariates)
