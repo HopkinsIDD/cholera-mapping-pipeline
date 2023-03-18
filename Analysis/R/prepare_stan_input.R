@@ -216,6 +216,45 @@ prepare_stan_input <- function(
                                                ind_mapping_resized = ind_mapping_resized,
                                                censoring_thresh = config$censoring_thresh)
   
+  # Drop data that are censored and for which the observations are 0
+  if (config$censoring) {
+    
+    cat("-- Checking for 0 censored observations \n")
+    
+    y <- sf_cases_resized[[cases_column]]
+    censored_zero_obs <- which(y == 0 && censoring_inds == "right-censored")
+    
+    if (length(censored_zero_obs) > 0) {
+      
+      cat("-- Dropping", length(censored_zero_obs), "observations that are 0 and censored.\n")
+      
+      sf_cases_resized <- sf_cases_resized[-censored_zero_obs, ]
+      
+      ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+        df = sf_cases_resized, 
+        lp_dict = location_periods_dict,
+        model_time_slices = time_slices,
+        res_time = res_time,
+        n_cpus = ncore,
+        do_parallel = F)
+      
+      # First define censored observations
+      stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
+      
+      # Extract censoring information
+      censoring_inds <- taxdat::get_censoring_inds(stan_data = stan_data,
+                                                   ind_mapping_resized = ind_mapping_resized,
+                                                   censoring_thresh = config$censoring_thresh)
+      
+      stan_data$M <- nrow(sf_cases_resized)
+      non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
+      obs_changer <- taxdat::make_changer(x = non_na_obs_resized) 
+      stan_data$map_obs_loctime_obs <- taxdat::get_map_obs_loctime_obs(x = ind_mapping_resized$map_obs_loctime_obs,
+                                                                       obs_changer = obs_changer)
+      stan_data$map_obs_loctime_loc <- as.array(ind_mapping_resized$map_obs_loctime_loc) 
+    }
+  }
+  
   # Then overwrite tfrac with user-specified value
   if (set_tfrac) {
     cat("-- Overwriting tfrac for non-censored observations with 1")
