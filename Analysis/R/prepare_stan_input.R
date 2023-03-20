@@ -563,7 +563,7 @@ prepare_stan_input <- function(
   
   
   # Prior on the std_dev_w
-  stan_data$mu_sd_w <- .5
+  stan_data$mu_sd_w <- config$mu_sd_w
   
   cat("**** FINISHED PREPARING STAN INPUT \n")
   
