@@ -595,6 +595,8 @@ get_all_config_options <- function() {
     covariate_transformations = "no-check", 
     beta_sigma_scale = "stan-check",
     sigma_eta_scale = "stan-check", 
+    mu_alpha = as.function(check_mu_alpha),
+    sd_alpha = as.function(check_sd_alpha),
     exp_prior = "stan-check", 
     do_infer_sd_eta = "stan-check",
     do_zerosum_cnst = "stan-check", 
@@ -824,5 +826,42 @@ check_od_param_sd_sd_prior_pooling <- function(obs_model,
   return(h_sd_sd_inv_od_updated)
 }
 
+#' check_mu_alpha
+#'
+#' @param x 
+#' @param default_value 
+#'
+#' @return
+#' @export
+#'
+check_mu_alpha <- function( x, 
+                            default_value = 0) {
+  
+  if (is.null(x)) {
+    par <- default_value
+  } else {
+    par <- try_conv_numeric(x)
+  }
 
+  par
+}
 
+#' check_sd_alpha
+#'
+#' @param x 
+#' @param default_value 
+#'
+#' @return
+#' @export
+#'
+check_sd_alpha <- function( x, 
+                            default_value = 1) {
+  
+  if (is.null(x)) {
+    par <- default_value
+  } else {
+    par <- try_conv_numeric(x)
+  }
+
+  par
+}
