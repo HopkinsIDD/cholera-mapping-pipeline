@@ -142,7 +142,7 @@ color_scale <- function(type = "cases", use_case = "leaflet", use_log = FALSE) {
     return(colorRampPalette(colors, space = "Lab"))
   } else if (use_case == "ggplot map") {
     return(
-      ggplot2::scale_fill_gradientn(colours = colors, oob = scales::squish, limits = limits, trans = transform, guide = ggplot2::guide_colorbar(label.theme = ggplot2::element_text(angle = 45)))
+      ggplot2::scale_fill_gradientn(colours = colors, oob = scales::squish, limits = limits, trans = transform, guide = ggplot2::guide_colorbar(label.theme = ggplot2::element_text(angle = 45)), na.value = "grey50")
     )
   } else {
     stop(paste("The use case", use_case, "is not recognized"))

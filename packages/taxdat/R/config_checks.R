@@ -20,14 +20,17 @@ config_docstrings[["stan"]][["nchain"]] <- "The number of chains to use when run
 config_docstrings[["stan"]][["ncores"]] <- "The number of parallel processes to use when running stan. integer. Should not be greater than the number of chains. Defaults to 4 or the number of chains, whichever is smaller."
 config_docstrings[["stan"]][["beta_sigma_scale"]] <- "This value is used to rescale the standard deviation associated with the covariate contributions (beta). numeric. Defaults to 1."
 config_docstrings[["stan"]][["sigma_eta_scale"]] <- "This value is used to rescale the eta values. numeric. Defaults to 5."
-config_docstrings[["stan"]][["sigma_eta_scale"]] <- "This value is used to rescale the eta values. numeric. Defaults to 5."
 config_docstrings[["stan"]][["do_time_slice"]] <- list()
 config_docstrings[["stan"]][["do_time_slice"]][["eta_simplex"]] <- "Should we compute initial conditions as though the eta values are part of a simplex. logical. Defaults to FALSE."
 config_docstrings[["stan"]][["do_time_slice"]][["perform"]] <- "Should we compute values for the temporal random effect eta. logical. Defaults to TRUE."
 config_docstrings[["stan"]][["do_time_slice"]][["autocorrelated_prior"]] <- "Should the prior associated with the temporal random effect (eta) be autocorrelated. logical. Defaults to TRUE."
 config_docstrings[["stan"]][["model"]] <- "Filename (no directory) of the stan model to use."
 config_docstrings[["stan"]][["exp_prior"]] <- "Should we use a double exponential prior for covariate contributions (beta) to help unused covariates tend toward 0. logical. Defaults to FALSE."
-config_docstrings[["stan"]][["narrower_prior"]] <- "Should we use a narrower prior for the standard deviation of covariate contributions (beta). logical. Defaults to TRUE."
+config_docstrings[["stan"]][["obs_model"]] <- "Which model should we use? Numeric. Defaults to 1 (basic poisson model)"
+config_docstrings[["stan"]][["use_intercept"]] <- "Should we include an intercept in the model. logical. Defaults to FALSE."
+config_docstrings[["stan"]][["do_zerosum_cnst"]] <- "Should we enforce a 0-sum constraint on the yearly random effects. logical. Defaults to FALSE."
+config_docstrings[["stan"]][["do_infer_sd_eta"]] <- "nd toward 0. logical. Defaults to FALSE."
+config_docstrings[["stan"]][["od_param"]] <- "Overdispersion parameter that accompanies the obs_model selection. Numeric. Defaults to 0."
 config_docstrings[["initial_values"]] <- list()
 config_docstrings[["initial_values"]][["warmup"]] <- "Should we use the gam model to try to find better starting conditions for the stan model. logical. Defaults to TRUE."
 config_docstrings[["processing"]] <- list()
@@ -466,6 +469,50 @@ config_checks[["stan"]][["sigma_eta_scale"]] <- function(value, config, index) {
   }
   return(TRUE)
 }
+# QZ added: od_param
+config_checks[["stan"]][["od_param"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['od_param']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['od_param']] is NA")
+    return(FALSE)
+  }
+  if (!is.numeric(value)) {
+    warning(
+      "config[['stan']][['od_param']] should be numeric, but is",
+      value
+    )
+    return(FALSE)
+  }
+  return(TRUE)
+}
+# QZ added: obs_model
+config_checks[["stan"]][["obs_model"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['obs_model']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['obs_model']] is NA")
+    return(FALSE)
+  }
+  if (!is.numeric(value)) {
+    warning(
+      "config[['stan']][['obs_model']] should be 1,2 or 3, but is",
+      value
+    )
+    return(FALSE)
+  }
+  return(TRUE)
+}
 config_checks[["stan"]][["do_time_slice"]] <- list()
 config_checks[["stan"]][["do_time_slice"]][["eta_simplex"]] <- function(value, config, index) {
   if (length(value) != 1) {
@@ -588,21 +635,23 @@ config_checks[["stan"]][["exp_prior"]] <- function(value, config, index) {
   }
   return(TRUE)
 }
-config_checks[["stan"]][["narrower_prior"]] <- function(value, config, index) {
+
+## QZ: added use_intercept
+config_checks[["stan"]][["use_intercept"]] <- function(value, config, index) {
   if (length(value) != 1) {
     warning(paste(
-      "config[['stan']][['narrower_prior']] should be of length 1, but is of length",
+      "config[['stan']][['use_intercept']] should be of length 1, but is of length",
       length(value), "with value", value
     ))
     return(FALSE)
   }
   if (is.na(value)) {
-    warning("config[['stan']][['narrower_prior']] is NA")
+    warning("config[['stan']][['use_intercept']] is NA")
     return(FALSE)
   }
   if (!is.logical(value)) {
     warning(
-      "config[['stan']][['narrower_prior']] should be logical, but is",
+      "config[['stan']][['use_intercept']] should be logical, but is",
       value
     )
     return(FALSE)
@@ -610,6 +659,51 @@ config_checks[["stan"]][["narrower_prior"]] <- function(value, config, index) {
   return(TRUE)
 }
 
+## QZ: added do_zerosum_cnst
+config_checks[["stan"]][["do_zerosum_cnst"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['do_zerosum_cnst']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['do_zerosum_cnst']] is NA")
+    return(FALSE)
+  }
+  if (!is.logical(value)) {
+    warning(
+      "config[['stan']][['do_zerosum_cnst']] should be logical, but is",
+      value
+    )
+    return(FALSE)
+  }
+  return(TRUE)
+}
+
+## QZ: added do_zerosum_cnst
+config_checks[["stan"]][["do_infer_sd_eta"]] <- function(value, config, index) {
+  if (length(value) != 1) {
+    warning(paste(
+      "config[['stan']][['do_infer_sd_eta']] should be of length 1, but is of length",
+      length(value), "with value", value
+    ))
+    return(FALSE)
+  }
+  if (is.na(value)) {
+    warning("config[['stan']][['do_infer_sd_eta']] is NA")
+    return(FALSE)
+  }
+  if (!is.logical(value)) {
+    warning(
+      "config[['stan']][['do_infer_sd_eta']] should be logical, but is",
+      value
+    )
+    return(FALSE)
+  }
+  return(TRUE)
+}
 config_checks[["initial_values"]] <- list()
 config_checks[["initial_values"]][["warmup"]] <- function(value, config, index) {
   if (length(value) != 1) {
@@ -1475,6 +1569,9 @@ config_defaults[["stan"]][["beta_sigma_scale"]] <- function(config, index) {
 config_defaults[["stan"]][["sigma_eta_scale"]] <- function(config, index) {
   return(5)
 }
+config_defaults[["stan"]][["od_param"]] <- function(config, index) {
+  return(1)
+}
 config_defaults[["stan"]][["do_time_slice"]] <- list()
 config_defaults[["stan"]][["do_time_slice"]][["perform"]] <- function(config, index) {
   return(TRUE)
@@ -1488,8 +1585,17 @@ config_defaults[["stan"]][["do_time_slice"]][["autocorrelated_prior"]] <- functi
 config_defaults[["stan"]][["exp_prior"]] <- function(config, index) {
   return(FALSE)
 }
-config_defaults[["stan"]][["narrower_prior"]] <- function(config, index) {
+config_defaults[["stan"]][["use_intercept"]] <- function(config, index) {
   return(FALSE)
+}
+config_defaults[["stan"]][["do_zerosum_cnst"]] <- function(config, index) {
+  return(FALSE)
+}
+config_defaults[["stan"]][["do_infer_sd_eta"]] <- function(config, index) {
+  return(FALSE)
+}
+config_defaults[["stan"]][["obs_model"]] <- function(config, index) {
+  return(1)
 }
 config_defaults[["generated"]] <- list()
 config_defaults[["generated"]][["perform"]] <- function(config, index) {

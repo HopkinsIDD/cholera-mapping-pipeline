@@ -12,7 +12,8 @@ processing: []
 stan:
   niter: 4000.0
   nchain: 4.0
-  model: dagar_seasonal_flexible.stan
+  model: mapping_model_inference.stan
+  use_intercept: yes
 test_metadata:
   raster:
     units: years

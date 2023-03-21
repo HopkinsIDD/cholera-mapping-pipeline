@@ -13,6 +13,9 @@ taxdat::update_libraries(perform = Sys.getenv("CHOLERA_CHECK_LIBRARIES", TRUE), 
 ))
 
 library(magrittr)
+library(bit64)
+# s2 has different ideas about geometry validity than postgis does
+sf::sf_use_s2(FALSE)
 
 option_list <- list(
   optparse::make_option(c("-c", "--config"),
@@ -299,7 +302,7 @@ true_grid_data <- test_underlying_distribution$mean # QZ: instead of true observ
 buffer <- min(c(
   (sf::st_bbox(test_extent)$xmax - sf::st_bbox(test_extent)$xmin) / config[["test_metadata"]][["raster"]][["ncol"]],
   (sf::st_bbox(test_extent)$ymax - sf::st_bbox(test_extent)$ymin) / config[["test_metadata"]][["raster"]][["nrow"]]
-)) * 100 * 1000 * .05
+)) * .05
 lhs <- t(sf::st_contains(sf::st_buffer(test_observations, buffer), true_grid_data)) # test_observations contains test_observed_grid
 rhs <- sf::st_contains(sf::st_buffer(true_grid_data, buffer), test_observations) # test_observed_grid contains test_observations
 
@@ -314,8 +317,8 @@ true_grid_data$observed <- mapply(
   rhs, # row
   FUN = function(idx, x, y) {
     rc <- intersect(x, y)
-    rc <- rc[true_grid_data$t[idx] == test_observations$tmin[rc]]
-    rc <- rc[true_grid_data$t[idx] == test_observations$tmax[rc]]
+    # rc <- rc[true_grid_data$t[idx] == test_observations$tmin[rc]] #remove the temporal component of observing grid cells
+    # rc <- rc[true_grid_data$t[idx] == test_observations$tmax[rc]] #remove the temporal component of observing grid cells
     return(ifelse(length(rc) > 0, "Observed grid cells", "Unobserved grid cells"))
   }
 )
