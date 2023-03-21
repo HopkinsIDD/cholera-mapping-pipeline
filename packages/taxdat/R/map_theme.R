@@ -3,15 +3,15 @@
 #' @title plot_theme
 #' @description default ggplot plot theme settings for cholera plotting
 #' @return ggplot plot theme for cholera plotting
-plot_theme <- function(theme_type="bw") {
-  if(theme_type == "gray"){
+plot_theme <- function(theme_type = "bw") {
+  if (theme_type == "gray") {
     return(
-      ggplot2::theme(panel.background = element_rect(fill = 'gray'))
+      ggplot2::theme(panel.background = element_rect(fill = "gray"))
     )
-  }else{
+  } else {
     return(
       ggplot2::theme_bw()
-    )    
+    )
   }
 }
 
@@ -20,7 +20,7 @@ plot_theme <- function(theme_type="bw") {
 #' @title map_theme
 #' @description default ggplot map theme settings for cholera mapping
 #' @return ggplot map theme for cholera mapping
-map_theme <- function(theme_type="bw") {
+map_theme <- function(theme_type = "bw") {
   return(
     taxdat::plot_theme(theme_type = theme_type) +
       ggplot2::theme(

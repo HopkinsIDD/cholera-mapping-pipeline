@@ -9,7 +9,7 @@
 #' @param color_scale the color scale of the plot
 #' @param fill_column the column name to fill the raster
 #' @return ggplot object
-plot_sf_with_fill <- function(cache, name, color_scale_type, fill_column, facet_column = "set", geometry_column = "geometry", color_scale_use_log = NA, include_borders = TRUE, legend_title = NULL,theme_type="bw",facet_row_number=NULL) {
+plot_sf_with_fill <- function(cache, name, color_scale_type, fill_column, facet_column = "set", geometry_column = "geometry", color_scale_use_log = NA, include_borders = TRUE, legend_title = NULL, theme_type = "bw", facet_row_number = NULL) {
   if (is.na(color_scale_use_log)) {
     color_scale_use_log <- ifelse(color_scale_type %in% c("population"), TRUE, FALSE)
   }
@@ -23,12 +23,12 @@ plot_sf_with_fill <- function(cache, name, color_scale_type, fill_column, facet_
   plot <- plot + taxdat::color_scale(type = color_scale_type, use_case = "ggplot map", use_log = color_scale_use_log) +
     taxdat::map_theme(theme_type = theme_type)
   if (!is.null(facet_column)) {
-    if(is.null(facet_row_number)){
+    if (is.null(facet_row_number)) {
       plot <- plot +
         ggplot2::facet_wrap(formula(paste("~", paste(facet_column, collapse = " + "))))
-    } else{
+    } else {
       plot <- plot +
-        ggplot2::facet_wrap(formula(paste("~", paste(facet_column, collapse = " + "))),nrow = facet_row_number)      
+        ggplot2::facet_wrap(formula(paste("~", paste(facet_column, collapse = " + "))), nrow = facet_row_number)
     }
   }
   if (!is.null(legend_title)) {
@@ -325,9 +325,9 @@ plot_raster_covariates <- function(config, cache, cholera_directory) {
   # FIX ME
   aggregate_covar_cube_covariates(config = config, cache = cache, cholera_directory = cholera_directory)
   if (is.null(cache[["config"]][["test_metadata"]])) {
-    return(plot_sf_with_fill(cache, "covar_cube_covariates_aggregated", color_scale_type = "covariate", fill_column = "value", facet_column = c("(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))","name"), geometry_column = "geom"))
+    return(plot_sf_with_fill(cache, "covar_cube_covariates_aggregated", color_scale_type = "covariate", fill_column = "value", facet_column = c("(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))", "name"), geometry_column = "geom"))
   } else {
-    return(plot_sf_with_fill(cache, "covar_cube_covariates_aggregated", color_scale_type = "covariate", fill_column = "value", facet_column = c("(lubridate::ymd(cache[['config']][['general']][['start_date']]) + automated_period(t-1, rep(cache[['config']][['test_metadata']][['raster']][['units']],length(unique(t)))))","name"), facet_row_number=length(unique(cache[["covar_cube_covariates_aggregated"]]$t)), geometry_column = "geom"))
+    return(plot_sf_with_fill(cache, "covar_cube_covariates_aggregated", color_scale_type = "covariate", fill_column = "value", facet_column = c("(lubridate::ymd(cache[['config']][['general']][['start_date']]) + automated_period(t-1, rep(cache[['config']][['test_metadata']][['raster']][['units']],length(unique(t)))))", "name"), facet_row_number = length(unique(cache[["covar_cube_covariates_aggregated"]]$t)), geometry_column = "geom"))
   }
 }
 
@@ -356,13 +356,13 @@ plot_raster_covariates_datagen <- function(config, cache, cholera_directory) {
       rc[["covariate"]] <- covariate_name
       return(rc)
     }
-  )) %>% 
+  )) %>%
     dplyr::arrange(t)
 
   if (is.null(cache[["config"]][["test_metadata"]])) {
-    return(plot_sf_with_fill(cache, "data_simulation_covs", color_scale_type = "covariate", fill_column = "value", facet_column = c("(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))","covariate"), geometry_column = "geometry"))
+    return(plot_sf_with_fill(cache, "data_simulation_covs", color_scale_type = "covariate", fill_column = "value", facet_column = c("(lubridate::ymd('1999-01-01') + automated_period(t, rep(cache[['config']][['general']][['time_scale']],length(unique(t)))))", "covariate"), geometry_column = "geometry"))
   } else {
-    return(plot_sf_with_fill(cache, "data_simulation_covs", color_scale_type = "covariate", fill_column = "value", facet_column = c("(lubridate::ymd(cache[['config']][['general']][['start_date']]) + automated_period(t-1, rep(cache[['config']][['test_metadata']][['raster']][['units']],length(unique(t)))))","covariate"), facet_row_number = length(unique(cache[["data_simulation_covs"]]$t)), geometry_column = "geometry"))
+    return(plot_sf_with_fill(cache, "data_simulation_covs", color_scale_type = "covariate", fill_column = "value", facet_column = c("(lubridate::ymd(cache[['config']][['general']][['start_date']]) + automated_period(t-1, rep(cache[['config']][['test_metadata']][['raster']][['units']],length(unique(t)))))", "covariate"), facet_row_number = length(unique(cache[["data_simulation_covs"]]$t)), geometry_column = "geometry"))
   }
 }
 
@@ -544,7 +544,10 @@ plot_w_mean <- function(cache, config, cholera_directory) {
     group_by(variable) %>%
     summarise(mean = mean(value)) # QZ: mean across chain and iterations
   get_covar_cube(cache = cache, config = params$config, cholera_directory = params$cholera_directory)
-  plot_w_mean_data <- cache[["covar_cube"]] %>% dplyr::arrange(x) %>% dplyr::arrange(y) %>% subset(t == 1)
+  plot_w_mean_data <- cache[["covar_cube"]] %>%
+    dplyr::arrange(x) %>%
+    dplyr::arrange(y) %>%
+    subset(t == 1)
   plot_w_mean_data$w_mean <- w_mean$mean
   return(plot(plot_w_mean_data[, c("w_mean", "geometry")]))
 }
