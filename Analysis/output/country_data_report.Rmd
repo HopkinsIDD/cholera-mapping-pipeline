@@ -15,8 +15,8 @@ knitr::opts_chunk$set(
   dev = "CairoPNG",
   error = FALSE,
   fig.align = "center",
-  message = TRUE,
-  warning = TRUE
+  message = FALSE,
+  warning = FALSE
 )
 library(stringr)
 library(dplyr)
