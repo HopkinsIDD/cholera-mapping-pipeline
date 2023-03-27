@@ -1347,8 +1347,15 @@ get_country_admin_units <- function(iso_code,
        dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
                 shapeID,
                 shapeType)
+    sf::st_crs(boundary_sf) <- sf::st_crs(4326)
+    message("Using the aggregated gadm shapefiles for this region")
+  } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA")&admin_level==0){
+    boundary_sf <- rgeoboundaries::gb_adm0(iso_code) %>%
+      select(shapeName,shapeID,shapeType,geometry)
+    sf::st_crs(boundary_sf) <- sf::st_crs(4326)
+    message("Using the rgeoboundaries national shapefile for this country.")
   } else {
-    
+    message("Using the gadm national shapefile for this country.")
     boundary_sf <- geodata::gadm(country = iso_code, 
                                  level = admin_level, 
                                  path = tempdir()) 
