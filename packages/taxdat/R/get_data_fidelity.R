@@ -21,7 +21,15 @@ get_data_fidelity <- function(cache,config,cholera_directory){
   dimnames(actual_cases) <- dimnames(modeled_cases_chain_mean)
   modeled_cases_chain_mean <- reshape2::melt(modeled_cases_chain_mean)
   actual_cases <- reshape2::melt(actual_cases)
-  actual_cases$censoring <- rep(stan_data$censoring_inds, each = nchain)
+  if(nrow(actual_cases) != length(rep(stan_data$censoring_inds, each = nchain))){
+    actual_cases_censored <- actual_cases[!grepl("tfrac_", actual_cases$variable), ]
+    actual_cases_censored$censoring <- rep(stan_data$censoring_inds[!is.na(stan_data$censoring_inds)], each = nchain)
+    actual_cases_tfrac <- actual_cases[grepl("tfrac_", actual_cases$variable), ]
+    actual_cases_tfrac$censoring <- NA
+    actual_cases <- rbind(actual_cases_tfrac, actual_cases_censored)
+  }else{
+    actual_cases$censoring <- rep(stan_data$censoring_inds, each = nchain)
+  }
   
   actual_cases$oc_uid <- rep(cache[["stan_input"]]$sf_cases_resized$OC_UID, 
                              each = nchain) 
