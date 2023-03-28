@@ -491,17 +491,17 @@ test_that("check_set_tfrac works",{
 test_that("check_snap_tol works",{
   tmpfile <- tempfile(fileext = ".yml")
   
-  yaml::write_yaml(data.frame(snap_tol = "7/365"), tmpfile)
+  yaml::write_yaml(data.frame(snap_tol = "7/365", res_time ="1 years"), tmpfile)
   config_equal <- yaml::read_yaml(tmpfile)
   expect_equal(
-    round(check_snap_tol(config_equal$snap_tol),3),
+    round(check_snap_tol(snap_tol = config_equal$snap_tol, res_time = config_equal$res_time),3),
     0.019
   )
   
   yaml::write_yaml(data.frame(snap_tol = "7)365"), tmpfile)
   config_error <- yaml::read_yaml(tmpfile)
   expect_error(
-    check_snap_tol(config_equal$snap_tol),
+    check_snap_tol(snap_tol = config_error$snap_tol, res_time = config_error$res_time),
     "snap_tol expression is invalid."
   )
 
