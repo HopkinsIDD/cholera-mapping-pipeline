@@ -454,7 +454,10 @@ check_set_tfrac <- function(set_tfrac) {
 #'
 check_snap_tol <- function(snap_tol, res_time) {
     if (!is.null(snap_tol)) {
-      snap_tol <- eval(parse(text = snap_tol))
+      snap_tol<-tryCatch(eval(parse(text = snap_tol)),
+                         error=function(e) {
+                           stop('snap_tol expression is invalid.')
+                           print(e)})
         if (snap_tol < 0) {
             stop("Cannot specifiy negative snap tolerance values")
         }
