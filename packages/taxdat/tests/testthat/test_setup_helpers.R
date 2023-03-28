@@ -498,7 +498,7 @@ test_that("check_snap_tol works",{
     0.019
   )
   
-  yaml::write_yaml(data.frame(snap_tol = "7)365"), tmpfile)
+  yaml::write_yaml(data.frame(snap_tol = "7)365", res_time ="1 years"), tmpfile)
   config_error <- yaml::read_yaml(tmpfile)
   expect_error(
     check_snap_tol(snap_tol = config_error$snap_tol, res_time = config_error$res_time),
