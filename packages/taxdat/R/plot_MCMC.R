@@ -27,7 +27,7 @@ plot_chain_convergence <- function(name,
   
   time_effect_param <- tolower(yaml::read_yaml(paste0(cholera_directory,"/",config))$time_effect)
   if(time_effect_param == 'no' | time_effect_param == 'false'){
-    warning("There is no time effect, meaning eta and alpha will not be shown. ")
+    warning("There is no time effect, meaning the eta parameter(s) will not be shown. ")
   }
   # pars<-pars[unlist(lapply(pars,function(x){any(str_detect(names(model.rand),x))}))]
   
@@ -56,7 +56,7 @@ plot_MCMCpars <- function(name,
   
   time_effect_param <- tolower(yaml::read_yaml(paste0(cholera_directory,"/",config))$time_effect)
   if(time_effect_param == 'no' | time_effect_param == 'false'){
-    warning("There is no time effect, meaning eta and alpha will not be shown. ")
+    warning("There is no time effect, meaning the eta parameter(s) will not be shown. ")
   }
   # pars<-pars[unlist(lapply(pars,function(x){any(str_detect(names(model.rand),x))}))]
 
