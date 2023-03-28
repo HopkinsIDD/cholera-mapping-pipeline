@@ -488,4 +488,22 @@ test_that("check_set_tfrac works",{
 
 })
 
+test_that("check_snap_tol works",{
+  tmpfile <- tempfile(fileext = ".yml")
+  
+  yaml::write_yaml(data.frame(snap_tol = "7/365", res_time ="1 years"), tmpfile)
+  config_equal <- yaml::read_yaml(tmpfile)
+  expect_equal(
+    round(check_snap_tol(snap_tol = config_equal$snap_tol, res_time = config_equal$res_time),3),
+    0.019
+  )
+  
+  yaml::write_yaml(data.frame(snap_tol = "7)365", res_time ="1 years"), tmpfile)
+  config_error <- yaml::read_yaml(tmpfile)
+  expect_error(
+    check_snap_tol(snap_tol = config_error$snap_tol, res_time = config_error$res_time),
+    "snap_tol expression is invalid."
+  )
+
+})
 ## check_snap_tol, check_use_pop_weight, check_sfrac_thresh, check_ingest_covariates, check_ingest_new_covariates, check_stan_debug, check_stan_model, get_all_config_options, check_update_config
