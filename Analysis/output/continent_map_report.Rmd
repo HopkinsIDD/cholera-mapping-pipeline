@@ -5,37 +5,18 @@ output:
     toc: true
     toc_float: true
 params:
-  cholera_directory: "/home/kaiyuezou/mapping_pipeline/9_23_dev/cholera-mapping-pipeline" #this is where the pipeline model is
-  config_directory: "Analysis/configs/Gavi_reports/Dec_2021_runs" #this is where to find the configs
-  output_dir: "Analysis/data/true_2021_Dec_runs_output_for_push/cholera-mapping-output" #this is where to find the model output, it doesn't need to exist in advance
+  cholera_directory: "/home/.../cholera-mapping-pipeline" #this is where the pipeline model is
+  config_directory: "Analysis/..." #this is where to find the configs
+  output_dir: "Analysis/..." #this is where to find the model output, it doesn't need to exist in advance
   map_output_dir: "Analysis/output/continent_map" #this is where to put the continent map generated from running the code
-  local_shapefile_name: "Layers/africa_self_shp/afr_g2014_2013_0.shp" #this is a local dir where Africa continent shapefile is saved, better to use GADMTools in the future
+  modeled_years: c(2016:2020)
   max_countries: Inf
-  dropped_years: list("ZWE" = c(2017), "ZNZ" = c(2018, 2019), "SDN" = c(2015, 2017)) #if there are years of output that we don't wanna include 
+  dropped_years: list("ZWE" = c(2017), "ZNZ" = c(2018, 2019), "SDN" = c(2015, 2017)) #OPTIONAL: if there are years of output that we don't wanna include 
+  separate_TZA: c("TZA_mainland", "TZA_zanzibar") #OPTIONAL: "TZA" if running the country was run as a whole or empty is not included 
+  tmp_dropped_countries <- c("ZAF") #OPTIONAL: drop countries that have the configs but don't have the complete output 
 ---
 
 ```{r setup, include=FALSE, dev="CairoPNG"}
-# Remember to comment out the following lines when running the whole report
-params <- new.env()
-params$cholera_directory <- "/home/kaiyuezou/mapping_pipeline/2016_2020_no_covariate_run/cholera-mapping-pipeline" #this is where the pipeline model is
-params$config_directory <- "Analysis/configs/no_covariate_production_2016_2020/2016_2020_country" #this is where to find the configs
-params$output_dir <- "Analysis/data/report_finished" #this is where to find the model output, it doesn't need to exist in advance
-params$map_output_dir <- "Analysis/output/continent_map" #this is where to put the continent map and shapefiles generated from running the code
-params$local_shapefile_name <- "Layers/africa_self_shp/afr_g2014_2013_0.shp" #this is a local dir where Africa continent shapefile is saved, better to use GADMTools in the future
-params$max_countries <- Inf
-params$dropped_years <- list("ZWE" = c(2017), "ZNZ" = c(2018, 2019), "SDN" = c(2015, 2017)) #if there are years of output that we don't wanna include 
-params$zero_case_years <- NULL #manually create years with zero modeled case based on our understanding of the database 
-params$separate_TZA <- c("TZA_mainland", "TZA_zanzibar")
-params$country_list_source <- "configs" #or "Google spreadsheet" or model output
-params$modeled_years <- 2016:2020
-params$tmp_dropped_countries <- c("ZAF", "GNQ", "GAB", "GMB", 
-                                  "NAM", 
-                                  "SEN", "ERI", "BFA", "DJI", "BWA", "MLI", "LSO", "GNB", "MDG")
-# the information about dropped years or years with zero case can be drawn from the Google spreadsheet if it exists 
-# to get the continent map (unionized or combined): 
-# country_pattern <- paste(country, "0", sep = "_")
-# shp <- GADMTools::gadm_sf_loadCountries(c(country), level = 0, basefile = file.path(datapath, "shapefiles/"))$sf
-
 library(stringr)
 library(dplyr)
 library(magrittr)
@@ -76,7 +57,7 @@ knitr::opts_chunk$set(
 dir.create(params$map_output_dir, showWarnings = FALSE)
 ```
 
-```{r aggregation_tmp}
+```{r aggregation, include=FALSE}
 ### The Setup
 ## Initialize
 final_cache <- new.env() 
@@ -164,15 +145,20 @@ for(country in all_countries) {
       warning(paste(config_filename,"failed with message", e$message))
     })
 
+  ## Genquant - the case table
+  country_cache <- new.env()
+  process_genquant(config = config_filename, country_cache = country_cache, cholera_directory = params$cholera_directory)
+  stitch_genquant(country_cache, final_cache, admin_level = "ADM0")
 
   country_count <- country_count + 1 
   complete_country <- c(complete_country, country)
   
 }
+```
 
 
-
-### Plotting -- tmp 
+```{r map_plotting_tmp, include=FALSE}
+### Plotting -- simply outputs PDF files for now 
 plt <- plot_continent_map_sf(shapefile_dir = params$map_output_dir, 
                             country_borders = TRUE, 
                             continent_sf = final_cache$case_results, 
@@ -189,18 +175,31 @@ pdf(paste(params$cholera_directory, params$map_output_dir, "continent_rate.pdf",
 plt
 dev.off()
 
+```
 
+```{r out-table-cases}
+final_cache$case_table %>% 
+  dplyr::select(-admin_level) %>% 
+  kableExtra::kbl(caption = "Cases by location and year") %>% 
+  kableExtra::kable_styling(full_width = FALSE) %>% 
+  kableExtra::pack_rows(index = table(final_cache$case_table$admin_level))
 
-# shapefilename <- paste(params$cholera_directory, params$local_shapefile_name, sep = "/")
+```
 
-# plot_case <- plot_raster_with_fill_and_continent_shp("case_results", "cases", "modeled_cases_mean", final_cache, shapefilename)
-# pdf(paste(params$cholera_directory, params$map_output_dir, "continent_case.pdf", sep = "/"))
-# plot_case
-# dev.off()
+```{r out-table-rates}
+final_cache$rate_table %>% 
+  dplyr::select(-admin_level) %>% 
+  kableExtra::kbl(caption = "Rates by location and year") %>% 
+  kableExtra::kable_styling(full_width = FALSE) %>% 
+  kableExtra::pack_rows(index = table(final_cache$rate_table$admin_level))
 
-# plot_rate <- plot_raster_with_fill_and_continent_shp("rate_results", "rates", "modeled_rates_mean", final_cache, shapefilename)
-# pdf(paste(params$cholera_directory, params$map_output_dir, "continent_rate.pdf", sep = "/"))
-# plot_rate
-# dev.off()
+```
+
+```{r out-table-pop}
+final_cache$pop_table %>% 
+  dplyr::select(-admin_level) %>% 
+  kableExtra::kbl(caption = "Population by location and year") %>% 
+  kableExtra::kable_styling(full_width = FALSE) %>% 
+  kableExtra::pack_rows(index = table(final_cache$pop_table$admin_level))
 
 ```
