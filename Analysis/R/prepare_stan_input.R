@@ -542,8 +542,8 @@ prepare_stan_input <- function(
   stan_data$beta_sigma_scale <- config$beta_sigma_scale
   
   # Priors for intercept
-  stan_data$mu_alpha <- 0
-  stan_data$sd_alpha <- 1
+  stan_data$mu_alpha <- config$mu_alpha
+  stan_data$sd_alpha <- config$sd_alpha
   
   # Priors for observation model overdispersion parameters in negative-binomial model
   # We model the od parameter on the 1/tau constrained to be positive scale to facilitate setting priors

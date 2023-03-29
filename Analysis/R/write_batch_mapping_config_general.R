@@ -63,6 +63,8 @@ params_df <- data.frame(
     covariate_transformations = '', 
     beta_sigma_scale = 1,
     sigma_eta_scale = 2,
+    mu_alpha = 0, 
+    sd_alpha = 1, 
     exp_prior = 'no', 
     do_infer_sd_eta = '', 
     do_zerosum_cnst = '', 
