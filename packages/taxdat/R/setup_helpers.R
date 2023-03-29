@@ -462,17 +462,6 @@ check_snap_tol <- function(snap_tol, res_time) {
         cat("---- By default, running with value of snap tolerance 7/365:", snap_tol,
             "[", res_time, "]\n")
     }
-    if (snap_tol > 1) {
-      warning("---- Running with a snap tolerance larger than 1")
-    } else {
-      cat("---- Running with user-specified value of snap tolerance:", snap_tol,
-          "[", res_time, "]\n")
-    }
-  } else {
-    snap_tol <- 7/365
-    cat("---- By default, running with value of snap tolerance 7/365:", snap_tol,
-        "[", res_time, "]\n")
-  }
   return(snap_tol)
 }
 
