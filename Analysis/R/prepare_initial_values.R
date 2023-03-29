@@ -127,6 +127,9 @@ df <- purrr::map_dfr(
                   T ~ Inf)
   )
 
+
+# Initial values ----------------------------------------------------------
+
 # Use warmup?
 warmup <- config$warmup
 
@@ -198,20 +201,20 @@ if (warmup) {
   }
   
   # Initial parameter values
-  if (config$time_effect | grid_rand_effects_N != 1) {
+  if (config$time_effect | config$grid_rand_effects_N != 1) {
     sd_w <- sd(w.init)
     
-    if (config$time_effect & grid_rand_effects_N != 1) {
+    if (config$time_effect & config$grid_rand_effects_N != 1) {
       stop("Current code does not allow grid_rand_effects_N != 1 and time_effect = true")
     }
     
-    if (grid_rand_effects_N != 1) {
+    if (config$grid_rand_effects_N != 1) {
       init.list <- lapply(1:nchain, 
                           function(i) {
                             list(
                               # Perturbation of spatial random effects
-                              w = rnorm(length(w.init) * grid_rand_effects_N,
-                                        rep(w.init, grid_rand_effects_N), .1)
+                              w = rnorm(length(w.init) * config$grid_rand_effects_N,
+                                        rep(w.init, config$grid_rand_effects_N), .1)
                             )})
     }
     
@@ -249,6 +252,7 @@ if (warmup) {
     stan_data$mat_grid_time <- mat_grid_time %>% as.matrix()
   }
 }
+
 if (!(config$time_effect)) {
   stan_data$mat_grid_time <- as.array(matrix(0,2,2))
 }
@@ -261,8 +265,8 @@ stan_data$use_weights <- ifelse(config$use_weights, 1, 0)
 stan_data$use_rho_prior<- ifelse(config$use_rho_prior, 1, 0)
 
 if (config$use_rho_prior) {
-  if (init.list != "random") {
-    for (i in 1:length(init.list)) {
+  if (length(init.list) !=1) {
+    for (i in 1:nchain) {
       init.list[[i]] <- append(init.list[[i]], list(rho = runif(1, .6, 1)))
     }
   }
@@ -280,9 +284,43 @@ if (config$time_effect) {
   stan_data$has_data_year <- array(dim = c(0))
 }
 
-# This is temporary to handle the overdispersed models
+
+# For negbinom likelihood overwrite init.list to have more sensible
+# initial values for the overdispersion parameter
 if (config$obs_model == 3) {
-  init.list <- .1    # This seems to work for the negbinom model
+  
+  init.list <- 
+    purrr::map(1:nchain, function(x) {
+      init <- list(
+        inv_od_param = c(abs(rnorm(1, 1e-2, 1e-2)), 
+                         abs(rnorm(stan_data$N_admin_lev - 1, 1e-2, 1e-2))),
+        std_dev_w = abs(rnorm(1, .5, .2)),
+        rho = runif(1, .8, 1)
+      )
+      
+      if (config$time_effect) {
+        init <- append(
+          init, 
+          list(eta_tilde = rnorm(5, 0, .1))
+        )
+      }
+      
+      if (config$use_intercept) {
+        init <- append(
+          init, 
+          list(alpha = rnorm(1, -3, .5),
+               w = rnorm(stan_data$smooth_grid_N, 0, .1))
+        )
+        
+      } else {
+        # Set lower values of w to ensure initialization works
+        init <- append(
+          init, 
+          list(w = rnorm(stan_data$smooth_grid_N, -1, .1))
+        )
+      }
+    })
+  
 } else if (config$obs_model == 2) {
   
   N_w <- length(w.init)
