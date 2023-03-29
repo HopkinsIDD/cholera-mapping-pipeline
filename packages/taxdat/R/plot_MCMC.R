@@ -17,7 +17,7 @@ plot_chain_convergence <- function(name,
                                    config, 
                                    cholera_directory, 
                                    model_output_filenames,
-                                   pars = c("rho", "alpha", "log_std_dev_w", "eta"),
+                                   pars = c("rho", "alpha", "log_std_dev_w", "eta", "std_dev_w", "od_param"),
                                    render = T){
   if(name %in% names(cache)){
     model.rand <- cache[[name]]
@@ -27,10 +27,12 @@ plot_chain_convergence <- function(name,
   
   time_effect_param <- tolower(yaml::read_yaml(paste0(cholera_directory,"/",config))$time_effect)
   if(time_effect_param == 'no' | time_effect_param == 'false'){
-    pars <- pars[pars != "eta"]
+    warning("There is no time effect, meaning the eta parameter(s) will not be shown. ")
   }
-  pars<-pars[unlist(lapply(pars,function(x){any(str_detect(names(model.rand),x))}))]
+  # pars<-pars[unlist(lapply(pars,function(x){any(str_detect(names(model.rand),x))}))]
   
+  pars <- pars[pars %in% unique(stringr::str_extract(names(model.rand), "[[a-z]*_*]*[a-z]+"))]
+
   if (render) {
     rstan::traceplot(model.rand, pars = pars)
   }
@@ -45,14 +47,20 @@ plot_chain_convergence <- function(name,
 #' @param pars a list of parameters which we want to display
 #' @return ggplot object
 
-plot_MCMCpars <- function(name,cache,pars = c("rho", "alpha", "log_std_dev_w", "eta"),config,cholera_directory) {
+plot_MCMCpars <- function(name, 
+                          cache, 
+                          pars = c("rho", "alpha", "log_std_dev_w", "eta", "std_dev_w", "od_param"),
+                          config, 
+                          cholera_directory) {
+  model.rand <- cache[[name]]
+  
   time_effect_param <- tolower(yaml::read_yaml(paste0(cholera_directory,"/",config))$time_effect)
   if(time_effect_param == 'no' | time_effect_param == 'false'){
-    pars <- pars[pars != "eta"]
+    warning("There is no time effect, meaning the eta parameter(s) will not be shown. ")
   }
+  # pars<-pars[unlist(lapply(pars,function(x){any(str_detect(names(model.rand),x))}))]
 
-  model.rand <- cache[[name]]
-  pars<-pars[unlist(lapply(pars,function(x){any(str_detect(names(model.rand),x))}))]  
+  pars <- pars[pars %in% unique(stringr::str_extract(names(model.rand), "[[a-z]*_*]*[a-z]+"))]
   plot <- rstan::plot(model.rand, pars = pars)
   return(plot)
 }
