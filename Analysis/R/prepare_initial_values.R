@@ -294,7 +294,7 @@ if (config$obs_model == 3) {
       init <- list(
         inv_od_param = c(abs(rnorm(1, 1e-2, 1e-2)), 
                          abs(rnorm(stan_data$N_admin_lev - 1, 1, 1e-1))),
-        std_dev_w = abs(rnorm(1, 10, 2)),
+        std_dev_w = abs(rnorm(1, 1, 1)),
         rho = runif(1, .8, 1)
       )
       
