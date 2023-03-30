@@ -326,7 +326,7 @@ if (config$obs_model == 3) {
       } else {
         
         # Add small negative offset to ensure gradient computation
-        w <- w - 2/stan_data$smooth_grid_N
+        w <- w - 2
         
         # Set lower values of w to ensure initialization works
         init <- append(
