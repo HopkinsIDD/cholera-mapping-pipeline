@@ -292,10 +292,10 @@ if (config$obs_model == 3) {
   init.list <- 
     purrr::map(1:nchain, function(x) {
       init <- list(
-        inv_od_param = c(abs(rnorm(1, 1e-2, 1e-2)), 
+        inv_od_param = c(abs(rnorm(1, 1e-1, 1e-2)), 
                          abs(rnorm(stan_data$N_admin_lev - 1, 1, 1e-1))),
-        std_dev_w = abs(rnorm(1, 1, 1)),
-        rho = runif(1, .8, 1)
+        std_dev_w = abs(rnorm(1, 1, .5)),
+        rho = runif(1, .8, .9)
       )
       
       if (config$time_effect) {
@@ -307,7 +307,7 @@ if (config$obs_model == 3) {
         
         init <- append(
           init, 
-          list(eta_tilde = rnorm(n_eta, 0, .1))
+          list(eta_tilde = rnorm(n_eta, -1, .1))
         )
       }
       
@@ -326,7 +326,7 @@ if (config$obs_model == 3) {
       } else {
         
         # Add small negative offset to ensure gradient computation
-        w <- w - 2
+        # w <- w - 2
         
         # Set lower values of w to ensure initialization works
         init <- append(
