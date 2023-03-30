@@ -299,14 +299,20 @@ if (config$obs_model == 3) {
       )
       
       if (config$time_effect) {
+        if (config$do_zerosum_cnst) {
+          n_eta <- stan_data$`T`
+        } else {
+          n_eta <- stan_data$`T` - 1
+        }
+        
         init <- append(
           init, 
-          list(eta_tilde = rnorm(stan_data$`T`, 0, .1))
+          list(eta_tilde = rnorm(n_eta, 0, .1))
         )
       }
       
       # constrain the sum of w to be 0 to handle initialization
-      w <- rnorm(stan_data$smooth_grid_N - 1, -2, .1)
+      w <- rnorm(stan_data$smooth_grid_N - 1, 0, .1)
       w <- taxdat::sum_to_zero_QR(x_raw = w, 
                                   Q_r = taxdat::Q_sum_to_zero_QR(N =stan_data$smooth_grid_N))
       
