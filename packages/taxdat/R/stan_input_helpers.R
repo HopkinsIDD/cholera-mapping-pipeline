@@ -1036,3 +1036,47 @@ get_admin_level <- function(location_name) {
     # Remove the continent nesting
     {.-1}
 }
+
+#' Q_sum_to_zero_QR
+#' https://discourse.mc-stan.org/t/test-soft-vs-hard-sum-to-zero-constrain-choosing-the-right-prior-for-soft-constrain/3884/31
+#' @param N 
+#'
+#' @return
+#' @export
+#'
+Q_sum_to_zero_QR <- function(N) {
+  Q_r = rep(0, 2*N);
+  
+  for(i in 1:N) {
+    Q_r[i] = -sqrt((N-i)/(N-i+1.0));
+    Q_r[i+N] = 1/sqrt((N-i) * (N-i+1));
+    
+    if (is.infinite(Q_r[i+N])) {
+      Q_r[i+N] <- 0
+    }
+  }
+  Q_r
+}
+
+#' sum_to_zero_QR
+#'
+#' @param x_raw 
+#' @param Q_r 
+#'
+#' @return
+#' @export
+#'
+sum_to_zero_QR <- function(x_raw, 
+                           Q_r) {
+  
+  N = length(x_raw) + 1;
+  x = rep(0, N);
+  x_aux = 0;
+  
+  for(i in 1:(N-1)){
+    x[i] = x_aux + x_raw[i] * Q_r[i];
+    x_aux = x_aux + x_raw[i] * Q_r[i+N];
+  }
+  x[N] = x_aux;
+  x;
+}

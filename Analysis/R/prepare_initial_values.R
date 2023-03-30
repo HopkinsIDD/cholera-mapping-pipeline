@@ -305,18 +305,27 @@ if (config$obs_model == 3) {
         )
       }
       
+      # constrain the sum of w to be 0 to handle initialization
+      w <- rnorm(stan_data$smooth_grid_N - 1, 0, 1)
+      w <- taxdat::sum_to_zero_QR(x_raw = w, 
+                                  Q_r = taxdat::Q_sum_to_zero_QR(N =stan_data$smooth_grid_N))
+      
       if (config$use_intercept) {
         init <- append(
           init, 
           list(alpha = rnorm(1, -3, .5),
-               w = rnorm(stan_data$smooth_grid_N, 0, .1))
+               w = w)
         )
         
       } else {
+        
+        # Add small negative offset to ensure gradient computation
+        w <- w - 2/stan_data$smooth_grid_N
+        
         # Set lower values of w to ensure initialization works
         init <- append(
           init, 
-          list(w = rnorm(stan_data$smooth_grid_N, -.5, .1))
+          list(w = w)
         )
       }
     })
