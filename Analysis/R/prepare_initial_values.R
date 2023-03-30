@@ -300,9 +300,9 @@ if (config$obs_model == 3) {
       
       if (config$time_effect) {
         if (config$do_zerosum_cnst) {
-          n_eta <- stan_data$`T`
-        } else {
           n_eta <- stan_data$`T` - 1
+        } else {
+          n_eta <- stan_data$`T`
         }
         
         init <- append(
