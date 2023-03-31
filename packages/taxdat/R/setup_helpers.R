@@ -593,6 +593,7 @@ get_all_config_options <- function() {
     inv_od_sd_nopool = as.function(check_od_param_sd_prior_noopoling),
     h_mu_sd_inv_od = as.function(check_od_param_mu_sd_prior_pooling),
     h_sd_sd_inv_od = as.function(check_od_param_sd_sd_prior_pooling),
+    mu_sd_w = as.function(check_mu_sd_w), 
     time_effect = "stan-check", 
     time_effect_autocorr = "stan-check", 
     use_intercept = "stan-check",
@@ -742,12 +743,12 @@ check_od_param_generic <- function(x,
                                    obs_model,
                                    default_value) {
   
-  obs_model <- as.numeric(obs_model)
+  obs_model <- try_conv_numeric(obs_model)
   
   if (obs_model == 1) {
     par <- 0
   } else if (obs_model == 2 | obs_model == 3) {
-    if (is.null(x)) {
+    if (unspecified_parameter_check(x)) {
       par <- default_value
     } else {
       par <- try_conv_numeric(x)
@@ -841,7 +842,7 @@ check_od_param_sd_sd_prior_pooling <- function(obs_model,
 check_mu_alpha <- function( x, 
                             default_value = 0) {
   
-  if (is.null(x)) {
+  if (unspecified_parameter_check(x)) {
     par <- default_value
   } else {
     par <- try_conv_numeric(x)
@@ -861,7 +862,27 @@ check_mu_alpha <- function( x,
 check_sd_alpha <- function( x, 
                             default_value = 1) {
   
-  if (is.null(x)) {
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- try_conv_numeric(x)
+  }
+
+  par
+}
+
+#' check_mu_sd_w
+#'
+#' @param x 
+#' @param default_value 
+#'
+#' @return
+#' @export
+#'
+check_mu_sd_w <- function(x, 
+                          default_value = 2) {
+  
+  if (unspecified_parameter_check(x)) {
     par <- default_value
   } else {
     par <- try_conv_numeric(x)

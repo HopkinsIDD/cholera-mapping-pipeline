@@ -57,6 +57,7 @@ params_df <- data.frame(
     inv_od_sd_nopool = '',
     h_mu_sd_inv_od = '',
     h_sd_sd_inv_od = '',
+    mu_sd_w = '', 
     time_effect = 'yes',
     time_effect_autocorr = 'no',
     use_intercept = '', 
