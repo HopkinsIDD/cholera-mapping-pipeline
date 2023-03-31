@@ -14,20 +14,19 @@ plot_gam_fit_input <- function(name="initial_values_data", cache, mean = FALSE, 
   type_nrml <- ifelse(grepl('ase var', tolower(type)), "case variance", ifelse(grepl('ate var', tolower(type)),"rate variance",ifelse(grepl('ase', tolower(type)),"cases",ifelse(grepl('ate', tolower(type)),"rates","observations"))))
   
   # If to get the mean figure 
-    if(mean){
-      cache[[name]]$gam_fit_input %>%
-        dplyr::group_by(sx, sy) %>%
-        { if(type_nrml == "cases") dplyr::summarize(., y = mean(y)) else dplyr::summarize(., y = mean(y), pop = mean(pop)) } %>%
-        dplyr::ungroup() %>%
-        { if(type_nrml == "rates") dplyr::mutate(., y = ifelse(y == 0, 1e-99, y)) else dplyr::mutate(., pop = 1) } %>%
-        ggplot() +
-        geom_tile(aes(x = sx, y = sy, fill = y / pop), color = 'black') +
-        taxdat::color_scale(type = type_nrml, use_case = "ggplot map", use_log = (type_nrml == 'rates'))+
-        ggplot2::labs(fill = ifelse(type_nrml == "cases", "Cases", "Incidence rate (per 1e5)")) + 
-        coord_fixed(ratio = 1) + 
-        taxdat::map_theme()
-      
-      # If to get the by-year plots 
+   if(mean){
+     cache[[name]]$gam_fit_input %>%
+       dplyr::group_by(sx, sy) %>%
+       { if(type_nrml == "cases") dplyr::summarize(., y = mean(y)) else dplyr::summarize(., y = mean(y), pop = mean(pop)) } %>%
+       dplyr::ungroup() %>%
+       { if(type_nrml == "rates") dplyr::mutate(., y = ifelse(y == 0, 1e-99, y)) else dplyr::mutate(., pop = 1) } %>%
+       ggplot() +
+       geom_tile(aes(x = sx, y = sy, fill = y / pop), color = 'black') +
+       taxdat::color_scale(type = type_nrml, use_case = "ggplot map", use_log = (type_nrml == 'rates'))+
+       ggplot2::labs(fill = ifelse(type_nrml == "cases", "Cases", "Incidence rate (per 1e5)")) + 
+       coord_fixed(ratio = 1) + 
+       taxdat::map_theme()
+   # If to get the by-year plots 
   }else if (!mean & type_nrml %in%c("cases","rates")){
     # year_name_vector <- names(cache[[name]]$gam_fit_input)[grepl("^year", names(cache[[name]]$gam_fit_input))]
     # cache[[name]]$gam_fit_input_tmp <- cache[[name]]$gam_fit_input
