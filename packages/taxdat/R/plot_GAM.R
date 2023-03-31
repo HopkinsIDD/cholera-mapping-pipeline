@@ -11,24 +11,24 @@
 #' @return ggplot object
 plot_gam_fit_input <- function(name="initial_values_data", cache, mean = FALSE, type) {
   # Rates/cases 
-  type_nrml <- ifelse(grepl('ase', tolower(type)), "cases", "rates")
+  type_nrml <- ifelse(grepl('ase var', tolower(type)), "case variance", ifelse(grepl('ate var', tolower(type)),"rate variance",ifelse(grepl('ase', tolower(type)),"cases",ifelse(grepl('ate', tolower(type)),"rates","observations"))))
   
   # If to get the mean figure 
-  if(mean){
-    cache[[name]]$gam_fit_input %>%
-      dplyr::group_by(sx, sy) %>%
-      { if(type_nrml == "cases") dplyr::summarize(., y = mean(y)) else dplyr::summarize(., y = mean(y), pop = mean(pop)) } %>%
-      dplyr::ungroup() %>%
-      { if(type_nrml == "rates") dplyr::mutate(., y = ifelse(y == 0, 1e-99, y)) else dplyr::mutate(., pop = 1) } %>%
-      ggplot() +
-      geom_tile(aes(x = sx, y = sy, fill = y / pop), color = 'black') +
-      taxdat::color_scale(type = type_nrml, use_case = "ggplot map", use_log = (type_nrml == 'rates'))+
-      ggplot2::labs(fill = ifelse(type_nrml == "cases", "Cases", "Incidence rate (per 1e5)")) + 
-      coord_fixed(ratio = 1) + 
-      taxdat::map_theme()
-
-  # If to get the by-year plots 
-  }else{
+    if(mean){
+      cache[[name]]$gam_fit_input %>%
+        dplyr::group_by(sx, sy) %>%
+        { if(type_nrml == "cases") dplyr::summarize(., y = mean(y)) else dplyr::summarize(., y = mean(y), pop = mean(pop)) } %>%
+        dplyr::ungroup() %>%
+        { if(type_nrml == "rates") dplyr::mutate(., y = ifelse(y == 0, 1e-99, y)) else dplyr::mutate(., pop = 1) } %>%
+        ggplot() +
+        geom_tile(aes(x = sx, y = sy, fill = y / pop), color = 'black') +
+        taxdat::color_scale(type = type_nrml, use_case = "ggplot map", use_log = (type_nrml == 'rates'))+
+        ggplot2::labs(fill = ifelse(type_nrml == "cases", "Cases", "Incidence rate (per 1e5)")) + 
+        coord_fixed(ratio = 1) + 
+        taxdat::map_theme()
+      
+      # If to get the by-year plots 
+  }else if (!mean & type_nrml %in%c("cases","rates")){
     # year_name_vector <- names(cache[[name]]$gam_fit_input)[grepl("^year", names(cache[[name]]$gam_fit_input))]
     # cache[[name]]$gam_fit_input_tmp <- cache[[name]]$gam_fit_input
     # invisible(lapply(year_name_vector, function(x){
@@ -44,6 +44,30 @@ plot_gam_fit_input <- function(name="initial_values_data", cache, mean = FALSE, 
       geom_tile(aes(x = sx, y = sy, fill = y), color = 'black') +
       taxdat::color_scale(type = type_nrml, use_case = "ggplot map", use_log = (type_nrml == 'rates'))+
       ggplot2::labs(fill = ifelse(type_nrml == "cases", "Cases", "Incidence rate (per 1e5)")) + 
+      ggplot2::facet_wrap( ~ t) + 
+      coord_fixed(ratio = 1) + 
+      taxdat::map_theme()
+    
+  } else if(type_nrml=="observations"){
+    
+    cache[[name]]$gam_fit_input %>%
+      mutate(t = as.integer(obs_year)) %>% 
+      { if(type_nrml == "observations") dplyr::group_by(.,t,sx, sy)%>%dplyr::summarize(number_of_obs =  n())} %>%
+      ggplot() +
+      geom_tile(aes(x = sx, y = sy, fill = number_of_obs), color = 'black') +
+      taxdat::color_scale(type = type_nrml, use_case = "ggplot map", use_log = FALSE)+
+      ggplot2::labs(fill = "Number of observations \nper grid cell\n ") +
+      ggplot2::facet_wrap( ~ t) +
+      coord_fixed(ratio = 1) +
+      taxdat::map_theme()
+  } else {
+    cache[["initial_values_data"]]$gam_fit_input %>%
+      mutate(t = as.integer(obs_year)) %>% 
+      { if(type_nrml == "case variance") dplyr::group_by(.,t,sx, sy)%>%dplyr::summarize(variance = var(y)) else dplyr::group_by(.,t,sx, sy)%>%dplyr::summarize(variance = var(y/pop*1e5))} %>%
+      ggplot() +
+      geom_tile(aes(x = sx, y = sy, fill = variance), color = 'black') +
+      taxdat::color_scale(type = type_nrml, use_case = "ggplot map", use_log = TRUE)+
+      ggplot2::labs(fill = ifelse(type_nrml == "case variance", "Variance of cases \nper grid cell\n ", "Variance of rates per 1e5\n grid cell\n ")) + 
       ggplot2::facet_wrap( ~ t) + 
       coord_fixed(ratio = 1) + 
       taxdat::map_theme()

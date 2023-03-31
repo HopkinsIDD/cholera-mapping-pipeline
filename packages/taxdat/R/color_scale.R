@@ -45,13 +45,18 @@ color_scale = function(type='cases', use_case = 'leaflet', use_log = FALSE){
       )
     } else {
       transform <- scales::trans_new(name='per1e5',transform = function(x){x*1e5},inverse=function(x){x/1e5})
-    }
-    # breaks <- c(1e-7,1e-6,1e-5,1e-4,1e-3,1e-2,1e-1,1,10)
-    # labels <- c("<.01",".1","1","10","100","1000",">10000")
-  } else {
+    }} else if (type %in% c("observations","case variance","rate variance")){
+      colors <- c("blue","white","red")
+      if(use_log){
+        transform <- scales::log10_trans()
+      } else {
+        transform <- scales::identity_trans()
+      }
+      
+      limits <- c(exp(-5),NA)
+    } else {
     stop(paste("The type",type,"is not recognized"))
   }
-  
   if(use_case == "leaflet"){
     return(colorRampPalette(colors, space="Lab"))
   } else if(use_case == 'ggplot map'){
