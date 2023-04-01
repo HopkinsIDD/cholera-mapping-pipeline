@@ -117,6 +117,10 @@ transformed data {
   int<lower=0, upper=1> size_sd_eta;
   real<lower=0> mean_rate_cases[M];    // number of cases implied by the mean rate
   
+   for(i in 1:N){
+    logpop[i] = log(pop[i]);
+  }
+  
   // Mean rate cases
   {
     vector[N] mean_grid_cases = exp(log_meanrate + logpop);
@@ -147,11 +151,6 @@ transformed data {
     } else {
       tfrac_censoring[i] = tfrac[i];  
     }
-  }
-  
-  
-  for(i in 1:N){
-    logpop[i] = log(pop[i]);
   }
   
   for (i in 1:L) {
