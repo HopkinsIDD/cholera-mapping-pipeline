@@ -62,6 +62,21 @@ prepare_stan_input <- function(
   smooth_grid <- smooth_grid_obj$smooth_grid    # smooth grid sf object
   rm(smooth_grid_obj)
   
+  # Add country information
+  conn_pg <- taxdat::connect_to_db(dbuser)
+  map_grid_to_country_df <- taxdat::map_gridcell_to_country(
+    conn_pg = conn_pg,
+    output_intersections_table = taxdat::make_output_grid_intersections_table_name(config = config)
+  ) 
+  DBI::dbDisconnect(conn_pg)
+  
+  sf_grid <- dplyr::left_join(sf_grid, map_grid_to_country_df)
+  smooth_grid <- dplyr::left_join(smooth_grid, map_grid_to_country_df)
+  
+  if (any(is.na(sf_grid$country))) {
+    cat("-- No country found for ", sum(is.na(sf_grid$country)), "spacetime gridcells. Dropping them. \n")
+  }
+  
   # Define model time slices
   model_time_slices <- sort(unique(sf_grid$s))
   
@@ -246,7 +261,7 @@ prepare_stan_input <- function(
                                                    ind_mapping_resized = ind_mapping_resized,
                                                    censoring_thresh = config$censoring_thresh)
       
-
+      
       # Update data
       stan_data$M <- nrow(sf_cases_resized)
       non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
@@ -361,6 +376,42 @@ prepare_stan_input <- function(
   stan_data$M_right <- length(stan_data$ind_right)
   stan_data$censoring_inds <- censoring_inds
   
+  # ---- H. Mean rate ----
+  stan_data$meanrate <- taxdat::compute_mean_rate(stan_data = stan_data)
+  
+  # ---- I. Mappings ----
+  stan_data$K1 <- length(stan_data$map_obs_loctime_obs)
+  stan_data$K2 <- length(stan_data$map_loc_grid_loc)
+  stan_data$L <- length(ind_mapping_resized$u_loctimes)
+  
+  full_grid <- sf::st_drop_geometry(sf_grid) %>% 
+    dplyr::left_join(sf::st_drop_geometry(smooth_grid)) %>% 
+    dplyr::select(upd_id, smooth_id, t)
+  
+  stan_data$smooth_grid_N <- nrow(smooth_grid)
+  stan_data$map_smooth_grid <- full_grid$smooth_id
+  stan_data$map_grid_time <- full_grid$t
+  stan_data['T'] <- nrow(time_slices)
+  stan_data$map_full_grid <- full_grid$upd_id
+  
+  # What observation model to use
+  stan_data$obs_model <- config$obs_model
+  
+  # Grid cells to country
+  u_countries <- unique(sf_grid$country) %>% sort()
+  stan_data$N_countries <- length(u_countries)
+  
+  stan_data$map_grid_country <- purrr::map_dbl(
+    1:nrow(sf_grid), 
+    ~ which(u_countries == sf_grid$country[.])
+  )
+  
+  # Observation to country
+  stan_data$map_obs_country <- sf_cases_resized$location_name %>% 
+    taxdat::get_country() %>% 
+    purrr::map_dbl(~ which(u_countries == .)) %>% 
+    as.array()
+  
   # Administrative levels for observation model
   admin_levels <- sf_cases_resized$location_name %>% 
     taxdat::get_admin_level() %>% 
@@ -383,29 +434,49 @@ prepare_stan_input <- function(
   # index staring at 1
   stan_data$map_obs_admin_lev <- purrr::map_dbl(admin_levels, ~ which(u_admin_levels == .))
   
+  # Indices of adm0 level
+  stan_data$ind_obs_admin_lev0 <- which(admin_levels == 1)
+  
   # Add unique number of admin levels for use in observation model
   stan_data$N_admin_lev <- length(u_admin_levels)
   
-  # ---- H. Mean rate ----
-  stan_data$meanrate <- taxdat::compute_mean_rate(stan_data = stan_data)
+  # Unique map of country/admin levels
+  u_country_admin_lev <- expand.grid(
+    country = 1:stan_data$N_coutries,
+    admin_lev = 1:stan_data$N_admin_lev 
+  ) %>% 
+    dplyr::mutate(row = dplyr::row_number())
   
-  # ---- I. Mappings ----
-  stan_data$K1 <- length(stan_data$map_obs_loctime_obs)
-  stan_data$K2 <- length(stan_data$map_loc_grid_loc)
-  stan_data$L <- length(ind_mapping_resized$u_loctimes)
+  stan_data$comb_country_admin_lev_country <- u_country_admin_lev$country
+  stan_data$comb_country_admin_lev_admin_lev <- u_country_admin_lev$admin_lev
   
-  full_grid <- sf::st_drop_geometry(sf_grid) %>% 
-    dplyr::left_join(sf::st_drop_geometry(smooth_grid)) %>% 
-    dplyr::select(upd_id, smooth_id, t)
+  # Map from od to inv_od parameters (this is because we do not have parameters for admin level 0 observations)
+  comb_inv_od <- u_country_admin_lev %>% 
+    # !! note that here 1 is in the sorted vector of unique admin levels
+    # this will break if the first admin level is not admin level 0
+    dplyr::filter(admin_lev != 1)   
   
-  stan_data$smooth_grid_N <- nrow(smooth_grid)
-  stan_data$map_smooth_grid <- full_grid$smooth_id
-  stan_data$map_grid_time <- full_grid$t
-  stan_data['T'] <- nrow(time_slices)
-  stan_data$map_full_grid <- full_grid$upd_id
+  stan_data$map_od_inv_od_param <- purrr::map_dbl(
+    u_country_admin_lev$row,
+    function(x){
+      ind <- which(comb_inv_od$row == x)
+      if (length(ind) == 0) {
+        return(0)
+      } else {
+        return(ind)
+      }
+    })
   
-  # What observation model to use
-  stan_data$obs_model <- config$obs_model
+  
+  stan_data$map_obs_country_admin_lev <- map_dbl(
+    1:nrow(sf_cases_resized),
+    function(x) {
+      
+      dplyr::filter(u_country_admin_lev,
+                    country == taxdat::get_country(sf_cases_resized$location_name[x]),
+                    admin_lev == admin_levels[x]) %>% 
+        dplyr::pull(row)
+    })
   
   # ---- J. Data for output summaries ----
   
@@ -577,6 +648,7 @@ prepare_stan_input <- function(
          smooth_grid  = smooth_grid,
          fake_output_obs = fake_output_obs,
          config = config,
-         u_admin_levels = u_admin_levels)
+         u_admin_levels = u_admin_levels,
+         u_countries = u_countries)
   )
 }

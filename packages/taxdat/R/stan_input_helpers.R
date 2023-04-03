@@ -1037,6 +1037,16 @@ get_admin_level <- function(location_name) {
     {.-1}
 }
 
+#' Title
+#'
+#' @param location_name 
+#'
+#' @export
+#'
+get_country <- function(location_name) {
+  stringr::str_extract(location_name, "[A-Z]{3}")
+}
+
 #' Q_sum_to_zero_QR
 #' https://discourse.mc-stan.org/t/test-soft-vs-hard-sum-to-zero-constrain-choosing-the-right-prior-for-soft-constrain/3884/31
 #' @param N 
@@ -1080,3 +1090,32 @@ sum_to_zero_QR <- function(x_raw,
   x[N] = x_aux;
   x;
 }
+
+
+#' map_gridcell_to_country
+#'
+#' @param conn_pg postgres connection
+#' @param output_intersections_table 
+#'
+#' @return
+#'
+map_gridcell_to_country <- function(conn_pg,
+                                    output_intersections_table,
+) {
+  
+  dbtable <- DBI::dbGetQuery(conn_pg,
+                             query = glue::glue_sql("
+                             SELECT location_period_id as lp, rid, x, y, ST_Area(geom) as area
+                             FROM {`{DBI::SQL(output_intersections_table)}`};"),
+                             .con = conn_pg)
+  
+  dbtable %>% 
+    dplyr::as_tibble() %>% 
+    dplyr::mutate(country = stringr::str_extract(lp, "[A-Z]{3}")) %>% 
+    # Only keep one country per grid cell based on the area
+    dplyr::group_by(rid, x, y) %>% 
+    dplyr::slice_max(area) %>% 
+    dplyr::ungroup() %>% 
+    dplyr::select(country, rid, x, y)
+}
+

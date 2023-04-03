@@ -41,6 +41,7 @@ data {
   int <lower=L> K2;    // the length of the mapping of location periods to gridcells
   int <lower=0> ncovar;    // Number of covariates
   int<lower=1> N_admin_lev;    // the number of unique administrative levels in the data
+  int<lower=1> N_countries;    // the number of unique administrative levels in the data
   
   // Options
   int<lower=0, upper=1> do_censoring;       // Censoring of cases with tfracs bellow threshold
@@ -78,7 +79,12 @@ data {
   int <lower=0, upper=N> map_loc_grid_grid[K2];      // the gridcell side of the mapping from locations to gridcells
   int <lower=0, upper=smooth_grid_N> map_smooth_grid[N];    // vector with repeating smooth_grid_N indexes repeating 1:N
   real <lower=0, upper=1> map_loc_grid_sfrac[K2];    // the population-weighed location spatial fraction covered by each gridcell
-  int<lower=1, upper=N_admin_lev> map_obs_admin_lev[M];    // administrative level of each observation for observation model
+  // int<lower=1, upper=N_admin_lev> map_obs_admin_lev[M];    // administrative level of each observation for observation model
+  int<lower=1, upper=N_admin_lev*N_countries> map_obs_country_admin_lev[M];    // administrative level of each observation for observation model
+  // int<lower=1, upper=N_countries> comb_country_admin_lev_country[N_admin_lev*N_countries];    // administrative level of each observation for observation model
+  // int<lower=1, upper=N_admin_lev> comb_country_admin_lev_admin_lev[N_admin_lev*N_countries];    // administrative level of each observation for observation model
+  int<lower=0, upper=(N_admin_lev*N_countries) - N_countries> map_od_inv_od_param[N_admin_lev*N_countries];    // administrative level of each observation for observation model
+  int<lower=1, upper=N_countries> map_grid_country[N];    // administrative level of each observation for observation model
   
   // Time slices
   vector<lower=0, upper=1>[N*do_time_slice_effect] has_data_year;
@@ -115,6 +121,8 @@ transformed data {
   real eta_zerosum_raw_sigma = inv_sqrt(1 - inv(T));
   int<lower=0, upper=T> size_eta;
   int<lower=0, upper=1> size_sd_eta;
+  int<lower=1> N_countries_admin_lev = N_countries * N_admin_lev;
+  int<lower=1> N_inv_od_param = N_countries_admin_lev - N_countries;    // The total number of overdisperion parameters is N_countries_admin_lev - N_countries with admin 0 level which are fixed 
   
   for (i in 1:K1) {
     if (censored[i] == 1) {
@@ -173,7 +181,7 @@ transformed data {
 
 parameters {
   // Intercept
-  real alpha[use_intercept];    
+  vector[N_countries*use_intercept] alpha;    
   
   // Spatial random effects
   real <lower=0, upper=1> rho;    // spatial correlation parameter
@@ -182,32 +190,36 @@ parameters {
   real<lower=0, upper=1> lambda;
   
   // Temporal random effects
-  vector[size_eta] eta_tilde;    // uncentered temporal random effects
+  matrix[N_countries, size_eta] eta_tilde;    // uncentered temporal random effects
   real <lower=0> sigma_eta[size_sd_eta];    // sd of temporal random effects
   
   // Covariate effects
   vector[ncovar] betas;
   
   // Overdispersion parameters
-  vector<lower=0>[(N_admin_lev-1)*do_overdispersion] inv_od_param;
+  vector<lower=0>[N_inv_od_param*do_overdispersion] inv_od_param;
   real<lower=0> sigma_std_dev_w[2];
 }
 
 transformed parameters {
   
-  vector[T*do_time_slice_effect] eta;    // temporal random effects
+  matrix[N_countries, T*do_time_slice_effect] eta;    // temporal random effects
   vector[M] modeled_cases;        // expected number of cases for each observation
   // real std_dev_w = exp(log_std_dev_w);    // sd of spatial random effects
   vector[N] grid_cases;       // cases modeled in each gridcell and time point
   real previous_debugs = 0;
   real sigma_eta_val;        // value of sigma_eta. This is either fixed to sigma_eta_scale if do_infer_sd_eta==0, or sigma_eta otherwise
-  vector[N_admin_lev*do_overdispersion] od_param;
+  vector[N_countries_admin_lev*do_overdispersion] od_param;
   
   
   if (do_overdispersion == 1) {
-    od_param[1] = 1e2;
-    for (i in 2:N_admin_lev) {
-      od_param[i] = 1/inv_od_param[(i-1)];
+    for (i in 1:N_countries_admin_lev) {
+      if (map_od_inv_od_param[i] == 0) {
+        // For admin level 0 i is assumed that overdispersion is fixed
+        od_param[i] = 1e2;
+      } else {
+        od_param[i] = 1/inv_od_param[map_od_inv_od_param[i]];
+      }
     }
   }
   
@@ -222,27 +234,27 @@ transformed parameters {
     vector[N] log_lambda;        // local log rate
     
     if (do_time_slice_effect == 1) {
-      if (do_zerosum_cnst == 0) {
-        for(i in 1:T) {
+      for (j in 1:N_countries) {
+        if (do_zerosum_cnst == 0) {
           // scale yearly random effects
-          eta[i] = sigma_eta_val * eta_tilde[i];
-        }
-      } else {
-        // QR decomposition method
-        eta = sum_to_zero_QR(eta_tilde, Q_r);
-      }    
+          eta[j, ] = sigma_eta_val * eta_tilde[j, ];
+        } else {
+          // QR decomposition method
+          eta[j, ] = to_row_vector(sum_to_zero_QR(to_vector(eta_tilde[j, ]), Q_r));
+        }    
+      }
     }
     
     if (debug && (previous_debugs == 0)) {
       {
         int i = 1;
-        if (eta[i] < - 9999) {
+        if (eta[i,i] < - 9999) {
           print("eta is -inf");
           print("sigma eta scale is ", sigma_eta_scale, " at index ", i);
           print("sigma eta tilde is ", sigma_eta_val, " at index ", i);
           print("eta tilde is ", eta_tilde, " at index ", i);
         }
-        if (is_nan(eta[i])) {
+        if (is_nan(eta[i,i])) {
           print("eta is -inf");
           print("sigma eta scale is ", sigma_eta_scale, " at index ", i);
           print("sigma eta tilde is ", sigma_eta_val, " at index ", i);
@@ -258,7 +270,7 @@ transformed parameters {
     log_lambda =  w[map_smooth_grid] + log_meanrate;
     
     if (use_intercept == 1) {
-      log_lambda += alpha[1];
+      log_lambda += alpha[map_grid_country];
     }
     
     // covariates if applicable
@@ -268,7 +280,9 @@ transformed parameters {
     
     // Add time slice effects
     if (do_time_slice_effect == 1) {
-      log_lambda += (mat_grid_time * eta) .* has_data_year;
+      for (i in 1:N) {
+        log_lambda[i] += (mat_grid_time[i,] * to_vector(eta[map_grid_country[i], ])) .* has_data_year[i];
+      }
     }
     
     if (debug && (previous_debugs == 0)) {
@@ -283,7 +297,7 @@ transformed parameters {
           print("has_data_year is ", has_data_year[i], " at index ", i);
           print("mat_grid_time is ", mat_grid_time[i], " at index ", i);
           print("eta is ", eta, " at index ", i);
-          print("Eta contribution is ", ((mat_grid_time * eta) .* has_data_year)[i], " at index ", i);
+          // print("Eta contribution is ", ((mat_grid_time * eta) .* has_data_year)[i], " at index ", i);
           print("alpha is ", alpha, " at index ", i);
           previous_debugs += 1;
         }
@@ -295,7 +309,7 @@ transformed parameters {
           print("has_data_year is ", has_data_year[i], " at index ", i);
           print("mat_grid_time is ", mat_grid_time[i], " at index ", i);
           print("eta is ", eta, " at index ", i);
-          print("Eta contribution is ", ((mat_grid_time * eta) .* has_data_year)[i], " at index ", i);
+          // print("Eta contribution is ", ((mat_grid_time * eta) .* has_data_year)[i], " at index ", i);
           previous_debugs += 1;
         }
       }
@@ -434,7 +448,7 @@ model {
   
   sigma_std_dev_w[1] ~ normal(0, 2);
   sigma_std_dev_w[2] ~ normal(0, .5);
-
+  
   
   if (debug && (previous_debugs == 0)) {
     print("dagar std", target());
@@ -445,20 +459,21 @@ model {
   
   if (do_time_slice_effect == 1) {
     
-    if (do_time_slice_effect_autocor == 1) {
-      // For the autocorrelated model sigma is the sd of the increments in the random effects
-      real tau = 1/(sigma_eta_val)^2; // precision of the increments of the time-slice random effects
-      // Autocorrelation on yearly random effects with 0-sum constraint
-      // The increments of the time-slice random effects are assumed to have mean 0 and variance 1/tau
-      // Sorbye and Rue (2014) https://doi.org/10.1016/j.spasta.2013.06.004
-      target += (T-1.0)/2.0 * log(tau) - tau/2 * (dot_self(eta[2:T] - eta[1:(T-1)]));
-      sum(eta) ~ normal(0, 0.001 * T); // soft sum to 0 constraint 
-    } else {
-      if (do_zerosum_cnst == 1) {
-        eta_tilde ~ normal(0, eta_zerosum_raw_sigma);
-        // sum(eta_tilde) ~ normal(0, 0.001 * T); // soft sum to 0 constraint 
+    for (i in 1:N_countries) {
+      if (do_time_slice_effect_autocor == 1) {
+        // For the autocorrelated model sigma is the sd of the increments in the random effects
+        real tau = 1/(sigma_eta_val)^2; // precision of the increments of the time-slice random effects
+        // Autocorrelation on yearly random effects with 0-sum constraint
+        // The increments of the time-slice random effects are assumed to have mean 0 and variance 1/tau
+        // Sorbye and Rue (2014) https://doi.org/10.1016/j.spasta.2013.06.004
+        target += (T-1.0)/2.0 * log(tau) - tau/2 * (dot_self(eta[i,2:T] - eta[i,1:(T-1)]));
+        sum(eta[i,]) ~ normal(0, 0.001 * T); // soft sum to 0 constraint 
       } else {
-        eta_tilde ~ std_normal();
+        if (do_zerosum_cnst == 1) {
+          eta_tilde[i,] ~ normal(0, eta_zerosum_raw_sigma);
+        } else {
+          eta_tilde[i,] ~ std_normal();
+        }
       }
     }
     
@@ -506,9 +521,9 @@ model {
         // data model for estimated rates for full time slice observations
         target += poisson_lpmf(y[ind_full]| modeled_cases[ind_full]);
       } else if (obs_model == 2) {
-        target += neg_binomial_2_lpmf(y[ind_full] | modeled_cases[ind_full], od_param[map_obs_admin_lev[ind_full]] .* modeled_cases[ind_full]);
+        target += neg_binomial_2_lpmf(y[ind_full] | modeled_cases[ind_full], od_param[map_obs_country_admin_lev[ind_full]] .* modeled_cases[ind_full]);
       } else {
-        target += neg_binomial_2_lpmf(y[ind_full] | modeled_cases[ind_full], od_param[map_obs_admin_lev[ind_full]]);
+        target += neg_binomial_2_lpmf(y[ind_full] | modeled_cases[ind_full], od_param[map_obs_country_admin_lev[ind_full]]);
       }
       
       if (debug && (previous_debugs == 0)) {
@@ -534,10 +549,10 @@ model {
           lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
         } else if (obs_model == 2) {
           // Quasi-poisson likelihood
-          lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]] * modeled_cases[ind_right[i]]);
+          lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_country_admin_lev[ind_right[i]]] * modeled_cases[ind_right[i]]);
         } else {
           // Neg-binom likelihood
-          lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]]);
+          lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_country_admin_lev[ind_right[i]]]);
         }
         
         // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
@@ -548,11 +563,11 @@ model {
             lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
           } else if (obs_model == 2) {
             // Quasi-poisson likelihood
-            lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]] * modeled_cases[ind_right[i]]);
+            lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_country_admin_lev[ind_right[i]]] * modeled_cases[ind_right[i]]);
           } else {
-            // print("i: ", i, " y: ", y[ind_right[i]], " mcases: ", modeled_cases[ind_right[i]], " od: ", od_param[map_obs_admin_lev[ind_right[i]]]);
+            // print("i: ", i, " y: ", y[ind_right[i]], " mcases: ", modeled_cases[ind_right[i]], " od: ", od_param[map_obs_country_admin_lev[ind_right[i]]]);
             // Neg-binom likelihood
-            lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]]);
+            lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_country_admin_lev[ind_right[i]]]);
           }
           lls[2] = lpmf;
           lp_censored[i] = log_sum_exp(lls);
@@ -580,10 +595,10 @@ model {
           target += poisson_lpmf(y[i] | modeled_cases[i])/weights[i];
         } else if (obs_model == 2) {
           // Quasi-poisson likelihood
-          target += neg_binomial_2_lpmf(y[i] | modeled_cases[i], od_param[map_obs_admin_lev[i]] * modeled_cases[i])/weights[i];
+          target += neg_binomial_2_lpmf(y[i] | modeled_cases[i], od_param[map_obs_country_admin_lev[i]] * modeled_cases[i])/weights[i];
         } else {
           // Neg-binom likelihood
-          target += neg_binomial_2_lpmf(y[i] | modeled_cases[i], od_param[map_obs_admin_lev[i]])/weights[i];
+          target += neg_binomial_2_lpmf(y[i] | modeled_cases[i], od_param[map_obs_country_admin_lev[i]])/weights[i];
         }
         if (debug && (previous_debugs == 0)) {
           print("weighted obs", target());
@@ -595,10 +610,10 @@ model {
         target += poisson_lpmf(y | modeled_cases);
       } else if (obs_model == 2) {
         // Quasi-poisson likelihood
-        target += neg_binomial_2_lpmf(y | modeled_cases, od_param[map_obs_admin_lev] .* modeled_cases);
+        target += neg_binomial_2_lpmf(y | modeled_cases, od_param[map_obs_country_admin_lev] .* modeled_cases);
       } else {
         // Neg-binom likelihood
-        target += neg_binomial_2_lpmf(y | modeled_cases, od_param[map_obs_admin_lev]);
+        target += neg_binomial_2_lpmf(y | modeled_cases, od_param[map_obs_country_admin_lev]);
       }
       
       if (debug && (previous_debugs == 0)) {
