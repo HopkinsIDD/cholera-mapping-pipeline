@@ -289,63 +289,66 @@ if (config$time_effect) {
 # initial values for the overdispersion parameter
 if (config$obs_model == 3) {
   
-  init.list <- 
-    purrr::map(1:nchain, function(x) {
-      init <- list(
-        std_dev_w = abs(rnorm(1, 1, .5)),
-        rho = runif(1, .8, .9)
-      )
-      
-      if (str_detect(stan_model_path, "fixedadm0")) {
-        init <- append(
-          init, 
-          list(inv_od_param = abs(rnorm(stan_data$N_admin_lev - 1, 1, 1e-1)))
-        )
-      } else {
-        init <- append(
-          init, 
-          list(inv_od_param = c(abs(rnorm(1, 1e-1, 1e-2)), 
-                                abs(rnorm(stan_data$N_admin_lev - 1, 1, 1e-1))))
-        )
-      }
-      
-      if (config$time_effect) {
-        if (config$do_zerosum_cnst) {
-          n_eta <- stan_data$`T` - 1
-        } else {
-          n_eta <- stan_data$`T`
-        }
-        
-        init <- append(
-          init, 
-          list(eta_tilde = rnorm(n_eta, -1, .1))
-        )
-      }
-      
-      # constrain the sum of w to be 0 to handle initialization
-      w <- rnorm(stan_data$smooth_grid_N - 1, 0, .1)
-      w <- taxdat::sum_to_zero_QR(x_raw = w, 
-                                  Q_r = taxdat::Q_sum_to_zero_QR(N =stan_data$smooth_grid_N))
-      
-      if (config$use_intercept) {
-        init <- append(
-          init, 
-          list(alpha = rnorm(1, -3, .5),
-               w = w)
-        )
-        
-      } else {
-        
-        # Add small negative offset to ensure gradient computation
-        # w <- w - 2
-        
-        # Set lower values of w to ensure initialization works
-        init <- append(
-          init, 
-          list(w = w)
-        )
-      }
-    })
+  # For now use random .1 initialization
+  init.list <- .1
+  
+  # init.list <- 
+  #   purrr::map(1:nchain, function(x) {
+  #     init <- list(
+  #       std_dev_w = abs(rnorm(1, 1, .5)),
+  #       rho = runif(1, .8, .9)
+  #     )
+  #     
+  #     if (str_detect(stan_model_path, "fixedadm0")) {
+  #       init <- append(
+  #         init, 
+  #         list(inv_od_param = abs(rnorm(stan_data$N_admin_lev - 1, 1, 1e-1)))
+  #       )
+  #     } else {
+  #       init <- append(
+  #         init, 
+  #         list(inv_od_param = c(abs(rnorm(1, 1e-1, 1e-2)), 
+  #                               abs(rnorm(stan_data$N_admin_lev - 1, 1, 1e-1))))
+  #       )
+  #     }
+  #     
+  #     if (config$time_effect) {
+  #       if (config$do_zerosum_cnst) {
+  #         n_eta <- stan_data$`T` - 1
+  #       } else {
+  #         n_eta <- stan_data$`T`
+  #       }
+  #       
+  #       init <- append(
+  #         init, 
+  #         list(eta_tilde = rnorm(n_eta, -1, .1))
+  #       )
+  #     }
+  #     
+  #     # constrain the sum of w to be 0 to handle initialization
+  #     w <- rnorm(stan_data$smooth_grid_N - 1, 0, .1)
+  #     w <- taxdat::sum_to_zero_QR(x_raw = w, 
+  #                                 Q_r = taxdat::Q_sum_to_zero_QR(N =stan_data$smooth_grid_N))
+  #     
+  #     if (config$use_intercept) {
+  #       init <- append(
+  #         init, 
+  #         list(alpha = rnorm(1, -3, .5),
+  #              w = w)
+  #       )
+  #       
+  #     } else {
+  #       
+  #       # Add small negative offset to ensure gradient computation
+  #       # w <- w - 2
+  #       
+  #       # Set lower values of w to ensure initialization works
+  #       init <- append(
+  #         init, 
+  #         list(w = w)
+  #       )
+  #     }
+  #   })
   
 } else if (config$obs_model == 2) {
   
