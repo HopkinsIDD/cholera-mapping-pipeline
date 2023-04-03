@@ -292,11 +292,22 @@ if (config$obs_model == 3) {
   init.list <- 
     purrr::map(1:nchain, function(x) {
       init <- list(
-        inv_od_param = c(abs(rnorm(1, 1e-1, 1e-2)), 
-                         abs(rnorm(stan_data$N_admin_lev - 1, 1, 1e-1))),
         std_dev_w = abs(rnorm(1, 1, .5)),
         rho = runif(1, .8, .9)
       )
+      
+      if (str_detect(stan_model_path, "fixedadm0")) {
+        init <- append(
+          init, 
+          list(inv_od_param = abs(rnorm(stan_data$N_admin_lev - 1, 1, 1e-1)))
+        )
+      } else {
+        init <- append(
+          init, 
+          list(inv_od_param = c(abs(rnorm(1, 1e-1, 1e-2)), 
+                                abs(rnorm(stan_data$N_admin_lev - 1, 1, 1e-1))))
+        )
+      }
       
       if (config$time_effect) {
         if (config$do_zerosum_cnst) {
