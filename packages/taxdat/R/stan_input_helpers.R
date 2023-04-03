@@ -1096,11 +1096,11 @@ sum_to_zero_QR <- function(x_raw,
 #'
 #' @param conn_pg postgres connection
 #' @param output_intersections_table 
-#'
+#' @export
 #' @return
 #'
 map_gridcell_to_country <- function(conn_pg,
-                                    output_intersections_table,
+                                    output_intersections_table
 ) {
   
   dbtable <- DBI::dbGetQuery(conn_pg,
