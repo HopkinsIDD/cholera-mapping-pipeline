@@ -443,25 +443,25 @@ check_set_tfrac <- function(set_tfrac) {
 #' @export
 #'
 check_snap_tol <- function(snap_tol, res_time) {
-    if (!is.null(snap_tol)) {
-      snap_tol<-tryCatch(eval(parse(text = snap_tol)),
-                         error=function(e) {
-                           stop('snap_tol expression is invalid.')
-                           print(e)})
-        if (snap_tol < 0) {
-            stop("Cannot specifiy negative snap tolerance values")
-        }
-        if (snap_tol > 1) {
-            warning("---- Running with a snap tolerance larger than 1")
-        } else {
-            cat("---- Running with user-specified value of snap tolerance:", snap_tol,
-                "[", res_time, "]\n")
-        }
-    } else {
-        snap_tol <- 7/365
-        cat("---- By default, running with value of snap tolerance 7/365:", snap_tol,
-            "[", res_time, "]\n")
+  if (!is.null(snap_tol)) {
+    snap_tol<-tryCatch(eval(parse(text = snap_tol)),
+                       error=function(e) {
+                         stop('snap_tol expression is invalid.')
+                         print(e)})
+    if (snap_tol < 0) {
+      stop("Cannot specifiy negative snap tolerance values")
     }
+    if (snap_tol > 1) {
+      warning("---- Running with a snap tolerance larger than 1")
+    } else {
+      cat("---- Running with user-specified value of snap tolerance:", snap_tol,
+          "[", res_time, "]\n")
+    }
+  } else {
+    snap_tol <- 7/365
+    cat("---- By default, running with value of snap tolerance 7/365:", snap_tol,
+        "[", res_time, "]\n")
+  }
   return(snap_tol)
 }
 
@@ -846,7 +846,7 @@ check_mu_alpha <- function( x,
   } else {
     par <- try_conv_numeric(x)
   }
-
+  
   par
 }
 
@@ -858,14 +858,53 @@ check_mu_alpha <- function( x,
 #' @return
 #' @export
 #'
-check_sd_alpha <- function( x, 
-                            default_value = 1) {
+check_sd_alpha <- function(x, 
+                           default_value = 1) {
   
   if (is.null(x)) {
     par <- default_value
   } else {
     par <- try_conv_numeric(x)
   }
+  
+  par
+}
 
+
+#' check_stan_iter_warmup
+#'
+#' @param x 
+#' @param default_value 
+#'
+#' @export
+#'
+check_stan_iter_warmup <- function(x,
+                                   default_value = 1100) {
+  
+  if (is.null(x)) {
+    par <- default_value
+  } else {
+    par <- try_conv_numeric(x)
+  }
+  
+  par
+}
+
+#' check_stan_iter_sampling
+#'
+#' @param x 
+#' @param default_value 
+#'
+#' @export
+#'
+check_stan_iter_sampling <- function(x,
+                                     default_value = 1000) {
+  
+  if (is.null(x)) {
+    par <- default_value
+  } else {
+    par <- try_conv_numeric(x)
+  }
+  
   par
 }
