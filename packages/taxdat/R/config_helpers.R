@@ -44,7 +44,8 @@ automate_mapping_config <- function(cholera_directory, p, OC_list = NULL, covari
     "  ncores: ", ifelse(unspecified_parameter_check(p$ncores), "", p$ncores), "\n",
     "  model: '", ifelse(unspecified_parameter_check(p$model), "", p$model), ".stan'\n",
     "  genquant: '", ifelse(unspecified_parameter_check(p$genquant), "", p$genquant), ".stan'\n",
-    "  niter: ", ifelse(unspecified_parameter_check(p$niter), "", p$niter), "\n",
+    "  iter_warmup: ", ifelse(unspecified_parameter_check(p$iter_warmup), "", p$iter_warmup), "\n",
+    "  iter_sampling: ", ifelse(unspecified_parameter_check(p$iter_sampling), "", p$iter_sampling), "\n",
     "  recompile: ", ifelse(unspecified_parameter_check(p$recompile), "", p$recompile), "\n", 
     "file_names:\n",
     { if(unspecified_parameter_check(p$output_directory)) "" 

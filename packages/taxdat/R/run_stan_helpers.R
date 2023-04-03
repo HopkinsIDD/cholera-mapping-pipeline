@@ -16,7 +16,6 @@
 #' @param ncores default ncores
 #' @param model default Stan model code file
 #' @param genquant default genquant model code file
-#' @param niter default niter
 #' @param recompile default recompile
 #' @return a list with parameter values
 #' @export 
@@ -36,26 +35,28 @@ get_stan_parameters <- function(config,
                                 ncores = 4, 
                                 model = "mapping_model_inference.stan", 
                                 genquant = "mapping_model_generate.stan",
-                                niter = 2000, 
+                                # iter_warmup = 1000, 
+                                # iter_sampling = 1000, ### these two parameters already have their own check functions 
                                 recompile = T) {
 
-    default_params <- list(sigma_eta_scale = sigma_eta_scale,
-                          beta_sigma_scale = beta_sigma_scale,
-                          warmup = warmup, 
-                          covar_warmup = covar_warmup, 
-                          time_effect = time_effect,
-                          time_effect_autocorr = time_effect_autocorr, 
-                          use_weights = use_weights, 
-                          use_rho_prior = use_rho_prior,
-                          exp_prior = exp_prior, 
-                          use_intercept = use_intercept, 
-                          do_zerosum_cnst = do_zerosum_cnst,
-                          do_infer_sd_eta = do_infer_sd_eta, 
-                          ncores = ncores, 
-                          model = model, 
-                          genquant = genquant,
-                          niter = niter, 
-                          recompile = recompile)
+    default_params <- list( sigma_eta_scale = sigma_eta_scale,
+                            beta_sigma_scale = beta_sigma_scale,
+                            warmup = warmup, 
+                            covar_warmup = covar_warmup, 
+                            time_effect = time_effect,
+                            time_effect_autocorr = time_effect_autocorr, 
+                            use_weights = use_weights, 
+                            use_rho_prior = use_rho_prior,
+                            exp_prior = exp_prior, 
+                            use_intercept = use_intercept, 
+                            do_zerosum_cnst = do_zerosum_cnst,
+                            do_infer_sd_eta = do_infer_sd_eta, 
+                            ncores = ncores, 
+                            model = model, 
+                            genquant = genquant,
+                            # iter_warmup = iter_warmup, 
+                            # iter_sampling = iter_sampling, 
+                            recompile = recompile)
 
     # For each parameter check if specified in config, if not use default value
     params <- purrr::map(names(default_params), ~ifelse(is.null(config[[.]]), default_params[[.]],
