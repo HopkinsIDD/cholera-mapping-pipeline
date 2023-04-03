@@ -769,7 +769,7 @@ check_od_param_sd_prior_noopoling <- function(obs_model,
   
   inv_od_sd_nopool_updated <- check_od_param_generic(x = inv_od_sd_nopool,
                                                      obs_model = obs_model,
-                                                     default_value = 1e-2)
+                                                     default_value = 1)
   return(inv_od_sd_nopool_updated)
 }
 
@@ -787,7 +787,7 @@ check_od_param_sd_prior_adm0 <- function(obs_model,
   
   inv_od_sd_adm0_updated <- check_od_param_generic(x = inv_od_sd_adm0,
                                                    obs_model = obs_model,
-                                                   default_value = 5e-3)
+                                                   default_value = 1e-2)
   
   return(inv_od_sd_adm0_updated)
   
