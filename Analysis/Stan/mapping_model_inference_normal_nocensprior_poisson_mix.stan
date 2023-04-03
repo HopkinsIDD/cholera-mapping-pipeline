@@ -205,7 +205,7 @@ transformed parameters {
   
   
   if (do_overdispersion == 1) {
-    od_param[1] = 1e3;
+    od_param[1] = 1e2;
     for (i in 2:N_admin_lev) {
       od_param[i] = 1/inv_od_param[(i-1)];
     }
