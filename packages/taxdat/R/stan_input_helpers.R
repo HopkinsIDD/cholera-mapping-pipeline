@@ -175,6 +175,44 @@ reorder_single_source <- function(A,
               reordering = topleftorder[bfs_order]))
 }
 
+#' check_paralle_setup
+#'
+#' @param do_parallel 
+#' @param n_cpus 
+#'
+#' @export
+#'
+check_parallel_setup <- function(do_parallel, 
+                                 n_cpus) {
+  if(do_parallel) {
+    
+    library(foreach)
+    
+    if(n_cpus == 0)
+      stop("Specify the number of CPUS to use")
+    
+    if (!exists("cl")) {
+      # Parallel setup for foreach
+      cl <- parallel::makeCluster(n_cpus)
+      doParallel::registerDoParallel(cl)
+    }
+  } else {
+    cat("Parallel setup done \n")
+  }
+}
+
+#' close_parellel_setup
+#'
+#' @return
+#' @export
+#'
+#' @examples
+close_parellel_setup <- function() {
+  if (exists("cl")) {
+    doParallel::stopImplicitCluster(cl)
+  }
+}
+
 #' @title Get space time index
 #'
 #' @description Compute the space-time index of observations based on a reference grid and its location-period and time
@@ -199,22 +237,15 @@ get_space_time_ind_speedup <- function(df,
                                        lp_dict, 
                                        model_time_slices, 
                                        res_time,
-                                       do_parallel = T, 
+                                       do_parallel = F, 
                                        n_cpus = parallel::detectCores() - 2) {
   
-  
-  if(do_parallel) {
-    if(n_cpus == 0)
-      stop("Specify the number of CPUS to use")
-    
-    # Parallel setup
-    cl <- parallel::makeCluster(n_cpus)
-    doParallel::registerDoParallel(cl)
-  }
+  check_parallel_setup(do_parallel = do_parallel,
+                       n_cpus = n_cpus)
   
   doFun <- ifelse(do_parallel, foreach::`%dopar%`, foreach::`%do%`)
   
-  # Number of chunks for parllel computation
+  # Number of chunks for parallel computation
   nchunk <- 20
   # Keep only relevant information
   df <- dplyr::select(as.data.frame(df), TL, TR, locationPeriod_id)
@@ -866,7 +897,12 @@ aggregate_observations <- function(sf_cases_resized,
                                    non_na_obs,
                                    ind_mapping,
                                    cases_column,
-                                   verbose = F) {
+                                   verbose = F,
+                                   do_parallel = F,
+                                   n_cpus = 0) {
+  
+  check_parallel_setup(do_parallel = do_parallel,
+                       n_cpus = n_cpus)
   
   # Get OCRS 
   ocrs <- sf::st_crs(sf_cases_resized)
@@ -882,13 +918,36 @@ aggregate_observations <- function(sf_cases_resized,
     )
   }
   
-  
-  sf_cases_resized <- sf_cases_resized %>%
-    dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
-    dplyr::group_modify(.f = aggregate_single_lp, 
-                        verbose = verbose, 
-                        cases_column = cases_column) %>% 
-    dplyr::ungroup() 
+  if (do_parallel & check_paralle_setup(do_parallel)) {
+    
+    df_split <- sf_cases_resized %>%
+      dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
+      dplyr::group_split() 
+    
+    nchunk <- 10
+    
+    sf_cases_resized <- foreach::foreach(
+      rs = itertools::ichunk(df_split, nchunk),
+      .combine = "bind_rows",
+      .inorder = T
+    ) %dopar% {
+      rs$value %>% 
+        dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
+        dplyr::group_modify(.f = aggregate_single_lp, 
+                            verbose = verbose,
+                            cases_column = cases_column) %>%
+        dplyr::ungroup()
+    }
+    
+    
+  } else {
+    sf_cases_resized <- sf_cases_resized %>%
+      dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
+      dplyr::group_modify(.f = aggregate_single_lp, 
+                          verbose = verbose,
+                          cases_column = cases_column) %>%
+      dplyr::ungroup()
+  }
   
   # sf_cases_resized$geom <- sf::st_as_sfc(sf_cases_resized$geom)
   sf_cases_resized <- sf::st_as_sf(sf_cases_resized)
