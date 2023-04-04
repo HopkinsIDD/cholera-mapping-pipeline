@@ -130,11 +130,8 @@ transformed data {
     // Build ind_grid_country
     for (i in 1:N_countries) {
       N_ind_grid_country[i] = 0;
-    }
-    
-    for (i in 1:N) {
-      for (j in 1:N_countries) {
-        ind_grid_country[j, i] = 0;
+      for (j in 1:N) {
+        ind_grid_country[i, j] = 0;
       }
     }
     
