@@ -123,13 +123,19 @@ transformed data {
   int<lower=0, upper=1> size_sd_eta;
   int<lower=1> N_countries_admin_lev = N_countries * N_admin_lev;
   int<lower=0> N_inv_od_param = N_countries_admin_lev - N_countries;    // The total number of overdisperion parameters is N_countries_admin_lev - N_countries with admin 0 level which are fixed 
-  int<lower=1,upper=N> ind_grid_country[N_countries, N];    // matrix of indices of countries
+  int<lower=0,upper=N> ind_grid_country[N_countries, N];    // matrix of indices of countries
   int<lower=1, upper=N> N_ind_grid_country[N_countries];    // counter for countries
   
   {
     // Build ind_grid_country
     for (i in 1:N_countries) {
       N_ind_grid_country[i] = 0;
+    }
+    
+    for (i in 1:N) {
+      for (j in 1:N_countries) {
+        ind_grid_country[j, i] = 0;
+      }
     }
     
     for (i in 1:N) {
