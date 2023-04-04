@@ -71,7 +71,12 @@ prepare_stan_input <- function(
   DBI::dbDisconnect(conn_pg)
   
   sf_grid <- dplyr::left_join(sf_grid, map_grid_to_country_df)
-  smooth_grid <- dplyr::left_join(smooth_grid, map_grid_to_country_df)
+  smooth_grid <- dplyr::left_join(smooth_grid %>% 
+                                    dplyr::inner_join(
+                                      sf::st_drop_geometry(sf_grid) %>% 
+                                        dplyr::select(id, rid, x, y)
+                                    ), 
+                                  map_grid_to_country_df)
   
   if (any(is.na(sf_grid$country))) {
     cat("-- No country found for ", sum(is.na(sf_grid$country)), "spacetime gridcells. Dropping them. \n")
