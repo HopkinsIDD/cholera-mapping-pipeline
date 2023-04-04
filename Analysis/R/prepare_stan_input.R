@@ -633,7 +633,7 @@ prepare_stan_input <- function(
   # We assume that the largest admin level (admin level 0 for national) has
   # an informative prior so as to produce little overdispersion. The over-dispersion for other
   # admin levels are allowed to have more prior support for larger amount of over-dispersion.
-  if (stan_data$N_coun > 1) {
+  if (stan_data$N_inv_od > 1) {
     stan_data$mu_inv_od <- rep(0, stan_data$N_inv_od)   # center at 0 (note that this is on the scale of 1/tau)
     stan_data$sd_inv_od <- rep(config$inv_od_sd_nopool, stan_data$N_inv_od)
   } else {
