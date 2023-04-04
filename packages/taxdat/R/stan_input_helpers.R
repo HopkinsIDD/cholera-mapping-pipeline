@@ -1104,10 +1104,10 @@ map_gridcell_to_country <- function(conn_pg,
 ) {
   
   dbtable <- DBI::dbGetQuery(conn_pg,
-                             query = glue::glue_sql("
+                             statement = glue::glue_sql("
                              SELECT location_period_id as lp, rid, x, y, ST_Area(geom) as area
-                             FROM {`{DBI::SQL(output_intersections_table)}`};"),
-                             .con = conn_pg)
+                             FROM {`{DBI::SQL(output_intersections_table)}`};",
+                                                    .con = conn_pg))
   
   dbtable %>% 
     dplyr::as_tibble() %>% 
