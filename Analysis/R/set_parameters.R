@@ -250,6 +250,8 @@ set_tfrac <- taxdat::check_set_tfrac(config$set_tfrac)
 # Tolerance for snap_to_period function
 snap_tol <- taxdat::check_snap_tol(snap_tol = config$snap_tol, 
                                    res_time = res_time)
+ncpus_parallel_prep <-taxdat::check_ncpus_parallel_prep(config$ncpus_parallel_prep)
+do_parallel_prep <- taxdat::check_do_parallel_prep(config$do_parallel_prep)
 
 # - - - - - - - - - - - - - -
 ## SPATIAL GRID SETTINGS
