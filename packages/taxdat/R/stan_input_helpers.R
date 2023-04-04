@@ -1100,21 +1100,32 @@ sum_to_zero_QR <- function(x_raw,
 #' @return
 #'
 map_gridcell_to_country <- function(conn_pg,
+                                    output_lp_name,
                                     output_intersections_table
 ) {
   
-  dbtable <- DBI::dbGetQuery(conn_pg,
+  lptable <- DBI::dbGetQuery(conn_pg,
+                             statement = glue::glue_sql("
+                             SELECT location_period_id as lp, rid, x, y
+                             FROM {`{DBI::SQL(output_lp_name)}`};",
+                                                        .con = conn_pg)) %>% 
+    dplyr::as_tibble()
+  
+  inttable <- DBI::dbGetQuery(conn_pg,
                              statement = glue::glue_sql("
                              SELECT location_period_id as lp, rid, x, y, ST_Area(geom) as area
                              FROM {`{DBI::SQL(output_intersections_table)}`};",
-                                                    .con = conn_pg))
+                                                    .con = conn_pg)) %>% 
+    dplyr::as_tibble()
   
-  dbtable %>% 
-    dplyr::as_tibble() %>% 
+  
+  lptable %>% 
+    dplyr::left_join(inttable) %>% 
+    tidyr::replace_na(list(area = 1e6)) %>% 
     dplyr::mutate(country = stringr::str_extract(lp, "[A-Z]{3}")) %>% 
     # Only keep one country per grid cell based on the area
     dplyr::group_by(rid, x, y) %>% 
-    dplyr::slice_max(area) %>% 
+    dplyr::slice_max(area, with_ties = FALSE) %>% 
     dplyr::ungroup() %>% 
     dplyr::select(country, rid, x, y)
 }
