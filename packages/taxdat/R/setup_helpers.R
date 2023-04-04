@@ -594,6 +594,7 @@ get_all_config_options <- function() {
     h_mu_sd_inv_od = as.function(check_od_param_mu_sd_prior_pooling),
     h_sd_sd_inv_od = as.function(check_od_param_sd_sd_prior_pooling),
     mu_sd_w = as.function(check_mu_sd_w), 
+    sd_sd_w = as.function(check_sd_sd_w), 
     time_effect = "stan-check", 
     time_effect_autocorr = "stan-check", 
     use_intercept = "stan-check",
@@ -619,7 +620,7 @@ get_all_config_options <- function() {
     sfrac_thresh = as.function(check_sfrac_thresh), 
     ingest_covariates = as.function(check_ingest_covariates),
     ingest_new_covariates = as.function(check_ingest_covariates), 
-    stan = c("ncores", "model", "genquant", "niter", "recompile"), 
+    stan = c("ncores", "model", "genquant", "iter_warmup", "iter_sampling", "recompile"), 
     file_names = list(
       output_directory = "output_directory",
       data = "observations_filename",
@@ -662,13 +663,19 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
   config_file <- append(config_file[!names(config_file) %in% names(iteration_unrelated)],
                         iteration_unrelated)
   
-  config_file$stan <- lapply(iteration_params, function(x) {
-    updated_stan_parameters[[x]]
+  config_file$stan <- lapply(names(config_file$stan), function(x) {
+    if(x == "iter_warmup"){
+      check_stan_iter_warmup(config_file$stan[[x]])
+    }else if(x == "iter_sampling"){
+      check_stan_iter_sampling(config_file$stan[[x]])
+    }else{
+      updated_stan_parameters[[x]]
+    }
   })
-  names(config_file$stan) <- iteration_params
   
   ### The general check
   for (nm in names(check_list)) {
+
     if (nm %in% c('inv_od_sd_adm0', 'inv_od_sd_nopool', 'h_mu_sd_inv_od', 'h_sd_sd_inv_od')) {
       config_file[[nm]] <- check_list[[nm]](config_file[["obs_model"]], config_file[[nm]])
     } else if (nm == "covariate_choices") {
@@ -880,7 +887,7 @@ check_sd_alpha <- function(x,
 #' @export
 #'
 check_mu_sd_w <- function(x, 
-                          default_value = 2) {
+                          default_value = 10) {
   
   if (unspecified_parameter_check(x)) {
     par <- default_value
@@ -891,6 +898,25 @@ check_mu_sd_w <- function(x,
   par
 }
 
+#' check_sd_sd_w
+#'
+#' @param x 
+#' @param default_value 
+#'
+#' @return
+#' @export
+#'
+check_sd_sd_w <- function(x, 
+                          default_value = 3) {
+  
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- try_conv_numeric(x)
+  }
+  
+  par
+}
 
 #' check_stan_iter_warmup
 #'
@@ -902,7 +928,7 @@ check_mu_sd_w <- function(x,
 check_stan_iter_warmup <- function(x,
                                    default_value = 1100) {
   
-  if (is.null(x)) {
+  if (unspecified_parameter_check(x)) {
     par <- default_value
   } else {
     par <- try_conv_numeric(x)
@@ -921,7 +947,7 @@ check_stan_iter_warmup <- function(x,
 check_stan_iter_sampling <- function(x,
                                      default_value = 1000) {
   
-  if (is.null(x)) {
+  if (unspecified_parameter_check(x)) {
     par <- default_value
   } else {
     par <- try_conv_numeric(x)

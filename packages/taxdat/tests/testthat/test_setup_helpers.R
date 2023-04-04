@@ -650,17 +650,107 @@ test_that("check_mu_sd_w works",{
 
   expect_equal(
     check_mu_sd_w(NULL),
-    2
+    10
   )
 
   expect_equal(
     check_mu_sd_w(""),
-    2
+    10
   )
 
   x <- "character"
   expect_error(
     check_mu_sd_w(x),
+    paste0("Error: the parameter must be able to be converted to \"numeric\". ", x, ".")
+  )
+
+})
+
+test_that("check_sd_sd_w works",{
+  
+  expect_equal(
+    check_sd_sd_w(0),
+    0
+  )
+
+  expect_equal(
+    check_sd_sd_w("0"),
+    0
+  )
+
+  expect_equal(
+    check_sd_sd_w(NULL),
+    3
+  )
+
+  expect_equal(
+    check_sd_sd_w(""),
+    3
+  )
+
+  x <- "character"
+  expect_error(
+    check_sd_sd_w(x),
+    paste0("Error: the parameter must be able to be converted to \"numeric\". ", x, ".")
+  )
+
+})
+
+test_that("check_stan_iter_warmup works",{
+  
+  expect_equal(
+    check_stan_iter_warmup(0),
+    0
+  )
+
+  expect_equal(
+    check_stan_iter_warmup("0"),
+    0
+  )
+
+  expect_equal(
+    check_stan_iter_warmup(NULL),
+    1100
+  )
+
+  expect_equal(
+    check_stan_iter_warmup(""),
+    1100
+  )
+
+  x <- "character"
+  expect_error(
+    check_stan_iter_warmup(x),
+    paste0("Error: the parameter must be able to be converted to \"numeric\". ", x, ".")
+  )
+
+})
+
+test_that("check_stan_iter_sampling works",{
+  
+  expect_equal(
+    check_stan_iter_sampling(0),
+    0
+  )
+
+  expect_equal(
+    check_stan_iter_sampling("0"),
+    0
+  )
+
+  expect_equal(
+    check_stan_iter_sampling(NULL),
+    1000
+  )
+
+  expect_equal(
+    check_stan_iter_sampling(""),
+    1000
+  )
+
+  x <- "character"
+  expect_error(
+    check_stan_iter_sampling(x),
     paste0("Error: the parameter must be able to be converted to \"numeric\". ", x, ".")
   )
 
