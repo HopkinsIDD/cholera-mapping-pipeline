@@ -224,7 +224,7 @@ prepare_stan_input <- function(
     cat("-- Checking for 0 censored observations \n")
     
     y <- sf_cases_resized[[cases_column]]
-    censored_zero_obs <- which(y == 0 && censoring_inds == "right-censored")
+    censored_zero_obs <- which(y == 0 & censoring_inds == "right-censored")
     
     if (length(censored_zero_obs) > 0) {
       
