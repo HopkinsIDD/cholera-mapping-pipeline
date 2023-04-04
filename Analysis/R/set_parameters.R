@@ -528,12 +528,13 @@ for(t_idx in 1:length(all_test_idx)){
   } else {
     print("Stan input already created, skipping")
     warning("Stan input already created, skipping")
+    load(file_names[["stan_input"]])
   }
-  load(file_names[["stan_input"]])
   
   stan_data <- stan_input$stan_data
   sf_cases_resized <- stan_input$sf_cases_resized
   sf_grid <- stan_input$sf_grid
+  rm(stan_input)
   
   ## Step 4: Prepare the initial conditions
   if(file.exists(file_names[["initial_values"]])){
