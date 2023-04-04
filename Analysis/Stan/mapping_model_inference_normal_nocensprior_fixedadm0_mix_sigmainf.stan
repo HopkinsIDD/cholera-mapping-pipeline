@@ -4,6 +4,7 @@
 //
 
 // https://discourse.mc-stan.org/t/test-soft-vs-hard-sum-to-zero-constrain-choosing-the-right-prior-for-soft-constrain/3884/31
+
 functions {
   vector Q_sum_to_zero_QR(int N) {
     vector [2*N] Q_r;
@@ -28,6 +29,7 @@ functions {
     return x;
   }
 }
+
 data {
   
   // Data sizes
@@ -299,7 +301,7 @@ transformed parameters {
     // Add time slice effects
     if (do_time_slice_effect == 1) {
       for (i in 1:N_countries) {
-        log_lambda[ind_grid_country[i, 1:N_ind_grid_country[i]]] += (mat_grid_time[1:N_ind_grid_country[i],] * to_vector(eta[i, ]));
+        log_lambda[ind_grid_country[i, 1:N_ind_grid_country[i]]] += (mat_grid_time[ind_grid_country[i, 1:N_ind_grid_country[i]],] * to_vector(eta[i, ]));
       }
     }
     
@@ -464,7 +466,7 @@ model {
   target += log_mix(lambda, normal_lpdf(std_dev_w |mu_sd_w, sigma_std_dev_w[1]), normal_lpdf(std_dev_w |0, sigma_std_dev_w[2]));
   lambda ~ beta(2, 1);
   
-  sigma_std_dev_w[1] ~ normal(0, 2);
+  sigma_std_dev_w[1] ~ normal(0, 1);
   sigma_std_dev_w[2] ~ normal(0, .5);
   
   
