@@ -64,9 +64,10 @@ prepare_stan_input <- function(
   
   # Add country information
   conn_pg <- taxdat::connect_to_db(dbuser)
-  map_grid_to_country_df <- taxdat::map_gridcell_to_country(
+  map_grid_to_country_df <- map_gridcell_to_country(
     conn_pg = conn_pg,
-    output_intersections_table = taxdat::make_output_grid_intersections_table_name(config = config)
+    output_intersections_table = taxdat::make_output_grid_intersections_table_name(config = config),
+    output_lp_name = taxdat::make_output_locationperiods_table_name(config = config) %>% paste0("_dict")
   ) 
   DBI::dbDisconnect(conn_pg)
   
