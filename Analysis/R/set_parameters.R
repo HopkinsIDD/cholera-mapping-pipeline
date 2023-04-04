@@ -108,7 +108,7 @@ if (!as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
     Sys.setenv(REINSTALL_TAXDAT = TRUE)
     stop("There are local changes to the repository.  This is not allowed for a production run. Please revert or commit local changes")
   }
-
+  
   if (Sys.getenv("REINSTALL_TAXDAT", FALSE)) {
     install.packages(paste0(cholera_directory, "packages/taxdat"), type = "source", repos = NULL)
   } else if (!require(taxdat)) {
@@ -398,10 +398,10 @@ for(t_idx in 1:length(all_test_idx)){
   # Check if the file names are valid
   new_file_names<-file_names[!sapply(file_names,file.exists)]
   if(!all(sapply(new_file_names,file.create))){
-  stop(paste(names(sapply(new_file_names,file.create)[!sapply(new_file_names,file.create)]),"file name is invalid!"))
+    stop(paste(names(sapply(new_file_names,file.create)[!sapply(new_file_names,file.create)]),"file name is invalid!"))
   }
   sapply(new_file_names,file.remove)
-
+  
   # Preparation: Load auxillary functions
   # source(stringr::str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
   
@@ -416,7 +416,7 @@ for(t_idx in 1:length(all_test_idx)){
       print(normalizePath(file_names[["data"]]))
       stop("This shouldn't run on marcc")
     }
-	 
+    
     source(paste(cholera_directory, 'Analysis', 'R', 'prepare_grid.R', sep='/'))
     
     # First prepare the computation grid and get the grid name
@@ -536,12 +536,14 @@ for(t_idx in 1:length(all_test_idx)){
   stan_data <- stan_input$stan_data
   sf_cases_resized <- stan_input$sf_cases_resized
   sf_grid <- stan_input$sf_grid
+  # Cleanup
   rm(stan_input)
   
   ## Step 4: Prepare the initial conditions
   if(file.exists(file_names[["initial_values"]])){
     print("Initial_values already found, skipping")
     warning("Initial_values already found, skipping")
+    load(file_names[["initial_values"]])
   } else {
     if (as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
       stop("This shouldn't run on marcc")
@@ -549,7 +551,11 @@ for(t_idx in 1:length(all_test_idx)){
     source(paste(cholera_directory,'Analysis','R','prepare_initial_values.R',sep='/'))
     recompile <- FALSE
   }
-  load(file_names[["initial_values"]])
+  
+  # Cleanup
+  rm(stan_data)
+  rm(sf_cases_resized)
+  rm(sf_grid)
   
   ## Step 5: Run the model
   print(file_names[["stan_output"]])
