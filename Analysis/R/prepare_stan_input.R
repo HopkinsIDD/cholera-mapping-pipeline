@@ -261,6 +261,7 @@ prepare_stan_input <- function(
       
       # First define censored observations
       stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
+      stan_data$M <- nrow(sf_cases_resized)
       
       # Extract censoring information
       censoring_inds <- taxdat::get_censoring_inds(stan_data = stan_data,
@@ -269,7 +270,6 @@ prepare_stan_input <- function(
       
       
       # Update data
-      stan_data$M <- nrow(sf_cases_resized)
       non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
       obs_changer <- taxdat::make_changer(x = non_na_obs_resized) 
       stan_data$map_obs_loctime_obs <- taxdat::get_map_obs_loctime_obs(x = ind_mapping_resized$map_obs_loctime_obs,
