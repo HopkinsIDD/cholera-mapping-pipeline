@@ -192,9 +192,10 @@ check_parallel_setup <- function(do_parallel,
       stop("Specify the number of CPUS to use")
     
     if (!exists("cl")) {
+      cat("---- Initializing implicit cluster of", n_cpus, "cores \n")
       # Parallel setup for foreach
-      cl <- parallel::makeCluster(n_cpus)
-      doParallel::registerDoParallel(cl)
+      doParallel::registerDoParallel(n_cpus)
+      cl <<- TRUE
     }
   } else {
     cat("Parallel setup done \n")
@@ -208,9 +209,7 @@ check_parallel_setup <- function(do_parallel,
 #'
 #' @examples
 close_parellel_setup <- function() {
-  if (exists("cl")) {
-    doParallel::stopImplicitCluster(cl)
-  }
+    doParallel::stopImplicitCluster()
 }
 
 #' @title Get space time index
@@ -253,7 +252,7 @@ get_space_time_ind_speedup <- function(df,
   res <-  doFun(foreach::foreach(
     rs = itertools::ichunk(iterators::iter(df, by = "row"), nchunk), 
     is = itertools::ichunk(iterators::icount(nrow(df)), nchunk),
-    .packages = c("lubridate", "foreach", "iterators", "magrittr", "dplyr"),
+    .packages = c("taxdat", "lubridate", "foreach", "iterators", "magrittr", "dplyr"),
     .combine = rbind,
     .inorder = F),
     {
@@ -316,10 +315,6 @@ get_space_time_ind_speedup <- function(df,
       )
     }
   ) 
-  
-  if (do_parallel) 
-    parallel::stopCluster(cl)
-  
   # Reorder based on observation
   res <- dplyr::arrange(res, obs)
   
@@ -918,7 +913,7 @@ aggregate_observations <- function(sf_cases_resized,
     )
   }
   
-  if (do_parallel & check_paralle_setup(do_parallel)) {
+  if (do_parallel) {
     
     df_split <- sf_cases_resized %>%
       dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
@@ -929,17 +924,17 @@ aggregate_observations <- function(sf_cases_resized,
     sf_cases_resized <- foreach::foreach(
       rs = itertools::ichunk(df_split, nchunk),
       .combine = "bind_rows",
-      .inorder = T
+      .inorder = T,
+      .packages = c("tidyverse", "taxdat")
     ) %dopar% {
-      rs$value %>% 
+      rs %>% 
+        dplyr::bind_rows() %>% 
         dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
-        dplyr::group_modify(.f = aggregate_single_lp, 
+        dplyr::group_modify(.f = aggregate_single_lp,
                             verbose = verbose,
                             cases_column = cases_column) %>%
         dplyr::ungroup()
     }
-    
-    
   } else {
     sf_cases_resized <- sf_cases_resized %>%
       dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
