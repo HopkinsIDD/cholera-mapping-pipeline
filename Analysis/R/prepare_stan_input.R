@@ -174,6 +174,9 @@ prepare_stan_input <- function(
     sf_cases_resized <- sf_cases
   }
   
+  # Clean unused objects
+  rm(ind_mapping)
+  rm(sf_cases)
   
   #  ---- D. Drop tfrac threshold ----
   

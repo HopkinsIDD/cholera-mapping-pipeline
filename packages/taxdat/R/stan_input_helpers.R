@@ -209,7 +209,7 @@ check_parallel_setup <- function(do_parallel,
 #'
 #' @examples
 close_parellel_setup <- function() {
-    doParallel::stopImplicitCluster()
+  doParallel::stopImplicitCluster()
 }
 
 #' @title Get space time index
@@ -245,7 +245,12 @@ get_space_time_ind_speedup <- function(df,
   doFun <- ifelse(do_parallel, foreach::`%dopar%`, foreach::`%do%`)
   
   # Number of chunks for parallel computation
-  nchunk <- 20
+  if (!is.null(n_cpus)) {
+    nchunk <- n_cpus * 3 
+  } else {
+    nchunk <- 1
+  }
+  
   # Keep only relevant information
   df <- dplyr::select(as.data.frame(df), TL, TR, locationPeriod_id)
   
@@ -919,12 +924,12 @@ aggregate_observations <- function(sf_cases_resized,
       dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
       dplyr::group_split() 
     
-    nchunk <- 10
+    nchunk <- n_cpus * 5
     
     sf_cases_resized <- foreach::foreach(
       rs = itertools::ichunk(df_split, nchunk),
       .combine = "bind_rows",
-      .inorder = T,
+      .inorder = F,
       .packages = c("tidyverse", "taxdat")
     ) %dopar% {
       rs %>% 
@@ -942,7 +947,8 @@ aggregate_observations <- function(sf_cases_resized,
                           verbose = verbose,
                           cases_column = cases_column) %>%
       dplyr::ungroup()
-  }
+  } %>% 
+    dplyr::arrange(loctime, OC_UID, locationPeriod_id)
   
   # sf_cases_resized$geom <- sf::st_as_sfc(sf_cases_resized$geom)
   sf_cases_resized <- sf::st_as_sf(sf_cases_resized)
