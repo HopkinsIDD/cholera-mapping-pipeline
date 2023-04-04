@@ -240,6 +240,7 @@ prepare_stan_input <- function(
       
       # First define censored observations
       stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
+      stan_data$M <- nrow(sf_cases_resized)
       
       # Extract censoring information
       censoring_inds <- taxdat::get_censoring_inds(stan_data = stan_data,
