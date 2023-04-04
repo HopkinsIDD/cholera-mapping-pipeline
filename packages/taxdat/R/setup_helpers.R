@@ -663,6 +663,7 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
   config_file <- append(config_file[!names(config_file) %in% names(iteration_unrelated)],
                         iteration_unrelated)
   
+  stan_names <- names(config_file$stan)
   config_file$stan <- lapply(names(config_file$stan), function(x) {
     if(x == "iter_warmup"){
       check_stan_iter_warmup(config_file$stan[[x]])
@@ -672,6 +673,7 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
       updated_stan_parameters[[x]]
     }
   })
+  names(config_file$stan) <- stan_names
   
   ### The general check
   for (nm in names(check_list)) {
@@ -680,6 +682,8 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
       config_file[[nm]] <- check_list[[nm]](config_file[["obs_model"]], config_file[[nm]])
     } else if (nm == "covariate_choices") {
       config_file[[nm]] <- check_list[[nm]](config_file[[nm]], all_covariates)
+    } else if (nm == "snap_tol") {
+      config_file[[nm]] <- check_list[[nm]](config_file[[nm]], config_file[["res_time"]])
     } else if (is.function(check_list[[nm]])) {
       config_file[[nm]] <- check_list[[nm]](config_file[[nm]])
     } else {
