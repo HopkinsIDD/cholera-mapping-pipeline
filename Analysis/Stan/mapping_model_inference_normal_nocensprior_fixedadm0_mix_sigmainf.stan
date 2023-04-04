@@ -42,6 +42,7 @@ data {
   int <lower=0> ncovar;    // Number of covariates
   int<lower=1> N_admin_lev;    // the number of unique administrative levels in the data
   int<lower=1> N_countries;    // the number of unique administrative levels in the data
+  int<lower=1> N_inv_od;    // the number of unique administrative levels in the data
   
   // Options
   int<lower=0, upper=1> do_censoring;       // Censoring of cases with tfracs bellow threshold
@@ -101,8 +102,8 @@ data {
   real<lower=0> sigma_eta_scale;    // the scale of temporal random effects sd
   real mu_alpha;             // the mean of the intercept, if used
   real<lower=0> sd_alpha;    // the sd of the intercept, if used
-  real<lower=0> mu_inv_od[N_admin_lev-1];    // the means of the inverse over-dispersion parameters
-  real<lower=0> sd_inv_od[N_admin_lev-1];    // the sds of the inverse over-dispersion parameters
+  real<lower=0> mu_inv_od[N_inv_od];    // the means of the inverse over-dispersion parameters
+  real<lower=0> sd_inv_od[N_inv_od];    // the sds of the inverse over-dispersion parameters
   real<lower=0> mu_sd_w;
   real<lower=0> sd_sd_w;
   
@@ -122,7 +123,6 @@ transformed data {
   int<lower=0, upper=T> size_eta;
   int<lower=0, upper=1> size_sd_eta;
   int<lower=1> N_countries_admin_lev = N_countries * N_admin_lev;
-  int<lower=0> N_inv_od_param = N_countries_admin_lev - N_countries;    // The total number of overdisperion parameters is N_countries_admin_lev - N_countries with admin 0 level which are fixed 
   int<lower=0,upper=N> ind_grid_country[N_countries, N];    // matrix of indices of countries
   int<lower=1, upper=N> N_ind_grid_country[N_countries];    // counter for countries
   
@@ -215,7 +215,7 @@ parameters {
   vector[ncovar] betas;
   
   // Overdispersion parameters
-  vector<lower=0>[N_inv_od_param*do_overdispersion] inv_od_param;
+  vector<lower=0>[N_inv_od*do_overdispersion] inv_od_param;
   real<lower=0> sigma_std_dev_w[2];
 }
 

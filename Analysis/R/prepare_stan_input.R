@@ -445,6 +445,7 @@ prepare_stan_input <- function(
   
   # Add unique number of admin levels for use in observation model
   stan_data$N_admin_lev <- length(u_admin_levels)
+  N_countries_admin_lev <-  stan_data$N_countries * stan_data$N_admin_lev
   
   # Unique map of country/admin levels
   u_country_admin_lev <- expand.grid(
@@ -474,10 +475,11 @@ prepare_stan_input <- function(
         }
       })
   } else {
-    stan_data$map_od_inv_od_param <- rep(0, stan_data$N_admin_lev*stan_data$N_countries)
+    stan_data$map_od_inv_od_param <- rep(0, N_countries_admin_lev)
   }
   
-  
+  # Number of od parameters (Adm0 level does not have any)
+  stan_data$N_inv_od <- max(stan_data$map_od_inv_od_param)
   
   stan_data$map_obs_country_admin_lev <- purrr::map_dbl(
     1:nrow(sf_cases_resized),
@@ -631,11 +633,9 @@ prepare_stan_input <- function(
   # We assume that the largest admin level (admin level 0 for national) has
   # an informative prior so as to produce little overdispersion. The over-dispersion for other
   # admin levels are allowed to have more prior support for larger amount of over-dispersion.
-  if (stan_data$N_admin_lev > 1) {
-    stan_data$mu_inv_od <- rep(0, stan_data$N_admin_lev)   # center at 0 (note that this is on the scale of 1/tau)
-    stan_data$sd_inv_od <- c(config$inv_od_sd_adm0, 
-                             rep(config$inv_od_sd_nopool,
-                                 stan_data$N_admin_lev - 1))
+  if (stan_data$N_coun > 1) {
+    stan_data$mu_inv_od <- rep(0, stan_data$N_inv_od)   # center at 0 (note that this is on the scale of 1/tau)
+    stan_data$sd_inv_od <- rep(config$inv_od_sd_nopool, stan_data$N_inv_od)
   } else {
     stan_data$mu_inv_od <- array(0, dim = 0)
     stan_data$sd_inv_od <- array(0, dim = 0)
