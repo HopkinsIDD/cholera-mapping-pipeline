@@ -1511,14 +1511,8 @@ get_country_isocode <- function(config) {
     # Testing runs
     return("testing")
   } else {
-    # if(!all(nchar(config$countries_name)==3)){
-    #   warning("Not all countries_names in the config are valid country iso code.")
-    # }
-    res <- stringr::str_extract_all(config$countries_name, "[A-Z]{3}")[[1]]
-    if (length(res) > 0) {
-      return(res)
-    } else {
-      stop("Failed to extract isocodes from config")
+    if(!all(nchar(config$countries_name)==3)){
+      warning("Not all countries_names in the config are valid country iso code.")
     }
   }
 }
