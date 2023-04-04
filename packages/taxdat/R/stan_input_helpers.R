@@ -1044,7 +1044,9 @@ get_admin_level <- function(location_name) {
 #' @export
 #'
 get_country <- function(location_name) {
-  stringr::str_extract(location_name, "[A-Z]{3}")
+  location_name %>% 
+    stringr::str_remove("AFR") %>% 
+    stringr::str_extract("[A-Z]{3}")
 }
 
 #' Q_sum_to_zero_QR
@@ -1112,10 +1114,10 @@ map_gridcell_to_country <- function(conn_pg,
     dplyr::as_tibble()
   
   inttable <- DBI::dbGetQuery(conn_pg,
-                             statement = glue::glue_sql("
+                              statement = glue::glue_sql("
                              SELECT location_period_id as lp, rid, x, y, ST_Area(geom) as area
                              FROM {`{DBI::SQL(output_intersections_table)}`};",
-                                                    .con = conn_pg)) %>% 
+                                                         .con = conn_pg)) %>% 
     dplyr::as_tibble()
   
   

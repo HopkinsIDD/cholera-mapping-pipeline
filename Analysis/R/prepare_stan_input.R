@@ -64,7 +64,7 @@ prepare_stan_input <- function(
   
   # Add country information
   conn_pg <- taxdat::connect_to_db(dbuser)
-  map_grid_to_country_df <- map_gridcell_to_country(
+  map_grid_to_country_df <- taxdat::map_gridcell_to_country(
     conn_pg = conn_pg,
     output_intersections_table = taxdat::make_output_grid_intersections_table_name(config = config),
     output_lp_name = taxdat::make_output_locationperiods_table_name(config = config) %>% paste0("_dict")
@@ -75,7 +75,7 @@ prepare_stan_input <- function(
   smooth_grid <- dplyr::left_join(smooth_grid %>% 
                                     dplyr::inner_join(
                                       sf::st_drop_geometry(sf_grid) %>% 
-                                        dplyr::select(id, rid, x, y)
+                                        dplyr::distinct(id, rid, x, y)
                                     ), 
                                   map_grid_to_country_df)
   
@@ -404,7 +404,7 @@ prepare_stan_input <- function(
   stan_data$obs_model <- config$obs_model
   
   # Grid cells to country
-  u_countries <- unique(sf_grid$country) %>% sort()
+  u_countries <- unique(sf_grid$country, na.rm = T) %>% sort()
   stan_data$N_countries <- length(u_countries)
   
   stan_data$map_grid_country <- purrr::map_dbl(
@@ -441,14 +441,14 @@ prepare_stan_input <- function(
   stan_data$map_obs_admin_lev <- purrr::map_dbl(admin_levels, ~ which(u_admin_levels == .))
   
   # Indices of adm0 level
-  stan_data$ind_obs_admin_lev0 <- which(admin_levels == 1)
+  stan_data$ind_obs_admin_lev0 <- which(admin_levels == 0)
   
   # Add unique number of admin levels for use in observation model
   stan_data$N_admin_lev <- length(u_admin_levels)
   
   # Unique map of country/admin levels
   u_country_admin_lev <- expand.grid(
-    country = 1:stan_data$N_coutries,
+    country = 1:stan_data$N_countries,
     admin_lev = 1:stan_data$N_admin_lev 
   ) %>% 
     dplyr::mutate(row = dplyr::row_number())
@@ -462,25 +462,29 @@ prepare_stan_input <- function(
     # this will break if the first admin level is not admin level 0
     dplyr::filter(admin_lev != 1)   
   
-  stan_data$map_od_inv_od_param <- purrr::map_dbl(
-    u_country_admin_lev$row,
-    function(x){
-      ind <- which(comb_inv_od$row == x)
-      if (length(ind) == 0) {
-        return(0)
-      } else {
-        return(ind)
-      }
-    })
+  if (nrow(comb_inv_od) > 0) {
+    stan_data$map_od_inv_od_param <- purrr::map_dbl(
+      u_country_admin_lev$row,
+      function(x){
+        ind <- which(comb_inv_od$row == x)
+        if (length(ind) == 0) {
+          return(0)
+        } else {
+          return(ind)
+        }
+      })
+  } else {
+    stan_data$map_od_inv_od_param <- rep(0, stan_data$N_admin_lev*stan_data$N_countries)
+  }
   
   
-  stan_data$map_obs_country_admin_lev <- map_dbl(
+  
+  stan_data$map_obs_country_admin_lev <- purrr::map_dbl(
     1:nrow(sf_cases_resized),
     function(x) {
-      
       dplyr::filter(u_country_admin_lev,
-                    country == taxdat::get_country(sf_cases_resized$location_name[x]),
-                    admin_lev == admin_levels[x]) %>% 
+                    country == which(u_countries == taxdat::get_country(sf_cases_resized$location_name[x])),
+                    admin_lev == which(u_admin_levels == admin_levels[x])) %>% 
         dplyr::pull(row)
     })
   
@@ -627,10 +631,16 @@ prepare_stan_input <- function(
   # We assume that the largest admin level (admin level 0 for national) has
   # an informative prior so as to produce little overdispersion. The over-dispersion for other
   # admin levels are allowed to have more prior support for larger amount of over-dispersion.
-  stan_data$mu_inv_od <- rep(0, stan_data$N_admin_lev)   # center at 0 (note that this is on the scale of 1/tau)
-  stan_data$sd_inv_od <- c(config$inv_od_sd_adm0, 
-                           rep(config$inv_od_sd_nopool,
-                               stan_data$N_admin_lev - 1))
+  if (stan_data$N_admin_lev > 1) {
+    stan_data$mu_inv_od <- rep(0, stan_data$N_admin_lev)   # center at 0 (note that this is on the scale of 1/tau)
+    stan_data$sd_inv_od <- c(config$inv_od_sd_adm0, 
+                             rep(config$inv_od_sd_nopool,
+                                 stan_data$N_admin_lev - 1))
+  } else {
+    stan_data$mu_inv_od <- array(0, dim = 0)
+    stan_data$sd_inv_od <- array(0, dim = 0)
+  }
+  
   
   # Also save for hierarchical model
   stan_data$h_mu_mean_inv_od <- 0     # the mean of hierarchical inverse over-dispersion parameters
