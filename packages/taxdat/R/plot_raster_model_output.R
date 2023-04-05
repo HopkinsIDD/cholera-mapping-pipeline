@@ -466,7 +466,7 @@ plot_raster_with_fill_and_continent_shp <- function(name, color_scale_type, fill
 #' @name plot_continent_map_sf
 #' @title plot_continent_map_sf
 #' @description plot the continent 
-#' @param shapefile_dir where the folder of shape files is stored 
+#' @param outputmap_dir folder of map, .csv file, and shape files are stored 
 #' @param country_borders whether to plot the country borders 
 #' @param continent_sf the actual continent sf object 
 #' @param sf_type cases or rates
@@ -475,7 +475,7 @@ plot_raster_with_fill_and_continent_shp <- function(name, color_scale_type, fill
 #' @param width
 #' @param height
 #' @return ggplot object 
-plot_continent_map_sf <- function(shapefile_dir, 
+plot_continent_map_sf <- function(outputmap_dir, 
                                   country_borders = TRUE, 
                                   continent_sf,
                                   sf_type, 
@@ -484,12 +484,12 @@ plot_continent_map_sf <- function(shapefile_dir,
                                   width = NULL,
                                   height = NULL){
   # Get the country list for the whole Africa
-  country_list <- readr::read_csv(paste(shapefile_dir, "Africa_country_list.csv", sep="/"))$ISO_3
+  country_list <- readr::read_csv(paste(outputmap_dir, "Africa_country_list.csv", sep="/"))$ISO_3
   
   # Get the continent-level shape files
-  dir.create(file.path(shapefile_dir, "shapefiles/"), showWarnings = FALSE)
+  dir.create(file.path(outputmap_dir, "shapefiles/"), showWarnings = FALSE)
   shp <- GADMTools::gadm_sf_loadCountries(country_list, level = 0, 
-                                          basefile = file.path(shapefile_dir, "shapefiles/"))$sf
+                                          basefile = file.path(outputmap_dir, "shapefiles/"))$sf
   
   # Combine or unionize all countries together 
   if(country_borders){
