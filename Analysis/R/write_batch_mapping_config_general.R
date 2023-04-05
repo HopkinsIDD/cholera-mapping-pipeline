@@ -86,7 +86,7 @@ params_df <- data.frame(
     ncores = 4,
     model = 'mapping_model_inference', 
     genquant = 'mapping_model_generate', 
-    iter_warmup = 1000, 
+    iter_warmup = 1100, 
     iter_sampling = 1000, 
     recompile = 'yes', 
     output_directory = '', 
