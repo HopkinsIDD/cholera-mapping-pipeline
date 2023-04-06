@@ -729,6 +729,8 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
       config_file[[nm]] <- check_list[[nm]](config_file[["obs_model"]], config_file[[nm]])
     } else if (nm == "covariate_choices") {
       config_file[[nm]] <- check_list[[nm]](config_file[[nm]], all_covariates)
+    } else if (nm == "snap_tol") {
+      config_file[[nm]] <- check_list[[nm]](config_file[[nm]], config_file[["res_time"]])
     } else if (is.function(check_list[[nm]])) {
       config_file[[nm]] <- check_list[[nm]](config_file[[nm]])
     } else {
