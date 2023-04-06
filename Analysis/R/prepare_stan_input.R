@@ -259,22 +259,19 @@ prepare_stan_input <- function(
         n_cpus = ncore,
         do_parallel = F)
       
-      # First define censored observations
+      # Update data
       stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
       stan_data$M <- nrow(sf_cases_resized)
+      non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
+      obs_changer <- taxdat::make_changer(x = non_na_obs_resized) 
+      stan_data$map_obs_loctime_obs <- taxdat::get_map_obs_loctime_obs(x = ind_mapping_resized$map_obs_loctime_obs,
+                                                                       obs_changer = obs_changer)
       
       # Extract censoring information
       censoring_inds <- taxdat::get_censoring_inds(stan_data = stan_data,
                                                    ind_mapping_resized = ind_mapping_resized,
                                                    censoring_thresh = config$censoring_thresh)
       
-      
-      # Update data
-      non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
-      obs_changer <- taxdat::make_changer(x = non_na_obs_resized) 
-      stan_data$map_obs_loctime_obs <- taxdat::get_map_obs_loctime_obs(x = ind_mapping_resized$map_obs_loctime_obs,
-                                                                       obs_changer = obs_changer)
-      stan_data$map_obs_loctime_loc <- as.array(ind_mapping_resized$map_obs_loctime_loc) 
     }
   }
   
