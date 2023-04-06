@@ -523,7 +523,7 @@ prepare_stan_input <- function(
   
   
   cat("**** FINISHED PREPARING STAN INPUT \n")
-  taxdat::close_parellel_setup()
+  taxdat::close_parallel_setup()
   
   return(
     list(stan_data = stan_data,

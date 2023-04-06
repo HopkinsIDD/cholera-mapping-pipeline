@@ -208,8 +208,10 @@ check_parallel_setup <- function(do_parallel,
 #' @export
 #'
 #' @examples
-close_parellel_setup <- function() {
-  doParallel::stopImplicitCluster()
+close_parallel_setup <- function() {
+  if (exists("cl")) {
+    doParallel::stopImplicitCluster()
+  }
 }
 
 #' @title Get space time index
