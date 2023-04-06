@@ -159,19 +159,21 @@ for(country in all_countries) {
 ```
 
 # Continent Map of Cases
-```{r map_plotting_case, echo=FALSE, fig.height=10,fig.width=10} 
+```{r map_plotting_case, echo=FALSE, fig.width=10, fig.heigth=10} 
 plot_continent_map_sf(outputmap_dir = gsub("Analysis/output/", "", params$map_output_dir), 
                       country_borders = TRUE, 
                       continent_sf = final_cache$case_results, 
-                      sf_type = "case")
+                      sf_type = "case", 
+                      complete_country = complete_country)
 ```
 
 # Continent Map of Rates
-```{r map_plotting_rate, echo=FALSE, fig.height=10,fig.width=10} 
+```{r map_plotting_rate, echo=FALSE, fig.width=10, fig.heigth=10} 
 plot_continent_map_sf(outputmap_dir = gsub("Analysis/output/", "", params$map_output_dir), 
                       country_borders = TRUE, 
                       continent_sf = final_cache$rate_results, 
-                      sf_type = "rate")
+                      sf_type = "rate", 
+                      complete_country = complete_country)
 ```
 
 # Continent Tables

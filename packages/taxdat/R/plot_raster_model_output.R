@@ -470,6 +470,7 @@ plot_raster_with_fill_and_continent_shp <- function(name, color_scale_type, fill
 #' @param country_borders whether to plot the country borders 
 #' @param continent_sf the actual continent sf object 
 #' @param sf_type cases or rates
+#' @param complete_country finished countries with data
 #' @param render 
 #' @param plot_file
 #' @param width
@@ -479,6 +480,7 @@ plot_continent_map_sf <- function(outputmap_dir,
                                   country_borders = TRUE, 
                                   continent_sf,
                                   sf_type, 
+                                  complete_country, 
                                   render = T,
                                   plot_file = NULL,
                                   width = NULL,
@@ -488,14 +490,18 @@ plot_continent_map_sf <- function(outputmap_dir,
   
   # Get the continent-level shape files
   dir.create(file.path(outputmap_dir, "shapefiles/"), showWarnings = FALSE)
-  shp <- GADMTools::gadm_sf_loadCountries(country_list, level = 0, 
+  shp_all_transparent <- GADMTools::gadm_sf_loadCountries(country_list, level = 0, 
                                           basefile = file.path(outputmap_dir, "shapefiles/"))$sf
+  shp_NA_grey <- GADMTools::gadm_sf_loadCountries(country_list[!country_list %in% complete_country], level = 0, 
+                                          basefile = file.path(outputmap_dir, "shapefiles/"))$sf                                        
   
   # Combine or unionize all countries together 
   if(country_borders){
-    countinent_shp <- sf::st_as_sf(sf::st_combine(shp))
+    countinent_shp_transparent <- sf::st_as_sf(sf::st_combine(shp_all_transparent))
+    countinent_shp_grey <- sf::st_as_sf(sf::st_combine(shp_NA_grey))
   }else{
-    countinent_shp <- sf::st_as_sf(sf::st_union(shp))
+    countinent_shp_transparent <- sf::st_as_sf(sf::st_union(shp_all_transparent))
+    countinent_shp_grey <- sf::st_as_sf(sf::st_union(shp_NA_grey))
   }
   
   # Plot the continent map 
@@ -503,27 +509,31 @@ plot_continent_map_sf <- function(outputmap_dir,
 
   if(grepl("case", tolower(sf_type))){
     plt <- ggplot2::ggplot() +
+      ggplot2::geom_sf(data=countinent_shp_transparent,fill=NA,color="black",size=0.05)+
+      ggplot2::geom_sf(data=countinent_shp_grey,fill='grey',color="black",size=0.05)+
       ggplot2::geom_sf(
         data = continent_sf,
         ggplot2::aes(fill = modeled_cases_mean_across_years), color=NA, size=0.00001)+
       taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = TRUE)+
-      ggplot2::geom_sf(data=countinent_shp,fill=NA,color="black",size=0.05)+
       ggplot2::labs(fill="Incidence\n [cases/year]")+
       ggplot2::theme_bw() +
       ggplot2::theme(legend.position = "bottom") +
-      ggplot2::theme(legend.text = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1)) 
+      ggplot2::theme(legend.text = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1)) + 
+      ggplot2::theme(panel.background = element_rect(fill = "lightblue", colour = NA))
       # ggplot2::facet_wrap(~t,ncol = length(unique(continent_sf$t))) 
   }else if(grepl("rate", tolower(sf_type))){
     plt <- ggplot2::ggplot() +
+      ggplot2::geom_sf(data=countinent_shp_transparent,fill=NA,color="black",size=0.05)+
+      ggplot2::geom_sf(data=countinent_shp_grey,fill='grey',color="black",size=0.05)+
       ggplot2::geom_sf(
         data = continent_sf,
         ggplot2::aes(fill = modeled_rates_mean_across_years), color=NA, size=0.00001)+
       taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
-      ggplot2::geom_sf(data=countinent_shp,fill=NA,color="black",size=0.05)+
       ggplot2::labs(fill="Incidence rate\n [cases/10'000/year]")+
       ggplot2::theme_bw() +
       ggplot2::theme(legend.position = "bottom") +
-      ggplot2::theme(legend.text = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1)) 
+      ggplot2::theme(legend.text = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1)) + 
+      ggplot2::theme(panel.background = element_rect(fill = "lightblue", colour = NA))
   }
 
   if (!is.null(plot_file)) {
