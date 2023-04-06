@@ -46,7 +46,7 @@ nb2graph <- function(x) {
 #' @param model_time_slices dataframe of left and right bounds of the modeling time slices
 #' @param res_time the time resolution of the model
 #' @param do_parallel whether to compute indices in parallel or not
-#' @param n_cpus the number of cpus to do parellel computatoin
+#' @param n_cpus the number of cpus to do parallel computatoin
 #'
 #' @details the space-time indices are a replication of the grid indices with an offset of the number of pixels
 #'
@@ -202,7 +202,7 @@ check_parallel_setup <- function(do_parallel,
   }
 }
 
-#' close_parellel_setup
+#' close_parallel_setup
 #'
 #' @return
 #' @export
@@ -225,7 +225,7 @@ close_parallel_setup <- function() {
 #' @param model_time_slices dataframe of left and right bounds of the modeling time slices
 #' @param do_parallel 
 #' @param do_parallel whether to compute indices in parallel or not
-#' @param n_cpus the number of cpus to do parellel computatoin
+#' @param n_cpus the number of cpus to do parallel computatoin
 #'
 #' @details the space-time indices are a replication of the grid indices with an offset of the number of pixels.
 #' In this version we compute to mappings: from observations to location periods and from
