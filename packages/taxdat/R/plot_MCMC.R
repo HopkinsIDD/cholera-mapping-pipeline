@@ -17,7 +17,7 @@ plot_chain_convergence <- function(name,
                                    config, 
                                    cholera_directory, 
                                    model_output_filenames,
-                                   pars = c("alpha", "rho", "log_std_dev_w", "eta", "std_dev_w", "od_param","sigma_eta","beta","lambda"),
+                                   pars = c("alpha", "rho", "log_std_dev_w", "eta", "std_dev_w", "od_param","sigma_eta","lambda","beta"),
                                    render = T){
   if(name %in% names(cache)){
     model.rand <- cache[[name]]
