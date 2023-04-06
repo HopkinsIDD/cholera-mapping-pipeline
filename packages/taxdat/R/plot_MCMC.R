@@ -66,7 +66,13 @@ plot_MCMCpars <- function(name,
   # pars<-pars[unlist(lapply(pars,function(x){any(str_detect(names(model.rand),x))}))]
 
   pars <- pars[pars %in% unique(stringr::str_extract(names(model.rand), "[[a-z]*_*]*[a-z]+"))]
-  plot <- rstan::plot(model.rand, pars = pars)
+  #subset a random sample of w for trace plot
+  get_stan_input(name="stan_input",cache=cache,config = params$config,cholera_directory = params$cholera_directory)
+  smooth_grid_N<-cache[["stan_input"]]$stan_data$smooth_grid_N
+  w_random_indx <- sample(smooth_grid_N,size=5)
+  w_pars<- c(unlist((lapply(w_random_indx,FUN = function(x){return(paste0("w[",x,"]"))}))))
+  
+  plot <- rstan::plot(model.rand, pars = c(pars,w_pars))
   return(plot)
 }
 
