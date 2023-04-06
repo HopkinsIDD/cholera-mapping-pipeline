@@ -255,6 +255,9 @@ sf_cases <- sf::st_as_sf(
   )
 )
 
+# Cleanup
+rm(cases)
+
 if (any(sf::st_is_empty(sf_cases))) {
   warning(
     paste(
@@ -280,6 +283,7 @@ sf_cases <- taxdat::snap_to_time_period_df(df = sf_cases,
 
 save(sf_cases,
      full_grid_name,
+     shapefiles,
      output_shapefiles,
      file = file_names[["data"]]
 )
