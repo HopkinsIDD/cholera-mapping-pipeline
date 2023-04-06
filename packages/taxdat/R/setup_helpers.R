@@ -443,11 +443,15 @@ check_set_tfrac <- function(set_tfrac) {
 #' @export
 #'
 check_snap_tol <- function(snap_tol, res_time) {
+  
   if (!is.null(snap_tol)) {
-    snap_tol<-tryCatch(eval(parse(text = snap_tol)),
-                       error=function(e) {
-                         stop('snap_tol expression is invalid.')
-                         print(e)})
+    snap_tol <- tryCatch(
+      eval(parse(text = snap_tol)),
+      error = function(e) {
+        stop('snap_tol expression is invalid.')
+        print(e)
+      })
+    
     if (snap_tol < 0) {
       stop("Cannot specifiy negative snap tolerance values")
     }
@@ -462,6 +466,8 @@ check_snap_tol <- function(snap_tol, res_time) {
     cat("---- By default, running with value of snap tolerance 7/365:", snap_tol,
         "[", res_time, "]\n")
   }
+  
+  
   return(snap_tol)
 }
 
@@ -566,6 +572,51 @@ check_stan_model <- function(stan_model_path, stan_dir) {
   return(stan_model_path)
 }
 
+
+#' check_ncpus_parallel_prep
+#'
+#' @param ncpus_parallel_prep 
+#' @param default_value 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_ncpus_parallel_prep <- function(ncpus_parallel_prep,
+                                      default_value = 1) {
+  if (is.null(ncpus_parallel_prep)) {
+    cat("---- Running with default ncpus_parallel_prep value of", default_value, "\n")
+    return(default_value)
+  } else if(!is.numeric(ncpus_parallel_prep)) {
+    stop("ncpus_parallel_prep is not numeric")
+  } else {
+    cat("---- Running with ncpus_parallel_prep value of", as.integer(ncpus_parallel_prep), "\n")
+    return(as.integer(ncpus_parallel_prep))
+  }
+}
+
+#' check_do_parallel_prep
+#'
+#' @param do_parallel_prep 
+#' @param default_value 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_do_parallel_prep <- function(do_parallel_prep,
+                                   default_value = FALSE) {
+  if (is.null(do_parallel_prep)) {
+    cat("---- Running with default do_parallel_prep value of", default_value, "\n")
+    return(default_value)
+  } else if(!is.logical(do_parallel_prep)) {
+    stop("do_parallel_prep is not logical")
+  } else {
+    cat("---- Running with do_parallel_prep value of", do_parallel_prep, "\n")
+    return(do_parallel_prep)
+  }
+}
+
 #' Get all config options
 #'
 #' @return
@@ -594,6 +645,10 @@ get_all_config_options <- function() {
     h_mu_sd_inv_od = as.function(check_od_param_mu_sd_prior_pooling),
     h_sd_sd_inv_od = as.function(check_od_param_sd_sd_prior_pooling),
     mu_sd_w = as.function(check_mu_sd_w), 
+    ncpus_parallel_prep = as.function(check_ncpus_parallel_prep),
+    do_parallel_prep = as.function(check_do_parallel_prep),
+    obs_model = as.function(check_obs_model), 
+    od_param = as.function(check_od_param),
     time_effect = "stan-check", 
     time_effect_autocorr = "stan-check", 
     use_intercept = "stan-check",
@@ -669,10 +724,12 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
   
   ### The general check
   for (nm in names(check_list)) {
-    if (nm %in% c('inv_od_sd_adm0', 'inv_od_sd_nopool', 'h_mu_sd_inv_od', 'h_sd_sd_inv_od')) {
+    if (nm == "od_param") {
       config_file[[nm]] <- check_list[[nm]](config_file[["obs_model"]], config_file[[nm]])
     } else if (nm == "covariate_choices") {
       config_file[[nm]] <- check_list[[nm]](config_file[[nm]], all_covariates)
+    } else if (nm == "snap_tol") {
+      config_file[[nm]] <- check_list[[nm]](config_file[[nm]], config_file[["res_time"]])
     } else if (is.function(check_list[[nm]])) {
       config_file[[nm]] <- check_list[[nm]](config_file[[nm]])
     } else {
@@ -867,7 +924,7 @@ check_sd_alpha <- function(x,
   } else {
     par <- try_conv_numeric(x)
   }
-
+  
   par
 }
 

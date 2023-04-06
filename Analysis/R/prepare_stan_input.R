@@ -154,8 +154,8 @@ prepare_stan_input <- function(
     lp_dict = location_periods_dict,
     model_time_slices = time_slices,
     res_time = res_time,
-    n_cpus = ncore,
-    do_parallel = FALSE)
+    n_cpus = config$ncpus_parallel_prep,
+    do_parallel = config$do_parallel_prep)
   
   non_na_obs <- sort(unique(ind_mapping$map_obs_loctime_obs))
   sf_cases_resized <- sf_cases[non_na_obs, ]
@@ -169,7 +169,9 @@ prepare_stan_input <- function(
                                                        non_na_obs = non_na_obs,
                                                        ind_mapping = ind_mapping,
                                                        cases_column = cases_column,
-                                                       verbose = opt$verbose)
+                                                       verbose = opt$verbose,
+                                                       n_cpus = config$ncpus_parallel_prep,
+                                                       do_parallel = config$do_parallel_prep)
     
     # Snap to time period after aggregation
     sf_cases_resized <- taxdat::snap_to_time_period_df(df = sf_cases_resized,
@@ -184,8 +186,8 @@ prepare_stan_input <- function(
       lp_dict = location_periods_dict,
       model_time_slices = time_slices,
       res_time = res_time,
-      n_cpus = ncore,
-      do_parallel = F)
+      n_cpus = config$ncpus_parallel_prep,
+      do_parallel = config$do_parallel_prep)
     
   } else {
     print("---- USING RAW CHOLERA DATA ----")
@@ -193,6 +195,9 @@ prepare_stan_input <- function(
     sf_cases_resized <- sf_cases
   }
   
+  # Clean unused objects
+  rm(ind_mapping)
+  rm(sf_cases)
   
   #  ---- D. Drop tfrac threshold ----
   
@@ -215,8 +220,8 @@ prepare_stan_input <- function(
         lp_dict = location_periods_dict,
         model_time_slices = time_slices,
         res_time = res_time,
-        n_cpus = ncore,
-        do_parallel = F)
+        n_cpus = config$ncpus_parallel_prep,
+        do_parallel = config$do_parallel_prep)
     }
   }
   
@@ -256,8 +261,8 @@ prepare_stan_input <- function(
         lp_dict = location_periods_dict,
         model_time_slices = time_slices,
         res_time = res_time,
-        n_cpus = ncore,
-        do_parallel = F)
+        n_cpus = config$ncpus_parallel_prep,
+        do_parallel = config$do_parallel_prep)
       
       # Update data
       stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
@@ -316,8 +321,8 @@ prepare_stan_input <- function(
         lp_dict = location_periods_dict,
         model_time_slices = time_slices,
         res_time = res_time,
-        n_cpus = ncore,
-        do_parallel = F)
+        n_cpus = config$ncpus_parallel_prep,
+        do_parallel = config$do_parallel_prep)
       
       # Reset stan_data
       non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
@@ -531,8 +536,8 @@ prepare_stan_input <- function(
     lp_dict = output_location_periods_table,
     model_time_slices = time_slices,
     res_time = res_time,
-    n_cpus = ncore,
-    do_parallel = F)
+    n_cpus = config$ncpus_parallel_prep,
+    do_parallel = config$do_parallel_prep)
   
   # Space-only location periods
   output_lps_space <- fake_output_obs %>% 
@@ -652,6 +657,7 @@ prepare_stan_input <- function(
   stan_data$sd_sd_w <- config$sd_sd_w
   
   cat("**** FINISHED PREPARING STAN INPUT \n")
+  taxdat::close_parallel_setup()
   
   return(
     list(stan_data = stan_data,
