@@ -45,6 +45,8 @@ if (! "params" %in% ls()) {
 options(bitmapType = 'cairo')
 knitr::opts_chunk$set(
   echo = FALSE,
+  fig.width = unit(18, "cm"), 
+  fig.height = unit(18, "cm"), 
   dev = "CairoPNG",
   fig.align = "center",
   message = FALSE,
@@ -159,7 +161,7 @@ for(country in all_countries) {
 ```
 
 # Continent Map of Cases
-```{r map_plotting_case, echo=FALSE, fig.width=10, fig.heigth=10} 
+```{r map_plotting_case} 
 plot_continent_map_sf(outputmap_dir = gsub("Analysis/output/", "", params$map_output_dir), 
                       country_borders = TRUE, 
                       continent_sf = final_cache$case_results, 
@@ -168,7 +170,7 @@ plot_continent_map_sf(outputmap_dir = gsub("Analysis/output/", "", params$map_ou
 ```
 
 # Continent Map of Rates
-```{r map_plotting_rate, echo=FALSE, fig.width=10, fig.heigth=10} 
+```{r map_plotting_rate} 
 plot_continent_map_sf(outputmap_dir = gsub("Analysis/output/", "", params$map_output_dir), 
                       country_borders = TRUE, 
                       continent_sf = final_cache$rate_results, 

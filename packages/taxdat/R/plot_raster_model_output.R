@@ -516,7 +516,7 @@ plot_continent_map_sf <- function(outputmap_dir,
         ggplot2::aes(fill = modeled_cases_mean_across_years), color=NA, size=0.00001)+
       taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = TRUE)+
       ggplot2::labs(fill="Incidence\n [cases/year]")+
-      ggplot2::theme_bw() +
+      ggplot2::theme_minimal() +
       ggplot2::theme(legend.position = "bottom") +
       ggplot2::theme(legend.text = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1)) + 
       ggplot2::theme(panel.background = element_rect(fill = "lightblue", colour = NA))
@@ -530,7 +530,7 @@ plot_continent_map_sf <- function(outputmap_dir,
         ggplot2::aes(fill = modeled_rates_mean_across_years), color=NA, size=0.00001)+
       taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
       ggplot2::labs(fill="Incidence rate\n [cases/10'000/year]")+
-      ggplot2::theme_bw() +
+      ggplot2::theme_minimal() +
       ggplot2::theme(legend.position = "bottom") +
       ggplot2::theme(legend.text = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1)) + 
       ggplot2::theme(panel.background = element_rect(fill = "lightblue", colour = NA))
