@@ -95,8 +95,8 @@ data {
   real<lower=0> sigma_eta_scale;    // the scale of temporal random effects sd
   real mu_alpha;             // the mean of the intercept, if used
   real<lower=0> sd_alpha;    // the sd of the intercept, if used
-  real<lower=0> mu_inv_od[N_admin_lev-1];    // the means of the inverse over-dispersion parameters
-  real<lower=0> sd_inv_od[N_admin_lev-1];    // the sds of the inverse over-dispersion parameters
+  real<lower=0> mu_inv_od[N_admin_lev];    // the means of the inverse over-dispersion parameters
+  real<lower=0> sd_inv_od[N_admin_lev];    // the sds of the inverse over-dispersion parameters
   real<lower=0> mu_sd_w;
   real<lower=0> sd_sd_w;
   
@@ -493,7 +493,7 @@ model {
   // Priors on the over-dispersion parameters
   
   if (do_overdispersion == 1) {
-    inv_od_param ~ normal(mu_inv_od, sd_inv_od);
+    inv_od_param ~ normal(mu_inv_od[2:N_admin_lev], sd_inv_od[2:N_admin_lev]);
   }
   
   // ---- 4. Observations likelihood ----
