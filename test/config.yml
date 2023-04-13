@@ -15,8 +15,8 @@ data_source: api
 ovrt_metadata_table: no
 ingest_covariates: no
 ingest_new_covariates: no
-censoring: no
-aggregate: no
+censoring: yes
+aggregate: yes
 time_effect: yes
 time_effect_autocorr: no
 use_weights: no
@@ -24,5 +24,6 @@ stan:
   ncores: 4
   model: mapping_model_inference.stan
   genquant: mapping_model_generate.stan
-  niter: 100
+  iter_warmup: 10
+  iter_sampling: 10
   recompile: yes
