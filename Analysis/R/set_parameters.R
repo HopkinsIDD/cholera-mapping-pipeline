@@ -247,6 +247,10 @@ h_sd_sd_inv_od <- taxdat::check_od_param_sd_sd_prior_pooling(
 mu_alpha <- taxdat::check_mu_alpha(config$mu_alpha)
 sd_alpha <- taxdat::check_sd_alpha(config$sd_alpha)
 
+# Priors for spatial sd
+mu_sd_w <- taxdat::check_mu_sd_w(config$mu_sd_w)
+sd_sd_w <- taxdat::check_mu_sd_w(config$sd_sd_w)
+
 # time_effect, time_effect_autocorr, use_intercept are in get_stan_parameters
 
 # - - - - - - - - - - - - - -
