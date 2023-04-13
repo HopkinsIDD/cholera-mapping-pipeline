@@ -317,8 +317,8 @@ stan_model_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, st
 stan_genquant <- stan_params$genquant
 stan_genquant_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, stan_genquant, sep=''), stan_dir = stan_dir)
 # how many iterations
-iter_warmup <- taxdat::check_stan_iter_warmup(stan_params$iter_warmup)
-iter_sampling <- taxdat::check_stan_iter_sampling(stan_params$iter_sampling)
+iter_warmup <- taxdat::check_stan_iter_warmup(config$stan$iter_warmup)
+iter_sampling <- taxdat::check_stan_iter_sampling(config$stan$iter_sampling)
 
 # Should the Stan model be recompiled?
 recompile <- stan_params$recompile
