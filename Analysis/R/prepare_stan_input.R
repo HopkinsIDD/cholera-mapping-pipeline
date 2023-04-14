@@ -516,15 +516,7 @@ prepare_stan_input <- function(
   stan_data$beta_sigma_scale <- config$beta_sigma_scale
   
   # ---- O. Data Structure Check ----
-  if(!identical(
-    nrow(sf_cases_resized),
-    nrow(stan_data$y),
-    stan_data$M,
-    length(stan_data$censoring_inds)
-  )){
-    stop("At least two objects among stan_input$sf_cases_resized, stan_input$stan_data$y, stan_input$stan_data$M, and stan_input$stan_data$censoring_inds 
-    within the stan input do not agree on data dimensions (the number of observations). ")
-  }
+  check_stan_input_objects(stan_data, sf_cases_resized)
 
 
   cat("**** FINISHED PREPARING STAN INPUT \n")

@@ -1021,3 +1021,43 @@ compute_pop_loctimes <- function(stan_data) {
   pop_loctimes
 }
 
+#' Title
+#'
+#' @param stan_data 
+#' @param sf_cases_resized
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_stan_input_objects <- function(stan_data, sf_cases_resized){
+  # Test 1: the same number of observations
+  if(!identical(
+    nrow(sf_cases_resized),
+    length(stan_data$y),
+    stan_data$M,
+    length(stan_data$censoring_inds)
+  )){
+    stop("At least two objects among stan_input$sf_cases_resized, stan_input$stan_data$y, stan_input$stan_data$M, and stan_input$stan_data$censoring_inds 
+    within the stan input do not agree on data dimensions (the number of observations). ")
+  }
+
+  # Test 2: the same number of cases
+  if( sum(sf_cases_resized$attributes.fields.suspected_cases) != sum(stan_data$y) | 
+      sum(sf_cases_resized$attributes.fields.suspected_cases != stan_data$y) > 0  ){
+    stop("The stan_input$sf_cases_resized, stan_input$stan_data$y don't have the same number of total cases. ")
+  }
+
+  # Test 3: compare the sums of sf_cases, sf_cases_resized and y across locations only
+
+  # Test 4: the censored observations are the same
+  if(!all(stan_data$M_full == length(stan_data$censoring_inds[stan_data$censoring_inds == "full"]) | 
+  stan_data$M_right == length(stan_data$censoring_inds[stan_data$censoring_inds == "right-censored"]) | 
+  stan_data$M_full == length(stan_data$ind_full) | 
+  stan_data$M_right == length(stan_data$ind_right))){
+    stop("The censored observations are not the same within stan_data object. ")
+  }
+
+  # Test 5: the number of location/times 
+
+}
