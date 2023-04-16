@@ -1194,3 +1194,115 @@ map_gridcell_to_country <- function(conn_pg,
     dplyr::select(country, rid, x, y)
 }
 
+
+
+
+#' Title
+#'
+#' @param diag 
+#' @param rho 
+#' @param std_dev_w 
+#' @param w 
+#' @param smooth_grid_N 
+#' @param N_edges 
+#' @param node1 
+#' @param node2 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+comput_dagar_aux <- function(diag, rho, std_dev_w, w, smooth_grid_N, N_edges, node1, node2) {
+  # Construct w
+  b = rho / (1 + (diag - 1) * rho * rho );
+  vec_var = (1 - rho * rho) / (1 + (1. * diag - 1) * rho * rho);
+  std_dev = std_dev_w * sqrt(vec_var);
+  
+  t_rowsum <- 0
+  # Linear in number of edges
+  for(i in 1:smooth_grid_N){
+    t_rowsum[i] = 0;
+  }
+  
+  for(i in 1:N_edges){
+    t_rowsum[node1[i]] = t_rowsum[node1[i]] + w[node2[i]] * b[node1[i]];
+  }
+  
+  return(list(t_rowsum = t_rowsum,
+              std_dev = std_dev))
+}
+
+#' Title
+#'
+#' @param w 
+#' @param stan_data 
+#' @param rho 
+#' @param std_dev_w 
+#' @param n_iter 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+smooth_dagar <- function(w, stan_data, rho, std_dev_w, n_iter = 1) {
+  
+  diag <- stan_data$diag
+  smooth_grid_N <- stan_data$smooth_grid_N
+  N_edges <- stan_data$N_edges
+  node1 <- stan_data$node1
+  node2 <- stan_data$node2
+  
+  for (iter in 1:n_iter) {
+    cat("-- Dagar smoothing iter", iter, "\n")
+    dagar_aux <- comput_dagar_aux(diag, rho, std_dev_w, w, smooth_grid_N, N_edges, node1, node2)
+    
+    # Resample squentially all values of w
+    for (i in 2:smooth_grid_N) {
+      w[i] = rnorm(1, dagar_aux$t_rowsum[i], dagar_aux$std_dev[i])
+    }
+  }
+  return(w)
+}
+
+#' Title
+#'
+#' @param stan_data 
+#' @param country_id 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+compute_mean_rate_bycountry <- function (stan_data,
+                                       country_id) {
+  
+  ind_obs <- which(stan_data$map_obs_country == country_id)
+  
+  y_tfrac <- tibble::tibble(
+    tfrac = stan_data$tfrac,
+    map_obs_loctime_obs = stan_data$map_obs_loctime_obs) %>% 
+    dplyr::filter(map_obs_loctime_obs %in% ind_obs) %>% 
+    dplyr::group_by(map_obs_loctime_obs) %>%
+    dplyr::summarize(tfrac = mean(tfrac)) %>% 
+    .[["tfrac"]]
+  
+  nobs <- length(ind_obs)
+  aggpop <- rep(0, nobs)
+  
+  for (i in 1:nobs) {
+    lps <- stan_data$map_obs_loctime_loc[which(stan_data$map_obs_loctime_obs == 
+                                                 ind_obs[i])]
+    for (lp in lps) {
+      aggpop[i] <- aggpop[i] + sum(stan_data$pop[stan_data$map_loc_grid_grid[stan_data$map_loc_grid_loc == 
+                                                                               lp]])
+    }
+  }
+  tot_cases <- sum(stan_data$y[ind_obs] * y_tfrac)
+  meanrate <- tot_cases/sum(aggpop)
+  if (tot_cases == 0 | meanrate < 1e-6) {
+    cat("-- Setting mean rate value to 1e-6 \n")
+    meanrate <- 1e-6
+  }
+  meanrate
+}
+

@@ -290,7 +290,45 @@ if (config$time_effect) {
 if (config$obs_model == 3) {
   
   # For now use random .1 initialization
-  init.list <- .1
+  # init.list <- .1
+  
+  meanrate_countries <- purrr::map_dbl(
+    seq_along(stan_input$u_countries), ~
+      taxdat::compute_mean_rate_bycountry(
+        stan_data = stan_data,
+        country_id = .))
+  
+  names(meanrate_countries) <- stan_input$u_countries
+  
+  mean_w_countries <- log(meanrate_countries/stan_data$meanrate)
+  
+  init.list <- purrr::map(1:nchain, function(x) {
+    res <- with(
+      stan_data, list(
+        rho = runif(1, .9, .95),    # rho
+        std_dev_w = runif(1, 5, 10),    # 
+        w = rnorm(smooth_grid_N, 
+                  purrr::map_dbl(stan_data$map_grid_country[1:stan_data$smooth_grid_N], ~ mean_w_countries[.]), 
+                  .1),    # w
+        lambda =  runif(1, .5, .7),    # lambda
+        eta_tilde = rnorm((stan_data$N_countries * stan_data$`T`) - stan_data$N_countries, 0, .1),    # eta_tilde
+        inv_od_param =  runif(stan_data$N_inv_od, 5, 10),    # inv_od_param
+        sigma_std_dev_w = c(runif(1, 2, 3),
+                            runif(1, .5, 1))    # sigma_std_dev
+      )
+    )
+    
+    res$w <- taxdat::smooth_dagar(res$w,
+                                  stan_data = stan_data,
+                                  rho = res$rho,
+                                  std_dev_w = res$std_dev_w,
+                                  n_iter = 15) %>% 
+      pmin(., 12) %>% 
+      pmax(., -12)
+    
+    res
+  })
+  
   
   # init.list <- 
   #   purrr::map(1:nchain, function(x) {
