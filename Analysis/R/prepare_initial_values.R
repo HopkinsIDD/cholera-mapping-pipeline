@@ -293,12 +293,12 @@ if (config$obs_model == 3) {
   # init.list <- .1
   
   meanrate_countries <- purrr::map_dbl(
-    seq_along(stan_input$u_countries), ~
+    seq_along(u_countries), ~
       taxdat::compute_mean_rate_bycountry(
         stan_data = stan_data,
         country_id = .))
   
-  names(meanrate_countries) <- stan_input$u_countries
+  names(meanrate_countries) <- u_countries
   
   mean_w_countries <- log(meanrate_countries/stan_data$meanrate)
   
@@ -307,7 +307,7 @@ if (config$obs_model == 3) {
       stan_data, list(
         rho = runif(1, .9, .95),    # rho
         std_dev_w = runif(1, 5, 10),    # 
-        w = rnorm(smooth_grid_N, 
+        w = rnorm(stan_data$smooth_grid_N, 
                   purrr::map_dbl(stan_data$map_grid_country[1:stan_data$smooth_grid_N], ~ mean_w_countries[.]), 
                   .1),    # w
         lambda =  runif(1, .5, .7),    # lambda
