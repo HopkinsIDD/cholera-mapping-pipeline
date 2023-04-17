@@ -129,3 +129,39 @@ plot_w_mean <- function(cache, config, cholera_directory) {
     plot <- w_sf %>% ggplot2::ggplot(.,ggplot2::aes(fill=w_mean,color=w_mean))+geom_sf()+taxdat::map_theme() +facet_wrap(~chain)
     return(plot)
 }
+
+# plot  Gelman-Rubin Rhat by admin units
+#' @export
+#' @name plot_Rhat_by_admin
+#' @description plot the Rhat of the model by admin units
+#' @param cache the cached environment
+#' @param config config file name
+#' @param cholera_directory the cholera directory
+#' @param rhat_thresh the threshold for rhat
+#' @return ggplot object
+plot_Rhat_by_admin <- function(cache,config,cholera_directory,rhat_thresh=1.05){
+  get_genquant(name="genquant",cache=cache,config=config,cholera_directory = cholera_directory)
+  get_output_shapefiles(name="output_shapefiles", cache=cache,config=config,cholera_directory = cholera_directory)
+  
+  tot_rhats <- cache[["genquant"]]$summary(variables = "location_total_cases_output", 
+                                           c(posterior::default_summary_measures(),
+                                             posterior::default_convergence_measures()),
+                                           .cores = 4) %>% 
+    mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
+           admin_level = cache[["output_shapefiles"]]$admin_level[id])
+  rhat_text<-tot_rhats%>%group_by(admin_level)%>%summarize(fraction_above_threshold=paste0(round(length(rhat[rhat>rhat_thresh])/n()*100,2),"%"))
+  
+  plot<-ggplot2::ggplot(tot_rhats, aes(x=rhat)) + 
+    ggplot2::geom_histogram(color="darkblue", fill="lightblue")+
+    ggplot2::geom_vline(xintercept=rhat_thresh, colour="red", linetype = "longdash")+
+    ggplot2::theme_bw()+
+    ggplot2::facet_wrap(~admin_level,ncol=1,scales = 'free_y')+
+    geom_text(
+      data=rhat_text,
+      mapping=aes(x = -Inf, y=-Inf,label = paste("Fraction above threshold:",fraction_above_threshold)),
+      hjust   = -0.1,
+      vjust   = -15
+    )+
+    ylab("")
+  return(plot)
+}
