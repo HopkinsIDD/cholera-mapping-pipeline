@@ -543,6 +543,12 @@ plot_MCMCpars(name="model.rand",cache=cache,config=params$config,cholera_directo
 ```{r rhat, fig.height=5, fig.width=10, fig.cap=capFig("Gelman-Rubin Rhat")}
 plot_Rhat(name="model.rand",cache)
 ```
+
+**Gelman-Rubin Rhat by admin units:**
+```{r rhat by admin units, fig.height=8, fig.width=8, fig.cap=capFig("Gelman-Rubin Rhat by admin units")}
+plot_Rhat_by_admin(cache=cache,config=params$config,cholera_directory = params$cholera_directory)
+```
+
 **W distribution:**
 ```{r w_distribution, fig.height=5, fig.width=5, fig.cap=capFig("W distribution")}
 plot_w_mean(cache = cache, config = params$config, cholera_directory = params$cholera_directory)
