@@ -936,7 +936,7 @@ aggregate_observations <- function(sf_cases_resized,
     ) %dopar% {
       rs %>% 
         dplyr::bind_rows() %>% 
-        dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
+        dplyr::group_by(loctime, OC_UID, locationPeriod_id, location_name) %>%
         dplyr::group_modify(.f = aggregate_single_lp,
                             verbose = verbose,
                             cases_column = cases_column) %>%
@@ -950,7 +950,7 @@ aggregate_observations <- function(sf_cases_resized,
                           cases_column = cases_column) %>%
       dplyr::ungroup()
   } %>% 
-    dplyr::arrange(loctime, OC_UID, locationPeriod_id)
+    dplyr::arrange(loctime, OC_UID, locationPeriod_id, location_name)
   
   # sf_cases_resized$geom <- sf::st_as_sfc(sf_cases_resized$geom)
   sf_cases_resized <- sf::st_as_sf(sf_cases_resized)
