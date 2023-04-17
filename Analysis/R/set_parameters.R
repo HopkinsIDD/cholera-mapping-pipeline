@@ -562,6 +562,7 @@ for(t_idx in 1:length(all_test_idx)){
   stan_data <- stan_input$stan_data
   sf_cases_resized <- stan_input$sf_cases_resized
   sf_grid <- stan_input$sf_grid
+  u_countries <- stan_input$u_countries
   # Cleanup
   rm(stan_input)
   
