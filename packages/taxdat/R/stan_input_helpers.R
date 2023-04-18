@@ -1051,11 +1051,11 @@ check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_c
   }
 
   # Test 3: compare the sums of sf_cases, sf_cases_resized across each OC-locationPeriod-year combination
-  sf_cases_cmb <- rbind(sf_cases %>% sf::st_drop_geometry() %>% select(OC_UID, locationPeriod_id, suspected_cases) %>% mutate(token = "prior"), 
-                        sf_cases_resized %>% sf::st_drop_geometry() %>% select(OC_UID, locationPeriod_id, attributes.fields.suspected_cases) %>% rename(suspected_cases = attributes.fields.suspected_cases) %>% mutate(token = "after"))
+  sf_cases_cmb <- rbind(sf_cases %>% sf::st_drop_geometry() %>% select(OC_UID, locationPeriod_id, attributes.fields.suspected_cases) %>% mutate(token = "prior"), 
+                        sf_cases_resized %>% sf::st_drop_geometry() %>% select(OC_UID, locationPeriod_id, attributes.fields.suspected_cases) %>% mutate(token = "after"))
   sf_cases_cmb <- sf_cases_cmb %>%
     group_by(OC_UID, locationPeriod_id, token) %>%
-    summarize(cases = sum(suspected_cases)) %>%
+    summarize(cases = sum(attributes.fields.suspected_cases)) %>%
     group_by(OC_UID, locationPeriod_id) %>%
     summarize(compare = ifelse(min(cases) == max(cases), "pass", "fail"))
   if(any(sf_cases_cmb$compare == "fail")){
