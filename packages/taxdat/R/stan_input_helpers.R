@@ -1107,7 +1107,7 @@ get_admin_level <- function(location_name) {
 #'
 get_country <- function(location_name) {
   location_name %>% 
-    stringr::str_remove("AFR") %>% 
+    stringr::str_remove("AFR|EMR") %>% 
     stringr::str_extract("[A-Z]{3}")
 }
 
