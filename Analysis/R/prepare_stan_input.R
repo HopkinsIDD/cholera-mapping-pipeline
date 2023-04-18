@@ -516,7 +516,7 @@ prepare_stan_input <- function(
   stan_data$beta_sigma_scale <- config$beta_sigma_scale
   
   # ---- O. Data Structure Check ----
-  check_stan_input_objects(censoring_thresh = config$censoring_thresh, sf_cases, stan_data, sf_cases_resized)
+  taxdat::check_stan_input_objects(censoring_thresh = config$censoring_thresh, sf_cases, stan_data, sf_cases_resized)
   
 
   cat("**** FINISHED PREPARING STAN INPUT \n")
