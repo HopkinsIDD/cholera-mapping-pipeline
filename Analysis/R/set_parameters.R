@@ -16,61 +16,7 @@ if (Sys.getenv("PRODUCTION_RUN", TRUE)) {
   Sys.setenv("REINSTALL_TAXDAT" = TRUE)
 }
 
-
-
-### Libraries
-
-# Install required packages
-package_list <- c(
-  "DBI",
-  "digest",
-  "dplyr",
-  "foreach",
-  "gdalUtils",
-  "glue",
-  "geojsonsf",
-  "igraph",
-  "inline",
-  "itertools",
-  "jsonlite",
-  "lubridate",
-  "magrittr",
-  "mgcv",
-  "ncdf4",
-  "odbc",
-  "optparse",
-  "parallel",
-  "posterior",
-  "purrr",
-  "RCurl",
-  "R.utils",
-  "raster",
-  "rjson",
-  "rstan",
-  "rpostgis",
-  "rts",
-  "RPostgres",
-  "sf",
-  "spdep",
-  "stringr",
-  "tidync",
-  "tibble",
-  "zoo",
-  "geodata"
-)
-
 library(magrittr)
-
-# for (package in package_list) {
-#   if (!require(package = package, character.only = T)) {
-#     install.packages(pkgs = package)
-#     library(package = package, character.only = T)
-#   }
-#   detach(pos = which(grepl(package, search())), force = T)
-# }
-
-
-
 
 ### Run options
 
