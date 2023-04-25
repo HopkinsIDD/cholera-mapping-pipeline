@@ -937,6 +937,64 @@ get_censoring_inds <- function(stan_data,
     })
 }
 
+#' Title
+#'
+#' @param stan_data 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+compute_mean_rate_subset <- function(stan_data, 
+                                     subset_ind = NULL) {
+  
+  if (is.null(subset_ind)) {
+    stop("Please provid non-null subset")
+  }
+  
+  subset_ind <- sort(unique(subset_ind))
+  nobs <- length(subset_ind)
+  
+  y_tfrac <- tibble::tibble(
+    tfrac = stan_data$tfrac, 
+    map_obs_loctime_obs = stan_data$map_obs_loctime_obs) %>% 
+    dplyr::group_by(map_obs_loctime_obs) %>% 
+    dplyr::filter(map_obs_loctime_obs %in% subset_ind) %>% 
+    dplyr::summarize(tfrac = mean(tfrac)) %>%  # We take the average over time so we can sum population over time
+    .[["tfrac"]]
+  
+  if (length(y_tfrac) == 0) {
+    stop("No matching data to comute mean rate on")
+  }
+  
+  # Compute population corresponding to each observation
+  aggpop <- rep(0, nobs)
+  for(i in 1:nobs) {
+    j <- subset_ind[i]
+    lps <- stan_data$map_obs_loctime_loc[which(stan_data$map_obs_loctime_obs == j)]
+    for (lp in lps) { 
+      # This is summed over years so tfrac is averaged over years
+      aggpop[i] <- aggpop[i] + sum(stan_data$pop[stan_data$map_loc_grid_grid[stan_data$map_loc_grid_loc == lp]])
+    }
+  }
+  
+  # Compute the mean incidence
+  # Note that this is in the model's temporal resolution
+  meanrate <- sum(stan_data$y[subset_ind] * y_tfrac)/sum(aggpop)
+  # meanrate <- sum(stan_data$y[stan_data$y>0 & !stan_data$censored] * y_tfrac[stan_data$y>0& !stan_data$censored])/sum(aggpop[stan_data$y>0& !stan_data$censored])
+  
+  if(meanrate < 1e-10){
+    meanrate <- 1e-10
+    print("The mean rate was less than 1e-10, so increased it to 1e-10")
+    warning("The mean rate was less than 1e-10, so increased it to 1e-10")
+  }
+  
+  cat("---- Mean cholera incidence in subset is of", formatC(meanrate*1e5, format = "e", digits = 2),
+      "cases per 100'000 people per", res_time, "\n")
+  
+  meanrate
+}
+
 
 #' Title
 #'
@@ -1021,6 +1079,67 @@ compute_pop_loctimes <- function(stan_data) {
   pop_loctimes
 }
 
+
+#' compute_pop_loctime_obs
+#' Computes the population corresponding to a given observation ID
+#' @param stan_data 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+compute_pop_loctime_obs <- function(stan_data,
+                                    obs_id) {
+  
+  # Get loctime(s) of obs
+  lt <- get_loctime_obs(stan_data = stan_data, obs_id = obs_id)
+  
+  # Get grid cells
+  cells <- which(stan_data$map_loc_grid_loc %in% lt)
+  
+  pop <- sum(stan_data$pop[stan_data$map_loc_grid_grid[cells]]  * stan_data$map_loc_grid_sfrac[cells])
+  
+  return(pop)
+}
+
+#' Title
+#'
+#' @param stan_data 
+#' @param obs_id 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_loctime_obs <- function(stan_data, obs_id) {
+  stan_data$map_obs_loctime_loc[stan_data$map_obs_loctime_obs == obs_id]
+}
+
+#' Title
+#'
+#' @param stan_data 
+#' @param loctime 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_grid_loctime <- function(stan_data, loctime) {
+  stan_data$map_loc_grid_grid[stan_data$map_loc_grid_loc == loctime]
+}
+
+#' get_sfrac_loctime
+#'
+#' @param stan_data 
+#' @param loctime 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_sfrac_loctime <- function(stan_data, loctime) {
+  stan_data$map_loc_grid_sfrac[stan_data$map_loc_grid_loc == loctime]
+}
 
 #' Title
 #'

@@ -240,7 +240,7 @@ prepare_stan_input <- function(
       
       # First define censored observations
       stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
-
+      
       stan_data$M <- nrow(sf_cases_resized)
       non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
       obs_changer <- taxdat::make_changer(x = non_na_obs_resized) 
@@ -346,7 +346,11 @@ prepare_stan_input <- function(
     stan_data$map_loc_grid_sfrac <- pmin(1, stan_data$map_loc_grid_sfrac)
   }
   
-  #  ---- G. Observations ----
+  # ---- G. Mean rate ----
+  stan_data$meanrate <- taxdat::compute_mean_rate(stan_data = stan_data)
+  
+  
+  #  ---- H. Observations ----
   stan_data$y <- as.array(sf_cases_resized[[cases_column]])
   
   # Get censoring indexes 
@@ -359,6 +363,25 @@ prepare_stan_input <- function(
   stan_data$M_right <- length(stan_data$ind_right)
   stan_data$censoring_inds <- censoring_inds
   
+  # ---- I. Mappings ----
+  stan_data$K1 <- length(stan_data$map_obs_loctime_obs)
+  stan_data$K2 <- length(stan_data$map_loc_grid_loc)
+  stan_data$L <- length(ind_mapping_resized$u_loctimes)
+  
+  full_grid <- sf::st_drop_geometry(sf_grid) %>% 
+    dplyr::left_join(sf::st_drop_geometry(smooth_grid)) %>% 
+    dplyr::select(upd_id, smooth_id, t)
+  
+  stan_data$smooth_grid_N <- nrow(smooth_grid)
+  stan_data$map_smooth_grid <- full_grid$smooth_id
+  stan_data$map_grid_time <- full_grid$t
+  stan_data['T'] <- nrow(time_slices)
+  stan_data$map_full_grid <- full_grid$upd_id
+  
+  # What observation model to use
+  stan_data$obs_model <- config$obs_model
+  
+  # First define admin levels to get data ad upper admin levels
   # Administrative levels for observation model
   admin_levels <- sf_cases_resized$location_name %>% 
     taxdat::get_admin_level() %>% 
@@ -384,28 +407,199 @@ prepare_stan_input <- function(
   # Add unique number of admin levels for use in observation model
   stan_data$N_admin_lev <- length(u_admin_levels)
   
-  # ---- H. Mean rate ----
-  stan_data$meanrate <- taxdat::compute_mean_rate(stan_data = stan_data)
+  # Map from space x time grid to space grid
+  sf_grid <- sf_grid %>% 
+    dplyr::group_by(rid, x, y) %>% 
+    dplyr::mutate(space_id = min(upd_id)) %>% 
+    dplyr::ungroup()
   
-  # ---- I. Mappings ----
-  stan_data$K1 <- length(stan_data$map_obs_loctime_obs)
-  stan_data$K2 <- length(stan_data$map_loc_grid_loc)
-  stan_data$L <- length(ind_mapping_resized$u_loctimes)
+  stan_data$N_space <- length(unique(sf_grid$space_id))
+  stan_data$map_spacetime_space_grid <- sf_grid$space_id[sf_grid$upd_id]
   
-  full_grid <- sf::st_drop_geometry(sf_grid) %>% 
-    dplyr::left_join(sf::st_drop_geometry(smooth_grid)) %>% 
-    dplyr::select(upd_id, smooth_id, t)
   
-  stan_data$smooth_grid_N <- nrow(smooth_grid)
-  stan_data$map_smooth_grid <- full_grid$smooth_id
-  stan_data$map_grid_time <- full_grid$t
-  stan_data['T'] <- nrow(time_slices)
-  stan_data$map_full_grid <- full_grid$upd_id
+  #  ---- J. Imputation ----
   
-  # What observation model to use
-  stan_data$obs_model <- config$obs_model
+  sf_cases_resized$admin_level <- admin_levels
+  sf_cases_resized$censoring <- censoring_inds
+  sf_cases_resized <- sf_cases_resized %>% 
+    dplyr::mutate(ref_TL = taxdat::get_start_timeslice(TL, res_time),
+                  ref_TR = taxdat::get_end_timeslice(TR, res_time),
+                  obs_id = dplyr::row_number())
   
-  # ---- J. Data for output summaries ----
+  
+  # Get years with no full national level observations that cover a single time slice
+  y_adm0_full <- sf_cases_resized %>% 
+    sf::st_drop_geometry() %>% 
+    dplyr::mutate(ref_TL = taxdat::get_start_timeslice(TL, res_time),
+                  ref_TR = taxdat::get_end_timeslice(TR, res_time)) %>% 
+    dplyr::filter(admin_level == 0,
+                  censoring == "full",
+                  ref_TL == taxdat::get_start_timeslice(TR, res_time),
+                  taxdat::get_end_timeslice(TL, res_time) == ref_TR)
+  
+  if (nrow(y_adm0_full) == 0) {
+    stop("No full national-level observations in modeling time slices")
+  }
+  
+  missing_adm0 <- time_slices  %>% 
+    dplyr::mutate(ts = row_number()) %>% 
+    dplyr::left_join(y_adm0_full %>% 
+                       dplyr::distinct(ref_TL, ref_TR) %>% 
+                       dplyr::mutate(in_set = TRUE),
+                     by = c("TL" = "ref_TL", "TR" = "ref_TR"))
+  
+  if (any(is.na(missing_adm0$in_set))) {
+    cat("-- Missing national level full data in time slices", missing_adm0 %>% 
+          dplyr::filter(is.na(in_set)) %>% dplyr::pull(TL) %>% stringr::str_c(collapse = ", "),
+        ". Trying imputation. \n")
+    
+    # Get missing time slices
+    missing_ts <- missing_adm0 %>% dplyr::filter(is.na(in_set))
+    
+    if (!exists("pop_loctimes")) {
+      pop_loctimes <- taxdat::compute_pop_loctimes(stan_data = stan_data)
+    }
+    
+    # Get reference national observation to use as template for imputed data
+    adm0_tempalte <- sf_cases_resized %>% 
+      dplyr::slice(y_adm0_full$obs_id[1]) %>% 
+      dplyr::mutate(loctime = NA,
+                    OC_UID = "imputed",
+                    TL = NA,
+                    TR = NA)
+    
+    adm0_tempalte[[cases_column]] <- NA
+    
+    ref_cntry_loc <- taxdat::get_loctime_obs(stan_data = stan_data, obs_id = y_adm0_full$obs_id[1])
+    ref_cntry_grid <- taxdat::get_grid_loctime(stan_data = stan_data, loctime = ref_cntry_loc)
+    ref_cntry_sfrac <- taxdat::get_sfrac_loctime(stan_data = stan_data, loctime = ref_cntry_loc)
+    ref_cntry_space <- stan_data$map_spacetime_space_grid[ref_cntry_grid]
+    
+    # Numbers in stan data that may be updated due to imputation
+    n_loc <- stan_data$L
+    n_obs <- stan_data$M
+    n_obs_full <- stan_data$M_full
+    
+    for (i in 1:nrow(missing_ts)) {
+      
+      cat("-- Imputing data for", as.character(missing_ts$TL[i]), "\n")
+      
+      # Get reference population for this missing time slice
+      # First all gridcells in time slices
+      ts_gridcells <- which(stan_data$map_grid_time == missing_ts$ts[i])
+      # Then subset that cover the national level location period
+      ts_cntry_gridcells <- ts_gridcells[which(stan_data$map_spacetime_space_grid[ts_gridcells] %in% ref_cntry_space)]
+      ref_pop <- sum(stan_data$pop[ts_cntry_gridcells] * ref_cntry_sfrac)
+      
+      # First try getting the full subnational level data corresponding to the year
+      ts_subset <- sf_cases_resized %>% 
+        sf::st_drop_geometry() %>% 
+        dplyr::filter(ref_TL == missing_ts$TL[i],
+                      ref_TR == missing_ts$TR[i],
+                      censoring == "full",
+                      admin_level > 0) 
+      
+      if (nrow(ts_subset) > 1) {
+        ts_subset <- ts_subset %>% 
+          dplyr::rowwise() %>% 
+          dplyr::mutate(tfrac = taxdat::compute_tfrac(TL, TR, ref_TL, ref_TR),
+                        tfrac_cases = !!rlang::sym(cases_column)/tfrac) %>% 
+          dplyr::group_by(loctime) %>% 
+          # !! Keep only one observation per loctime to avoid double-counting population
+          dplyr::slice_min(tfrac_cases) %>% 
+          dplyr::ungroup() %>% 
+          dplyr::mutate(pop = purrr::map_dbl(obs_id, ~ taxdat::compute_pop_loctime_obs(., stan_data = stan_data)))
+        
+        # Compute fraction of population covered by these loctimes
+        frac_coverage <- sum(ts_subset$pop)/ref_pop
+        
+      } else {
+        frac_coverage <- 0
+      }
+      
+      # !! If coverage OK compute mean rate (threshold of 10% is hardcoded)
+      if (frac_coverage > 0.1) {
+        cat("-- Using subnational data for imputation in", as.character(missing_ts$TL[i]), "\n")
+        # Compute mean rate for the subnational data
+        meanrate_tmp <- taxdat::compute_mean_rate_subset(stan_data = stan_data,
+                                                         subset_ind = ts_subset$obs_id)
+        
+      } else {
+        # Use mean rate of other national obs
+        cat("-- Using other national data for imputation in", as.character(missing_ts$TL[i]), "\n")
+        
+        meanrate_tmp <- y_adm0_full %>% 
+          dplyr::rowwise() %>% 
+          dplyr::mutate(tfrac = taxdat::compute_tfrac(TL, TR, ref_TL, ref_TR),
+                        pop = purrr::map_dbl(obs_id, ~ taxdat::compute_pop_loctime_obs(., stan_data = stan_data))) %>% 
+          dplyr::group_by(ref_TL) %>% 
+          dplyr::summarise(meanrate = mean(!!rlang::sym(cases_column)/tfrac/pop)) %>% 
+          dplyr::ungroup() %>% 
+          dplyr::summarise(meanrate = mean(meanrate)) %>% 
+          dplyr::pull(meanrate)
+      }
+      
+      # Get the loctime for the imputed observation
+      ts_loctime <- sf_cases_resized %>% 
+        sf::st_drop_geometry() %>% 
+        dplyr::filter(ref_TL == missing_ts$TL[i],
+                      ref_TR == missing_ts$TR[i],
+                      admin_level == 0)
+      
+      if (nrow(ts_loctime) > 0) {
+        loctime <- taxdat::get_loctime_obs(stan_data = stan_data, obs_id =  ts_loctime$obs_id[1])
+        new_loctime <- F
+      } else {
+        # Create a new loctime for this year
+        loctime <- n_loc + 1
+        # Increment total number of loctimes
+        n_loc <- n_loc + 1
+        new_loctime <- T
+        cells <- ts_cntry_gridcells
+        cells_sfrac <- ref_cntry_sfrac
+      }
+      
+      # Add observation of cases corresponding to the mean rate
+      imputed_obs <- adm0_tempalte %>% 
+        dplyr::mutate(loctime = loctime,
+                      OC_UID = "imputed",
+                      TL = missing_ts$TL[i],
+                      TR = missing_ts$TR[i])
+      
+      imputed_obs[[cases_column]] <- round(meanrate_tmp * ref_pop)
+      
+      sf_cases_resized <- sf_cases_resized %>% dplyr::bind_rows(imputed_obs)
+      
+      # Update counters
+      n_obs <- n_obs + 1
+      n_obs_full <- n_obs_full + 1
+      
+      # Update stan_data
+      stan_data$y <- c(stan_data$y, imputed_obs[[cases_column]])
+      stan_data$tfrac <- c(stan_data$tfrac, 1)
+      stan_data$censored <- c(stan_data$censored, 0)
+      stan_data$map_obs_loctime_loc <- c(stan_data$map_obs_loctime_loc, loctime)
+      stan_data$map_obs_loctime_obs <- c(stan_data$map_obs_loctime_obs, n_obs)
+      stan_data$map_obs_admin_lev <- c(stan_data$map_obs_admin_lev, 1)
+      stan_data$ind_full <- c(stan_data$ind_full, n_obs)
+      
+      # If necessary update grid mappings
+      if (new_loctime) {
+        stan_data$map_loc_grid_grid <- c(stan_data$map_loc_grid_grid, cells)
+        stan_data$map_loc_grid_loc <- c(stan_data$map_loc_grid_loc, rep(loctime, length(cells)))
+        stan_data$map_loc_grid_sfrac <- c(stan_data$map_loc_grid_sfrac, cells_sfrac)
+      }
+    }
+    
+    # Update stan data
+    stan_data$K1 <- length(stan_data$map_obs_loctime_loc) 
+    stan_data$K2 <- length(stan_data$map_loc_grid_grid) 
+    stan_data$M <- n_obs
+    stan_data$M_full <- n_obs_full
+    stan_data$L <- n_loc
+  }
+  
+  # ---- K. Data for output summaries ----
   
   # Set user-specific name for location_periods table to use
   output_lp_name <- taxdat::make_output_locationperiods_table_name(
@@ -490,7 +684,7 @@ prepare_stan_input <- function(
     stan_data$map_loc_grid_sfrac_output <- array(data = 0, dim = 0)
   }
   
-  # ---- K. Population at risk ----
+  # ---- L. Population at risk ----
   # Data for people at risk
   risk_cat_low <- c(0, 1, 10, 100)*1e-5
   risk_cat_high <- c(risk_cat_low[-1], 1e6)
@@ -499,15 +693,6 @@ prepare_stan_input <- function(
   stan_data$risk_cat_low <- risk_cat_low
   stan_data$risk_cat_high <- risk_cat_high
   
-  # Map from space x time grid to space grid
-  sf_grid <- sf_grid %>% 
-    dplyr::group_by(rid, x, y) %>% 
-    dplyr::mutate(space_id = min(upd_id)) %>% 
-    dplyr::ungroup()
-  
-  stan_data$N_space <- length(unique(sf_grid$space_id))
-  stan_data$map_spacetime_space_grid <- sf_grid$space_id[sf_grid$upd_id]
-  
   # Option for debug mode
   if (debug) {
     stan_data$debug <- 0
@@ -515,13 +700,13 @@ prepare_stan_input <- function(
     stan_data$debug <- debug
   }
   
-  # ---- L. Covariates ----
+  # ---- M. Covariates ----
   
   # Option for double-exponential prior on betas
   stan_data$exp_prior <- config$exp_prior
   
   
-  # ---- M. Other options for stan ----
+  # ---- N. Other options for stan ----
   # Use intercept
   stan_data$use_intercept <- config$use_intercept
   
@@ -532,7 +717,7 @@ prepare_stan_input <- function(
   stan_data$do_infer_sd_eta <- config$do_infer_sd_eta
   
   
-  # ---- N. Priors ----
+  # ---- O. Priors ----
   # Set sigma_eta_scale for all models (not used for models without time effect)
   stan_data$sigma_eta_scale <- config$sigma_eta_scale
   
