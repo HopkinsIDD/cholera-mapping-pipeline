@@ -506,4 +506,32 @@ test_that("check_snap_tol works",{
   )
 
 })
+
+test_that("check_use_pop_weight", {
+  tmpfile <- tempfile(fileext = ".yml")
+
+  yaml::write_yaml(data.frame(use_pop_weight = TRUE), tmpfile)
+  config_true <- yaml::read_yaml(tmpfile)
+  expect_true(
+    check_use_pop_weight(config_true$use_pop_weight)
+  )
+
+  yaml::write_yaml(data.frame(use_pop_weight = NULL), tmpfile)
+  config_null <- yaml::read_yaml(tmpfile)
+  expect_true(
+    check_use_pop_weight(config_null$use_pop_weight)
+  )
+
+  yaml::write_yaml(data.frame(use_pop_weight = FALSE), tmpfile)
+  config_false <- yaml::read_yaml(tmpfile)
+  expect_false(
+    check_use_pop_weight(config_false$use_pop_weight)
+  )
+
+  yaml::write_yaml(data.frame(use_pop_weight = "something randome"), tmpfile)
+  config_null <- yaml::read_yaml(tmpfile)
+  expect_error(
+    check_use_pop_weight(config_null$use_pop_weight)
+  )
+})
 ## check_snap_tol, check_use_pop_weight, check_sfrac_thresh, check_ingest_covariates, check_ingest_new_covariates, check_stan_debug, check_stan_model, get_all_config_options, check_update_config
