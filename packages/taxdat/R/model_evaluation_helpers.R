@@ -662,7 +662,7 @@ plot_model_fidelity_tfrac_adjusted_by_year <- function(cache,cholera_directory,c
     ggplot2::geom_abline(intercept = 0, slope = 1) +
     ggplot2::coord_fixed(ratio = 1, xlim = c(0, max(comparison[,3:4])), ylim = c(0, max(comparison[,3:4]))) +
     ggplot2::theme_bw() +
-    ggplot2::facet_wrap(~oc_year, ncol = 2)
+    ggplot2::facet_grid(oc_year~censoring)
   
   if (render) {
     plt

@@ -126,7 +126,7 @@ plot_w_mean <- function(cache, config, cholera_directory) {
     sf_tmp$chain<-chain_idx
     w_sf <- rbind(w_sf,sf_tmp)
     }
-    plot <- w_sf %>% ggplot2::ggplot(.) + ggplot2::geom_sf(ggplot2::aes(fill = w_mean))+ggplot2::scale_fill_gradientn(colours=c("blue","white","red"),guide = ggplot2::guide_colorbar(label.theme=ggplot2::element_text(angle=45)))+taxdat::map_theme() +facet_wrap(~chain)
+    plot <- w_sf %>% ggplot2::ggplot(.) + ggplot2::geom_sf(ggplot2::aes(fill = w_mean,colour=w_mean),lwd =.1)+ggplot2::guides(col=FALSE)+ggplot2::scale_fill_gradientn(colours=c("blue","white","red"),guide = ggplot2::guide_colorbar(label.theme=ggplot2::element_text(angle=45)))+taxdat::map_theme() +facet_wrap(~chain)
     return(plot)
 }
 
