@@ -510,8 +510,20 @@ prepare_stan_input <- function(
           dplyr::ungroup() %>% 
           dplyr::mutate(pop = purrr::map_dbl(obs_id, ~ taxdat::compute_pop_loctime_obs(., stan_data = stan_data)))
         
-        # Compute fraction of population covered by these loctimes
-        frac_coverage <- sum(ts_subset$pop)/ref_pop
+        
+        # Compute fraction of population covered by these loctimes by admin level
+        frac_coverages <- ts_subset %>% 
+          dplyr::group_by(admin_level) %>% 
+          dplyr::summarise(frac_coverage = sum(pop)/ref_pop)
+        
+        # Get maximum
+        frac_coverage <- max(frac_coverages$frac_coverage)
+        
+        # Get obs_ids of admin level corresponding to the maximum coverage 
+        subset_admin_lev <- frac_coverages$admin_level[frac_coverages$frac_coverage == frac_coverage]
+        subset_ind <- ts_subset %>% 
+          dplyr::filter(admin_level == subset_admin_lev) %>% 
+          dplyr::pull(obs_id)
         
       } else {
         frac_coverage <- 0
@@ -522,7 +534,7 @@ prepare_stan_input <- function(
         cat("-- Using subnational data for imputation in", as.character(missing_ts$TL[i]), "\n")
         # Compute mean rate for the subnational data
         meanrate_tmp <- taxdat::compute_mean_rate_subset(stan_data = stan_data,
-                                                         subset_ind = ts_subset$obs_id)
+                                                         subset_ind = subset_ind)
         
       } else {
         # Use mean rate of other national obs
