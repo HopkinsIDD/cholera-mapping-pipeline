@@ -108,7 +108,30 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
     who_annual_cases_from_db <- rbind(who_annual_cases_from_db, country_level_agg_cases) %>%
       arrange(TL, desc(TR))
   }
-
+  #mean observed annual cases
+  mean_observed_annual_cases <- who_annual_cases_from_db %>% 
+    dplyr::group_by(year=lubridate::year(TL)) %>%
+    dplyr::summarise(mean_observed_annual_cases_by_year = round(mean(observed),0)) %>%
+    dplyr::mutate(mean_observed_annual_cases = round(mean(mean_observed_annual_cases_by_year),0))
+  #mean modeled annual cases
+  mean_modeled_annual_cases <- who_annual_cases_from_db%>%
+    dplyr::group_by(year=lubridate::year(TL)) %>%
+    dplyr::summarise(
+      mean_modeled_annual_cases_by_year = round(mean(as.numeric(unique(gsub("[[:punct:]]", "", sub("\\(.*", "", modeled))))),0)
+    ) %>%
+    dplyr::ungroup()%>%
+    dplyr::mutate(mean_modeled_annual_cases = round(mean(mean_modeled_annual_cases_by_year),0))
+  #add to who annual cases table
+  who_annual_cases_from_db<-rbind(
+    who_annual_cases_from_db,
+    data.frame(
+      OC_UID="Mean annual cases",
+      TL=lubridate::ymd(paste0((min(mean_modeled_annual_cases$year)),"-01-01")),
+      TR=lubridate::ymd(paste0((max(mean_modeled_annual_cases$year)),"-12-31")),
+      observed=unique(mean_observed_annual_cases$mean_observed_annual_cases),
+      modeled=unique(mean_modeled_annual_cases$mean_modeled_annual_cases)
+    )
+  )
   ### Whether make it pretty 
   if(!is.null(who_annual_cases_from_db)) {
     if(aesthetic){
