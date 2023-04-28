@@ -948,6 +948,10 @@ get_censoring_inds <- function(stan_data,
 compute_mean_rate_subset <- function(stan_data, 
                                      subset_ind = NULL) {
   
+  if (is.null(stan_data$y)) {
+    stop("Missing y in stan_data for mean rate computation")
+  }
+  
   if (is.null(subset_ind)) {
     stop("Please provid non-null subset")
   }
@@ -982,10 +986,10 @@ compute_mean_rate_subset <- function(stan_data,
   # Note that this is in the model's temporal resolution
   meanrate <- sum(stan_data$y[subset_ind] / y_tfrac)/sum(aggpop)
   
-  if(meanrate < 1e-10){
-    meanrate <- 1e-10
-    print("The mean rate was less than 1e-10, so increased it to 1e-10")
-    warning("The mean rate was less than 1e-10, so increased it to 1e-10")
+  if(meanrate < 1e-7){
+    meanrate <- 1e-7
+    print("The mean rate was less than 1e-16 so increased it to 1e-7")
+    warning("The mean rate was less than 1e-6, so increased it to 1e-7")
   }
   
   cat("---- Mean cholera incidence in subset is of", formatC(meanrate*1e5, format = "e", digits = 2),
@@ -1004,6 +1008,10 @@ compute_mean_rate_subset <- function(stan_data,
 #'
 #' @examples
 compute_mean_rate <- function(stan_data) {
+  
+  if (is.null(stan_data$y)) {
+    stop("Missing y in stan_data for mean rate computation")
+  }
   
   y_tfrac <- tibble::tibble(
     tfrac = stan_data$tfrac, 
@@ -1027,10 +1035,10 @@ compute_mean_rate <- function(stan_data) {
   meanrate <- sum(stan_data$y / y_tfrac)/sum(aggpop)
   # meanrate <- sum(stan_data$y[stan_data$y>0 & !stan_data$censored] * y_tfrac[stan_data$y>0& !stan_data$censored])/sum(aggpop[stan_data$y>0& !stan_data$censored])
   
-  if(meanrate < 1e-10){
-    meanrate <- 1e-10
-    print("The mean rate was less than 1e-10, so increased it to 1e-10")
-    warning("The mean rate was less than 1e-10, so increased it to 1e-10")
+  if(meanrate < 1e-7){
+    meanrate <- 1e-7
+    print("The mean rate was less than 1e-7, so increased it to 1e-7")
+    warning("The mean rate was less than 1e-7, so increased it to 1e-7")
   }
   
   cat("---- Mean cholera incidence is of", formatC(meanrate*1e5, format = "e", digits = 2),
