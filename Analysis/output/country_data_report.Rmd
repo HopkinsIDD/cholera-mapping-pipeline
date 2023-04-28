@@ -550,7 +550,7 @@ plot_Rhat_by_admin(cache=cache,config=params$config,cholera_directory = params$c
 ```
 
 **W distribution:**
-```{r w_distribution, fig.height=5, fig.width=5, fig.cap=capFig("W distribution")}
+```{r w_distribution, fig.height=10, fig.width=10, fig.cap=capFig("W distribution")}
 plot_w_mean(cache = cache, config = params$config, cholera_directory = params$cholera_directory)
 ```
 
