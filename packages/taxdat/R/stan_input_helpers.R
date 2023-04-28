@@ -953,6 +953,7 @@ compute_mean_rate <- function(stan_data) {
     map_obs_loctime_obs = stan_data$map_obs_loctime_obs) %>% 
     dplyr::group_by(map_obs_loctime_obs) %>% 
     dplyr::summarize(tfrac = mean(tfrac)) %>%  # We take the average over time so we can sum population over time
+    dplyr::arrange(map_obs_loctime_obs) %>% 
     .[["tfrac"]]
   
   nobs <- length(unique(stan_data$map_obs_loctime_obs))
@@ -966,9 +967,8 @@ compute_mean_rate <- function(stan_data) {
   }
   
   # Compute the mean incidence
-  # Note that this is in the model's temporal resolution
-  meanrate <- sum(stan_data$y * y_tfrac)/sum(aggpop)
-  # meanrate <- sum(stan_data$y[stan_data$y>0 & !stan_data$censored] * y_tfrac[stan_data$y>0& !stan_data$censored])/sum(aggpop[stan_data$y>0& !stan_data$censored])
+  # Note that this is in the model's temporal resolution and accounting for censoring
+  meanrate <- sum(stan_data$y[stan_data$ind_full] / y_tfrac[stan_data$ind_full])/sum(aggpop[stan_data$ind_full])
   
   if(meanrate < 1e-10){
     meanrate <- 1e-10
