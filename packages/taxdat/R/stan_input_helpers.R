@@ -1211,6 +1211,7 @@ sum_to_zero_QR <- function(x_raw,
   }
   x[N] = x_aux;
   x;
+}
 
 #' check_stan_input_objects
 #'
