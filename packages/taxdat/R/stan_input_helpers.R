@@ -1051,13 +1051,15 @@ check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_c
   }
 
   # Test 3: compare the sums of sf_cases, sf_cases_resized across each OC-locationPeriod-year combination
-  sf_cases_cmb <- rbind(sf_cases %>% sf::st_drop_geometry() %>% select(OC_UID, locationPeriod_id, attributes.fields.suspected_cases) %>% mutate(token = "prior"), 
-                        sf_cases_resized %>% sf::st_drop_geometry() %>% select(OC_UID, locationPeriod_id, attributes.fields.suspected_cases) %>% mutate(token = "after"))
+  sf_cases_cmb <- rbind(sf_cases %>% sf::st_drop_geometry() %>% dplyr::select(OC_UID, locationPeriod_id,
+  attributes.fields.suspected_cases) %>% dplyr::mutate(token = "prior"), 
+                        sf_cases_resized %>% sf::st_drop_geometry() %>% dplyr::select(OC_UID,
+                        locationPeriod_id, attributes.fields.suspected_cases) %>% dplyr::mutate(token = "after"))
   sf_cases_cmb <- sf_cases_cmb %>%
-    group_by(OC_UID, locationPeriod_id, token) %>%
-    summarize(cases = sum(attributes.fields.suspected_cases)) %>%
-    group_by(OC_UID, locationPeriod_id) %>%
-    summarize(compare = ifelse(min(cases) == max(cases), "pass", "fail"))
+    dplyr::group_by(OC_UID, locationPeriod_id, token) %>%
+    dplyr::summarize(cases = sum(attributes.fields.suspected_cases)) %>%
+    dplyr::group_by(OC_UID, locationPeriod_id) %>%
+    dplyr::summarize(compare = ifelse(min(cases) == max(cases), "pass", "fail"))
   if(any(sf_cases_cmb$compare == "fail")){
     stop("For a given OC and a given location period, the sum of the cases in preprocess data and that in stan input data are not the same. ")
   }
@@ -1072,14 +1074,14 @@ check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_c
   ##newly computed tfracs and censoring 
   single_year_idx <- which(lubridate::year(sf_cases_resized$TL) == lubridate::year(sf_cases_resized$TR))
   tmp <- sf_cases_resized%>%
-    mutate(
+    dplyr::mutate(
       year = lubridate::year(TL), 
       total_days = case_when(
         year%%4 == 0 ~ 366, 
         TRUE ~ 365
       ), 
       cmp_tfrac = as.numeric(TR - TL) / total_days, 
-      cmp_censoring = case_when(cmp_tfrac < censoring_thresh ~ "right-censored", 
+      cmp_censoring = dplyr::case_when(cmp_tfrac < censoring_thresh ~ "right-censored", 
                                 TRUE ~ "full")
     )
   if(!all(table(tmp[single_year_idx, ]$cmp_censoring) == table(stan_data$censoring_inds[single_year_idx]))){
