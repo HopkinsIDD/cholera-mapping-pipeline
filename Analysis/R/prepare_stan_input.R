@@ -346,9 +346,6 @@ prepare_stan_input <- function(
     stan_data$map_loc_grid_sfrac <- pmin(1, stan_data$map_loc_grid_sfrac)
   }
   
-  # ---- G. Mean rate ----
-  stan_data$meanrate <- taxdat::compute_mean_rate(stan_data = stan_data)
-  
   
   #  ---- H. Observations ----
   stan_data$y <- as.array(sf_cases_resized[[cases_column]])
@@ -363,7 +360,7 @@ prepare_stan_input <- function(
   stan_data$M_right <- length(stan_data$ind_right)
   stan_data$censoring_inds <- censoring_inds
   
-  # ---- I. Mappings ----
+  # ---- G. Mappings ----
   stan_data$K1 <- length(stan_data$map_obs_loctime_obs)
   stan_data$K2 <- length(stan_data$map_loc_grid_loc)
   stan_data$L <- length(ind_mapping_resized$u_loctimes)
@@ -416,6 +413,8 @@ prepare_stan_input <- function(
   stan_data$N_space <- length(unique(sf_grid$space_id))
   stan_data$map_spacetime_space_grid <- sf_grid$space_id[sf_grid$upd_id]
   
+  # ---- I. Mean rate ----
+  stan_data$meanrate <- taxdat::compute_mean_rate(stan_data = stan_data)
   
   #  ---- J. Imputation ----
   
@@ -534,7 +533,8 @@ prepare_stan_input <- function(
         cat("-- Using subnational data for imputation in", as.character(missing_ts$TL[i]), "\n")
         # Compute mean rate for the subnational data
         meanrate_tmp <- taxdat::compute_mean_rate_subset(stan_data = stan_data,
-                                                         subset_ind = subset_ind)
+                                                         subset_ind = subset_ind,
+                                                         pop_weight = TRUE)
         
       } else {
         # Use mean rate of other national obs
