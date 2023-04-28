@@ -46,7 +46,7 @@ nb2graph <- function(x) {
 #' @param model_time_slices dataframe of left and right bounds of the modeling time slices
 #' @param res_time the time resolution of the model
 #' @param do_parallel whether to compute indices in parallel or not
-#' @param n_cpus the number of cpus to do parellel computatoin
+#' @param n_cpus the number of cpus to do parallel computatoin
 #'
 #' @details the space-time indices are a replication of the grid indices with an offset of the number of pixels
 #'
@@ -175,6 +175,45 @@ reorder_single_source <- function(A,
               reordering = topleftorder[bfs_order]))
 }
 
+#' check_paralle_setup
+#'
+#' @param do_parallel 
+#' @param n_cpus 
+#'
+#' @export
+#'
+check_parallel_setup <- function(do_parallel, 
+                                 n_cpus) {
+  if(do_parallel) {
+    
+    library(foreach)
+    
+    if(n_cpus == 0)
+      stop("Specify the number of CPUS to use")
+    
+    if (!exists("cl")) {
+      cat("---- Initializing implicit cluster of", n_cpus, "cores \n")
+      # Parallel setup for foreach
+      doParallel::registerDoParallel(n_cpus)
+      cl <<- TRUE
+    }
+  } else {
+    cat("Parallel setup done \n")
+  }
+}
+
+#' close_parallel_setup
+#'
+#' @return
+#' @export
+#'
+#' @examples
+close_parallel_setup <- function() {
+  if (exists("cl")) {
+    doParallel::stopImplicitCluster()
+  }
+}
+
 #' @title Get space time index
 #'
 #' @description Compute the space-time index of observations based on a reference grid and its location-period and time
@@ -186,7 +225,7 @@ reorder_single_source <- function(A,
 #' @param model_time_slices dataframe of left and right bounds of the modeling time slices
 #' @param do_parallel 
 #' @param do_parallel whether to compute indices in parallel or not
-#' @param n_cpus the number of cpus to do parellel computatoin
+#' @param n_cpus the number of cpus to do parallel computatoin
 #'
 #' @details the space-time indices are a replication of the grid indices with an offset of the number of pixels.
 #' In this version we compute to mappings: from observations to location periods and from
@@ -199,30 +238,28 @@ get_space_time_ind_speedup <- function(df,
                                        lp_dict, 
                                        model_time_slices, 
                                        res_time,
-                                       do_parallel = T, 
+                                       do_parallel = F, 
                                        n_cpus = parallel::detectCores() - 2) {
   
-  
-  if(do_parallel) {
-    if(n_cpus == 0)
-      stop("Specify the number of CPUS to use")
-    
-    # Parallel setup
-    cl <- parallel::makeCluster(n_cpus)
-    doParallel::registerDoParallel(cl)
-  }
+  check_parallel_setup(do_parallel = do_parallel,
+                       n_cpus = n_cpus)
   
   doFun <- ifelse(do_parallel, foreach::`%dopar%`, foreach::`%do%`)
   
-  # Number of chunks for parllel computation
-  nchunk <- 20
+  # Number of chunks for parallel computation
+  if (!is.null(n_cpus)) {
+    nchunk <- n_cpus * 3 
+  } else {
+    nchunk <- 1
+  }
+  
   # Keep only relevant information
   df <- dplyr::select(as.data.frame(df), TL, TR, locationPeriod_id)
   
   res <-  doFun(foreach::foreach(
     rs = itertools::ichunk(iterators::iter(df, by = "row"), nchunk), 
     is = itertools::ichunk(iterators::icount(nrow(df)), nchunk),
-    .packages = c("lubridate", "foreach", "iterators", "magrittr", "dplyr"),
+    .packages = c("taxdat", "lubridate", "foreach", "iterators", "magrittr", "dplyr"),
     .combine = rbind,
     .inorder = F),
     {
@@ -285,10 +322,6 @@ get_space_time_ind_speedup <- function(df,
       )
     }
   ) 
-  
-  if (do_parallel) 
-    parallel::stopCluster(cl)
-  
   # Reorder based on observation
   res <- dplyr::arrange(res, obs)
   
@@ -866,7 +899,12 @@ aggregate_observations <- function(sf_cases_resized,
                                    non_na_obs,
                                    ind_mapping,
                                    cases_column,
-                                   verbose = F) {
+                                   verbose = F,
+                                   do_parallel = F,
+                                   n_cpus = 0) {
+  
+  check_parallel_setup(do_parallel = do_parallel,
+                       n_cpus = n_cpus)
   
   # Get OCRS 
   ocrs <- sf::st_crs(sf_cases_resized)
@@ -882,13 +920,37 @@ aggregate_observations <- function(sf_cases_resized,
     )
   }
   
-  
-  sf_cases_resized <- sf_cases_resized %>%
-    dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
-    dplyr::group_modify(.f = aggregate_single_lp, 
-                        verbose = verbose, 
-                        cases_column = cases_column) %>% 
-    dplyr::ungroup() 
+  if (do_parallel) {
+    
+    df_split <- sf_cases_resized %>%
+      dplyr::group_by(loctime, OC_UID, locationPeriod_id, location_name) %>%
+      dplyr::group_split() 
+    
+    nchunk <- n_cpus * 5
+    
+    sf_cases_resized <- foreach::foreach(
+      rs = itertools::ichunk(df_split, nchunk),
+      .combine = "bind_rows",
+      .inorder = F,
+      .packages = c("tidyverse", "taxdat")
+    ) %dopar% {
+      rs %>% 
+        dplyr::bind_rows() %>% 
+        dplyr::group_by(loctime, OC_UID, locationPeriod_id, location_name) %>%
+        dplyr::group_modify(.f = aggregate_single_lp,
+                            verbose = verbose,
+                            cases_column = cases_column) %>%
+        dplyr::ungroup()
+    }
+  } else {
+    sf_cases_resized <- sf_cases_resized %>%
+      dplyr::group_by(loctime, OC_UID, locationPeriod_id, location_name) %>%
+      dplyr::group_modify(.f = aggregate_single_lp, 
+                          verbose = verbose,
+                          cases_column = cases_column) %>%
+      dplyr::ungroup()
+  } %>% 
+    dplyr::arrange(loctime, OC_UID, locationPeriod_id, location_name)
   
   # sf_cases_resized$geom <- sf::st_as_sfc(sf_cases_resized$geom)
   sf_cases_resized <- sf::st_as_sf(sf_cases_resized)
@@ -1019,5 +1081,228 @@ compute_pop_loctimes <- function(stan_data) {
   }
   
   pop_loctimes
+}
+
+
+#' Title
+#'
+#' @param location_name 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_admin_level <- function(location_name) {
+  stringr::str_count(location_name, "::") %>% 
+    as.numeric() %>% 
+    # Remove the continent nesting
+    {.-1}
+}
+
+#' Title
+#'
+#' @param location_name 
+#'
+#' @export
+#'
+get_country <- function(location_name) {
+  location_name %>% 
+    stringr::str_remove("AFR|EMR") %>% 
+    stringr::str_extract("[A-Z]{3}")
+}
+
+#' Q_sum_to_zero_QR
+#' https://discourse.mc-stan.org/t/test-soft-vs-hard-sum-to-zero-constrain-choosing-the-right-prior-for-soft-constrain/3884/31
+#' @param N 
+#'
+#' @return
+#' @export
+#'
+Q_sum_to_zero_QR <- function(N) {
+  Q_r = rep(0, 2*N);
+  
+  for(i in 1:N) {
+    Q_r[i] = -sqrt((N-i)/(N-i+1.0));
+    Q_r[i+N] = 1/sqrt((N-i) * (N-i+1));
+    
+    if (is.infinite(Q_r[i+N])) {
+      Q_r[i+N] <- 0
+    }
+  }
+  Q_r
+}
+
+#' sum_to_zero_QR
+#'
+#' @param x_raw 
+#' @param Q_r 
+#'
+#' @return
+#' @export
+#'
+sum_to_zero_QR <- function(x_raw, 
+                           Q_r) {
+  
+  N = length(x_raw) + 1;
+  x = rep(0, N);
+  x_aux = 0;
+  
+  for(i in 1:(N-1)){
+    x[i] = x_aux + x_raw[i] * Q_r[i];
+    x_aux = x_aux + x_raw[i] * Q_r[i+N];
+  }
+  x[N] = x_aux;
+  x;
+}
+
+
+#' map_gridcell_to_country
+#'
+#' @param conn_pg postgres connection
+#' @param output_intersections_table 
+#' @export
+#' @return
+#'
+map_gridcell_to_country <- function(conn_pg,
+                                    output_lp_name,
+                                    output_intersections_table
+) {
+  
+  lptable <- DBI::dbGetQuery(conn_pg,
+                             statement = glue::glue_sql("
+                             SELECT location_period_id as lp, rid, x, y
+                             FROM {`{DBI::SQL(output_lp_name)}`};",
+                                                        .con = conn_pg)) %>% 
+    dplyr::as_tibble()
+  
+  inttable <- DBI::dbGetQuery(conn_pg,
+                              statement = glue::glue_sql("
+                             SELECT location_period_id as lp, rid, x, y, ST_Area(geom) as area
+                             FROM {`{DBI::SQL(output_intersections_table)}`};",
+                                                         .con = conn_pg)) %>% 
+    dplyr::as_tibble()
+  
+  
+  lptable %>% 
+    dplyr::left_join(inttable) %>% 
+    tidyr::replace_na(list(area = 1e6)) %>% 
+    dplyr::mutate(country = stringr::str_extract(lp, "[A-Z]{3}")) %>% 
+    # Only keep one country per grid cell based on the area
+    dplyr::group_by(rid, x, y) %>% 
+    dplyr::slice_max(area, with_ties = FALSE) %>% 
+    dplyr::ungroup() %>% 
+    dplyr::select(country, rid, x, y)
+}
+
+
+
+
+#' Title
+#'
+#' @param diag 
+#' @param rho 
+#' @param std_dev_w 
+#' @param w 
+#' @param smooth_grid_N 
+#' @param N_edges 
+#' @param node1 
+#' @param node2 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+comput_dagar_aux <- function(diag, rho, std_dev_w, w, smooth_grid_N, N_edges, node1, node2) {
+  # Construct w
+  b = rho / (1 + (diag - 1) * rho * rho );
+  vec_var = (1 - rho * rho) / (1 + (1. * diag - 1) * rho * rho);
+  std_dev = std_dev_w * sqrt(vec_var);
+  
+  t_rowsum <- 0
+  # Linear in number of edges
+  for(i in 1:smooth_grid_N){
+    t_rowsum[i] = 0;
+  }
+  
+  for(i in 1:N_edges){
+    t_rowsum[node1[i]] = t_rowsum[node1[i]] + w[node2[i]] * b[node1[i]];
+  }
+  
+  return(list(t_rowsum = t_rowsum,
+              std_dev = std_dev))
+}
+
+#' Title
+#'
+#' @param w 
+#' @param stan_data 
+#' @param rho 
+#' @param std_dev_w 
+#' @param n_iter 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+smooth_dagar <- function(w, stan_data, rho, std_dev_w, n_iter = 1) {
+  
+  diag <- stan_data$diag
+  smooth_grid_N <- stan_data$smooth_grid_N
+  N_edges <- stan_data$N_edges
+  node1 <- stan_data$node1
+  node2 <- stan_data$node2
+  
+  for (iter in 1:n_iter) {
+    cat("-- Dagar smoothing iter", iter, "\n")
+    dagar_aux <- comput_dagar_aux(diag, rho, std_dev_w, w, smooth_grid_N, N_edges, node1, node2)
+    
+    # Resample squentially all values of w
+    for (i in 2:smooth_grid_N) {
+      w[i] = rnorm(1, dagar_aux$t_rowsum[i], dagar_aux$std_dev[i])
+    }
+  }
+  return(w)
+}
+
+#' Title
+#'
+#' @param stan_data 
+#' @param country_id 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+compute_mean_rate_bycountry <- function (stan_data,
+                                       country_id) {
+  
+  ind_obs <- which(stan_data$map_obs_country == country_id)
+  
+  y_tfrac <- tibble::tibble(
+    tfrac = stan_data$tfrac,
+    map_obs_loctime_obs = stan_data$map_obs_loctime_obs) %>% 
+    dplyr::filter(map_obs_loctime_obs %in% ind_obs) %>% 
+    dplyr::group_by(map_obs_loctime_obs) %>%
+    dplyr::summarize(tfrac = mean(tfrac)) %>% 
+    .[["tfrac"]]
+  
+  nobs <- length(ind_obs)
+  aggpop <- rep(0, nobs)
+  
+  for (i in 1:nobs) {
+    lps <- stan_data$map_obs_loctime_loc[which(stan_data$map_obs_loctime_obs == 
+                                                 ind_obs[i])]
+    for (lp in lps) {
+      aggpop[i] <- aggpop[i] + sum(stan_data$pop[stan_data$map_loc_grid_grid[stan_data$map_loc_grid_loc == 
+                                                                               lp]])
+    }
+  }
+  tot_cases <- sum(stan_data$y[ind_obs] * y_tfrac)
+  meanrate <- tot_cases/sum(aggpop)
+  if (tot_cases == 0 | meanrate < 1e-6) {
+    cat("-- Setting mean rate value to 1e-6 \n")
+    meanrate <- 1e-6
+  }
+  meanrate
 }
 

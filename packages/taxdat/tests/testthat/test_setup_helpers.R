@@ -506,4 +506,164 @@ test_that("check_snap_tol works",{
   )
 
 })
+
+test_that("try_conv_numeric works",{
+  
+  x = "character"
+  defaultW <- getOption("warn") 
+  options(warn = -1) 
+  expect_error(
+    try_conv_numeric(x),
+    paste0("Error: the parameter must be able to be converted to \"numeric\". ", x, ".")
+  )
+  options(warn = defaultW)
+
+  x = "7"
+  expect_equal(
+    try_conv_numeric(x),
+    7
+  )
+
+  x = 7
+  expect_equal(
+    try_conv_numeric(x),
+    7
+  )
+
+})
+
+test_that("check_od_param_generic works",{
+  
+  defaultW <- getOption("warn") 
+  options(warn = -1) 
+  expect_equal(
+    check_od_param_generic('3', "1", 1000),
+    0
+  )
+  options(warn = defaultW)
+
+  defaultW <- getOption("warn") 
+  options(warn = -1) 
+  expect_equal(
+    check_od_param_generic('3', "2", 1000),
+    3
+  )
+  options(warn = defaultW)
+
+  defaultW <- getOption("warn") 
+  options(warn = -1) 
+  expect_equal(
+    check_od_param_generic(NULL, "2", 1000),
+    1000
+  )
+  options(warn = defaultW)
+
+  defaultW <- getOption("warn") 
+  options(warn = -1) 
+  expect_equal(
+    check_od_param_generic('', "3", 1000),
+    1000
+  )
+  options(warn = defaultW)
+
+  defaultW <- getOption("warn") 
+  options(warn = -1) 
+  expect_equal(
+    check_od_param_generic("   ", "3", 1000),
+    1000
+  )
+  options(warn = defaultW)
+
+})
+
+test_that("check_mu_alpha works",{
+  
+  expect_equal(
+    check_mu_alpha(1),
+    1
+  )
+
+  expect_equal(
+    check_mu_alpha("1"),
+    1
+  )
+
+  expect_equal(
+    check_mu_alpha(NULL),
+    0
+  )
+
+  expect_equal(
+    check_mu_alpha(""),
+    0
+  )
+
+  x <- "character"
+  expect_error(
+    check_mu_alpha(x),
+    paste0("Error: the parameter must be able to be converted to \"numeric\". ", x, ".")
+  )
+
+})
+
+test_that("check_sd_alpha works",{
+  
+  expect_equal(
+    check_sd_alpha(0),
+    0
+  )
+
+  expect_equal(
+    check_sd_alpha("0"),
+    0
+  )
+
+  expect_equal(
+    check_sd_alpha(NULL),
+    1
+  )
+
+  expect_equal(
+    check_sd_alpha(""),
+    1
+  )
+
+  x <- "character"
+  expect_error(
+    check_sd_alpha(x),
+    paste0("Error: the parameter must be able to be converted to \"numeric\". ", x, ".")
+  )
+
+})
+
+test_that("check_mu_sd_w works",{
+  
+  expect_equal(
+    check_mu_sd_w(0),
+    0
+  )
+
+  expect_equal(
+    check_mu_sd_w("0"),
+    0
+  )
+
+  expect_equal(
+    check_mu_sd_w(NULL),
+    2
+  )
+
+  expect_equal(
+    check_mu_sd_w(""),
+    2
+  )
+
+  x <- "character"
+  expect_error(
+    check_mu_sd_w(x),
+    paste0("Error: the parameter must be able to be converted to \"numeric\". ", x, ".")
+  )
+
+})
+
 ## check_snap_tol, check_use_pop_weight, check_sfrac_thresh, check_ingest_covariates, check_ingest_new_covariates, check_stan_debug, check_stan_model, get_all_config_options, check_update_config

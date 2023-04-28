@@ -1333,20 +1333,20 @@ get_country_admin_units <- function(iso_code,
       unionized <- sf::st_union(boundary_sf)
       boundary_sf <- boundary_sf[1, ]
       sf::st_geometry(boundary_sf) <- unionized
-      } else {
+    } else {
       boundary_sf =sf::st_as_sf(geodata::gadm(country="TZA", level=admin_level, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
     }
-     # Fix colnames for compatibility with rest of code
+    # Fix colnames for compatibility with rest of code
     boundary_sf <- boundary_sf %>% 
-       magrittr::set_colnames(.,tolower(colnames(boundary_sf))) %>%
-       dplyr::mutate(country="Tanzania",
-              gid_0="TZA")%>%
-       dplyr::mutate(name_0 = country,
-              shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
-              shapeType = paste0("ADM", admin_level))%>% 
-       dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
-                shapeID,
-                shapeType)
+      magrittr::set_colnames(.,tolower(colnames(boundary_sf))) %>%
+      dplyr::mutate(country="Tanzania",
+                    gid_0="TZA")%>%
+      dplyr::mutate(name_0 = country,
+                    shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
+                    shapeType = paste0("ADM", admin_level))%>% 
+      dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
+                    shapeID,
+                    shapeType)
     sf::st_crs(boundary_sf) <- sf::st_crs(4326)
     message("Using the aggregated gadm shapefiles for this region")
   } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA")&admin_level==0){
@@ -1389,6 +1389,9 @@ get_country_admin_units <- function(iso_code,
   
   # Combine into multipolygons
   boundary_sf <- sf::st_cast(boundary_sf, "MULTIPOLYGON")
+  # Fill wholes
+  boundary_sf <- sfheaders::sf_remove_holes(boundary_sf)
+  
   boundary_sf <- boundary_sf %>% 
     dplyr::group_by(shapeName) %>% 
     dplyr::summarise(location_period_id = stringr::str_c(location_period_id, 
@@ -1402,7 +1405,9 @@ get_country_admin_units <- function(iso_code,
 #' Get all country admin units
 #' Gets admin 1 to 3 units for given country
 #' 
-#' @param iso_code 
+#' @param iso_code vector of isocodes to pull countries with
+#' @param admin_levels vector of admin levels to pull data for
+#' @param clip_to_adm0 whether to clip all shapefiles for a given country to the adm0 shapefile 
 #'
 #' @return
 #' @export
@@ -1412,31 +1417,40 @@ get_multi_country_admin_units <- function(iso_code,
                                           lps = NULL,
                                           clip_to_adm0 = TRUE) {
   
-  if (iso_code == "testing") {
-    # If testing run return the same shapefiles as the ones on location periods
-    return(lps)
-  } 
+  if (length(iso_code) == 1) {
+    if (iso_code == "testing") {
+      # If testing run return the same shapefiles as the ones on location periods
+      return(lps)
+    } 
+  }
   
   if (clip_to_adm0 & !(0 %in% admin_levels)) {
     stop("Admin level 0 needs to be included if clip_to_adm0 = TRUE.")
   }
   
-  adm_sf <- purrr::map_df(admin_levels, 
-                          ~ get_country_admin_units(iso_code = iso_code, 
-                                                    admin_level = .) %>% 
-                            dplyr::rename(admin_level = shapeType) %>% 
-                            dplyr::arrange(location_period_id)
-  )
-  
-  if (clip_to_adm0) {
-    adm0_geom <- adm_sf %>% dplyr::slice(1)
-    adm_sf <- adm_sf %>% 
-      dplyr::mutate(geom = sf::st_intersection(geom, adm0_geom$geom))
-  }
-  
-  # Fix geometry collections if any
-  adm_sf <- fix_geomcollections(adm_sf)
-  
+  adm_sf <- purrr::map_df(
+    iso_code,
+    function(x) {
+      adm_sf <- purrr::map_df(
+        admin_levels, 
+        function(y) {
+          adm_sf <- get_country_admin_units(iso_code = x, 
+                                            admin_level = y) %>% 
+            dplyr::rename(admin_level = shapeType) %>% 
+            dplyr::arrange(location_period_id)
+        }
+      )
+      
+      if (clip_to_adm0) {
+        adm0_geom <- adm_sf %>% dplyr::slice(1)
+        adm_sf <- adm_sf %>% 
+          dplyr::mutate(geom = sf::st_intersection(geom, adm0_geom$geom))
+      }
+      
+      # Fix geometry collections if any
+      adm_sf <- fix_geomcollections(adm_sf)
+      adm_sf
+    })
   adm_sf
 }
 

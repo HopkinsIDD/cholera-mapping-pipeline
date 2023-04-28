@@ -190,7 +190,7 @@ parameters {
   
   // Spatial random effects
   real <lower=0, upper=1> rho;    // spatial correlation parameter
-  real<lower=0> std_dev_w;             // precision of the spatial effects
+  real log_std_dev_w;             // precision of the spatial effects
   vector[smooth_grid_N] w;        // spatial random effect
   
   // Temporal random effects
@@ -202,6 +202,9 @@ parameters {
   
   // Overdispersion parameters
   vector<lower=0>[N_admin_lev*do_overdispersion] inv_od_param;
+  // mean and sd of pooled od parameter for lower admin levels
+  real<lower=0> h_inv_od_mu[do_overdispersion];   
+  real<lower=0> h_inv_od_sd[do_overdispersion];
 }
 transformed parameters {
   vector[N_admin_lev*do_overdispersion] od_param;

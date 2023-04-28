@@ -62,6 +62,27 @@ prepare_stan_input <- function(
   smooth_grid <- smooth_grid_obj$smooth_grid    # smooth grid sf object
   rm(smooth_grid_obj)
   
+  # Add country information
+  conn_pg <- taxdat::connect_to_db(dbuser)
+  map_grid_to_country_df <- taxdat::map_gridcell_to_country(
+    conn_pg = conn_pg,
+    output_intersections_table = taxdat::make_output_grid_intersections_table_name(config = config),
+    output_lp_name = taxdat::make_output_locationperiods_table_name(config = config) %>% paste0("_dict")
+  ) 
+  DBI::dbDisconnect(conn_pg)
+  
+  sf_grid <- dplyr::left_join(sf_grid, map_grid_to_country_df)
+  smooth_grid <- dplyr::left_join(smooth_grid %>% 
+                                    dplyr::inner_join(
+                                      sf::st_drop_geometry(sf_grid) %>% 
+                                        dplyr::distinct(id, rid, x, y)
+                                    ), 
+                                  map_grid_to_country_df)
+  
+  if (any(is.na(sf_grid$country))) {
+    cat("-- No country found for ", sum(is.na(sf_grid$country)), "spacetime gridcells. Dropping them. \n")
+  }
+  
   # Define model time slices
   model_time_slices <- sort(unique(sf_grid$s))
   
@@ -133,8 +154,8 @@ prepare_stan_input <- function(
     lp_dict = location_periods_dict,
     model_time_slices = time_slices,
     res_time = res_time,
-    n_cpus = ncore,
-    do_parallel = FALSE)
+    n_cpus = config$ncpus_parallel_prep,
+    do_parallel = config$do_parallel_prep)
   
   non_na_obs <- sort(unique(ind_mapping$map_obs_loctime_obs))
   sf_cases_resized <- sf_cases[non_na_obs, ]
@@ -148,7 +169,9 @@ prepare_stan_input <- function(
                                                        non_na_obs = non_na_obs,
                                                        ind_mapping = ind_mapping,
                                                        cases_column = cases_column,
-                                                       verbose = opt$verbose)
+                                                       verbose = opt$verbose,
+                                                       n_cpus = config$ncpus_parallel_prep,
+                                                       do_parallel = config$do_parallel_prep)
     
     # Snap to time period after aggregation
     sf_cases_resized <- taxdat::snap_to_time_period_df(df = sf_cases_resized,
@@ -163,8 +186,8 @@ prepare_stan_input <- function(
       lp_dict = location_periods_dict,
       model_time_slices = time_slices,
       res_time = res_time,
-      n_cpus = ncore,
-      do_parallel = F)
+      n_cpus = config$ncpus_parallel_prep,
+      do_parallel = config$do_parallel_prep)
     
   } else {
     print("---- USING RAW CHOLERA DATA ----")
@@ -172,6 +195,9 @@ prepare_stan_input <- function(
     sf_cases_resized <- sf_cases
   }
   
+  # Clean unused objects
+  rm(ind_mapping)
+  rm(sf_cases)
   
   #  ---- D. Drop tfrac threshold ----
   
@@ -194,8 +220,8 @@ prepare_stan_input <- function(
         lp_dict = location_periods_dict,
         model_time_slices = time_slices,
         res_time = res_time,
-        n_cpus = ncore,
-        do_parallel = F)
+        n_cpus = config$ncpus_parallel_prep,
+        do_parallel = config$do_parallel_prep)
     }
   }
   
@@ -228,17 +254,17 @@ prepare_stan_input <- function(
       
       cat("-- Dropping", length(censored_zero_obs), "observations that are 0 and censored.\n")
       
-      sf_cases_resized <- sf_cases_resized[-censored_zero_obs, ]
+      sf_cases_resized <- sf_cases_resized[-c(censored_zero_obs), ]
       
       ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
         df = sf_cases_resized, 
         lp_dict = location_periods_dict,
         model_time_slices = time_slices,
         res_time = res_time,
-        n_cpus = ncore,
-        do_parallel = F)
+        n_cpus = config$ncpus_parallel_prep,
+        do_parallel = config$do_parallel_prep)
       
-      # First define censored observations
+      # Update data
       stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
       stan_data$M <- nrow(sf_cases_resized)
       non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
@@ -246,11 +272,13 @@ prepare_stan_input <- function(
       stan_data$map_obs_loctime_obs <- taxdat::get_map_obs_loctime_obs(x = ind_mapping_resized$map_obs_loctime_obs,
                                                                        obs_changer = obs_changer)
       stan_data$map_obs_loctime_loc <- as.array(ind_mapping_resized$map_obs_loctime_loc) 
+
       
       # Extract censoring information
       censoring_inds <- taxdat::get_censoring_inds(stan_data = stan_data,
                                                    ind_mapping_resized = ind_mapping_resized,
                                                    censoring_thresh = config$censoring_thresh)
+
     }
   }
   
@@ -295,8 +323,8 @@ prepare_stan_input <- function(
         lp_dict = location_periods_dict,
         model_time_slices = time_slices,
         res_time = res_time,
-        n_cpus = ncore,
-        do_parallel = F)
+        n_cpus = config$ncpus_parallel_prep,
+        do_parallel = config$do_parallel_prep)
       
       # Reset stan_data
       non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
@@ -379,6 +407,93 @@ prepare_stan_input <- function(
   # What observation model to use
   stan_data$obs_model <- config$obs_model
   
+  # Grid cells to country
+  u_countries <- unique(sf_grid$country, na.rm = T) %>% sort()
+  stan_data$N_countries <- length(u_countries)
+  
+  stan_data$map_grid_country <- purrr::map_dbl(
+    1:nrow(sf_grid), 
+    ~ which(u_countries == sf_grid$country[.])
+  )
+  
+  # Observation to country
+  stan_data$map_obs_country <- sf_cases_resized$location_name %>% 
+    taxdat::get_country() %>% 
+    purrr::map_dbl(~ which(u_countries == .)) %>% 
+    as.array()
+  
+  # Administrative levels for observation model
+  admin_levels <- sf_cases_resized$location_name %>% 
+    taxdat::get_admin_level() %>% 
+    as.array()
+  
+  n_na_admin <- sum(is.na(admin_levels))
+  
+  if (n_na_admin > 0) {
+    cat("---- Replacing unknown admin level for ", n_na_admin, " observations corresponding to",
+        sum(stan_data$y[is.na(admin_levels)]), "cases. \n")
+  }
+  
+  # Make sure all admin levels are specified
+  admin_levels[is.na(admin_levels)] <- max(admin_levels, na.rm = T)
+  
+  # Get unique levels, this is necessary if not all admin levels are present
+  # in the data
+  u_admin_levels <- sort(unique(admin_levels))
+  
+  # index staring at 1
+  stan_data$map_obs_admin_lev <- purrr::map_dbl(admin_levels, ~ which(u_admin_levels == .))
+  
+  # Indices of adm0 level
+  stan_data$ind_obs_admin_lev0 <- which(admin_levels == 0)
+  
+  # Add unique number of admin levels for use in observation model
+  stan_data$N_admin_lev <- length(u_admin_levels)
+  N_countries_admin_lev <-  stan_data$N_countries * stan_data$N_admin_lev
+  
+  # Unique map of country/admin levels
+  u_country_admin_lev <- expand.grid(
+    country = 1:stan_data$N_countries,
+    admin_lev = 1:stan_data$N_admin_lev 
+  ) %>% 
+    dplyr::mutate(row = dplyr::row_number())
+  
+  stan_data$comb_country_admin_lev_country <- u_country_admin_lev$country
+  stan_data$comb_country_admin_lev_admin_lev <- u_country_admin_lev$admin_lev
+  
+  # Map from od to inv_od parameters (this is because we do not have parameters for admin level 0 observations)
+  comb_inv_od <- u_country_admin_lev %>% 
+    # !! note that here 1 is in the sorted vector of unique admin levels
+    # this will break if the first admin level is not admin level 0
+    dplyr::filter(admin_lev != 1)   
+  
+  if (nrow(comb_inv_od) > 0) {
+    stan_data$map_od_inv_od_param <- purrr::map_dbl(
+      u_country_admin_lev$row,
+      function(x){
+        ind <- which(comb_inv_od$row == x)
+        if (length(ind) == 0) {
+          return(0)
+        } else {
+          return(ind)
+        }
+      })
+  } else {
+    stan_data$map_od_inv_od_param <- rep(0, N_countries_admin_lev)
+  }
+  
+  # Number of od parameters (Adm0 level does not have any)
+  stan_data$N_inv_od <- max(stan_data$map_od_inv_od_param)
+  
+  stan_data$map_obs_country_admin_lev <- purrr::map_dbl(
+    1:nrow(sf_cases_resized),
+    function(x) {
+      dplyr::filter(u_country_admin_lev,
+                    country == which(u_countries == taxdat::get_country(sf_cases_resized$location_name[x])),
+                    admin_lev == which(u_admin_levels == admin_levels[x])) %>% 
+        dplyr::pull(row)
+    })
+  
   # ---- J. Data for output summaries ----
   
   # Set user-specific name for location_periods table to use
@@ -423,8 +538,8 @@ prepare_stan_input <- function(
     lp_dict = output_location_periods_table,
     model_time_slices = time_slices,
     res_time = res_time,
-    n_cpus = ncore,
-    do_parallel = F)
+    n_cpus = config$ncpus_parallel_prep,
+    do_parallel = config$do_parallel_prep)
   
   # Space-only location periods
   output_lps_space <- fake_output_obs %>% 
@@ -489,9 +604,7 @@ prepare_stan_input <- function(
     stan_data$debug <- debug
   }
   
-  # ---- L. Observation model ----
-  # Add quasi-poisson/neg-binom overdispersion parameter
-  stan_data$od_param <- config$od_param
+  # ---- L. Covariates ----
   
   # Option for double-exponential prior on betas
   stan_data$exp_prior <- config$exp_prior
@@ -515,8 +628,38 @@ prepare_stan_input <- function(
   # Add scale of prior on the sd of regression coefficients
   stan_data$beta_sigma_scale <- config$beta_sigma_scale
   
+  # Priors for intercept
+  stan_data$mu_alpha <- config$mu_alpha
+  stan_data$sd_alpha <- config$sd_alpha
+  
+  # Priors for observation model overdispersion parameters in negative-binomial model
+  # We model the od parameter on the 1/tau constrained to be positive scale to facilitate setting priors
+  # We assume that the largest admin level (admin level 0 for national) has
+  # an informative prior so as to produce little overdispersion. The over-dispersion for other
+  # admin levels are allowed to have more prior support for larger amount of over-dispersion.
+  if (stan_data$N_inv_od > 1) {
+    stan_data$mu_inv_od <- rep(0, stan_data$N_inv_od)   # center at 0 (note that this is on the scale of 1/tau)
+    stan_data$sd_inv_od <- rep(config$inv_od_sd_nopool, stan_data$N_inv_od)
+  } else {
+    stan_data$mu_inv_od <- array(0, dim = 0)
+    stan_data$sd_inv_od <- array(0, dim = 0)
+  }
+  
+  
+  # Also save for hierarchical model
+  stan_data$h_mu_mean_inv_od <- 0     # the mean of hierarchical inverse over-dispersion parameters
+  stan_data$h_mu_sd_inv_od <- config$h_mu_sd_inv_od       # the sds  of hierarchical inverse over-dispersion parameters
+  stan_data$h_sd_sd_inv_od <- config$h_sd_sd_inv_od       # the sd of the hierarchical sd of inverse over-dispersion parameters
+  stan_data$mu_inv_od_lev0 <- 0       # mean of the inv od param for national level
+  stan_data$sd_inv_od_lev0 <- config$inv_od_sd_adm0    # sd of the inv od param for national level
+  
+  
+  # Prior on the std_dev_w
+  stan_data$mu_sd_w <- config$mu_sd_w
+  stan_data$sd_sd_w <- config$sd_sd_w
   
   cat("**** FINISHED PREPARING STAN INPUT \n")
+  taxdat::close_parallel_setup()
   
   return(
     list(stan_data = stan_data,
@@ -525,6 +668,8 @@ prepare_stan_input <- function(
          sf_grid = sf_grid,
          smooth_grid  = smooth_grid,
          fake_output_obs = fake_output_obs,
-         config = config)
+         config = config,
+         u_admin_levels = u_admin_levels,
+         u_countries = u_countries)
   )
 }

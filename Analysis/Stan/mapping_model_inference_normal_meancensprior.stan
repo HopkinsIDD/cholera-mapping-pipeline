@@ -98,6 +98,7 @@ data {
   real<lower=0> mu_inv_od[N_admin_lev];    // the means of the inverse over-dispersion parameters
   real<lower=0> sd_inv_od[N_admin_lev];    // the sds of the inverse over-dispersion parameters
   real<lower=0> mu_sd_w;
+  real<lower=0> sd_sd_w;
   
   // Debug
   int debug;
@@ -114,6 +115,35 @@ transformed data {
   real eta_zerosum_raw_sigma = inv_sqrt(1 - inv(T));
   int<lower=0, upper=T> size_eta;
   int<lower=0, upper=1> size_sd_eta;
+  real<lower=0> mean_rate_cases[M];    // number of cases implied by the mean rate
+  
+   for(i in 1:N){
+    logpop[i] = log(pop[i]);
+  }
+  
+  // Mean rate cases
+  {
+    vector[N] mean_grid_cases = exp(log_meanrate + logpop);
+    real location_cases[L];
+    
+    // calculate number of cases for each location
+    for(i in 1:L){
+      location_cases[i] = 0;
+    }
+    
+    for(i in 1:K2){
+      location_cases[map_loc_grid_loc[i]] += mean_grid_cases[map_loc_grid_grid[i]] * map_loc_grid_sfrac[i];
+    }
+    
+    for (i in 1:M) {
+      mean_rate_cases[i] = 0;
+    }
+    
+    // now accumulate
+    for (i in 1:K1) {
+      mean_rate_cases[map_obs_loctime_obs[i]] += location_cases[map_obs_loctime_loc[i]];
+    }
+  }
   
   for (i in 1:K1) {
     if (censored[i] == 1) {
@@ -121,11 +151,6 @@ transformed data {
     } else {
       tfrac_censoring[i] = tfrac[i];  
     }
-  }
-  
-  
-  for(i in 1:N){
-    logpop[i] = log(pop[i]);
   }
   
   for (i in 1:L) {
@@ -426,7 +451,7 @@ model {
     }
   }
   
-  std_dev_w ~ inv_gamma(2, mu_sd_w);
+  std_dev_w ~ normal(mu_sd_w, sd_sd_w);
   
   if (debug && (previous_debugs == 0)) {
     print("dagar std", target());
@@ -560,7 +585,7 @@ model {
       }
       // add a 0-centered prior on the censored cases
       for (idx in ind_right) {
-        modeled_cases[idx] ~ cauchy(0, 2);
+        modeled_cases[idx] ~ cauchy(mean_rate_cases[ind_right], 2);
       }
     }
   } else {

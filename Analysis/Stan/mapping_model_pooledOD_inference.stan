@@ -95,9 +95,11 @@ data {
   real<lower=0> sigma_eta_scale;    // the scale of temporal random effects sd
   real mu_alpha;             // the mean of the intercept, if used
   real<lower=0> sd_alpha;    // the sd of the intercept, if used
-  real<lower=0> mu_inv_od[N_admin_lev];    // the means of the inverse over-dispersion parameters
-  real<lower=0> sd_inv_od[N_admin_lev];    // the sds of the inverse over-dispersion parameters
-  real<lower=0> mu_sd_w;
+  real<lower=0> h_mu_mean_inv_od;     // the mean of hierarchical inverse over-dispersion parameters
+  real<lower=0> h_mu_sd_inv_od;      // the sds  of hierarchical inverse over-dispersion parameters
+  real<lower=0> h_sd_sd_inv_od;         // the sd of the hierarchical sd of inverse over-dispersion parameters
+  real<lower=0> mu_inv_od_lev0;       // mean of the inv od param for national level
+  real<lower=0> sd_inv_od_lev0;       // sd of the inv od param for national level
   
   // Debug
   int debug;
@@ -176,7 +178,7 @@ parameters {
   
   // Spatial random effects
   real <lower=0, upper=1> rho;    // spatial correlation parameter
-  real<lower=0> std_dev_w;             // precision of the spatial effects
+  real log_std_dev_w;             // precision of the spatial effects
   vector[smooth_grid_N] w;        // spatial random effect
   
   // Temporal random effects
@@ -188,14 +190,16 @@ parameters {
   
   // Overdispersion parameters
   vector<lower=0>[N_admin_lev*do_overdispersion] inv_od_param;
-  
+  // mean and sd of pooled od parameter for lower admin levels
+  real<lower=0> h_inv_od_mu[do_overdispersion];   
+  real<lower=0> h_inv_od_sd[do_overdispersion];
 }
 
 transformed parameters {
   
   vector[T*do_time_slice_effect] eta;    // temporal random effects
   vector[M] modeled_cases;        // expected number of cases for each observation
-  // real std_dev_w = exp(log_std_dev_w);    // sd of spatial random effects
+  real std_dev_w = exp(log_std_dev_w);    // sd of spatial random effects
   vector[N] grid_cases;       // cases modeled in each gridcell and time point
   real previous_debugs = 0;
   real sigma_eta_val;        // value of sigma_eta. This is either fixed to sigma_eta_scale if do_infer_sd_eta==0, or sigma_eta otherwise
@@ -426,7 +430,7 @@ model {
     }
   }
   
-  std_dev_w ~ inv_gamma(2, mu_sd_w);
+  log_std_dev_w ~ normal(0,1);
   
   if (debug && (previous_debugs == 0)) {
     print("dagar std", target());
@@ -485,7 +489,18 @@ model {
   // Priors on the over-dispersion parameters
   
   if (do_overdispersion == 1) {
-    inv_od_param ~ normal(mu_inv_od, sd_inv_od);
+    // National level
+    inv_od_param[1] ~ normal(mu_inv_od_lev0, sd_inv_od_lev0);
+    
+    if (N_admin_lev > 1) {
+      // Other od params with hierarchical structure
+      
+      for (i in 2:N_admin_lev) {
+        inv_od_param[i] ~ normal(h_inv_od_mu, h_inv_od_sd);
+      }
+      h_inv_od_mu ~ normal(h_mu_mean_inv_od, h_mu_sd_inv_od);
+      h_inv_od_sd ~ normal(0, h_sd_sd_inv_od);
+    }
   }
   
   // ---- 4. Observations likelihood ----

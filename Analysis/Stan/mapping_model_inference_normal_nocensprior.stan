@@ -98,6 +98,7 @@ data {
   real<lower=0> mu_inv_od[N_admin_lev];    // the means of the inverse over-dispersion parameters
   real<lower=0> sd_inv_od[N_admin_lev];    // the sds of the inverse over-dispersion parameters
   real<lower=0> mu_sd_w;
+  real<lower=0> sd_sd_w;
   
   // Debug
   int debug;
@@ -426,7 +427,7 @@ model {
     }
   }
   
-  std_dev_w ~ inv_gamma(2, mu_sd_w);
+  std_dev_w ~ normal(mu_sd_w, sd_sd_w);
   
   if (debug && (previous_debugs == 0)) {
     print("dagar std", target());
@@ -559,9 +560,9 @@ model {
         print("right censored obs", target());
       }
       // add a 0-centered prior on the censored cases
-      for (idx in ind_right) {
-        modeled_cases[idx] ~ cauchy(0, 2);
-      }
+      // for (idx in ind_right) {
+      //   modeled_cases[idx] ~ cauchy(0, 2);
+      // }
     }
   } else {
     if (use_weights == 1) {
