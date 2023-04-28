@@ -1076,7 +1076,7 @@ check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_c
   tmp <- sf_cases_resized%>%
     dplyr::mutate(
       year = lubridate::year(TL), 
-      total_days = case_when(
+      total_days = dplyr::case_when(
         year%%4 == 0 ~ 366, 
         TRUE ~ 365
       ), 
