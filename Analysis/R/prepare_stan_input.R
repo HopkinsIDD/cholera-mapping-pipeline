@@ -564,7 +564,12 @@ prepare_stan_input <- function(
   # Prior on the std_dev_w
   stan_data$mu_sd_w <- config$mu_sd_w
   stan_data$sd_sd_w <- config$sd_sd_w
+
+
+  # ---- P. Data Structure Check ----
+  taxdat::check_stan_input_objects(censoring_thresh = config$censoring_thresh, sf_cases, stan_data, sf_cases_resized)
   
+
   cat("**** FINISHED PREPARING STAN INPUT \n")
   
   return(
