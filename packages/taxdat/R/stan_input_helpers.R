@@ -1031,16 +1031,7 @@ compute_mean_rate <- function(stan_data) {
     }
   }
   
-  # Compute the mean incidence
-  ## The meanrate line below was active in dev_new_obsmodel_impute
-  # Note that this is in the model's temporal resolution
-  # meanrate <- sum(stan_data$y / y_tfrac)/sum(aggpop)
-  
-  ## The meanrate line below was commented out in dev_new_obsmodel_imput
-  # meanrate <- sum(stan_data$y[stan_data$y>0 & !stan_data$censored] * y_tfrac[stan_data$y>0& !stan_data$censored])/sum(aggpop[stan_data$y>0& !stan_data$censored])
-  
-  ## The meanrate line below was active in dev
-  # Note that this is in the model's temporal resolution and accounting for censoring
+  # Compute the mean incidence using only full observations
   meanrate <- sum(stan_data$y[stan_data$ind_full] / y_tfrac[stan_data$ind_full])/sum(aggpop[stan_data$ind_full])
   
   if(meanrate < 1e-7){
