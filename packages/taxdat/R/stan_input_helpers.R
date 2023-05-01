@@ -1015,6 +1015,7 @@ compute_mean_rate <- function(stan_data) {
     map_obs_loctime_obs = stan_data$map_obs_loctime_obs) %>% 
     dplyr::group_by(map_obs_loctime_obs) %>% 
     dplyr::summarize(tfrac = mean(tfrac)) %>%  # We take the average over time so we can sum population over time
+    dplyr::arrange(map_obs_loctime_obs) %>% 
     .[["tfrac"]]
   
   nobs <- length(unique(stan_data$map_obs_loctime_obs))
@@ -1028,9 +1029,8 @@ compute_mean_rate <- function(stan_data) {
   }
   
   # Compute the mean incidence
-  # Note that this is in the model's temporal resolution
-  meanrate <- sum(stan_data$y * y_tfrac)/sum(aggpop)
-  # meanrate <- sum(stan_data$y[stan_data$y>0 & !stan_data$censored] * y_tfrac[stan_data$y>0& !stan_data$censored])/sum(aggpop[stan_data$y>0& !stan_data$censored])
+  # Note that this is in the model's temporal resolution and accounting for censoring
+  meanrate <- sum(stan_data$y[stan_data$ind_full] / y_tfrac[stan_data$ind_full])/sum(aggpop[stan_data$ind_full])
   
   if(meanrate < 1e-10){
     meanrate <- 1e-10
@@ -1083,3 +1083,80 @@ compute_pop_loctimes <- function(stan_data) {
   pop_loctimes
 }
 
+#' Title
+#'
+#' @param censoring_thresh
+#' @param sf_cases 
+#' @param stan_data 
+#' @param sf_cases_resized
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_cases_resized){
+  # Test 1: the same number of observations
+  if(!identical(
+    nrow(sf_cases_resized),
+    length(stan_data$y),
+    stan_data$M,
+    length(stan_data$censoring_inds)
+  )){
+    stop("At least two objects among stan_input$sf_cases_resized, stan_input$stan_data$y, stan_input$stan_data$M, and stan_input$stan_data$censoring_inds 
+    within the stan input do not agree on data dimensions (the number of observations). ")
+  }
+
+  # Test 2: the same number of cases
+  if( sum(sf_cases_resized$attributes.fields.suspected_cases) != sum(stan_data$y) | 
+      sum(sf_cases_resized$attributes.fields.suspected_cases != stan_data$y) > 0  ){
+    stop("The stan_input$sf_cases_resized, stan_input$stan_data$y don't have the same number of total cases. ")
+  }
+
+  # Test 3: compare the sums of sf_cases, sf_cases_resized across each OC-locationPeriod-year combination
+  sf_cases_cmb <- rbind(sf_cases %>% sf::st_drop_geometry() %>% dplyr::select(OC_UID, locationPeriod_id,
+  attributes.fields.suspected_cases) %>% dplyr::mutate(token = "prior"), 
+                        sf_cases_resized %>% sf::st_drop_geometry() %>% dplyr::select(OC_UID,
+                        locationPeriod_id, attributes.fields.suspected_cases) %>% dplyr::mutate(token = "after"))
+  sf_cases_cmb <- sf_cases_cmb %>%
+    dplyr::group_by(OC_UID, locationPeriod_id, token) %>%
+    dplyr::summarize(cases = sum(attributes.fields.suspected_cases)) %>%
+    dplyr::group_by(OC_UID, locationPeriod_id) %>%
+    dplyr::summarize(compare = ifelse(min(cases) == max(cases), "pass", "fail"))
+  if(any(sf_cases_cmb$compare == "fail")){
+    stop("For a given OC and a given location period, the sum of the cases in preprocess data and that in stan input data are not the same. ")
+  }
+
+  # Test 4: the censored observations are the same
+  if(!all(stan_data$M_full == length(stan_data$censoring_inds[stan_data$censoring_inds == "full"]) | 
+    stan_data$M_right == length(stan_data$censoring_inds[stan_data$censoring_inds == "right-censored"]) | 
+    stan_data$M_full == length(stan_data$ind_full) | 
+    stan_data$M_right == length(stan_data$ind_right))){
+    stop("The censored observations are not the same within stan_data object. ")
+  }
+  ##newly computed tfracs and censoring 
+  single_year_idx <- which(lubridate::year(sf_cases_resized$TL) == lubridate::year(sf_cases_resized$TR))
+  tmp <- sf_cases_resized%>%
+    dplyr::mutate(
+      year = lubridate::year(TL), 
+      total_days = dplyr::case_when(
+        year%%4 == 0 ~ 366, 
+        TRUE ~ 365
+      ), 
+      cmp_tfrac = as.numeric(TR - TL) / total_days, 
+      cmp_censoring = dplyr::case_when(cmp_tfrac < censoring_thresh ~ "right-censored", 
+                                TRUE ~ "full")
+    )
+  if(!all(table(tmp[single_year_idx, ]$cmp_censoring) == table(stan_data$censoring_inds[single_year_idx]))){
+    stop("The calculations of tfracs and censoring for single-year observations are wrong in the stan input preparation process. ")
+  }
+
+  # Test 5: the number of location/times 
+  for(ids in names(table(sf_cases_resized$locationPeriod_id))){
+    if(table(sf_cases$locationPeriod_id)[[ids]] < table(sf_cases_resized$locationPeriod_id)[[ids]]){
+      stop(paste0("The number of observations in the stan input dataset given a location period id ", ids, " is more than the preprocess data. "))
+    }
+  }
+
+  cat("--- All stan input checks have been passed. \n")
+
+}
