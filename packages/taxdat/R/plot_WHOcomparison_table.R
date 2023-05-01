@@ -92,7 +92,7 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
     get_sf_cases(name="sf_cases",cache=cache,config=config,cholera_directory=cholera_directory)
     sf_cases_country_level <- cache[["sf_cases"]] %>%
       sf::st_drop_geometry() %>%
-      filter(stringr::str_count(location_name, "::") == 1 & stringr::str_length(OC_UID) != 3)
+      filter(stringr::str_count(location_name, "::") == 1)
     country_level_ids <- unique(sf_cases_country_level$locationPeriod_id)
 
     config_file <- yaml::read_yaml(paste0(cholera_directory, "/", config), eval.expr = TRUE)
