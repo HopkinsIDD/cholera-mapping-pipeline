@@ -609,12 +609,9 @@ prepare_stan_input <- function(
     stan_data$M <- n_obs
     stan_data$M_full <- n_obs_full
     stan_data$L <- n_loc
-    
     # Update censoring inds (use stan_data instead of ind_mapping resized to avoid recomputing it)
-    stan_data$censoring_inds <-  taxdat::get_censoring_inds(
-      stan_data = stan_data,
-      ind_mapping_resized = stan_data,
-      censoring_thresh = config$censoring_thresh)
+    stan_data$censoring_inds <- c(stan_data$censoring_inds, rep("full", nrow(missing_ts)))
+   
   }
   
   
