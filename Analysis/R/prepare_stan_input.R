@@ -609,7 +609,14 @@ prepare_stan_input <- function(
     stan_data$M <- n_obs
     stan_data$M_full <- n_obs_full
     stan_data$L <- n_loc
+    
+    # Update censoring inds (use stan_data instead of ind_mapping resized to avoid recomputing it)
+    stan_data$censoring_inds <-  taxdat::get_censoring_inds(
+      stan_data = stan_data,
+      ind_mapping_resized = stan_data,
+      censoring_thresh = config$censoring_thresh)
   }
+  
   
   # ---- K. Data for output summaries ----
   
@@ -761,12 +768,12 @@ prepare_stan_input <- function(
   # Prior on the std_dev_w
   stan_data$mu_sd_w <- config$mu_sd_w
   stan_data$sd_sd_w <- config$sd_sd_w
-
-
+  
+  
   # ---- P. Data Structure Check ----
   taxdat::check_stan_input_objects(censoring_thresh = config$censoring_thresh, sf_cases, stan_data, sf_cases_resized)
   
-
+  
   cat("**** FINISHED PREPARING STAN INPUT \n")
   
   return(
