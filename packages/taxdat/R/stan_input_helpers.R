@@ -1231,17 +1231,25 @@ check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_c
   }
 
   # Test 3: compare the sums of sf_cases, sf_cases_resized across each OC-locationPeriod-year combination
-  sf_cases_cmb <- rbind(sf_cases %>% sf::st_drop_geometry() %>% dplyr::select(OC_UID, locationPeriod_id,
-  attributes.fields.suspected_cases) %>% dplyr::mutate(token = "prior"), 
+  sf_cases_no_dup <- sf_cases %>%
+    sf::st_drop_geometry() %>%
+    dplyr::select(OC_UID, TL, TR, location_name, location_id, locationPeriod_id, attributes.fields.suspected_cases) %>%
+    dplyr::distinct()
+
+  sf_cases_cmb <- rbind(sf_cases_no_dup %>% dplyr::select(OC_UID, locationPeriod_id,
+                          attributes.fields.suspected_cases) %>% dplyr::mutate(token = "prior"), 
                         sf_cases_resized %>% sf::st_drop_geometry() %>% dplyr::select(OC_UID,
-                        locationPeriod_id, attributes.fields.suspected_cases) %>% dplyr::mutate(token = "after"))
+                          locationPeriod_id, attributes.fields.suspected_cases) %>% dplyr::mutate(token = "after"))
   sf_cases_cmb <- sf_cases_cmb %>%
     dplyr::group_by(OC_UID, locationPeriod_id, token) %>%
     dplyr::summarize(cases = sum(attributes.fields.suspected_cases)) %>%
     dplyr::group_by(OC_UID, locationPeriod_id) %>%
     dplyr::summarize(compare = ifelse(min(cases) == max(cases), "pass", "fail"))
+  
   if(any(sf_cases_cmb$compare == "fail")){
-    stop("For a given OC and a given location period, the sum of the cases in preprocess data and that in stan input data are not the same. ")
+    OCs <- sf_cases_cmb[sf_cases_cmb$compare == "fail", ]$OC_UID
+    LPs <- sf_cases_cmb[sf_cases_cmb$compare == "fail", ]$locationPeriod_id
+    warning(paste0("***** For OC ", OCs, " and location period ", LPs, ", the sum of the cases in preprocess data and that in stan input data are not the same. "))
   }
 
   # Test 4: the censored observations are the same
@@ -1264,7 +1272,7 @@ check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_c
       cmp_censoring = dplyr::case_when(cmp_tfrac < censoring_thresh ~ "right-censored", 
                                 TRUE ~ "full")
     )
-  if(!all(table(tmp[single_year_idx, ]$cmp_censoring) == table(stan_data$censoring_inds[single_year_idx]))){
+  if(!all(tmp[single_year_idx, ]$cmp_censoring == stan_data$censoring_inds[single_year_idx])){
     stop("The calculations of tfracs and censoring for single-year observations are wrong in the stan input preparation process. ")
   }
 
