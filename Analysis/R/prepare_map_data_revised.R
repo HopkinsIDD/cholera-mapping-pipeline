@@ -286,3 +286,4 @@ save(sf_cases,
 
 # close database
 DBI::dbDisconnect(conn_pg)
+taxdat::close_parallel_setup()

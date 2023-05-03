@@ -96,13 +96,24 @@ snap_to_time_period_df <- function(df,
     stop("Dataframe needs columns left:", TL_col,  " and right:", TR_col, " to exist but could not find them among colnames.")
   }
   
-  for (i in 1:nrow(df)) {
-    new_ts <- snap_to_time_period(TL = df[[TL_col]][i], 
-                                  TR = df[[TR_col]][i], 
-                                  res_time = res_time,
-                                  tol = tol)
-    df[[TL_col]][i] <- new_ts[1]
-    df[[TR_col]][i] <- new_ts[2]
+  # Filter out data for which TL and TR do not fall in the same time slices
+  aggfunc <- time_unit_to_start_function(res_time)
+  time_change_func <- time_unit_to_aggregate_function(res_time)
+  ts_TL <- aggfunc(time_change_func(df$TL))
+  ts_TR <- aggfunc(time_change_func(df$TR))
+  ind_diff <- which(ts_TL != ts_TR)
+  
+  if (length(ind_diff) > 0) {
+    cat("---- Attempting to snap", length(ind_diff), "observations\n")
+    
+    for (i in ind_diff) {
+      new_ts <- snap_to_time_period(TL = df[[TL_col]][i], 
+                                    TR = df[[TR_col]][i], 
+                                    res_time = res_time,
+                                    tol = tol)
+      df[[TL_col]][i] <- new_ts[1]
+      df[[TR_col]][i] <- new_ts[2]
+    }
   }
   
   df
