@@ -1,12 +1,11 @@
 #!/bin/bash
-mkdir /data/aazman1/$USER/sbatch_logs/
-#SBATCH --output=/data/aazman1/$USER/sbatch_logs/marcc_run_<...>.log
-#SBATCH --job-name=<...>
+#SBATCH --job-name ID-XX
 #SBATCH --time=72:00:00
-#SBATCH --mem=64G
-#SBATCH --account=aazman1
-#SBATCH --ntasks=4
+#SBATCH --mem=12G
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
 #SBATCH --partition=defq
+#SBATCH --account=aazman1
 
 export GCC_VERSION=9.3.0
 export R_VERSION=4.0.2
@@ -32,8 +31,8 @@ ml libjpeg
 
 export CHOLERA_ON_MARCC=TRUE
 export CHOLERA_PIPELINE_DIRECTORY=/data/aazman1/$USER/cholera-mapping-pipeline/
-export CHOLERA_CONFIG_DIRECTORY=/data/aazman1/$USER/cholera-configs/...
-export CHOLERA_CONFIG=$CHOLERA_CONFIG_DIRECTORY/....yml
+export CHOLERA_CONFIG_DIRECTORY=/data/aazman1/$USER/cholera-configs/.../
+export CHOLERA_CONFIG=$CHOLERA_CONFIG_DIRECTORY/*.yml
 export R_LIBS_USER=$HOME/rlibs/cmp/$R_VERSION/gcc/$GCC_VERSION/
 export CMDSTAN_LOCATION=/data/aazman1/$USER/cmdstan
 
