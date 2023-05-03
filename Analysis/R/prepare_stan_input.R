@@ -123,7 +123,14 @@ prepare_stan_input <- function(
     stan_data$covar <- array(0, dim = c(length(non_na_gridcells), 0))
     stan_data$ncovar <- 0
   }
-  
+
+  # ---- Ç. Pre-Aggregation Duplicates Removal in sf_cases ----
+  sf_cases_dup_obs <- sf_cases %>% 
+    sf::st_drop_geometry() %>%
+    dplyr::select(-id, -deaths) %>% #don't decide on duplicates based on these variables 
+    duplicated()
+  sf_cases <- sf_cases[!sf_cases_dup_obs, ]
+
   # ---- C. Aggregation ----
   
   # Mapping between observations to location periods and between

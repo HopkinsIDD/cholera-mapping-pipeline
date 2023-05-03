@@ -1249,7 +1249,7 @@ check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_c
   if(any(sf_cases_cmb$compare == "fail")){
     OCs <- sf_cases_cmb[sf_cases_cmb$compare == "fail", ]$OC_UID
     LPs <- sf_cases_cmb[sf_cases_cmb$compare == "fail", ]$locationPeriod_id
-    warning(paste0("***** For OC ", OCs, " and location period ", LPs, ", the sum of the cases in preprocess data and that in stan input data are not the same. "))
+    stop(paste0("***** For OC ", OCs, " and location period ", LPs, ", the sum of the cases in preprocess data and that in stan input data are not the same. "))
   }
 
   # Test 4: the censored observations are the same
@@ -1278,8 +1278,9 @@ check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_c
 
   # Test 5: the number of location/times 
   for(ids in names(table(sf_cases_resized$locationPeriod_id))){
-    if(table(sf_cases$locationPeriod_id)[[ids]] < table(sf_cases_resized$locationPeriod_id)[[ids]]){
-      stop(paste0("The number of observations in the stan input dataset given a location period id ", ids, " is more than the preprocess data. "))
+    ###filter out the imputed observations 
+    if(table(sf_cases$locationPeriod_id)[[ids]] < table(sf_cases_resized[sf_cases_resized$OC_UID != "imputed", ]$locationPeriod_id)[[ids]]){
+      stop(paste0("***** The number of observations in the stan input dataset given a location period id ", ids, " is more than the preprocess data. "))
     }
   }
 
