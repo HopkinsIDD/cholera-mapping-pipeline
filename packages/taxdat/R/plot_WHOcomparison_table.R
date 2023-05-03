@@ -22,7 +22,7 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
   if(!observation_level_modeled_cases){
     ### First get the non-na grid cells and their associated time 
     grid_time <- cache$covar_cube_output$sf_grid %>% 
-      filter(long_id %in% cache$covar_cube_output$non_na_gridcells) %>%
+      dplyr::filter(long_id %in% cache$covar_cube_output$non_na_gridcells) %>%
       sf::st_drop_geometry() %>%
       dplyr::select(t)
     
@@ -42,16 +42,16 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
                                         )
 
     ### Get the WHO table and combine them 
-    who_annual_cases <- who_annual_cases %>% rename(observed = attributes.fields.suspected_cases)
+    who_annual_cases <- who_annual_cases %>% dplyr::rename(observed = attributes.fields.suspected_cases)
     who_annual_cases_from_db <- NULL
 
     if(allow_data_pull){
       who_annual_cases_from_db <- taxdat::pull_output_by_source(who_annual_cases, "%WHO Annual Cholera Reports%",
                                                                 database_api_key_rfile = stringr::str_c(cholera_directory, "/Analysis/R/database_api_key.R")) %>%
-                                  mutate(modeled = yearly_total_modeled_cases)
+        dplyr::mutate(modeled = yearly_total_modeled_cases)
     }else{
-      who_annual_cases_from_db <- who_annual_cases %>% filter(stringr::str_length(OC_UID) == 3) %>%
-        mutate(modeled = yearly_total_modeled_cases)
+      who_annual_cases_from_db <- who_annual_cases %>% dplyr::filter(stringr::str_length(OC_UID) == 3) %>%
+        dplyr::mutate(modeled = yearly_total_modeled_cases)
     }
 
   }else{
@@ -70,14 +70,14 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
     who_annual_cases$modeled <- modeled_obs_level_cases
 
     ### Get the WHO table and combine them 
-    who_annual_cases <- who_annual_cases %>% rename(observed = attributes.fields.suspected_cases)
+    who_annual_cases <- who_annual_cases %>% dplyr::rename(observed = attributes.fields.suspected_cases)
     who_annual_cases_from_db <- NULL
 
     if(allow_data_pull){
       who_annual_cases_from_db <- taxdat::pull_output_by_source(who_annual_cases, "%WHO Annual Cholera Reports%",
                                                               database_api_key_rfile = stringr::str_c(cholera_directory, "/Analysis/R/database_api_key.R"))
     }else{
-      who_annual_cases_from_db <- who_annual_cases %>% filter(stringr::str_length(OC_UID) == 3)
+      who_annual_cases_from_db <- who_annual_cases %>% dplyr::filter(stringr::str_length(OC_UID) == 3)
     }
     
   }
@@ -89,24 +89,18 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
 
   ### Whether add more rows that compare modeled cases with other annual country-level observed cases 
   if(add_other_source){
-    get_sf_cases(name="sf_cases",cache=cache,config=config,cholera_directory=cholera_directory)
-    sf_cases_country_level <- cache[["sf_cases"]] %>%
-      sf::st_drop_geometry() %>%
-      filter(stringr::str_count(location_name, "::") == 1 & stringr::str_length(OC_UID) != 3)
-    country_level_ids <- unique(sf_cases_country_level$locationPeriod_id)
-
     config_file <- yaml::read_yaml(paste0(cholera_directory, "/", config), eval.expr = TRUE)
     censoring_threshold <- ifelse(!is.null(config_file$censoring_thresh), as.numeric(config_file$censoring_thresh), 0.95)
     get_stan_input(name="stan_input",cache=cache,config = config,cholera_directory = cholera_directory)
     country_level_agg_cases <- cache[["stan_input"]]$sf_cases_resized %>% 
-      mutate(observed = attributes.fields.suspected_cases, modeled = modeled_obs_level_cases) %>%
+      dplyr::mutate(observed = attributes.fields.suspected_cases, modeled = modeled_obs_level_cases) %>%
       sf::st_drop_geometry() %>%
-      filter(locationPeriod_id %in% country_level_ids & stringr::str_length(OC_UID) != 3) %>%
-      filter(((TR - TL+1)/365) >= censoring_threshold & ((TR - TL+1)/365) <=1) %>%
+      dplyr::filter(admin_level==0) %>% #select national observations
+      dplyr::filter(((TR - TL+1)/365) >= censoring_threshold & ((TR - TL+1)/366) <=1) %>%
       dplyr::select(OC_UID, TL, TR, observed, modeled)
     
     who_annual_cases_from_db <- rbind(who_annual_cases_from_db, country_level_agg_cases) %>%
-      arrange(TL, desc(TR))
+      dplyr::arrange(TL, desc(TR))
   }
   #mean observed annual cases
   mean_observed_annual_cases <- who_annual_cases_from_db %>% 
