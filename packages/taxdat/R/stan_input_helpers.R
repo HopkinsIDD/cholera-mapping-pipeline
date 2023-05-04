@@ -1094,6 +1094,12 @@ compute_pop_loctimes <- function(stan_data) {
 #'
 #' @examples
 get_admin_level <- function(location_name) {
+  
+  # Set admin levels for TZA: AFR::TZA, AFR::TZA::Mainland, and AFR::TZA::Zanzibar are adm0
+  if (stringr::str_detect(location_name, "TZA")) {
+    location_name <- stringr::str_remove(location_name, "::Mainland|::Zanzibar")
+  }
+  
   stringr::str_count(location_name, "::") %>% 
     as.numeric() %>% 
     # Remove the continent nesting
