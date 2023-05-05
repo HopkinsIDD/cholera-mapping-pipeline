@@ -815,7 +815,7 @@ test_that("get_all_config_options works",{
   expect_equal(config_options$sfrac_thresh, as.function(check_sfrac_thresh))
   expect_equal(config_options$ingest_covariates, as.function(check_ingest_covariates))
   expect_equal(config_options$ingest_new_covariates, as.function(check_ingest_covariates))
-  expect_equal(config_options$stan, c("ncores", "model", "genquant", "niter", "recompile"))
+  expect_equal(config_options$stan, c("ncores", "model", "genquant", "iter_warmup", "iter_sampling", "recompile"))
   expect_equal(config_options$file_names, file_name_list)
 })
 
