@@ -1295,7 +1295,7 @@ check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_c
   # Test 3: compare the sums of sf_cases, sf_cases_resized across each OC-locationPeriod-year combination
   sf_cases_no_dup <- sf_cases %>%
     sf::st_drop_geometry() %>%
-    dplyr::select(OC_UID, TL, TR, location_name, location_id, locationPeriod_id, attributes.fields.suspected_cases) %>%
+    dplyr::select(OC_UID, TL, TR, location_name, locationPeriod_id, attributes.fields.suspected_cases) %>%
     dplyr::distinct()
 
   sf_cases_cmb <- rbind(sf_cases_no_dup %>% dplyr::select(OC_UID, locationPeriod_id,
