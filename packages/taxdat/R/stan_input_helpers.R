@@ -1273,6 +1273,7 @@ sum_to_zero_QR <- function(x_raw,
 #' @param sf_cases 
 #' @param stan_data 
 #' @param sf_cases_resized
+#' @export
 check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_cases_resized){
   # Test 1: the same number of observations
   if(!identical(
