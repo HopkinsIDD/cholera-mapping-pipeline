@@ -278,6 +278,8 @@ set_tfrac <- taxdat::check_set_tfrac(config$set_tfrac)
 # Tolerance for snap_to_period function
 snap_tol <- taxdat::check_snap_tol(snap_tol = config$snap_tol, 
                                    res_time = res_time)
+ncpus_parallel_prep <-taxdat::check_ncpus_parallel_prep(config$ncpus_parallel_prep)
+do_parallel_prep <- taxdat::check_do_parallel_prep(config$do_parallel_prep)
 
 # - - - - - - - - - - - - - -
 ## SPATIAL GRID SETTINGS
@@ -558,17 +560,20 @@ for(t_idx in 1:length(all_test_idx)){
   } else {
     print("Stan input already created, skipping")
     warning("Stan input already created, skipping")
+    load(file_names[["stan_input"]])
   }
-  load(file_names[["stan_input"]])
   
   stan_data <- stan_input$stan_data
   sf_cases_resized <- stan_input$sf_cases_resized
   sf_grid <- stan_input$sf_grid
+  # Cleanup
+  rm(stan_input)
   
   ## Step 4: Prepare the initial conditions
   if(file.exists(file_names[["initial_values"]])){
     print("Initial_values already found, skipping")
     warning("Initial_values already found, skipping")
+    load(file_names[["initial_values"]])
   } else {
     if (as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
       stop("This shouldn't run on marcc")
@@ -576,7 +581,11 @@ for(t_idx in 1:length(all_test_idx)){
     source(paste(cholera_directory,'Analysis','R','prepare_initial_values.R',sep='/'))
     recompile <- FALSE
   }
-  load(file_names[["initial_values"]])
+  
+  # Cleanup
+  rm(stan_data)
+  rm(sf_cases_resized)
+  rm(sf_grid)
   
   ## Step 5: Run the model
   print(file_names[["stan_output"]])
