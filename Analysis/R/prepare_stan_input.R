@@ -490,6 +490,19 @@ prepare_stan_input <- function(
       ts_cntry_gridcells <- ts_gridcells[which(stan_data$map_spacetime_space_grid[ts_gridcells] %in% ref_cntry_space)]
       ref_pop <- sum(stan_data$pop[ts_cntry_gridcells] * ref_cntry_sfrac)
       
+      # All data in the missing year
+      ts_all <- sf_cases_resized %>% 
+        sf::st_drop_geometry() %>% 
+        dplyr::filter(ref_TL == missing_ts$TL[i],
+                      ref_TR == missing_ts$TR[i]) 
+      
+      # All national level data (censored)
+      ts_all_adm0 <- sf_cases_resized %>% 
+        sf::st_drop_geometry() %>% 
+        dplyr::filter(ref_TL == missing_ts$TL[i],
+                      ref_TR == missing_ts$TR[i],
+                      admin_level == 0) 
+      
       # First try getting the full subnational level data corresponding to the year
       ts_subset <- sf_cases_resized %>% 
         sf::st_drop_geometry() %>% 
@@ -498,57 +511,87 @@ prepare_stan_input <- function(
                       censoring == "full",
                       admin_level > 0) 
       
-      if (nrow(ts_subset) > 1) {
-        ts_subset <- ts_subset %>% 
-          dplyr::rowwise() %>% 
-          dplyr::mutate(tfrac = taxdat::compute_tfrac(TL, TR, ref_TL, ref_TR),
-                        tfrac_cases = !!rlang::sym(cases_column)/tfrac) %>% 
-          dplyr::group_by(loctime) %>% 
-          # !! Keep only one observation per loctime to avoid double-counting population
-          dplyr::slice_min(tfrac_cases) %>% 
-          dplyr::ungroup() %>% 
-          dplyr::mutate(pop = purrr::map_dbl(obs_id, ~ taxdat::compute_pop_loctime_obs(., stan_data = stan_data)))
-        
-        
-        # Compute fraction of population covered by these loctimes by admin level
-        frac_coverages <- ts_subset %>% 
-          dplyr::group_by(admin_level) %>% 
-          dplyr::summarise(frac_coverage = sum(pop)/ref_pop)
-        
-        # Get maximum
-        frac_coverage <- max(frac_coverages$frac_coverage)
-        
-        # Get obs_ids of admin level corresponding to the maximum coverage 
-        subset_admin_lev <- frac_coverages$admin_level[frac_coverages$frac_coverage == frac_coverage]
-        subset_ind <- ts_subset %>% 
-          dplyr::filter(admin_level == subset_admin_lev) %>% 
-          dplyr::pull(obs_id)
-        
+      if (nrow(ts_all) == 0) {
+        # Condition 1: No data available in year, impute a 0 observation
+        cat("-- No available data, imputating 0 in", as.character(missing_ts$TL[i]), "\n")
+        impute_obs <- 0
+        impute_type <- "0_nodata"
       } else {
-        frac_coverage <- 0
-      }
-      
-      # !! If coverage OK compute mean rate (threshold of 10% is hardcoded)
-      if (frac_coverage > 0.1) {
-        cat("-- Using subnational data for imputation in", as.character(missing_ts$TL[i]), "\n")
-        # Compute mean rate for the subnational data
-        meanrate_tmp <- taxdat::compute_mean_rate_subset(stan_data = stan_data,
-                                                         subset_ind = subset_ind,
-                                                         pop_weight = TRUE)
+        if (nrow(ts_subset) > 1) {
+          ts_subset <- ts_subset %>% 
+            dplyr::rowwise() %>% 
+            dplyr::mutate(tfrac = taxdat::compute_tfrac(TL, TR, ref_TL, ref_TR),
+                          tfrac_cases = !!rlang::sym(cases_column)/tfrac) %>% 
+            dplyr::group_by(loctime) %>% 
+            # !! Keep only one observation per loctime to avoid double-counting population
+            dplyr::slice_min(tfrac_cases) %>% 
+            dplyr::ungroup() %>% 
+            dplyr::mutate(pop = purrr::map_dbl(obs_id, ~ taxdat::compute_pop_loctime_obs(., stan_data = stan_data)))
+          
+          
+          # Compute fraction of population covered by these loctimes by admin level
+          frac_coverages <- ts_subset %>% 
+            dplyr::group_by(admin_level) %>% 
+            dplyr::summarise(frac_coverage = sum(pop)/ref_pop)
+          
+          # Get maximum
+          frac_coverage <- max(frac_coverages$frac_coverage)
+          
+          # Get obs_ids of admin level corresponding to the maximum coverage 
+          subset_admin_lev <- frac_coverages$admin_level[frac_coverages$frac_coverage == frac_coverage]
+          subset_ind <- ts_subset %>% 
+            dplyr::filter(admin_level == subset_admin_lev) %>% 
+            dplyr::pull(obs_id)
+          
+        } else {
+          frac_coverage <- 0
+        }
         
-      } else {
-        # Use mean rate of other national obs
-        cat("-- Using other national data for imputation in", as.character(missing_ts$TL[i]), "\n")
-        
-        meanrate_tmp <- y_adm0_full %>% 
-          dplyr::rowwise() %>% 
-          dplyr::mutate(tfrac = taxdat::compute_tfrac(TL, TR, ref_TL, ref_TR),
-                        pop = purrr::map_dbl(obs_id, ~ taxdat::compute_pop_loctime_obs(., stan_data = stan_data))) %>% 
-          dplyr::group_by(ref_TL) %>% 
-          dplyr::summarise(meanrate = mean(!!rlang::sym(cases_column)/tfrac/pop)) %>% 
-          dplyr::ungroup() %>% 
-          dplyr::summarise(meanrate = mean(meanrate)) %>% 
-          dplyr::pull(meanrate)
+        # !! If coverage OK compute mean rate (threshold of 10% is hardcoded)
+        if (frac_coverage > 0.1) {
+          # Compute mean rate for the subnational data
+          meanrate_tmp <- taxdat::compute_mean_rate_subset(stan_data = stan_data,
+                                                           subset_ind = subset_ind)
+          # Imputed observation based on rates
+          impute_obs <- round(meanrate_tmp * ref_pop)
+          impute_type <- "subnat_rate"
+          
+          cat("-- Using subnational data for imputation in", 
+              as.character(missing_ts$TL[i]),
+              "imputed obs =", impute_obs, 
+              "cases. \n")
+          
+        } else if (frac_coverage > 0) {
+          # Use mean rate of other national obs
+          
+          # Compute sum of non-overlapping subnational level data
+          subnat_sums <- ts_subset %>% 
+            dplyr::group_by(OC_UID, admin_level) %>% 
+            dplyr::summarise(sum_cases = sum(!!rlang::sym(cases_column)))
+          
+          impute_obs <- max(subnat_sums$sum_cases)
+          impute_type <- "subnat_sum"
+          
+          cat("-- Using sum of subnational data for imputation in", 
+              as.character(missing_ts$TL[i]),
+              "imputed obs =", impute_obs, 
+              "cases. \n")
+          
+        } else if (frac_coverage == 0 & nrow(ts_all_adm0) > 0) {
+          # No subnational-level data, check if there is censored national level data
+          
+          impute_obs <- max(ts_all_adm0[[cases_column]])
+          impute_type <- "nat_max"
+          
+          cat("-- Using censored national data for imputation in",
+              as.character(missing_ts$TL[i]),
+              "imputed obs =", impute_obs, 
+              "cases. \n")
+          
+          
+        } else {
+          stop("No imputation conditions met")
+        }
       }
       
       # Get the loctime for the imputed observation
@@ -572,22 +615,23 @@ prepare_stan_input <- function(
       }
       
       # Add observation of cases corresponding to the mean rate
-      imputed_obs <- adm0_tempalte %>% 
+      imputed_obs_df <- adm0_tempalte %>% 
         dplyr::mutate(loctime = loctime,
-                      OC_UID = "imputed",
+                      OC_UID = stringr::str_glue("imputed_{impute_type}"),
                       TL = missing_ts$TL[i],
                       TR = missing_ts$TR[i])
       
-      imputed_obs[[cases_column]] <- round(meanrate_tmp * ref_pop)
+      imputed_obs_df[[cases_column]] <- impute_obs
       
-      sf_cases_resized <- sf_cases_resized %>% dplyr::bind_rows(imputed_obs)
+      sf_cases_resized <- sf_cases_resized %>% 
+        dplyr::bind_rows(imputed_obs_df)
       
       # Update counters
       n_obs <- n_obs + 1
       n_obs_full <- n_obs_full + 1
       
       # Update stan_data
-      stan_data$y <- c(stan_data$y, imputed_obs[[cases_column]])
+      stan_data$y <- c(stan_data$y, impute_obs)
       stan_data$tfrac <- c(stan_data$tfrac, 1)
       stan_data$censored <- c(stan_data$censored, 0)
       stan_data$map_obs_loctime_loc <- c(stan_data$map_obs_loctime_loc, loctime)
@@ -611,10 +655,9 @@ prepare_stan_input <- function(
     stan_data$L <- n_loc
     
     # Update censoring inds (use stan_data instead of ind_mapping resized to avoid recomputing it)
-    stan_data$censoring_inds <-  taxdat::get_censoring_inds(
-      stan_data = stan_data,
-      ind_mapping_resized = stan_data,
-      censoring_thresh = config$censoring_thresh)
+    stan_data$censoring_inds <-  c(stan_data$censoring_inds, 
+                                   rep("full", nrow(missing_ts)))
+    
   }
   
   
