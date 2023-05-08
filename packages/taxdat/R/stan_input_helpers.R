@@ -1605,7 +1605,7 @@ impute_adm0_obs_single <- function(sf_cases_resized,
       
       
     } else {
-      stop("No imputation conditions met")
+      stop("No imputation conditions met in times slice ", as.character(m_TL), "_", as.character(m_TR))
     }
   }
   
