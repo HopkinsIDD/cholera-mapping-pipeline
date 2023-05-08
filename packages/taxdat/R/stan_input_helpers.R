@@ -920,7 +920,6 @@ aggregate_observations <- function(sf_cases_resized,
     )
   }
   
-
   if (do_parallel) {
     
     df_split <- sf_cases_resized %>%
@@ -937,7 +936,7 @@ aggregate_observations <- function(sf_cases_resized,
     ) %dopar% {
       rs %>% 
         dplyr::bind_rows() %>% 
-        dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
+        dplyr::group_by(loctime, OC_UID, locationPeriod_id, location_name) %>%
         dplyr::group_modify(.f = aggregate_single_lp,
                             verbose = verbose,
                             cases_column = cases_column) %>%
@@ -952,6 +951,7 @@ aggregate_observations <- function(sf_cases_resized,
       dplyr::ungroup()
   } %>% 
     dplyr::arrange(loctime, OC_UID, locationPeriod_id)
+  
   
   # sf_cases_resized$geom <- sf::st_as_sfc(sf_cases_resized$geom)
   sf_cases_resized <- sf::st_as_sf(sf_cases_resized)
@@ -1274,6 +1274,7 @@ sum_to_zero_QR <- function(x_raw,
 #' @param stan_data 
 #' @param sf_cases_resized
 #' @export
+#' 
 check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_cases_resized){
   # Test 1: the same number of observations
   if(!identical(
@@ -1285,40 +1286,32 @@ check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_c
     stop("At least two objects among stan_input$sf_cases_resized, stan_input$stan_data$y, stan_input$stan_data$M, and stan_input$stan_data$censoring_inds 
     within the stan input do not agree on data dimensions (the number of observations). ")
   }
-
+  
   # Test 2: the same number of cases
   if( sum(sf_cases_resized$attributes.fields.suspected_cases) != sum(stan_data$y) | 
       sum(sf_cases_resized$attributes.fields.suspected_cases != stan_data$y) > 0  ){
     stop("The stan_input$sf_cases_resized, stan_input$stan_data$y don't have the same number of total cases. ")
   }
-
+  
   # Test 3: compare the sums of sf_cases, sf_cases_resized across each OC-locationPeriod-year combination
-  sf_cases_no_dup <- sf_cases %>%
-    sf::st_drop_geometry() %>%
-    dplyr::select(OC_UID, TL, TR, location_name, locationPeriod_id, attributes.fields.suspected_cases) %>%
-    dplyr::distinct()
-
-  sf_cases_cmb <- rbind(sf_cases_no_dup %>% dplyr::select(OC_UID, locationPeriod_id,
-                          attributes.fields.suspected_cases) %>% dplyr::mutate(token = "prior"), 
+  sf_cases_cmb <- rbind(sf_cases %>% sf::st_drop_geometry() %>% dplyr::select(OC_UID, locationPeriod_id,
+                                                                              attributes.fields.suspected_cases) %>% dplyr::mutate(token = "prior"), 
                         sf_cases_resized %>% sf::st_drop_geometry() %>% dplyr::select(OC_UID,
-                          locationPeriod_id, attributes.fields.suspected_cases) %>% dplyr::mutate(token = "after"))
+                                                                                      locationPeriod_id, attributes.fields.suspected_cases) %>% dplyr::mutate(token = "after"))
   sf_cases_cmb <- sf_cases_cmb %>%
     dplyr::group_by(OC_UID, locationPeriod_id, token) %>%
     dplyr::summarize(cases = sum(attributes.fields.suspected_cases)) %>%
     dplyr::group_by(OC_UID, locationPeriod_id) %>%
     dplyr::summarize(compare = ifelse(min(cases) == max(cases), "pass", "fail"))
-  
   if(any(sf_cases_cmb$compare == "fail")){
-    OCs <- sf_cases_cmb[sf_cases_cmb$compare == "fail", ]$OC_UID
-    LPs <- sf_cases_cmb[sf_cases_cmb$compare == "fail", ]$locationPeriod_id
-    stop(paste0("***** For OC ", OCs, " and location period ", LPs, ", the sum of the cases in preprocess data and that in stan input data are not the same. "))
+    stop("For a given OC and a given location period, the sum of the cases in preprocess data and that in stan input data are not the same. ")
   }
-
+  
   # Test 4: the censored observations are the same
   if(!all(stan_data$M_full == length(stan_data$censoring_inds[stan_data$censoring_inds == "full"]) | 
-    stan_data$M_right == length(stan_data$censoring_inds[stan_data$censoring_inds == "right-censored"]) | 
-    stan_data$M_full == length(stan_data$ind_full) | 
-    stan_data$M_right == length(stan_data$ind_right))){
+          stan_data$M_right == length(stan_data$censoring_inds[stan_data$censoring_inds == "right-censored"]) | 
+          stan_data$M_full == length(stan_data$ind_full) | 
+          stan_data$M_right == length(stan_data$ind_right))){
     stop("The censored observations are not the same within stan_data object. ")
   }
   ##newly computed tfracs and censoring 
@@ -1332,21 +1325,525 @@ check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_c
       ), 
       cmp_tfrac = as.numeric(TR - TL) / total_days, 
       cmp_censoring = dplyr::case_when(cmp_tfrac < censoring_thresh ~ "right-censored", 
-                                TRUE ~ "full")
+                                       TRUE ~ "full")
     )
-  if(!all(tmp[single_year_idx, ]$cmp_censoring == stan_data$censoring_inds[single_year_idx])){
+  if(!all(table(tmp[single_year_idx, ]$cmp_censoring) == table(stan_data$censoring_inds[single_year_idx]))){
     stop("The calculations of tfracs and censoring for single-year observations are wrong in the stan input preparation process. ")
   }
-
+  
   # Test 5: the number of location/times 
   for(ids in names(table(sf_cases_resized$locationPeriod_id))){
-    ###filter out the imputed observations 
-    if(table(sf_cases$locationPeriod_id)[[ids]] < table(sf_cases_resized[sf_cases_resized$OC_UID != "imputed", ]$locationPeriod_id)[[ids]]){
-      stop(paste0("***** The number of observations in the stan input dataset given a location period id ", ids, " is more than the preprocess data. "))
+    if(table(sf_cases$locationPeriod_id)[[ids]] < table(sf_cases_resized$locationPeriod_id)[[ids]]){
+      stop(paste0("The number of observations in the stan input dataset given a location period id ", ids, " is more than the preprocess data. "))
     }
   }
-
+  
   cat("--- All stan input checks have been passed. \n")
+  
+}
+
+#' Get data for given administrative level
+#'
+#' @param data 
+#' @param admin_level 
+#' @param censoring 
+#' @param res_time 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_admin_level_data <- function(data,
+                                 admin_levels = NULL,
+                                 censorings = NULL,
+                                 res_time) {
+  
+  # Check censoring
+  if (!is.null(censorings)) {
+    if (!(censorings %in% c("full", "right-censored"))) {
+      stop("res_time needs to be one of {'full', 'right-censored'}")
+    }
+  }
+  
+  # Check res_time
+  res_time <- purrr::quietly(check_res_time)(res_time)$result
+  
+  data %>% 
+    sf::st_drop_geometry() %>% 
+    dplyr::mutate(ref_TL = get_start_timeslice(TL, res_time),
+                  ref_TR = get_end_timeslice(TR, res_time)) %>% 
+    {
+      if (is.null(admin_levels)) {
+        .
+      } else {
+        dplyr::filter(., admin_level %in% admin_levels)
+      }
+    } %>% 
+    {
+      if (is.null(censorings)) {
+        .
+      } else {
+        dplyr::filter(., censoring == censorings)
+      }
+    } %>% 
+    dplyr::filter(ref_TL == get_start_timeslice(TR, res_time),
+                  get_end_timeslice(TL, res_time) == ref_TR)
+}
 
 
+#' get_loctime_mappings
+#'
+#' @param stan_data 
+#' @param loctime 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_loctime_mappings <- function(stan_data, 
+                                 loctime) {
+  
+  grid <- get_grid_loctime(stan_data = stan_data, 
+                           loctime = loctime)
+  sfrac <- get_sfrac_loctime(stan_data = stan_data, 
+                             loctime = loctime)
+  space <- stan_data$map_spacetime_space_grid[grid]
+  
+  list(
+    loctime = loctime,
+    grid = grid,
+    sfrac = sfrac,
+    space = space
+  )
+}
+
+
+#' compute_population_coverage
+#' Compute the population coverage of a datasate by admin level
+#' @param data 
+#' @param stan_data 
+#' @param ref_pop 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+compute_population_coverage <- function(data,
+                                        stan_data,
+                                        ref_pop) {
+  # Compute fraction of population covered by these loctimes by admin level
+  frac_coverages <- data %>% 
+    # Keep one entry by loctime
+    dplyr::group_by(loctime) %>% 
+    dplyr::slice(1) %>% 
+    dplyr::mutate(pop = purrr::map_dbl(obs_id, ~ compute_pop_loctime_obs(., stan_data = stan_data))) %>% 
+    dplyr::group_by(admin_level) %>% 
+    dplyr::summarise(frac_coverage = sum(pop)/ref_pop) %>% 
+    tibble::deframe()
+  
+  frac_coverages
+}
+
+#' Compute population time slice location
+#' This function is useful to compute the population for a location in an arbitrary
+#' time slice
+#' @param stan_data 
+#' @param obs_id 
+#' @param ts 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+compute_pop_ts_loc <- function(stan_data,
+                               loctime,
+                               ts) {
+  
+  ref_mappings <- get_loctime_mappings(stan_data,
+                                       loctime = loctime)
+  
+  # Get reference population for this missing time slice
+  ts_subset_gridcells <- get_cells_ts(stan_data = stan_data,
+                                      space_cells = ref_mappings$space,
+                                      ts = ts)
+  
+  ref_pop <- sum(stan_data$pop[ts_subset_gridcells] * ref_mappings$sfrac)
+  
+  ref_pop
+}
+
+get_cells_ts <- function(stan_data,
+                         space_cells,
+                         ts) {
+  
+  # First all gridcells in time slices
+  ts_gridcells <- which(stan_data$map_grid_time == ts)
+  # Then subset that cover the location period
+  ts_subset_gridcells <- ts_gridcells[which(stan_data$map_spacetime_space_grid[ts_gridcells] %in% space_cells)]
+  ts_subset_gridcells
+}
+
+impute_adm0_obs_single <- function(sf_cases_resized,
+                                   stan_data,
+                                   ref_amd0_obs_id,
+                                   time_slices,
+                                   m_ts,
+                                   cases_column,
+                                   frac_coverage_thresh) {
+  
+  adm0_template <- sf_cases_resized %>% 
+    dplyr::slice(ref_amd0_obs_id) %>% 
+    dplyr::mutate(loctime = NA,
+                  OC_UID = "imputed",
+                  TL = NA,
+                  TR = NA,
+                  !!cases_column := NA)
+  
+  m_TL <- time_slices$TL[m_ts]
+  m_TR <- time_slices$TR[m_ts]
+  
+  ref_pop <- compute_pop_ts_loc(stan_data = stan_data,
+                                loctime = get_loctime_obs(stan_data, ref_amd0_obs_id),
+                                ts = m_ts)
+  
+  # All data in the missing year
+  ts_all <- sf_cases_resized %>% 
+    get_admin_level_data(res_time = res_time) %>% 
+    dplyr::filter(ref_TL == m_TL,
+                  ref_TR == m_TR) 
+  
+  # All national level data (censored)
+  ts_all_adm0 <- sf_cases_resized %>% 
+    get_admin_level_data(res_time = res_time,
+                         admin_levels = 0) %>%  
+    dplyr::filter(ref_TL == m_TL,
+                  ref_TR == m_TR) 
+  
+  # First try getting the full subnational level data corresponding to the year
+  ts_subset <- sf_cases_resized %>% 
+    get_admin_level_data(res_time = res_time,
+                         admin_levels = c(1:10),
+                         censorings = "full") %>% 
+    dplyr::filter(ref_TL == m_TL,
+                  ref_TR == m_TR) 
+  
+  if (nrow(ts_all) == 0) {
+    # Condition 1: No data available in year, impute a 0 observation
+    cat("-- No available data, imputating 0 in", 
+        as.character(m_TL), "\n")
+    impute_obs <- 0
+    impute_type <- "0_nodata"
+  } else {
+    
+    # If subnational data available comute the fraction of population coverage
+    if (nrow(ts_subset) > 1) {
+      
+      ts_subset <- ts_subset %>% 
+        dplyr::rowwise() %>% 
+        dplyr::mutate(tfrac = compute_tfrac(TL, TR, ref_TL, ref_TR),
+                      tfrac_cases = !!rlang::sym(cases_column)/tfrac) %>% 
+        dplyr::group_by(loctime) %>% 
+        # !! Keep only one observation per loctime to avoid double-counting population
+        dplyr::slice_max(tfrac_cases) %>% 
+        dplyr::ungroup() 
+      
+      # Get population coverage by admin level
+      frac_coverages <- compute_population_coverage(data = ts_subset,
+                                                    stan_data = stan_data,
+                                                    ref_pop = ref_pop)
+      
+      frac_coverage <- max(frac_coverages)
+      subset_admin_lev <- names(frac_coverages)[frac_coverages == frac_coverage]
+      
+      # Get obs_ids of admin level corresponding to the maximum coverage 
+      subset_ind <- ts_subset %>% 
+        dplyr::filter(admin_level == subset_admin_lev) %>% 
+        dplyr::pull(obs_id)
+      
+    } else {
+      frac_coverage <- 0
+    }
+    
+    # !! If coverage OK compute mean rate (threshold of 10% is hardcoded)
+    if (frac_coverage > frac_coverage_thresh) {
+      # Compute mean rate for the subnational data
+      meanrate_tmp <- compute_mean_rate_subset(stan_data = stan_data,
+                                               subset_ind = subset_ind)
+      # Imputed observation based on rates
+      impute_obs <- round(meanrate_tmp * ref_pop)
+      impute_type <- "subnat_rate"
+      
+      cat("-- Using subnational data for imputation in", 
+          as.character(m_TL),
+          "imputed obs =", impute_obs, 
+          "cases. \n")
+      
+    } else if (frac_coverage > 0) {
+      # Compute sum of non-overlapping subnational level data
+      subnat_sums <- ts_subset %>% 
+        dplyr::group_by(OC_UID, admin_level) %>% 
+        dplyr::summarise(sum_cases = sum(!!rlang::sym(cases_column)))
+      
+      impute_obs <- max(subnat_sums$sum_cases)
+      impute_type <- "subnat_sum"
+      
+      cat("-- Using sum of subnational data for imputation in", 
+          as.character(m_TL),
+          "imputed obs =", impute_obs, 
+          "cases. \n")
+      
+    } else if (frac_coverage == 0 & nrow(ts_all_adm0) > 0) {
+      # No subnational-level data use censored national level data if available
+      
+      impute_obs <- max(ts_all_adm0[[cases_column]])
+      impute_type <- "nat_max"
+      
+      cat("-- Using censored national data for imputation in",
+          as.character(m_TL),
+          "imputed obs =", impute_obs, 
+          "cases. \n")
+      
+      
+    } else {
+      stop("No imputation conditions met")
+    }
+  }
+  
+  # Update stan_data and sf_cases_resized with new data
+  if (nrow(ts_all_adm0) > 0) {
+    loctime <- get_loctime_obs(stan_data = stan_data, obs_id =  ts_all_adm0$obs_id[1])
+  } else {
+    loctime <- NA
+  }
+  
+  # Add observation of cases corresponding to the mean rate
+  imputed_obs_df <- adm0_template %>% 
+    dplyr::mutate(loctime = loctime,
+                  OC_UID = stringr::str_glue("imputed_{impute_type}"),
+                  TL = m_TL,
+                  TR = m_TR,
+                  !!cases_column := impute_obs)
+  
+  imputed_obs_df
+}
+
+#' Imputation of missing ADM0 level data
+#'
+#' @param sf_cases_resized 
+#' @param stan_data 
+#' @param time_slices 
+#' @param res_time 
+#' @param cases_column 
+#' @param frac_coverage_thresh 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+impute_adm0_obs <- function(sf_cases_resized,
+                            stan_data,
+                            time_slices,
+                            res_time,
+                            cases_column,
+                            frac_coverage_thresh = 0.1) {
+  
+  # Get national level data with full observations
+  y_adm0_full <- get_admin_level_data(data = sf_cases_resized,
+                                      admin_levels = 0 ,
+                                      censorings = "full",
+                                      res_time = res_time)
+  
+  if (nrow(y_adm0_full) == 0) {
+    if (nrow(time_slices) == 1) {
+      cat("-- Imputation is not developed in the case a single modeling time slice \n")
+      return(
+        list(sf_cases_resized = sf_cases_resized,
+             stan_data = stan_data)
+      )
+    }
+    stop("No full national-level observations in modeling time slices")
+  }
+  
+  # Get years with no full national level observations that cover a single time slice
+  missing_adm0 <- time_slices  %>% 
+    dplyr::mutate(ts = row_number()) %>% 
+    dplyr::left_join(y_adm0_full %>% 
+                       dplyr::distinct(ref_TL, ref_TR) %>% 
+                       dplyr::mutate(in_set = TRUE),
+                     by = c("TL" = "ref_TL", "TR" = "ref_TR"))
+  
+  # Get missing time slices
+  missing_ts <- missing_adm0 %>% dplyr::filter(is.na(in_set))
+  
+  if (nrow(missing_ts) == 0) {
+    cat("-- No missing times slices with missing full ADM0 data. \n")
+    return(sf_cases_resized)
+  } else {
+    missing_adm0 %>% 
+      dplyr::filter(is.na(in_set)) %>% 
+      dplyr::pull(TL) %>% 
+      stringr::str_c(collapse = ", ") %>% 
+      cat("-- Missing national level full data in time slices", ., ". Trying imputation. \n")
+  }
+  
+  # Load loctime populations
+  if (!exists("pop_loctimes")) {
+    pop_loctimes <- compute_pop_loctimes(stan_data = stan_data)
+  }
+  
+  # Get reference national observation to use as template for imputed data
+  imputed_obs_df <- purrr::map_df(
+    1:nrow(missing_ts),
+    function(i) {
+      
+      cat("-- Imputing data for", as.character(missing_ts$TL[i]), "\n")
+      
+      impute_adm0_obs_single(sf_cases_resized = sf_cases_resized,
+                             stan_data = stan_data,
+                             ref_amd0_obs_id = y_adm0_full$obs_id[1], 
+                             time_slices = time_slices,
+                             m_ts = missing_ts$ts[i],
+                             cases_column = cases_column,
+                             frac_coverage_thresh = frac_coverage_thresh)
+    })
+  
+  # Return sf_cases_resized with new data
+  sf_cases_resized %>%
+    dplyr::bind_rows(imputed_obs_df) %>% 
+    dplyr::mutate(obs_id = dplyr::row_number())
+}
+
+
+#' Title
+#'
+#' @param sf_cases_resized 
+#' @param obs_id 
+#' @param res_time 
+#' @param time_slices 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_time_slices_obs <- function(sf_cases_resized,
+                                oid,
+                                res_time,
+                                time_slices) {
+  
+  obs <- sf_cases_resized %>% 
+    sf::st_drop_geometry() %>%
+    dplyr::slice(oid) %>% 
+    dplyr::mutate(ref_TL = get_start_timeslice(TL, res_time),
+                  ref_TR = get_end_timeslice(TR, res_time)) %>% 
+    dplyr::select(ref_TL, ref_TR) %>% 
+    unlist()
+  
+  which(time_slices$TL == obs["ref_TL"] | time_slices$TR == obs["ref_TR"])
+}
+
+#' update_stan_data_imputation
+#'
+#' @param sf_cases_resized 
+#' @param stan_data 
+#' @param time_slices 
+#' @param res_time 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+update_stan_data_imputation <- function(sf_cases_resized,
+                                        stan_data,
+                                        time_slices,
+                                        res_time,
+                                        cases_column) {
+  
+  # Checks
+  n_imputed <- sum(stringr::str_detect(sf_cases_resized$OC_UID, "imputed"))
+  
+  if (n_imputed == 0) {
+    cat("-- No imputed data found ('imputed' in OC_UID), skipping update of stan_data \n.")
+    return(stan_data)
+  } else {
+    ind_imputed <- which(stringr::str_detect(sf_cases_resized$OC_UID, "imputed"))
+  }
+  
+  # Get national level data with full observations
+  y_adm0_full <- get_admin_level_data(data = sf_cases_resized,
+                                      admin_levels = 0 ,
+                                      censorings = "full",
+                                      res_time = res_time) %>% 
+    # Remove imputed loctimes
+    dplyr::filter(!stringr::str_detect(OC_UID, "imputed"))
+  
+  # Get mapping objects for imputation
+  ref_cntry_mappings <- get_loctime_mappings(stan_data = stan_data,
+                                             loctime = get_loctime_obs(stan_data, y_adm0_full$obs_id[1]))
+  
+  
+  # Numbers in stan data that may be updated due to imputation
+  n_loc <- stan_data$L
+  n_obs <- stan_data$M
+  n_obs_full <- stan_data$M_full
+  
+  for (i in ind_imputed) {
+    
+    # Get time slice of observation
+    m_ts <- get_time_slices_obs(sf_cases_resized = sf_cases_resized,
+                                oid = i,
+                                time_slices = time_slices,
+                                res_time = res_time)
+    
+    # Update stan_data and sf_cases_resized with new data
+    if (!is.na(sf_cases_resized$loctime[i])) {
+      loctime <- sf_cases_resized$loctime[i]
+      new_loctime <- F
+    } else {
+      ts_cntry_gridcells <- get_cells_ts(stan_data = stan_data,
+                                         space_cells = ref_cntry_mappings$space,
+                                         ts = m_ts)
+      ref_cntry_sfrac <- ref_cntry_mappings$sfrac
+      
+      # Create a new loctime for this year
+      loctime <- n_loc + 1
+      # Increment total number of loctimes
+      n_loc <- n_loc + 1
+      new_loctime <- T
+      cells <- ts_cntry_gridcells
+      cells_sfrac <- ref_cntry_sfrac
+    }
+    
+    # Update counters
+    n_obs <- n_obs + 1
+    n_obs_full <- n_obs_full + 1
+    
+    # Update stan_data
+    stan_data$y <- c(stan_data$y, sf_cases_resized[[cases_column]])
+    stan_data$tfrac <- c(stan_data$tfrac, 1)
+    stan_data$censored <- c(stan_data$censored, 0)
+    stan_data$map_obs_loctime_loc <- c(stan_data$map_obs_loctime_loc, loctime)
+    stan_data$map_obs_loctime_obs <- c(stan_data$map_obs_loctime_obs, n_obs)
+    stan_data$map_obs_admin_lev <- c(stan_data$map_obs_admin_lev, 1)
+    stan_data$ind_full <- c(stan_data$ind_full, n_obs)
+    
+    # If necessary update grid mappings
+    if (new_loctime) {
+      stan_data$map_loc_grid_grid <- c(stan_data$map_loc_grid_grid, cells)
+      stan_data$map_loc_grid_loc <- c(stan_data$map_loc_grid_loc, rep(loctime, length(cells)))
+      stan_data$map_loc_grid_sfrac <- c(stan_data$map_loc_grid_sfrac, cells_sfrac)
+    }
+  }
+  
+  # Update stan data counters
+  stan_data$K1 <- length(stan_data$map_obs_loctime_loc) 
+  stan_data$K2 <- length(stan_data$map_loc_grid_grid) 
+  stan_data$M <- n_obs
+  stan_data$M_full <- n_obs_full
+  stan_data$L <- n_loc
+  
+  # Update censoring inds (use stan_data instead of ind_mapping resized to avoid recomputing it)
+  stan_data$censoring_inds <-  c(stan_data$censoring_inds, 
+                                 rep("full", nrow(missing_ts)))
+  
+  stan_data
 }
