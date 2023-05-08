@@ -1843,7 +1843,7 @@ update_stan_data_imputation <- function(sf_cases_resized,
   
   # Update censoring inds (use stan_data instead of ind_mapping resized to avoid recomputing it)
   stan_data$censoring_inds <-  c(stan_data$censoring_inds, 
-                                 rep("full", nrow(missing_ts)))
+                                 rep("full", n_imputed))
   
   stan_data
 }
