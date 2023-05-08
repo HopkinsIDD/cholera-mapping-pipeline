@@ -819,4 +819,35 @@ test_that("get_all_config_options works",{
   expect_equal(config_options$file_names, file_name_list)
 })
 
-## check_snap_tol, check_use_pop_weight, check_sfrac_thresh, check_ingest_covariates, check_ingest_new_covariates, check_stan_debug, check_stan_model, get_all_config_options, check_update_config
+
+test_that("check_sfrac_thresh works", {
+  tempfile <- tempfile(fileext = ".yml")
+  yaml::write_yaml(data.frame(sfrac_thresh = 0.5), tempfile)
+  config_equal <- yaml::read_yaml(tempfile)
+  expect_equal(check_sfrac_thresh(sfrac_thresh = config_equal$sfrac_thresh), 0.5)
+
+  yaml::write_yaml(data.frame(sfrac_thresh = 1.5), tempfile)
+  config_error <- yaml::read_yaml(tempfile)
+  expect_error(check_sfrac_thresh(sfrac_thresh = config_error$sfrac_thresh), 
+  "---- sfract thresh cannot be < 0 or > 1, value passed: 1.5")
+
+  yaml::write_yaml(data.frame(sfrac_thresh = -0.5), tempfile)
+  config_error <- yaml::read_yaml(tempfile)
+  expect_error(check_sfrac_thresh(sfrac_thresh = config_error$sfrac_thresh),
+  "---- sfract thresh cannot be < 0 or > 1, value passed: -0.5")
+
+  yaml::write_yaml(data.frame(sfrac_thresh = 0), tempfile)
+  config_equal <- yaml::read_yaml(tempfile)
+  expect_equal(check_sfrac_thresh(sfrac_thresh = config_equal$sfrac_thresh), 0)
+
+  yaml::write_yaml(data.frame(sfrac_thresh = 1), tempfile)
+  config_equal <- yaml::read_yaml(tempfile)
+  expect_equal(check_sfrac_thresh(sfrac_thresh = config_equal$sfrac_thresh), 1)
+
+  yaml::write_yaml(data.frame(sfrac_thresh=NULL), tempfile)
+  config_null <- yaml::read_yaml(tempfile)
+  expect_equal(check_sfrac_thresh(sfrac_thresh = config_null$sfrac_thresh), 0.001)
+})
+
+## check_snap_tol, check_use_pop_weight, check_sfrac_thresh, check_ingest_covariates, check_ingest_new_covariates, check_stan_debug, check_stan_model, check_update_config
+
