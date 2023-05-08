@@ -444,6 +444,9 @@ prepare_stan_input <- function(
                                                    res_time = res_time,
                                                    cases_column = cases_column)
   
+  # Update censoring inds in sf_cases_resized
+  sf_cases_resized$censoring <- stan_data$censoring_inds
+  
   # ---- K. Data for output summaries ----
   
   # Set user-specific name for location_periods table to use
