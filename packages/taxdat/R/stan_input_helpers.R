@@ -1828,7 +1828,7 @@ update_stan_data_imputation <- function(sf_cases_resized,
     n_obs_full <- n_obs_full + 1
     
     # Update stan_data
-    stan_data$y <- c(stan_data$y, sf_cases_resized[[cases_column]])
+    stan_data$y <- c(stan_data$y, sf_cases_resized[[cases_column]][i])
     stan_data$tfrac <- c(stan_data$tfrac, 1)
     stan_data$censored <- c(stan_data$censored, 0)
     stan_data$map_obs_loctime_loc <- c(stan_data$map_obs_loctime_loc, loctime)
