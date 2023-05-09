@@ -1276,6 +1276,7 @@ sum_to_zero_QR <- function(x_raw,
 #' @export
 #' 
 check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_cases_resized){
+  
   # Test 1: the same number of observations
   if(!identical(
     nrow(sf_cases_resized),
@@ -1284,35 +1285,67 @@ check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_c
     length(stan_data$censoring_inds)
   )){
     stop("At least two objects among stan_input$sf_cases_resized, stan_input$stan_data$y, stan_input$stan_data$M, and stan_input$stan_data$censoring_inds 
-    within the stan input do not agree on data dimensions (the number of observations). ")
+    within the stan input do not agree on data dimensions (the number of observations):\n",
+         stringr::str_c(c("nrow(sf_cases_resized)",
+                          "length(stan_data$y)",
+                          "stan_data$M",
+                          "length(stan_data$censoring_inds)"), 
+                        c(nrow(sf_cases_resized),
+                          length(stan_data$y),
+                          stan_data$M,
+                          length(stan_data$censoring_inds)),
+                        sep = ": ") %>% 
+           stringr::str_c(collapse = "\n"))
   }
   
   # Test 2: the same number of cases
-  if( sum(sf_cases_resized$attributes.fields.suspected_cases) != sum(stan_data$y) | 
-      sum(sf_cases_resized$attributes.fields.suspected_cases != stan_data$y) > 0  ){
-    stop("The stan_input$sf_cases_resized, stan_input$stan_data$y don't have the same number of total cases. ")
+  if(sum(sf_cases_resized$attributes.fields.suspected_cases) != sum(stan_data$y) | 
+     sum(sf_cases_resized$attributes.fields.suspected_cases != stan_data$y) > 0  ){
+    stop("The stan_input$sf_cases_resized, stan_input$stan_data$y don't have the same number of total cases:\n",
+         stringr::str_c(c("sum(sf_cases_resized$attributes.fields.suspected_cases)",
+                          "sum(stan_data$y)",
+                          "sum(sf_cases_resized$attributes.fields.suspected_cases != stan_data$y) > 0"), 
+                        c(sum(sf_cases_resized$attributes.fields.suspected_cases),
+                          sum(stan_data$y),
+                          sum(sf_cases_resized$attributes.fields.suspected_cases != stan_data$y)),
+                        sep = ": ") %>% 
+           stringr::str_c(collapse = "\n"))
   }
   
   # Test 3: compare the sums of sf_cases, sf_cases_resized across each OC-locationPeriod-year combination
   sf_cases_no_dup <- sf_cases %>%
     sf::st_drop_geometry() %>%
-    dplyr::select(OC_UID, TL, TR, location_name, location_id, locationPeriod_id, attributes.fields.suspected_cases) %>%
+    dplyr::select(OC_UID, TL, TR, location_name, locationPeriod_id, attributes.fields.suspected_cases) %>%
     dplyr::distinct()
   
-  sf_cases_cmb <- rbind(sf_cases_no_dup %>% dplyr::select(OC_UID, locationPeriod_id,
-                                                          attributes.fields.suspected_cases) %>% dplyr::mutate(token = "prior"), 
-                        sf_cases_resized %>% sf::st_drop_geometry() %>% dplyr::select(OC_UID,
-                                                                                      locationPeriod_id, attributes.fields.suspected_cases) %>% dplyr::mutate(token = "after"))
+  sf_cases_cmb <- dplyr::bind_rows(
+    sf_cases_no_dup %>% 
+      dplyr::select(OC_UID, locationPeriod_id, attributes.fields.suspected_cases) %>%
+      dplyr::mutate(token = "prior"), 
+    sf_cases_resized %>% 
+      sf::st_drop_geometry() %>%
+      # !! Drop imputed cases
+      dplyr::filter(!stringr::str_detect(location_name, "impute")) %>% 
+      dplyr::select(OC_UID,locationPeriod_id, attributes.fields.suspected_cases) %>% 
+      dplyr::mutate(token = "after")
+  )
+  
   sf_cases_cmb <- sf_cases_cmb %>%
     dplyr::group_by(OC_UID, locationPeriod_id, token) %>%
     dplyr::summarize(cases = sum(attributes.fields.suspected_cases)) %>%
     dplyr::group_by(OC_UID, locationPeriod_id) %>%
-    dplyr::summarize(compare = ifelse(min(cases) == max(cases), "pass", "fail"))
+    dplyr::summarize(compare = ifelse(min(cases) == max(cases), "pass", "fail"),
+                     case_txt = stringr::str_c(token, cases, sep = ":") %>% 
+                       stringr::str_c(collapse = " / "))
   
   if(any(sf_cases_cmb$compare == "fail")){
     OCs <- sf_cases_cmb[sf_cases_cmb$compare == "fail", ]$OC_UID
     LPs <- sf_cases_cmb[sf_cases_cmb$compare == "fail", ]$locationPeriod_id
-    stop(paste0("***** For OC ", OCs, " and location period ", LPs, ", the sum of the cases in preprocess data and that in stan input data are not the same. "))
+    txt <- sf_cases_cmb[sf_cases_cmb$compare == "fail", ]$case_txt
+    
+    stop(paste0("***** For OC ", OCs, " and location period ", LPs, ", the sum of the cases in preprocess data and that in stan input data are not the same.:\n",
+                stringr::str_c(c("OC", "LP", "txt"), c(OCs, LPs, txt), sep = ":") %>% 
+                  stringr::str_c(collapse = ", ")))
   }
   
   # Test 4: the censored observations are the same
@@ -1320,36 +1353,64 @@ check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_c
           stan_data$M_right == length(stan_data$censoring_inds[stan_data$censoring_inds == "right-censored"]) | 
           stan_data$M_full == length(stan_data$ind_full) | 
           stan_data$M_right == length(stan_data$ind_right))){
-    stop("The censored observations are not the same within stan_data object. ")
-  }
-  ##newly computed tfracs and censoring 
-  single_year_idx <- which(lubridate::year(sf_cases_resized$TL) == lubridate::year(sf_cases_resized$TR))
-  tmp <- sf_cases_resized%>%
-    dplyr::mutate(
-      year = lubridate::year(TL), 
-      total_days = dplyr::case_when(
-        year%%4 == 0 ~ 366, 
-        TRUE ~ 365
-      ), 
-      cmp_tfrac = as.numeric(TR - TL) / total_days, 
-      cmp_censoring = dplyr::case_when(cmp_tfrac < censoring_thresh ~ "right-censored", 
-                                       TRUE ~ "full")
-    )
-  if(!all(tmp[single_year_idx, ]$cmp_censoring == stan_data$censoring_inds[single_year_idx])){
-    stop("The calculations of tfracs and censoring for single-year observations are wrong in the stan input preparation process. ")
+    
+    stop(stringr::str_c(
+      "The censored observations are not the same within stan_data object.\n",
+      stringr::str_c(c("stan_data$M_full",
+                       "length(stan_data$censoring_inds[stan_data$censoring_inds == 'full'])",
+                       "stan_data$M_right",
+                       "length(stan_data$censoring_inds[stan_data$censoring_inds == 'right-censored'])",                       "length(stan_data$ind_full)",
+                       "length(stan_data$ind_right)"), 
+                     c(stan_data$M_full,
+                       length(stan_data$censoring_inds[stan_data$censoring_inds == 'full']),
+                       stan_data$M_right,
+                       length(stan_data$censoring_inds[stan_data$censoring_inds == 'right-censored']),
+                       length(stan_data$ind_full),
+                       length(stan_data$ind_right)),
+                     sep = ": ") %>% 
+        stringr::str_c(collapse = "\n")))
   }
   
+  # newly computed tfracs and censoring 
+  # May 09 2023 (JPS): Commenting this out because not general to res_time
+  # single_year_idx <- which(lubridate::year(sf_cases_resized$TL) == lubridate::year(sf_cases_resized$TR))
+  # tmp <- sf_cases_resized %>%
+  #   dplyr::mutate(
+  #     year = lubridate::year(TL), 
+  #     total_days = dplyr::case_when(
+  #       year%%4 == 0 ~ 366, 
+  #       TRUE ~ 365
+  #     ), 
+  #     cmp_tfrac = as.numeric(TR - TL) / total_days, 
+  #     cmp_censoring = dplyr::case_when(cmp_tfrac < censoring_thresh ~ "right-censored", 
+  #                                      TRUE ~ "full")
+  #   )
+  # if(!all(tmp[single_year_idx, ]$cmp_censoring == stan_data$censoring_inds[single_year_idx])){
+  #   stop("The calculations of tfracs and censoring for single-year observations are wrong in the stan input preparation process. ")
+  # }
+  
+  loc_table_sf_cases <- table(sf_cases$locationPeriod_id)
+  ###filter out the imputed observations 
+  loc_table_sf_cases_resized <- table(sf_cases_resized[!stringr::str_detect(sf_cases_resized$OC_UID, "imputed"), ]$locationPeriod_id)
+  
   # Test 5: the number of location/times 
-  for(ids in names(table(sf_cases_resized$locationPeriod_id))){
-    ###filter out the imputed observations 
-    if(table(sf_cases$locationPeriod_id)[[ids]] < table(sf_cases_resized[sf_cases_resized$OC_UID != "imputed", ]$locationPeriod_id)[[ids]]){
-      stop(paste0("***** The number of observations in the stan input dataset given a location period id ", ids, " is more than the preprocess data. "))
+  for(ids in unique(sf_cases_resized$locationPeriod_id)) {
+    
+    n_loc_sf_cases <- loc_table_sf_cases[[ids]]
+    n_loc_sf_cases_resized <- loc_table_sf_cases_resized[[ids]]
+    
+    if(n_loc_sf_cases < n_loc_sf_cases_resized){
+      stop(paste0("***** The number of observations in the stan input dataset given a location period id ", ids, " is more than the preprocess data.\n"),
+           stringr::str_c(
+             stringr::str_c(c("lpid", "n_loc_sf_cases", "n_loc_sf_cases_resized"),
+                            c(ids, n_loc_sf_cases, n_loc_sf_cases_resized),
+                            sep = ": ") %>% 
+               stringr::str_c(collapse = "\n")
+           ))
     }
   }
   
   cat("--- All stan input checks have been passed. \n")
-  
-  
 }
 
 #' Get data for given administrative level
