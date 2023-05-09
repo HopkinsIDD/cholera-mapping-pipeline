@@ -233,16 +233,6 @@ inv_od_sd_nopool <- taxdat::check_od_param_sd_prior_noopoling(
   obs_model = obs_model,
   inv_od_sd_nopool = config$inv_od_sd_nopool)
 
-# SD of prior of hierarchical mean of inverse overdispersion parameter whe pooling
-h_mu_sd_inv_od <- taxdat::check_od_param_mu_sd_prior_pooling(
-  obs_model = obs_model,
-  h_mu_sd_inv_od = config$h_mu_sd_inv_od)
-
-# SD of prior of hierarchical sd of inverse overdispersion parameter whe pooling
-h_sd_sd_inv_od <- taxdat::check_od_param_sd_sd_prior_pooling(
-  obs_model = obs_model,
-  h_sd_sd_inv_od = config$h_sd_sd_inv_od)
-
 # mu_alpha and sd_alpha are the mean and sd of the intercept prior, respectively 
 mu_alpha <- taxdat::check_mu_alpha(config$mu_alpha)
 sd_alpha <- taxdat::check_sd_alpha(config$sd_alpha)
