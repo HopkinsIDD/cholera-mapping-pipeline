@@ -252,7 +252,7 @@ generated quantities {
   
   
   // ---- Part A: Grid-level rates and cases ----
-  if (do_infer_sd_eta == 1) {
+  if (size_sd_eta == 1) {
     sigma_eta_val = sigma_eta[1];
   } else {
     sigma_eta_val = sigma_eta_scale;
