@@ -1394,11 +1394,14 @@ check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_c
   sf_cases_resized_nopimpute <- sf_cases_resized %>% dplyr::filter(!stringr::str_detect(OC_UID, "imputed"))
   loc_table_sf_cases_resized <- table(sf_cases_resized_nopimpute$locationPeriod_id)
   
+  # Make check only for common ids
+  u_lps <- intersect(names(loc_table_sf_cases), names(loc_table_sf_cases_resized))
+  
   # Test 5: the number of location/times 
-  for(ids in unique(sf_cases_resized_nopimpute$locationPeriod_id)) {
+  for(ids in u_lps) {
     
-    n_loc_sf_cases <- loc_table_sf_cases[[ids]]
-    n_loc_sf_cases_resized <- loc_table_sf_cases_resized[[ids]]
+    n_loc_sf_cases <- loc_table_sf_cases[ids]
+    n_loc_sf_cases_resized <- loc_table_sf_cases_resized[ids]
     
     if(n_loc_sf_cases < n_loc_sf_cases_resized){
       stop(paste0("***** The number of observations in the stan input dataset given a location period id ", ids, " is more than the preprocess data.\n"),
