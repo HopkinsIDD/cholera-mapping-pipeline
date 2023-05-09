@@ -558,14 +558,6 @@ prepare_stan_input <- function(
                            rep(config$inv_od_sd_nopool,
                                stan_data$N_admin_lev - 1))
   
-  # Also save for hierarchical model
-  stan_data$h_mu_mean_inv_od <- 0     # the mean of hierarchical inverse over-dispersion parameters
-  stan_data$h_mu_sd_inv_od <- config$h_mu_sd_inv_od       # the sds  of hierarchical inverse over-dispersion parameters
-  stan_data$h_sd_sd_inv_od <- config$h_sd_sd_inv_od       # the sd of the hierarchical sd of inverse over-dispersion parameters
-  stan_data$mu_inv_od_lev0 <- 0       # mean of the inv od param for national level
-  stan_data$sd_inv_od_lev0 <- config$inv_od_sd_adm0    # sd of the inv od param for national level
-  
-  
   # Prior on the std_dev_w
   stan_data$mu_sd_w <- config$mu_sd_w
   stan_data$sd_sd_w <- config$sd_sd_w
