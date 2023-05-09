@@ -303,20 +303,6 @@ check_obs_model <- function(obs_model) {
   return(obs_model)
 }
 
-#' @include file_name_functions.R
-#' @title check_od_param
-#' @description Checks whether the od_param is valid
-#' @param obs_model the obs_model parameter in the config
-#' @param od_param the od_param parameter in the config
-#' @return od_param if valid
-#' @export
-check_od_param <- function(obs_model, od_param) {
-  
-  od_param <- check_od_param_generic(x = od_param,
-                                     obs_model = obs_model,
-                                     default_value = 1)
-  return(od_param)
-}
 
 #' @title Check aggregate
 #' @description Checks what aggregate setting should be applied, with a default of true.
@@ -726,9 +712,7 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
   
   ### The general check
   for (nm in names(check_list)) {
-    if (nm == "od_param") {
-      config_file[[nm]] <- check_list[[nm]](config_file[["obs_model"]], config_file[[nm]])
-    } else if (nm == "covariate_choices") {
+    if (nm == "covariate_choices") {
       config_file[[nm]] <- check_list[[nm]](config_file[[nm]], all_covariates)
     } else if (nm == "snap_tol") {
       config_file[[nm]] <- check_list[[nm]](config_file[[nm]], config_file[["res_time"]])

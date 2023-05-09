@@ -330,38 +330,6 @@ test_that("check_obs_model works", {
 
 })
 
-test_that("check_od_param works", {
-  tmpfile <- tempfile(fileext = ".yml")
-
-  yaml::write_yaml(data.frame(od_param = NULL), tmpfile)
-  config <- yaml::read_yaml(tmpfile)
-  expect_equal(
-    check_od_param(1, config$od_param),
-    0
-  )
-
-  yaml::write_yaml(data.frame(obs_model = 2, od_param = 1), tmpfile)
-  config <- yaml::read_yaml(tmpfile)
-  expect_equal(
-    check_od_param(config$obs_model, config$od_param),
-    1
-  )
-
-  yaml::write_yaml(data.frame(obs_model = 2, od_param = "1"), tmpfile)
-  config <- yaml::read_yaml(tmpfile)
-  expect_equal(
-    check_od_param(config$obs_model, config$od_param),
-    1
-  )
-
-  yaml::write_yaml(data.frame(obs_model = 1, od_param = 1), tmpfile)
-  config <- yaml::read_yaml(tmpfile)
-  expect_equal(
-    check_od_param(config$obs_model, config$od_param),
-    0
-  )
-
-})
 
 test_that("check_aggregate works",{
   tmpfile <- tempfile(fileext = ".yml")
@@ -793,7 +761,6 @@ test_that("get_all_config_options works",{
   expect_equal(config_options$ncpus_parallel_prep, as.function(check_ncpus_parallel_prep))
   expect_equal(config_options$do_parallel_prep, as.function(check_do_parallel_prep))
   expect_equal(config_options$obs_model, as.function(check_obs_model))
-  expect_equal(config_options$od_param, as.function(check_od_param))
   expect_equal(config_options$time_effect, stan_check)
   expect_equal(config_options$time_effect_autocorr, stan_check)
   expect_equal(config_options$use_intercept, stan_check)
@@ -817,7 +784,7 @@ test_that("get_all_config_options works",{
   expect_equal(config_options$sfrac_thresh, as.function(check_sfrac_thresh))
   expect_equal(config_options$ingest_covariates, as.function(check_ingest_covariates))
   expect_equal(config_options$ingest_new_covariates, as.function(check_ingest_covariates))
-  expect_equal(config_options$stan, c("ncores", "model", "genquant", "niter", "recompile"))
+  expect_equal(config_options$stan, c("ncores", "model", "genquant", "iter_warmup", "iter_sampling", "recompile"))
   expect_equal(config_options$file_names, file_name_list)
 })
 
