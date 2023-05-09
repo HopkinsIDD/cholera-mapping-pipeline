@@ -128,8 +128,10 @@ prepare_stan_input <- function(
   # ---- Ç. Pre-Aggregation Duplicates Removal in sf_cases ----
   sf_cases_dup_obs <- sf_cases %>% 
     sf::st_drop_geometry() %>%
-    dplyr::select(-id, -deaths) %>% #don't decide on duplicates based on these variables 
+    # don't decide on duplicates based on these variables 
+    dplyr::select(-dplyr::one_of("id", "deaths")) %>%
     duplicated()
+  
   sf_cases <- sf_cases[!sf_cases_dup_obs, ]
   
   # ---- C. Aggregation ----
