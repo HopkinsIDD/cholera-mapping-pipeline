@@ -1390,11 +1390,12 @@ check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_c
   # }
   
   loc_table_sf_cases <- table(sf_cases$locationPeriod_id)
-  ###filter out the imputed observations 
-  loc_table_sf_cases_resized <- table(sf_cases_resized[!stringr::str_detect(sf_cases_resized$OC_UID, "imputed"), ]$locationPeriod_id)
+  # Filter out the imputed observations 
+  sf_cases_resized_nopimpute <- sf_cases_resized %>% dplyr::filter(!stringr::str_detect(OC_UID, "imputed"))
+  loc_table_sf_cases_resized <- table(sf_cases_resized_nopimpute$locationPeriod_id)
   
   # Test 5: the number of location/times 
-  for(ids in unique(sf_cases_resized$locationPeriod_id)) {
+  for(ids in unique(sf_cases_resized_nopimpute$locationPeriod_id)) {
     
     n_loc_sf_cases <- loc_table_sf_cases[[ids]]
     n_loc_sf_cases_resized <- loc_table_sf_cases_resized[[ids]]
