@@ -22,6 +22,7 @@ time_effect_autocorr: no
 use_weights: no
 do_parallel_prep: no
 ncpus_parallel_prep: 1
+obs_model: 3
 stan:
   ncores: 4
   model: mapping_model_inference_normal_nocensprior_fixedadm0_mix_sigmainf.stan
