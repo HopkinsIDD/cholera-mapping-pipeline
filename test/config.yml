@@ -24,8 +24,8 @@ do_parallel_prep: no
 ncpus_parallel_prep: 1
 stan:
   ncores: 4
-  model: mapping_model_inference.stan
-  genquant: mapping_model_generate.stan
+  model: mapping_model_inference_normal_nocensprior_fixedadm0_mix_sigmainf.stan
+  genquant: mapping_model_generate_fixedadm0_mix.stan
   iter_warmup: 10
   iter_sampling: 10
   recompile: yes
