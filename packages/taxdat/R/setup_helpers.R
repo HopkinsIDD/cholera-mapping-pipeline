@@ -631,8 +631,6 @@ get_all_config_options <- function() {
     obs_model = as.function(check_obs_model), 
     inv_od_sd_adm0 = as.function(check_od_param_sd_prior_adm0),
     inv_od_sd_nopool = as.function(check_od_param_sd_prior_noopoling),
-    h_mu_sd_inv_od = as.function(check_od_param_mu_sd_prior_pooling),
-    h_sd_sd_inv_od = as.function(check_od_param_sd_sd_prior_pooling),
     mu_sd_w = as.function(check_mu_sd_w), 
     sd_sd_w = as.function(check_sd_sd_w), 
     ncpus_parallel_prep = as.function(check_ncpus_parallel_prep),
@@ -835,43 +833,6 @@ check_od_param_sd_prior_adm0 <- function(obs_model,
   
   return(inv_od_sd_adm0_updated)
   
-}
-
-#' check_od_param_mu_sd_prior_pooling
-#'
-#' @param obs_model 
-#' @param h_mu_sd_inv_od 
-#'
-#' @return
-#' @export
-#'
-check_od_param_mu_sd_prior_pooling <- function(obs_model,
-                                               h_mu_sd_inv_od) {
-  
-  h_mu_sd_inv_od_updated <- check_od_param_generic(x = h_mu_sd_inv_od,
-                                                   obs_model = obs_model,
-                                                   default_value = 1e-2)
-  
-  return(h_mu_sd_inv_od_updated)
-  
-}
-
-#' check_od_param_sd_sd_prior_pooling
-#'
-#' @param obs_model 
-#' @param h_sd_sd_inv_od 
-#'
-#' @return
-#' @export
-#'
-check_od_param_sd_sd_prior_pooling <- function(obs_model,
-                                               h_sd_sd_inv_od) {
-  
-  h_sd_sd_inv_od_updated <- check_od_param_generic(x = h_sd_sd_inv_od,
-                                                   obs_model = obs_model,
-                                                   default_value = 5e-2)
-  
-  return(h_sd_sd_inv_od_updated)
 }
 
 #' check_mu_alpha
