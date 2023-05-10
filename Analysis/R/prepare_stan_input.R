@@ -366,7 +366,7 @@ prepare_stan_input <- function(
   
   # Administrative levels for observation model
   admin_levels <- sf_cases_resized$location_name %>% 
-    taxdat::get_admin_level() %>% 
+    purrr::map_dbl(~ taxdat::get_admin_level(.)) %>% 
     as.array()
   
   n_na_admin <- sum(is.na(admin_levels))
