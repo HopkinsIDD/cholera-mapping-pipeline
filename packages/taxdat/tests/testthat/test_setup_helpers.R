@@ -598,4 +598,88 @@ test_that("check_sfrac_thresh works", {
   expect_equal(check_sfrac_thresh(sfrac_thresh = config_null$sfrac_thresh), 0.001)
 })
 
-## check_snap_tol, check_use_pop_weight, check_sfrac_thresh, check_ingest_covariates, check_ingest_new_covariates, check_stan_debug, check_stan_model, check_update_config
+test_that("check_use_pop_weight works", {
+  tmpfile <- tempfile(fileext = ".yml")
+  
+  yaml::write_yaml(data.frame(use_pop_weight = TRUE), tmpfile)
+  config_true <- yaml::read_yaml(tmpfile)
+  expect_equal(check_use_pop_weight(use_pop_weight = config_true$use_pop_weight), TRUE)
+
+  yaml::write_yaml(data.frame(use_pop_weight = FALSE), tmpfile)
+  config_false <- yaml::read_yaml(tmpfile)
+  expect_equal(check_use_pop_weight(use_pop_weight = config_false$use_pop_weight), FALSE)
+
+  yaml::write_yaml(data.frame(use_pop_weight = NULL), tmpfile)
+  config_null <- yaml::read_yaml(tmpfile)
+  expect_equal(check_use_pop_weight(use_pop_weight = config_null$use_pop_weight), TRUE)
+
+  yaml::write_yaml(data.frame(use_pop_weight = "random"), tmpfile)
+  config_error <- yaml::read_yaml(tmpfile)
+  expect_error(check_use_pop_weight(use_pop_weight = config_error$use_pop_weight),
+  "The use_pop_weight parameter must be logical. ")
+
+})
+
+test_that("check_ingest_covariates works", {
+  tmpfile <- tempfile(fileext = ".yml")
+  
+  yaml::write_yaml(data.frame(ingest_covariates = TRUE), tmpfile)
+  config_true <- yaml::read_yaml(tmpfile)
+  expect_equal(check_ingest_covariates(ingest_covariates = config_true$ingest_covariates), TRUE)
+
+  yaml::write_yaml(data.frame(ingest_covariates = FALSE), tmpfile)
+  config_false <- yaml::read_yaml(tmpfile)
+  expect_equal(check_ingest_covariates(ingest_covariates = config_false$ingest_covariates), FALSE)
+
+  yaml::write_yaml(data.frame(ingest_covariates = NULL), tmpfile)
+  config_null <- yaml::read_yaml(tmpfile)
+  expect_equal(check_ingest_covariates(ingest_covariates = config_null$ingest_covariates), FALSE)
+
+  yaml::write_yaml(data.frame(ingest_covariates = "random"), tmpfile)
+  config_error <- yaml::read_yaml(tmpfile)
+  expect_error(check_ingest_covariates(ingest_covariates = config_error$ingest_covariates),
+  "The ingest_covariates parameter must be logical. ")
+
+})
+
+test_that("check_ingest_new_covariates works", {
+  tmpfile <- tempfile(fileext = ".yml")
+  
+  yaml::write_yaml(data.frame(ingest_new_covariates = TRUE), tmpfile)
+  config_true <- yaml::read_yaml(tmpfile)
+  expect_equal(check_ingest_new_covariates(ingest_new_covariates = config_true$ingest_new_covariates), TRUE)
+
+  yaml::write_yaml(data.frame(ingest_new_covariates = FALSE), tmpfile)
+  config_false <- yaml::read_yaml(tmpfile)
+  expect_equal(check_ingest_new_covariates(ingest_new_covariates = config_false$ingest_new_covariates), FALSE)
+
+  yaml::write_yaml(data.frame(ingest_new_covariates = NULL), tmpfile)
+  config_null <- yaml::read_yaml(tmpfile)
+  expect_equal(check_ingest_new_covariates(ingest_new_covariates = config_null$ingest_new_covariates), FALSE)
+
+  yaml::write_yaml(data.frame(ingest_new_covariates = "random"), tmpfile)
+  config_error <- yaml::read_yaml(tmpfile)
+  expect_error(check_ingest_new_covariates(ingest_new_covariates = config_error$ingest_new_covariates),
+  "The ingest_new_covariates parameter has to be true/false or yer/no. ")
+})
+
+test_that("check_stan_debug works", {
+  tmpfile <- tempfile(fileext = ".yml")
+  yaml::write_yaml(data.frame(debug = TRUE), tmpfile)
+  config_true <- yaml::read_yaml(tmpfile)
+  expect_equal(check_stan_debug(debug = config_true$debug), TRUE)
+
+  yaml::write_yaml(data.frame(debug = FALSE), tmpfile)
+  config_false <- yaml::read_yaml(tmpfile)
+  expect_equal(check_stan_debug(debug = config_false$debug), FALSE)
+
+  yaml::write_yaml(data.frame(debug = NULL), tmpfile)
+  config_null <- yaml::read_yaml(tmpfile)
+  expect_equal(check_stan_debug(debug = config_null$debug), FALSE)
+
+  yaml::write_yaml(data.frame(debug = "random"), tmpfile)
+  config_error <- yaml::read_yaml(tmpfile)
+  expect_error(check_stan_debug(debug = config_error$debug),
+  "Debug needs to be logical") 
+})
+##check_stan_model, check_update_config
