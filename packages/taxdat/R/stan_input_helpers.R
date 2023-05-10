@@ -923,7 +923,7 @@ aggregate_observations <- function(sf_cases_resized,
   if (do_parallel) {
     
     df_split <- sf_cases_resized %>%
-      dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
+      dplyr::group_by(loctime, OC_UID, locationPeriod_id, location_name) %>%
       dplyr::group_split() 
     
     nchunk <- n_cpus * 5
@@ -936,7 +936,7 @@ aggregate_observations <- function(sf_cases_resized,
     ) %dopar% {
       rs %>% 
         dplyr::bind_rows() %>% 
-        dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
+        dplyr::group_by(loctime, OC_UID, locationPeriod_id, location_name) %>%
         dplyr::group_modify(.f = aggregate_single_lp,
                             verbose = verbose,
                             cases_column = cases_column) %>%
@@ -944,7 +944,7 @@ aggregate_observations <- function(sf_cases_resized,
     }
   } else {
     sf_cases_resized <- sf_cases_resized %>%
-      dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
+      dplyr::group_by(loctime, OC_UID, locationPeriod_id, location_name) %>%
       dplyr::group_modify(.f = aggregate_single_lp, 
                           verbose = verbose,
                           cases_column = cases_column) %>%
