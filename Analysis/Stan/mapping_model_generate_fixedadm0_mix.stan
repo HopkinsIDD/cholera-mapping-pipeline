@@ -192,6 +192,7 @@ parameters {
   real <lower=0, upper=1> rho;    // spatial correlation parameter
   real<lower=0> std_dev_w;             // precision of the spatial effects
   vector[smooth_grid_N] w;        // spatial random effect
+  real<lower=0, upper=1> lambda;
   
   // Temporal random effects
   vector[size_eta] eta_tilde;    // uncentered temporal random effects
@@ -201,14 +202,15 @@ parameters {
   vector[ncovar] betas;
   
   // Overdispersion parameters
-  vector<lower=0>[N_admin_lev*do_overdispersion] inv_od_param;
+  vector<lower=0>[(N_admin_lev-1)*do_overdispersion] inv_od_param;
 }
 transformed parameters {
   vector[N_admin_lev*do_overdispersion] od_param;
   
   if (do_overdispersion == 1) {
-    for (i in 1:N_admin_lev) {
-      od_param[i] = 1/inv_od_param[i];
+    od_param[1] = 1e-2;
+    for (i in 2:N_admin_lev) {
+      od_param[i] = 1/inv_od_param[(i-1)];
     }
   }
 }

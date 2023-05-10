@@ -303,30 +303,6 @@ check_obs_model <- function(obs_model) {
   return(obs_model)
 }
 
-#' @include file_name_functions.R
-#' @title check_od_param
-#' @description Checks whether the od_param is valid
-#' @param obs_model the obs_model parameter in the config
-#' @param od_param the od_param parameter in the config
-#' @return od_param if valid
-#' @export
-check_od_param <- function(obs_model, od_param) {
-  if (is.null(od_param)) {
-    od_param <- 0
-  }
-  if (as.numeric(obs_model) == 2 | as.numeric(obs_model) == 3) {
-    tryCatch(expr = {
-      updated_od_param <- as.numeric(od_param)
-    }, error = function(e) {
-      message("Error: the od_param parameter must be able to be converted to \"numeric\". ")
-      print(e)
-    })
-    od_param <- updated_od_param
-  } else{
-    od_param <- 0
-  }
-  return(od_param)
-}
 
 #' @title Check aggregate
 #' @description Checks what aggregate setting should be applied, with a default of true.
@@ -453,6 +429,7 @@ check_set_tfrac <- function(set_tfrac) {
 #' @export
 #'
 check_snap_tol <- function(snap_tol, res_time) {
+
   
   if (!is.null(snap_tol)) {
     snap_tol <- tryCatch(
@@ -462,6 +439,7 @@ check_snap_tol <- function(snap_tol, res_time) {
         print(e)
       })
     
+
     if (snap_tol < 0) {
       stop("Cannot specifiy negative snap tolerance values")
     }
@@ -476,6 +454,7 @@ check_snap_tol <- function(snap_tol, res_time) {
     cat("---- By default, running with value of snap tolerance 7/365:", snap_tol,
         "[", res_time, "]\n")
   }
+
   
   return(snap_tol)
 }
@@ -579,6 +558,7 @@ check_stan_model <- function(stan_model_path, stan_dir) {
                                                             ""), "\n")
   
   return(stan_model_path)
+
 }
 
 
@@ -648,16 +628,21 @@ get_all_config_options <- function() {
     OCs = "no-check", 
     taxonomy = as.function(check_taxonomy), 
     covariate_choices = as.function(check_covariate_choices),
+    obs_model = as.function(check_obs_model), 
+    inv_od_sd_adm0 = as.function(check_od_param_sd_prior_adm0),
+    inv_od_sd_nopool = as.function(check_od_param_sd_prior_noopoling),
+    mu_sd_w = as.function(check_mu_sd_w), 
+    sd_sd_w = as.function(check_sd_sd_w), 
     ncpus_parallel_prep = as.function(check_ncpus_parallel_prep),
     do_parallel_prep = as.function(check_do_parallel_prep),
-    obs_model = as.function(check_obs_model), 
-    od_param = as.function(check_od_param),
     time_effect = "stan-check", 
     time_effect_autocorr = "stan-check", 
     use_intercept = "stan-check",
     covariate_transformations = "no-check", 
     beta_sigma_scale = "stan-check",
     sigma_eta_scale = "stan-check", 
+    mu_alpha = as.function(check_mu_alpha),
+    sd_alpha = as.function(check_sd_alpha),
     exp_prior = "stan-check", 
     do_infer_sd_eta = "stan-check",
     do_zerosum_cnst = "stan-check", 
@@ -675,7 +660,7 @@ get_all_config_options <- function() {
     sfrac_thresh = as.function(check_sfrac_thresh), 
     ingest_covariates = as.function(check_ingest_covariates),
     ingest_new_covariates = as.function(check_ingest_covariates), 
-    stan = c("ncores", "model", "genquant", "niter", "recompile"), 
+    stan = c("ncores", "model", "genquant", "iter_warmup", "iter_sampling", "recompile"), 
     file_names = list(
       output_directory = "output_directory",
       data = "observations_filename",
@@ -725,9 +710,7 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
   
   ### The general check
   for (nm in names(check_list)) {
-    if (nm == "od_param") {
-      config_file[[nm]] <- check_list[[nm]](config_file[["obs_model"]], config_file[[nm]])
-    } else if (nm == "covariate_choices") {
+    if (nm == "covariate_choices") {
       config_file[[nm]] <- check_list[[nm]](config_file[[nm]], all_covariates)
     } else if (nm == "snap_tol") {
       config_file[[nm]] <- check_list[[nm]](config_file[[nm]], config_file[["res_time"]])
@@ -764,4 +747,208 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
   ### Save the config file
   yaml::write_yaml(config_file, config_fname)
   
+}
+
+#' try_conv_numeric
+#'
+#' @param x 
+#'
+#' @return
+#' @export
+#'
+try_conv_numeric <- function(x) {
+  tryCatch(expr = {
+    res <- as.numeric(x)
+  }, error = function(e) {
+    message("Error: the parameter must be able to be converted to \"numeric\". ")
+    print(e)
+  })
+  
+  if (is.na(res)) {
+    stop("Error: the parameter must be able to be converted to \"numeric\": ", x, ".")
+  }
+  
+  res
+}
+
+#' check_od_param_generic
+#'
+#' @param x 
+#' @param obs_model 
+#' @param default_value 
+#'
+#' @return
+#' @export
+#'
+check_od_param_generic <- function(x, 
+                                   obs_model,
+                                   default_value) {
+  
+  obs_model <- try_conv_numeric(obs_model)
+  
+  if (obs_model == 1) {
+    par <- 0
+  } else if (obs_model == 2 | obs_model == 3) {
+    if (unspecified_parameter_check(x)) {
+      par <- default_value
+    } else {
+      par <- try_conv_numeric(x)
+    }
+  }
+  par
+}
+
+#' check_od_param_sd_prior_noopoling
+#'
+#' @param obs_model 
+#' @param inv_od_sd_nopool 
+#'
+#' @return
+#' @export
+#'
+check_od_param_sd_prior_noopoling <- function(obs_model,
+                                              inv_od_sd_nopool) {
+  
+  inv_od_sd_nopool_updated <- check_od_param_generic(x = inv_od_sd_nopool,
+                                                     obs_model = obs_model,
+                                                     default_value = 1)
+  return(inv_od_sd_nopool_updated)
+}
+
+
+#' check_od_param_sd_prior_adm0
+#'
+#' @param obs_model 
+#' @param inv_od_sd_adm0 
+#'
+#' @return
+#' @export
+#'
+check_od_param_sd_prior_adm0 <- function(obs_model,
+                                         inv_od_sd_adm0) {
+  
+  inv_od_sd_adm0_updated <- check_od_param_generic(x = inv_od_sd_adm0,
+                                                   obs_model = obs_model,
+                                                   default_value = 1e-2)
+  
+  return(inv_od_sd_adm0_updated)
+  
+}
+
+#' check_mu_alpha
+#'
+#' @param x 
+#' @param default_value 
+#'
+#' @return
+#' @export
+#'
+check_mu_alpha <- function( x, 
+                            default_value = 0) {
+  
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- try_conv_numeric(x)
+  }
+  
+  par
+}
+
+#' check_sd_alpha
+#'
+#' @param x 
+#' @param default_value 
+#'
+#' @return
+#' @export
+#'
+check_sd_alpha <- function(x, 
+                           default_value = 1) {
+  
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- try_conv_numeric(x)
+  }
+
+  par
+}
+
+#' check_mu_sd_w
+#'
+#' @param x 
+#' @param default_value 
+#'
+#' @return
+#' @export
+#'
+check_mu_sd_w <- function(x, 
+                          default_value = 10) {
+  
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- try_conv_numeric(x)
+  }
+  
+  par
+}
+
+#' check_sd_sd_w
+#'
+#' @param x 
+#' @param default_value 
+#'
+#' @return
+#' @export
+#'
+check_sd_sd_w <- function(x, 
+                          default_value = 3) {
+  
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- try_conv_numeric(x)
+  }
+  
+  par
+}
+
+#' check_stan_iter_warmup
+#'
+#' @param x 
+#' @param default_value 
+#'
+#' @export
+#'
+check_stan_iter_warmup <- function(x,
+                                   default_value = 1100) {
+  
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- try_conv_numeric(x)
+  }
+  
+  par
+}
+
+#' check_stan_iter_sampling
+#'
+#' @param x 
+#' @param default_value 
+#'
+#' @export
+#'
+check_stan_iter_sampling <- function(x,
+                                     default_value = 1000) {
+  
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- try_conv_numeric(x)
+  }
+  
+  par
 }

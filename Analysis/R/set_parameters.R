@@ -222,7 +222,25 @@ if (is.null(config$covariate_choices)) {
 # - - - -
 ### Observation model settings
 obs_model <- taxdat::check_obs_model(config$obs_model)
-od_param <- taxdat::check_od_param(obs_model, config$od_param)
+
+# SD of prior of admin0 inverse overdispersion parameter
+inv_od_sd_adm0 <- taxdat::check_od_param_sd_prior_adm0(
+  obs_model = obs_model,
+  inv_od_sd_adm0 = config$inv_od_sd_adm0)
+
+# SD of prior of subnational inverse overdispersion parameters when no pooling
+inv_od_sd_nopool <- taxdat::check_od_param_sd_prior_noopoling(
+  obs_model = obs_model,
+  inv_od_sd_nopool = config$inv_od_sd_nopool)
+
+# mu_alpha and sd_alpha are the mean and sd of the intercept prior, respectively 
+mu_alpha <- taxdat::check_mu_alpha(config$mu_alpha)
+sd_alpha <- taxdat::check_sd_alpha(config$sd_alpha)
+
+# Priors for spatial sd
+mu_sd_w <- taxdat::check_mu_sd_w(config$mu_sd_w)
+sd_sd_w <- taxdat::check_mu_sd_w(config$sd_sd_w)
+
 # time_effect, time_effect_autocorr, use_intercept are in get_stan_parameters
 
 # - - - - - - - - - - - - - -
@@ -291,7 +309,9 @@ stan_model_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, st
 stan_genquant <- stan_params$genquant
 stan_genquant_path <- taxdat::check_stan_model(stan_model_path = paste(stan_dir, stan_genquant, sep=''), stan_dir = stan_dir)
 # how many iterations
-niter <- stan_params$niter
+iter_warmup <- taxdat::check_stan_iter_warmup(config$stan$iter_warmup)
+iter_sampling <- taxdat::check_stan_iter_sampling(config$stan$iter_sampling)
+
 # Should the Stan model be recompiled?
 recompile <- stan_params$recompile
 

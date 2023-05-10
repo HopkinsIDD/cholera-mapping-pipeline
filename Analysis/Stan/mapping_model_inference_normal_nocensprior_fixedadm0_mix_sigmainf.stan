@@ -98,6 +98,7 @@ data {
   real<lower=0> mu_inv_od[N_admin_lev];    // the means of the inverse over-dispersion parameters
   real<lower=0> sd_inv_od[N_admin_lev];    // the sds of the inverse over-dispersion parameters
   real<lower=0> mu_sd_w;
+  real<lower=0> sd_sd_w;
   
   // Debug
   int debug;
@@ -178,6 +179,7 @@ parameters {
   real <lower=0, upper=1> rho;    // spatial correlation parameter
   real<lower=0> std_dev_w;             // precision of the spatial effects
   vector[smooth_grid_N] w;        // spatial random effect
+  real<lower=0, upper=1> lambda;
   
   // Temporal random effects
   vector[size_eta] eta_tilde;    // uncentered temporal random effects
@@ -187,8 +189,8 @@ parameters {
   vector[ncovar] betas;
   
   // Overdispersion parameters
-  vector<lower=0>[N_admin_lev*do_overdispersion] inv_od_param;
-  
+  vector<lower=0>[(N_admin_lev-1)*do_overdispersion] inv_od_param;
+  real<lower=0> sigma_std_dev_w[2];
 }
 
 transformed parameters {
@@ -203,8 +205,9 @@ transformed parameters {
   
   
   if (do_overdispersion == 1) {
-    for (i in 1:N_admin_lev) {
-      od_param[i] = 1/inv_od_param[i];
+    od_param[1] = 1e2;
+    for (i in 2:N_admin_lev) {
+      od_param[i] = 1/inv_od_param[(i-1)];
     }
   }
   
@@ -426,7 +429,12 @@ model {
     }
   }
   
-  std_dev_w ~ inv_gamma(2, mu_sd_w);
+  target += log_mix(lambda, normal_lpdf(std_dev_w |mu_sd_w, sigma_std_dev_w[1]), normal_lpdf(std_dev_w |0, sigma_std_dev_w[2]));
+  lambda ~ beta(2, 1);
+  
+  sigma_std_dev_w[1] ~ normal(0, 2);
+  sigma_std_dev_w[2] ~ normal(0, .5);
+
   
   if (debug && (previous_debugs == 0)) {
     print("dagar std", target());
@@ -485,7 +493,7 @@ model {
   // Priors on the over-dispersion parameters
   
   if (do_overdispersion == 1) {
-    inv_od_param ~ normal(mu_inv_od, sd_inv_od);
+    inv_od_param ~ normal(mu_inv_od[2:N_admin_lev], sd_inv_od[2:N_admin_lev]);
   }
   
   // ---- 4. Observations likelihood ----
@@ -559,9 +567,9 @@ model {
         print("right censored obs", target());
       }
       // add a 0-centered prior on the censored cases
-      for (idx in ind_right) {
-        modeled_cases[idx] ~ cauchy(0, 2);
-      }
+      // for (idx in ind_right) {
+        //   modeled_cases[idx] ~ cauchy(0, 2);
+        // }
     }
   } else {
     if (use_weights == 1) {

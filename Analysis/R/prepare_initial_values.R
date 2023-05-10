@@ -127,6 +127,9 @@ df <- purrr::map_dfr(
                   T ~ Inf)
   )
 
+
+# Initial values ----------------------------------------------------------
+
 # Use warmup?
 warmup <- config$warmup
 
@@ -198,20 +201,20 @@ if (warmup) {
   }
   
   # Initial parameter values
-  if (config$time_effect | grid_rand_effects_N != 1) {
+  if (config$time_effect | config$grid_rand_effects_N != 1) {
     sd_w <- sd(w.init)
     
-    if (config$time_effect & grid_rand_effects_N != 1) {
+    if (config$time_effect & config$grid_rand_effects_N != 1) {
       stop("Current code does not allow grid_rand_effects_N != 1 and time_effect = true")
     }
     
-    if (grid_rand_effects_N != 1) {
+    if (config$grid_rand_effects_N != 1) {
       init.list <- lapply(1:nchain, 
                           function(i) {
                             list(
                               # Perturbation of spatial random effects
-                              w = rnorm(length(w.init) * grid_rand_effects_N,
-                                        rep(w.init, grid_rand_effects_N), .1)
+                              w = rnorm(length(w.init) * config$grid_rand_effects_N,
+                                        rep(w.init, config$grid_rand_effects_N), .1)
                             )})
     }
     
@@ -249,6 +252,7 @@ if (warmup) {
     stan_data$mat_grid_time <- mat_grid_time %>% as.matrix()
   }
 }
+
 if (!(config$time_effect)) {
   stan_data$mat_grid_time <- as.array(matrix(0,2,2))
 }
@@ -261,8 +265,8 @@ stan_data$use_weights <- ifelse(config$use_weights, 1, 0)
 stan_data$use_rho_prior<- ifelse(config$use_rho_prior, 1, 0)
 
 if (config$use_rho_prior) {
-  if (init.list != "random") {
-    for (i in 1:length(init.list)) {
+  if (length(init.list) !=1) {
+    for (i in 1:nchain) {
       init.list[[i]] <- append(init.list[[i]], list(rho = runif(1, .6, 1)))
     }
   }
@@ -279,6 +283,94 @@ if (config$time_effect) {
 } else {
   stan_data$has_data_year <- array(dim = c(0))
 }
+
+
+# For negbinom likelihood overwrite init.list to have more sensible
+# initial values for the overdispersion parameter
+if (config$obs_model == 3) {
+  
+  # For now use random .1 initialization
+  init.list <- .1
+  
+  # init.list <- 
+  #   purrr::map(1:nchain, function(x) {
+  #     init <- list(
+  #       std_dev_w = abs(rnorm(1, 1, .5)),
+  #       rho = runif(1, .8, .9)
+  #     )
+  #     
+  #     if (str_detect(stan_model_path, "fixedadm0")) {
+  #       init <- append(
+  #         init, 
+  #         list(inv_od_param = abs(rnorm(stan_data$N_admin_lev - 1, 1, 1e-1)))
+  #       )
+  #     } else {
+  #       init <- append(
+  #         init, 
+  #         list(inv_od_param = c(abs(rnorm(1, 1e-1, 1e-2)), 
+  #                               abs(rnorm(stan_data$N_admin_lev - 1, 1, 1e-1))))
+  #       )
+  #     }
+  #     
+  #     if (config$time_effect) {
+  #       if (config$do_zerosum_cnst) {
+  #         n_eta <- stan_data$`T` - 1
+  #       } else {
+  #         n_eta <- stan_data$`T`
+  #       }
+  #       
+  #       init <- append(
+  #         init, 
+  #         list(eta_tilde = rnorm(n_eta, -1, .1))
+  #       )
+  #     }
+  #     
+  #     # constrain the sum of w to be 0 to handle initialization
+  #     w <- rnorm(stan_data$smooth_grid_N - 1, 0, .1)
+  #     w <- taxdat::sum_to_zero_QR(x_raw = w, 
+  #                                 Q_r = taxdat::Q_sum_to_zero_QR(N =stan_data$smooth_grid_N))
+  #     
+  #     if (config$use_intercept) {
+  #       init <- append(
+  #         init, 
+  #         list(alpha = rnorm(1, -3, .5),
+  #              w = w)
+  #       )
+  #       
+  #     } else {
+  #       
+  #       # Add small negative offset to ensure gradient computation
+  #       # w <- w - 2
+  #       
+  #       # Set lower values of w to ensure initialization works
+  #       init <- append(
+  #         init, 
+  #         list(w = w)
+  #       )
+  #     }
+  #   })
+  
+} else if (config$obs_model == 2) {
+  
+  N_w <- length(w.init)
+  N_eta <- length(eta)
+  if (config$do_zerosum_cnst) {
+    N_eta <- N_eta - 1
+  }
+  N_admin_lev <- stan_data$N_admin_lev
+  
+  init.list <- lapply(
+    1:nchain, 
+    function(i) {
+      list(
+        w = rnorm(N_w, 0, .1),
+        eta_tilde = as.array(rnorm(N_eta, 0, .1)),
+        alpha = rnorm(1, -5, .1),
+        inv_od_param = abs(rnorm(N_admin_lev, 3, 1)),
+        log_std_dev_w = rnorm(1, 0, .1)
+      )})
+}
+
 
 # Set value of negative binomial models with fixed overdispersion parameter
 # Javier 17-01-2023: This section is deprecated because we are not using this typoe of function anymore
