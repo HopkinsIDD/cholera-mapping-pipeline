@@ -506,4 +506,96 @@ test_that("check_snap_tol works",{
   )
 
 })
-## check_snap_tol, check_use_pop_weight, check_sfrac_thresh, check_ingest_covariates, check_ingest_new_covariates, check_stan_debug, check_stan_model, get_all_config_options, check_update_config
+
+test_that("get_all_config_options works",{
+  config_options <- get_all_config_options()
+
+  no_check <- "no-check"
+  stan_check <- "stan-check"
+  file_name_list <- list(
+    output_directory = "output_directory",
+    data = "observations_filename",
+    covar = "covariate_filename",
+    stan_input = "stan_input_filename",
+    initial_values = "initial_values_filename",
+    stan_output = "stan_output_filename",
+    stan_genquant = "stan_genquant_filename",
+    country_data_report_filename = "country_data_report_filename",
+    data_comparison_report_filename = "data_comparison_report_filename"
+  )
+
+  expect_equal(config_options$name, no_check)
+  expect_equal(config_options$countries, no_check)
+  expect_equal(config_options$countries_name, as.function(check_countries_name))
+  expect_equal(config_options$aoi, as.function(check_aoi))
+  expect_equal(config_options$res_time, as.function(check_res_time))
+  expect_equal(config_options$grid_rand_effects_N, as.function(check_grid_rand_effects_N))
+  expect_equal(config_options$case_definition, as.function(check_case_definition))
+  expect_equal(config_options$start_time, as.function(check_time))
+  expect_equal(config_options$end_time, as.function(check_time))
+  expect_equal(config_options$data_source, as.function(check_data_source))
+  expect_equal(config_options$ovrt_metadata_table, as.function(check_ovrt_metadata_table))
+  expect_equal(config_options$OCs, no_check)
+  expect_equal(config_options$taxonomy, as.function(check_taxonomy))
+  expect_equal(config_options$covariate_choices, as.function(check_covariate_choices))
+  expect_equal(config_options$ncpus_parallel_prep, as.function(check_ncpus_parallel_prep))
+  expect_equal(config_options$do_parallel_prep, as.function(check_do_parallel_prep))
+  expect_equal(config_options$obs_model, as.function(check_obs_model))
+  expect_equal(config_options$od_param, as.function(check_od_param))
+  expect_equal(config_options$time_effect, stan_check)
+  expect_equal(config_options$time_effect_autocorr, stan_check)
+  expect_equal(config_options$use_intercept, stan_check)
+  expect_equal(config_options$covariate_transformations, no_check)
+  expect_equal(config_options$beta_sigma_scale, stan_check)
+  expect_equal(config_options$sigma_eta_scale, stan_check)
+  expect_equal(config_options$exp_prior, stan_check)
+  expect_equal(config_options$do_infer_sd_eta, stan_check)
+  expect_equal(config_options$do_zerosum_cnst, stan_check)
+  expect_equal(config_options$use_weights, stan_check)
+  expect_equal(config_options$use_rho_prior, stan_check)
+  expect_equal(config_options$covar_warmup, stan_check)
+  expect_equal(config_options$warmup, stan_check)
+  expect_equal(config_options$aggregate, as.function(check_aggregate))
+  expect_equal(config_options$tfrac_thresh, as.function(check_tfrac_thresh))
+  expect_equal(config_options$censoring, as.function(check_censoring))
+  expect_equal(config_options$censoring_thresh, as.function(check_censoring_thresh))
+  expect_equal(config_options$set_tfrac, as.function(check_set_tfrac))
+  expect_equal(config_options$snap_tol, as.function(check_snap_tol))
+  expect_equal(config_options$use_pop_weight, as.function(check_use_pop_weight))
+  expect_equal(config_options$sfrac_thresh, as.function(check_sfrac_thresh))
+  expect_equal(config_options$ingest_covariates, as.function(check_ingest_covariates))
+  expect_equal(config_options$ingest_new_covariates, as.function(check_ingest_covariates))
+  expect_equal(config_options$stan, c("ncores", "model", "genquant", "niter", "recompile"))
+  expect_equal(config_options$file_names, file_name_list)
+})
+
+test_that("check_sfrac_thresh works", {
+  tempfile <- tempfile(fileext = ".yml")
+  yaml::write_yaml(data.frame(sfrac_thresh = 0.5), tempfile)
+  config_equal <- yaml::read_yaml(tempfile)
+  expect_equal(check_sfrac_thresh(sfrac_thresh = config_equal$sfrac_thresh), 0.5)
+
+  yaml::write_yaml(data.frame(sfrac_thresh = 1.5), tempfile)
+  config_error <- yaml::read_yaml(tempfile)
+  expect_error(check_sfrac_thresh(sfrac_thresh = config_error$sfrac_thresh), 
+  "---- sfract thresh cannot be < 0 or > 1, value passed: 1.5")
+
+  yaml::write_yaml(data.frame(sfrac_thresh = -0.5), tempfile)
+  config_error <- yaml::read_yaml(tempfile)
+  expect_error(check_sfrac_thresh(sfrac_thresh = config_error$sfrac_thresh),
+  "---- sfract thresh cannot be < 0 or > 1, value passed: -0.5")
+
+  yaml::write_yaml(data.frame(sfrac_thresh = 0), tempfile)
+  config_equal <- yaml::read_yaml(tempfile)
+  expect_equal(check_sfrac_thresh(sfrac_thresh = config_equal$sfrac_thresh), 0)
+
+  yaml::write_yaml(data.frame(sfrac_thresh = 1), tempfile)
+  config_equal <- yaml::read_yaml(tempfile)
+  expect_equal(check_sfrac_thresh(sfrac_thresh = config_equal$sfrac_thresh), 1)
+
+  yaml::write_yaml(data.frame(sfrac_thresh=NULL), tempfile)
+  config_null <- yaml::read_yaml(tempfile)
+  expect_equal(check_sfrac_thresh(sfrac_thresh = config_null$sfrac_thresh), 0.001)
+})
+
+## check_snap_tol, check_use_pop_weight, check_sfrac_thresh, check_ingest_covariates, check_ingest_new_covariates, check_stan_debug, check_stan_model, check_update_config
