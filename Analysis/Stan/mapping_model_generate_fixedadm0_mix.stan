@@ -176,7 +176,11 @@ transformed data {
       size_sd_eta = 0;
     } else {
       size_eta = T;
-      size_sd_eta = 1;
+      if (do_infer_sd_eta == 1) {
+        size_sd_eta = 1;
+      } else {
+        size_sd_eta = 0;
+      }
     }
   } else {
     size_eta = 0;
