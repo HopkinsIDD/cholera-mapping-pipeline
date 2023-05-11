@@ -176,7 +176,7 @@ parameters {
   real alpha[use_intercept];    
   
   // Spatial random effects
-  real <lower=0, upper=1> rho;    // spatial correlation parameter
+  real <lower=0, upper=.99> rho;    // spatial correlation parameter
   real<lower=0> std_dev_w;             // precision of the spatial effects
   vector[smooth_grid_N] w;        // spatial random effect
   real<lower=0, upper=1> lambda;
@@ -434,7 +434,7 @@ model {
   
   sigma_std_dev_w[1] ~ normal(0, 2);
   sigma_std_dev_w[2] ~ normal(0, .5);
-
+  
   
   if (debug && (previous_debugs == 0)) {
     print("dagar std", target());

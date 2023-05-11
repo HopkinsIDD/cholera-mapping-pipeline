@@ -31,15 +31,15 @@ cmdstan_fit <- chol_model$sample(
   parallel_chains = nchain,
   iter_warmup = iter_warmup,
   iter_sampling = iter_sampling,
-  max_treedepth = 12,
+  max_treedepth = 15,
   metric = "diag_e",
-  adapt_delta = .9,
+  adapt_delta = 0.8,
   init = initial_values_data$init.list,
-  sig_figs = 14,
+  sig_figs = 10,
   save_warmup = F,
   refresh = 100,
-  term_buffer = 150,
-  step_size = 1e-1
+  term_buffer = 100,
+  step_size = 1
 )
 
 # Transform back to stanfit object
