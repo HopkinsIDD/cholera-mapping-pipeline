@@ -330,38 +330,6 @@ test_that("check_obs_model works", {
 
 })
 
-test_that("check_od_param works", {
-  tmpfile <- tempfile(fileext = ".yml")
-
-  yaml::write_yaml(data.frame(od_param = NULL), tmpfile)
-  config <- yaml::read_yaml(tmpfile)
-  expect_equal(
-    check_od_param(1, config$od_param),
-    0
-  )
-
-  yaml::write_yaml(data.frame(obs_model = 2, od_param = 1), tmpfile)
-  config <- yaml::read_yaml(tmpfile)
-  expect_equal(
-    check_od_param(config$obs_model, config$od_param),
-    1
-  )
-
-  yaml::write_yaml(data.frame(obs_model = 2, od_param = "1"), tmpfile)
-  config <- yaml::read_yaml(tmpfile)
-  expect_equal(
-    check_od_param(config$obs_model, config$od_param),
-    1
-  )
-
-  yaml::write_yaml(data.frame(obs_model = 1, od_param = 1), tmpfile)
-  config <- yaml::read_yaml(tmpfile)
-  expect_equal(
-    check_od_param(config$obs_model, config$od_param),
-    0
-  )
-
-})
 
 test_that("check_aggregate works",{
   tmpfile <- tempfile(fileext = ".yml")
@@ -507,6 +475,258 @@ test_that("check_snap_tol works",{
 
 })
 
+
+test_that("try_conv_numeric works",{
+  
+  x = "character"
+  defaultW <- getOption("warn") 
+  options(warn = -1) 
+  expect_error(
+    try_conv_numeric(x),
+    paste0("Error: the parameter must be able to be converted to \"numeric\". ", x, ".")
+  )
+  options(warn = defaultW)
+
+  x = "7"
+  expect_equal(
+    try_conv_numeric(x),
+    7
+  )
+
+  x = 7
+  expect_equal(
+    try_conv_numeric(x),
+    7
+  )
+
+})
+
+test_that("check_od_param_generic works",{
+  
+  defaultW <- getOption("warn") 
+  options(warn = -1) 
+  expect_equal(
+    check_od_param_generic('3', "1", 1000),
+    0
+  )
+  options(warn = defaultW)
+
+  defaultW <- getOption("warn") 
+  options(warn = -1) 
+  expect_equal(
+    check_od_param_generic('3', "2", 1000),
+    3
+  )
+  options(warn = defaultW)
+
+  defaultW <- getOption("warn") 
+  options(warn = -1) 
+  expect_equal(
+    check_od_param_generic(NULL, "2", 1000),
+    1000
+  )
+  options(warn = defaultW)
+
+  defaultW <- getOption("warn") 
+  options(warn = -1) 
+  expect_equal(
+    check_od_param_generic('', "3", 1000),
+    1000
+  )
+  options(warn = defaultW)
+
+  defaultW <- getOption("warn") 
+  options(warn = -1) 
+  expect_equal(
+    check_od_param_generic("   ", "3", 1000),
+    1000
+  )
+  options(warn = defaultW)
+
+})
+
+test_that("check_mu_alpha works",{
+  
+  expect_equal(
+    check_mu_alpha(1),
+    1
+  )
+
+  expect_equal(
+    check_mu_alpha("1"),
+    1
+  )
+
+  expect_equal(
+    check_mu_alpha(NULL),
+    0
+  )
+
+  expect_equal(
+    check_mu_alpha(""),
+    0
+  )
+
+  x <- "character"
+  expect_error(
+    check_mu_alpha(x),
+    paste0("Error: the parameter must be able to be converted to \"numeric\". ", x, ".")
+  )
+
+})
+
+test_that("check_sd_alpha works",{
+  
+  expect_equal(
+    check_sd_alpha(0),
+    0
+  )
+
+  expect_equal(
+    check_sd_alpha("0"),
+    0
+  )
+
+  expect_equal(
+    check_sd_alpha(NULL),
+    1
+  )
+
+  expect_equal(
+    check_sd_alpha(""),
+    1
+  )
+
+  x <- "character"
+  expect_error(
+    check_sd_alpha(x),
+    paste0("Error: the parameter must be able to be converted to \"numeric\". ", x, ".")
+  )
+
+})
+
+test_that("check_mu_sd_w works",{
+  
+  expect_equal(
+    check_mu_sd_w(0),
+    0
+  )
+
+  expect_equal(
+    check_mu_sd_w("0"),
+    0
+  )
+
+  expect_equal(
+    check_mu_sd_w(NULL),
+    10
+  )
+
+  expect_equal(
+    check_mu_sd_w(""),
+    10
+  )
+
+  x <- "character"
+  expect_error(
+    check_mu_sd_w(x),
+    paste0("Error: the parameter must be able to be converted to \"numeric\". ", x, ".")
+  )
+
+})
+
+test_that("check_sd_sd_w works",{
+  
+  expect_equal(
+    check_sd_sd_w(0),
+    0
+  )
+
+  expect_equal(
+    check_sd_sd_w("0"),
+    0
+  )
+
+  expect_equal(
+    check_sd_sd_w(NULL),
+    3
+  )
+
+  expect_equal(
+    check_sd_sd_w(""),
+    3
+  )
+
+  x <- "character"
+  expect_error(
+    check_sd_sd_w(x),
+    paste0("Error: the parameter must be able to be converted to \"numeric\". ", x, ".")
+  )
+
+})
+
+test_that("check_stan_iter_warmup works",{
+  
+  expect_equal(
+    check_stan_iter_warmup(0),
+    0
+  )
+
+  expect_equal(
+    check_stan_iter_warmup("0"),
+    0
+  )
+
+  expect_equal(
+    check_stan_iter_warmup(NULL),
+    1100
+  )
+
+  expect_equal(
+    check_stan_iter_warmup(""),
+    1100
+  )
+
+  x <- "character"
+  expect_error(
+    check_stan_iter_warmup(x),
+    paste0("Error: the parameter must be able to be converted to \"numeric\". ", x, ".")
+  )
+
+})
+
+test_that("check_stan_iter_sampling works",{
+  
+  expect_equal(
+    check_stan_iter_sampling(0),
+    0
+  )
+
+  expect_equal(
+    check_stan_iter_sampling("0"),
+    0
+  )
+
+  expect_equal(
+    check_stan_iter_sampling(NULL),
+    1000
+  )
+
+  expect_equal(
+    check_stan_iter_sampling(""),
+    1000
+  )
+
+  x <- "character"
+  expect_error(
+    check_stan_iter_sampling(x),
+    paste0("Error: the parameter must be able to be converted to \"numeric\". ", x, ".")
+  )
+
+})
+
+## check_snap_tol, check_use_pop_weight, check_sfrac_thresh, check_ingest_covariates, check_ingest_new_covariates, check_stan_debug, check_stan_model, get_all_config_options, check_update_config
+
 test_that("get_all_config_options works",{
   config_options <- get_all_config_options()
 
@@ -541,7 +761,6 @@ test_that("get_all_config_options works",{
   expect_equal(config_options$ncpus_parallel_prep, as.function(check_ncpus_parallel_prep))
   expect_equal(config_options$do_parallel_prep, as.function(check_do_parallel_prep))
   expect_equal(config_options$obs_model, as.function(check_obs_model))
-  expect_equal(config_options$od_param, as.function(check_od_param))
   expect_equal(config_options$time_effect, stan_check)
   expect_equal(config_options$time_effect_autocorr, stan_check)
   expect_equal(config_options$use_intercept, stan_check)
@@ -565,7 +784,7 @@ test_that("get_all_config_options works",{
   expect_equal(config_options$sfrac_thresh, as.function(check_sfrac_thresh))
   expect_equal(config_options$ingest_covariates, as.function(check_ingest_covariates))
   expect_equal(config_options$ingest_new_covariates, as.function(check_ingest_covariates))
-  expect_equal(config_options$stan, c("ncores", "model", "genquant", "niter", "recompile"))
+  expect_equal(config_options$stan, c("ncores", "model", "genquant", "iter_warmup", "iter_sampling", "recompile"))
   expect_equal(config_options$file_names, file_name_list)
 })
 
@@ -597,6 +816,7 @@ test_that("check_sfrac_thresh works", {
   config_null <- yaml::read_yaml(tempfile)
   expect_equal(check_sfrac_thresh(sfrac_thresh = config_null$sfrac_thresh), 0.001)
 })
+
 
 test_that("check_use_pop_weight works", {
   tmpfile <- tempfile(fileext = ".yml")
@@ -683,3 +903,4 @@ test_that("check_stan_debug works", {
   "Debug needs to be logical") 
 })
 ##check_stan_model, check_update_config
+

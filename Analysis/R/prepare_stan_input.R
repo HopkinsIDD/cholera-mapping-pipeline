@@ -233,7 +233,7 @@ prepare_stan_input <- function(
       
       cat("-- Dropping", length(censored_zero_obs), "observations that are 0 and censored.\n")
       
-      sf_cases_resized <- sf_cases_resized[-censored_zero_obs, ]
+      sf_cases_resized <- sf_cases_resized[-c(censored_zero_obs), ]
       
       ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
         df = sf_cases_resized, 
@@ -245,6 +245,7 @@ prepare_stan_input <- function(
       
       # First define censored observations
       stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
+
       stan_data$M <- nrow(sf_cases_resized)
       non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
       obs_changer <- taxdat::make_changer(x = non_na_obs_resized) 
@@ -362,6 +363,31 @@ prepare_stan_input <- function(
   stan_data$ind_right <- which(censoring_inds == "right-censored") %>% array()
   stan_data$M_right <- length(stan_data$ind_right)
   stan_data$censoring_inds <- censoring_inds
+  
+  # Administrative levels for observation model
+  admin_levels <- sf_cases_resized$location_name %>% 
+    purrr::map_dbl(~ taxdat::get_admin_level(.)) %>% 
+    as.array()
+  
+  n_na_admin <- sum(is.na(admin_levels))
+  
+  if (n_na_admin > 0) {
+    cat("---- Replacing unknown admin level for ", n_na_admin, " observations corresponding to",
+        sum(stan_data$y[is.na(admin_levels)]), "cases. \n")
+  }
+  
+  # Make sure all admin levels are specified
+  admin_levels[is.na(admin_levels)] <- max(admin_levels, na.rm = T)
+  
+  # Get unique levels, this is necessary if not all admin levels are present
+  # in the data
+  u_admin_levels <- sort(unique(admin_levels))
+  
+  # index staring at 1
+  stan_data$map_obs_admin_lev <- purrr::map_dbl(admin_levels, ~ which(u_admin_levels == .))
+  
+  # Add unique number of admin levels for use in observation model
+  stan_data$N_admin_lev <- length(u_admin_levels)
   
   # ---- H. Mean rate ----
   stan_data$meanrate <- taxdat::compute_mean_rate(stan_data = stan_data)
@@ -494,9 +520,7 @@ prepare_stan_input <- function(
     stan_data$debug <- debug
   }
   
-  # ---- L. Observation model ----
-  # Add quasi-poisson/neg-binom overdispersion parameter
-  stan_data$od_param <- config$od_param
+  # ---- L. Covariates ----
   
   # Option for double-exponential prior on betas
   stan_data$exp_prior <- config$exp_prior
@@ -520,7 +544,26 @@ prepare_stan_input <- function(
   # Add scale of prior on the sd of regression coefficients
   stan_data$beta_sigma_scale <- config$beta_sigma_scale
   
-  # ---- O. Data Structure Check ----
+  # Priors for intercept
+  stan_data$mu_alpha <- config$mu_alpha
+  stan_data$sd_alpha <- config$sd_alpha
+  
+  # Priors for observation model overdispersion parameters in negative-binomial model
+  # We model the od parameter on the 1/tau constrained to be positive scale to facilitate setting priors
+  # We assume that the largest admin level (admin level 0 for national) has
+  # an informative prior so as to produce little overdispersion. The over-dispersion for other
+  # admin levels are allowed to have more prior support for larger amount of over-dispersion.
+  stan_data$mu_inv_od <- rep(0, stan_data$N_admin_lev)   # center at 0 (note that this is on the scale of 1/tau)
+  stan_data$sd_inv_od <- c(config$inv_od_sd_adm0, 
+                           rep(config$inv_od_sd_nopool,
+                               stan_data$N_admin_lev - 1))
+  
+  # Prior on the std_dev_w
+  stan_data$mu_sd_w <- config$mu_sd_w
+  stan_data$sd_sd_w <- config$sd_sd_w
+
+
+  # ---- P. Data Structure Check ----
   taxdat::check_stan_input_objects(censoring_thresh = config$censoring_thresh, sf_cases, stan_data, sf_cases_resized)
   
 
@@ -534,6 +577,7 @@ prepare_stan_input <- function(
          sf_grid = sf_grid,
          smooth_grid  = smooth_grid,
          fake_output_obs = fake_output_obs,
-         config = config)
+         config = config,
+         u_admin_levels = u_admin_levels)
   )
 }

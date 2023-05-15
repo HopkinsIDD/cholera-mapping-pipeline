@@ -923,7 +923,7 @@ aggregate_observations <- function(sf_cases_resized,
   if (do_parallel) {
     
     df_split <- sf_cases_resized %>%
-      dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
+      dplyr::group_by(loctime, OC_UID, locationPeriod_id, location_name) %>%
       dplyr::group_split() 
     
     nchunk <- n_cpus * 5
@@ -936,7 +936,7 @@ aggregate_observations <- function(sf_cases_resized,
     ) %dopar% {
       rs %>% 
         dplyr::bind_rows() %>% 
-        dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
+        dplyr::group_by(loctime, OC_UID, locationPeriod_id, location_name) %>%
         dplyr::group_modify(.f = aggregate_single_lp,
                             verbose = verbose,
                             cases_column = cases_column) %>%
@@ -944,13 +944,14 @@ aggregate_observations <- function(sf_cases_resized,
     }
   } else {
     sf_cases_resized <- sf_cases_resized %>%
-      dplyr::group_by(loctime, OC_UID, locationPeriod_id) %>%
+      dplyr::group_by(loctime, OC_UID, locationPeriod_id, location_name) %>%
       dplyr::group_modify(.f = aggregate_single_lp, 
                           verbose = verbose,
                           cases_column = cases_column) %>%
       dplyr::ungroup()
   } %>% 
     dplyr::arrange(loctime, OC_UID, locationPeriod_id)
+
   
   # sf_cases_resized$geom <- sf::st_as_sfc(sf_cases_resized$geom)
   sf_cases_resized <- sf::st_as_sf(sf_cases_resized)
@@ -1083,17 +1084,80 @@ compute_pop_loctimes <- function(stan_data) {
   pop_loctimes
 }
 
-#' Title
+
+#' get_admin_level
 #'
-#' @param censoring_thresh
-#' @param sf_cases 
-#' @param stan_data 
-#' @param sf_cases_resized
+#' @param location_name 
 #'
 #' @return
 #' @export
 #'
 #' @examples
+get_admin_level <- function(location_name) {
+  
+  # Set admin levels for TZA: AFR::TZA, AFR::TZA::Mainland, and AFR::TZA::Zanzibar are adm0
+  if (stringr::str_detect(location_name, "TZA")) {
+    location_name <- stringr::str_remove(location_name, "::Mainland|::Zanzibar")
+  }
+  
+  stringr::str_count(location_name, "::") %>% 
+    as.numeric() %>% 
+    # Remove the continent nesting
+    {.-1}
+}
+
+#' Q_sum_to_zero_QR
+#' https://discourse.mc-stan.org/t/test-soft-vs-hard-sum-to-zero-constrain-choosing-the-right-prior-for-soft-constrain/3884/31
+#' @param N 
+#'
+#' @return
+#' @export
+#'
+Q_sum_to_zero_QR <- function(N) {
+  Q_r = rep(0, 2*N);
+  
+  for(i in 1:N) {
+    Q_r[i] = -sqrt((N-i)/(N-i+1.0));
+    Q_r[i+N] = 1/sqrt((N-i) * (N-i+1));
+    
+    if (is.infinite(Q_r[i+N])) {
+      Q_r[i+N] <- 0
+    }
+  }
+  Q_r
+}
+
+#' sum_to_zero_QR
+#'
+#' @param x_raw 
+#' @param Q_r 
+#'
+#' @return
+#' @export
+#'
+sum_to_zero_QR <- function(x_raw, 
+                           Q_r) {
+  
+  N = length(x_raw) + 1;
+  x = rep(0, N);
+  x_aux = 0;
+  
+  for(i in 1:(N-1)){
+    x[i] = x_aux + x_raw[i] * Q_r[i];
+    x_aux = x_aux + x_raw[i] * Q_r[i+N];
+  }
+  x[N] = x_aux;
+  x;
+}
+
+#' check_stan_input_objects
+#'
+#' @param censoring_thresh
+#' @param sf_cases 
+#' @param stan_data 
+#' @param sf_cases_resized
+#' @export
+#' 
 check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_cases_resized){
   # Test 1: the same number of observations
   if(!identical(
