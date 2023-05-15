@@ -1,9 +1,10 @@
 #!/bin/bash
-#SBATCH --job-name submit_multiple_years
-#SBATCH --time=2-23:59:00
-#SBATCH --mem=20G
-#SBATCH -c 4
-#SBATCH --array=0-43%10
+#SBATCH --job-name ID-XX
+#SBATCH --time=2-23:59:59
+#SBATCH --mem=12G
+#SBATCH --array=0-9%10
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
 #SBATCH --partition=defq
 #SBATCH --account=aazman1
 
@@ -36,7 +37,7 @@ ml r-rstan
 
 export CHOLERA_ON_MARCC=TRUE
 export CHOLERA_PIPELINE_DIRECTORY=/data/aazman1/$USER/cholera-mapping-pipeline/
-export CHOLERA_CONFIG_DIRECTORY=/data/aazman1/$USER/cholera-configs/no_covariate_production_2016_2020/2016_2020_country
+export CHOLERA_CONFIG_DIRECTORY=/data/aazman1/$USER/cholera-configs/.../
 export R_LIBS_USER=$HOME/rlibs/cmp/$R_VERSION/gcc/$GCC_VERSION/
 export CMDSTAN_LOCATION=/data/aazman1/$USER/cmdstan
 export CHOLERA_SKIP_STAN=FALSE
