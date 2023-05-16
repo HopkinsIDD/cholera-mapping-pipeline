@@ -31,7 +31,7 @@ cmdstan_fit <- chol_model$sample(
   parallel_chains = nchain,
   iter_warmup = iter_warmup,
   iter_sampling = iter_sampling,
-  max_treedepth = 15,
+  max_treedepth = 13,
   metric = "diag_e",
   adapt_delta = 0.8,
   init = initial_values_data$init.list,
