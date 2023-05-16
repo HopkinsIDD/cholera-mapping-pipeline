@@ -724,8 +724,6 @@ test_that("check_stan_iter_sampling works",{
   
 })
 
-## check_snap_tol, check_use_pop_weight, check_sfrac_thresh, check_ingest_covariates, check_ingest_new_covariates, check_stan_debug, check_stan_model, get_all_config_options, check_update_config
-
 test_that("get_all_config_options works",{
   config_options <- get_all_config_options()
   
@@ -900,5 +898,22 @@ test_that("check_stan_debug works", {
   config_error <- yaml::read_yaml(tmpfile)
   expect_error(check_stan_debug(debug = config_error$debug),
                "Debug needs to be logical") 
+})
+
+test_that("check_stan_model works", {
+  exist <- paste0("/home/usr/cholera_mapping_pipeline/Analysis/Stan/",
+    "mapping_model_inference_normal_nocensprior_fixedadm0_mix_sigmainf.stan")
+  mock_file_exists <- function(file) {
+    if (file == exist) {
+      return(TRUE)
+    } else {
+      return(FALSE)
+    }
+  }
+  stan_dir <- "/home/usr/cholera_mapping_pipeline/Analysis/Stan/"
+  testthat::with_mock(file.exists = mock_file_exists, {
+    expect_equal(check_stan_model(exist, stan_dir), exist)
+    expect_error(check_stan_model("not_exist", "stan_dir"))
+  }) 
 })
 ##check_stan_model, check_update_config
