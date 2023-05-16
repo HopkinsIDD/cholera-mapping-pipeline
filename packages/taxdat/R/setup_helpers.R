@@ -303,6 +303,21 @@ check_obs_model <- function(obs_model) {
   return(obs_model)
 }
 
+#' @include file_name_functions.R
+#' @title check_od_param
+#' @description Checks whether the od_param is valid
+#' @param obs_model the obs_model parameter in the config
+#' @param od_param the od_param parameter in the config
+#' @return od_param if valid
+#' @export
+check_od_param <- function(obs_model, od_param) {
+  
+  od_param <- check_od_param_generic(x = od_param,
+                                     obs_model = obs_model,
+                                     default_value = 1)
+  
+  return(od_param)
+}
 
 #' @title Check aggregate
 #' @description Checks what aggregate setting should be applied, with a default of true.
@@ -429,8 +444,6 @@ check_set_tfrac <- function(set_tfrac) {
 #' @export
 #'
 check_snap_tol <- function(snap_tol, res_time) {
-
-  
   if (!is.null(snap_tol)) {
     snap_tol <- tryCatch(
       eval(parse(text = snap_tol)),
@@ -439,7 +452,6 @@ check_snap_tol <- function(snap_tol, res_time) {
         print(e)
       })
     
-
     if (snap_tol < 0) {
       stop("Cannot specifiy negative snap tolerance values")
     }
@@ -454,7 +466,6 @@ check_snap_tol <- function(snap_tol, res_time) {
     cat("---- By default, running with value of snap tolerance 7/365:", snap_tol,
         "[", res_time, "]\n")
   }
-
   
   return(snap_tol)
 }
@@ -558,7 +569,7 @@ check_stan_model <- function(stan_model_path, stan_dir) {
                                                             ""), "\n")
   
   return(stan_model_path)
-
+  
 }
 
 
@@ -871,7 +882,7 @@ check_sd_alpha <- function(x,
   } else {
     par <- try_conv_numeric(x)
   }
-
+  
   par
 }
 
@@ -943,6 +954,28 @@ check_stan_iter_warmup <- function(x,
 #'
 check_stan_iter_sampling <- function(x,
                                      default_value = 1000) {
+  
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- try_conv_numeric(x)
+  }
+  
+  par
+}
+
+
+
+#' Title
+#'
+#' @param x 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_max_treedepth <- function(x,
+                                default_value = 12) {
   
   if (unspecified_parameter_check(x)) {
     par <- default_value

@@ -176,7 +176,11 @@ transformed data {
       size_sd_eta = 0;
     } else {
       size_eta = T;
-      size_sd_eta = 1;
+      if (do_infer_sd_eta == 1) {
+        size_sd_eta = 1;
+      } else {
+        size_sd_eta = 0;
+      }
     }
   } else {
     size_eta = 0;
@@ -192,6 +196,7 @@ parameters {
   real <lower=0, upper=1> rho;    // spatial correlation parameter
   real<lower=0> std_dev_w;             // precision of the spatial effects
   vector[smooth_grid_N] w;        // spatial random effect
+  real<lower=0, upper=1> lambda;
   
   // Temporal random effects
   vector[size_eta] eta_tilde;    // uncentered temporal random effects
@@ -201,14 +206,15 @@ parameters {
   vector[ncovar] betas;
   
   // Overdispersion parameters
-  vector<lower=0>[N_admin_lev*do_overdispersion] inv_od_param;
+  vector<lower=0>[(N_admin_lev-1)*do_overdispersion] inv_od_param;
 }
 transformed parameters {
   vector[N_admin_lev*do_overdispersion] od_param;
   
   if (do_overdispersion == 1) {
-    for (i in 1:N_admin_lev) {
-      od_param[i] = 1/inv_od_param[i];
+    od_param[1] = 1e-2;
+    for (i in 2:N_admin_lev) {
+      od_param[i] = 1/inv_od_param[(i-1)];
     }
   }
 }
@@ -250,7 +256,7 @@ generated quantities {
   
   
   // ---- Part A: Grid-level rates and cases ----
-  if (do_infer_sd_eta == 1) {
+  if (size_sd_eta == 1) {
     sigma_eta_val = sigma_eta[1];
   } else {
     sigma_eta_val = sigma_eta_scale;

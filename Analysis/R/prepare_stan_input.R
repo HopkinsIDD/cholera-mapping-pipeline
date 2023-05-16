@@ -124,6 +124,16 @@ prepare_stan_input <- function(
     stan_data$ncovar <- 0
   }
   
+  
+  # ---- Ç. Pre-Aggregation Duplicates Removal in sf_cases ----
+  sf_cases_dup_obs <- sf_cases %>% 
+    sf::st_drop_geometry() %>%
+    # don't decide on duplicates based on these variables 
+    dplyr::select(-dplyr::one_of("id", "deaths")) %>%
+    duplicated()
+  
+  sf_cases <- sf_cases[!sf_cases_dup_obs, ]
+  
   # ---- C. Aggregation ----
   
   # Mapping between observations to location periods and between
@@ -245,7 +255,7 @@ prepare_stan_input <- function(
       
       # First define censored observations
       stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
-
+      
       stan_data$M <- nrow(sf_cases_resized)
       non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
       obs_changer <- taxdat::make_changer(x = non_na_obs_resized) 
@@ -351,7 +361,8 @@ prepare_stan_input <- function(
     stan_data$map_loc_grid_sfrac <- pmin(1, stan_data$map_loc_grid_sfrac)
   }
   
-  #  ---- G. Observations ----
+  
+  #  ---- H. Observations ----
   stan_data$y <- as.array(sf_cases_resized[[cases_column]])
   
   # Get censoring indexes 
@@ -364,6 +375,25 @@ prepare_stan_input <- function(
   stan_data$M_right <- length(stan_data$ind_right)
   stan_data$censoring_inds <- censoring_inds
   
+  # ---- G. Mappings ----
+  stan_data$K1 <- length(stan_data$map_obs_loctime_obs)
+  stan_data$K2 <- length(stan_data$map_loc_grid_loc)
+  stan_data$L <- length(ind_mapping_resized$u_loctimes)
+  
+  full_grid <- sf::st_drop_geometry(sf_grid) %>% 
+    dplyr::left_join(sf::st_drop_geometry(smooth_grid)) %>% 
+    dplyr::select(upd_id, smooth_id, t)
+  
+  stan_data$smooth_grid_N <- nrow(smooth_grid)
+  stan_data$map_smooth_grid <- full_grid$smooth_id
+  stan_data$map_grid_time <- full_grid$t
+  stan_data['T'] <- nrow(time_slices)
+  stan_data$map_full_grid <- full_grid$upd_id
+  
+  # What observation model to use
+  stan_data$obs_model <- config$obs_model
+  
+  # First define admin levels to get data ad upper admin levels
   # Administrative levels for observation model
   admin_levels <- sf_cases_resized$location_name %>% 
     purrr::map_dbl(~ taxdat::get_admin_level(.)) %>% 
@@ -389,28 +419,45 @@ prepare_stan_input <- function(
   # Add unique number of admin levels for use in observation model
   stan_data$N_admin_lev <- length(u_admin_levels)
   
-  # ---- H. Mean rate ----
+  # Map from space x time grid to space grid
+  sf_grid <- sf_grid %>% 
+    dplyr::group_by(rid, x, y) %>% 
+    dplyr::mutate(space_id = min(upd_id)) %>% 
+    dplyr::ungroup()
+  
+  stan_data$N_space <- length(unique(sf_grid$space_id))
+  stan_data$map_spacetime_space_grid <- sf_grid$space_id[sf_grid$upd_id]
+  
+  # ---- I. Mean rate ----
   stan_data$meanrate <- taxdat::compute_mean_rate(stan_data = stan_data)
   
-  # ---- I. Mappings ----
-  stan_data$K1 <- length(stan_data$map_obs_loctime_obs)
-  stan_data$K2 <- length(stan_data$map_loc_grid_loc)
-  stan_data$L <- length(ind_mapping_resized$u_loctimes)
+  #  ---- J. Imputation ----
   
-  full_grid <- sf::st_drop_geometry(sf_grid) %>% 
-    dplyr::left_join(sf::st_drop_geometry(smooth_grid)) %>% 
-    dplyr::select(upd_id, smooth_id, t)
+  sf_cases_resized$admin_level <- admin_levels
+  sf_cases_resized$censoring <- censoring_inds
+  sf_cases_resized <- sf_cases_resized %>% 
+    dplyr::mutate(ref_TL = taxdat::get_start_timeslice(TL, res_time),
+                  ref_TR = taxdat::get_end_timeslice(TR, res_time),
+                  obs_id = dplyr::row_number())
   
-  stan_data$smooth_grid_N <- nrow(smooth_grid)
-  stan_data$map_smooth_grid <- full_grid$smooth_id
-  stan_data$map_grid_time <- full_grid$t
-  stan_data['T'] <- nrow(time_slices)
-  stan_data$map_full_grid <- full_grid$upd_id
   
-  # What observation model to use
-  stan_data$obs_model <- config$obs_model
+  sf_cases_resized <- taxdat::impute_adm0_obs(sf_cases_resized = sf_cases_resized,
+                                              stan_data = stan_data,
+                                              time_slices = time_slices,
+                                              res_time = res_time,
+                                              cases_column = cases_column,
+                                              frac_coverage_thresh = 0.1)
   
-  # ---- J. Data for output summaries ----
+  stan_data <- taxdat::update_stan_data_imputation(sf_cases_resized = sf_cases_resized,
+                                                   stan_data = stan_data,
+                                                   time_slices = time_slices,
+                                                   res_time = res_time,
+                                                   cases_column = cases_column)
+  
+  # Update censoring inds in sf_cases_resized
+  sf_cases_resized$censoring <- stan_data$censoring_inds
+  
+  # ---- K. Data for output summaries ----
   
   # Set user-specific name for location_periods table to use
   output_lp_name <- taxdat::make_output_locationperiods_table_name(
@@ -495,7 +542,7 @@ prepare_stan_input <- function(
     stan_data$map_loc_grid_sfrac_output <- array(data = 0, dim = 0)
   }
   
-  # ---- K. Population at risk ----
+  # ---- L. Population at risk ----
   # Data for people at risk
   risk_cat_low <- c(0, 1, 10, 100)*1e-5
   risk_cat_high <- c(risk_cat_low[-1], 1e6)
@@ -504,15 +551,6 @@ prepare_stan_input <- function(
   stan_data$risk_cat_low <- risk_cat_low
   stan_data$risk_cat_high <- risk_cat_high
   
-  # Map from space x time grid to space grid
-  sf_grid <- sf_grid %>% 
-    dplyr::group_by(rid, x, y) %>% 
-    dplyr::mutate(space_id = min(upd_id)) %>% 
-    dplyr::ungroup()
-  
-  stan_data$N_space <- length(unique(sf_grid$space_id))
-  stan_data$map_spacetime_space_grid <- sf_grid$space_id[sf_grid$upd_id]
-  
   # Option for debug mode
   if (debug) {
     stan_data$debug <- 0
@@ -520,13 +558,13 @@ prepare_stan_input <- function(
     stan_data$debug <- debug
   }
   
-  # ---- L. Covariates ----
+  # ---- M. Covariates ----
   
   # Option for double-exponential prior on betas
   stan_data$exp_prior <- config$exp_prior
   
   
-  # ---- M. Other options for stan ----
+  # ---- N. Other options for stan ----
   # Use intercept
   stan_data$use_intercept <- config$use_intercept
   
@@ -537,7 +575,7 @@ prepare_stan_input <- function(
   stan_data$do_infer_sd_eta <- config$do_infer_sd_eta
   
   
-  # ---- N. Priors ----
+  # ---- O. Priors ----
   # Set sigma_eta_scale for all models (not used for models without time effect)
   stan_data$sigma_eta_scale <- config$sigma_eta_scale
   
@@ -561,12 +599,14 @@ prepare_stan_input <- function(
   # Prior on the std_dev_w
   stan_data$mu_sd_w <- config$mu_sd_w
   stan_data$sd_sd_w <- config$sd_sd_w
-
-
-  # ---- P. Data Structure Check ----
-  taxdat::check_stan_input_objects(censoring_thresh = config$censoring_thresh, sf_cases, stan_data, sf_cases_resized)
   
-
+  # ---- P. Data Structure Check ----
+  taxdat::check_stan_input_objects(censoring_thresh = config$censoring_thresh, 
+                                   sf_cases = sf_cases, 
+                                   stan_data = stan_data, 
+                                   sf_cases_resized = sf_cases_resized)
+  
+  
   cat("**** FINISHED PREPARING STAN INPUT \n")
   taxdat::close_parallel_setup()
   

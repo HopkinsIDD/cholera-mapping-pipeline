@@ -18,6 +18,40 @@ compute_tfrac <- function(TL,
   tfrac
 }
 
+#' get_start_timeslice
+#' Computes the start of the time slices corresponding to the given date
+#' 
+#' @param x date for which to compute the start of the time slice
+#' @param res_time 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_start_timeslice <- function(x, res_time) {
+  time_change_func <- time_unit_to_aggregate_function(res_time)
+  aggregate_to_start <- time_unit_to_start_function(res_time)
+  
+  aggregate_to_start(time_change_func(x))
+}
+
+#' get_end_timeslice
+#' Computes the start of the time slices corresponding to the given date
+#'
+#' @param x 
+#' @param res_time 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_end_timeslice <- function(x, res_time) {
+  time_change_func <- time_unit_to_aggregate_function(res_time)
+  aggregate_to_end <- time_unit_to_end_function(res_time)
+  
+  aggregate_to_end(time_change_func(x))
+}
+
 #'
 #' @param TL 
 #' @param TR 
@@ -32,15 +66,12 @@ snap_to_time_period <- function(TL,
                                 tol) {
   
   # Get the corresponding aggregator units
-  time_change_func <- time_unit_to_aggregate_function(res_time)
-  aggregate_to_start <- time_unit_to_start_function(res_time)
-  aggregate_to_end <- time_unit_to_end_function(res_time)
   
-  ref_period_L <- c("TL" = aggregate_to_start(time_change_func(TL)),
-                    "TR" = aggregate_to_end(time_change_func(TL)))
+  ref_period_L <- c("TL" = get_start_timeslice(TL, res_time),
+                    "TR" = get_end_timeslice(TL, res_time))
   
-  ref_period_R <- c("TL" = aggregate_to_start(time_change_func(TR)),
-                    "TR" = aggregate_to_end(time_change_func(TR)))
+  ref_period_R <- c("TL" = get_start_timeslice(TR, res_time),
+                    "TR" = get_end_timeslice(TR, res_time))
   
   # Check if observation covers more than 2 time slices
   if (difftime(ref_period_R["TL"], ref_period_L["TR"], units = "days") > 1) {
