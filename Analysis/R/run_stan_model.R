@@ -14,6 +14,20 @@ print("*** STARTING STAN MODEL ***")
 library(cmdstanr)
 library(rstan)
 
+
+# Get runtime parameters --------------------------------------------------
+
+max_treedepth <- taxdat::check_max_treedepth(Sys.getenv("MAX_TREEDEPTH"))
+
+cat("-- Running with runtime parameters:\n",
+    paste0(
+      "\t- ", 
+      c("max_treedepth"), 
+      ": ", 
+      c(max_treedepth)
+    )
+)
+
 # Run model ---------------------------------------------------------------
 
 # Compile cmdstanr model
@@ -31,7 +45,7 @@ cmdstan_fit <- chol_model$sample(
   parallel_chains = nchain,
   iter_warmup = iter_warmup,
   iter_sampling = iter_sampling,
-  max_treedepth = 13,
+  max_treedepth = max_treedepth,
   metric = "diag_e",
   adapt_delta = 0.8,
   init = initial_values_data$init.list,

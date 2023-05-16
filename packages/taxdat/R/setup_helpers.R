@@ -963,3 +963,25 @@ check_stan_iter_sampling <- function(x,
   
   par
 }
+
+
+
+#' Title
+#'
+#' @param x 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_max_treedepth <- function(x,
+                                default_value = 12) {
+  
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- try_conv_numeric(x)
+  }
+  
+  par
+}
