@@ -315,7 +315,7 @@ check_od_param <- function(obs_model, od_param) {
   od_param <- check_od_param_generic(x = od_param,
                                      obs_model = obs_model,
                                      default_value = 1)
-
+  
   return(od_param)
 }
 
@@ -466,7 +466,7 @@ check_snap_tol <- function(snap_tol, res_time) {
     cat("---- By default, running with value of snap tolerance 7/365:", snap_tol,
         "[", res_time, "]\n")
   }
-
+  
   return(snap_tol)
 }
 
@@ -569,7 +569,7 @@ check_stan_model <- function(stan_model_path, stan_dir) {
                                                             ""), "\n")
   
   return(stan_model_path)
-
+  
 }
 
 
@@ -642,14 +642,10 @@ get_all_config_options <- function() {
     obs_model = as.function(check_obs_model), 
     inv_od_sd_adm0 = as.function(check_od_param_sd_prior_adm0),
     inv_od_sd_nopool = as.function(check_od_param_sd_prior_noopoling),
-    h_mu_sd_inv_od = as.function(check_od_param_mu_sd_prior_pooling),
-    h_sd_sd_inv_od = as.function(check_od_param_sd_sd_prior_pooling),
     mu_sd_w = as.function(check_mu_sd_w), 
     sd_sd_w = as.function(check_sd_sd_w), 
     ncpus_parallel_prep = as.function(check_ncpus_parallel_prep),
     do_parallel_prep = as.function(check_do_parallel_prep),
-    obs_model = as.function(check_obs_model), 
-    od_param = as.function(check_od_param),
     time_effect = "stan-check", 
     time_effect_autocorr = "stan-check", 
     use_intercept = "stan-check",
@@ -718,7 +714,6 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
   config_file <- append(config_file[!names(config_file) %in% names(iteration_unrelated)],
                         iteration_unrelated)
   
-
   config_file$stan <- lapply(iteration_params, function(x) {
     updated_stan_parameters[[x]]
   })
@@ -726,9 +721,7 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
   
   ### The general check
   for (nm in names(check_list)) {
-    if (nm == "od_param") {
-      config_file[[nm]] <- check_list[[nm]](config_file[["obs_model"]], config_file[[nm]])
-    } else if (nm == "covariate_choices") {
+    if (nm == "covariate_choices") {
       config_file[[nm]] <- check_list[[nm]](config_file[[nm]], all_covariates)
     } else if (nm == "snap_tol") {
       config_file[[nm]] <- check_list[[nm]](config_file[[nm]], config_file[["res_time"]])
@@ -853,43 +846,6 @@ check_od_param_sd_prior_adm0 <- function(obs_model,
   
 }
 
-#' check_od_param_mu_sd_prior_pooling
-#'
-#' @param obs_model 
-#' @param h_mu_sd_inv_od 
-#'
-#' @return
-#' @export
-#'
-check_od_param_mu_sd_prior_pooling <- function(obs_model,
-                                               h_mu_sd_inv_od) {
-  
-  h_mu_sd_inv_od_updated <- check_od_param_generic(x = h_mu_sd_inv_od,
-                                                   obs_model = obs_model,
-                                                   default_value = 1e-2)
-  
-  return(h_mu_sd_inv_od_updated)
-  
-}
-
-#' check_od_param_sd_sd_prior_pooling
-#'
-#' @param obs_model 
-#' @param h_sd_sd_inv_od 
-#'
-#' @return
-#' @export
-#'
-check_od_param_sd_sd_prior_pooling <- function(obs_model,
-                                               h_sd_sd_inv_od) {
-  
-  h_sd_sd_inv_od_updated <- check_od_param_generic(x = h_sd_sd_inv_od,
-                                                   obs_model = obs_model,
-                                                   default_value = 5e-2)
-  
-  return(h_sd_sd_inv_od_updated)
-}
-
 #' check_mu_alpha
 #'
 #' @param x 
@@ -926,7 +882,7 @@ check_sd_alpha <- function(x,
   } else {
     par <- try_conv_numeric(x)
   }
-
+  
   par
 }
 

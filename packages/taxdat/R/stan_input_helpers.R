@@ -952,7 +952,6 @@ aggregate_observations <- function(sf_cases_resized,
   } %>% 
     dplyr::arrange(loctime, OC_UID, locationPeriod_id)
   
-  
   # sf_cases_resized$geom <- sf::st_as_sfc(sf_cases_resized$geom)
   sf_cases_resized <- sf::st_as_sf(sf_cases_resized)
   sf::st_crs(sf_cases_resized) <- ocrs
@@ -1217,6 +1216,12 @@ get_sfrac_loctime <- function(stan_data, loctime) {
 #'
 #' @examples
 get_admin_level <- function(location_name) {
+  
+  # Set admin levels for TZA: AFR::TZA, AFR::TZA::Mainland, and AFR::TZA::Zanzibar are adm0
+  if (stringr::str_detect(location_name, "TZA")) {
+    location_name <- stringr::str_remove(location_name, "::Mainland|::Zanzibar")
+  }
+  
   stringr::str_count(location_name, "::") %>% 
     as.numeric() %>% 
     # Remove the continent nesting
