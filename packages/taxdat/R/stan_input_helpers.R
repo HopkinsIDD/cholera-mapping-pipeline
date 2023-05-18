@@ -1318,38 +1318,34 @@ check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_c
   }
   
   # Test 3: compare the sums of sf_cases, sf_cases_resized across each OC-locationPeriod-year combination
-  sf_cases_no_dup <- sf_cases %>%
+  # sf_cases_no_dup <- sf_cases %>%
+  #   sf::st_drop_geometry() %>%
+  #   dplyr::select(OC_UID, TL, TR, location_name, locationPeriod_id, attributes.fields.suspected_cases) %>%
+  #   dplyr::distinct()
+  
+  sf_cases_summary<-sf_cases%>%
     sf::st_drop_geometry() %>%
-    dplyr::select(OC_UID, TL, TR, location_name, locationPeriod_id, attributes.fields.suspected_cases) %>%
-    dplyr::distinct()
-  
-  sf_cases_cmb <- dplyr::bind_rows(
-    sf_cases_no_dup %>% 
-      dplyr::select(OC_UID, locationPeriod_id, attributes.fields.suspected_cases) %>%
-      dplyr::mutate(token = "prior"), 
-    sf_cases_resized %>% 
-      sf::st_drop_geometry() %>%
-      # !! Drop imputed cases
-      dplyr::filter(!stringr::str_detect(location_name, "impute")) %>% 
-      dplyr::select(OC_UID,locationPeriod_id, attributes.fields.suspected_cases) %>% 
-      dplyr::mutate(token = "after")
-  )
-  
-  sf_cases_cmb <- sf_cases_cmb %>%
-    dplyr::group_by(OC_UID, locationPeriod_id, token) %>%
-    dplyr::summarize(cases = sum(attributes.fields.suspected_cases)) %>%
     dplyr::group_by(OC_UID, locationPeriod_id) %>%
-    dplyr::summarize(compare = ifelse(min(cases) == max(cases), "pass", "fail"),
-                     case_txt = stringr::str_c(token, cases, sep = ":") %>% 
-                       stringr::str_c(collapse = " / "))
+    dplyr::summarise(sCh=sum(attributes.fields.suspected_cases)) 
+  
+  sf_cases_resized_summary<-sf_cases_resized %>% 
+    sf::st_drop_geometry() %>%
+    # !! Drop imputed cases
+    dplyr::filter(!stringr::str_detect(location_name, "impute")) %>% 
+    dplyr::group_by(OC_UID, locationPeriod_id) %>%
+    dplyr::summarise(resized_sCh=sum(attributes.fields.suspected_cases)) 
+  
+  sf_cases_cmb<-merge(sf_cases_summary,sf_cases_resized_summary,by=c("OC_UID","locationPeriod_id")) %>%
+    mutate(compare=ifelse(sCh>=resized_sCh,"pass","fail"))# as long as the total cases in sf_cases object are >= total cases in sf_cases_resized
   
   if(any(sf_cases_cmb$compare == "fail")){
     OCs <- sf_cases_cmb[sf_cases_cmb$compare == "fail", ]$OC_UID
     LPs <- sf_cases_cmb[sf_cases_cmb$compare == "fail", ]$locationPeriod_id
-    txt <- sf_cases_cmb[sf_cases_cmb$compare == "fail", ]$case_txt
+    sCh <- sf_cases_cmb[sf_cases_cmb$compare == "fail", ]$sCh
+    resized_sCh <- sf_cases_cmb[sf_cases_cmb$compare == "fail", ]$resized_sCh
     
-    stop(paste0("***** For OC ", OCs, " and location period ", LPs, ", the sum of the cases in preprocess data and that in stan input data are not the same.:\n",
-                stringr::str_c(c("OC", "LP", "txt"), c(OCs, LPs, txt), sep = ":") %>% 
+    stop(paste0("***** For OC ", OCs, " and location period ", LPs, ", the sum of the cases in preprocess data needs to be equal or greater than that in stan input data.:\n",
+                stringr::str_c(c("OC", "LP", "sf cases","sf_cases_resized"), c(OCs, LPs, sCh,resized_sCh), sep = ":") %>% 
                   stringr::str_c(collapse = ", ")))
   }
   
