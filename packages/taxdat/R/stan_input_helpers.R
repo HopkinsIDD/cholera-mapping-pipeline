@@ -1344,7 +1344,7 @@ check_stan_input_objects <- function(censoring_thresh, sf_cases, stan_data, sf_c
     sCh <- sf_cases_cmb[sf_cases_cmb$compare == "fail", ]$sCh
     resized_sCh <- sf_cases_cmb[sf_cases_cmb$compare == "fail", ]$resized_sCh
     
-    stop(paste0("***** For OC ", OCs, " and location period ", LPs, ", the sum of the cases in preprocess data and that in stan input data are not the same.:\n",
+    stop(paste0("***** For OC ", OCs, " and location period ", LPs, ", the sum of the cases in preprocess data needs to be equal or greater than that in stan input data.:\n",
                 stringr::str_c(c("OC", "LP", "sf cases","sf_cases_resized"), c(OCs, LPs, sCh,resized_sCh), sep = ":") %>% 
                   stringr::str_c(collapse = ", ")))
   }
