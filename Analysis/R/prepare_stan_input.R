@@ -543,7 +543,7 @@ prepare_stan_input <- function(
   
   # ---- L. Population at risk ----
   # Data for people at risk
-  risk_cat_low <- c(0, 1, 10, 100)*1e-5
+  risk_cat_low <- c(0, 1, 10, 20, 50, 100)*1e-5
   risk_cat_high <- c(risk_cat_low[-1], 1e6)
   
   stan_data$N_cat <- length(risk_cat_low)
