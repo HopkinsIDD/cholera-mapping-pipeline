@@ -186,7 +186,6 @@ prepare_stan_input <- function(
   
   # Clean unused objects
   rm(ind_mapping)
-  rm(sf_cases)
   
   #  ---- D. Drop tfrac threshold ----
   
@@ -606,6 +605,7 @@ prepare_stan_input <- function(
                                    stan_data = stan_data, 
                                    sf_cases_resized = sf_cases_resized)
   
+  rm(sf_cases)
   
   cat("**** FINISHED PREPARING STAN INPUT \n")
   taxdat::close_parallel_setup()
