@@ -233,13 +233,16 @@ generated quantities {
   real sigma_eta_val;        // value of sigma_eta. This is either fixed to sigma_eta_scale if do_infer_sd_eta==0, or sigma_eta otherwise
   
   // Outputs at given admin levels
-  vector<lower=0>[L_output] location_cases_output; //cases modeled in each (temporal) location.
-  vector<lower=0>[L_output] location_rates_output; //rates modeled in each (temporal) location.
-  vector<lower=0>[L_output_space] location_total_cases_output; //cases modeled in each location across time slices.
-  vector<lower=0>[L_output_space] location_total_rates_output; //rates modeled in each location  across time slices.
-  matrix<lower=0>[L_output_space, N_cat] location_risk_cat_num;    // number of people in each location in each risk category
-  matrix<lower=0>[L_output_space, N_cat] location_risk_cat_prop;    // proportion of people in each location in each risk category
-  int<lower=0> location_risk_cat[L_output_space] ;    // risk category for each space location
+  vector<lower=0>[L_output] location_cases_output;    //cases modeled in each (temporal) location.
+  vector<lower=0>[L_output] location_rates_output;    //rates modeled in each (temporal) location.
+  vector<lower=0>[L_output_space] location_total_cases_output;       //cases modeled in each location across time slices.
+  vector<lower=0>[L_output_space] location_mean_cases_output;    //variance of cases modeled in each location across time slices.
+  vector<lower=0>[L_output_space] location_variance_cases_output;    //variance of cases modeled in each location across time slices.
+  vector<lower=0>[L_output_space] location_cov_cases_output;         //coefficient of variation of modeled in each location across time slices.
+  vector<lower=0>[L_output_space] location_total_rates_output;       //rates modeled in each location  across time slices.
+  matrix<lower=0>[L_output_space, N_cat] location_risk_cat_num;      // number of people in each location in each risk category
+  matrix<lower=0>[L_output_space, N_cat] location_risk_cat_prop;     // proportion of people in each location in each risk category
+  int<lower=0> location_risk_cat[L_output_space] ;           // risk category for each space location
   matrix<lower=0>[N_cat, N_output_adminlev] tot_pop_risk;    // total number of people in admin units in each risk category by admin level
   
   // Data outputs to return (same for all samples)
@@ -459,7 +462,46 @@ generated quantities {
   }
   // ---  End Part E ---
   
-  // ---- Part F: Log-likelihoods ----
+  // ---- Part F: Incidence mean, variance and CoV ----
+  // Compute variance of incidence across years with online algorithm
+  // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+  // https://datascience.stackexchange.com/questions/25858/how-can-i-calculate-mean-and-variance-incrementally
+  {
+    vector[L_output_space] tmp_mean = rep_vector(1e-2, L_output_space);    // incremental mean
+    vector[L_output_space] tmp_ssq = rep_vector(0, L_output_space);        // incremental sum of squares
+    vector[L_output_space] tmp_cnt = rep_vector(0, L_output_space);        // count of observations
+    
+    for (i in 1:L_output) {
+      int j = map_output_loctime_loc[i];
+      real x = location_cases_output[i];
+      if (tmp_cnt[j] == 0) {
+        tmp_mean[j] = x;
+        tmp_ssq[j] = 0;
+        tmp_cnt[j] = 1;
+      } else {
+        real d1 = x - tmp_mean[j];
+        real d2;
+        // Update count
+        tmp_cnt[j] = tmp_cnt[j] + 1;
+        // Update mean
+        tmp_mean[j] += d1/tmp_cnt[j];
+        // Update sum of squares
+        d2 = x - tmp_mean[j];
+        tmp_ssq[j] += d1*d2;
+      }
+    }
+    
+    // set outputs
+    for (i in 1:L_output_space) {
+      location_mean_cases_output[i] = tmp_mean[i];
+      location_variance_cases_output[i] = tmp_ssq[i]/(tmp_cnt[i] - 1);
+      location_cov_cases_output[i] = sqrt(location_variance_cases_output[i])/tmp_mean[i];
+    }
+  }
+  
+  // ---  End Part F ---
+  
+  // ---- Part G: Log-likelihoods ----
   if (do_censoring == 0) {
     for (i in 1:M) {
       if (obs_model == 1) {
@@ -522,6 +564,6 @@ generated quantities {
       }
     }
   }
-  // ---  End Part F ---
+  // ---  End Part G ---
   
 }
