@@ -12,9 +12,16 @@ plot_raster_with_fill <- function(name, color_scale_type, fill_column, cache) {
     raster_object <- cache[[name]]
     fill_column <- grep(stringr::str_remove(fill_column, "s$"), names(raster_object),
         value = TRUE)
-    plot <- ggplot2::ggplot() + ggplot2::geom_sf(data = raster_object, ggplot2::aes_string(fill = fill_column),
-        lwd = 0) + taxdat::color_scale(type = color_scale_type, use_case = "ggplot map") +
-        taxdat::map_theme() + ggplot2::facet_wrap(~t)
+    if(color_scale_type=="cases"){
+      plot <- ggplot2::ggplot() + ggplot2::geom_sf(data = raster_object, ggplot2::aes_string(fill = fill_column),
+                                                   lwd = 0) + taxdat::color_scale(type = color_scale_type, use_case = "ggplot map",use_log = TRUE) +
+        taxdat::map_theme() + ggplot2::facet_wrap(~t)+ggplot2::labs(fill="Incidence\n [cases/year]")      
+    }else if(color_scale_type=="rates"){
+      plot <- ggplot2::ggplot() + ggplot2::geom_sf(data = raster_object, ggplot2::aes_string(fill = fill_column),
+                                                   lwd = 0) + taxdat::color_scale(type = color_scale_type, use_case = "ggplot map",use_log = TRUE) +
+        taxdat::map_theme() + ggplot2::facet_wrap(~t)+ggplot2::labs(fill="Incidence rate\n [cases/10'000/year]")
+    }
+
     return(plot)
 }
 
@@ -28,7 +35,7 @@ plot_raster_with_fill <- function(name, color_scale_type, fill_column, cache) {
 #' @param fill_column modeled_cases mean
 #' @return ggplot object
 plot_modeled_cases_mean_raster <- function(config, cache, cholera_directory) {
-    merge_modeled_cases_mean_into_raster(config, cache, cholera_directory)
+    merge_modeled_cases_mean_into_raster(config=config, cache=cache, cholera_directory=cholera_directory,name = "modeled_cases_mean_raster")
     plot <- plot_raster_with_fill(name = "modeled_cases_mean_raster", color_scale_type = "cases",
         fill_column = "modeled_cases_mean", cache = cache)
     return(plot)
@@ -45,7 +52,7 @@ plot_modeled_cases_mean_raster <- function(config, cache, cholera_directory) {
 #' @param fill_column modeled rates mean
 #' @return ggplot object
 plot_modeled_rates_raster <- function(config, cache, cholera_directory) {
-    merge_modeled_rates_mean_into_raster(config, cache, cholera_directory)
+    merge_modeled_rates_mean_into_raster(config=config, cache=cache, cholera_directory=cholera_directory,name="modeled_rates_mean_raster")
     plot <- plot_raster_with_fill(name = "modeled_rates_mean_raster", color_scale_type = "rates",
         fill_column = "modeled_rates_mean", cache = cache)
     return(plot)
@@ -64,20 +71,24 @@ plot_modeled_rates_raster <- function(config, cache, cholera_directory) {
 #' @param cache the cached environment that contains all the parameter information
 #' @return  raster filled with modeled cases mean for each grid cell by times
 merge_modeled_cases_mean_into_raster_no_cache <- function(config, cache, cholera_directory, ...) {
-    get_sf_grid(name="sf_grid", config, cache, cholera_directory)
+    get_sf_grid(name="sf_grid", config=config, cache=cache, cholera_directory=cholera_directory)
     modeled_cases_mean_raster <- cache[["sf_grid"]]
     modeled_cases_mean_raster$pop <- array( cache$covar_cube_output$covar_cube, 
                                             dim = c(dim(cache$covar_cube_output$covar_cube)[1] * 
                                                     dim(cache$covar_cube_output$covar_cube)[2]
                                                     )
                                           )
-    non_na_gridcells <- get_non_na_gridcells(cache=cache,config=config,cholera_directory = cholera_directory)
+    non_na_gridcells <- get_non_na_gridcells(cache=cache,config=config,cholera_directory=cholera_directory)
     modeled_cases_mean_raster <- modeled_cases_mean_raster %>% subset(long_id %in% non_na_gridcells)
 
-    get_modeled_cases_mean(name="modeled_cases_mean", config, cache, cholera_directory)
+    get_modeled_cases_mean(name="modeled_cases_mean", config=config, cache=cache, cholera_directory=cholera_directory)
     modeled_cases_mean <- cache[["modeled_cases_mean"]]
     modeled_cases_mean_raster$modeled_cases_mean <- modeled_cases_mean
-    
+    modeled_cases_mean_raster <- modeled_cases_mean_raster %>% 
+      dplyr::select(rid,x,y,geom,modeled_cases_mean) %>%
+      dplyr::group_by(rid,x,y,geom) %>%
+      dplyr::summarise(modeled_cases_mean=mean(modeled_cases_mean)) %>%
+      dplyr::mutate(t="across_all_years_and_chains")
     return(modeled_cases_mean_raster)
 }
 #' @export
@@ -151,7 +162,7 @@ continent_map_mean_across_years <- function(cache, sf_type){
 #' @param cache the cached environment that contains all the parameter information
 #' @return  raster filled with modeled rates mean for each grid cell by times
 merge_modeled_rates_mean_into_raster_no_cache <- function(config, cache, cholera_directory, ...) {
-    get_sf_grid(name="sf_grid", config, cache, cholera_directory)
+    get_sf_grid(name="sf_grid", config=config, cache=cache, cholera_directory=cholera_directory)
     modeled_rates_mean_raster <- cache[["sf_grid"]]
     modeled_rates_mean_raster$pop <- array( cache$covar_cube_output$covar_cube, 
                                             dim = c(dim(cache$covar_cube_output$covar_cube)[1] * 
@@ -161,9 +172,14 @@ merge_modeled_rates_mean_into_raster_no_cache <- function(config, cache, cholera
     non_na_gridcells <- get_non_na_gridcells(cache=cache,config=config,cholera_directory = cholera_directory)
     modeled_rates_mean_raster <- modeled_rates_mean_raster %>% subset(long_id %in% non_na_gridcells)
 
-    get_modeled_rates_mean(name="modeled_rates_mean", config, cache, cholera_directory)
+    get_modeled_rates_mean(name="modeled_rates_mean", config=config, cache=cache, cholera_directory=cholera_directory)
     modeled_rates_mean <- cache[["modeled_rates_mean"]]
     modeled_rates_mean_raster$modeled_rates_mean <- modeled_rates_mean
+    modeled_rates_mean_raster <- modeled_rates_mean_raster %>% 
+      dplyr::select(rid,x,y,geom,modeled_rates_mean) %>%
+      dplyr::group_by(rid,x,y,geom) %>%
+      dplyr::summarise(modeled_rates_mean=mean(modeled_rates_mean)) %>%
+      dplyr::mutate(t="across_all_years_and_chains")
     return(modeled_rates_mean_raster)
 }
 #' @export
