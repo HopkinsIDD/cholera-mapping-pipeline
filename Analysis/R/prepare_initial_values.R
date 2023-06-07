@@ -295,8 +295,9 @@ if (config$obs_model == 3) {
   init.list <- purrr::map(
     1:nchain, function(x) {
       init <- list(
-        std_dev_w = abs(rnorm(1, 1.5, .5)),
-        rho = runif(1, .2, .4),
+        std_dev_w = runif(1, 5, 8),
+        rho = runif(1, .7, .8),
+        lambda = runif(1, .6, .8),
         sigma_std_dev_w = abs(rnorm(2, .5, .1)),
         # This assumes we have a fixed overdispersion parameter at admin level 1
         inv_od_param = abs(rnorm(stan_data$N_admin_lev - 1, 1, 1e-1))
