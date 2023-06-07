@@ -12,9 +12,16 @@ plot_raster_with_fill <- function(name, color_scale_type, fill_column, cache) {
     raster_object <- cache[[name]]
     fill_column <- grep(stringr::str_remove(fill_column, "s$"), names(raster_object),
         value = TRUE)
-    plot <- ggplot2::ggplot() + ggplot2::geom_sf(data = raster_object, ggplot2::aes_string(fill = fill_column),
-        lwd = 0.2,colour="black") + taxdat::color_scale(type = color_scale_type, use_case = "ggplot map") +
-        taxdat::map_theme() + ggplot2::facet_wrap(~t)
+    if(color_scale_type=="cases"){
+      plot <- ggplot2::ggplot() + ggplot2::geom_sf(data = raster_object, ggplot2::aes_string(fill = fill_column),
+                                                   lwd = 0) + taxdat::color_scale(type = color_scale_type, use_case = "ggplot map",use_log = TRUE) +
+        taxdat::map_theme() + ggplot2::facet_wrap(~t)+ggplot2::labs(fill="Incidence\n [cases/year]")      
+    }else if(color_scale_type=="rates"){
+      plot <- ggplot2::ggplot() + ggplot2::geom_sf(data = raster_object, ggplot2::aes_string(fill = fill_column),
+                                                   lwd = 0) + taxdat::color_scale(type = color_scale_type, use_case = "ggplot map",use_log = TRUE) +
+        taxdat::map_theme() + ggplot2::facet_wrap(~t)+ggplot2::labs(fill="Incidence rate\n [cases/10'000/year]")
+    }
+
     return(plot)
 }
 
@@ -37,14 +44,14 @@ plot_modeled_cases_mean_raster <- function(config, cache, cholera_directory) {
 
 # plot modeled rates raster
 #' @export
-#' @name plot_modeled_rates_raster
-#' @title plot_modeled_rates_raster
+#' @name plot_modeled_rates_mean_raster
+#' @title plot_modeled_rates_mean_raster
 #' @description plot the rasters with modeled rates
 #' @param raster_object raster object with modeled rates mean (the mean of exponentiated log_lambda from model.rand)
 #' @param color_scale the color scale of the plot
 #' @param fill_column modeled rates mean
 #' @return ggplot object
-plot_modeled_rates_raster <- function(config, cache, cholera_directory) {
+plot_modeled_rates_mean_raster <- function(config, cache, cholera_directory) {
     merge_modeled_rates_mean_into_raster(config=config, cache=cache, cholera_directory=cholera_directory,name="modeled_rates_mean_raster")
     plot <- plot_raster_with_fill(name = "modeled_rates_mean_raster", color_scale_type = "rates",
         fill_column = "modeled_rates_mean", cache = cache)
@@ -81,7 +88,7 @@ merge_modeled_cases_mean_into_raster_no_cache <- function(config, cache, cholera
       dplyr::select(rid,x,y,geom,modeled_cases_mean) %>%
       dplyr::group_by(rid,x,y,geom) %>%
       dplyr::summarise(modeled_cases_mean=mean(modeled_cases_mean)) %>%
-      dplyr::mutate(t="across_all_years")
+      dplyr::mutate(t="across_all_years_and_chains")
     return(modeled_cases_mean_raster)
 }
 #' @export
@@ -172,7 +179,7 @@ merge_modeled_rates_mean_into_raster_no_cache <- function(config, cache, cholera
       dplyr::select(rid,x,y,geom,modeled_rates_mean) %>%
       dplyr::group_by(rid,x,y,geom) %>%
       dplyr::summarise(modeled_rates_mean=mean(modeled_rates_mean)) %>%
-      dplyr::mutate(t="all_years")
+      dplyr::mutate(t="across_all_years_and_chains")
     return(modeled_rates_mean_raster)
 }
 #' @export
