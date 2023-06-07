@@ -51,7 +51,7 @@ plot_modeled_cases_mean_raster <- function(config, cache, cholera_directory) {
 #' @param color_scale the color scale of the plot
 #' @param fill_column modeled rates mean
 #' @return ggplot object
-plot_modeled_rates_mean_raster <- function(config, cache, cholera_directory) {
+plot_modeled_rates_raster <- function(config, cache, cholera_directory) {
     merge_modeled_rates_mean_into_raster(config=config, cache=cache, cholera_directory=cholera_directory,name="modeled_rates_mean_raster")
     plot <- plot_raster_with_fill(name = "modeled_rates_mean_raster", color_scale_type = "rates",
         fill_column = "modeled_rates_mean", cache = cache)
