@@ -44,8 +44,8 @@ plot_modeled_cases_mean_raster <- function(config, cache, cholera_directory) {
 
 # plot modeled rates raster
 #' @export
-#' @name plot_modeled_rates_mean_raster
-#' @title plot_modeled_rates_mean_raster
+#' @name plot_modeled_rates_raster
+#' @title plot_modeled_rates_raster
 #' @description plot the rasters with modeled rates
 #' @param raster_object raster object with modeled rates mean (the mean of exponentiated log_lambda from model.rand)
 #' @param color_scale the color scale of the plot
