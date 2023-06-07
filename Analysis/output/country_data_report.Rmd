@@ -303,7 +303,10 @@ obs_years <- min(lubridate::year(cache[["sf_cases_resized"]]$TL)):max(lubridate:
 ```{r caserast, fig.cap=capFig("Modeled cases"), fig.height=5, fig.width=10}
 plot_disaggregated_modeled_cases_time_varying(config_file=config_file, disaggregated_case_sf=cache[["disaggregated_case_sf"]], add_shp_from_stan_input = T, run_on_marcc = run_on_marcc)
 ```
-
+**Modeled cases raster by time slices and chains:**
+```{r caserast_bygridtimechain, fig.cap=capFig("Modeled cases by time and chain"), fig.height=8, fig.width=8}
+plot_modeled_cases_by_gridtime_chain(config=params$config,cholera_directory=params$cholera_directory,cache=cache,render = T)
+```
 **Mean modeled cases raster across time slices and chains:**
 ```{r meancaserast, fig.cap=capFig("Mean modeled cases"), fig.height=5, fig.width=10}
 plot_modeled_cases_mean_raster(config=params$config,cholera_directory=params$cholera_directory,cache=cache)
@@ -357,12 +360,12 @@ cases_summ %>%
 plot_modeled_rates_time_varying(config_file=config_file, disaggregated_rate_sf=cache[["disaggregated_rate_sf"]], add_shp_from_stan_input = T, render = T, run_on_marcc = run_on_marcc)
 ```
 **Modeled incidence rates raster by time slices and chains:**
-```{r raterast_bygridtimechain, fig.cap=capFig("Modeled rates by time"), fig.height=8, fig.width=8}
+```{r raterast_bygridtimechain, fig.cap=capFig("Modeled rates by time and chain"), fig.height=8, fig.width=8}
 plot_modeled_rates_by_gridtime_chain(config=params$config,cholera_directory=params$cholera_directory,cache=cache,render = T)
 ```
 **Mean modeled rates raster across time slices and chains:**
 ```{r meanraterast, fig.cap=capFig("Mean modeled rates"), fig.height=5, fig.width=10}
-plot_modeled_rates_raster(config=params$config,cholera_directory=params$cholera_directory,cache=cache)
+plot_modeled_rates_mean_raster(config=params$config,cholera_directory=params$cholera_directory,cache=cache)
 ```
 
 ```{r out-rates,fig.height=5,fig.width=10,fig.cap=capFig("Mean rate per year")}
