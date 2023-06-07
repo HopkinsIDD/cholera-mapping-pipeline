@@ -531,7 +531,8 @@ plot_modeled_rates_by_gridtime_chain<-function(cache,config,cholera_directory, r
   cache[["rate_raster_by_gridtime_chain"]]$t <- cache[["rate_raster_by_gridtime_chain"]]$t-1+lubridate::year(config_file$start_time)
   plot <- ggplot2::ggplot() + 
     ggplot2::geom_sf(data = cache[["rate_raster_by_gridtime_chain"]],ggplot2::aes(fill = mean), lwd = 0) + 
-    taxdat::color_scale(type = "rates",use_case = "ggplot map") + taxdat::map_theme() + ggplot2::facet_wrap(~t+chain,ncol=4)
+    taxdat::color_scale(type = "rates",use_case = "ggplot map",use_log = TRUE) + taxdat::map_theme() + ggplot2::facet_grid(chain~t)+ggplot2::labs(fill="Incidence rate\n [cases/10'000/year]")
+    
   
     if (render) {
     plot
@@ -539,6 +540,39 @@ plot_modeled_rates_by_gridtime_chain<-function(cache,config,cholera_directory, r
 
 }
 
+#' @export
+#' @name plot_modeled_cases_by_gridtime_chain
+#' @title plot_modeled_cases_by_gridtime_chain
+#' @description add
+#' @param config the actual config file
+#' @param cholera_directory the cholera directory 
+#' @param render default is TRUE
+#' @return ggplot object with modeled rates map
+
+plot_modeled_cases_by_gridtime_chain<-function(cache,config,cholera_directory, render = T){
+  config_file <- yaml::read_yaml(paste0(cholera_directory,"/",config))
+  cache[["aggregated_modeled_cases_by_chain_gridtime"]]<-aggregate_modeled_cases_by_chain_gridtime_no_cache(cache=cache,cholera_directory = cholera_directory,config=config)
+  get_sf_grid(name="sf_grid",config = config,cache=cache,cholera_directory = cholera_directory)
+  non_na_gridcells <- get_non_na_gridcells(cache=cache,config=config,cholera_directory = cholera_directory)
+  case_raster_non_na<-cache[["sf_grid"]]%>%subset(long_id%in%non_na_gridcells)
+  
+  cache[["case_raster_by_gridtime_chain"]] <- data.frame()
+  for(chain_idx in 1:nrow(cache[["aggregated_modeled_cases_by_chain_gridtime"]])){
+    case_raster_non_na$mean<-cache[["aggregated_modeled_cases_by_chain_gridtime"]][chain_idx,]
+    case_raster_non_na$chain<-paste0("Chain ",chain_idx)
+    cache[["case_raster_by_gridtime_chain"]]<-rbind(cache[["case_raster_by_gridtime_chain"]],case_raster_non_na)
+  }
+  cache[["case_raster_by_gridtime_chain"]]$t <- cache[["case_raster_by_gridtime_chain"]]$t-1+lubridate::year(config_file$start_time)
+
+  plot <- ggplot2::ggplot() + 
+    ggplot2::geom_sf(data = cache[["case_raster_by_gridtime_chain"]],ggplot2::aes(fill = mean), lwd = 0) + 
+    taxdat::color_scale(type = "cases",use_case = "ggplot map",use_log = TRUE) + taxdat::map_theme() + ggplot2::facet_grid(chain~t)+ggplot2::labs(fill="Incidence\n [cases/year]")
+  
+  if (render) {
+    plot
+  }
+  
+}
 
 #' @export
 #' @name plot_model_fidelity
