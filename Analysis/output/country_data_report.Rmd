@@ -365,7 +365,7 @@ plot_modeled_rates_by_gridtime_chain(config=params$config,cholera_directory=para
 ```
 **Mean modeled rates raster across time slices and chains:**
 ```{r meanraterast, fig.cap=capFig("Mean modeled rates"), fig.height=5, fig.width=10}
-plot_modeled_rates_mean_raster(config=params$config,cholera_directory=params$cholera_directory,cache=cache)
+plot_modeled_rates_raster(config=params$config,cholera_directory=params$cholera_directory,cache=cache)
 ```
 
 ```{r out-rates,fig.height=5,fig.width=10,fig.cap=capFig("Mean rate per year")}
