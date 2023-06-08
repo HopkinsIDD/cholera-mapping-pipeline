@@ -665,8 +665,9 @@ make_adjacency <- function(smooth_grid,
       sf::st_transform(get_crs_africa()) %>% 
       lwgeom::st_snap_to_grid(1)
     
-    # Extract neighborhood
-    poly_adj <- spdep::poly2nb(smooth_grid_it)
+    # Extract neighborhood, 
+    poly_adj <- spdep::poly2nb(smooth_grid_it,
+                               queen = FALSE)
     
     # Transform to adjacency
     adj_dat <- nb2graph(poly_adj) 
