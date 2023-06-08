@@ -303,21 +303,6 @@ check_obs_model <- function(obs_model) {
   return(obs_model)
 }
 
-#' @include file_name_functions.R
-#' @title check_od_param
-#' @description Checks whether the od_param is valid
-#' @param od_param the od_param parameter in the config
-#' @param obs_model the obs_model parameter in the config
-#' @return od_param if valid
-#' @export
-check_od_param <- function(od_param, obs_model) {
-
-  od_param <- check_od_param_generic(x = od_param,
-                                     obs_model = obs_model,
-                                     default_value = 1)
-
-  return(od_param)
-}
 
 #' @title Check aggregate
 #' @description Checks what aggregate setting should be applied, with a default of true.
@@ -761,7 +746,6 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
 
   ### Save the config file
   yaml::write_yaml(config_file, config_fname)
-
 }
 
 #' try_conv_numeric
