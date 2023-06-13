@@ -251,6 +251,8 @@ adm0_geom <- output_shapefiles %>%
   dplyr::filter(admin_level == "ADM0") %>% 
   dplyr::slice(1)
 
+sf::st_crs(adm0_geom) <- sf::st_crs(shapefiles) ## same crs needed for st_intersection
+
 shapefiles <- shapefiles %>% 
   dplyr::mutate(geom = sf::st_intersection(geom, adm0_geom$geom))
 
