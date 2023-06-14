@@ -21,7 +21,13 @@ color_scale = function(type='cases', use_case = 'leaflet', use_log = FALSE){
       transform <- scales::identity_trans()
     }
     
-    limits <- c(exp(-5),NA)
+    #limits <- c(exp(-5),NA)
+    # add lower bound to the limit 
+    limits <- c(1,NA)
+    breaks <- function(x){
+      logscale_x <- log(x)
+      return(10^seq(floor(logscale_x[1]),ceiling(logscale_x[2]),by=1))
+    }
   } else if (type %in% c('rate', 'rates')){
     colors <- c("blue","white","red")
     limits <- c(1e-7,1e-1) # 1e-2 to 1e4 on cases per 1e5
@@ -61,7 +67,8 @@ color_scale = function(type='cases', use_case = 'leaflet', use_log = FALSE){
     return(colorRampPalette(colors, space="Lab"))
   } else if(use_case == 'ggplot map'){
     return(
-      ggplot2::scale_fill_gradientn(colours=colors,oob=scales::squish, limits=limits, trans=transform, guide = ggplot2::guide_colorbar(label.theme=ggplot2::element_text(angle=45)))
+      #ggplot2::scale_fill_gradientn(colours=colors,oob=scales::squish, limits=limits, trans=transform, guide = ggplot2::guide_colorbar(label.theme=ggplot2::element_text(angle=45)))
+      ggplot2::scale_fill_gradientn(colours=colors,oob=scales::censor, limits=limits, trans=transform, guide = ggplot2::guide_colorbar(label.theme=ggplot2::element_text(angle=45)),na.value = "lightgray")
     )
   } else {
     stop(paste("The use case",use_case,"is not recognized"))
