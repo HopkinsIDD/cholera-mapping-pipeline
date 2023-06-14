@@ -629,12 +629,14 @@ get_all_config_options <- function() {
     inv_od_sd_nopool = as.function(check_od_param_sd_prior_nopooling),
     h_mu_sd_inv_od = as.function(check_h_mu_sd_inv_od),
     h_sd_sd_inv_od = as.function(check_h_sd_sd_inv_od),
+    spatial_effect = as.function(check_spatial_effect),
     mu_sd_w = as.function(check_mu_sd_w),
     sd_sd_w = as.function(check_sd_sd_w),
     ncpus_parallel_prep = as.function(check_ncpus_parallel_prep),
     do_parallel_prep = as.function(check_do_parallel_prep),
-    time_effect = "stan-check",
-    time_effect_autocorr = "stan-check",
+    time_effect = "stan-check", 
+    time_effect_autocorr = "stan-check", 
+    spatial_effect = as.function(check_spatial_effect),
     use_intercept = "stan-check",
     covariate_transformations = "no-check",
     beta_sigma_scale = "stan-check",
@@ -974,6 +976,7 @@ check_max_treedepth <- function(x,
   par
 }
 
+
 #' check_h_mu_sd_inv_od
 #'
 #' @param h_mu_sd_inv_od
@@ -991,14 +994,34 @@ check_h_mu_sd_inv_od <- function(h_mu_sd_inv_od,
   return(h_mu_sd_inv_od)
 }
 
+
+#' check_spatial_effect
+#'
+#' @param x 
+#' @param default_value 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_spatial_effect <- function(x,
+                                 default_value = TRUE) {
+  
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- as.logical(x)
+  }
+  
+  par
+}
+
 #' check_h_sd_sd_inv_od
 #'
 #' @param h_sd_sd_inv_od
 #' @param obs_model
 #' @return
 #' @export
-#'
-#' @examples
 check_h_sd_sd_inv_od <- function(h_sd_sd_inv_od,
                                  obs_model) {
 
