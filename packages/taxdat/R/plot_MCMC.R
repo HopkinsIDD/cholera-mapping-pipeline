@@ -113,6 +113,8 @@ plot_Rhat <- function(name, cache,rhat_thresh=1.05){
 plot_w_mean <- function(cache, config, cholera_directory) {
     get_model_rand(name="model.rand",cache=cache,config = params$config,cholera_directory = params$cholera_directory)
     get_stan_input(name="stan_input",cache=cache,config = params$config,cholera_directory = params$cholera_directory)
+    get_unique_db_shps(name="unique_db_shps",cache=cache,config = params$config,cholera_directory = params$cholera_directory)
+    
     w_data <-  rstan::extract(cache[["model.rand"]],pars="w")%>%
       reshape2::melt()
     w_data$chain <- rep(1:4,each=1000)
@@ -127,6 +129,8 @@ plot_w_mean <- function(cache, config, cholera_directory) {
     w_sf <- rbind(w_sf,sf_tmp)
     }
     plot <- w_sf %>% ggplot2::ggplot(.) + ggplot2::geom_sf(ggplot2::aes(fill = w_mean,colour=w_mean),lwd =.1)+ggplot2::guides(col=FALSE)+ggplot2::scale_fill_gradientn(colours=c("blue","white","red"),guide = ggplot2::guide_colorbar(label.theme=ggplot2::element_text(angle=45)))+taxdat::map_theme() +facet_wrap(~chain)
+    plot <- plot + ggplot2::geom_sf(data=cache[["unique_db_shps"]],
+                                    alpha=0)
     return(plot)
 }
 
