@@ -57,6 +57,7 @@ params_df <- data.frame(
     inv_od_sd_nopool = 1,
     h_mu_sd_inv_od = 0.01,
     h_sd_sd_inv_od = 0.05,
+    spatial_effect = 'yes',
     mu_sd_w = 10, 
     sd_sd_w = 3, 
     ncpus_parallel_prep = 2,

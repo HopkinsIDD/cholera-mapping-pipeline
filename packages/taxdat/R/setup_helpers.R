@@ -629,6 +629,7 @@ get_all_config_options <- function() {
     inv_od_sd_nopool = as.function(check_od_param_sd_prior_nopooling),
     h_mu_sd_inv_od = as.function(check_h_mu_sd_inv_od),
     h_sd_sd_inv_od = as.function(check_h_sd_sd_inv_od),
+    spatial_effect = as.function(check_spatial_effect),
     mu_sd_w = as.function(check_mu_sd_w),
     sd_sd_w = as.function(check_sd_sd_w),
     ncpus_parallel_prep = as.function(check_ncpus_parallel_prep),
