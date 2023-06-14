@@ -217,7 +217,7 @@ prepare_stan_input <- function(
   
   # Set admin level
   sf_cases_resized <- sf_cases_resized %>% 
-    dplyr::mutate(admin_level = purrr::map_dbl(location_name ~ taxdat::get_admin_level(.)))
+    dplyr::mutate(admin_level = purrr::map_dbl(location_name, ~ taxdat::get_admin_level(.)))
   
   # Drop multi-year observations if present
   if (drop_multiyear_adm0) {
