@@ -847,10 +847,10 @@ test_that("check_sfrac_thresh_lp works", {
   expect_equal(check_sfrac_thresh_lp(sfrac_thresh_lp = config_null$sfrac_thresh_lp), 0.001)
 })
 
-test_that("Default sfrac_thresh >= default sfrac_thresh_lp"){
+test_that("Default sfrac_thresh >= default sfrac_thresh_lp", {
   # Don't want to have border cells in the master grid that are unlinked to lps due to a higher sfrac_thresh_lp
   expect_gte(check_sfrac_thresh(), check_sfrac_thresh_lp())
-}
+})
 
 test_that("check_use_pop_weight works", {
   tmpfile <- tempfile(fileext = ".yml")
