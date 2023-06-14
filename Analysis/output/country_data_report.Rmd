@@ -552,12 +552,12 @@ plot_MCMCpars(name="model.rand",cache=cache,config=params$config,cholera_directo
 ```
 
 **Gelman-Rubin Rhat:**
-```{r rhat, fig.height=5, fig.width=10, fig.cap=capFig("Gelman-Rubin Rhat")}
+```{r rhat, fig.height=5, fig.width=10, fig.cap=capFig("Gelman-Rubin Rhat at the observation level")}
 plot_Rhat(name="model.rand",cache)
 ```
 
 **Gelman-Rubin Rhat by admin units:**
-```{r rhat by admin units, fig.height=8, fig.width=8, fig.cap=capFig("Gelman-Rubin Rhat by admin units")}
+```{r rhat by admin units, fig.height=8, fig.width=8, fig.cap=capFig("Gelman-Rubin Rhat for generated quantities admin-level outputs")}
 plot_Rhat_by_admin(cache=cache,config=params$config,cholera_directory = params$cholera_directory)
 ```
 
