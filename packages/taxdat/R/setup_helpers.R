@@ -648,6 +648,7 @@ get_all_config_options <- function() {
     do_parallel_prep = as.function(check_do_parallel_prep),
     time_effect = "stan-check", 
     time_effect_autocorr = "stan-check", 
+    spatial_effect = as.function(check_spatial_effect),
     use_intercept = "stan-check",
     covariate_transformations = "no-check", 
     beta_sigma_scale = "stan-check",
@@ -981,6 +982,28 @@ check_max_treedepth <- function(x,
     par <- default_value
   } else {
     par <- try_conv_numeric(x)
+  }
+  
+  par
+}
+
+
+#' check_spatial_effect
+#'
+#' @param x 
+#' @param default_value 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_spatial_effect <- function(x,
+                                 default_value = TRUE) {
+  
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- as.logical(x)
   }
   
   par
