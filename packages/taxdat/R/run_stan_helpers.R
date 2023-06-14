@@ -35,8 +35,8 @@ get_stan_parameters <- function(config,
                                 ncores = 4, 
                                 model = "mapping_model_inference.stan", 
                                 genquant = "mapping_model_generate.stan",
-                                # iter_warmup = 1000, 
-                                # iter_sampling = 1000, ### these two parameters already have their own check functions 
+                                iter_warmup = 1100,
+                                iter_sampling = 1000,
                                 recompile = T) {
 
     default_params <- list( sigma_eta_scale = sigma_eta_scale,
@@ -54,8 +54,8 @@ get_stan_parameters <- function(config,
                             ncores = ncores, 
                             model = model, 
                             genquant = genquant,
-                            # iter_warmup = iter_warmup, 
-                            # iter_sampling = iter_sampling, 
+                            iter_warmup = check_stan_iter_warmup(iter_warmup), 
+                            iter_sampling = check_stan_iter_sampling(iter_sampling), 
                             recompile = recompile)
 
     # For each parameter check if specified in config, if not use default value

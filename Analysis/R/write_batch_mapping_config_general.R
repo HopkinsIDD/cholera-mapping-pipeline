@@ -10,14 +10,14 @@ library(taxdat)
 
 
 ####       Modify the following settings      ############## 
-cholera_directory <- "/.../cholera-mapping-pipeline" 
+cholera_directory <- "." 
 setwd(cholera_directory)
 config_path <- "Analysis/configs/..." #<-----dependent on where to save the configs
 dir.create(file.path(cholera_directory, config_path), FALSE)
 
 Sys.setenv("CHOLERA_TESTING" = "FALSE")
 scale <- "country" ## country or region maps
-specified_countries <- c("AGO", "KEN") #<-----by default NULL if running all countries
+specified_countries <- c("SDN") #<-----by default NULL if running all countries
 # covar_names <- c("dist_to_water", "water_access", "san_access", "open_defe", "stunting", "wasting", "access_cities")
 # ^-----refer to "Layers/covariate_dictionary.yml" for covariate names if running any covariates other than the population 
 covar_names <- c() #<-----if running without using any covariates other than population 
@@ -40,7 +40,7 @@ config_start_time <- Sys.getenv("CHOLERA_START_TIME","2016-01-01")
 config_end_time <- Sys.getenv("CHOLERA_END_TIME","2020-12-31")
 
 params_df <- data.frame(
-    name = 'ID-01',  
+    name = 'prd-2023',  
     aoi = 'raw',
     res_space = 20,
     res_time = '1 years', 
@@ -52,35 +52,37 @@ params_df <- data.frame(
     ovrt_metadata_table = 'no', 
     OCs = '', 
     taxonomy = '', 
-    obs_model = 1, 
-    inv_od_sd_adm0 = '',
-    inv_od_sd_nopool = '',
-    h_mu_sd_inv_od = '',
-    h_sd_sd_inv_od = '',
-    mu_sd_w = '', 
-    sd_sd_w = '', 
+    obs_model = 3, 
+    inv_od_sd_adm0 = 0.01,
+    inv_od_sd_nopool = 1,
+    h_mu_sd_inv_od = 0.01,
+    h_sd_sd_inv_od = 0.05,
+    mu_sd_w = 10, 
+    sd_sd_w = 3, 
+    ncpus_parallel_prep = 2,
+    do_parallel_prep = 'yes',
     time_effect = 'yes',
     time_effect_autocorr = 'no',
-    use_intercept = '', 
+    use_intercept = 'no', 
     covariate_transformations = '', 
     beta_sigma_scale = 1,
-    sigma_eta_scale = 2,
+    sigma_eta_scale = 1,
     mu_alpha = 0, 
     sd_alpha = 1, 
     exp_prior = 'no', 
-    do_infer_sd_eta = '', 
-    do_zerosum_cnst = '', 
-    use_weights = '', 
+    do_infer_sd_eta = 0, 
+    do_zerosum_cnst = 1, 
+    use_weights = 'no', 
     covar_warmup = 'yes',
     warmup = 'yes',
     aggregate = 'yes',
     tfrac_thresh = 0,
     censoring = 'yes',
-    censoring_thresh = 0.95, 
+    censoring_thresh = 0.65, 
     set_tfrac = 'yes',
     snap_tol =  '7/365', 
     use_pop_weight = 'yes', 
-    sfrac_thresh = '', 
+    sfrac_thresh = '0.05', 
     ingest_covariates = 'no',
     ingest_new_covariates = 'no', 
     ncores = 4,
@@ -116,7 +118,7 @@ if(scale == "region"){
     ctry_names <- locs[which(locs$region == regions[i]),]$country
     ctry_ids <- locs[which(locs$region == regions[i]),]$id
     if(nrow(locs) == 1){OC_list <- params_df$OCs}else{OC_list <- NULL} #if one country, multiple OCs will be allowed
-    config_path2 <- paste0(config_path, "/", start_year, "_", end_year, "_region")
+    config_path2 <- paste0(config_path)
     dir.create(config_path2, showWarnings = FALSE)
 
     config_fname <- paste0(config_path2, "/config_", run_name, "_", regions[i], "_", start_year, "_", end_year, ".yml")
@@ -132,7 +134,7 @@ if(scale == "region"){
     ctry_name <- locs[j,]$country
     ctry_id <- locs[j,]$id
     if(nrow(locs) == 1){OC_list <- params_df$OCs}else{OC_list <- NULL}
-    config_path2 <- paste0(config_path, "/", start_year, "_", end_year, "_country")
+    config_path2 <- paste0(config_path)
     dir.create(config_path2, showWarnings = FALSE)
 
     config_fname <- paste0(config_path2, "/config_", run_name, "_", ctry_name, "_", start_year, "_", end_year, ".yml")
