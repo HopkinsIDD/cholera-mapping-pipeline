@@ -798,12 +798,12 @@ test_that("check_sfrac_thresh works", {
   yaml::write_yaml(data.frame(sfrac_thresh = 1.5), tempfile)
   config_error <- yaml::read_yaml(tempfile)
   expect_error(check_sfrac_thresh(sfrac_thresh = config_error$sfrac_thresh),
-               "---- sfract thresh cannot be < 0 or > 1, value passed: 1.5")
+               "---- sfrac thresh (master grid) cannot be < 0 or > 1, value passed: 1.5")
 
   yaml::write_yaml(data.frame(sfrac_thresh = -0.5), tempfile)
   config_error <- yaml::read_yaml(tempfile)
   expect_error(check_sfrac_thresh(sfrac_thresh = config_error$sfrac_thresh),
-               "---- sfract thresh cannot be < 0 or > 1, value passed: -0.5")
+               "---- sfrac thresh (master grid) cannot be < 0 or > 1, value passed: -0.5")
 
   yaml::write_yaml(data.frame(sfrac_thresh = 0), tempfile)
   config_equal <- yaml::read_yaml(tempfile)
@@ -827,12 +827,12 @@ test_that("check_sfrac_thresh_lp works", {
   yaml::write_yaml(data.frame(sfrac_thresh_lp = 1.5), tempfile)
   config_error <- yaml::read_yaml(tempfile)
   expect_error(check_sfrac_thresh_lp(sfrac_thresh_lp = config_error$sfrac_thresh_lp),
-               "---- sfrac thresh lp cannot be < 0 or > 1, value passed: 1.5")
+               "---- sfrac thresh (lp) cannot be < 0 or > 1, value passed: 1.5")
 
   yaml::write_yaml(data.frame(sfrac_thresh_lp = -0.5), tempfile)
   config_error <- yaml::read_yaml(tempfile)
   expect_error(check_sfrac_thresh_lp(sfrac_thresh_lp = config_error$sfrac_thresh_lp),
-               "---- sfrac thresh lp cannot be < 0 or > 1, value passed: -0.5")
+               "---- sfrac thresh (lp) cannot be < 0 or > 1, value passed: -0.5")
 
   yaml::write_yaml(data.frame(sfrac_thresh_lp = 0), tempfile)
   config_equal <- yaml::read_yaml(tempfile)

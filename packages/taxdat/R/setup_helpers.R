@@ -479,7 +479,7 @@ check_use_pop_weight <- function(use_pop_weight) {
 check_sfrac_thresh <- function(sfrac_thresh) {
 
   if (is.null(sfrac_thresh)) {
-    cat("---- Sfrac thresh (master grid) not specified, setting to default: 1e-3 \n")
+    cat("---- sfrac thresh (master grid) not specified, setting to default: 1e-3 \n")
     sfrac_thresh <- 0.001
   }
   if (sfrac_thresh < 0 | sfrac_thresh > 1) {
@@ -497,7 +497,7 @@ check_sfrac_thresh <- function(sfrac_thresh) {
 check_sfrac_thresh_lp <- function(sfrac_thresh_lp) {
 
   if (is.null(sfrac_thresh_lp)) {
-    cat("---- Sfrac thresh (lp) not specified, setting to default: 1e-3 \n")
+    cat("---- sfrac thresh (lp) not specified, setting to default: 1e-3 \n")
     sfrac_thresh_lp <- 0.001
   }
   if (sfrac_thresh_lp < 0 | sfrac_thresh_lp > 1) {
