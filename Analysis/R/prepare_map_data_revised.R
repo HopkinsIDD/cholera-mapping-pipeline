@@ -278,6 +278,17 @@ sf_cases <- taxdat::snap_to_time_period_df(df = sf_cases,
                                            res_time = res_time,
                                            tol = snap_tol)
 
+# Set admin level
+sf_cases <- sf_cases %>% 
+  dplyr::mutate(admin_level = purrr::map_dbl(location_name ~ taxdat::get_admin_level(.)))
+
+# Drop multi-year observations if present
+if (drop_multiyear_adm0) {
+  sf_cases <- taxdat::drop_multiyear(df = sf_cases,
+                                     admin_levels = 0)
+}
+
+
 save(sf_cases,
      full_grid_name,
      output_shapefiles,

@@ -149,3 +149,49 @@ snap_to_time_period_df <- function(df,
   
   df
 }
+
+#' drop_multiyear
+#'
+#' @param df 
+#' @param TL_col 
+#' @param TR_col
+#' @param admin_levels Admin levels for which to drop multi-eary observations
+#' @return
+#' @export
+#'
+#' @examples
+drop_multiyear <- function(df,
+                           TL_col = "TL",
+                           TR_col = "TR",
+                           admin_levels = c(0)) {
+  
+  res_time <- "1 year"
+  dfcols <- colnames(df)
+  
+  if (!((TL_col %in% dfcols) & (TR_col %in% dfcols))) {
+    stop("Dataframe needs columns left:", TL_col,  " and right:", TR_col, " to exist but could not find them among colnames.")
+  }
+  
+  if (!("admin_level" %in% dfcols)) {
+    stop("The dataframe needs to have a colmun called 'admin_lev' specifying the admin level")
+  }
+  
+  # Filter out data for which TL and TR do not fall in the same time slices
+  aggfunc <- time_unit_to_start_function(res_time)
+  time_change_func <- time_unit_to_aggregate_function(res_time)
+  ts_TL <- aggfunc(time_change_func(df$TL))
+  ts_TR <- aggfunc(time_change_func(df$TR))
+  ind_diff <- which(ts_TL != ts_TR & df$admin_level %in% admin_levels)
+  
+  if (length(ind_diff) > 0){
+    
+    cat("---- Dropping", length(ind_diff), "observations that span multiple years from admin levels",
+        paste(admin_levels, collapse = "-"), ":\n")
+    
+    print(df[ind_diff, ] %>% sf::st_drop_geometry())
+    
+    return(df[-c(ind_diff), ])
+  } else {
+    return(df)
+  }
+}
