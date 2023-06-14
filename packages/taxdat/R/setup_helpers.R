@@ -472,20 +472,39 @@ check_use_pop_weight <- function(use_pop_weight) {
 }
 
 #' @title check_sfrac_thresh
+#' @description Checks whether sfrac thresh for master grid inclusion is valid
 #' @param sfrac_thresh sfrac_thresh parameter
 #' @return
 #' @export
 check_sfrac_thresh <- function(sfrac_thresh) {
 
   if (is.null(sfrac_thresh)) {
-    cat("---- Sfrac thresh not specified, setting to default: 1e-3 \n")
+    cat("---- Sfrac thresh (master grid) not specified, setting to default: 1e-3 \n")
     sfrac_thresh <- 0.001
   }
   if (sfrac_thresh < 0 | sfrac_thresh > 1) {
-    stop("---- sfract thresh cannot be < 0 or > 1, value passed: ", sfrac_thresh)
+    stop("---- sfrac thresh (master grid) cannot be < 0 or > 1, value passed: ", sfrac_thresh)
   }
 
   return(sfrac_thresh)
+}
+
+#' @title check_sfrac_thresh_lp
+#' @description Checks whether sfrac thresh for location period inclusion is valid
+#' @param sfrac_thresh_lp sfrac_thresh_lp parameter
+#' @return
+#' @export
+check_sfrac_thresh_lp <- function(sfrac_thresh_lp) {
+
+  if (is.null(sfrac_thresh_lp)) {
+    cat("---- Sfrac thresh (lp) not specified, setting to default: 1e-3 \n")
+    sfrac_thresh_lp <- 0.001
+  }
+  if (sfrac_thresh_lp < 0 | sfrac_thresh_lp > 1) {
+    stop("---- sfrac thresh (lp) cannot be < 0 or > 1, value passed: ", sfrac_thresh_lp)
+  }
+
+  return(sfrac_thresh_lp)
 }
 
 #' @include file_name_functions.R
@@ -656,6 +675,7 @@ get_all_config_options <- function() {
     snap_tol = as.function(check_snap_tol),
     use_pop_weight = as.function(check_use_pop_weight),
     sfrac_thresh = as.function(check_sfrac_thresh),
+    sfrac_thresh_lp = as.function(check_sfrac_thresh_lp),
     ingest_covariates = as.function(check_ingest_covariates),
     ingest_new_covariates = as.function(check_ingest_covariates),
     stan = c("ncores", "model", "genquant", "iter_warmup", "iter_sampling", "recompile"),
