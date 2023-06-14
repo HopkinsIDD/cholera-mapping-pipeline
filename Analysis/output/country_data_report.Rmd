@@ -456,6 +456,11 @@ risk_cat_num %>%
 ```
 
 ### Population
+
+```{r pop-raster,fig.height=5,fig.width=10,fig.cap=capFig("Population per year")}
+plot_time_varying_pop_raster(cache=cache,config=params$config,cholera_directory = params$cholera_directory)
+```
+
 ```{r out-pop,fig.height=5,fig.width=10,fig.cap=capFig("Mean pop per year")}
   output_data %>% 
     ggplot(aes(fill = log10(pop))) +
