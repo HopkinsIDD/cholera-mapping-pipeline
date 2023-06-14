@@ -287,6 +287,9 @@ sfrac_thresh <- taxdat::check_sfrac_thresh(config$sfrac_thresh)
 # drop cells from location period if proportion of spatial overlap does not exceed sfrac_thresh_lp
 sfrac_thresh_lp <- taxdat::check_sfrac_thresh_lp(config$sfrac_thresh_lp)
 
+# Whether to include the spatial random effect in the model
+spatial_effect <- taxdat::check_spatial_effect(config$spatial_effect)
+
 # - - - - - - - - - - - - - -
 ## COVARIATE INGESTION
 # - - - - - - - - - - - - - -
