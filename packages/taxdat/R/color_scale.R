@@ -13,7 +13,7 @@ color_scale = function(type='cases', use_case = 'leaflet', use_log = FALSE){
   transform <- c()
   colors <- c()
   limits <- c()
-  if(type %in% c('case','cases''obs_cases')){
+  if(type %in% c('case','cases','obs_cases')){
     colors <- c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404")
     if(use_log){
       transform <- scales::log10_trans()
