@@ -111,9 +111,9 @@ plot_Rhat <- function(name, cache,rhat_thresh=1.05){
 #' @return plot object 
 
 plot_w_mean <- function(cache, config, cholera_directory) {
-    get_model_rand(name="model.rand",cache=cache,config = params$config,cholera_directory = params$cholera_directory)
-    get_stan_input(name="stan_input",cache=cache,config = params$config,cholera_directory = params$cholera_directory)
-    get_unique_db_shps(name="unique_db_shps",cache=cache,config = params$config,cholera_directory = params$cholera_directory)
+    get_model_rand(name="model.rand",cache=cache,config = config,cholera_directory = cholera_directory)
+    get_stan_input(name="stan_input",cache=cache,config = config,cholera_directory = cholera_directory)
+    cache[["unique_db_shps"]]<-get_unique_db_shps(cache=cache,config = config,cholera_directory = cholera_directory)
     
     w_data <-  rstan::extract(cache[["model.rand"]],pars="w")%>%
       reshape2::melt()
