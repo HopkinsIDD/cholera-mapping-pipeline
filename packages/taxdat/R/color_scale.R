@@ -13,20 +13,23 @@ color_scale = function(type='cases', use_case = 'leaflet', use_log = FALSE){
   transform <- c()
   colors <- c()
   limits <- c()
-  if(type %in% c('case','cases')){
+  if(type %in% c('case','cases''obs_cases')){
     colors <- c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404")
     if(use_log){
       transform <- scales::log10_trans()
     } else {
       transform <- scales::identity_trans()
     }
-    
-    #limits <- c(exp(-5),NA)
-    # add lower bound to the limit 
-    limits <- c(1,NA)
-    breaks <- function(x){
-      logscale_x <- log(x)
-      return(10^seq(floor(logscale_x[1]),ceiling(logscale_x[2]),by=1))
+    if(type == 'obs_cases'){
+      # observed cases use a different limit
+      limits <- c(exp(-5),NA) 
+    } else {
+      # add lower bound to the limit 
+      limits <- c(1,NA)
+      breaks <- function(x){
+        logscale_x <- log(x)
+        return(10^seq(floor(logscale_x[1]),ceiling(logscale_x[2]),by=1))
+      }      
     }
   } else if (type %in% c('rate', 'rates')){
     colors <- c("blue","white","red")
@@ -67,7 +70,6 @@ color_scale = function(type='cases', use_case = 'leaflet', use_log = FALSE){
     return(colorRampPalette(colors, space="Lab"))
   } else if(use_case == 'ggplot map'){
     return(
-      #ggplot2::scale_fill_gradientn(colours=colors,oob=scales::squish, limits=limits, trans=transform, guide = ggplot2::guide_colorbar(label.theme=ggplot2::element_text(angle=45)))
       ggplot2::scale_fill_gradientn(colours=colors,oob=scales::censor, limits=limits, trans=transform, guide = ggplot2::guide_colorbar(label.theme=ggplot2::element_text(angle=45)),na.value = "lightgray")
     )
   } else {
