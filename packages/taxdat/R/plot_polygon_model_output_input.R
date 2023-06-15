@@ -35,7 +35,7 @@ plot_observed_cases_polygon_raw <- function(config, cache, cholera_directory) {
                                                          cholera_directory=cholera_directory,
                                                          cache=cache)
     plot <- plot_sf_with_fill(cache=cache,name = "observed_polygon_cases_disjoint_aggregated",
-        color_scale_type = "cases", fill_column = "attributes.fields.suspected_cases")
+        color_scale_type = "obs_cases", fill_column = "attributes.fields.suspected_cases")
     return(plot)
 }
 
