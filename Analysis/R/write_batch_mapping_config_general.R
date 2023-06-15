@@ -78,6 +78,7 @@ params_df <- data.frame(
     warmup = 'yes',
     aggregate = 'yes',
     tfrac_thresh = 0,
+    drop_multiyear_adm0 = 'no',
     censoring = 'yes',
     censoring_thresh = 0.65, 
     set_tfrac = 'yes',

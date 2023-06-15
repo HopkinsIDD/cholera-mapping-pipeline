@@ -213,6 +213,29 @@ prepare_stan_input <- function(
     }
   }
   
+  # ---- Da. Drop multi-year ----
+  
+  # Set admin level
+  sf_cases_resized <- sf_cases_resized %>% 
+    dplyr::mutate(admin_level = purrr::map_dbl(location_name, ~ taxdat::get_admin_level(.)))
+  
+  # Drop multi-year observations if present
+  if (drop_multiyear_adm0) {
+    sf_cases_resized <- taxdat::drop_multiyear(df = sf_cases_resized,
+                                               admin_levels = 0)
+    
+    # Re-compute space-time indices based on aggretated data
+    ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+      df = sf_cases_resized, 
+      lp_dict = location_periods_dict,
+      model_time_slices = time_slices,
+      res_time = res_time,
+      n_cpus = config$ncpus_parallel_prep,
+      do_parallel = config$do_parallel_prep)
+  }
+  
+  # ---- E. Censoring ----
+  
   stan_data$M <- nrow(sf_cases_resized)
   non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
   obs_changer <- taxdat::make_changer(x = non_na_obs_resized) 
@@ -220,7 +243,6 @@ prepare_stan_input <- function(
                                                                    obs_changer = obs_changer)
   stan_data$map_obs_loctime_loc <- as.array(ind_mapping_resized$map_obs_loctime_loc) 
   
-  # ---- E. Censoring ----
   
   # First define censored observations
   stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
