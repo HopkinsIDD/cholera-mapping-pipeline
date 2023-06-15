@@ -223,6 +223,15 @@ prepare_stan_input <- function(
   if (drop_multiyear_adm0) {
     sf_cases_resized <- taxdat::drop_multiyear(df = sf_cases_resized,
                                                admin_levels = 0)
+    
+    # Re-compute space-time indices based on aggretated data
+    ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+      df = sf_cases_resized, 
+      lp_dict = location_periods_dict,
+      model_time_slices = time_slices,
+      res_time = res_time,
+      n_cpus = config$ncpus_parallel_prep,
+      do_parallel = config$do_parallel_prep)
   }
   
   # ---- E. Censoring ----
