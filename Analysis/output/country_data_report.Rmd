@@ -278,7 +278,7 @@ plot_raw_observations(config=params$config,cache=cache,cholera_directory=params$
 ```
 
 **Shapefile outlines for all observed location periods:**
-```{r obsmap, fig.height=30, fig.width=30, out.width="150%",fig.cap=capFig("Shapefile outlines for all observed location periods. ")}
+```{r shpoutlines, fig.height=30, fig.width=30, out.width="150%",fig.cap=capFig("Shapefile outlines for all observed location periods. ")}
 plot_unique_db_shps(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
 ```
 
