@@ -68,20 +68,6 @@ get_disaggregated_rates_sf <- function(cache,cholera_directory,config
   
 }
 
-#' @name get_unique_db_shps_no_cache
-#' @title get_unique_db_shps_no_cache
-#' @description
-#' to extract the unique shapefiles extracted from the database
-#' @param config
-#' @param cholera_directory 
-#' @param cache
-get_unique_db_shps_no_cache <- function(cache,config,cholera_directory){
-  get_sf_cases_resized(name="sf_cases_resized",cache=cache,config = config,cholera_directory = cholera_directory)
-  unique_db_shps <- dplyr::distinct(cache[["sf_cases_resized"]]) %>% select(loctime,geom)
-  return(unique_db_shps)
-}
-
-#' @export
 #' @name get_unique_db_shps
 #' @title get_unique_db_shps
 #' @description
@@ -89,4 +75,8 @@ get_unique_db_shps_no_cache <- function(cache,config,cholera_directory){
 #' @param config
 #' @param cholera_directory 
 #' @param cache
-get_unique_db_shps <- cache_fun_results(name = "unique_db_shps", fun = get_unique_db_shps_no_cache,overwrite = F, config = config)
+get_unique_db_shps <- function(cache,config,cholera_directory){
+  get_sf_cases_resized(name="sf_cases_resized",cache=cache,config = config,cholera_directory = cholera_directory)
+  unique_db_shps <- dplyr::distinct(cache[["sf_cases_resized"]]) %>% dplyr::select(loctime,geom)
+  return(unique_db_shps)
+}
