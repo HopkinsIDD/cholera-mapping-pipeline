@@ -471,40 +471,40 @@ check_use_pop_weight <- function(use_pop_weight) {
   return(use_pop_weight)
 }
 
-#' @title check_sfrac_thresh
+#' @title check_sfrac_thresh_border
 #' @description Checks whether sfrac thresh for master grid inclusion is valid
 #' @param sfrac_thresh sfrac_thresh parameter
 #' @return
 #' @export
-check_sfrac_thresh <- function(sfrac_thresh) {
+check_sfrac_thresh_border <- function(sfrac_thresh_border) {
 
-  if (is.null(sfrac_thresh)) {
-    cat("---- sfrac thresh (master grid) not specified, setting to default: 1e-3 \n")
-    sfrac_thresh <- 0.001
+  if (is.null(sfrac_thresh_border)) {
+    cat("---- sfrac thresh border not specified, setting to default: 1e-3 \n")
+    sfrac_thresh_border <- 0.001
   }
-  if (sfrac_thresh < 0 | sfrac_thresh > 1) {
-    stop("---- sfrac thresh (master grid) cannot be < 0 or > 1, value passed: ", sfrac_thresh)
+  if (sfrac_thresh_border < 0 | sfrac_thresh_border > 1) {
+    stop("---- sfrac thresh border cannot be < 0 or > 1, value passed: ", sfrac_thresh_border)
   }
 
-  return(sfrac_thresh)
+  return(sfrac_thresh_border)
 }
 
-#' @title check_sfrac_thresh_lp
-#' @description Checks whether sfrac thresh for location period inclusion is valid
-#' @param sfrac_thresh_lp sfrac_thresh_lp parameter
+#' @title check_sfrac_thresh_conn
+#' @description Checks whether sfrac thresh for grid cell connection to lp is valid
+#' @param sfrac_thresh_conn sfrac_thresh_conn parameter
 #' @return
 #' @export
-check_sfrac_thresh_lp <- function(sfrac_thresh_lp) {
+check_sfrac_thresh_conn <- function(sfrac_thresh_conn) {
 
-  if (is.null(sfrac_thresh_lp)) {
-    cat("---- sfrac thresh (lp) not specified, setting to default: 1e-3 \n")
-    sfrac_thresh_lp <- 0.001
+  if (is.null(sfrac_thresh_conn)) {
+    cat("---- sfrac thresh conn not specified, setting to default: 1e-3 \n")
+    sfrac_thresh_conn <- 0.001
   }
-  if (sfrac_thresh_lp < 0 | sfrac_thresh_lp > 1) {
-    stop("---- sfrac thresh (lp) cannot be < 0 or > 1, value passed: ", sfrac_thresh_lp)
+  if (sfrac_thresh_conn < 0 | sfrac_thresh_conn > 1) {
+    stop("---- sfrac thresh conn cannot be < 0 or > 1, value passed: ", sfrac_thresh_conn)
   }
 
-  return(sfrac_thresh_lp)
+  return(sfrac_thresh_conn)
 }
 
 #' @include file_name_functions.R
@@ -653,8 +653,8 @@ get_all_config_options <- function() {
     sd_sd_w = as.function(check_sd_sd_w),
     ncpus_parallel_prep = as.function(check_ncpus_parallel_prep),
     do_parallel_prep = as.function(check_do_parallel_prep),
-    time_effect = "stan-check", 
-    time_effect_autocorr = "stan-check", 
+    time_effect = "stan-check",
+    time_effect_autocorr = "stan-check",
     spatial_effect = as.function(check_spatial_effect),
     use_intercept = "stan-check",
     covariate_transformations = "no-check",
@@ -676,8 +676,8 @@ get_all_config_options <- function() {
     set_tfrac = as.function(check_set_tfrac),
     snap_tol = as.function(check_snap_tol),
     use_pop_weight = as.function(check_use_pop_weight),
-    sfrac_thresh = as.function(check_sfrac_thresh),
-    sfrac_thresh_lp = as.function(check_sfrac_thresh_lp),
+    sfrac_thresh_border = as.function(check_sfrac_thresh_border),
+    sfrac_thresh_conn = as.function(check_sfrac_thresh_conn),
     ingest_covariates = as.function(check_ingest_covariates),
     ingest_new_covariates = as.function(check_ingest_covariates),
     stan = c("ncores", "model", "genquant", "iter_warmup", "iter_sampling", "recompile"),
@@ -1017,8 +1017,8 @@ check_h_mu_sd_inv_od <- function(h_mu_sd_inv_od,
 
 #' check_spatial_effect
 #'
-#' @param x 
-#' @param default_value 
+#' @param x
+#' @param default_value
 #'
 #' @return
 #' @export
@@ -1026,13 +1026,13 @@ check_h_mu_sd_inv_od <- function(h_mu_sd_inv_od,
 #' @examples
 check_spatial_effect <- function(x,
                                  default_value = TRUE) {
-  
+
   if (unspecified_parameter_check(x)) {
     par <- default_value
   } else {
     par <- as.logical(x)
   }
-  
+
   par
 }
 

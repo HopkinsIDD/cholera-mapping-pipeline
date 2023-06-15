@@ -14,8 +14,8 @@
 #' @param res_time
 #' @param username
 #' @param covariate_transformations
-#' @param sfrac_thresh
-#' @param sfrac_thresh_lp
+#' @param sfrac_thresh_border
+#' @param sfrac_thresh_conn
 #'
 #' @return a list with the outputs
 prepare_covar_cube <- function(
@@ -30,8 +30,8 @@ prepare_covar_cube <- function(
     res_time,
     username,
     covariate_transformations,
-    sfrac_thresh,
-    sfrac_thresh_lp
+    sfrac_thresh_border,
+    sfrac_thresh_conn
 ) {
 
 
@@ -188,19 +188,19 @@ prepare_covar_cube <- function(
   low_sfrac <- location_periods_dict %>%
     dplyr::group_by(rid, x, y) %>%
     dplyr::slice_max(pop_weight) %>%
-    dplyr::filter(pop_weight < sfrac_thresh_lp) %>%
+    dplyr::filter(pop_weight < sfrac_thresh_border) %>%
     dplyr::select(rid, x, y) %>%
     dplyr::inner_join(sf_grid %>% sf::st_drop_geometry())
 
   if (nrow(low_sfrac) > 0) {
     cat("---- Dropping", nrow(low_sfrac), "space grid cells because the max sfrac is below",
-        sfrac_thresh_lp, ". \n")
+        sfrac_thresh_border, ". \n")
 
     # Re-define grid cells to remove cells with low sf_frac
     non_na_gridcells <- setdiff(non_na_gridcells, low_sfrac$long_id)
 
   } else {
-    cat("---- No cells with sfrac below", sfrac_thresh_lp, ".\n")
+    cat("---- No cells with sfrac below", sfrac_thresh_border, ".\n")
   }
 
 
@@ -214,7 +214,7 @@ prepare_covar_cube <- function(
   # Drop from gridcells with low sfrac from location_periods_dict
   location_periods_dict <- location_periods_dict %>%
     dplyr::filter(!(long_id %in% low_sfrac$long_id)) %>%
-    # !! Reset upd_long_id with new grid_changer after removing gird cells with low pop_weight
+    # !! Reset upd_long_id with new grid_changer after removing grid cells with low pop_weight
     dplyr::mutate(upd_long_id = grid_changer[as.character(long_id)]) %>%
     dplyr::filter(!is.na(upd_long_id))
 
@@ -224,11 +224,11 @@ prepare_covar_cube <- function(
     dplyr::mutate(connect_id = dplyr::row_number())
 
   low_sfrac_connections <- location_periods_dict %>%
-    dplyr::filter(pop_weight < sfrac_thresh_lp)
+    dplyr::filter(pop_weight < sfrac_thresh_conn)
 
   cat("Dropping", nrow(low_sfrac_connections), "/", nrow(location_periods_dict),
       "connections between grid cells",
-      "and location periods which have sfrac <", sfrac_thresh_lp,  "\n")
+      "and location periods which have sfrac <", sfrac_thresh_conn,  "\n")
 
   location_periods_dict <- location_periods_dict %>%
     dplyr::filter(!(connect_id %in% low_sfrac_connections$connect_id))

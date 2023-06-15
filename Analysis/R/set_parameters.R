@@ -282,10 +282,10 @@ do_parallel_prep <- taxdat::check_do_parallel_prep(config$do_parallel_prep)
 # - - - - - - - - - - - - - -
 # turn on subgrid feature
 use_pop_weight <- taxdat::check_use_pop_weight(config$use_pop_weight)
-# drop cells from master grid if the proportion of spatial overlap (based on pop-weighted area) does not exceed sfrac_thresh
-sfrac_thresh <- taxdat::check_sfrac_thresh(config$sfrac_thresh)
-# drop cells from location period if proportion of spatial overlap does not exceed sfrac_thresh_lp
-sfrac_thresh_lp <- taxdat::check_sfrac_thresh_lp(config$sfrac_thresh_lp)
+# drop cells from master grid if the proportion of spatial overlap (based on pop-weighted area) does not exceed sfrac_thresh_border
+sfrac_thresh_border <- taxdat::check_sfrac_thresh_border(config$sfrac_thresh_border)
+# drop cells from location period if proportion of spatial overlap does not exceed sfrac_thresh_conn
+sfrac_thresh_conn <- taxdat::check_sfrac_thresh_conn(config$sfrac_thresh_conn)
 
 # Whether to include the spatial random effect in the model
 spatial_effect <- taxdat::check_spatial_effect(config$spatial_effect)
@@ -513,8 +513,8 @@ for(t_idx in 1:length(all_test_idx)){
       res_time = res_time,
       username = dbuser,
       covariate_transformations = config[["covariate_transformations"]],
-      sfrac_thresh = sfrac_thresh,
-      sfrac_thresh_lp = sfrac_thresh_lp
+      sfrac_thresh_border = sfrac_thresh_border,
+      sfrac_thresh_conn = sfrac_thresh_conn
     )
 
     # Save results to file

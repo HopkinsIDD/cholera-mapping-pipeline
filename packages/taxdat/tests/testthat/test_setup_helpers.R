@@ -780,8 +780,8 @@ test_that("get_all_config_options works",{
   expect_equal(config_options$set_tfrac, as.function(check_set_tfrac))
   expect_equal(config_options$snap_tol, as.function(check_snap_tol))
   expect_equal(config_options$use_pop_weight, as.function(check_use_pop_weight))
-  expect_equal(config_options$sfrac_thresh, as.function(check_sfrac_thresh))
-  expect_equal(config_options$sfrac_thresh_lp, as.function(check_sfrac_thresh_lp))
+  expect_equal(config_options$sfrac_thresh_border, as.function(check_sfrac_thresh_border))
+  expect_equal(config_options$sfrac_thresh_conn, as.function(check_sfrac_thresh_conn))
   expect_equal(config_options$ingest_covariates, as.function(check_ingest_covariates))
   expect_equal(config_options$ingest_new_covariates, as.function(check_ingest_covariates))
   expect_equal(config_options$stan, c("ncores", "model", "genquant", "iter_warmup", "iter_sampling", "recompile"))
@@ -789,71 +789,71 @@ test_that("get_all_config_options works",{
 })
 
 
-test_that("check_sfrac_thresh works", {
+test_that("check_sfrac_thresh_border works", {
   tempfile <- tempfile(fileext = ".yml")
-  yaml::write_yaml(data.frame(sfrac_thresh = 0.5), tempfile)
+  yaml::write_yaml(data.frame(sfrac_thresh_border = 0.5), tempfile)
   config_equal <- yaml::read_yaml(tempfile)
-  expect_equal(check_sfrac_thresh(sfrac_thresh = config_equal$sfrac_thresh), 0.5)
+  expect_equal(check_sfrac_thresh_border(sfrac_thresh_border = config_equal$sfrac_thresh_border), 0.5)
 
-  yaml::write_yaml(data.frame(sfrac_thresh = 1.5), tempfile)
+  yaml::write_yaml(data.frame(sfrac_thresh_border = 1.5), tempfile)
   config_error <- yaml::read_yaml(tempfile)
-  expect_error(check_sfrac_thresh(sfrac_thresh = config_error$sfrac_thresh),
-               "---- sfrac thresh (master grid) cannot be < 0 or > 1, value passed: 1.5")
+  expect_error(check_sfrac_thresh_border(sfrac_thresh_border = config_error$sfrac_thresh_border),
+               "sfrac thresh border cannot")
 
-  yaml::write_yaml(data.frame(sfrac_thresh = -0.5), tempfile)
+  yaml::write_yaml(data.frame(sfrac_thresh_border = -0.5), tempfile)
   config_error <- yaml::read_yaml(tempfile)
-  expect_error(check_sfrac_thresh(sfrac_thresh = config_error$sfrac_thresh),
-               "---- sfrac thresh (master grid) cannot be < 0 or > 1, value passed: -0.5")
+  expect_error(check_sfrac_thresh_border(sfrac_thresh_border = config_error$sfrac_thresh_border),
+               "sfrac thresh border cannot")
 
-  yaml::write_yaml(data.frame(sfrac_thresh = 0), tempfile)
+  yaml::write_yaml(data.frame(sfrac_thresh_border = 0), tempfile)
   config_equal <- yaml::read_yaml(tempfile)
-  expect_equal(check_sfrac_thresh(sfrac_thresh = config_equal$sfrac_thresh), 0)
+  expect_equal(check_sfrac_thresh_border(sfrac_thresh_border = config_equal$sfrac_thresh_border), 0)
 
-  yaml::write_yaml(data.frame(sfrac_thresh = 1), tempfile)
+  yaml::write_yaml(data.frame(sfrac_thresh_border = 1), tempfile)
   config_equal <- yaml::read_yaml(tempfile)
-  expect_equal(check_sfrac_thresh(sfrac_thresh = config_equal$sfrac_thresh), 1)
+  expect_equal(check_sfrac_thresh_border(sfrac_thresh_border = config_equal$sfrac_thresh_border), 1)
 
-  yaml::write_yaml(data.frame(sfrac_thresh=NULL), tempfile)
+  yaml::write_yaml(data.frame(sfrac_thresh_border = NULL), tempfile)
   config_null <- yaml::read_yaml(tempfile)
-  expect_equal(check_sfrac_thresh(sfrac_thresh = config_null$sfrac_thresh), 0.001)
+  expect_equal(check_sfrac_thresh_border(sfrac_thresh_border = config_null$sfrac_thresh_border), 0.001)
 })
 
-test_that("check_sfrac_thresh_lp works", {
+test_that("check_sfrac_thresh_conn works", {
   tempfile <- tempfile(fileext = ".yml")
-  yaml::write_yaml(data.frame(sfrac_thresh_lp = 0.5), tempfile)
+  yaml::write_yaml(data.frame(sfrac_thresh_conn = 0.5), tempfile)
   config_equal <- yaml::read_yaml(tempfile)
-  expect_equal(check_sfrac_thresh_lp(sfrac_thresh_lp = config_equal$sfrac_thresh_lp), 0.5)
+  expect_equal(check_sfrac_thresh_conn(sfrac_thresh_conn = config_equal$sfrac_thresh_conn), 0.5)
 
-  yaml::write_yaml(data.frame(sfrac_thresh_lp = 1.5), tempfile)
+  yaml::write_yaml(data.frame(sfrac_thresh_conn = 1.5), tempfile)
   config_error <- yaml::read_yaml(tempfile)
-  expect_error(check_sfrac_thresh_lp(sfrac_thresh_lp = config_error$sfrac_thresh_lp),
-               "---- sfrac thresh (lp) cannot be < 0 or > 1, value passed: 1.5")
+  expect_error(check_sfrac_thresh_conn(sfrac_thresh_conn = config_error$sfrac_thresh_conn),
+               "sfrac thresh conn cannot")
 
-  yaml::write_yaml(data.frame(sfrac_thresh_lp = -0.5), tempfile)
+  yaml::write_yaml(data.frame(sfrac_thresh_conn = -0.5), tempfile)
   config_error <- yaml::read_yaml(tempfile)
-  expect_error(check_sfrac_thresh_lp(sfrac_thresh_lp = config_error$sfrac_thresh_lp),
-               "---- sfrac thresh (lp) cannot be < 0 or > 1, value passed: -0.5")
+  expect_error(check_sfrac_thresh_conn(sfrac_thresh_conn = config_error$sfrac_thresh_conn),
+               "sfrac thresh conn cannot")
 
-  yaml::write_yaml(data.frame(sfrac_thresh_lp = 0), tempfile)
+  yaml::write_yaml(data.frame(sfrac_thresh_conn = 0), tempfile)
   config_equal <- yaml::read_yaml(tempfile)
-  expect_equal(check_sfrac_thresh_lp(sfrac_thresh_lp = config_equal$sfrac_thresh_lp), 0)
+  expect_equal(check_sfrac_thresh_conn(sfrac_thresh_conn = config_equal$sfrac_thresh_conn), 0)
 
-  yaml::write_yaml(data.frame(sfrac_thresh_lp = 1), tempfile)
+  yaml::write_yaml(data.frame(sfrac_thresh_conn = 1), tempfile)
   config_equal <- yaml::read_yaml(tempfile)
-  expect_equal(check_sfrac_thresh_lp(sfrac_thresh_lp = config_equal$sfrac_thresh_lp), 1)
+  expect_equal(check_sfrac_thresh_conn(sfrac_thresh_conn = config_equal$sfrac_thresh_conn), 1)
 
-  yaml::write_yaml(data.frame(sfrac_thresh_lp=NULL), tempfile)
+  yaml::write_yaml(data.frame(sfrac_thresh_conn=NULL), tempfile)
   config_null <- yaml::read_yaml(tempfile)
-  expect_equal(check_sfrac_thresh_lp(sfrac_thresh_lp = config_null$sfrac_thresh_lp), 0.001)
+  expect_equal(check_sfrac_thresh_conn(sfrac_thresh_conn = config_null$sfrac_thresh_conn), 0.001)
 })
 
-test_that("Default sfrac_thresh >= default sfrac_thresh_lp", {
+test_that("Default sfrac_thresh_border >= default sfrac_thresh_conn", {
   tempfile <- tempfile(fileext = ".yml")
-  yaml::write_yaml(data.frame(sfrac_thresh_lp=NULL), tempfile)
+  yaml::write_yaml(data.frame(sfrac_thresh_conn = NULL), tempfile)
   config_null <- yaml::read_yaml(tempfile)
-  
+
   # Don't want to have border cells in the master grid that are unlinked to lps due to a higher sfrac_thresh_lp
-  expect_gte(check_sfrac_thresh(sfrac_thresh = config_null$sfrac_thresh), check_sfrac_thresh_lp(sfrac_thresh_lp = config_null$sfrac_thresh_lp))
+  expect_gte(check_sfrac_thresh_border(sfrac_thresh_border = config_null$sfrac_thresh_border), check_sfrac_thresh_conn(sfrac_thresh_conn = config_null$sfrac_thresh_conn))
 })
 
 test_that("check_use_pop_weight works", {
