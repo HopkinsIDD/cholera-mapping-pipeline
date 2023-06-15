@@ -653,8 +653,9 @@ get_all_config_options <- function() {
     sd_sd_w = as.function(check_sd_sd_w),
     ncpus_parallel_prep = as.function(check_ncpus_parallel_prep),
     do_parallel_prep = as.function(check_do_parallel_prep),
+    drop_multiyear_adm0 = as.function(check_drop_multiyear_adm0),
     time_effect = "stan-check",
-    time_effect_autocorr = "stan-check",
+    time_effect_autocorr = "stan-check", 
     spatial_effect = as.function(check_spatial_effect),
     use_intercept = "stan-check",
     covariate_transformations = "no-check",
@@ -1049,4 +1050,26 @@ check_h_sd_sd_inv_od <- function(h_sd_sd_inv_od,
                                            obs_model = obs_model,
                                            default_value = 0.05)
   return(h_sd_sd_inv_od)
+}
+
+
+#' check_drop_multiyear_adm0
+#'
+#' @param x 
+#' @param default_value 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_drop_multiyear_adm0 <- function(x, 
+                                      default_value = TRUE) {
+  
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- as.logical(x)
+  }
+  
+  par
 }
