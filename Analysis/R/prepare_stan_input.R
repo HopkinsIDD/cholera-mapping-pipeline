@@ -507,6 +507,32 @@ prepare_stan_input <- function(
     sf_grid = sf_grid,
     grid_changer = grid_changer)
   
+  # Get pixels with low sfrac
+  output_low_sfrac <- output_location_periods_table %>% 
+    dplyr::group_by(rid, x, y) %>% 
+    dplyr::slice_max(pop_weight) %>% 
+    dplyr::filter(pop_weight < sfrac_thresh) %>% 
+    dplyr::select(rid, x, y) %>% 
+    dplyr::inner_join(sf_grid %>% sf::st_drop_geometry())
+  
+  # Drop from gridcells with low sfrac from output_location_periods_table
+  output_location_periods_table <- output_location_periods_table %>% 
+    dplyr::filter(!(long_id %in% output_low_sfrac$long_id))
+  
+  # Drop grid cells to output location periods connections
+  output_location_periods_table <- output_location_periods_table %>%
+    dplyr::mutate(connect_id = dplyr::row_number())
+  
+  output_low_sfrac_connections <- output_location_periods_table %>% 
+    dplyr::filter(pop_weight < sfrac_thresh)
+  
+  cat("Dropping", nrow(output_low_sfrac_connections), "/", nrow(output_location_periods_table),
+      "connections between grid cells",
+      "and output location periods which have sfrac <", sfrac_thresh,  "\n")
+  
+  output_location_periods_table <- output_location_periods_table %>% 
+    dplyr::filter(!(connect_id %in% output_low_sfrac_connections$connect_id))
+  
   # Make fake data to compute output location periods mappings
   fake_output_obs <- output_location_periods_table %>% 
     dplyr::inner_join(time_slices %>% 
