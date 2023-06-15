@@ -277,6 +277,11 @@ plot_area_adjusted_observed_cases(config=params$config,cache=cache,cholera_direc
 plot_raw_observations(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
 ```
 
+**Shapefile outlines for all observed location periods:**
+```{r obsmap, fig.height=30, fig.width=30, out.width="150%",fig.cap=capFig("Shapefile outlines for all observed location periods. ")}
+plot_unique_db_shps(config=params$config,cache=cache,cholera_directory=params$cholera_directory)
+```
+
 ## Output maps and tables
 ```{r importcase}
 cache[["case_raster"]] <-get_case_raster(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
@@ -422,12 +427,21 @@ risk_cat_pop <- cache[["genquant"]]$summary(variables = "location_risk_cat_prop"
          admin_level = str_extract(location_period_id, "ADM[0-2]")) %>% 
   inner_join(cache[["output_shapefiles"]], ., by = c("location_period_id", "admin_level"))
 
-
 risk_cat_pop %>% 
   ggplot(aes(fill = median)) +
   geom_sf(col = "white", size = .05) +
   facet_grid(admin_level ~ risk_cat) +
   scale_fill_viridis_c() +
+  ggthemes::theme_map() +
+  theme(legend.position = "right",legend.title = "Proportion")
+
+risk_cat_pop %>% 
+  group_by(shapeName,location_period_id,admin_level,geom)%>%
+  filter(mean==max(mean)) %>% 
+  ggplot(aes(fill = risk_cat)) +
+  geom_sf(col = "white", size = .05) +
+  facet_grid(admin_level ~"Max posterior probability of district \nin a given risk category") +
+  viridis ::scale_fill_viridis(discrete=TRUE) +
   ggthemes::theme_map() +
   theme(legend.position = "right")
 
@@ -443,7 +457,6 @@ risk_cat_num <- cache[["genquant"]]$summary(variables = "location_risk_cat_num",
          location_period_id = cache[["output_shapefiles"]]$location_period_id[id],
          admin_level = str_extract(location_period_id, "ADM[0-2]")) %>% 
   inner_join(cache[["output_shapefiles"]], ., by = c("location_period_id", "admin_level"))
-
 
 risk_cat_num %>% 
   ggplot(aes(fill = log10(median))) +
