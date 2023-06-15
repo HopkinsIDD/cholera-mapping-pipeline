@@ -288,6 +288,9 @@ use_pop_weight <- taxdat::check_use_pop_weight(config$use_pop_weight)
 # drop grid cells with overlaps below the specific sfrac threshold
 sfrac_thresh <- taxdat::check_sfrac_thresh(config$sfrac_thresh)
 
+# Whether to include the spatial random effect in the model
+spatial_effect <- taxdat::check_spatial_effect(config$spatial_effect)
+
 # - - - - - - - - - - - - - -
 ## COVARIATE INGESTION
 # - - - - - - - - - - - - - -
