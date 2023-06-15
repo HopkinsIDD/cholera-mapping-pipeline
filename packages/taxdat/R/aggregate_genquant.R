@@ -1,5 +1,5 @@
 #' @include plot_cache_function.R
-#' @include get_stan_output.R
+#' @include get_genquant.R
 
 #' @export
 #' @name process_genquant

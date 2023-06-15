@@ -1,4 +1,5 @@
 #' @include plot_cache_function.R
+#' @include get_genquant.R
 #' 
 #' @export
 #' @name plot_WHOcomparison_table
