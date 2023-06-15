@@ -773,6 +773,7 @@ test_that("get_all_config_options works",{
   expect_equal(config_options$warmup, stan_check)
   expect_equal(config_options$aggregate, as.function(check_aggregate))
   expect_equal(config_options$tfrac_thresh, as.function(check_tfrac_thresh))
+  expect_equal(config_options$drop_multiyear_adm0, as.function(check_drop_multiyear_adm0))
   expect_equal(config_options$censoring, as.function(check_censoring))
   expect_equal(config_options$censoring_thresh, as.function(check_censoring_thresh))
   expect_equal(config_options$set_tfrac, as.function(check_set_tfrac))

@@ -665,8 +665,9 @@ make_adjacency <- function(smooth_grid,
       sf::st_transform(get_crs_africa()) %>% 
       lwgeom::st_snap_to_grid(1)
     
-    # Extract neighborhood
-    poly_adj <- spdep::poly2nb(smooth_grid_it)
+    # Extract neighborhood, 
+    poly_adj <- spdep::poly2nb(smooth_grid_it,
+                               queen = FALSE)
     
     # Transform to adjacency
     adj_dat <- nb2graph(poly_adj) 
@@ -1559,6 +1560,20 @@ get_cells_ts <- function(stan_data,
   ts_subset_gridcells
 }
 
+#' impute_adm0_obs_single
+#'
+#' @param sf_cases_resized 
+#' @param stan_data 
+#' @param ref_amd0_obs_id 
+#' @param time_slices 
+#' @param m_ts 
+#' @param cases_column 
+#' @param frac_coverage_thresh 
+#'
+#' @return
+#' @export
+#'
+#' @examples
 impute_adm0_obs_single <- function(sf_cases_resized,
                                    stan_data,
                                    ref_amd0_obs_id,
@@ -1595,11 +1610,19 @@ impute_adm0_obs_single <- function(sf_cases_resized,
     dplyr::filter(ref_TL == m_TL,
                   ref_TR == m_TR) 
   
-  # First try getting the full subnational level data corresponding to the year
+  # Try getting the full subnational level data corresponding to the year
   ts_subset <- sf_cases_resized %>% 
     get_admin_level_data(res_time = res_time,
                          admin_levels = c(1:10),
                          censorings = "full") %>% 
+    dplyr::filter(ref_TL == m_TL,
+                  ref_TR == m_TR) 
+  
+  # Try getting the censored subnational level data corresponding to the year
+  ts_subset_censored <- sf_cases_resized %>% 
+    get_admin_level_data(res_time = res_time,
+                         admin_levels = c(1:10),
+                         censorings = "right-censored") %>% 
     dplyr::filter(ref_TL == m_TL,
                   ref_TR == m_TR) 
   
@@ -1612,19 +1635,25 @@ impute_adm0_obs_single <- function(sf_cases_resized,
   } else {
     
     # If subnational data available comute the fraction of population coverage
-    if (nrow(ts_subset) > 1) {
+    if (nrow(ts_subset) > 1 | nrow(ts_subset_censored) > 1) {
       
-      ts_subset <- ts_subset %>% 
-        dplyr::rowwise() %>% 
-        dplyr::mutate(tfrac = compute_tfrac(TL, TR, ref_TL, ref_TR),
-                      tfrac_cases = !!rlang::sym(cases_column)/tfrac) %>% 
+      # Combined full and censored sub-national data
+      ts_subset_cmb <- dplyr::bind_rows(
+        ts_subset %>% 
+          dplyr::rowwise() %>% 
+          # Only compute tfrac-adjusted counts for full obs
+          dplyr::mutate(tfrac = compute_tfrac(TL, TR, ref_TL, ref_TR),
+                        obs_cases = !!rlang::sym(cases_column)/tfrac) %>% 
+          dplyr::ungroup(),
+        ts_subset_censored %>% 
+          dplyr::mutate(obs_cases = !!rlang::sym(cases_column))
+      ) %>% 
         dplyr::group_by(loctime) %>% 
         # !! Keep only one observation per loctime to avoid double-counting population
-        dplyr::slice_max(tfrac_cases) %>% 
-        dplyr::ungroup() 
+        dplyr::slice_max(obs_cases)
       
       # Get population coverage by admin level
-      frac_coverages <- compute_population_coverage(data = ts_subset,
+      frac_coverages <- compute_population_coverage(data = ts_subset_cmb,
                                                     stan_data = stan_data,
                                                     ref_pop = ref_pop)
       
@@ -1632,7 +1661,7 @@ impute_adm0_obs_single <- function(sf_cases_resized,
       subset_admin_lev <- names(frac_coverages)[frac_coverages == frac_coverage]
       
       # Get obs_ids of admin level corresponding to the maximum coverage 
-      subset_ind <- ts_subset %>% 
+      subset_ind <- ts_subset_cmb %>% 
         dplyr::filter(admin_level == subset_admin_lev) %>% 
         dplyr::pull(obs_id)
       
@@ -1656,9 +1685,9 @@ impute_adm0_obs_single <- function(sf_cases_resized,
       
     } else if (frac_coverage > 0) {
       # Compute sum of non-overlapping subnational level data
-      subnat_sums <- ts_subset %>% 
+      subnat_sums <- ts_subset_cmb %>% 
         dplyr::group_by(OC_UID, admin_level) %>% 
-        dplyr::summarise(sum_cases = sum(!!rlang::sym(cases_column)))
+        dplyr::summarise(sum_cases = sum(obs_cases))
       
       impute_obs <- max(subnat_sums$sum_cases)
       impute_type <- "subnat_sum"

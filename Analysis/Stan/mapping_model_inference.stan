@@ -52,7 +52,8 @@ data {
   int<lower=1, upper=3> obs_model;          // Observation model, 1:poisson, 2:quasi-poisson, 3:neg-binomial
   int<lower=0, upper=1> use_intercept;      // Whether to include an intercept in the model or not
   int<lower=0, upper=1> do_zerosum_cnst;    // Whether to enforce a 0-sum constraint on the yearly random effects
-  int<lower=0, upper=1> do_infer_sd_eta;    // Whether to enforce a 0-sum constraint on the yearly random effects
+  int<lower=0, upper=1> do_infer_sd_eta;    // Whether to infer the sd of the temporal random effect
+  int<lower=0, upper=1> do_spatial_effect;    // Whether to have a spatial random effect
   
   // Spatial adjacency
   // Note: The adjacency matrix node1 should be sorted and lower triangular
@@ -115,6 +116,7 @@ transformed data {
   real eta_zerosum_raw_sigma = inv_sqrt(1 - inv(T));
   int<lower=0, upper=T> size_eta;
   int<lower=0, upper=1> size_sd_eta;
+  int<lower=0, upper=smooth_grid_N> size_w; 
   
   for (i in 1:K1) {
     if (censored[i] == 1) {
@@ -173,6 +175,13 @@ transformed data {
     size_eta = 0;
     size_sd_eta = 0;
   }
+  
+  // Saptial random effect
+  if (do_spatial_effect == 1) {
+    size_w = smooth_grid_N;
+  } else {
+    size_w = 0;
+  }
 }
 
 parameters {
@@ -182,7 +191,7 @@ parameters {
   // Spatial random effects
   real <lower=0, upper=.99> rho;    // spatial correlation parameter
   real<lower=0> std_dev_w;             // precision of the spatial effects
-  vector<lower=-15, upper=15>[smooth_grid_N] w;        // spatial random effect
+  vector<lower=-15, upper=15>[size_w] w;        // spatial random effect
   real<lower=0, upper=1> lambda;
   
   // Temporal random effects
@@ -259,10 +268,15 @@ transformed parameters {
     // ---- A. Grid-level rates and cases ----
     
     // log-rates without time-slice effects
-    log_lambda =  w[map_smooth_grid] + log_meanrate;
+    log_lambda = rep_vector(log_meanrate, N);
     
     if (use_intercept == 1) {
       log_lambda += alpha[1];
+    }
+    
+    // Add spatial effects
+    if (do_spatial_effect == 1) {
+      log_lambda += w[map_smooth_grid];
     }
     
     // covariates if applicable
@@ -397,7 +411,7 @@ transformed parameters {
 model {
   
   // ---- 1. Spatial prior ----
-  {
+  if (do_spatial_effect == 1) {
     // DAGAR prior on random effects
     vector[smooth_grid_N] b; //
     vector[smooth_grid_N] vec_var; //

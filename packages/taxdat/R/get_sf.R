@@ -21,8 +21,9 @@ get_disaggregated_cases_sf <- function(cache,cholera_directory,config
   disaggregated_case_sf=cache[["disaggregated_case_raster"]]%>%
     as(.,'SpatialPolygonsDataFrame')%>% 
     sf::st_as_sf(.)%>%
-    rename_with(stringr::str_replace, 
-                pattern = "X", replacement = "")%>%
+    dplyr::rename_with(~stringr::str_replace(.x,
+                                             pattern = "X", 
+                                             replacement = ""))%>%
     tidyr::pivot_longer(.,cols=colnames(.)[stringr::str_detect(colnames(.),"[0-9]")],names_to="t")%>%
     as.data.frame(.)%>%sf::st_as_sf(.)
   
@@ -54,8 +55,9 @@ get_disaggregated_rates_sf <- function(cache,cholera_directory,config
   disaggregated_rate_sf=cache[["disaggregated_rate_raster"]]%>%
     as(.,'SpatialPolygonsDataFrame')%>% 
     sf::st_as_sf(.)%>%
-    rename_with(stringr::str_replace, 
-                pattern = "X", replacement = "")%>%
+    dplyr::rename_with(~stringr::str_replace(.x,
+                                             pattern = "X", 
+                                             replacement = ""))%>%
     tidyr::pivot_longer(.,cols=colnames(.)[stringr::str_detect(colnames(.),"[0-9]")],names_to="t")%>%
     as.data.frame(.)%>%sf::st_as_sf(.)
   

@@ -22,8 +22,8 @@ plot_gam_fit_input <- function(name="initial_values_data", cache, mean = FALSE, 
        { if(type_nrml == "rates") dplyr::mutate(., y = ifelse(y == 0, 1e-99, y)) else dplyr::mutate(., pop = 1) } %>%
        ggplot2::ggplot() +
        ggplot2::geom_tile(ggplot2::aes(x = sx, y = sy, fill = y / pop), color = 'black') +
-       taxdat::color_scale(type = type_nrml, use_case = "ggplot map", use_log = (type_nrml == 'rates'))+
-       ggplot2::labs(fill = ifelse(type_nrml == "cases", "Cases", "Incidence rate (per 1e5)")) + 
+       taxdat::color_scale(type = type_nrml, use_case = "ggplot map", use_log = TRUE)+
+       ggplot2::labs(fill = ifelse(type_nrml == "cases", "Incidence [cases/year]", "Incidence rate (per 1e5)")) + 
        ggplot2::coord_fixed(ratio = 1) + 
        taxdat::map_theme()
    # If to get the by-year plots 
@@ -41,8 +41,8 @@ plot_gam_fit_input <- function(name="initial_values_data", cache, mean = FALSE, 
       { if(type_nrml == "rates") dplyr::mutate(., y = ifelse(y == 0, 1e-99, y), y = y / pop) else dplyr::mutate(., y = y) } %>%
       ggplot2::ggplot() +
       ggplot2::geom_tile(ggplot2::aes(x = sx, y = sy, fill = y), color = 'black') +
-      taxdat::color_scale(type = type_nrml, use_case = "ggplot map", use_log = (type_nrml == 'rates'))+
-      ggplot2::labs(fill = ifelse(type_nrml == "cases", "Cases", "Incidence rate (per 1e5)")) + 
+      taxdat::color_scale(type = type_nrml, use_case = "ggplot map", use_log = TRUE)+
+      ggplot2::labs(fill = ifelse(type_nrml == "cases", "Incidence [cases/year]", "Incidence rate (per 1e5)")) + 
       ggplot2::facet_wrap( ~ t) + 
       ggplot2::coord_fixed(ratio = 1) + 
       taxdat::map_theme()
@@ -131,7 +131,7 @@ plot_gam_fit_output <- function(name="gam_output_df",cache,type) {
     ggplot2::geom_tile(ggplot2::aes(x = sx, y = sy, fill = y), color = 'black') +
     taxdat::map_theme() +
     taxdat::color_scale(type = type_nrml, use_case = "ggplot map", use_log = (type_nrml == 'rates'))+
-    ggplot2::labs(fill = ifelse(type_nrml == "cases", "Cases", "Incidence rate (per 1e5)")) + 
+    ggplot2::labs(fill = ifelse(type_nrml == "cases", "Incidence [cases/year]", "Incidence rate (per 1e5)")) + 
     ggplot2::coord_fixed(ratio = 1) + 
     ggplot2::facet_wrap(~t)
 }

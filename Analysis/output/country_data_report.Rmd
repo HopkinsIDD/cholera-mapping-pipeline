@@ -303,6 +303,14 @@ obs_years <- min(lubridate::year(cache[["sf_cases_resized"]]$TL)):max(lubridate:
 ```{r caserast, fig.cap=capFig("Modeled cases"), fig.height=5, fig.width=10}
 plot_disaggregated_modeled_cases_time_varying(config_file=config_file, disaggregated_case_sf=cache[["disaggregated_case_sf"]], add_shp_from_stan_input = T, run_on_marcc = run_on_marcc)
 ```
+**Modeled cases raster by time slices and chains:**
+```{r caserast_bygridtimechain, fig.cap=capFig("Modeled cases by time and chain"), fig.height=8, fig.width=8}
+plot_modeled_cases_by_gridtime_chain(config=params$config,cholera_directory=params$cholera_directory,cache=cache,render = T)
+```
+**Mean modeled cases raster across time slices and chains:**
+```{r meancaserast, fig.cap=capFig("Mean modeled cases"), fig.height=5, fig.width=10}
+plot_modeled_cases_mean_raster(config=params$config,cholera_directory=params$cholera_directory,cache=cache)
+```
 
 ```{r out-cases,fig.height=5,fig.width=10,fig.cap=capFig("Mean cases per year")}
 output_data %>% 
@@ -352,8 +360,12 @@ cases_summ %>%
 plot_modeled_rates_time_varying(config_file=config_file, disaggregated_rate_sf=cache[["disaggregated_rate_sf"]], add_shp_from_stan_input = T, render = T, run_on_marcc = run_on_marcc)
 ```
 **Modeled incidence rates raster by time slices and chains:**
-```{r raterast_bygridtimechain, fig.cap=capFig("Modeled rates by time"), fig.height=8, fig.width=8}
+```{r raterast_bygridtimechain, fig.cap=capFig("Modeled rates by time and chain"), fig.height=8, fig.width=8}
 plot_modeled_rates_by_gridtime_chain(config=params$config,cholera_directory=params$cholera_directory,cache=cache,render = T)
+```
+**Mean modeled rates raster across time slices and chains:**
+```{r meanraterast, fig.cap=capFig("Mean modeled rates"), fig.height=5, fig.width=10}
+plot_modeled_rates_raster(config=params$config,cholera_directory=params$cholera_directory,cache=cache)
 ```
 
 ```{r out-rates,fig.height=5,fig.width=10,fig.cap=capFig("Mean rate per year")}
@@ -400,7 +412,7 @@ rates_summ %>%
 ```
 ### Proportion per risk category (per 100'000)
 ```{r risk_prop,fig.height=5,fig.width=10,fig.cap=capFig("Proportion per risk category (per 100'000)")}
-risk_cat_dict <- c("<1", "1-10", "10-100", ">100")
+risk_cat_dict <- c("<1", "1-10", "10-20", "20-50", "50-100", ">100")
 
 risk_cat_pop <- cache[["genquant"]]$summary(variables = "location_risk_cat_prop", .cores = 6) %>% 
   mutate(id = str_extract(variable, "(?<=\\[)[0-9]+") %>% as.numeric(),
@@ -422,7 +434,7 @@ risk_cat_pop %>%
 ```
 ### Number per risk category  (per 100'000)
 ```{r risk_num,fig.height=5,fig.width=10,fig.cap=capFig("Number per risk category  (per 100'000)")}
-risk_cat_dict <- c("<1", "1-10", "10-100", ">100")
+risk_cat_dict <- c("<1", "1-10", "10-20", "20-50", "50-100", ">100")
 
 risk_cat_num <- cache[["genquant"]]$summary(variables = "location_risk_cat_num", .cores = 6) %>% 
   mutate(id = str_extract(variable, "(?<=\\[)[0-9]+") %>% as.numeric(),
@@ -540,12 +552,12 @@ plot_MCMCpars(name="model.rand",cache=cache,config=params$config,cholera_directo
 ```
 
 **Gelman-Rubin Rhat:**
-```{r rhat, fig.height=5, fig.width=10, fig.cap=capFig("Gelman-Rubin Rhat")}
+```{r rhat, fig.height=5, fig.width=10, fig.cap=capFig("Gelman-Rubin Rhat at the observation level")}
 plot_Rhat(name="model.rand",cache)
 ```
 
 **Gelman-Rubin Rhat by admin units:**
-```{r rhat by admin units, fig.height=8, fig.width=8, fig.cap=capFig("Gelman-Rubin Rhat by admin units")}
+```{r rhat by admin units, fig.height=8, fig.width=8, fig.cap=capFig("Gelman-Rubin Rhat for generated quantities admin-level outputs")}
 plot_Rhat_by_admin(cache=cache,config=params$config,cholera_directory = params$cholera_directory)
 ```
 
