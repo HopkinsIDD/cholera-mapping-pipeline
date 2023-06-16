@@ -611,6 +611,8 @@ check_do_parallel_prep <- function(do_parallel_prep,
 check_summary_admin_levels <- function(summary_admin_levels) {
   if (is.null(summary_admin_levels)) {
     summary_admin_levels <- c(0,1,2)
+  } else {
+    summary_admin_levels <- try_conv_numeric(summary_admin_levels)
   }
   return(summary_admin_levels)
 }
