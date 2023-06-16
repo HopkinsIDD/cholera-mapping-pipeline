@@ -31,8 +31,7 @@ get_genquant <- cache_fun_results(
 #' @param cache the cached environment
 #' @param admin_level  select admin 0,1,2 or all
 #' @return the summarized cases
-get_genquant_summarized_cases_no_cache <- function(config,
-cache) {
+get_genquant_summarized_cases_no_cache <- function(config, cache, cholera_directory) {
   get_genquant(name="genquant", cache=cache, config=config, cholera_directory = cholera_directory)
   cases <- cache[["genquant"]]$summary(
     variables = "location_cases_output",
