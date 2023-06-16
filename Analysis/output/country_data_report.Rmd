@@ -420,8 +420,8 @@ rates_summ %>%
   kableExtra::pack_rows(index = table(cases_summ$admin_level))
 
 ```
-### Proportion per risk category (per 100'000)
-```{r risk_prop,fig.height=5,fig.width=10,fig.cap=capFig("Proportion per risk category (per 100'000)")}
+### Median Proportion per risk category (per 100'000)
+```{r risk_prop,fig.height=5,fig.width=10,fig.cap=capFig("Median proportion per risk category (per 100'000)")}
 risk_cat_dict <- c("<1", "1-10", "10-20", "20-50", "50-100", ">100")
 
 risk_cat_pop <- cache[["genquant"]]$summary(variables = "location_risk_cat_prop", .cores = 6) %>% 
@@ -490,6 +490,7 @@ risk_cat_prob<-cache[["genquant"]]$draws(variables = "location_risk_cat")%>%
   inner_join(cache[["output_shapefiles"]], ., by = c("location_period_id", "admin_level")) #%>% 
 
 risk_cat_prob %>% 
+  mutate(risk_cat = factor(risk_cat, levels = risk_cat_dict)) %>%
   ggplot(aes(fill = risk_cat_prob %>% as.numeric())) +
   geom_sf(col = "white", size = .05) +
   facet_grid(admin_level ~ risk_cat) +
@@ -504,6 +505,7 @@ risk_cat_prob %>%
 ```{r max_risk_cat_prob,fig.height=5,fig.width=10,fig.cap=capFig("Maximum posterior probability of districts in a given risk category.")}
 
 risk_cat_prob %>% 
+  mutate(risk_cat = factor(risk_cat, levels = risk_cat_dict)) %>%
   group_by(shapeName,location_period_id,admin_level,geom)%>%
   filter(risk_cat_prob==max(risk_cat_prob)) %>% 
   ggplot(aes(fill = risk_cat)) +
