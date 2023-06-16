@@ -29,7 +29,7 @@ get_modeled_cases <- cache_fun_results("modeled_cases", get_modeled_cases_no_cac
 #' @param config config file that contains the parameter information
 #' @param cache the cached environment
 #' @param cholera_directory  the directory of cholera mapping pipeline folder
-#' #' @return  modeled_cases
+#' @return  modeled_cases
 get_modeled_observed_cases_no_cache <- function(config, cache, cholera_directory, ...) {
   get_genquant(name="genquant",cache=cache,config=config,cholera_directory = cholera_directory)
   varnames <- dimnames(cache[['genquant']]$draws())[[3]]
