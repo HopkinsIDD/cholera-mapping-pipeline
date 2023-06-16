@@ -56,4 +56,5 @@ get_genquant_summarized_cases <- cache_fun_results(
     get_genquant_summarized_cases_no_cache,
     overwrite = FALSE,
     config = config,
+    cholera_directory = cholera_directory
 )
