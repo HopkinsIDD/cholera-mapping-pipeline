@@ -68,12 +68,16 @@ plot_MCMCpars <- function(name,
 
   pars <- pars[pars %in% unique(stringr::str_extract(names(model.rand), "[[a-z]*_*]*[a-z]+"))]
   #subset a random sample of w for trace plot
-  get_stan_input(name="stan_input",cache=cache,config = params$config,cholera_directory = params$cholera_directory)
-  smooth_grid_N<-cache[["stan_input"]]$stan_data$smooth_grid_N
-  w_random_indx <- sample(smooth_grid_N,size=5)
-  w_pars<- c(unlist((lapply(w_random_indx,FUN = function(x){return(paste0("w[",x,"]"))}))))
-  
-  plot <- rstan::plot(model.rand, pars = c(pars,w_pars))
+  #if there's no spatial effect, skip w distribution values.
+  if(!yaml::read_yaml(paste0(cholera_directory,"/",config))$spatial_effect){
+    get_stan_input(name="stan_input",cache=cache,config = params$config,cholera_directory = params$cholera_directory)
+    smooth_grid_N<-cache[["stan_input"]]$stan_data$smooth_grid_N
+    w_random_indx <- sample(smooth_grid_N,size=5)
+    w_pars<- c(unlist((lapply(w_random_indx,FUN = function(x){return(paste0("w[",x,"]"))}))))
+    plot <- rstan::plot(model.rand, pars = c(pars,w_pars))
+  } else{
+    plot <- rstan::plot(model.rand, pars = pars)
+  }
   return(plot)
 }
 
@@ -112,8 +116,10 @@ plot_Rhat <- function(name, cache,rhat_thresh=1.05){
 #' @return plot object 
 
 plot_w_mean <- function(cache, config, cholera_directory) {
-    get_model_rand(name="model.rand",cache=cache,config = params$config,cholera_directory = params$cholera_directory)
-    get_stan_input(name="stan_input",cache=cache,config = params$config,cholera_directory = params$cholera_directory)
+    get_model_rand(name="model.rand",cache=cache,config = config,cholera_directory = cholera_directory)
+    get_stan_input(name="stan_input",cache=cache,config = config,cholera_directory = cholera_directory)
+    cache[["unique_db_shps"]]<-get_unique_db_shps(cache=cache,config = config,cholera_directory = cholera_directory)
+    
     w_data <-  rstan::extract(cache[["model.rand"]],pars="w")%>%
       reshape2::melt()
     w_data$chain <- rep(1:4,each=1000)
@@ -128,6 +134,8 @@ plot_w_mean <- function(cache, config, cholera_directory) {
     w_sf <- rbind(w_sf,sf_tmp)
     }
     plot <- w_sf %>% ggplot2::ggplot(.) + ggplot2::geom_sf(ggplot2::aes(fill = w_mean,colour=w_mean),lwd =.1)+ggplot2::guides(col=FALSE)+ggplot2::scale_fill_gradientn(colours=c("blue","white","red"),guide = ggplot2::guide_colorbar(label.theme=ggplot2::element_text(angle=45)))+taxdat::map_theme() +facet_wrap(~chain)
+    plot <- plot + ggplot2::geom_sf(data=cache[["unique_db_shps"]],
+                                    alpha=0)
     return(plot)
 }
 
