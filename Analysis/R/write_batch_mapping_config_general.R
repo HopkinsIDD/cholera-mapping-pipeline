@@ -1,4 +1,7 @@
-# install.packages("packages/taxdat", type="source", repos=NULL)
+setwd("packages/taxdat")
+devtools::document()
+install.packages(".",repo=NULL,type="source")
+install.packages("packages/taxdat", type="source", repos=NULL)
 library(readr)
 library(taxdat)
 #========================================================READ ME========================================================#
@@ -10,19 +13,19 @@ library(taxdat)
 
 
 ####       Modify the following settings      ############## 
-cholera_directory <- "." 
+cholera_directory <- "C:/Users/zheng/Cholera/cholera-mapping-pipeline" 
 setwd(cholera_directory)
-config_path <- "Analysis/configs/..." #<-----dependent on where to save the configs
+config_path <- "Analysis/configs" #<-----dependent on where to save the configs
 dir.create(file.path(cholera_directory, config_path), FALSE)
 
 Sys.setenv("CHOLERA_TESTING" = "FALSE")
 scale <- "country" ## country or region maps
-specified_countries <- c("SDN") #<-----by default NULL if running all countries
+specified_countries <- c("LSO") #<-----by default NULL if running all countries
 # covar_names <- c("dist_to_water", "water_access", "san_access", "open_defe", "stunting", "wasting", "access_cities")
 # ^-----refer to "Layers/covariate_dictionary.yml" for covariate names if running any covariates other than the population 
 covar_names <- c() #<-----if running without using any covariates other than population 
-Sys.setenv("CHOLERA_START_TIME" = "2016-01-01")
-Sys.setenv("CHOLERA_END_TIME" = "2020-12-31")
+Sys.setenv("CHOLERA_START_TIME" = "2011-01-01")
+Sys.setenv("CHOLERA_END_TIME" = "2015-12-31")
 
 
 ids <- read_csv("Analysis/R/locations_todeletelater.csv") # location ids
@@ -36,8 +39,8 @@ if(!is.null(specified_countries)){
   locs <- locs[locs$country %in% specified_countries, ]
 }
 
-config_start_time <- Sys.getenv("CHOLERA_START_TIME","2016-01-01")
-config_end_time <- Sys.getenv("CHOLERA_END_TIME","2020-12-31")
+config_start_time <- Sys.getenv("CHOLERA_START_TIME","2011-01-01")
+config_end_time <- Sys.getenv("CHOLERA_END_TIME","2015-12-31")
 
 params_df <- data.frame(
     name = 'prd-2023',  
@@ -52,6 +55,7 @@ params_df <- data.frame(
     ovrt_metadata_table = 'no', 
     OCs = '', 
     taxonomy = '', 
+    summary_admin_levels = "[0,1]",
     obs_model = 3, 
     inv_od_sd_adm0 = 0.01,
     inv_od_sd_nopool = 1,
