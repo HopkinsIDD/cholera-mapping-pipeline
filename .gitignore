@@ -1,11 +1,13 @@
 packrat/lib*/
 Analysis/data/*
+Analysis/data/
 Analysis/output/logs/*
 Analysis/output/reports/*
 Analysis/R/database_api_key.R
 Analysis/slurm*.out
 *~
 *.Rd
+*.Rproj
 slurm*.out
 .Rproj.user
 packages/taxdat/tests/testthat/psql_credential.txt
@@ -20,7 +22,6 @@ Analysis/output/test.stan_input.rdata
 .Rhistory
 Analysis/configs/
 Layers/
-covar_list_.txt
-covar_list_qulu.txt
+covar_list_*.txt
 Analysis/R/notebooks/gavi_report_html/MAI_preprocess/
 *.DS_Store

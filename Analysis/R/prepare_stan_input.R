@@ -213,6 +213,29 @@ prepare_stan_input <- function(
     }
   }
   
+  # ---- Da. Drop multi-year ----
+  
+  # Set admin level
+  sf_cases_resized <- sf_cases_resized %>% 
+    dplyr::mutate(admin_level = purrr::map_dbl(location_name, ~ taxdat::get_admin_level(.)))
+  
+  # Drop multi-year observations if present
+  if (drop_multiyear_adm0) {
+    sf_cases_resized <- taxdat::drop_multiyear(df = sf_cases_resized,
+                                               admin_levels = 0)
+    
+    # Re-compute space-time indices based on aggretated data
+    ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+      df = sf_cases_resized, 
+      lp_dict = location_periods_dict,
+      model_time_slices = time_slices,
+      res_time = res_time,
+      n_cpus = config$ncpus_parallel_prep,
+      do_parallel = config$do_parallel_prep)
+  }
+  
+  # ---- E. Censoring ----
+  
   stan_data$M <- nrow(sf_cases_resized)
   non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
   obs_changer <- taxdat::make_changer(x = non_na_obs_resized) 
@@ -220,7 +243,6 @@ prepare_stan_input <- function(
                                                                    obs_changer = obs_changer)
   stan_data$map_obs_loctime_loc <- as.array(ind_mapping_resized$map_obs_loctime_loc) 
   
-  # ---- E. Censoring ----
   
   # First define censored observations
   stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
@@ -484,6 +506,32 @@ prepare_stan_input <- function(
     res_space = res_space,
     sf_grid = sf_grid,
     grid_changer = grid_changer)
+  
+  # Get pixels with low sfrac
+  output_low_sfrac <- output_location_periods_table %>% 
+    dplyr::group_by(rid, x, y) %>% 
+    dplyr::slice_max(pop_weight) %>% 
+    dplyr::filter(pop_weight < sfrac_thresh) %>% 
+    dplyr::select(rid, x, y) %>% 
+    dplyr::inner_join(sf_grid %>% sf::st_drop_geometry())
+  
+  # Drop from gridcells with low sfrac from output_location_periods_table
+  output_location_periods_table <- output_location_periods_table %>% 
+    dplyr::filter(!(long_id %in% output_low_sfrac$long_id))
+  
+  # Drop grid cells to output location periods connections
+  output_location_periods_table <- output_location_periods_table %>%
+    dplyr::mutate(connect_id = dplyr::row_number())
+  
+  output_low_sfrac_connections <- output_location_periods_table %>% 
+    dplyr::filter(pop_weight < sfrac_thresh)
+  
+  cat("Dropping", nrow(output_low_sfrac_connections), "/", nrow(output_location_periods_table),
+      "connections between grid cells",
+      "and output location periods which have sfrac <", sfrac_thresh,  "\n")
+  
+  output_location_periods_table <- output_location_periods_table %>% 
+    dplyr::filter(!(connect_id %in% output_low_sfrac_connections$connect_id))
   
   # Make fake data to compute output location periods mappings
   fake_output_obs <- output_location_periods_table %>% 

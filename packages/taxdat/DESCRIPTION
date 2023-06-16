@@ -33,6 +33,7 @@ Collate:
     'get_gam_output.R'
     'get_initial_values.R'
     'get_preprocess_data.R'
+    'get_genquant.R'
     'get_raster.R'
     'get_sf.R'
     'get_stan_input.R'

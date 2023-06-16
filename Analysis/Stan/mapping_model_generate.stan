@@ -54,7 +54,8 @@ data {
   int<lower=0, upper=1> use_intercept;      // Whether to include an intercept in the model or not
   int<lower=0, upper=1> do_zerosum_cnst;    // Whether to enforce a 0-sum constraint on the yearly random effects
   int<lower=0, upper=1> do_infer_sd_eta;    // Whether to enforce a 0-sum constraint on the yearly random effects
-  
+  int<lower=0, upper=1> do_spatial_effect;    // Whether to have a spatial random effect
+
   // Spatial adjacency
   // Note: The adjacency matrix node1 should be sorted and lower triangular
   int <lower=1, upper=smooth_grid_N> node1[N_edges];    // column 1 of the adjacency matrix
@@ -129,7 +130,8 @@ transformed data {
   real eta_zerosum_raw_sigma = inv_sqrt(1 - inv(T));
   int<lower=0, upper=T> size_eta;
   int<lower=0, upper=1> size_sd_eta;
-  
+  int<lower=0, upper=smooth_grid_N> size_w; 
+
   for (i in 1:K1) {
     if (censored[i] == 1) {
       tfrac_censoring[i] = 1;  
@@ -186,6 +188,13 @@ transformed data {
     size_eta = 0;
     size_sd_eta = 0;
   }
+  
+  // Saptial random effect
+  if (do_spatial_effect == 1) {
+    size_w = smooth_grid_N;
+  } else {
+    size_w = 0;
+  }
 }
 
 parameters {
@@ -195,7 +204,7 @@ parameters {
   // Spatial random effects
   real <lower=0, upper=1> rho;    // spatial correlation parameter
   real<lower=0> std_dev_w;             // precision of the spatial effects
-  vector[smooth_grid_N] w;        // spatial random effect
+  vector[size_w] w;        // spatial random effect
   real<lower=0, upper=1> lambda;
   
   // Temporal random effects

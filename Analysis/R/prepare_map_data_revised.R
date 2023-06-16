@@ -246,6 +246,16 @@ taxdat::make_grid_lp_centroids_table(
 
 # Create sf_chol ---------------------------------------------------------------
 
+# Clip shapefiles to the national level output shapefile
+adm0_geom <- output_shapefiles %>% 
+  dplyr::filter(admin_level == "ADM0") %>% 
+  dplyr::slice(1)
+
+sf::st_crs(adm0_geom) <- sf::st_crs(shapefiles) ## same crs needed for st_intersection
+
+shapefiles <- shapefiles %>% 
+  dplyr::mutate(geom = sf::st_intersection(geom, adm0_geom$geom))
+
 sf::st_crs(cases) <- sf::st_crs(shapefiles) ## same crs needed for st_join
 sf::st_geometry(cases) <- NULL
 sf_cases <- sf::st_as_sf(
@@ -277,6 +287,17 @@ sf_cases <- taxdat::snap_to_time_period_df(df = sf_cases,
                                            TR_col = "TR",
                                            res_time = res_time,
                                            tol = snap_tol)
+
+# Set admin level
+sf_cases <- sf_cases %>% 
+  dplyr::mutate(admin_level = purrr::map_dbl(location_name, ~ taxdat::get_admin_level(.)))
+
+# Drop multi-year observations if present
+if (drop_multiyear_adm0) {
+  sf_cases <- taxdat::drop_multiyear(df = sf_cases,
+                                     admin_levels = 0)
+}
+
 
 save(sf_cases,
      full_grid_name,
