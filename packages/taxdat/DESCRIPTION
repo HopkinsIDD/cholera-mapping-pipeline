@@ -56,6 +56,7 @@ Collate:
     'plot_raster_model_output.R'
     'plot_table_by_admin.R'
     'plot_time_varying_pop_raster.R'
+    'plot_unique_db_shp.R'
     'population_helpers.R'
     'shapefile_manipulation.R'
     'simulation_framework_helpers.R'
