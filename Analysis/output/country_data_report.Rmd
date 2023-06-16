@@ -443,8 +443,8 @@ risk_cat_pop %>%
 
 ```
 
-### Number per risk category  (per 100'000)
-```{r risk_num,fig.height=5,fig.width=10,fig.cap=capFig("Number per risk category  (per 100'000)")}
+### Median number per risk category  (per 100'000)
+```{r risk_num,fig.height=5,fig.width=10,fig.cap=capFig("Median number per risk category  (per 100'000)")}
 risk_cat_dict <- c("<1", "1-10", "10-20", "20-50", "50-100", ">100")
 
 risk_cat_num <- cache[["genquant"]]$summary(variables = "location_risk_cat_num", .cores = 6) %>% 
