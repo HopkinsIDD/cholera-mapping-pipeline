@@ -261,6 +261,7 @@ if (!(config$time_effect)) {
 stan_data$do_censoring <- ifelse(config$censoring, 1, 0)
 stan_data$do_time_slice_effect <- ifelse(config$time_effect, 1, 0)
 stan_data$do_time_slice_effect_autocor <- ifelse(config$time_effect_autocor, 1, 0)
+stan_data$do_spatial_effect <- ifelse(config$spatial_effect, 1, 0)
 stan_data$use_weights <- ifelse(config$use_weights, 1, 0)
 stan_data$use_rho_prior<- ifelse(config$use_rho_prior, 1, 0)
 

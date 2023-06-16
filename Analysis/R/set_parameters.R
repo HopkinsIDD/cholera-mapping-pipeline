@@ -274,9 +274,12 @@ set_tfrac <- taxdat::check_set_tfrac(config$set_tfrac)
 # Tolerance for snap_to_period function
 snap_tol <- taxdat::check_snap_tol(snap_tol = config$snap_tol, 
                                    res_time = res_time)
-ncpus_parallel_prep <-taxdat::check_ncpus_parallel_prep(config$ncpus_parallel_prep)
+ncpus_parallel_prep <- taxdat::check_ncpus_parallel_prep(config$ncpus_parallel_prep)
 do_parallel_prep <- taxdat::check_do_parallel_prep(config$do_parallel_prep)
 
+# Drop multi-year data at the national level
+drop_multiyear_adm0 <- taxdat::check_drop_multiyear_adm0(config$drop_multiyear_adm0)
+  
 # - - - - - - - - - - - - - -
 ## SPATIAL GRID SETTINGS
 # - - - - - - - - - - - - - -
@@ -284,6 +287,9 @@ do_parallel_prep <- taxdat::check_do_parallel_prep(config$do_parallel_prep)
 use_pop_weight <- taxdat::check_use_pop_weight(config$use_pop_weight)
 # drop grid cells with overlaps below the specific sfrac threshold
 sfrac_thresh <- taxdat::check_sfrac_thresh(config$sfrac_thresh)
+
+# Whether to include the spatial random effect in the model
+spatial_effect <- taxdat::check_spatial_effect(config$spatial_effect)
 
 # - - - - - - - - - - - - - -
 ## COVARIATE INGESTION
