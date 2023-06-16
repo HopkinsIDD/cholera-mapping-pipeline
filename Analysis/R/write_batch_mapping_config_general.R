@@ -52,6 +52,7 @@ params_df <- data.frame(
     ovrt_metadata_table = 'no', 
     OCs = '', 
     taxonomy = '', 
+    summary_admin_levels = '[0,1,2]',
     obs_model = 3, 
     inv_od_sd_adm0 = 0.01,
     inv_od_sd_nopool = 1,
