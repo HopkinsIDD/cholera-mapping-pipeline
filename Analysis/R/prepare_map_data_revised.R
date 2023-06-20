@@ -255,7 +255,8 @@ sf::st_crs(adm0_geom) <- sf::st_crs(shapefiles) ## same crs needed for st_inters
 
 # Drop data with no intersections
 shapefiles <- shapefiles %>% 
-  dplyr::mutate(adm0_intersect = sf::st_intersects(geom, adm0_geom$geom))
+  dplyr::mutate(adm0_intersect = sf::st_intersects(shapefiles$geom, adm0_geom$geom, sparse = FALSE) %>% 
+                  as.vector())
 
 drop_shapefiles <- shapefiles %>% 
   dplyr::filter(!adm0_intersect)
