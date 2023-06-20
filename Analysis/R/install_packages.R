@@ -6,7 +6,6 @@ package_list <- c(
   "digest",
   "dplyr",
   "foreach",
-  "gdalUtils",
   "glue",
   "geojsonsf",
   "igraph",
