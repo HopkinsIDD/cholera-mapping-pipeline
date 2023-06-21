@@ -264,7 +264,7 @@ drop_shapefiles <- shapefiles %>%
 if (nrow(drop_shapefiles) > 0) {
   cat("-- Dropping", nrow(drop_shapefiles), "that do not intersect the national level output shapefile\n")
   shapefiles <- shapefiles %>% 
-    dplyr::filter(!(locationPeriod_id %in% drop_shapefiles$locationPeriod_id))
+    dplyr::filter(!(location_period_id %in% drop_shapefiles$location_period_id))
 }
 
 shapefiles <- shapefiles %>% 
