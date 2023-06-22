@@ -120,6 +120,23 @@ make_std_output_name <- function(output_dir,
 }
 
 
+#' read_yaml_for_data
+#'
+#' @param config 
+#' @param data_dir 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+read_yaml_for_data <- function(config,
+                               data_dir) {
+  config_list <- yaml::read_yaml(config)
+  # Add output directory to file names
+  config_list$file_names <- purrr::map(config_list$file_names, ~ paste(data_dir, ., sep = "/"))
+  config_list
+}
+
 # Postprocessing wrapper --------------------------------------------------
 
 postprocess_wrapper <- function(config,
