@@ -13,6 +13,7 @@ Suggests: readxl, sf, sp, raster, rgdal, testthat, knitr, rmarkdown
 RoxygenNote: 7.2.3
 Collate:
     'plot_cache_function.R'
+    'get_genquant.R'
     'get_stan_output.R'
     'aggregate_genquant.R'
     'aggregate_raster.R'
@@ -33,7 +34,6 @@ Collate:
     'get_gam_output.R'
     'get_initial_values.R'
     'get_preprocess_data.R'
-    'get_genquant.R'
     'get_raster.R'
     'get_sf.R'
     'get_stan_input.R'
@@ -44,6 +44,7 @@ Collate:
     'mapping_progress_functions.R'
     'pull_data_helpers.R'
     'model_evaluation_helpers.R'
+    'output_figures_and_tables.R'
     'output_processing_helper.R'
     'plot_DroppedData_table.R'
     'plot_GAM.R'
@@ -59,6 +60,7 @@ Collate:
     'plot_time_varying_pop_raster.R'
     'plot_unique_db_shp.R'
     'population_helpers.R'
+    'postprocessing.R'
     'shapefile_manipulation.R'
     'simulation_framework_helpers.R'
     'snap_to_time_period.R'
