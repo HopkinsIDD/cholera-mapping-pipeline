@@ -163,7 +163,7 @@ get_output_shapefiles(name="output_shapefiles", config = params$config,cache=cac
 cases <- cache[["genquant"]]$summary(variables = "location_cases_output", 
                           c(posterior::default_summary_measures(),
                             posterior::default_convergence_measures()),
-                          .cores = 4) %>% 
+                          .cores = 1) %>% 
   mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
          location_period_id = cache[["stan_input"]]$fake_output_obs$locationPeriod_id[id],
          TL = cache[["stan_input"]]$fake_output_obs$TL[id])
@@ -171,14 +171,14 @@ cases <- cache[["genquant"]]$summary(variables = "location_cases_output",
 rates <- cache[["genquant"]]$summary(variables = "location_rates_output", 
                           c(posterior::default_summary_measures(),
                             posterior::default_convergence_measures()),
-                          .cores = 4) %>% 
+                          .cores = 1) %>% 
   mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
          location_period_id = cache[["stan_input"]]$fake_output_obs$locationPeriod_id[id],
          TL = cache[["stan_input"]]$fake_output_obs$TL[id])
 pop <- cache[["genquant"]]$summary(variables = "pop_loctimes_output",
                           c(posterior::default_summary_measures(),
                             posterior::default_convergence_measures()),
-                          .cores = 4)%>% 
+                          .cores = 1)%>% 
   mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
          location_period_id = cache[["stan_input"]]$fake_output_obs$locationPeriod_id[id],
          TL = cache[["stan_input"]]$fake_output_obs$TL[id])
@@ -206,7 +206,7 @@ if(config_file$countries_name=="ZNZ"){
 tot_cases <- cache[["genquant"]]$summary(variables = "location_total_cases_output", 
                               c(posterior::default_summary_measures(),
                                 posterior::default_convergence_measures()),
-                              .cores = 4) %>% 
+                              .cores = 1) %>% 
   mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
          location_period_id = cache[["output_shapefiles"]]$location_period_id[id],
          shapeName = cache[["output_shapefiles"]]$shapeName[id],
@@ -216,7 +216,7 @@ tot_cases <- cache[["genquant"]]$summary(variables = "location_total_cases_outpu
 tot_rates <- cache[["genquant"]]$summary(variables = "location_total_rates_output", 
                               c(posterior::default_summary_measures(),
                                 posterior::default_convergence_measures()),
-                              .cores = 4) %>% 
+                              .cores = 1) %>% 
   mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
          location_period_id = cache[["output_shapefiles"]]$location_period_id[id],
          shapeName = cache[["output_shapefiles"]]$shapeName[id],
@@ -226,7 +226,7 @@ tot_rates <- cache[["genquant"]]$summary(variables = "location_total_rates_outpu
 tot_pop <- cache[["genquant"]]$summary(variables = "pop_loctimes_output", 
                               c(posterior::default_summary_measures(),
                                 posterior::default_convergence_measures()),
-                              .cores = 4) %>% 
+                              .cores = 1) %>% 
   mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
          location_period_id = cache[["output_shapefiles"]]$location_period_id[id],
          shapeName = cache[["output_shapefiles"]]$shapeName[id],
@@ -424,7 +424,7 @@ rates_summ %>%
 ```{r risk_prop,fig.height=5,fig.width=10,fig.cap=capFig("Median proportion per risk category (per 100'000)")}
 risk_cat_dict <- c("<1", "1-10", "10-20", "20-50", "50-100", ">100")
 
-risk_cat_pop <- cache[["genquant"]]$summary(variables = "location_risk_cat_prop", .cores = 6) %>% 
+risk_cat_pop <- cache[["genquant"]]$summary(variables = "location_risk_cat_prop", .cores = 1) %>% 
   mutate(id = str_extract(variable, "(?<=\\[)[0-9]+") %>% as.numeric(),
          risk_cat = str_extract(variable, "(?<=,)[0-9]+") %>% as.numeric(),
          risk_cat = factor(risk_cat_dict[risk_cat], levels = risk_cat_dict),
@@ -447,7 +447,7 @@ risk_cat_pop %>%
 ```{r risk_num,fig.height=5,fig.width=10,fig.cap=capFig("Median number per risk category  (per 100'000)")}
 risk_cat_dict <- c("<1", "1-10", "10-20", "20-50", "50-100", ">100")
 
-risk_cat_num <- cache[["genquant"]]$summary(variables = "location_risk_cat_num", .cores = 6) %>% 
+risk_cat_num <- cache[["genquant"]]$summary(variables = "location_risk_cat_num", .cores = 1) %>% 
   mutate(id = str_extract(variable, "(?<=\\[)[0-9]+") %>% as.numeric(),
          risk_cat = str_extract(variable, "(?<=,)[0-9]+") %>% as.numeric(),
          risk_cat = factor(risk_cat_dict[risk_cat], levels = risk_cat_dict),
@@ -631,7 +631,7 @@ plot_Rhat_by_admin(cache=cache,config=params$config,cholera_directory = params$c
 
 **W distribution:**
 ```{r w_distribution, fig.height=10, fig.width=10, fig.cap=capFig("W distribution")}
-if(!config_file$spatial_effect){
+if(config_file$spatial_effect){
 plot_w_mean(cache = cache, config = params$config, cholera_directory = params$cholera_directory)
 } else{
   print("No spatial effect for this model run.")
