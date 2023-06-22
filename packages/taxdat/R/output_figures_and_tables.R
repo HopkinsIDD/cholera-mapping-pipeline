@@ -3,7 +3,7 @@
 
 # Colors ------------------------------------------------------------------
 color_lake_fill <- function(){"#aad3df"}
-color_lake_broder <- function(){"#7fb4c4"}
+color_lake_border <- function(){"#7fb4c4"}
 
 
 # Figure functions --------------------------------------------------------
@@ -27,22 +27,22 @@ output_plot_map <- function(sf_obj,
                             fill_color_scale_type) {
   
   sf_obj %>% 
-    ggplot(aes(fill = !!sym(fill_var))) +
-    geom_sf() + 
-    geom_sf(data = lakes_sf, fill = color_lake_fill(),
-            color = color_lake_broder(), 
-            size = .06) +
-    geom_sf(data = country_borders,
-            inherit.aes = FALSE,
-            linewidth = .5,
-            alpha = 0) +
+    ggplot2::ggplot(aes(fill = !!sym(fill_var))) +
+    ggplot2::geom_sf() + 
+    ggplot2::geom_sf(data = lakes_sf, fill = color_lake_fill(),
+                     color = color_lake_border(), 
+                     size = .06) +
+    ggplot2::geom_sf(data = country_borders,
+                     inherit.aes = FALSE,
+                     linewidth = .5,
+                     alpha = 0) +
     taxdat::color_scale(type = fill_color_scale_type, 
                         use_case = "ggplot map", 
                         use_log = TRUE) + 
     taxdat::map_theme() +
     # Zoom to bounding box
-    coord_sf(xlim = st_bbox(sf_obj)[c(1, 3)],
-             ylim = st_bbox(sf_obj)[c(2, 4)])
+    ggplot2::coord_sf(xlim = st_bbox(sf_obj)[c(1, 3)],
+                      ylim = st_bbox(sf_obj)[c(2, 4)])
   
 }
 
