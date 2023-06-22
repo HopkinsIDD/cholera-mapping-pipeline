@@ -253,15 +253,29 @@ adm0_geom <- output_shapefiles %>%
 
 sf::st_crs(adm0_geom) <- sf::st_crs(shapefiles) ## same crs needed for st_intersection
 
+# Drop data with no intersections
+shapefiles <- shapefiles %>% 
+  dplyr::mutate(adm0_intersect = sf::st_intersects(shapefiles$geom, adm0_geom$geom, sparse = FALSE) %>% 
+                  as.vector())
+
+drop_shapefiles <- shapefiles %>% 
+  dplyr::filter(!adm0_intersect)
+
+if (nrow(drop_shapefiles) > 0) {
+  cat("-- Dropping", nrow(drop_shapefiles), "that do not intersect the national level output shapefile\n")
+  shapefiles <- shapefiles %>% 
+    dplyr::filter(!(location_period_id %in% drop_shapefiles$location_period_id))
+}
+
 shapefiles <- shapefiles %>% 
   dplyr::mutate(geom = sf::st_intersection(geom, adm0_geom$geom))
 
 sf::st_crs(cases) <- sf::st_crs(shapefiles) ## same crs needed for st_join
 sf::st_geometry(cases) <- NULL
 sf_cases <- sf::st_as_sf(
-  dplyr::left_join(cases,
-                   shapefiles,
-                   by = c("attributes.location_period_id" = "location_period_id")
+  dplyr::inner_join(cases,
+                    shapefiles,
+                    by = c("attributes.location_period_id" = "location_period_id")
   )
 )
 
