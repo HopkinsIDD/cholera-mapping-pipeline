@@ -367,6 +367,12 @@ get_output_sf_reaload <- function(config_list) {
     res <- readRDS(output_space_sf_file)
   } else {
     res <- taxdat::read_file_of_type(config_list$file_names$observations_filename, "output_shapefiles")
+    stan_input <- taxdat::read_file_of_type(config_list$file_names$stan_input, "stan_input")
+    
+    # Keep only output shapefiles with data
+    res <- res %>% 
+      dplyr::filter(location_period_id %in% stan_input$fake_output_obs$locationPeriod_id)
+    
     saveRDS(res, file = output_space_sf_file)
   }
   
