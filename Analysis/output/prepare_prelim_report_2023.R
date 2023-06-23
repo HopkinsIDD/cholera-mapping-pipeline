@@ -10,12 +10,20 @@ library(cmdstanr)
 library(optparse)
 library(foreach)
 library(rmapshaper)
-
+library(taxdat)
 
 # Load data ---------------------------------------------------------------
 
 # Lakes for plotting
 lakes_sf <- get_lakes()
+
+# List of all countries with intended run
+# Sheet Data Entry Tracking Feb 2022 from spreadsheet that can be downloaded from
+# https://docs.google.com/spreadsheets/d/17MtTdUlC2tNLk3QPYdTzgFqiPacUg4rbi8cVTYoOaZE/edit#gid=1264119518
+
+intended_runs <- read_csv("Analysis/output/Data Entry Coordination - Data Entry Tracking - Feb 2022.csv") %>% 
+  janitor::clean_names() %>% 
+  filter(country != "GMB")
 
 # ADM0 MAI results
 mai_adm0_combined <- bind_rows(
