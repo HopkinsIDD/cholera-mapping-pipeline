@@ -33,7 +33,7 @@ color_scale = function(type='cases', use_case = 'leaflet', use_log = FALSE){
     }
   } else if (type %in% c('rate', 'rates')){
     colors <- c("blue","white","red")
-    limits <- c(1e-7,1e-1) # 1e-2 to 1e4 on cases per 1e5
+    limits <- c(1e-8,1e-1) # 1e-2 to 1e4 on cases per 1e5
     breaks <- function(x){
       logscale_x <- log(x*1e5)/log(10)
       return(10^seq(floor(logscale_x[1]),ceiling(logscale_x[2]),by=1)/1e5)

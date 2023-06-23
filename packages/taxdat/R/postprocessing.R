@@ -386,10 +386,11 @@ get_AFRO_region <- function(data, ctry_col) {
   data_with_AFRO_region <- data %>% 
     mutate(
       AFRO_region = dplyr::case_when(
-        !!rlang::sym(ctry_col) %in% c("BDI","ETH","KEN","MDG","RWA","SDN","SSD","UGA","TZA") ~ "Estern",
-        !!rlang::sym(ctry_col) %in% c("MOZ","MWI","ZMB","ZWE","ZAF") ~ "Southern",
-        !!rlang::sym(ctry_col) %in% c("AGO","CMR","CAF","TCD","COG","COD","GNQ","GAN") ~ "Middle",
-        !!rlang::sym(ctry_col) %in% c("BEN","BFA","CIV","GHA","GIN","GNB","LBR","MLI","MRT","NER","NGA","SEN","SLE","TGO") ~ "Western"
+        !!rlang::sym(ctry_col) %in% c("BDI","ETH","KEN","MDG","RWA","SDN","SSD","UGA","TZA") ~ "Estern Africa",
+        !!rlang::sym(ctry_col) %in% c("MOZ","MWI","NAM","SWZ","ZMB","ZWE","ZAF") ~ "Southern Africa",
+        !!rlang::sym(ctry_col) %in% c("AGO","CMR","CAF","TCD","COG","COD","GNQ","GAN") ~ "Middle Africa",
+        !!rlang::sym(ctry_col) %in% c("BEN","BFA","CIV","GHA","GIN","GNB","LBR","MLI","MRT","NER","NGA","SEN","SLE","TGO") ~ "Western Africa",
+        !!rlang::sym(ctry_col) %in% c("DJI","SOM","SDN") ~ "Eastern Mediterranean"
       ) 
     )
   
