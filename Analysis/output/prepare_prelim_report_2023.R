@@ -63,20 +63,6 @@ compute_rate_changes <- function(df) {
 mai_adm0_changes <- compute_rate_changes(mai_adm0_combined)
 mai_adm2_changes <- compute_rate_changes(mai_adm2_combined)
 
-# Create country level shapefiles for African continent -----------------------------------------------------------
-# sf::sf_use_s2(FALSE)
-# load("C:/Users/zheng/Cholera/cholera-mapping-pipeline/packages/taxdat/data/WHO_regions.rdata")
-# afr <- WHO_regions %>% subset(WHO.region.code=="AFR" | Country.code %in% c("SOM","DJI","LBY","SDN","EGY"))
-# afr_sf<-data.frame()
-# for ( idx in seq(nrow(afr))) {
-#   sf_tmp <- geodata::gadm(country = afr$Country.code[idx], 
-#                 level = 0, 
-#                 path = tempdir()) %>%
-#     sf::st_as_sf()
-#   afr_sf <- rbind(afr_sf,sf_tmp)
-# }
-# sf::st_write(afr_sf,"packages/taxdat/data/afr_sf.shp")
-
 # Figure 1. MAI national --------------------------------------------------
 
 afr_sf<-sf::st_read("packages/taxdat/data/afr_sf.shp")
@@ -172,8 +158,8 @@ p_fig3 <- mai_adm0_changes_sf %>%
                   lakes_sf = lakes_sf,
                   country_borders = afr_sf,
                   fill_var = "rate_ratio",
-                  fill_color_scale_type = "rates") +
-  scale_fill_gradient2(midpoint = 2) +
+                  fill_color_scale_type = "ratio",
+                  admin_level = "admin0") +
   ggtitle(str_glue("Mean mean annual incidence rate ratios\nat national level"))
 ggsave(p_fig3,
        file = "Analysis/output/figures/Figure_3_MAI_ratio_admin0.png",
@@ -181,7 +167,45 @@ ggsave(p_fig3,
        height = 8, 
        dpi = 300)
 
-# Figure 4. MAI scatter plot ----------------------------------------------
+# Figure 3_2. MAI Ratio at admin2-----------------------------------------------------
+
+mai_adm2_changes_sf<-inner_join(mai_adm2_combined,
+                                mai_adm2_changes)
+
+mai_adm2_changes_sf <- mai_adm2_changes_sf %>% 
+  mutate(iso = substr(location_period_id,1,3))
+country_in_progress <- afr_sf[!afr_sf$GID_0 %in% mai_adm2_changes_sf$iso,]
+
+mai_adm2_changes_sf_NA <- mai_adm2_changes_sf[1,] %>% 
+  slice(rep(1:n(), each = nrow(country_in_progress))) %>% 
+  mutate(
+    mean = NA,
+    q5 = NA,
+    q95 = NA,
+    shapeName = country_in_progress$COUNTRY,
+    iso= country_in_progress$GID_0,
+    geom=country_in_progress$geometry,
+    `2011-2015`=NA,
+    `2016-2020` =NA
+  )
+
+mai_adm2_changes_sf<- rbind(mai_adm2_changes_sf,mai_adm2_changes_sf_NA)
+
+p_fig3_2 <- mai_adm2_changes_sf %>% 
+  output_plot_map(sf_obj = .,
+                  lakes_sf = lakes_sf,
+                  country_borders = afr_sf,
+                  fill_var = "rate_ratio",
+                  fill_color_scale_type = "ratio",
+                  admin_level = "admin2") +
+  ggtitle(str_glue("Mean mean annual incidence rate ratios\nat second administrative level"))
+ggsave(p_fig3_2,
+       file = "Analysis/output/figures/Figure_3_2_MAI_ratio_admin2.png",
+       width = 10,
+       height = 8, 
+       dpi = 300)
+
+ # Figure 4. MAI scatter plot ----------------------------------------------
 #assign who regions to the 
 mai_adm0_changes <- mai_adm0_changes %>% 
   mutate(iso = substr(location_period_id,1,3))
