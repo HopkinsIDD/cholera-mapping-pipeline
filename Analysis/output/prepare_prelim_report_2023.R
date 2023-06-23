@@ -11,7 +11,18 @@ library(optparse)
 library(foreach)
 library(rmapshaper)
 library(taxdat)
+library(cowplot)
+library(flextable)
+
 options(bitmapType='cairo')
+
+# User-supplied options
+opt_list <- list(
+  make_option(opt_str = c("-o", "--output_dir"), type = "character",
+              default = "./Analysis/output/processed_outputs/", help = "Output directory")
+)
+
+opt <- parse_args(OptionParser(option_list = opt_list))
 
 # Load data ---------------------------------------------------------------
 
@@ -24,40 +35,66 @@ lakes_sf <- get_lakes()
 
 intended_runs <- read_csv("Analysis/output/Data Entry Coordination - Data Entry Tracking - Feb 2022.csv") %>% 
   janitor::clean_names() %>% 
-  filter(country != "GMB")
+  filter(country != "GMB") %>% 
+  mutate(isocode = case_when(str_detect(country, "TZA") ~ "TZA",
+                             T ~ country))
+
+# Shapefiles for ADM0 countries in AFR
+if(!file.exists("packages/taxdat/data/afr_sf_cleaned.shp")) {
+  afr_sf <- sf::st_read("packages/taxdat/data/afr_sf.shp") %>% 
+    # Remove wholes 
+    nngeo::st_remove_holes() %>% 
+    # Remove small islands 
+    ms_filter_islands(min_area = 1e9) %>% 
+    ms_simplify(keep = 0.05,
+                keep_shapes = FALSE)
+  
+  st_write(afr_sf, "packages/taxdat/data/afr_sf_cleaned.shp")
+} else {
+  afr_sf <- sf::st_read("packages/taxdat/data/afr_sf_cleaned.shp")
+}
+
+afr_sf <- afr_sf %>% 
+  janitor::clean_names() %>% 
+  mutate(country_name = country,
+         country = gid_0,
+         intended_run = gid_0 %in% intended_runs$isocode)
+
+afr_sf %>% 
+  ggplot(aes(fill = intended_run)) +
+  geom_sf() +
+  taxdat::map_theme()
 
 # ADM0 MAI results
 mai_adm0_combined <- bind_rows(
-  readRDS("C:/Users/zheng/Cholera/map/processed_outputs/mai_adm0__2011_2015.rds") %>% 
-    mutate(period = "2011-2015") %>% 
-    mutate(iso = substr(location_period_id,1,3)),
-  readRDS("C:/Users/zheng/Cholera/map/processed_outputs/mai_adm0__2016_2020.rds") %>% 
-    mutate(period = "2016-2020") %>% 
-    mutate(mean = map_dbl(mean, ~ . * 10^runif(1, -1, 1))) %>% 
-    mutate(iso = substr(location_period_id,1,3))
-)
+  readRDS(str_glue("{opt$output_dir}/mai_adm0__2011_2015.rds")) %>% 
+    mutate(period = "2011-2015"),
+  readRDS(str_glue("{opt$output_dir}/mai_adm0__2016_2020.rds")) %>% 
+    mutate(period = "2016-2020")
+) %>% 
+  mutate(country = str_extract(location_period_id, "[A-Z]{3}"),
+         log10_rate_per_1e5 = log10(mean * 1e5))
 
 # ADM2 MAI results
 mai_adm2_combined <- bind_rows(
-  readRDS("C:/Users/zheng/Cholera/map/processed_outputs/mai_adm2__2011_2015.rds") %>% 
+  readRDS(str_glue("{opt$output_dir}/mai_adm2__2011_2015.rds")) %>% 
     mutate(period = "2011-2015") %>% 
-    mutate(iso = substr(location_period_id,1,3)),
-  readRDS("C:/Users/zheng/Cholera/map/processed_outputs/mai_adm2__2016_2020.rds") %>% 
-    mutate(period = "2016-2020") %>% 
-    mutate(mean = mean * runif(nrow(.), .1, 10)) %>% 
-    mutate(iso = substr(location_period_id,1,3))
-)
+    mutate(iso = str_extract(location_period_id, "[A-Z]{3}")),
+  readRDS(str_glue("{opt$output_dir}/mai_adm2__2016_2020.rds")) %>% 
+    mutate(period = "2016-2020")
+) %>% 
+  mutate(country = str_extract(location_period_id, "[A-Z]{3}"),
+         log10_rate_per_1e5 = log10(mean * 1e5))
 
-
-# Get unique shapefiles
-adm0_sf <- mai_adm0_combined %>% 
-  group_by(location_period_id) %>% 
-  slice(1) %>% 
+# # Get unique shapefiles
+adm0_sf <- mai_adm0_combined %>%
+  group_by(location_period_id) %>%
+  slice(1) %>%
   select(-period)
 
-adm2_sf <- mai_adm2_combined %>% 
-  group_by(location_period_id) %>% 
-  slice(1) %>% 
+adm2_sf <- mai_adm2_combined %>%
+  group_by(location_period_id) %>%
+  slice(1) %>%
   select(-period)
 
 # Compute stats -----------------------------------------------------------
@@ -65,115 +102,69 @@ adm2_sf <- mai_adm2_combined %>%
 compute_rate_changes <- function(df) {
   df %>% 
     st_drop_geometry() %>% 
-    select(location_period_id, mean, period,iso) %>% 
+    select(location_period_id, mean, period, country) %>% 
     pivot_wider(values_from = "mean",
                 names_from = "period") %>% 
     mutate(rate_ratio = `2016-2020`/`2011-2015`,
+           log10_rate_ratio = log10(rate_ratio),
            rate_diff = `2016-2020` - `2011-2015`)
 }
 
 mai_adm0_changes <- compute_rate_changes(mai_adm0_combined)
 mai_adm2_changes <- compute_rate_changes(mai_adm2_combined)
 
-
 # Figure 1. MAI national --------------------------------------------------
-#add shapefiles for countries without any data
-afr_sf<-sf::st_read("packages/taxdat/data/afr_sf.shp")
-country_in_progress_2011_2015 <- afr_sf[!afr_sf$GID_0 %in% mai_adm0_combined[mai_adm0_combined$period=="2011-2015",]$iso,]
-country_in_progress_2016_2020 <- afr_sf[!afr_sf$GID_0 %in% mai_adm0_combined[mai_adm0_combined$period=="2016-2020",]$iso,]
-
-mai_adm0_NA_2011_2015 <- mai_adm0_combined[1,] %>% 
-  dplyr::slice(rep(1:n(), each = nrow(country_in_progress_2011_2015))) %>% 
-  dplyr::mutate(
-    mean = NA,
-    q5 = NA,
-    q95 = NA,
-    shapeName = country_in_progress_2011_2015$COUNTRY,
-    iso= country_in_progress_2011_2015$GID_0,
-    geom=country_in_progress_2011_2015$geometry,
-    period = '2011-2015'
-  )
-mai_adm0_NA_2016_2020 <- mai_adm0_combined[1,] %>% 
-  dplyr::slice(rep(1:n(), each = nrow(country_in_progress_2016_2020))) %>% 
-  dplyr::mutate(
-    mean = NA,
-    q5 = NA,
-    q95 = NA,
-    shapeName = country_in_progress_2016_2020$COUNTRY,
-    iso= country_in_progress_2016_2020$GID_0,
-    geom=country_in_progress_2016_2020$geometry,
-    period = '2016-2020'
-  )
-mai_adm0_combined<- rbind(mai_adm0_combined,mai_adm0_NA_2011_2015,mai_adm0_NA_2016_2020)
-
-# countries in progress or no run intend
-countries_without_data <- read.csv("Analysis/output/processed_output/production_run_status.csv")
-countries_without_data_sf <- mai_adm0_combined %>% subset(iso %in% countries_without_data[countries_without_data$status=="no run",]$iso)
 
 p_fig1 <- output_plot_map(sf_obj = mai_adm0_combined,
                           lakes_sf = lakes_sf,
-                          country_borders = afr_sf,
-                          fill_var = "mean",
+                          all_countries_sf = afr_sf,
+                          fill_var = "log10_rate_per_1e5",
                           fill_color_scale_type = "rates") +
-  geom_sf(data=countries_without_data_sf,fill="gray40") +
   facet_wrap(~ period) +
-  ggtitle(str_glue("Mean mean annual incidence rate\nat national level"))
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 15),
+        legend.position = "right") +
+  guides(fill = guide_colorbar("Incidence rate\n[cases/100,000 people]"))
+
 
 ggsave(p_fig1,
        file = "Analysis/output/figures/Figure_1_MAI_admin0.png",
-       width = 10,
+       width = 12,
        height = 8, 
        dpi = 300)
 
 # Figure 2. MAI ADM2 ------------------------------------------------------
-#add shapefiles for countries without any data
-mai_adm2_combined <- rbind(mai_adm2_combined,mai_adm0_NA_2011_2015,mai_adm0_NA_2016_2020)
 
 p_fig2 <- output_plot_map(sf_obj = mai_adm2_combined,
                           lakes_sf = lakes_sf,
-                          country_borders = afr_sf,
-                          fill_var = "mean",
-                          fill_color_scale_type = "rates") + 
-  geom_sf(data=countries_without_data_sf,fill="gray40") +
+                          all_countries_sf = afr_sf,
+                          fill_var = "log10_rate_per_1e5",
+                          fill_color_scale_type = "rates") +
   facet_wrap(~ period) +
-  ggtitle(str_glue("Mean mean annual incidence rate\nat second administrative level"))
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 15),
+        legend.position = "right") +
+  guides(fill = guide_colorbar("Incidence rate\n[cases/100,000 people]"))
+
 
 ggsave(p_fig2,
        file = "Analysis/output/figures/Figure_2_MAI_admin2.png",
-       width = 10,
+       width = 12,
        height = 8, 
        dpi = 300)
 
 # Figure 3. MAI Ratio -----------------------------------------------------
-# add countries that are in progress (either aren't approved nor no intend to run)
-mai_adm0_changes_sf<-inner_join(adm0_sf,
-           mai_adm0_changes) 
-country_in_progress <- afr_sf[!afr_sf$GID_0 %in% mai_adm0_changes_sf$iso,]
 
-mai_adm0_changes_sf_NA <- mai_adm0_changes_sf[1,] %>% 
-  slice(rep(1:n(), each = nrow(country_in_progress))) %>% 
-  mutate(
-    mean = NA,
-    q5 = NA,
-    q95 = NA,
-    shapeName = country_in_progress$COUNTRY,
-    iso= country_in_progress$GID_0,
-    geom=country_in_progress$geometry,
-    `2011-2015`=NA,
-    `2016-2020` =NA,    
-    rate_ratio=NA,
-    rate_diff=NA
-  )
-mai_adm0_changes_sf<- rbind(mai_adm0_changes_sf,mai_adm0_changes_sf_NA)
-
-p_fig3 <- mai_adm0_changes_sf %>% 
+p_fig3 <- inner_join(adm0_sf,
+                     mai_adm0_changes) %>% 
   output_plot_map(sf_obj = .,
                   lakes_sf = lakes_sf,
-                  country_borders = afr_sf,
-                  fill_var = "rate_ratio",
-                  fill_color_scale_type = "ratio",
-                  admin_level = "admin0") +
-  ggtitle(str_glue("Mean mean annual incidence rate ratios\nat national level"))
+                  all_countries_sf = afr_sf,
+                  fill_var = "log10_rate_ratio",
+                  fill_color_scale_type = "ratio")  +
+  theme(legend.position = "right") +
+  guides(fill = guide_colorbar("Ratio of incidence rates\n[2016-2020/2011-2015]"))
+
 ggsave(p_fig3,
        file = "Analysis/output/figures/Figure_3_MAI_ratio_admin0.png",
        width = 10,
@@ -181,34 +172,16 @@ ggsave(p_fig3,
        dpi = 300)
 
 # Figure 3_2. MAI Ratio at admin2-----------------------------------------------------
-mai_adm2_changes_sf<-inner_join(mai_adm2_combined,
-                                mai_adm2_changes)
-country_in_progress <- afr_sf[!afr_sf$GID_0 %in% mai_adm2_changes_sf$iso,]
 
-mai_adm2_changes_sf_NA <- mai_adm2_changes_sf[1,] %>% 
-  slice(rep(1:n(), each = nrow(country_in_progress))) %>% 
-  mutate(
-    mean = NA,
-    q5 = NA,
-    q95 = NA,
-    shapeName = country_in_progress$COUNTRY,
-    iso= country_in_progress$GID_0,
-    geom=country_in_progress$geometry,
-    `2011-2015`=NA,
-    `2016-2020` =NA,
-    rate_ratio=NA,
-    rate_diff=NA
-  )
-mai_adm2_changes_sf<- rbind(mai_adm2_changes_sf,mai_adm2_changes_sf_NA)
-
-p_fig3_2 <- mai_adm2_changes_sf %>% 
+p_fig3_2 <- inner_join(adm2_sf,
+                       mai_adm2_changes) %>% 
   output_plot_map(sf_obj = .,
                   lakes_sf = lakes_sf,
-                  country_borders = afr_sf,
-                  fill_var = "rate_ratio",
-                  fill_color_scale_type = "ratio",
-                  admin_level = "admin2") +
-  ggtitle(str_glue("Mean mean annual incidence rate ratios\nat second administrative level"))
+                  all_countries_sf = afr_sf,
+                  fill_var = "log10_rate_ratio",
+                  fill_color_scale_type = "ratio") +
+  theme(legend.position = "right") +
+  guides(fill = guide_colorbar("Ratio of incidence rates\n[2016-2020/2011-2015]"))
 
 ggsave(p_fig3_2,
        file = "Analysis/output/figures/Figure_3_2_MAI_ratio_admin2.png",
@@ -216,21 +189,81 @@ ggsave(p_fig3_2,
        height = 8, 
        dpi = 300)
 
- # Figure 4. MAI scatter plot ----------------------------------------------
+# Figure 4. MAI scatter plot ----------------------------------------------
 #assign who regions to the 
-mai_adm0_changes<-taxdat::get_AFRO_region(mai_adm0_changes,ctry_col = "iso")
+mai_adm0_changes <- taxdat::get_AFRO_region(mai_adm0_changes, 
+                                            ctry_col = "country")
 
-p_fig4 <- mai_adm0_changes %>% 
-  ggplot(aes(x = `2011-2015`, y = `2016-2020`,col=AFRO_region)) +
+afr_sf <- taxdat::get_AFRO_region(afr_sf, 
+                                  ctry_col = "country")
+
+p_fig4_scatter <- mai_adm0_changes %>% 
+  ggplot(aes(x = log10(`2011-2015`*1e5), 
+             y =  log10(`2016-2020`*1e5), 
+             col = AFRO_region)) +
   geom_abline() +
   geom_point() +
+  ggrepel::geom_label_repel(aes(label = country),
+                            min.segment.length = 0,
+                            max.overlaps = Inf) +
   theme_bw() +
-  labs(col="WHO regions")+
-  scale_x_log10(limits=c(1e-8,1e-02)) +
-  scale_y_log10(limits=c(1e-8,1e-02)) 
+  guides(color = guide_legend("WHO regions")) +
+  scale_x_continuous(limits = c(-2, 2),
+                     breaks = seq(-2, 2),
+                     labels = formatC(10^(seq(-2, 2)),
+                                      digits = 1,
+                                      format = "fg", 
+                                      big.mark = ",")) +
+  scale_y_continuous(limits = c(-2, 2),
+                     breaks = seq(-2, 2),
+                     labels = formatC(10^(seq(-2, 2)),
+                                      digits = 1,
+                                      format = "fg", 
+                                      big.mark = ",")) +
+  labs(x = "Incidence rate 2011-2015\n[cases per 100,000/year]",
+       y = "Incidence rate 2016-2020\n[cases per 100,000/year]")
+
+p_regions <- ggplot(afr_sf, aes(fill = AFRO_region)) +
+  geom_sf() +
+  taxdat::map_theme() +
+  guides(fill = "none") +
+  theme(panel.background = element_blank(),
+        plot.background = element_blank(),
+        panel.border = element_blank())
+
+
+p_fig4 <- ggdraw() +
+  draw_plot(p_fig4_scatter) +
+  draw_plot(p_regions, x = 0.765, y = .7, width = .27, height = .27)
+
 
 ggsave(p_fig4,
        file = "Analysis/output/figures/Figure_4_MAI_scatter_plot.png",
        width = 10,
-       height = 8, 
+       height = 7, 
        dpi = 300)
+
+
+
+# Table -------------------------------------------------------------------
+
+mai_adm0_combined %>% 
+  st_drop_geometry() %>% 
+  mutate(text = str_c(
+    formatC(mean*1e5, digits = 1, format = "f"),
+    " (",
+    formatC(q5*1e5, digits = 1, format = "f"),
+    "-",
+    formatC(q95*1e5, digits = 1, format = "f"),
+    ")"
+  )) %>% 
+  select(text, period, country) %>% 
+  pivot_wider(values_from = "text",
+              names_from = "period") %>% 
+  inner_join(mai_adm0_changes %>% 
+               mutate(rate_diff = formatC(rate_diff*1e5 , digits = 1, format = "f"),
+                      rate_ratio = formatC(rate_ratio, digits = 1, format = "f")) %>% 
+               select(country, rate_ratio, rate_diff)) %>% 
+  flextable() %>%
+  set_table_properties(width = 1, layout = "autofit") %>%
+  save_as_docx(path = "Analysis/output/figures/Table_1.docx")

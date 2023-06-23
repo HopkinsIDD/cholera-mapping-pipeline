@@ -4,6 +4,8 @@
 # Colors ------------------------------------------------------------------
 color_lake_fill <- function(){"#aad3df"}
 color_lake_border <- function(){"#7fb4c4"}
+color_run_intended <- function(){"#E8E8E8"}
+color_no_run_intended <- function(){c("#E2FFDE")}
 
 
 # Figure functions --------------------------------------------------------
@@ -21,26 +23,60 @@ color_lake_border <- function(){"#7fb4c4"}
 #'
 #' @examples
 output_plot_map <- function(sf_obj,
-                            country_borders,
+                            all_countries_sf,
                             lakes_sf = get_lakes(),
                             fill_var,
-                            fill_color_scale_type,
-                            admin_level="admin0") {
+                            fill_color_scale_type) {
   
   sf_obj %>% 
     ggplot2::ggplot(aes(fill = !!sym(fill_var))) +
-    ggplot2::geom_sf() + 
+    ggplot2::geom_sf(data = all_countries_sf %>% 
+                       dplyr::filter(!intended_run),
+                     inherit.aes = FALSE,
+                     linewidth = 0,
+                     alpha = 1,
+                     fill = color_no_run_intended()) +
+    ggplot2::geom_sf(data = all_countries_sf %>% 
+                       dplyr::filter(intended_run),
+                     inherit.aes = FALSE,
+                     linewidth = 0,
+                     alpha = 1,
+                     fill = color_run_intended()) +
+    ggplot2::geom_sf(linewidth = .02, color = "white") + 
     ggplot2::geom_sf(data = lakes_sf, fill = color_lake_fill(),
                      color = color_lake_border(), 
-                     size = .06) +
-    ggplot2::geom_sf(data = country_borders,
+                     linewidth = .06) +
+    ggplot2::geom_sf(data = all_countries_sf,
                      inherit.aes = FALSE,
-                     linewidth = .5,
+                     linewidth = .3,
                      alpha = 0) +
-    taxdat::color_scale(type = fill_color_scale_type, 
-                        use_case = "ggplot map", 
-                        use_log = TRUE,
-                        admin_level=admin_level) + 
+    {  
+      if(fill_color_scale_type == "rates") {
+        scale_fill_viridis_c(breaks = seq(-1, 2), 
+                             labels = formatC(10^(seq(-1, 2)),
+                                              digits = 1,
+                                              format = "fg", 
+                                              big.mark = ",") %>% 
+                               {
+                                 x <- .
+                                 x[1] <- str_c("<= ", x[1])
+                                 x[length(x)] <- str_c(">= ", x[length(x)])
+                                 x
+                               },
+                             limits = c(-1, 2.5),
+                             option = "plasma",
+                             oob = scales::squish)
+      } else {
+        scale_fill_gradient2(breaks = seq(-3, 2), 
+                             labels = formatC(10^(seq(-3, 2)),
+                                              digits = 1,
+                                              format = "fg", 
+                                              big.mark = ","),
+                             limits = c(-3.1, 2.1),
+                             midpoint = 0,
+                             oob = scales::squish)
+      }
+    } +
     taxdat::map_theme() +
     # Zoom to bounding box
     ggplot2::coord_sf(xlim = st_bbox(sf_obj)[c(1, 3)],
@@ -58,6 +94,7 @@ output_plot_map <- function(sf_obj,
 #' @param path to data file
 #'
 #' @return an sf_object
+#' @export
 #' 
 get_lakes <- function(path = "Layers/geodata/Africa_waterbody.shp") {
   
