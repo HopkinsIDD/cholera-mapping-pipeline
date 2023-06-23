@@ -216,7 +216,7 @@ postprocess_wrapper <- function(config,
 #' @param redo
 #'
 #' @return a dataframe
-#' 
+#' @export
 run_all <- function(
     config_dir = NULL,
     fun,
@@ -379,5 +379,27 @@ get_output_sf_reaload <- function(config_list) {
   res
 }
 
+# get regions for countries -------------------------------------------------------
 
+#' get_AFRO_region
+#' @param data data frame with country name
+#' @param ctry_col colname of country name
+#' @return 
+#' @export
+#' @examples
+get_AFRO_region <- function(data, ctry_col) {
+  
+  data_with_AFRO_region <- data %>% 
+    mutate(
+      AFRO_region = dplyr::case_when(
+        !!rlang::sym(ctry_col) %in% c("BDI","ETH","KEN","MDG","RWA","SDN","SSD","UGA","TZA") ~ "Estern Africa",
+        !!rlang::sym(ctry_col) %in% c("MOZ","MWI","NAM","SWZ","ZMB","ZWE","ZAF") ~ "Southern Africa",
+        !!rlang::sym(ctry_col) %in% c("AGO","CMR","CAF","TCD","COG","COD","GNQ","GAN") ~ "Middle Africa",
+        !!rlang::sym(ctry_col) %in% c("BEN","BFA","CIV","GHA","GIN","GNB","LBR","MLI","MRT","NER","NGA","SEN","SLE","TGO") ~ "Western Africa",
+        !!rlang::sym(ctry_col) %in% c("DJI","SOM","SDN") ~ "Eastern Mediterranean"
+      ) 
+    )
+  
+  return(data_with_AFRO_region)
+}
 

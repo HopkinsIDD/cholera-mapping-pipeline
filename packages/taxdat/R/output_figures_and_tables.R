@@ -24,7 +24,8 @@ output_plot_map <- function(sf_obj,
                             country_borders,
                             lakes_sf = get_lakes(),
                             fill_var,
-                            fill_color_scale_type) {
+                            fill_color_scale_type,
+                            admin_level="admin0") {
   
   sf_obj %>% 
     ggplot2::ggplot(aes(fill = !!sym(fill_var))) +
@@ -38,11 +39,12 @@ output_plot_map <- function(sf_obj,
                      alpha = 0) +
     taxdat::color_scale(type = fill_color_scale_type, 
                         use_case = "ggplot map", 
-                        use_log = TRUE) + 
+                        use_log = TRUE,
+                        admin_level=admin_level) + 
     taxdat::map_theme() +
     # Zoom to bounding box
     ggplot2::coord_sf(xlim = st_bbox(sf_obj)[c(1, 3)],
-                      ylim = st_bbox(sf_obj)[c(2, 4)])
+                      ylim = st_bbox(sf_obj)[c(2, 6)])
   
 }
 
