@@ -67,6 +67,7 @@ compute_rate_changes <- function(df) {
 mai_adm0_changes <- compute_rate_changes(mai_adm0_combined)
 mai_adm2_changes <- compute_rate_changes(mai_adm2_combined)
 
+
 # Figure 1. MAI national --------------------------------------------------
 #add shapefiles for countries without any data
 afr_sf<-sf::st_read("packages/taxdat/data/afr_sf.shp")
@@ -97,11 +98,16 @@ mai_adm0_NA_2016_2020 <- mai_adm0_combined[1,] %>%
   )
 mai_adm0_combined<- rbind(mai_adm0_combined,mai_adm0_NA_2011_2015,mai_adm0_NA_2016_2020)
 
+# countries in progress or no run intend
+countries_without_data <- read.csv("Analysis/output/processed_output/production_run_status.csv")
+countries_without_data_sf <- mai_adm0_combined %>% subset(iso %in% countries_without_data[countries_without_data$status=="no run",]$iso)
+
 p_fig1 <- output_plot_map(sf_obj = mai_adm0_combined,
                           lakes_sf = lakes_sf,
                           country_borders = afr_sf,
                           fill_var = "mean",
                           fill_color_scale_type = "rates") +
+  geom_sf(data=countries_without_data_sf,fill="gray40") +
   facet_wrap(~ period) +
   ggtitle(str_glue("Mean mean annual incidence rate\nat national level"))
 
@@ -119,7 +125,8 @@ p_fig2 <- output_plot_map(sf_obj = mai_adm2_combined,
                           lakes_sf = lakes_sf,
                           country_borders = afr_sf,
                           fill_var = "mean",
-                          fill_color_scale_type = "rates") +
+                          fill_color_scale_type = "rates") + 
+  geom_sf(data=countries_without_data_sf,fill="gray40") +
   facet_wrap(~ period) +
   ggtitle(str_glue("Mean mean annual incidence rate\nat second administrative level"))
 
