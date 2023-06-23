@@ -10,7 +10,12 @@ library(cmdstanr)
 library(optparse)
 library(foreach)
 library(rmapshaper)
-
+library(taxdat)
+options(bitmapType='cairo')
+setwd("C:/Users/zheng/Cholera/cholera-mapping-pipeline")
+# setwd("C:/Users/zheng/Cholera/cholera-mapping-pipeline/packages/taxdat")
+# devtools::document()
+# install.packages(".",repo=NULL,type="source")
 
 # Load data ---------------------------------------------------------------
 
@@ -19,9 +24,9 @@ lakes_sf <- get_lakes()
 
 # ADM0 MAI results
 mai_adm0_combined <- bind_rows(
-  readRDS("Analysis/output/processed_outputs/mai_adm0_postprocessing_test.rds") %>% 
+  readRDS("C:/Users/zheng/Cholera/map/processed_outputs/mai_adm0__2011_2015.rds") %>% 
     mutate(period = "2011-2015"),
-  readRDS("Analysis/output/processed_outputs/mai_adm0_postprocessing_test.rds") %>% 
+  readRDS("C:/Users/zheng/Cholera/map/processed_outputs/mai_adm0__2016_2020.rds") %>% 
     mutate(period = "2016-2020") %>% 
     mutate(mean = map_dbl(mean, ~ . * 10^runif(1, -1, 1)))
 )
@@ -29,9 +34,9 @@ mai_adm0_combined <- bind_rows(
 
 # ADM2 MAI results
 mai_adm2_combined <- bind_rows(
-  readRDS("Analysis/output/processed_outputs/mai_adm2_postprocessing_test.rds") %>% 
+  readRDS("C:/Users/zheng/Cholera/map/processed_outputs/mai_adm2__2011_2015.rds") %>% 
     mutate(period = "2011-2015"),
-  readRDS("Analysis/output/processed_outputs/mai_adm2_postprocessing_test.rds") %>% 
+  readRDS("C:/Users/zheng/Cholera/map/processed_outputs/mai_adm2__2016_2020.rds") %>% 
     mutate(period = "2016-2020") %>% 
     mutate(mean = mean * runif(nrow(.), .1, 10))
 )
@@ -82,7 +87,7 @@ p_fig2 <- output_plot_map(sf_obj = mai_adm2_combined,
                           fill_var = "mean",
                           fill_color_scale_type = "rates") +
   facet_wrap(~ period) +
-  ggtitle(str_glue("Mean mean annual incidence rate\nat national level"))
+  ggtitle(str_glue("Mean mean annual incidence rate\nat second administrative level"))
 
 
 
@@ -100,6 +105,9 @@ p_fig3 <- inner_join(adm0_sf,
 
 
 # Figure 4. MAI scatter plot ----------------------------------------------
+
+mai_adm0_changes <- mai_adm0_changes %>% 
+  mutate(iso = substr(location_period_id,1,3))
 
 p_fig4 <- mai_adm0_changes %>% 
   ggplot(aes(x = `2011-2015`, y = `2016-2020`)) +
