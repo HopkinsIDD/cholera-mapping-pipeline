@@ -131,7 +131,7 @@ ggsave(p_fig1,
        file = "Analysis/output/figures/Figure_1_MAI_admin0.png",
        width = 12,
        height = 8, 
-       dpi = 300)
+       dpi = 600)
 
 # Figure 2. MAI ADM2 ------------------------------------------------------
 
@@ -151,7 +151,7 @@ ggsave(p_fig2,
        file = "Analysis/output/figures/Figure_2_MAI_admin2.png",
        width = 12,
        height = 8, 
-       dpi = 300)
+       dpi = 600)
 
 # Figure 3. MAI Ratio -----------------------------------------------------
 
@@ -169,7 +169,7 @@ ggsave(p_fig3,
        file = "Analysis/output/figures/Figure_3_MAI_ratio_admin0.png",
        width = 10,
        height = 8, 
-       dpi = 300)
+       dpi = 600)
 
 # Figure 3_2. MAI Ratio at admin2-----------------------------------------------------
 
@@ -187,7 +187,7 @@ ggsave(p_fig3_2,
        file = "Analysis/output/figures/Figure_3_2_MAI_ratio_admin2.png",
        width = 10,
        height = 8, 
-       dpi = 300)
+       dpi = 600)
 
 # Figure 4. MAI scatter plot ----------------------------------------------
 #assign who regions to the 
@@ -241,7 +241,7 @@ ggsave(p_fig4,
        file = "Analysis/output/figures/Figure_4_MAI_scatter_plot.png",
        width = 10,
        height = 7, 
-       dpi = 300)
+       dpi = 600)
 
 
 

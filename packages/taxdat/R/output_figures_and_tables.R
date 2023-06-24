@@ -4,7 +4,7 @@
 # Colors ------------------------------------------------------------------
 color_lake_fill <- function(){"#aad3df"}
 color_lake_border <- function(){"#7fb4c4"}
-color_run_intended <- function(){"#E8E8E8"}
+color_run_intended <- function(){c("#A1A1A1")}
 color_no_run_intended <- function(){c("#E2FFDE")}
 
 
@@ -74,13 +74,17 @@ output_plot_map <- function(sf_obj,
                                               big.mark = ","),
                              limits = c(-3.1, 2.1),
                              midpoint = 0,
-                             oob = scales::squish)
+                             oob = scales::squish, 
+                             na.value = c("#D4BE77"), 
+                             low = "blue",
+                             high = "red")
       }
     } +
     taxdat::map_theme() +
     # Zoom to bounding box
     ggplot2::coord_sf(xlim = st_bbox(sf_obj)[c(1, 3)],
-                      ylim = st_bbox(sf_obj)[c(2, 6)])
+                      ylim = st_bbox(sf_obj)[c(2, 6)]) +
+    theme(panel.border = element_blank())
   
 }
 
