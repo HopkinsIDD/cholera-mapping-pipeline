@@ -1,3 +1,5 @@
+## The purpose of this script is to compare mean annual incidence rate estimates from June 2023 (2011-2015 and 2016-2020) to previously published Lancet estimates (2010-2016), estimates sent to Gavi in 2021 (interim report representing 2015-2019), and raw WHO annual reports (2015-2019)
+
 library(tidyverse)
 library(sf)
 library(ggplot2)
