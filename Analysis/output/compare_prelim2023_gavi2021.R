@@ -16,7 +16,7 @@ mai0 <- dplyr::bind_rows(
   dplyr::mutate(countrycode = stringr::str_sub(location_period_id, 1, 3), type = "rates") %>%
   dplyr::select(countrycode, type, mean, low, high, country, data_source, years)
 
-gavi <- read_csv("../../../../OneDrive-SharedLibraries-JohnsHopkins/Cholera Mapping Grant - Documents/Mapping Pipeline/Deliverables/Gavi Interim Report 2021/prelim_estimates_minireport.csv")
+gavi <- read_csv("Analysis/R/notebooks/gavi_report_html/report_Rmd/prelim_estimates_minireport.csv")
 new <- dplyr::filter(gavi, type == "rates") %>%
   dplyr::bind_rows(mai0) %>% 
   dplyr::arrange(countrycode, data_source) %>%
