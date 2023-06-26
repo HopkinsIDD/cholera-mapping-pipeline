@@ -38,20 +38,27 @@ new <- dplyr::filter(gavi, type == "rates") %>%
   dplyr::mutate(mean10K = mean*1E4,
                 low10K = low*1E4,
                 high10K = high*1E4) %>%
-  dplyr::distinct()
+  dplyr::distinct() %>%
+  dplyr::mutate(data_source2 = dplyr::recode(data_source, 
+                                            "JHU_2010-16" = "Lancet 2010-16",
+                                            "JHU_2011-15" = "2011-15 (new)",
+                                            "WHO_2015-19" = "WHO 2015-19",
+                                            "JHU_2015-19" = "2015-19 (interim)",
+                                            "JHU_2016-20" = "2016-20 (new)"))
   
 f1 <- dplyr::filter(new, fignum == 1)
 f2 <- dplyr::filter(new, fignum == 2)
 
 pal <- colorspace::qualitative_hcl(5, palette = "Dark 3")
-names(pal) <- c("JHU_2010-16", "JHU_2011-15", "WHO_2015-19", "JHU_2015-19", "JHU_2016-20")
+# names(pal) <- c("JHU_2010-16", "JHU_2011-15", "WHO_2015-19", "JHU_2015-19", "JHU_2016-20")
+names(pal) <- c("Lancet 2010-16", "2011-15 (new)", "WHO 2015-19", "2015-19 (interim)", "2016-20 (new)")
 w=7
 h=5
 hcl_palettes("qualitative", n = 5, plot = TRUE)
 
 
 f_p1 <- ggplot(f1, aes(y = country)) +
-  geom_point(aes(x = mean10K, colour = data_source, group = data_source), alpha = 0.8, size = 2) +
+  geom_point(aes(x = mean10K, colour = data_source2, group = data_source), alpha = 0.8, size = 2) +
   geom_path(aes(x = mean10K), colour = "grey60") +
   scale_x_continuous("Mean Annual Incidence Rate per 10K", labels = scales::comma) +
   scale_colour_manual(values = pal) +
@@ -60,7 +67,7 @@ f_p1 <- ggplot(f1, aes(y = country)) +
 ggsave("Analysis/output/processed_outputs/compare_mai_lancet_2011-15.png", width=w, height = h)
 
 f_p2 <- ggplot(f2, aes(y = country)) +
-  geom_point(aes(x = mean10K, colour = data_source, group = data_source), alpha = 0.8, size = 2) +
+  geom_point(aes(x = mean10K, colour = data_source2, group = data_source), alpha = 0.8, size = 2) +
   geom_path(aes(x = mean10K), colour = "grey60") +
   scale_x_continuous("Mean Annual Incidence Rate per 10K", labels = scales::comma) +
   scale_colour_manual(values = pal) +
