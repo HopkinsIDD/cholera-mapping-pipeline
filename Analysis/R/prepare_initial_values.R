@@ -317,7 +317,11 @@ if (config$obs_model == 3) {
         )
       }
       
-      if (config$space_effect) {
+      if (config$spatial_effect) {
+        if (!config$use_intercept) {
+          warning("!! Runing a model with no space effect and no intercept.")
+        }
+        
         # Small values of spatial random effects
         init <- append(
           init,
@@ -327,7 +331,9 @@ if (config$obs_model == 3) {
         # Small values of spatial random effects
         init <- append(
           init,
-          list(w = array(dim = 0))
+          list(w = array(dim = 0),
+               alpha = array(rnorm(1, 0, .1), dim = 1)
+          )
         )
       }
       
