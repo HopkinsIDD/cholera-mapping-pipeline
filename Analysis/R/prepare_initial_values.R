@@ -317,11 +317,19 @@ if (config$obs_model == 3) {
         )
       }
       
-      # Small values of spatial random effects
-      init <- append(
-        init,
-        list(w = rnorm(stan_data$smooth_grid_N, 0, .1))
-      )
+      if (config$space_effect) {
+        # Small values of spatial random effects
+        init <- append(
+          init,
+          list(w = rnorm(stan_data$smooth_grid_N, 0, .1))
+        )
+      } else {
+        # Small values of spatial random effects
+        init <- append(
+          init,
+          list(w = array(dim = 0))
+        )
+      }
       
       if (config$use_intercept) {
         init <- append(
