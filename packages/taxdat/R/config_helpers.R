@@ -37,6 +37,7 @@ automate_mapping_config <- function(cholera_directory, p, OC_list = NULL, covari
     "start_time: '", as.Date(p$start_time), "'\n",
     "end_time: '", as.Date(p$end_time), "'\n",
     "OCs: ", ifelse(unspecified_parameter_check(OC_list), "", paste0("['", paste(OC_list, collapse="','"), "']")), "\n",
+    "summary_admin_levels: ", p$summary_admin_levels, "\n",
     "covariate_choices: ", ifelse(unspecified_parameter_check(covariate_names), "", paste0("['", paste(covariate_names, collapse="','"), "']")), "\n",
     "aggregate: ", ifelse(unspecified_parameter_check(p$aggregate), stop("Parameter aggregate should be specified"), p$aggregate), "\n",
     "snap_tol: '", p$snap_tol, "'\n",

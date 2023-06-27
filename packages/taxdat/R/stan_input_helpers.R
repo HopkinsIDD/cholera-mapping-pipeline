@@ -1635,16 +1635,22 @@ impute_adm0_obs_single <- function(sf_cases_resized,
   } else {
     
     # If subnational data available comute the fraction of population coverage
-    if (nrow(ts_subset) > 1 | nrow(ts_subset_censored) > 1) {
+    if (nrow(ts_subset) > 0 | nrow(ts_subset_censored) > 0) {
       
       # Combined full and censored sub-national data
       ts_subset_cmb <- dplyr::bind_rows(
         ts_subset %>% 
-          dplyr::rowwise() %>% 
-          # Only compute tfrac-adjusted counts for full obs
-          dplyr::mutate(tfrac = compute_tfrac(TL, TR, ref_TL, ref_TR),
-                        obs_cases = !!rlang::sym(cases_column)/tfrac) %>% 
-          dplyr::ungroup(),
+          {
+            x <- . 
+            if (nrow(x)> 1) {
+              dplyr::rowwise(x) %>% 
+                # Only compute tfrac-adjusted counts for full obs
+                dplyr::mutate(tfrac = compute_tfrac(TL, TR, ref_TL, ref_TR),
+                              obs_cases = !!rlang::sym(cases_column)/tfrac) %>% 
+                dplyr::ungroup() 
+            } else {
+              x
+            }},
         ts_subset_censored %>% 
           dplyr::mutate(obs_cases = !!rlang::sym(cases_column))
       ) %>% 

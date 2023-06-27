@@ -35,7 +35,7 @@ plot_observed_cases_polygon_raw <- function(config, cache, cholera_directory) {
                                                          cholera_directory=cholera_directory,
                                                          cache=cache)
     plot <- plot_sf_with_fill(cache=cache,name = "observed_polygon_cases_disjoint_aggregated",
-        color_scale_type = "cases", fill_column = "attributes.fields.suspected_cases")
+        color_scale_type = "obs_cases", fill_column = "attributes.fields.suspected_cases")
     return(plot)
 }
 
@@ -57,7 +57,7 @@ plot_area_adjusted_observed_cases<- function(config, cache, cholera_directory) {
         mutate(area_adjusted_suspected_cases=as.numeric(attributes.fields.suspected_cases/sf::st_area(geom)))
     
     plot <- plot_sf_with_fill(cache=cache,name = "area_adjusted_observed_polygon_cases_disjoint_aggregated",
-                              color_scale_type = "cases", fill_column = "area_adjusted_suspected_cases")
+                              color_scale_type = "obs_cases", fill_column = "area_adjusted_suspected_cases")
     return(plot)
 }
 
