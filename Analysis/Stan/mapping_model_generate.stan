@@ -55,7 +55,7 @@ data {
   int<lower=0, upper=1> do_zerosum_cnst;    // Whether to enforce a 0-sum constraint on the yearly random effects
   int<lower=0, upper=1> do_infer_sd_eta;    // Whether to enforce a 0-sum constraint on the yearly random effects
   int<lower=0, upper=1> do_spatial_effect;    // Whether to have a spatial random effect
-
+  
   // Spatial adjacency
   // Note: The adjacency matrix node1 should be sorted and lower triangular
   int <lower=1, upper=smooth_grid_N> node1[N_edges];    // column 1 of the adjacency matrix
@@ -131,7 +131,7 @@ transformed data {
   int<lower=0, upper=T> size_eta;
   int<lower=0, upper=1> size_sd_eta;
   int<lower=0, upper=smooth_grid_N> size_w; 
-
+  
   for (i in 1:K1) {
     if (censored[i] == 1) {
       tfrac_censoring[i] = 1;  
@@ -287,10 +287,15 @@ generated quantities {
   }
   
   // log-rates without time-slice effects
-  log_lambda =  w[map_smooth_grid] + log_meanrate;
+  log_lambda = rep_vector(log_meanrate, N);
   
   if (use_intercept == 1) {
     log_lambda += alpha[1];
+  }
+  
+  // Add spatial effects
+  if (do_spatial_effect == 1) {
+    log_lambda += w[map_smooth_grid];
   }
   
   // covariates if applicable
