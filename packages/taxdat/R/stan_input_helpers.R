@@ -1635,7 +1635,7 @@ impute_adm0_obs_single <- function(sf_cases_resized,
   } else {
     
     # If subnational data available comute the fraction of population coverage
-    if (nrow(ts_subset) > 1 | nrow(ts_subset_censored) > 1) {
+    if (nrow(ts_subset) > 0 | nrow(ts_subset_censored) > 0) {
       
       # Combined full and censored sub-national data
       ts_subset_cmb <- dplyr::bind_rows(
