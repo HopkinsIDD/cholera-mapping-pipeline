@@ -1969,7 +1969,7 @@ update_stan_data_imputation <- function(sf_cases_resized,
 #' @examples
 drop_censored_adm0 <- function(sf_cases_resized,
                                thresh,
-                               time_slices,
+                               res_time,
                                cases_column) {
   
   # Get national level data with censored observations

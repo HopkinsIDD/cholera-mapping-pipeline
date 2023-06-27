@@ -283,7 +283,7 @@ prepare_stan_input <- function(
     
     sf_cases_resized <- taxdat::drop_censored_adm0(sf_cases_resized = sf_cases_resized,
                                                    thresh = config$drop_censored_adm0_thresh,
-                                                   time_slices = time_slices,
+                                                   res_time = res_time,
                                                    cases_column = cases_column)
     
     # Re-compute indices
