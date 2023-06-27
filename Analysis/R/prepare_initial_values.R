@@ -318,16 +318,16 @@ if (config$obs_model == 3) {
       }
       
       if (config$spatial_effect) {
-        if (!config$use_intercept) {
-          warning("!! Runing a model with no space effect and no intercept.")
-        }
-        
         # Small values of spatial random effects
         init <- append(
           init,
           list(w = rnorm(stan_data$smooth_grid_N, 0, .1))
         )
       } else {
+        if (!config$use_intercept) {
+          warning("!! Runing a model with no space effect and no intercept.")
+        }
+        
         # Small values of spatial random effects
         init <- append(
           init,
