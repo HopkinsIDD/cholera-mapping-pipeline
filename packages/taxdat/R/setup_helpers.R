@@ -650,6 +650,8 @@ get_all_config_options <- function() {
     ncpus_parallel_prep = as.function(check_ncpus_parallel_prep),
     do_parallel_prep = as.function(check_do_parallel_prep),
     drop_multiyear_adm0 = as.function(check_drop_multiyear_adm0),
+    drop_censored_adm0 = as.function(check_drop_censored_adm0),
+    drop_censored_adm0_thresh = as.function(check_drop_censored_adm0_thresh),
     time_effect = "stan-check",
     time_effect_autocorr = "stan-check", 
     spatial_effect = as.function(check_spatial_effect),
