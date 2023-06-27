@@ -53,29 +53,29 @@ check_res_space <- function(res_space) {
 #' @return res_time if valid
 #' @export
 check_res_time <- function(res_time) {
-
+  
   err_message <- "Time resolution should be specified as a string in the from '<n> <period>' where n is the number of time units of period <period>. Example: '1 years'."
-
+  
   parts <- stringr::str_split(res_time, " ")[[1]]
   if (length(parts) != 2)
     stop(err_message)
-
+  
   n_units <- as.numeric(parts[1])
   if (is.na(n_units))
     stop(paste(err_message, "[Units not valid]"))
-
+  
   allowed_time_periods <- c("month", "year")
   allowed_time_periods <- c(allowed_time_periods, paste0(allowed_time_periods,
                                                          "s"))
   time_period <- parts[2]
   if (!(time_period %in% allowed_time_periods))
     stop(paste(err_message, "[Time period not valid]"))
-
+  
   # Standardize to always have an s at the end of the unit names
   if (!stringr::str_detect(res_time, "s$")) {
     res_time <- stringr::str_c(res_time, "s")
   }
-
+  
   cat("-- Running with valid time resolution:", res_time, "\n")
   return(res_time)
 }
@@ -111,7 +111,7 @@ check_grid_rand_effects_N <- function(grid_rand_effects_N) {
 check_case_definition <- function(case_col) {
   if (!(case_col %in% c("suspected", "confirmed")))
     stop("Cholera case definition must be suspected or confirmed.")
-
+  
   cat("-- Running with valid case defitinion: ", case_col, "\n", sep = "")
   return(case_col)
 }
@@ -125,7 +125,7 @@ check_case_definition <- function(case_col) {
 check_time <- function(time) {
   defaultW <- getOption("warn")
   options(warn = -1)
-
+  
   if (is.null(time)) {
     options(warn = defaultW)
     stop("The start_time/end_time parameter should not be blank because there is no default")
@@ -139,7 +139,7 @@ check_time <- function(time) {
       message("Error: the user-specified start_time/end_time parameter cannot be easily transformed into \"Date\" variable. ")
       print(e)
     })
-
+    
     if (inherits(time_updated, "Date") & !is.na(time_updated)) {
       options(warn = defaultW)
       return(as.character(time))
@@ -163,16 +163,16 @@ check_time <- function(time) {
 #' @export
 check_model_date_range <- function(start_time, end_time, time_change_func, aggregate_to_start,
                                    aggregate_to_end) {
-
+  
   if (any(c(!lubridate::is.Date(start_time), !lubridate::is.Date(end_time))))
     stop("Start and end times need to be in date format")
-
+  
   if (start_time > end_time)
     stop("Start time is after end time")
-
+  
   model_TL <- aggregate_to_start(time_change_func(start_time))
   model_TR <- aggregate_to_end(time_change_func(end_time))
-
+  
   if (start_time != model_TL | end_time != model_TR) {
     warning("--- User-defined modeling time range does not cover the whole range",
             "as defined with the time resoltion: \n user-defined range:\t", start_time,
@@ -195,14 +195,14 @@ check_model_date_range <- function(start_time, end_time, time_change_func, aggre
 #' @return a dataframe left and right bounds of the modeling time slices
 #' @export
 modeling_time_slices <- function(start_time, end_time, res_time, time_change_func, aggregate_to_start, aggregate_to_end) {
-
+  
   left_bounds <- seq.Date(start_time, end_time, by = res_time)
   left_bounds <- aggregate_to_start(time_change_func(left_bounds))
   right_bounds <- aggregate_to_end(time_change_func(left_bounds))
-
+  
   time_slices <- tibble::tibble(TL = left_bounds[left_bounds <= end_time], TR = right_bounds[right_bounds <=
                                                                                                end_time])
-
+  
   cat("-- Model consists of", nrow(time_slices), "time slices of duration", res_time,
       ":\n")
   print(time_slices)
@@ -274,13 +274,13 @@ check_taxonomy <- function(taxonomy) {
 #' @return if valid the vector of covariate choices
 #' @export
 check_covariate_choices <- function(covar_choices, available_choices) {
-
+  
   if (any(purrr::map_lgl(covar_choices, ~!(. %in% available_choices))))
     stop("Covariate choices [", stringr::str_c(setdiff(covar_choices, available_choices), collapse = ", "), "] not available. \n", "Choose among: [", stringr::str_c(available_choices, collapse = ", "), "]")
-
+  
   cat("---- Running with covariates:", stringr::str_c(covar_choices, collapse = ", "),
       "\n")
-
+  
   return(covar_choices)
 }
 
@@ -316,19 +316,19 @@ check_aggregate <- function(aggregate_param) {
     if (!is.logical(aggregate_param)) {
       stop("aggregate parameter must be a logical value")
     }
-
+    
     if (aggregate_param) {
       cat("---- Observations will be aggregated \n")
     } else {
       cat("---- Observations will not be aggregated \n")
     }
-
-
+    
+    
   } else {
     aggregate_param <- TRUE
     cat("---- By default, observations will be aggregated \n")
   }
-
+  
   return(aggregate_param)
 }
 
@@ -343,15 +343,15 @@ check_tfrac_thresh <- function(tfrac_thresh) {
     if (!is.numeric(tfrac_thresh) | tfrac_thresh < 0 | tfrac_thresh > 1) {
       stop("tfrac_thresh must be a numeric value between 0 and 1")
     }
-
+    
     cat("---- Observations with tfrac greater than ", tfrac_thresh, " will be kept \n")
-
+    
   } else {
     tfrac_thresh <- 0
     cat("---- By default, observations with tfrac greater than ", tfrac_thresh,
         " will be kept \n")
   }
-
+  
   return(tfrac_thresh)
 }
 
@@ -392,7 +392,7 @@ check_censoring_thresh <- function(censoring_thresh) {
     warning("The censoring_thresh parameter cannot be less than 0. Replacing value with 0.")
     censoring_thresh <- 0
   }
-
+  
   return(censoring_thresh)
 }
 
@@ -413,12 +413,12 @@ check_set_tfrac <- function(set_tfrac) {
     } else {
       cat("---- Non-censored observations will keep their original tfrac values \n")
     }
-
+    
   } else {
     set_tfrac <- FALSE
     cat("---- By default, non-censored observations will keep their original tfrac values \n")
   }
-
+  
   return(set_tfrac)
 }
 
@@ -436,7 +436,7 @@ check_snap_tol <- function(snap_tol, res_time) {
         stop('snap_tol expression is invalid.')
         print(e)
       })
-
+    
     if (snap_tol < 0) {
       stop("Cannot specifiy negative snap tolerance values")
     }
@@ -451,7 +451,7 @@ check_snap_tol <- function(snap_tol, res_time) {
     cat("---- By default, running with value of snap tolerance 7/365:", snap_tol,
         "[", res_time, "]\n")
   }
-
+  
   return(snap_tol)
 }
 
@@ -476,7 +476,7 @@ check_use_pop_weight <- function(use_pop_weight) {
 #' @return
 #' @export
 check_sfrac_thresh <- function(sfrac_thresh) {
-
+  
   if (is.null(sfrac_thresh)) {
     cat("---- Sfrac thresh not specified, setting to default: 1e-3 \n")
     sfrac_thresh <- 0.001
@@ -484,7 +484,7 @@ check_sfrac_thresh <- function(sfrac_thresh) {
   if (sfrac_thresh < 0 | sfrac_thresh > 1) {
     stop("---- sfract thresh cannot be < 0 or > 1, value passed: ", sfrac_thresh)
   }
-
+  
   return(sfrac_thresh)
 }
 
@@ -533,7 +533,7 @@ check_stan_debug <- function(debug) {
   if (!is.logical(debug)) {
     stop("Debug needs to be logical")
   }
-
+  
   return(debug)
 }
 
@@ -546,15 +546,15 @@ check_stan_debug <- function(debug) {
 #' @return if valid the stan model path
 #' @export
 check_stan_model <- function(stan_model_path, stan_dir) {
-
+  
   if (!file.exists(stan_model_path))
     stop("Could not find stan model. Choose among:\n", stringr::str_c(dir(stan_dir),
                                                                       collapse = "\n"))
   cat("---- Running with stan model:", stringr::str_replace(stan_model_path, stan_dir,
                                                             ""), "\n")
-
+  
   return(stan_model_path)
-
+  
 }
 
 
@@ -699,18 +699,18 @@ get_all_config_options <- function() {
 #' @return the actual config file
 #' @export
 check_update_config <- function(cholera_directory, config_fname, covariate_list_dir = "Layers/covariate_dictionary.yml") {
-
+  
   ### Read in the config file first
   cholera_testing <- as.logical(Sys.getenv("CHOLERA_TESTING", "FALSE"))
   config_file <- yaml::read_yaml(config_fname)
-
+  
   ### Use the default .yaml file to get the list of covariates
   all_covariates <- c("", names(yaml::read_yaml(paste0(cholera_directory, "/",
                                                        covariate_list_dir))))
-
+  
   ### Make the check list
   check_list <- get_all_config_options()
-
+  
   ### The stan check
   iteration_params <- check_list[["stan"]]
   updated_stan_parameters <- get_stan_parameters(append(config_file, config_file$stan))
@@ -718,12 +718,12 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
                                                    iteration_params]
   config_file <- append(config_file[!names(config_file) %in% names(iteration_unrelated)],
                         iteration_unrelated)
-
+  
   config_file$stan <- lapply(iteration_params, function(x) {
     updated_stan_parameters[[x]]
   })
   names(config_file$stan) <- iteration_params
-
+  
   ### The general check
   for (nm in names(check_list)) {
     if (nm == "covariate_choices") {
@@ -737,17 +737,17 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
     } else {
       config_file[[nm]] <- config_file[[nm]]
     }
-
+    
     if (!nm %in% names(config_file)) {
       eval(parse(text = paste0("tmp_list <- list(", nm, " = NULL)")))
       config_file <- append(config_file, tmp_list, after = (match(nm, names(check_list)) -
                                                               1))
     }
   }
-
+  
   ### Reorder all the parameters
   config_file <- config_file[names(check_list)]
-
+  
   ### Remove certain optional parameters if they're not specified (taxonomy,
   ### covariate_transformations, use_weights)
   for (optional_names in c("taxonomy", "covariate_transformations", "use_weights")) {
@@ -755,13 +755,13 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
       config_file <- config_file[names(config_file) != optional_names]
     }
   }
-
+  
   ### Get the _filenames
   config_file$file_names <- as.list(get_filenames(config_file, cholera_directory, for_config = TRUE, short_names = TRUE))
   names(config_file$file_names) <- sapply(names(config_file$file_names), function(x) {
     check_list$file_names[[x]]
   })
-
+  
   ### Save the config file
   yaml::write_yaml(config_file, config_fname)
 }
@@ -780,11 +780,11 @@ try_conv_numeric <- function(x) {
     message("Error: the parameter must be able to be converted to \"numeric\". ")
     print(e)
   })
-
+  
   if (is.na(res)) {
     stop("Error: the parameter must be able to be converted to \"numeric\": ", x, ".")
   }
-
+  
   res
 }
 
@@ -800,9 +800,9 @@ try_conv_numeric <- function(x) {
 check_od_param_generic <- function(x,
                                    obs_model,
                                    default_value) {
-
+  
   obs_model <- try_conv_numeric(obs_model)
-
+  
   if (obs_model == 1) {
     par <- 0
   } else if (obs_model == 2 | obs_model == 3) {
@@ -825,7 +825,7 @@ check_od_param_generic <- function(x,
 #'
 check_od_param_sd_prior_nopooling <- function(inv_od_sd_nopool,
                                               obs_model) {
-
+  
   inv_od_sd_nopool_updated <- check_od_param_generic(x = inv_od_sd_nopool,
                                                      obs_model = obs_model,
                                                      default_value = 1)
@@ -843,13 +843,13 @@ check_od_param_sd_prior_nopooling <- function(inv_od_sd_nopool,
 #'
 check_od_param_sd_prior_adm0 <- function(inv_od_sd_adm0,
                                          obs_model) {
-
+  
   inv_od_sd_adm0_updated <- check_od_param_generic(x = inv_od_sd_adm0,
                                                    obs_model = obs_model,
                                                    default_value = 1e-2)
-
+  
   return(inv_od_sd_adm0_updated)
-
+  
 }
 
 #' check_mu_alpha
@@ -862,13 +862,13 @@ check_od_param_sd_prior_adm0 <- function(inv_od_sd_adm0,
 #'
 check_mu_alpha <- function( x,
                             default_value = 0) {
-
+  
   if (unspecified_parameter_check(x)) {
     par <- default_value
   } else {
     par <- try_conv_numeric(x)
   }
-
+  
   par
 }
 
@@ -882,13 +882,13 @@ check_mu_alpha <- function( x,
 #'
 check_sd_alpha <- function(x,
                            default_value = 1) {
-
+  
   if (unspecified_parameter_check(x)) {
     par <- default_value
   } else {
     par <- try_conv_numeric(x)
   }
-
+  
   par
 }
 
@@ -902,13 +902,13 @@ check_sd_alpha <- function(x,
 #'
 check_mu_sd_w <- function(x,
                           default_value = 10) {
-
+  
   if (unspecified_parameter_check(x)) {
     par <- default_value
   } else {
     par <- try_conv_numeric(x)
   }
-
+  
   par
 }
 
@@ -922,13 +922,13 @@ check_mu_sd_w <- function(x,
 #'
 check_sd_sd_w <- function(x,
                           default_value = 3) {
-
+  
   if (unspecified_parameter_check(x)) {
     par <- default_value
   } else {
     par <- try_conv_numeric(x)
   }
-
+  
   par
 }
 
@@ -941,13 +941,13 @@ check_sd_sd_w <- function(x,
 #'
 check_stan_iter_warmup <- function(x,
                                    default_value = 1100) {
-
+  
   if (unspecified_parameter_check(x)) {
     par <- default_value
   } else {
     par <- try_conv_numeric(x)
   }
-
+  
   par
 }
 
@@ -960,13 +960,13 @@ check_stan_iter_warmup <- function(x,
 #'
 check_stan_iter_sampling <- function(x,
                                      default_value = 1000) {
-
+  
   if (unspecified_parameter_check(x)) {
     par <- default_value
   } else {
     par <- try_conv_numeric(x)
   }
-
+  
   par
 }
 
@@ -982,13 +982,13 @@ check_stan_iter_sampling <- function(x,
 #' @examples
 check_max_treedepth <- function(x,
                                 default_value = 12) {
-
+  
   if (unspecified_parameter_check(x)) {
     par <- default_value
   } else {
     par <- try_conv_numeric(x)
   }
-
+  
   par
 }
 
@@ -1002,8 +1002,8 @@ check_max_treedepth <- function(x,
 #'
 #' @examples
 check_h_mu_sd_inv_od <- function(h_mu_sd_inv_od,
-                                obs_model) {
-
+                                 obs_model) {
+  
   h_mu_sd_inv_od <- check_od_param_generic(x = h_mu_sd_inv_od,
                                            obs_model = obs_model,
                                            default_value = 0.01)
@@ -1040,7 +1040,7 @@ check_spatial_effect <- function(x,
 #' @export
 check_h_sd_sd_inv_od <- function(h_sd_sd_inv_od,
                                  obs_model) {
-
+  
   h_sd_sd_inv_od <- check_od_param_generic(x = h_sd_sd_inv_od,
                                            obs_model = obs_model,
                                            default_value = 0.05)
@@ -1068,3 +1068,56 @@ check_drop_multiyear_adm0 <- function(x,
   
   par
 }
+
+
+#' check_drop_censored_adm0
+#'
+#' @param x 
+#' @param default_value 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_drop_censored_adm0 <- function(x, 
+                                     default_value = TRUE) {
+  
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- as.logical(x)
+  }
+  
+  par
+}
+
+#' check_drop_censored_adm0_thresh
+#'
+#' @param x 
+#' @param default_value 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_drop_censored_adm0_thresh <- function(x, 
+                                            default_value = 2) {
+  
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- try_conv_numeric(x)
+  }
+  
+  if (par < 0) {
+    stop("---- Censored ADM0 threshold must be positive. Value passed: ", par)
+  }
+  
+  if (par < 1) {
+    warning("Censored ADM0 threshold below 1, setting to 1. Value passed: ", par)
+    par <- 1
+  }
+  
+  par
+}
+
