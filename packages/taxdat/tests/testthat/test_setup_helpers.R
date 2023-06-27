@@ -906,22 +906,23 @@ test_that("check_stan_debug works", {
 
 
 test_that("check_drop_censored_adm0_thresh works", {
-  yaml::write_yaml(data.frame(censored_adm0_thresh = 1.5), tempfile)
-  config_error <- yaml::read_yaml(tempfile)
+  tmpfile <- tempfile(fileext = ".yml")
+  yaml::write_yaml(data.frame(censored_adm0_thresh = 1.5), tmpfile)
+  config_error <- yaml::read_yaml(tmpfile)
   expect_equal(check_drop_censored_adm0_thresh(x = config_error$censored_adm0_thresh), 1.5)
   
-  yaml::write_yaml(data.frame(censored_adm0_thresh = -0.5), tempfile)
-  config_error <- yaml::read_yaml(tempfile)
+  yaml::write_yaml(data.frame(censored_adm0_thresh = -0.5), tmpfile)
+  config_error <- yaml::read_yaml(tmpfile)
   expect_error(check_drop_censored_adm0_thresh(x = config_error$censored_adm0_thresh),
                "---- Censored ADM0 threshold must be positive. Value passed: -0.5")
   
-  yaml::write_yaml(data.frame(censored_adm0_thresh = 0), tempfile)
-  config_equal <- yaml::read_yaml(tempfile)
+  yaml::write_yaml(data.frame(censored_adm0_thresh = 0), tmpfile)
+  config_equal <- yaml::read_yaml(tmpfile)
   expect_warning(check_drop_censored_adm0_thresh(x = config_equal$censored_adm0_thresh), 
                  "Censored ADM0 threshold below 1, setting to 1. Value passed: 0")
   
-  yaml::write_yaml(data.frame(censored_adm0_thresh=NULL), tempfile)
-  config_null <- yaml::read_yaml(tempfile)
+  yaml::write_yaml(data.frame(censored_adm0_thresh=NULL), tmpfile)
+  config_null <- yaml::read_yaml(tmpfile)
   expect_equal(check_drop_censored_adm0_thresh(x = config_null$censored_adm0_thresh), 2)
 })
 
