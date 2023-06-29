@@ -451,7 +451,7 @@ make_smooth_grid <- function(sf_grid,
   
   cat("---- Dropping", nrow(sf_grid_drop), "space-time cells corresponding to",
       length(unique(sf_grid_drop$id)), "space cells with space ids:",
-      unique(sf_grid_drop$id))
+      unique(sf_grid_drop$id), "\n")
   
   sf_grid <- sf_grid %>% 
     dplyr::filter(long_id %in% non_na_gridcells) %>% 
@@ -613,10 +613,10 @@ compute_n_neighbors <- function(adjacency_list,
   # Get number of neighboors (here both in space AND time)
   positive_neighbors <- adjacency_list %>% 
     dplyr::as_tibble() %>% 
-    dplyr::count(row)
+    dplyr::count(col)
   
   number_of_neighbors <- rep(0, times = nrow(smooth_grid))
-  number_of_neighbors[positive_neighbors$row] <- positive_neighbors$n
+  number_of_neighbors[positive_neighbors$col] <- positive_neighbors$n
   
   number_of_neighbors
 }
