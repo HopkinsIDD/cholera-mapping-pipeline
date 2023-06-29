@@ -294,12 +294,53 @@ p_fig5 <- output_plot_map(sf_obj = risk_categories_adm2_combined,
   theme(strip.background = element_blank(),
         strip.text = element_text(size = 15),
         legend.position = "right") +
-  guides(fill = guide_colorbar("Risk category"))
+  guides(fill = guide_legend("Risk category"))
 
 
 ggsave(p_fig5,
-       file = "Analysis/output/figures/Figure_2_MAI_admin2.png",
+       file = "Analysis/output/figures/Figure_5_risk_categories_map_plot.png",
        width = 12,
        height = 8, 
+       dpi = 600)
+
+# Figure 6. ADM2 risk categories changes ----------------------------------
+
+
+adm2_pop_at_risk <- risk_categories_adm2_combined %>% 
+  st_drop_geometry() %>% 
+  filter(admin_level == "ADM2") %>%
+  mutate(country = get_country_from_filename(location_period_id)) %>% 
+  {
+    x <- .
+    bind_rows(x, x %>% mutate(country = "overall")) %>% 
+      mutate(country = factor(country, levels = c("overall", sort(unique(x$country)))))
+  } %>% 
+  group_by(risk_cat, country, period) %>% 
+  summarise(pop = sum(pop)) %>% 
+  group_by(country, period) %>% 
+  complete(risk_cat = get_risk_cat_dict()) %>%
+  mutate(risk_cat = factor(risk_cat, levels = get_risk_cat_dict())) %>% 
+  mutate(prop = pop/sum(pop, na.rm = T))
+
+
+p_fig6 <- adm2_pop_at_risk %>% 
+  filter(country == "overall") %>% 
+  ggplot(aes(x = risk_cat, y = pop, fill = period)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = .7) +
+  theme_bw() +
+  scale_fill_manual(values = c("#7B3D91", "#EB9028")) +
+  scale_y_continuous(breaks = c(0, 10^(seq(6, 10))),
+                     labels = formatC(c(0, 10^(seq(0, 4))),
+                                      format = "f",
+                                      digits = 0,
+                                      big.mark = ","), 
+                     minor_breaks = 10^(seq(6, 10, by = .5))) +
+  labs(y = "Population in ADM2 units\nin risk category [millions]", x = "Risk category")
+
+
+ggsave(p_fig6,
+       file = "Analysis/output/figures/Figure_6_population_at_risk_AMD2_plot.png",
+       width = 8,
+       height = 6, 
        dpi = 600)
 
