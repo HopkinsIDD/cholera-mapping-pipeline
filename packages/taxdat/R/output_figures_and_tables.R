@@ -45,7 +45,8 @@ output_plot_map <- function(sf_obj,
     ggplot2::geom_sf(linewidth = .02, color = "white") + 
     ggplot2::geom_sf(data = lakes_sf, fill = color_lake_fill(),
                      color = color_lake_border(), 
-                     linewidth = .06) +
+                     linewidth = .06,
+                     alpha = .6) +
     ggplot2::geom_sf(data = all_countries_sf,
                      inherit.aes = FALSE,
                      linewidth = .3,
@@ -66,7 +67,7 @@ output_plot_map <- function(sf_obj,
                              limits = c(-1, 2.5),
                              option = "plasma",
                              oob = scales::squish)
-      } else {
+      } else if(fill_color_scale_type == "ratio") {
         scale_fill_gradient2(breaks = seq(-3, 2), 
                              labels = formatC(10^(seq(-3, 2)),
                                               digits = 1,
@@ -78,15 +79,29 @@ output_plot_map <- function(sf_obj,
                              na.value = c("#D4BE77"), 
                              low = "blue",
                              high = "red")
+      } else if(fill_color_scale_type == "cases") {
+        scale_fill_gradientn(colours = c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404"),
+                             oob = scales::censor, 
+                             limits = c(0, NA), 
+                             breaks = seq(0, 3), 
+                             labels = formatC(10^(seq(0, 3)),
+                                              digits = 1,
+                                              format = "fg", 
+                                              big.mark = ","),
+                             na.value = "lightgray")
+        
+      } else if(fill_color_scale_type == "risk category") {
+        scale_fill_viridis_d()
       }
     } +
     taxdat::map_theme() +
     # Zoom to bounding box
     ggplot2::coord_sf(xlim = st_bbox(sf_obj)[c(1, 3)],
-                      ylim = st_bbox(sf_obj)[c(2, 6)]) +
+                      ylim = st_bbox(sf_obj)[c(2, 4)]) +
     theme(panel.border = element_blank())
   
 }
+
 
 # Auxiliary functions ----------------------------------------------------
 
@@ -116,4 +131,14 @@ get_lakes <- function(path = "Layers/geodata/Africa_waterbody.shp") {
   lakes_sf
 }
 
+
+#' Title
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_risk_cat_dict <- function() {
+  risk_cat_dict <- c("<1", "1-10", "10-20", "20-50", "50-100", ">100")
+}
 
