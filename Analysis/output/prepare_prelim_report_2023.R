@@ -78,13 +78,24 @@ mai_adm0_combined <- bind_rows(
 # ADM2 MAI results
 mai_adm2_combined <- bind_rows(
   readRDS(str_glue("{opt$output_dir}/mai_adm2__2011_2015.rds")) %>% 
-    mutate(period = "2011-2015") %>% 
-    mutate(iso = str_extract(location_period_id, "[A-Z]{3}")),
+    mutate(period = "2011-2015"),
   readRDS(str_glue("{opt$output_dir}/mai_adm2__2016_2020.rds")) %>% 
     mutate(period = "2016-2020")
 ) %>% 
   mutate(country = str_extract(location_period_id, "[A-Z]{3}"),
          log10_rate_per_1e5 = log10(mean * 1e5))
+
+
+# Risk categories
+risk_categories_adm2_combined <- bind_rows(
+  readRDS(str_glue("{opt$output_dir}/test_postprocessing_test_risk_categories.rds")) %>% 
+    mutate(period = "2011-2015"),
+  readRDS(str_glue("{opt$output_dir}/test_postprocessing_test_risk_categories.rds")) %>% 
+    mutate(period = "2016-2020")
+)  %>% 
+  filter(admin_level == "ADM2") %>% 
+  mutate(country = str_extract(location_period_id, "[A-Z]{3}"))
+
 
 # # Get unique shapefiles
 adm0_sf <- mai_adm0_combined %>%
@@ -267,3 +278,28 @@ mai_adm0_combined %>%
   flextable() %>%
   set_table_properties(width = 1, layout = "autofit") %>%
   save_as_docx(path = "Analysis/output/figures/Table_1.docx")
+
+
+
+
+# Figure 5. ADM2 risk categories ------------------------------------------
+
+
+p_fig5 <- output_plot_map(sf_obj = risk_categories_adm2_combined, 
+                          lakes_sf = lakes_sf,
+                          all_countries_sf = afr_sf,
+                          fill_var = "risk_cat",
+                          fill_color_scale_type = "risk category") +
+  facet_wrap(~period) +
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 15),
+        legend.position = "right") +
+  guides(fill = guide_colorbar("Risk category"))
+
+
+ggsave(p_fig5,
+       file = "Analysis/output/figures/Figure_2_MAI_admin2.png",
+       width = 12,
+       height = 8, 
+       dpi = 600)
+
