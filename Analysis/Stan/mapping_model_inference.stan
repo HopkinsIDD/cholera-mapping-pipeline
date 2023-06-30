@@ -428,7 +428,7 @@ model {
       t_rowsum[i] = 0;
     }
     for(i in 1:N_edges){
-      t_rowsum[node1[i]] += w[node2[i]] * b[node1[i]];
+      t_rowsum[node2[i]] += w[node1[i]] * b[node2[i]];
     }
     
     // NOTE:  no prior on phi_raw, it is used to construct phi
