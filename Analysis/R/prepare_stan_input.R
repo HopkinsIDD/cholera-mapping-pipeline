@@ -251,6 +251,8 @@ prepare_stan_input <- function(
   censoring_inds <- taxdat::get_censoring_inds(stan_data = stan_data,
                                                ind_mapping_resized = ind_mapping_resized,
                                                censoring_thresh = config$censoring_thresh)
+  # Set censoring inds
+  sf_cases_resized$censoring <- censoring_inds
   
   # Drop data that are censored and for which the observations are 0
   if (config$censoring) {
