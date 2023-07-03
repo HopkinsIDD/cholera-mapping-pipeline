@@ -13,6 +13,7 @@ library(rmapshaper)
 library(taxdat)
 library(cowplot)
 library(flextable)
+library(ggsn)
 
 options(bitmapType='cairo')
 
@@ -58,7 +59,11 @@ afr_sf <- afr_sf %>%
   janitor::clean_names() %>% 
   mutate(country_name = country,
          country = gid_0,
-         intended_run = gid_0 %in% intended_runs$isocode)
+         intended_run = gid_0 %in% intended_runs$isocode) %>% 
+  st_crop(st_bbox(st_sfc(
+    st_point(c(-18.8, 36.6)), 
+    st_point(c(52.2, -36.5)),
+    crs = 4326)))
 
 afr_sf %>% 
   ggplot(aes(fill = intended_run)) +
@@ -67,9 +72,9 @@ afr_sf %>%
 
 # ADM0 MAI results
 mai_adm0_combined <- bind_rows(
-  readRDS(str_glue("{opt$output_dir}/mai_adm0__2011_2015.rds")) %>% 
+  readRDS(str_glue("{opt$output_dir}/mai_adm0_2011_2015.rds")) %>% 
     mutate(period = "2011-2015"),
-  readRDS(str_glue("{opt$output_dir}/mai_adm0__2016_2020.rds")) %>% 
+  readRDS(str_glue("{opt$output_dir}/mai_adm0_2016_2020.rds")) %>% 
     mutate(period = "2016-2020")
 ) %>% 
   mutate(country = str_extract(location_period_id, "[A-Z]{3}"),
@@ -77,9 +82,9 @@ mai_adm0_combined <- bind_rows(
 
 # ADM2 MAI results
 mai_adm2_combined <- bind_rows(
-  readRDS(str_glue("{opt$output_dir}/mai_adm2__2011_2015.rds")) %>% 
+  readRDS(str_glue("{opt$output_dir}/mai_adm2_2011_2015.rds")) %>% 
     mutate(period = "2011-2015"),
-  readRDS(str_glue("{opt$output_dir}/mai_adm2__2016_2020.rds")) %>% 
+  readRDS(str_glue("{opt$output_dir}/mai_adm2_2016_2020.rds")) %>% 
     mutate(period = "2016-2020")
 ) %>% 
   mutate(country = str_extract(location_period_id, "[A-Z]{3}"),
@@ -344,3 +349,176 @@ ggsave(p_fig6,
        height = 6, 
        dpi = 600)
 
+
+
+# Sandbox final figures ---------------------------------------------------
+# Sandbox to try out figures for the paper
+
+
+# Figure with zooms
+# Set bounding boxes of areas of interest for the zooms
+zoom_windows <-list(
+  zoom_west_coast = st_sfc(
+    st_point(c(-15.9, 4.2)), 
+    st_point(c(-7.1, 12.7)),
+    crs = 4326),
+  zoom_lake_chad = st_sfc(
+    st_point(c(11.9, 9.7)), 
+    st_point(c(16.5, 15.5)),
+    crs = 4326),
+  zoom_lake_tangayika = st_sfc(
+    st_point(c(26.9, -8.5)), 
+    st_point(c(31.4, 0)),
+    crs = 4326),
+  zoom_lake_malawi = st_sfc(
+    st_point(c(32.1, -17.5)), 
+    st_point(c(36.5, -9.3)),
+    crs = 4326)
+)
+
+mai_adm2_combined <- nngeo::st_remove_holes(mai_adm2_combined)
+
+zoom_plots <- map(zoom_windows, function(x) {
+  p_fig2 +  
+    geom_sf(inherit.aes = F,
+            data = x, alpha = 0, col = "red") +
+    coord_sf(xlim = st_coordinates(x)[,'X'], 
+             ylim = st_coordinates(x)[,'Y'],
+             datum = 4326, 
+             expand = TRUE) +
+    scalebar(data = st_crop(mai_adm2_combined, st_bbox(x)),
+             dist = 75,
+             dist_unit = "km",
+             transform = TRUE,
+             model = "WGS84",
+             facet.var = c("period"),
+             facet.lev = c("2016-2020"),
+             st.size = 2,
+             st.color = "white",
+             st.dist = .025,
+             border.size = .1,
+             box.color = "black"
+    ) +
+    guides(fill = "none")  +
+    theme(strip.text = element_blank(),
+          panel.border = element_rect(color = "black", fill = NA),
+          panel.spacing = unit(2, "lines"))
+})
+
+p_zooms <- cowplot::plot_grid(plotlist = zoom_plots,
+                              ncol = 1,
+                              rel_heights = c(1.2, 1, 1.2, 1.2)) +
+  theme(plot.background = element_rect(fill = "white"))
+
+ggsave(p_zooms, filename = "Analysis/output/figures/mai_zooms.png",
+       height = 10, width = 8, dpi = 600)
+
+
+zoom_windows_sf <- zoom_windows %>% 
+  map(~st_as_sfc(st_bbox(.))) %>% 
+  bind_rows() %>% 
+  pivot_longer(cols = everything(),
+               names_to = "aoi",
+               values_to = "geom") %>% 
+  st_set_geometry("geom")
+
+p_fig2_v2 <- output_plot_map(sf_obj = mai_adm2_combined,
+                             lakes_sf = lakes_sf,
+                             all_countries_sf = afr_sf,
+                             fill_var = "log10_rate_per_1e5",
+                             fill_color_scale_type = "rates") +
+  geom_sf(data = zoom_windows_sf,
+          alpha = 0,
+          color = "red",
+          inherit.aes = F,
+          linewidth = .8) +
+  facet_wrap(~ period) +
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 15),
+        panel.spacing = unit(9, "lines"),
+        legend.position = "right") +
+  guides(fill = guide_colorbar("Incidence rate\n[cases/100,000 people]")) +
+  coord_sf(xlim = c(NA, NA), ylim = c(NA, NA))
+
+
+p_fig2_v2_comb <- cowplot::ggdraw(p_fig2_v2) +
+  cowplot::draw_plot(p_zooms +
+                       theme(plot.background = element_blank(),
+                             panel.background = element_blank()), 
+                     x = .37,
+                     y = .16,
+                     width = .16,
+                     height = .68,
+                     hjust = 0,
+                     vjust = 0)
+
+ggsave(p_fig2_v2_comb,
+       file = "Analysis/output/figures/Figure_2_MAI_admin2_v2.png",
+       width = 18,
+       height = 10, 
+       dpi = 600)
+
+
+
+# Spatial autocorrelation of changes
+library(rgeoda)
+mai_changes_sf <- inner_join(adm2_sf,
+                             mai_adm2_changes) %>% 
+  filter(!is.na(log10_rate_ratio))
+
+queen_w <- queen_weights(mai_changes_sf)
+
+lisa_fit <- local_moran(queen_w, mai_changes_sf %>% 
+                          st_drop_geometry() %>%
+                          ungroup() %>% 
+                          select(log10_rate_ratio), 
+                        permutations = 9999,
+                        significance_cutoff = 0.025)
+
+p.adjust(lisa_pvalues(lisa_fit), "fdr") >= 0.0025
+
+sum(lisa_pvalues(lisa_fit) < 0.025)
+sum(p.adjust(lisa_pvalues(lisa_fit), "fdr") <= 0.025)
+
+mai_changes_sf$lisa <- lisa_values(lisa_fit)
+mai_changes_sf$lisa_cats <- factor(lisa_labels(lisa_fit)[1+lisa_clusters(lisa_fit)],
+                                   levels = lisa_labels(lisa_fit))
+
+mai_changes_sf$lisa_cats[p.adjust(lisa_pvalues(lisa_fit), "fdr") >= 0.025] <- lisa_labels(lisa_fit)[1]
+sf_use_s2(FALSE)
+
+p_lisa_clusters <- output_plot_map(mai_changes_sf,
+                                   all_countries_sf = all_country_sf,
+                                   lakes_sf = lakes_sf,
+                                   fill_var = "lisa_cats",
+                                   fill_color_scale_type = "lisa cluster")
+
+ggsave(p_lisa_clusters,
+       file = "Analysis/output/figures/Figure_MAI_ratio_lisa_clusters.png",
+       width = 10,
+       height = 8, 
+       dpi = 600)
+
+
+mai_changes_regions <- mai_changes_sf %>% 
+  group_by(lisa_cats) %>% 
+  summarise(n = n()) %>% 
+  # Remove wholes 
+  nngeo::st_remove_holes() %>% 
+  # Remove small islands 
+  ms_filter_islands(min_area = 1e9) 
+
+p_lisa_regions <- p_fig3_2 + 
+  geom_sf(data = mai_changes_regions %>% 
+            filter(lisa_cats != "Not significant"),
+          inherit.aes = F,
+          aes(color = lisa_cats),
+          linewidth = .6,
+          alpha = 0) +
+  scale_color_manual(values = lisa_cat_colors[-1])
+
+ggsave(p_lisa_regions,
+       file = "Analysis/output/figures/Figure_MAI_ratio_admin2_with_clusters.png",
+       width = 10,
+       height = 8, 
+       dpi = 600)

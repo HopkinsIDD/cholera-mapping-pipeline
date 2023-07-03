@@ -7,6 +7,8 @@ color_lake_border <- function(){"#7fb4c4"}
 color_run_intended <- function(){c("#A1A1A1")}
 color_no_run_intended <- function(){c("#E2FFDE")}
 
+colors_lisa_clusters <- function(){c("lightgray", "#D40A07", "#4543C4", "#F26F6D", "#7C7AC2", "#424141", "#A059F7")}
+coloramp_cases <- function(){c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404")}
 
 # Figure functions --------------------------------------------------------
 
@@ -80,7 +82,7 @@ output_plot_map <- function(sf_obj,
                              low = "blue",
                              high = "red")
       } else if(fill_color_scale_type == "cases") {
-        scale_fill_gradientn(colours = c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404"),
+        scale_fill_gradientn(colours = coloramp_cases(),
                              oob = scales::censor, 
                              limits = c(0, NA), 
                              breaks = seq(0, 3), 
@@ -92,6 +94,8 @@ output_plot_map <- function(sf_obj,
         
       } else if(fill_color_scale_type == "risk category") {
         scale_fill_viridis_d()
+      } else if(fill_color_scale_type == "lisa cluster") {
+        scale_fill_manual(values = colors_lisa_clusters())
       }
     } +
     taxdat::map_theme() +
