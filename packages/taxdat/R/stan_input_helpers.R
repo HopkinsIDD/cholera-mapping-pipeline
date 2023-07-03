@@ -1979,7 +1979,7 @@ drop_censored_adm0 <- function(sf_cases_resized,
                                           res_time = res_time)
   # Break if no censored adm0
   if (nrow(y_adm0_censored) == 0) {
-    cat("-- No censored adm0 data found.")
+    cat("-- No censored adm0 data found with threshold of", thresh,". \n")
     return(sf_cases_resized)
   }
   
