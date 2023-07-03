@@ -1333,20 +1333,20 @@ get_country_admin_units <- function(iso_code,
       unionized <- sf::st_union(boundary_sf)
       boundary_sf <- boundary_sf[1, ]
       sf::st_geometry(boundary_sf) <- unionized
-      } else {
+    } else {
       boundary_sf =sf::st_as_sf(geodata::gadm(country="TZA", level=admin_level, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
     }
-     # Fix colnames for compatibility with rest of code
+    # Fix colnames for compatibility with rest of code
     boundary_sf <- boundary_sf %>% 
-       magrittr::set_colnames(.,tolower(colnames(boundary_sf))) %>%
-       dplyr::mutate(country="Tanzania",
-              gid_0="TZA")%>%
-       dplyr::mutate(name_0 = country,
-              shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
-              shapeType = paste0("ADM", admin_level))%>% 
-       dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
-                shapeID,
-                shapeType)
+      magrittr::set_colnames(.,tolower(colnames(boundary_sf))) %>%
+      dplyr::mutate(country="Tanzania",
+                    gid_0="TZA")%>%
+      dplyr::mutate(name_0 = country,
+                    shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
+                    shapeType = paste0("ADM", admin_level))%>% 
+      dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
+                    shapeID,
+                    shapeType)
     sf::st_crs(boundary_sf) <- sf::st_crs(4326)
     message("Using the aggregated gadm shapefiles for this region")
   } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA")&admin_level==0){
