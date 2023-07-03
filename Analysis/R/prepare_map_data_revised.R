@@ -155,6 +155,35 @@ lp_name <- taxdat::make_locationperiods_table_name(config = config)
 shapefiles <- sf::st_cast(shapefiles, "MULTIPOLYGON") %>%
   dplyr::rename(geom = geojson)
 
+# !! This assumes only one country present, would need to be changed if list of countries
+iso_code <- taxdat::get_country_isocode(config)
+
+# Clip shapefiles to the national level output shapefile
+adm0_geom <- taxdat::get_multi_country_admin_units(
+  iso_code = iso_code,
+  admin_levels = c(0),
+  lps = shapefiles
+)
+
+sf::st_crs(adm0_geom) <- sf::st_crs(shapefiles) ## same crs needed for st_intersection
+
+# Drop data with no intersections
+shapefiles <- shapefiles %>% 
+  dplyr::mutate(adm0_intersect = sf::st_intersects(shapefiles$geom, adm0_geom$geom, sparse = FALSE) %>% 
+                  as.vector())
+
+drop_shapefiles <- shapefiles %>% 
+  dplyr::filter(!adm0_intersect)
+
+if (nrow(drop_shapefiles) > 0) {
+  cat("-- Dropping", nrow(drop_shapefiles), "that do not intersect the national level output shapefile\n")
+  shapefiles <- shapefiles %>% 
+    dplyr::filter(!(location_period_id %in% drop_shapefiles$location_period_id))
+}
+
+shapefiles <- shapefiles %>% 
+  dplyr::mutate(geom = sf::st_intersection(geom, adm0_geom$geom))
+
 # Write to database
 taxdat::write_shapefiles_table(
   conn_pg = conn_pg,
@@ -191,9 +220,6 @@ taxdat::make_grid_lp_centroids_table(
 
 # Process data for summaries ----------------------------------------------
 cat("-- Creating tables for output summary lps in database \n")
-
-# !! This assumes only one country present, would need to be changed if list of countries
-iso_code <- taxdat::get_country_isocode(config)
 
 output_shapefiles <- taxdat::get_multi_country_admin_units(
   iso_code = iso_code,
@@ -245,30 +271,6 @@ taxdat::make_grid_lp_centroids_table(
 )
 
 # Create sf_chol ---------------------------------------------------------------
-
-# Clip shapefiles to the national level output shapefile
-adm0_geom <- output_shapefiles %>% 
-  dplyr::filter(admin_level == "ADM0") %>% 
-  dplyr::slice(1)
-
-sf::st_crs(adm0_geom) <- sf::st_crs(shapefiles) ## same crs needed for st_intersection
-
-# Drop data with no intersections
-shapefiles <- shapefiles %>% 
-  dplyr::mutate(adm0_intersect = sf::st_intersects(shapefiles$geom, adm0_geom$geom, sparse = FALSE) %>% 
-                  as.vector())
-
-drop_shapefiles <- shapefiles %>% 
-  dplyr::filter(!adm0_intersect)
-
-if (nrow(drop_shapefiles) > 0) {
-  cat("-- Dropping", nrow(drop_shapefiles), "that do not intersect the national level output shapefile\n")
-  shapefiles <- shapefiles %>% 
-    dplyr::filter(!(locationPeriod_id %in% drop_shapefiles$locationPeriod_id))
-}
-
-shapefiles <- shapefiles %>% 
-  dplyr::mutate(geom = sf::st_intersection(geom, adm0_geom$geom))
 
 sf::st_crs(cases) <- sf::st_crs(shapefiles) ## same crs needed for st_join
 sf::st_geometry(cases) <- NULL
