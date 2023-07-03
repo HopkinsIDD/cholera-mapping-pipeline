@@ -1309,6 +1309,45 @@ get_pop_weights <- function(res_space,
 }
 
 
+#' get_country_admin_units_db
+#'
+#' @param iso_code 
+#' @param admin_levels 
+#' @param dbuser 
+#' @param source 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_country_admin_units_db <- function(iso_code,
+                                       admin_levels = 0:2,
+                                       dbuser = Sys.getenv("USER")) {
+  
+  db_conn <- try(connect_to_db(dbuser = dbuser))
+  
+  if (inherits(db_conn, "try-error")) {
+    stop("Failed to connect to database")
+  } else {
+    adm_sf <- sf::st_read(dsn = db_conn,
+                          query = 
+                            glue::glue_sql(.con = db_conn,
+                                           "SELECT *
+                                           FROM output_shapefiles
+                                           WHERE country = {iso_code} AND
+                                           admin_level IN ({paste0('ADM', admin_levels)*});")
+    ) 
+  }
+  
+  if (nrow(adm_sf) == 0) {
+    stop("-- Failed pulling output shapefiles from database. \n")
+  } else {
+    cat("-- Found output shapefiles in database.\n")
+    return(adm_sf)
+  }
+}
+
+
 #' Get country admin units
 #' Pulls the admin units based on the iso3 code using rgeoboundaries
 #' @param iso_code 
@@ -1321,9 +1360,9 @@ get_country_admin_units <- function(iso_code,
                                     admin_level = 1) {
   library(sf)
   
+  
   if (admin_level > 3) {
-    stop('Error: the current admin level is unnecessarily high or invalid, 
-
+    stop('Error: the current admin level is unnecessarily high or invalid,
             please check and change the parameters for the country data report before running again. ')
   }
   
@@ -1333,20 +1372,20 @@ get_country_admin_units <- function(iso_code,
       unionized <- sf::st_union(boundary_sf)
       boundary_sf <- boundary_sf[1, ]
       sf::st_geometry(boundary_sf) <- unionized
-      } else {
+    } else {
       boundary_sf =sf::st_as_sf(geodata::gadm(country="TZA", level=admin_level, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
     }
-     # Fix colnames for compatibility with rest of code
+    # Fix colnames for compatibility with rest of code
     boundary_sf <- boundary_sf %>% 
-       magrittr::set_colnames(.,tolower(colnames(boundary_sf))) %>%
-       dplyr::mutate(country="Tanzania",
-              gid_0="TZA")%>%
-       dplyr::mutate(name_0 = country,
-              shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
-              shapeType = paste0("ADM", admin_level))%>% 
-       dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
-                shapeID,
-                shapeType)
+      magrittr::set_colnames(.,tolower(colnames(boundary_sf))) %>%
+      dplyr::mutate(country="Tanzania",
+                    gid_0="TZA")%>%
+      dplyr::mutate(name_0 = country,
+                    shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
+                    shapeType = paste0("ADM", admin_level))%>% 
+      dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
+                    shapeID,
+                    shapeType)
     sf::st_crs(boundary_sf) <- sf::st_crs(4326)
     message("Using the aggregated gadm shapefiles for this region")
   } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA")&admin_level==0){
@@ -1410,12 +1449,28 @@ get_country_admin_units <- function(iso_code,
 get_multi_country_admin_units <- function(iso_code,
                                           admin_levels = 0:2,
                                           lps = NULL,
-                                          clip_to_adm0 = TRUE) {
+                                          clip_to_adm0 = TRUE,
+                                          dbuser = Sys.getenv("USER"),
+                                          source = "database") {
+  
+  if (!(source %in% c("database", "api"))) {
+    stop("Source for output shapfiles must either be 'database' or 'api', found: ", source)
+  }
   
   if (iso_code == "testing") {
     # If testing run return the same shapefiles as the ones on location periods
     return(lps)
   } 
+  
+  
+  if (source == "database") {
+    adm_sf <- try(get_country_admin_units_db(iso_code  = iso_code, 
+                                             admin_level = admin_levels,
+                                             dbuser = dbuser))
+    if (!inherits(adm_sf, "try-error")) {
+      return(adm_sf)
+    }
+  }
   
   if (clip_to_adm0 & !(0 %in% admin_levels)) {
     stop("Admin level 0 needs to be included if clip_to_adm0 = TRUE.")
