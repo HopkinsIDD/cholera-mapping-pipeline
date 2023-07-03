@@ -253,6 +253,10 @@ prepare_stan_input <- function(
                                                censoring_thresh = config$censoring_thresh)
   # Set censoring inds
   sf_cases_resized$censoring <- censoring_inds
+  sf_cases_resized <- sf_cases_resized %>% 
+    dplyr::mutate(ref_TL = taxdat::get_start_timeslice(TL, res_time),
+                  ref_TR = taxdat::get_end_timeslice(TR, res_time),
+                  obs_id = dplyr::row_number()) 
   
   # Drop data that are censored and for which the observations are 0
   if (config$censoring) {
