@@ -346,6 +346,31 @@ postprocess_mean_annual_incidence <- function(config_list,
   res
 }
 
+#' postprocess_coef_of_variation
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_coef_of_variation <- function(config_list,
+                                          redo_aux = FALSE) {
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # Get mean annual incidence summary
+  cov_summary <- genquant$summary("location_cov_cases_output")
+  
+  # Get the output shapefiles and join
+  res <- get_output_sf_reaload(config_list = config_list,
+                               redo = redo_aux) %>% 
+    dplyr::bind_cols(cov_summary) %>% 
+    dplyr::select(-variable, -median, -sd, -mad)
+  
+  res
+}
+
 #' postprocess_adm0_sf
 #' 
 #' @param config_list config list
@@ -362,6 +387,7 @@ postprocess_adm0_sf <- function(config_list,
   
   res
 }
+
 
 #' postprocess_risk_category
 #'

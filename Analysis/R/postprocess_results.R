@@ -108,6 +108,23 @@ mai_stats <- run_all(
   output_file_type = "rds",
   verbose = opt$verbose)
 
+# Get the coefficient of variation summary at all admin levels 
+cov_stats <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_coef_of_variation,
+  fun_name = "cov",
+  fun_opts = NULL,
+  prefix = "test",
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  inter_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
 
 # Get the MAI rates summary at space grid level 
 mai_grid_rates_stats <- run_all(
@@ -315,4 +332,31 @@ ggsave(p_fig6,
        file = str_glue("{opt$output_dir}/figure_risk_categories_prop_ADM2_{suffix}.png"),
        width = 10,
        height = 8, 
+       dpi = 300)
+
+
+
+# Figure 7 Coefficient of variation ------------------------------------------------
+
+mai_cov <- mai_stats %>% 
+  filter(admin_level == "ADM0") %>% 
+  st_drop_geometry() %>% 
+  select(location_period_id, mai = mean) %>% 
+  inner_join(cov_stats %>% 
+               filter(admin_level == "ADM0") %>% 
+               st_drop_geometry() %>% 
+               select(location_period_id, cov = mean)) %>% 
+  mutate(country = get_country_from_filename(location_period_id))
+
+
+p_cov <- ggplot(mai_cov, aes(x = cov, y = mai * 1e5)) +
+  geom_label(aes(label = country)) +
+  theme_bw() +
+  labs(x = "Coefficient of variation [-]", y = "Mean annual incidence [cases per 100,000/year]")
+
+
+ggsave(p_cov,
+       file = str_glue("{opt$output_dir}/figure_mai_cov_{suffix}.png"),
+       width = 7,
+       height = 6, 
        dpi = 300)
