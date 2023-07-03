@@ -602,6 +602,21 @@ check_do_parallel_prep <- function(do_parallel_prep,
   }
 }
 
+#' @include file_name_functions.R
+#' @title check_summary_admin_levels
+#' @description Checks whether the summary admin levels are valid
+#' @param summary_admin_levels the spatial level at which the statistics is summarized
+#' @return summary_admin_levels if valid
+#' @export
+check_summary_admin_levels <- function(summary_admin_levels) {
+  if (is.null(summary_admin_levels)) {
+    summary_admin_levels <- c(0,1,2)
+  } else {
+    summary_admin_levels <- unlist(lapply(summary_admin_levels,try_conv_numeric))
+  }
+  return(summary_admin_levels)
+}
+
 #' Get all config options
 #'
 #' @return
@@ -623,13 +638,13 @@ get_all_config_options <- function() {
     ovrt_metadata_table = as.function(check_ovrt_metadata_table),
     OCs = "no-check",
     taxonomy = as.function(check_taxonomy),
+    summary_admin_levels = as.function(check_summary_admin_levels),
     covariate_choices = as.function(check_covariate_choices),
     obs_model = as.function(check_obs_model),
     inv_od_sd_adm0 = as.function(check_od_param_sd_prior_adm0),
     inv_od_sd_nopool = as.function(check_od_param_sd_prior_nopooling),
     h_mu_sd_inv_od = as.function(check_h_mu_sd_inv_od),
     h_sd_sd_inv_od = as.function(check_h_sd_sd_inv_od),
-    spatial_effect = as.function(check_spatial_effect),
     mu_sd_w = as.function(check_mu_sd_w),
     sd_sd_w = as.function(check_sd_sd_w),
     ncpus_parallel_prep = as.function(check_ncpus_parallel_prep),

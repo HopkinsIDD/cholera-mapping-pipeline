@@ -67,3 +67,21 @@ get_disaggregated_rates_sf <- function(cache,cholera_directory,config
   return(disaggregated_rate_sf)
   
 }
+
+#' @export
+#' @name get_unique_db_shps
+#' @title get_unique_db_shps
+#' @description
+#' to extract the unique shapefiles extracted from the database
+#' @param config
+#' @param cholera_directory 
+#' @param cache
+get_unique_db_shps <- function(cache,config,cholera_directory){
+  get_sf_cases_resized(name="sf_cases_resized",cache=cache,config = config,cholera_directory = cholera_directory)
+  unique_db_shps <- cache[["sf_cases_resized"]] %>% 
+    dplyr::group_by(locationPeriod_id) %>% 
+    dplyr::slice(1) %>%
+    dplyr::mutate(time_slice = lubridate::year(ref_TL)) %>% 
+    dplyr::select(loctime,geom,time_slice)
+  return(unique_db_shps)
+}
