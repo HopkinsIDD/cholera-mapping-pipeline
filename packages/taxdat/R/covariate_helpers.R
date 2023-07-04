@@ -1343,8 +1343,20 @@ get_country_admin_units_db <- function(iso_code,
     stop("-- Failed pulling output shapefiles from database. \n")
   } else {
     cat("-- Found output shapefiles in database.\n")
-    return(adm_sf)
+  } 
+  
+  # Check hash of get_country_admin_units to make sure the data in the database matches the
+  # latest version of get_country_admin_units
+  ref_hash <- digest::digest(deparse(taxdat::get_country_admin_units), algo = "md5")
+  
+  if (any(adm_sf$get_country_admin_units_hash != ref_hash)) {
+    warning("Different get_country_admin_units hashes found in database and taxdat.",
+            "Check if get_country_admin_units was updated since the last pull.")
+  } else {
+    cat("-- get_country_admin_units hash check passed.\n")
   }
+  
+  return(adm_sf)
 }
 
 
@@ -1358,8 +1370,6 @@ get_country_admin_units_db <- function(iso_code,
 #'
 get_country_admin_units <- function(iso_code, 
                                     admin_level = 1) {
-  library(sf)
-  
   
   if (admin_level > 3) {
     stop('Error: the current admin level is unnecessarily high or invalid,
@@ -1368,12 +1378,12 @@ get_country_admin_units <- function(iso_code,
   
   if (iso_code == "ZNZ" ) {
     if(admin_level==0){
-      boundary_sf =sf::st_as_sf(geodata::gadm(country="TZA", level=1, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
+      boundary_sf <- sf::st_as_sf(geodata::gadm(country="TZA", level=1, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
       unionized <- sf::st_union(boundary_sf)
       boundary_sf <- boundary_sf[1, ]
       sf::st_geometry(boundary_sf) <- unionized
     } else {
-      boundary_sf =sf::st_as_sf(geodata::gadm(country="TZA", level=admin_level, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
+      boundary_sf <- sf::st_as_sf(geodata::gadm(country="TZA", level=admin_level, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
     }
     # Fix colnames for compatibility with rest of code
     boundary_sf <- boundary_sf %>% 
