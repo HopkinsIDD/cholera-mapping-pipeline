@@ -1445,7 +1445,7 @@ get_admin_level_data <- function(data,
   # Check res_time
   res_time <- purrr::quietly(check_res_time)(res_time)$result
   
-  data %>% 
+  res <- data %>% 
     sf::st_drop_geometry() %>% 
     dplyr::mutate(ref_TL = get_start_timeslice(TL, res_time),
                   ref_TR = get_end_timeslice(TR, res_time)) %>% 
@@ -1465,6 +1465,13 @@ get_admin_level_data <- function(data,
     } %>% 
     dplyr::filter(ref_TL == get_start_timeslice(TR, res_time),
                   get_end_timeslice(TL, res_time) == ref_TR)
+  
+  
+  if(is.null(res)) {
+    stop("get_admin_level_data is returning NULL. Something probably went wrong during filtering.")
+  }
+  
+  res
 }
 
 
@@ -2013,9 +2020,14 @@ drop_censored_adm0 <- function(sf_cases_resized,
     }) %>% 
     unlist() 
   
+  
+  if (is.null(sf_cases_resized)) {
+    stop("sf_cases_resized is NULL, something probably went wrong during filtering.")  
+  }
+  
   if (length(drop_ids) > 0) {
     cat("-- Dropping", length(drop_ids), "that have censored ADM0 observations.\n")
-    return(sf_cases_resized[-drop_ids, ])
+    return(sf_cases_resized %>% dplyr::filter(!(obs_id %in% drop_ids)))
   } else {
     return(sf_cases_resized)
   }
