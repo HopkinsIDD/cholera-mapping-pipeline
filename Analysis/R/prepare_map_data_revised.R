@@ -224,7 +224,9 @@ cat("-- Creating tables for output summary lps in database \n")
 output_shapefiles <- taxdat::get_multi_country_admin_units(
   iso_code = iso_code,
   admin_levels = config$summary_admin_levels,
-  lps = shapefiles
+  lps = shapefiles,
+  source = "database",
+  dbuser = dbuser
 )
 
 # Name for output location periods
