@@ -158,7 +158,8 @@ get_output_shapefiles(name="output_shapefiles", config = params$config,cache=cac
 
 # remove shapefiles that are not in the fake_output_obs
 cache[["output_shapefiles"]] <- cache[["output_shapefiles"]] %>%
-  dplyr::filter(location_period_id %in% cache[["stan_input"]]$fake_output_obs$locationPeriod_id)
+  dplyr::filter(location_period_id %in% cache[["stan_input"]]$fake_output_obs$locationPeriod_id) %>%
+  dplyr::arrange(location_period_id)
 ```
 
 ```{r output}
