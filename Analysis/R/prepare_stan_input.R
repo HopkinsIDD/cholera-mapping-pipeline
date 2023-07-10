@@ -542,6 +542,28 @@ prepare_stan_input <- function(
     dplyr::mutate(admin_lev = stringr::str_extract(locationPeriod_id, "ADM[0-9]{1}"),
                   admin_lev = stringr::str_remove_all(admin_lev, "ADM") %>% as.integer())
   
+  # Check that all fake observations appear in all time slices, drop if not
+  fake_output_obs <- fake_output_obs %>% 
+    dplyr::add_count(locationPeriod_id) %>% 
+    dplyr::mutate(missing_time_slices = n != nrow(time_slices))
+  
+  if (any(fake_output_obs$missing_time_slices)) {
+    dropped_output_lps <- fake_output_obs %>% 
+      dplyr::filter(missing_time_slices) %>% 
+      dplyr::distinct(locationPeriod_id)
+    
+    cat("---- Dropping ", nrow(dropped_output_lps),
+        "output location period shapfiles due to inconsitent time slice coverage:",
+        paste(dropped_output_lps$locationPeriod_id, collapse = ", "), "\n")
+    
+    fake_output_obs <- fake_output_obs %>% 
+      dplyr::filter(!missing_time_slices) %>%
+      dplyr::select(-missing_time_slices)
+    
+  } else {
+    fake_output_obs <- fake_output_obs %>% dplyr::select(-missing_time_slices)
+  }
+  
   # Mapping from fake observations to location-periods 
   ind_mapping_output <- taxdat::get_space_time_ind_speedup(
     df = fake_output_obs, 
