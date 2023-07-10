@@ -1445,7 +1445,7 @@ get_admin_level_data <- function(data,
   # Check res_time
   res_time <- purrr::quietly(check_res_time)(res_time)$result
   
-  data %>% 
+  res <- data %>% 
     sf::st_drop_geometry() %>% 
     dplyr::mutate(ref_TL = get_start_timeslice(TL, res_time),
                   ref_TR = get_end_timeslice(TR, res_time)) %>% 
@@ -1465,6 +1465,13 @@ get_admin_level_data <- function(data,
     } %>% 
     dplyr::filter(ref_TL == get_start_timeslice(TR, res_time),
                   get_end_timeslice(TL, res_time) == ref_TR)
+  
+  
+  if(is.null(res)) {
+    stop("get_admin_level_data is returning NULL. Something probably went wrong during filtering.")
+  }
+  
+  res
 }
 
 
@@ -1767,10 +1774,7 @@ impute_adm0_obs <- function(sf_cases_resized,
   if (nrow(y_adm0_full) == 0) {
     if (nrow(time_slices) == 1) {
       cat("-- Imputation is not developed in the case a single modeling time slice \n")
-      return(
-        list(sf_cases_resized = sf_cases_resized,
-             stan_data = stan_data)
-      )
+      return(sf_cases_resized)
     }
     stop("No full national-level observations in modeling time slices")
   }
@@ -1957,4 +1961,75 @@ update_stan_data_imputation <- function(sf_cases_resized,
                                  rep("full", n_imputed))
   
   stan_data
+}
+
+
+
+#' Title
+#'
+#' @param sf_cases_resized 
+#' @param thresh 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+drop_censored_adm0 <- function(sf_cases_resized,
+                               thresh,
+                               res_time,
+                               cases_column) {
+  
+  # Get national level data with censored observations
+  y_adm0_censored <- get_admin_level_data(data = sf_cases_resized,
+                                          admin_levels = 0,
+                                          censorings = "right-censored",
+                                          res_time = res_time)
+  # Break if no censored adm0
+  if (nrow(y_adm0_censored) == 0) {
+    cat("-- No censored adm0 data found with threshold of", thresh,". \n")
+    return(sf_cases_resized)
+  }
+  
+  # If censored adm0 data, then proceed and load full adm0 data
+  # to match and filter
+  y_adm0_full <- get_admin_level_data(data = sf_cases_resized,
+                                      admin_levels = 0,
+                                      censorings = "full",
+                                      res_time = res_time)
+  
+  drop_ids <- purrr::map(
+    1:nrow(y_adm0_censored),
+    function(x) {
+      tmp <- y_adm0_censored %>% 
+        dplyr::slice(x) %>% 
+        dplyr::inner_join(y_adm0_full, by = c("ref_TL", "ref_TR"),
+                          suffix = c(".censored", ".full"))
+      
+      if (nrow(tmp) == 0) {
+        return()
+      } 
+      
+      obs_cens <- tmp[[paste0(cases_column, ".censored")]]
+      obs_full <- tmp[[paste0(cases_column, ".full")]]
+      
+      if (any((obs_full/obs_cens) > thresh)) {
+        return(y_adm0_censored$obs_id[x])
+      } else {
+        return()
+      }
+    }) %>% 
+    unlist() 
+  
+  
+  if (is.null(sf_cases_resized)) {
+    stop("sf_cases_resized is NULL, something probably went wrong during filtering.")  
+  }
+  
+  if (length(drop_ids) > 0) {
+    cat("-- Dropping", length(drop_ids), "that have censored ADM0 observations.\n")
+    return(sf_cases_resized %>% dplyr::filter(!(obs_id %in% drop_ids)))
+  } else {
+    return(sf_cases_resized)
+  }
+  
 }
