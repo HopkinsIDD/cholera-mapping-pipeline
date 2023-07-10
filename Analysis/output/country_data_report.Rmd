@@ -155,6 +155,10 @@ file_names <- taxdat::get_filenames(
   config = str_c(params$cholera_directory, params$config, sep = "/") %>% yaml::read_yaml(), 
   cholera_directory = params$cholera_directory)
 get_output_shapefiles(name="output_shapefiles", config = params$config,cache=cache,cholera_directory = params$cholera_directory)
+
+# remove shapefiles that are not in the fake_output_obs
+cache[["output_shapefiles"]] <- cache[["output_shapefiles"]] %>%
+  dplyr::filter(location_period_id %in% cache[["stan_input"]]$fake_output_obs$locationPeriod_id)
 ```
 
 ```{r output}
