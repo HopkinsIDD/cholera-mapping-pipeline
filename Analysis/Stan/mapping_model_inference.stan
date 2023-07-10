@@ -119,7 +119,7 @@ transformed data {
   int<lower=0, upper=1> size_sd_eta;
   int<lower=0, upper=smooth_grid_N> size_w; 
   int<lower=0, upper=1> size_lambda; 
-  int<lower=0, upper=1> size_sigma_std_dev_w; 
+  int<lower=1, upper=2> size_sigma_std_dev_w; 
   
   for (i in 1:K1) {
     if (censored[i] == 1) {
