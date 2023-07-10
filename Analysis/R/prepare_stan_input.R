@@ -251,6 +251,12 @@ prepare_stan_input <- function(
   censoring_inds <- taxdat::get_censoring_inds(stan_data = stan_data,
                                                ind_mapping_resized = ind_mapping_resized,
                                                censoring_thresh = config$censoring_thresh)
+  # Set censoring inds
+  sf_cases_resized$censoring <- censoring_inds
+  sf_cases_resized <- sf_cases_resized %>% 
+    dplyr::mutate(ref_TL = taxdat::get_start_timeslice(TL, res_time),
+                  ref_TR = taxdat::get_end_timeslice(TR, res_time),
+                  obs_id = dplyr::row_number()) 
   
   # Drop data that are censored and for which the observations are 0
   if (config$censoring) {
@@ -266,6 +272,7 @@ prepare_stan_input <- function(
       
       sf_cases_resized <- sf_cases_resized[-c(censored_zero_obs), ]
       
+      # Re-compute indices
       ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
         df = sf_cases_resized, 
         lp_dict = location_periods_dict,
@@ -273,23 +280,43 @@ prepare_stan_input <- function(
         res_time = res_time,
         n_cpus = config$ncpus_parallel_prep,
         do_parallel = config$do_parallel_prep)
-      
-      # First define censored observations
-      stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
-      
-      stan_data$M <- nrow(sf_cases_resized)
-      non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
-      obs_changer <- taxdat::make_changer(x = non_na_obs_resized) 
-      stan_data$map_obs_loctime_obs <- taxdat::get_map_obs_loctime_obs(x = ind_mapping_resized$map_obs_loctime_obs,
-                                                                       obs_changer = obs_changer)
-      stan_data$map_obs_loctime_loc <- as.array(ind_mapping_resized$map_obs_loctime_loc) 
-      
-      # Extract censoring information
-      censoring_inds <- taxdat::get_censoring_inds(stan_data = stan_data,
-                                                   ind_mapping_resized = ind_mapping_resized,
-                                                   censoring_thresh = config$censoring_thresh)
     }
   }
+  
+  
+  # Drop ADM0 observations that do not inform the model
+  if (config$drop_censored_adm0) {
+    
+    sf_cases_resized <- taxdat::drop_censored_adm0(sf_cases_resized = sf_cases_resized,
+                                                   thresh = config$drop_censored_adm0_thresh,
+                                                   res_time = res_time,
+                                                   cases_column = cases_column)
+    
+    # Re-compute indices
+    ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+      df = sf_cases_resized, 
+      lp_dict = location_periods_dict,
+      model_time_slices = time_slices,
+      res_time = res_time,
+      n_cpus = config$ncpus_parallel_prep,
+      do_parallel = config$do_parallel_prep)
+  }
+  
+  
+  # First define censored observations
+  stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
+  
+  stan_data$M <- nrow(sf_cases_resized)
+  non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
+  obs_changer <- taxdat::make_changer(x = non_na_obs_resized) 
+  stan_data$map_obs_loctime_obs <- taxdat::get_map_obs_loctime_obs(x = ind_mapping_resized$map_obs_loctime_obs,
+                                                                   obs_changer = obs_changer)
+  stan_data$map_obs_loctime_loc <- as.array(ind_mapping_resized$map_obs_loctime_loc) 
+  
+  # Extract censoring information
+  censoring_inds <- taxdat::get_censoring_inds(stan_data = stan_data,
+                                               ind_mapping_resized = ind_mapping_resized,
+                                               censoring_thresh = config$censoring_thresh)
   
   # Then overwrite tfrac with user-specified value
   if (set_tfrac) {
