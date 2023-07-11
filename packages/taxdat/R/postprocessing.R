@@ -411,7 +411,7 @@ postprocess_risk_category <- function(config_list,
   output_location_pop <- genquant$summary("pop_loc_output")
   
   # Get mean annual incidence summary
-  risk_cat <- genquant$summary("location_risk_cat", mode) %>% 
+  risk_cat <- genquant$summary("location_risk_cat", mode = compute_mode) %>% 
     dplyr::mutate(risk_cat = risk_cat_dict[mode],
                   risk_cat = factor(risk_cat, levels = risk_cat_dict),
                   pop = output_location_pop$mean) %>% 
@@ -695,7 +695,7 @@ collapse_grid <- function(df) {
 #' @export
 #'
 #' @examples
-mode <- function(v) {
+compute_mode <- function(v) {
   uniqv <- unique(v)
   uniqv[which.max(tabulate(match(v, uniqv)))]
 }
