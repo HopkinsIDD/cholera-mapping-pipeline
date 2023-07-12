@@ -188,7 +188,7 @@ drop_multiyear <- function(df,
     cat("---- Dropping", length(ind_diff), "observations that span multiple years from admin levels",
         paste(admin_levels, collapse = "-"), ":\n")
     
-    print(df[ind_diff, ] %>% sf::st_drop_geometry())
+    print(df[ind_diff, ])
     
     return(df[-c(ind_diff), ])
   } else {
