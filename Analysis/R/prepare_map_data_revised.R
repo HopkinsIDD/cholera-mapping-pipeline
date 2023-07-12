@@ -182,7 +182,8 @@ if (nrow(drop_shapefiles) > 0) {
 }
 
 shapefiles <- shapefiles %>% 
-  dplyr::mutate(geom = sf::st_intersection(geom, adm0_geom$geom))
+  dplyr::mutate(geom = sf::st_intersection(geom, adm0_geom$geom)) %>% 
+  taxdat::fix_geomcollections()
 
 # Write to database
 taxdat::write_shapefiles_table(
