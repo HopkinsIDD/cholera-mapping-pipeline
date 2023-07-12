@@ -59,6 +59,7 @@ params_df <- data.frame(
     h_mu_sd_inv_od = 0.01,
     h_sd_sd_inv_od = 0.05,
     spatial_effect = 'yes',
+    do_sd_w_mixture = 'yes',
     mu_sd_w = 10, 
     sd_sd_w = 3, 
     ncpus_parallel_prep = 2,
