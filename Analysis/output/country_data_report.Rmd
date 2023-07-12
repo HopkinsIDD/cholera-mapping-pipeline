@@ -562,6 +562,10 @@ plot_time_varying_pop_raster(cache=cache,config=params$config,cholera_directory 
 
 ```
 
+```{r pop-comparison,fig.height=5,fig.width=10,fig.cap=capFig("Comparison of population data between genquant and wpp")}
+plot_pop_comparison(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
+```
+
 ## Validation
 ```{r import_modelfidel}
 cache[["data_fidelity"]]<-get_data_fidelity(cache=cache,cholera_directory=params$cholera_directory,config=params$config)

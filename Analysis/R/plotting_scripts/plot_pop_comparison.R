@@ -1,6 +1,6 @@
 library(taxdat)
 cholera_directory <- 'cholera-mapping-pipeline'
-config <- 'Analysis/configs'
+config <- 'Analysis/configs/config.yml'
 cache <- new.env()
 
 #load stan_input, output_shapefiles and genquant file
