@@ -268,9 +268,9 @@ mai_adm0_combined %>%
   mutate(text = str_c(
     formatC(mean*1e5, digits = 1, format = "f"),
     " (",
-    formatC(q5*1e5, digits = 1, format = "f"),
+    formatC(q2.5*1e5, digits = 1, format = "f"),
     "-",
-    formatC(q95*1e5, digits = 1, format = "f"),
+    formatC(q97.5*1e5, digits = 1, format = "f"),
     ")"
   )) %>% 
   select(text, period, country) %>% 
@@ -314,7 +314,7 @@ ggsave(p_fig5,
 adm2_pop_at_risk <- risk_categories_adm2_combined %>% 
   st_drop_geometry() %>% 
   filter(admin_level == "ADM2") %>%
-  mutate(country = get_country_from_filename(location_period_id)) %>% 
+  mutate(country = get_country_from_string(location_period_id)) %>% 
   {
     x <- .
     bind_rows(x, x %>% mutate(country = "overall")) %>% 

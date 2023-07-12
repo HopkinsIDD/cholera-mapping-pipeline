@@ -335,13 +335,14 @@ postprocess_mean_annual_incidence <- function(config_list,
   genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
   
   # Get mean annual incidence summary
-  mai_summary <- genquant$summary("location_total_rates_output")
+  mai_summary <- genquant$summary("location_total_rates_output",
+                                  custom_summaries())
   
   # Get the output shapefiles and join
-  res <- get_output_sf_reaload(config_list = config_list,
-                               redo = redo_aux) %>% 
+  res <- get_output_sf_reload(config_list = config_list,
+                              redo = redo_aux) %>% 
     dplyr::bind_cols(mai_summary) %>% 
-    dplyr::select(-variable, -median, -sd, -mad)
+    dplyr::select(-variable)
   
   res
 }
@@ -360,13 +361,15 @@ postprocess_coef_of_variation <- function(config_list,
   genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
   
   # Get mean annual incidence summary
-  cov_summary <- genquant$summary("location_cov_cases_output")
+  cov_summary <- genquant$summary("location_cov_cases_output",
+                                  custom_summaries(),
+                                  .args = list(probs = cri_interval()))
   
   # Get the output shapefiles and join
-  res <- get_output_sf_reaload(config_list = config_list,
-                               redo = redo_aux) %>% 
+  res <- get_output_sf_reload(config_list = config_list,
+                              redo = redo_aux) %>% 
     dplyr::bind_cols(cov_summary) %>% 
-    dplyr::select(-variable, -median, -sd, -mad)
+    dplyr::select(-variable)
   
   res
 }
@@ -381,8 +384,8 @@ postprocess_coef_of_variation <- function(config_list,
 postprocess_adm0_sf <- function(config_list,
                                 redo_aux = FALSE) {
   
-  res <- get_output_sf_reaload(config_list = config_list,
-                               redo = redo_aux) %>% 
+  res <- get_output_sf_reload(config_list = config_list,
+                              redo = redo_aux) %>% 
     dplyr::filter(admin_level == "ADM0")
   
   res
@@ -415,8 +418,8 @@ postprocess_risk_category <- function(config_list,
     dplyr::mutate(risk_cat = risk_cat_dict[mode],
                   risk_cat = factor(risk_cat, levels = risk_cat_dict),
                   pop = output_location_pop$mean) %>% 
-    dplyr::bind_cols(get_output_sf_reaload(config_list = config_list,
-                                           redo = redo_aux), .)
+    dplyr::bind_cols(get_output_sf_reload(config_list = config_list,
+                                          redo = redo_aux), .)
   
   risk_cat
 }
@@ -440,11 +443,13 @@ postprocess_pop_at_risk <- function(config_list,
   risk_cat_dict <- get_risk_cat_dict()
   
   # Get mean annual incidence summary
-  pop_at_risk <- genquant$summary("tot_pop_risk") %>% 
+  pop_at_risk <- genquant$summary("tot_pop_risk",
+                                  custom_summaries(),
+                                  .args = list(probs = cri_interval())) %>% 
     dplyr::mutate(risk_cat = risk_cat_dict[as.numeric(str_extract(variable, "(?<=\\[)[0-9]+(?=,)"))],
                   risk_cat = factor(risk_cat, levels = risk_cat_dict),
                   admin_level = as.numeric(str_extract(variable, "(?<=,)[0-9]+(?=\\])")) - 1,
-                  country = get_country_from_filename(config_list$file_names$stan_genquant_filename))
+                  country = taxdat::get_country_isocode(config_list))
   
   pop_at_risk
 }
@@ -464,13 +469,15 @@ postprocess_grid_mai_rates <- function(config_list,
   genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
   
   # Get mean annual incidence summary
-  mai_summary <- genquant$summary("space_grid_rates")
+  mai_summary <- genquant$summary("space_grid_rates",
+                                  custom_summaries(),
+                                  .args = list(probs = cri_interval()))
   
   # Get the output shapefiles and join
   res <- get_space_grid(config_list = config_list,
                         redo = redo_aux) %>% 
     dplyr::bind_cols(mai_summary) %>% 
-    dplyr::select(-variable, -median, -sd, -mad)
+    dplyr::select(-variable)
   
   res
 }
@@ -490,7 +497,9 @@ postprocess_grid_mai_cases <- function(config_list,
   genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
   
   # Get mean annual incidence rates at space grid level
-  mai_summary <- genquant$summary("space_grid_rates")
+  mai_summary <- genquant$summary("space_grid_rates",
+                                  custom_summaries(),
+                                  .args = list(probs = cri_interval()))
   
   # Get population and average over space grid
   mean_pop_sf <- get_mean_pop_grid(config_list = config_list,
@@ -499,7 +508,7 @@ postprocess_grid_mai_cases <- function(config_list,
   # Get the output shapefiles and join
   res <- mean_pop_sf %>% 
     dplyr::bind_cols(mai_summary) %>% 
-    dplyr::select(-variable, -median, -sd, -mad) %>% 
+    dplyr::select(-variable) %>% 
     dplyr::mutate(dplyr::across(.cols = c("mean", "q5", "q95"),
                                 ~ . * pop))
   
@@ -510,7 +519,8 @@ postprocess_grid_mai_cases <- function(config_list,
 # Output shapefiles -------------------------------------------------------
 
 #' get_output_sf_wrapper
-#' This function enables loaded pre-extracted output shapefiles
+#' This function enables loaded pre-extracted the subset of output shapefiles 
+#' for which generated quantities were computed.
 #'
 #' @param config 
 #' @param data_dir 
@@ -519,8 +529,8 @@ postprocess_grid_mai_cases <- function(config_list,
 #' @export
 #'
 #' @examples
-get_output_sf_reaload <- function(config_list,
-                                  redo = FALSE) {
+get_output_sf_reload <- function(config_list,
+                                 redo = FALSE) {
   
   # Make file name
   output_space_sf_file <- stringr::str_replace(config_list$file_names$observations_filename,
@@ -554,7 +564,7 @@ get_output_sf_reaload <- function(config_list,
 get_AFRO_region <- function(data, ctry_col) {
   
   data_with_AFRO_region <- data %>% 
-    mutate(
+    dplyr::mutate(
       AFRO_region = dplyr::case_when(
         !!rlang::sym(ctry_col) %in% c("BDI","ETH","KEN","MDG","RWA","SDN","SSD","UGA","TZA") ~ "Eastern Africa",
         !!rlang::sym(ctry_col) %in% c("MOZ","MWI","NAM","SWZ","ZMB","ZWE","ZAF") ~ "Southern Africa",
@@ -640,7 +650,7 @@ get_mean_pop_grid <- function(config_list,
     res <- readRDS(mean_pop_grid_sf_file)
   } else {
     res <- get_spacetime_grid(config_list = config_list) %>% 
-      mutate(pop = taxdat::read_file_of_type(config_list$file_names$stan_input_filename, variable = "stan_input")$stan_data$pop) %>% 
+      dplyr::mutate(pop = taxdat::read_file_of_type(config_list$file_names$stan_input_filename, variable = "stan_input")$stan_data$pop) %>% 
       sf::st_drop_geometry() %>% 
       dplyr::group_by(rid, x, y, id) %>% 
       dplyr::summarise(pop = mean(pop)) %>% 
@@ -667,19 +677,19 @@ get_mean_pop_grid <- function(config_list,
 collapse_grid <- function(df) {
   
   u_grid <- df  %>%
-    group_by(rid, x, y) %>% 
-    slice(1) %>% 
-    select(rid, x, y, geom)
+    dplyr::group_by(rid, x, y) %>% 
+    dplyr::slice(1) %>% 
+    dplyr::select(rid, x, y, geom)
   
   
   res <- df %>%
-    st_drop_geometry() %>% 
-    group_by(rid, x, y) %>% 
-    summarise(mean = mean(mean),
-              q5 = min(q5),
-              q95 = max(q95),
-              overlap = n() > 1) %>% 
-    inner_join(u_grid, .)
+    sf::st_drop_geometry() %>% 
+    dplyr::group_by(rid, x, y) %>% 
+    dplyr::summarise(mean = mean(mean),
+                     q2.5 = min(q2.5),
+                     q97.5 = max(q97.5),
+                     overlap = n() > 1) %>% 
+    dplyr::inner_join(u_grid, .)
   
   res
 }
@@ -706,7 +716,47 @@ compute_mode <- function(v) {
 #' @export
 #'
 #' @examples
-get_country_from_filename <- function(x) {
+get_country_from_string <- function(x) {
   stringr::str_extract(x, "[A-Z]{3}")
 }
 
+
+#' custom_summaries
+#' Custom summaries to get the 95% CrI
+#'
+#' @return
+#' @export
+#'
+#' @examples
+custom_summaries <- function() {
+  
+  c(
+    "mean", "custom_quantile2",
+    posterior::default_convergence_measures(),
+    posterior::default_mcse_measures()
+  )
+}
+
+#' cri_interval
+#' The Credible interval to report in summaries
+#' @return
+#' @export
+#'
+#' @examples
+cri_interval <- function() {
+  c(0.025, 0.975)
+}
+
+#' custom_quantile2
+#' quantile functoin with custom cri
+#'
+#' @param x 
+#' @param cri 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+custom_quantile2 <- function(x, cri = cri_interval()) {
+  posterior::quantile2(x, probs = cri)
+}
