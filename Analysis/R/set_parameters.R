@@ -246,6 +246,7 @@ sd_alpha <- taxdat::check_sd_alpha(config$sd_alpha)
 # Priors for spatial sd
 mu_sd_w <- taxdat::check_mu_sd_w(config$mu_sd_w)
 sd_sd_w <- taxdat::check_mu_sd_w(config$sd_sd_w)
+do_sd_w_mixture <- taxdat::check_do_sd_w_mixture(config$do_sd_w_mixture)
 
 # time_effect, time_effect_autocorr, use_intercept are in get_stan_parameters
 
