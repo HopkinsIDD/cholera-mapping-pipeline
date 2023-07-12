@@ -1571,8 +1571,9 @@ get_cells_ts <- function(stan_data,
 #'
 #' @param sf_cases_resized 
 #' @param stan_data 
-#' @param ref_amd0_obs_id 
+#' @param ref_adm0_obs_id 
 #' @param time_slices 
+#' @param res_time
 #' @param m_ts 
 #' @param cases_column 
 #' @param frac_coverage_thresh 
@@ -1583,14 +1584,15 @@ get_cells_ts <- function(stan_data,
 #' @examples
 impute_adm0_obs_single <- function(sf_cases_resized,
                                    stan_data,
-                                   ref_amd0_obs_id,
+                                   ref_adm0_obs_id,
                                    time_slices,
+                                   res_time,
                                    m_ts,
                                    cases_column,
                                    frac_coverage_thresh) {
   
   adm0_template <- sf_cases_resized %>% 
-    dplyr::slice(ref_amd0_obs_id) %>% 
+    dplyr::slice(ref_adm0_obs_id) %>% 
     dplyr::mutate(loctime = NA,
                   OC_UID = "imputed",
                   TL = NA,
@@ -1601,7 +1603,7 @@ impute_adm0_obs_single <- function(sf_cases_resized,
   m_TR <- time_slices$TR[m_ts]
   
   ref_pop <- compute_pop_ts_loc(stan_data = stan_data,
-                                loctime = get_loctime_obs(stan_data, ref_amd0_obs_id),
+                                loctime = get_loctime_obs(stan_data, ref_adm0_obs_id),
                                 ts = m_ts)
   
   # All data in the missing year
@@ -1682,7 +1684,7 @@ impute_adm0_obs_single <- function(sf_cases_resized,
       frac_coverage <- 0
     }
     
-    # !! If coverage OK compute mean rate (threshold of 10% is hardcoded)
+    # !! If coverage OK compute mean rate 
     if (frac_coverage > frac_coverage_thresh) {
       # Compute mean rate for the subnational data
       meanrate_tmp <- compute_mean_rate_subset(stan_data = stan_data,
@@ -1791,7 +1793,7 @@ impute_adm0_obs <- function(sf_cases_resized,
   missing_ts <- missing_adm0 %>% dplyr::filter(is.na(in_set))
   
   if (nrow(missing_ts) == 0) {
-    cat("-- No missing times slices with missing full ADM0 data. \n")
+    cat("-- No times slices missing full ADM0 data. \n")
     return(sf_cases_resized)
   } else {
     missing_adm0 %>% 
@@ -1815,8 +1817,9 @@ impute_adm0_obs <- function(sf_cases_resized,
       
       impute_adm0_obs_single(sf_cases_resized = sf_cases_resized,
                              stan_data = stan_data,
-                             ref_amd0_obs_id = y_adm0_full$obs_id[1], 
+                             ref_adm0_obs_id = y_adm0_full$obs_id[1], 
                              time_slices = time_slices,
+                             res_time = res_time,
                              m_ts = missing_ts$ts[i],
                              cases_column = cases_column,
                              frac_coverage_thresh = frac_coverage_thresh)
