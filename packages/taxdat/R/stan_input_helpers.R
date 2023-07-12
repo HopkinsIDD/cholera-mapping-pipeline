@@ -986,15 +986,14 @@ get_map_obs_loctime_obs <- function(x, obs_changer) {
 #' @export
 #'
 #' @examples
-get_censoring_inds <- function(stan_data, 
-                               ind_mapping_resized,
+get_censoring_inds <- function(ind_mapping_resized,
                                censoring_thresh) {
   
   purrr::map_chr(
-    1:stan_data$M, 
+    unique(ind_mapping_resized$map_obs_loctime_obs), 
     function(x) {
       # Get all tfracs for the given observation
-      tfracs <- ind_mapping_resized$tfrac[stan_data$map_obs_loctime_obs == x]
+      tfracs <- ind_mapping_resized$tfrac[ind_mapping_resized$map_obs_loctime_obs == x]
       # Define right-censored if any tfrac is smaller than 95% of the time slice
       ifelse(any(tfracs <= censoring_thresh), "right-censored", "full")
     })
@@ -2044,5 +2043,72 @@ drop_censored_adm0 <- function(sf_cases_resized,
   } else {
     return(sf_cases_resized)
   }
+}
+
+
+#' update_stan_data_indexing
+#'
+#' @param stan_data 
+#' @param ind_mapping_resized 
+#' @param config 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+update_stan_data_indexing <- function(stan_data,
+                                      ind_mapping_resized,
+                                      config) {
+  # Number of unique locations
+  stan_data$L <- length(ind_mapping_resized$u_loctimes)
   
+  stan_data$M <- length(unique(ind_mapping_resized$map_obs_loctime_obs))
+  
+  # Define censored observations
+  stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
+  
+  for (var in names(ind_mapping_resized)) {
+    if (var == "map_obs_loctime_obs") {
+      
+      non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
+      obs_changer <- make_changer(x = non_na_obs_resized) 
+      
+      stan_data$map_obs_loctime_obs <- get_map_obs_loctime_obs(x = ind_mapping_resized$map_obs_loctime_obs,
+                                                               obs_changer = obs_changer)
+    } else if (var == "tfrac") {
+      if (config$set_tfrac) {
+        cat("-- Overwriting tfrac for non-censored observations with 1")
+        stan_data$tfrac <- rep(1.0, length(ind_mapping_resized$tfrac))
+      }
+    } else if (var == "u_loc_grid_weights") {
+      stan_data$map_loc_grid_sfrac <- ind_mapping_resized$u_loc_grid_weights
+    } else {
+      stan_data[[var]] <- as.array(ind_mapping_resized[[var]])
+    }
+  }
+  
+  stan_data
+}
+
+#' check_pop_weight_validity
+#'
+#' @param map_loc_grid_sfrac 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_pop_weight_validity <- function(map_loc_grid_sfrac) {
+  # Check if sfrac is valid
+  if (any(map_loc_grid_sfrac > 1.01)) {
+    
+    warning("Invalid sfrac values > 1", " Maximum value of ", 
+            max(map_loc_grid_sfrac), ".",
+            "Caping all values to 1.")
+  }
+  
+  # Make sure all values are <= 1 (possible rounding errors)
+  map_loc_grid_sfrac <- pmin(1, map_loc_grid_sfrac)
+  
+  map_loc_grid_sfrac
 }
