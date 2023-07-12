@@ -1,4 +1,4 @@
-#' @title Perapre stan input
+#' @title Prepapre stan input
 #' @description Prepares the data for the Stan code
 #'
 #' @param dbuser
@@ -14,6 +14,14 @@
 #' @param sf_grid
 #' @param location_periods_dict
 #' @param covar_cube
+#' @param set_tfrac
+#' @param tfrac_thresh
+#' @param snap_tol
+#' @param opt
+#' @param stan_params
+#' @param aggregate
+#' @param debug
+#' @param config
 #'
 #' @return A list with the data
 #'
@@ -125,7 +133,7 @@ prepare_stan_input <- function(
   }
   
   
-  # ---- Ç. Pre-Aggregation Duplicates Removal in sf_cases ----
+  # ---- C. Pre-Aggregation Duplicates Removal in sf_cases ----
   sf_cases_dup_obs <- sf_cases %>% 
     sf::st_drop_geometry() %>%
     # don't decide on duplicates based on these variables 
@@ -134,7 +142,7 @@ prepare_stan_input <- function(
   
   sf_cases <- sf_cases[!sf_cases_dup_obs, ]
   
-  # ---- C. Aggregation ----
+  # ---- D. Aggregation ----
   
   # Mapping between observations to location periods and between
   # location periods and grid cells
@@ -187,7 +195,7 @@ prepare_stan_input <- function(
   # Clean unused objects
   rm(ind_mapping)
   
-  #  ---- D. Drop tfrac threshold ----
+  #  ---- Ea. Drop tfrac threshold ----
   
   # If specified threshold of minimum tfrac filter out data
   if (tfrac_thresh > 0) {
@@ -213,7 +221,7 @@ prepare_stan_input <- function(
     }
   }
   
-  # ---- Da. Drop multi-year ----
+  # ---- Eb. Drop multi-year ----
   
   # Set admin level
   sf_cases_resized <- sf_cases_resized %>% 
@@ -234,7 +242,7 @@ prepare_stan_input <- function(
       do_parallel = config$do_parallel_prep)
   }
   
-  # ---- E. Censoring ----
+  # ---- F. Censoring ----
   
   stan_data$M <- nrow(sf_cases_resized)
   non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
@@ -303,7 +311,7 @@ prepare_stan_input <- function(
   }
   
   
-  # First define censored observations
+  # First define censored observations 
   stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
   
   stan_data$M <- nrow(sf_cases_resized)
@@ -330,7 +338,7 @@ prepare_stan_input <- function(
   stan_data$u_loctime <- ind_mapping_resized$u_loctimes
   stan_data$L <- length(ind_mapping_resized$u_loctimes)
   
-  # ---- F. Spatial fraction ----
+  # ---- G. Spatial fraction ----
   # Add 1km population fraction (this is deprecated in new stan model)
   stan_data$use_pop_weight <- config$use_pop_weight
   
@@ -373,11 +381,13 @@ prepare_stan_input <- function(
       stan_data$M <- nrow(sf_cases_resized)
       
       # Extract censoring information
+      ## Also not quite sure why we need censoring_inds here again... 
       censoring_inds <-  taxdat::get_censoring_inds(stan_data = stan_data,
                                                     ind_mapping_resized = ind_mapping_resized,
                                                     censoring_thresh = config$censoring_thresh)
       
       # Then overwrite tfrac with user-specified value
+      ## Why is set_tfrac happening inside use pop weight and in last section?
       if (!is.null(set_tfrac) && (set_tfrac)) {
         cat("-- Overwriting tfrac with user-specified value of ", set_tfrac)
         ind_mapping_resized$tfrac <- rep(1.0, length(ind_mapping_resized$tfrac))
@@ -423,7 +433,7 @@ prepare_stan_input <- function(
   stan_data$M_right <- length(stan_data$ind_right)
   stan_data$censoring_inds <- censoring_inds
   
-  # ---- G. Mappings ----
+  # ---- I. Mappings ----
   stan_data$K1 <- length(stan_data$map_obs_loctime_obs)
   stan_data$K2 <- length(stan_data$map_loc_grid_loc)
   stan_data$L <- length(ind_mapping_resized$u_loctimes)
@@ -495,7 +505,7 @@ prepare_stan_input <- function(
                                               res_time = res_time,
                                               cases_column = cases_column,
                                               frac_coverage_thresh = 0.1)
-  
+ ## ECL why don't we need to remap indices after imputing observations? 
   stan_data <- taxdat::update_stan_data_imputation(sf_cases_resized = sf_cases_resized,
                                                    stan_data = stan_data,
                                                    time_slices = time_slices,
@@ -628,7 +638,7 @@ prepare_stan_input <- function(
     if (any(stan_data$map_loc_grid_sfrac_output > 1.01)) {
       warning("Invalid sfrac values > 1 in outputs.", " Maximum value of ", 
               max(stan_data$map_loc_grid_sfrac_output), ".",
-              "Caping all values to 1.")
+              "Capping all values to 1.")
       stan_data$map_loc_grid_sfrac_output <- pmin(stan_data$map_loc_grid_sfrac_output, 1) 
     }
     # Make sure all values are <= 1 (possible rounding errors)
