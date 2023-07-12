@@ -1718,7 +1718,8 @@ impute_adm0_obs_single <- function(sf_cases_resized,
     } else if (frac_coverage == 0 & nrow(ts_all_adm0) > 0) {
       # No subnational-level data use censored national level data if available ## ECL: comes back
       # to my comment about ts_all_adm0 above... This only works as expected when this function is
-      # called within impute_adm0_obs, right?
+      # called within impute_adm0_obs, right? Otherwise you technically have a mix of censored and
+      # full obs in ts_all_adm0
       
       impute_obs <- max(ts_all_adm0[[cases_column]])
       impute_type <- "nat_max"
