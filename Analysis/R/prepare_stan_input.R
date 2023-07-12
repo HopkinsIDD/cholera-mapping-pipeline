@@ -14,9 +14,6 @@
 #' @param sf_grid
 #' @param location_periods_dict
 #' @param covar_cube
-#' @param set_tfrac
-#' @param tfrac_thresh
-#' @param snap_tol
 #' @param opt
 #' @param stan_params
 #' @param aggregate
@@ -39,12 +36,8 @@ prepare_stan_input <- function(
     sf_grid,
     location_periods_dict,
     covar_cube,
-    set_tfrac,
-    tfrac_thresh,
-    snap_tol,
     opt,
     stan_params,
-    aggregate,
     debug,
     config
 ) {
@@ -66,11 +59,13 @@ prepare_stan_input <- function(
                                               grid_rand_effects_N = grid_rand_effects_N)
   
   # Unpack
+  # JPS: this is not ideal, could consider making to separate functions
   sf_grid <- smooth_grid_obj$sf_grid            # updated sf_grid with column "s" for smooth grid index
   smooth_grid <- smooth_grid_obj$smooth_grid    # smooth grid sf object
   rm(smooth_grid_obj)
   
   # Define model time slices
+  # JPS: Could make this into a function
   model_time_slices <- sort(unique(sf_grid$s))
   
   adjacency <- taxdat::make_adjacency(smooth_grid = smooth_grid,
@@ -83,7 +78,6 @@ prepare_stan_input <- function(
   # ---- A. Adjacency ----
   stan_data <- list()
   
-  stan_data$rho <- 0.999
   stan_data$N <-  length(non_na_gridcells)
   stan_data$N_edges <- nrow(adjacency$adjacency_list)
   stan_data$node1 <- adjacency$adjacency_list[, 1]
@@ -100,8 +94,6 @@ prepare_stan_input <- function(
     # Here the first covariate corresponds to the population raster, so needs to be
     # excluded. Data flattened by pixels first, meaning that
     # stan_data$covar[1:10] = covar_cube[1:10, 1, 2]
-    # TODO check if the index removing the first covarcub column which should correspond
-    # to population is correct
     
     stan_data$ncovar <- length(covariate_choices)
     stan_data$covar <- matrix(
@@ -134,6 +126,7 @@ prepare_stan_input <- function(
   
   
   # ---- C. Pre-Aggregation Duplicates Removal in sf_cases ----
+  # JPS: could package this into a function for unit testing
   sf_cases_dup_obs <- sf_cases %>% 
     sf::st_drop_geometry() %>%
     # don't decide on duplicates based on these variables 
@@ -158,8 +151,9 @@ prepare_stan_input <- function(
   sf_cases_resized <- sf_cases[non_na_obs, ]
   
   
-  if (aggregate) {
+  if (config$aggregate) {
     
+    # Should standardize the way we print messages
     print("---- AGGREGATING CHOLERA DATA TO MODELING TIME RES ----")
     
     sf_cases_resized <- taxdat::aggregate_observations(sf_cases_resized = sf_cases_resized,
@@ -175,7 +169,7 @@ prepare_stan_input <- function(
                                                        TL_col = "TL",
                                                        TR_col = "TR",
                                                        res_time = res_time,
-                                                       tol = snap_tol)
+                                                       tol = config$snap_tol)
     
     # Re-compute space-time indices based on aggretated data
     ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
@@ -200,12 +194,12 @@ prepare_stan_input <- function(
   # If specified threshold of minimum tfrac filter out data
   if (tfrac_thresh > 0) {
     # Which observations to remove
-    obs_remove_thresh <- unique(ind_mapping_resized$obs[ind_mapping_resized$tfrac < as.numeric(tfrac_thresh)])
+    obs_remove_thresh <- unique(ind_mapping_resized$obs[ind_mapping_resized$tfrac < as.numeric(config$tfrac_thresh)])
     
     if (length(obs_remove_thresh) == 0){
-      cat("---- FOUND none of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", tfrac_thresh, "\n")
+      cat("---- FOUND none of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", config$tfrac_thresh, "\n")
     } else {
-      cat("---- REMOVING", length(obs_remove_thresh), "of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", tfrac_thresh, "\n")
+      cat("---- REMOVING", length(obs_remove_thresh), "of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", config$tfrac_thresh, "\n")
       
       # Remove observations
       sf_cases_resized <- sf_cases_resized[-c(obs_remove_thresh), ]
@@ -244,23 +238,14 @@ prepare_stan_input <- function(
   
   # ---- F. Censoring ----
   
-  stan_data$M <- nrow(sf_cases_resized)
-  non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
-  obs_changer <- taxdat::make_changer(x = non_na_obs_resized) 
-  stan_data$map_obs_loctime_obs <- taxdat::get_map_obs_loctime_obs(x = ind_mapping_resized$map_obs_loctime_obs,
-                                                                   obs_changer = obs_changer)
-  stan_data$map_obs_loctime_loc <- as.array(ind_mapping_resized$map_obs_loctime_loc) 
-  
-  
-  # First define censored observations
-  stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
+  # Set stan_data at this point
+  stan_data <- taxdat::update_stan_data_indexing(stan_data = stan_data,
+                                                 ind_mapping_resized = ind_mapping_resized,
+                                                 config = config)
   
   # Extract censoring information
-  censoring_inds <- taxdat::get_censoring_inds(stan_data = stan_data,
-                                               ind_mapping_resized = ind_mapping_resized,
-                                               censoring_thresh = config$censoring_thresh)
-  # Set censoring inds
-  sf_cases_resized$censoring <- censoring_inds
+  sf_cases_resized$censoring <- taxdat::get_censoring_inds(ind_mapping_resized = ind_mapping_resized,
+                                                           censoring_thresh = config$censoring_thresh)
   sf_cases_resized <- sf_cases_resized %>% 
     dplyr::mutate(ref_TL = taxdat::get_start_timeslice(TL, res_time),
                   ref_TR = taxdat::get_end_timeslice(TR, res_time),
@@ -272,7 +257,7 @@ prepare_stan_input <- function(
     cat("-- Checking for 0 censored observations \n")
     
     y <- sf_cases_resized[[cases_column]]
-    censored_zero_obs <- which(y == 0 & censoring_inds == "right-censored")
+    censored_zero_obs <- which(y == 0 & sf_cases_resized$censoring == "right-censored")
     
     if (length(censored_zero_obs) > 0) {
       
@@ -312,31 +297,9 @@ prepare_stan_input <- function(
   
   
   # First define censored observations 
-  stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
-  
-  stan_data$M <- nrow(sf_cases_resized)
-  non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
-  obs_changer <- taxdat::make_changer(x = non_na_obs_resized) 
-  stan_data$map_obs_loctime_obs <- taxdat::get_map_obs_loctime_obs(x = ind_mapping_resized$map_obs_loctime_obs,
-                                                                   obs_changer = obs_changer)
-  stan_data$map_obs_loctime_loc <- as.array(ind_mapping_resized$map_obs_loctime_loc) 
-  
-  # Extract censoring information
-  censoring_inds <- taxdat::get_censoring_inds(stan_data = stan_data,
-                                               ind_mapping_resized = ind_mapping_resized,
-                                               censoring_thresh = config$censoring_thresh)
-  
-  # Then overwrite tfrac with user-specified value
-  if (set_tfrac) {
-    cat("-- Overwriting tfrac for non-censored observations with 1")
-    ind_mapping_resized$tfrac <- rep(1.0, length(ind_mapping_resized$tfrac))
-  }
-  
-  stan_data$tfrac <- as.array(ind_mapping_resized$tfrac)
-  stan_data$map_loc_grid_loc <- as.array(ind_mapping_resized$map_loc_grid_loc)
-  stan_data$map_loc_grid_grid <- as.array(ind_mapping_resized$map_loc_grid_grid)
-  stan_data$u_loctime <- ind_mapping_resized$u_loctimes
-  stan_data$L <- length(ind_mapping_resized$u_loctimes)
+  stan_data <- taxdat::update_stan_data_indexing(stan_data = stan_data,
+                                                 ind_mapping_resized = ind_mapping_resized,
+                                                 config = config)
   
   # ---- G. Spatial fraction ----
   # Add 1km population fraction (this is deprecated in new stan model)
@@ -344,8 +307,6 @@ prepare_stan_input <- function(
   
   if (config$use_pop_weight) {
     # Make sure that all observations for have a pop_loctime > 0
-    stan_data$map_loc_grid_sfrac <- ind_mapping_resized$u_loc_grid_weights
-    
     pop_loctimes <- taxdat::compute_pop_loctimes(stan_data = stan_data)
     
     if (any(pop_loctimes == 0)) {
@@ -370,60 +331,26 @@ prepare_stan_input <- function(
         n_cpus = config$ncpus_parallel_prep,
         do_parallel = config$do_parallel_prep)
       
-      # Reset stan_data
-      non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
-      obs_changer <- taxdat::make_changer(x = non_na_obs_resized)
-      stan_data$map_obs_loctime_obs <- as.array(obs_changer[as.character(ind_mapping_resized$map_obs_loctime_obs)])
-      stan_data$map_obs_loctime_loc <- as.array(ind_mapping_resized$map_obs_loctime_loc)
-      
       # First define censored observations
-      stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
-      stan_data$M <- nrow(sf_cases_resized)
-      
-      # Extract censoring information
-      ## Also not quite sure why we need censoring_inds here again... 
-      censoring_inds <-  taxdat::get_censoring_inds(stan_data = stan_data,
-                                                    ind_mapping_resized = ind_mapping_resized,
-                                                    censoring_thresh = config$censoring_thresh)
-      
-      # Then overwrite tfrac with user-specified value
-      ## Why is set_tfrac happening inside use pop weight and in last section?
-      if (!is.null(set_tfrac) && (set_tfrac)) {
-        cat("-- Overwriting tfrac with user-specified value of ", set_tfrac)
-        ind_mapping_resized$tfrac <- rep(1.0, length(ind_mapping_resized$tfrac))
-      }
-      
-      stan_data$tfrac <- as.array(ind_mapping_resized$tfrac)
-      stan_data$map_loc_grid_loc <- as.array(ind_mapping_resized$map_loc_grid_loc)
-      stan_data$map_loc_grid_grid <- as.array(ind_mapping_resized$map_loc_grid_grid)
-      stan_data$u_loctime <- ind_mapping_resized$u_loctimes
-      stan_data$map_loc_grid_sfrac <- ind_mapping_resized$u_loc_grid_weights
+      stan_data <- taxdat::update_stan_data_indexing(stan_data = stan_data,
+                                                     ind_mapping_resized = ind_mapping_resized,
+                                                     config = config)
     }
-    
   } else {
     stan_data$map_loc_grid_sfrac <- array(data = 0, dim = 0)
   }
   
   if (config$use_pop_weight) {
-    # Check if sfrac is valid
-    if (any(stan_data$map_loc_grid_sfrac > 1.01)) {
-      
-      warning("Invalid sfrac values > 1", " Maximum value of ", 
-              max(stan_data$map_loc_grid_sfrac), ".",
-              "Caping all values to 1.")
-      
-      stan_data$map_loc_grid_sfrac <- pmin(stan_data$map_loc_grid_sfrac, 1) 
-    }
-    
-    # Make sure all values are <= 1 (possible rounding errors)
-    stan_data$map_loc_grid_sfrac <- pmin(1, stan_data$map_loc_grid_sfrac)
+    stan_data$map_loc_grid_sfrac <- taxdat::check_pop_weight_validity(stan_data$map_loc_grid_sfrac)
   }
-  
   
   #  ---- H. Observations ----
   stan_data$y <- as.array(sf_cases_resized[[cases_column]])
   
   # Get censoring indexes 
+  censoring_inds <- taxdat::get_censoring_inds(ind_mapping_resized = ind_mapping_resized,
+                                               censoring_thresh = config$censoring_thresh)
+  
   stan_data$ind_full <- which(censoring_inds == "full") %>% array()
   stan_data$M_full <- length(stan_data$ind_full)
   # TODO Left-censoring is not implemented for now
@@ -436,7 +363,6 @@ prepare_stan_input <- function(
   # ---- I. Mappings ----
   stan_data$K1 <- length(stan_data$map_obs_loctime_obs)
   stan_data$K2 <- length(stan_data$map_loc_grid_loc)
-  stan_data$L <- length(ind_mapping_resized$u_loctimes)
   
   full_grid <- sf::st_drop_geometry(sf_grid) %>% 
     dplyr::left_join(sf::st_drop_geometry(smooth_grid)) %>% 
@@ -494,9 +420,7 @@ prepare_stan_input <- function(
   sf_cases_resized$admin_level <- admin_levels
   sf_cases_resized$censoring <- censoring_inds
   sf_cases_resized <- sf_cases_resized %>% 
-    dplyr::mutate(ref_TL = taxdat::get_start_timeslice(TL, res_time),
-                  ref_TR = taxdat::get_end_timeslice(TR, res_time),
-                  obs_id = dplyr::row_number())
+    dplyr::mutate(obs_id = dplyr::row_number())
   
   
   sf_cases_resized <- taxdat::impute_adm0_obs(sf_cases_resized = sf_cases_resized,
@@ -506,8 +430,8 @@ prepare_stan_input <- function(
                                               cases_column = cases_column,
                                               frac_coverage_thresh = 0.1)
   
- ## ECL why don't we need to remap indices after imputing observations? 
- ## JPS: This is taken care of in taxdat::update_stan_data_imputation
+  ## ECL why don't we need to remap indices after imputing observations? 
+  ## JPS: This is taken care of in taxdat::update_stan_data_imputation
   stan_data <- taxdat::update_stan_data_imputation(sf_cases_resized = sf_cases_resized,
                                                    stan_data = stan_data,
                                                    time_slices = time_slices,
@@ -550,7 +474,7 @@ prepare_stan_input <- function(
   output_low_sfrac <- output_location_periods_table %>% 
     dplyr::group_by(rid, x, y) %>% 
     dplyr::slice_max(pop_weight) %>% 
-    dplyr::filter(pop_weight < sfrac_thresh) %>% 
+    dplyr::filter(pop_weight < config$sfrac_thresh) %>% 
     dplyr::select(rid, x, y) %>% 
     dplyr::inner_join(sf_grid %>% sf::st_drop_geometry())
   
@@ -563,11 +487,11 @@ prepare_stan_input <- function(
     dplyr::mutate(connect_id = dplyr::row_number())
   
   output_low_sfrac_connections <- output_location_periods_table %>% 
-    dplyr::filter(pop_weight < sfrac_thresh)
+    dplyr::filter(pop_weight < config$sfrac_thresh)
   
   cat("Dropping", nrow(output_low_sfrac_connections), "/", nrow(output_location_periods_table),
       "connections between grid cells",
-      "and output location periods which have sfrac <", sfrac_thresh,  "\n")
+      "and output location periods which have sfrac <", config$sfrac_thresh,  "\n")
   
   output_location_periods_table <- output_location_periods_table %>% 
     dplyr::filter(!(connect_id %in% output_low_sfrac_connections$connect_id))
