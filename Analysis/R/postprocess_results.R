@@ -307,7 +307,7 @@ ggsave(p_fig5,
 adm2_pop_at_risk <- risk_categories %>% 
   st_drop_geometry() %>% 
   filter(admin_level == "ADM2") %>%
-  mutate(country = get_country_from_filename(location_period_id)) %>% 
+  mutate(country = get_country_from_string(location_period_id)) %>% 
   {
     x <- .
     bind_rows(x, x %>% mutate(country = "overall")) %>% 
@@ -346,7 +346,7 @@ mai_cov <- mai_stats %>%
                filter(admin_level == "ADM0") %>% 
                st_drop_geometry() %>% 
                select(location_period_id, cov = mean)) %>% 
-  mutate(country = get_country_from_filename(location_period_id))
+  mutate(country = get_country_from_string(location_period_id))
 
 
 p_cov <- ggplot(mai_cov, aes(x = cov, y = mai * 1e5)) +
