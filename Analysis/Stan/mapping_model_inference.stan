@@ -54,6 +54,7 @@ data {
   int<lower=0, upper=1> do_zerosum_cnst;    // Whether to enforce a 0-sum constraint on the yearly random effects
   int<lower=0, upper=1> do_infer_sd_eta;    // Whether to infer the sd of the temporal random effect
   int<lower=0, upper=1> do_spatial_effect;    // Whether to have a spatial random effect
+  int<lower=0, upper=1> do_sd_w_mixture;    // Whether to have a spatial random effect
   
   // Spatial adjacency
   // Note: The adjacency matrix node1 should be sorted and lower triangular
@@ -117,6 +118,8 @@ transformed data {
   int<lower=0, upper=T> size_eta;
   int<lower=0, upper=1> size_sd_eta;
   int<lower=0, upper=smooth_grid_N> size_w; 
+  int<lower=0, upper=1> size_lambda; 
+  int<lower=1, upper=2> size_sigma_std_dev_w; 
   
   for (i in 1:K1) {
     if (censored[i] == 1) {
@@ -182,6 +185,15 @@ transformed data {
   } else {
     size_w = 0;
   }
+  
+  // Size of prior on std_dev_w
+  if (do_sd_w_mixture == 1) {
+    size_lambda = 1;
+    size_sigma_std_dev_w = 2;
+  } else {
+    size_lambda = 0;
+    size_sigma_std_dev_w = 1;
+  }
 }
 
 parameters {
@@ -192,7 +204,7 @@ parameters {
   real <lower=0, upper=.99> rho;    // spatial correlation parameter
   real<lower=0> std_dev_w;             // precision of the spatial effects
   vector<lower=-15, upper=15>[size_w] w;        // spatial random effect
-  real<lower=0, upper=1> lambda;
+  real<lower=0, upper=1> lambda[size_lambda];
   
   // Temporal random effects
   vector[size_eta] eta_tilde;    // uncentered temporal random effects
@@ -203,7 +215,7 @@ parameters {
   
   // Overdispersion parameters
   vector<lower=0>[(N_admin_lev-1)*do_overdispersion] inv_od_param;
-  real<lower=0> sigma_std_dev_w[2];
+  real<lower=0> sigma_std_dev_w[size_sigma_std_dev_w];
 }
 
 transformed parameters {
@@ -447,12 +459,17 @@ model {
     }
   }
   
-  target += log_mix(lambda, normal_lpdf(std_dev_w |mu_sd_w, sigma_std_dev_w[1]), normal_lpdf(std_dev_w |0, sigma_std_dev_w[2]));
-  lambda ~ beta(2, 1);
   
-  sigma_std_dev_w[1] ~ normal(0, 2);
-  sigma_std_dev_w[2] ~ normal(0, .5);
-  
+  if (do_sd_w_mixture == 1) {
+    target += log_mix(lambda[1], normal_lpdf(std_dev_w |mu_sd_w, sigma_std_dev_w[1]), normal_lpdf(std_dev_w |0, sigma_std_dev_w[2]));
+    lambda[1] ~ beta(2, 1);
+    
+    sigma_std_dev_w[1] ~ normal(0, 2);
+    sigma_std_dev_w[2] ~ normal(0, .5);
+  } else {
+    std_dev_w ~ normal(0, sigma_std_dev_w[1]);
+    sigma_std_dev_w[1] ~ normal(0, 1);
+  }
   
   if (debug && (previous_debugs == 0)) {
     print("dagar std", target());

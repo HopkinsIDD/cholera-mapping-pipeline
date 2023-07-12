@@ -655,6 +655,7 @@ get_all_config_options <- function() {
     time_effect = "stan-check",
     time_effect_autocorr = "stan-check", 
     spatial_effect = as.function(check_spatial_effect),
+    do_sd_w_mixture = as.function(check_do_sd_w_mixture),
     use_intercept = "stan-check",
     covariate_transformations = "no-check",
     beta_sigma_scale = "stan-check",
@@ -1072,6 +1073,28 @@ check_drop_multiyear_adm0 <- function(x,
 }
 
 
+#' check_do_sd_w_mixture
+#'
+#' @param x 
+#' @param default_value 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_do_sd_w_mixture <- function(x, 
+                                  default_value = TRUE) {
+  
+   if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- as.logical(x)
+  }
+  
+  par
+}
+
+
 #' check_drop_censored_adm0
 #'
 #' @param x 
@@ -1092,6 +1115,7 @@ check_drop_censored_adm0 <- function(x,
   
   par
 }
+
 
 #' check_drop_censored_adm0_thresh
 #'
@@ -1122,4 +1146,5 @@ check_drop_censored_adm0_thresh <- function(x,
   
   par
 }
+
 
