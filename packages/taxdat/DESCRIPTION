@@ -54,6 +54,7 @@ Collate:
     'plot_map.R'
     'plot_modeled_cases_by_chain_time.R'
     'plot_polygon_model_output_input.R'
+    'plot_pop_comparison.R'
     'plot_raster_model_output.R'
     'plot_table_by_admin.R'
     'plot_time_varying_pop_raster.R'
