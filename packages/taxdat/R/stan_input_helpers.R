@@ -2079,6 +2079,8 @@ update_stan_data_indexing <- function(stan_data,
       if (config$set_tfrac) {
         cat("-- Overwriting tfrac for non-censored observations with 1")
         stan_data$tfrac <- rep(1.0, length(ind_mapping_resized$tfrac))
+      } else {
+        stan_data$tfrac <- ind_mapping_resized$tfrac
       }
     } else if (var == "u_loc_grid_weights") {
       stan_data$map_loc_grid_sfrac <- ind_mapping_resized$u_loc_grid_weights
