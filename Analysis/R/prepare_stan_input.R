@@ -505,7 +505,9 @@ prepare_stan_input <- function(
                                               res_time = res_time,
                                               cases_column = cases_column,
                                               frac_coverage_thresh = 0.1)
+  
  ## ECL why don't we need to remap indices after imputing observations? 
+ ## JPS: This is taken care of in taxdat::update_stan_data_imputation
   stan_data <- taxdat::update_stan_data_imputation(sf_cases_resized = sf_cases_resized,
                                                    stan_data = stan_data,
                                                    time_slices = time_slices,
