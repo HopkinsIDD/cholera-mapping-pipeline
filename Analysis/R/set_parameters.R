@@ -398,7 +398,7 @@ print(config)
 
 # Remove environmental variables to keep clean
 for (param in names(taxdat::get_all_config_options())) {
-  if (param != "stan"){
+  if (param != "stan" & param != "res_time"){
     if (exists(param)){
       eval(parse(text = stringr::str_glue("rm({param})")))
     }
