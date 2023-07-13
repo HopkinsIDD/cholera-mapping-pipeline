@@ -264,6 +264,7 @@ stan_data$do_time_slice_effect_autocor <- ifelse(config$time_effect_autocor, 1, 
 stan_data$do_spatial_effect <- ifelse(config$spatial_effect, 1, 0)
 stan_data$use_weights <- ifelse(config$use_weights, 1, 0)
 stan_data$use_rho_prior<- ifelse(config$use_rho_prior, 1, 0)
+stan_data$do_sd_w_mixture <- ifelse(config$do_sd_w_mixture, 1, 0)
 
 if (config$use_rho_prior) {
   if (length(init.list) !=1) {
@@ -296,13 +297,26 @@ if (config$obs_model == 3) {
   init.list <- purrr::map(
     1:nchain, function(x) {
       init <- list(
-        std_dev_w = runif(1, 5, 8),
+        std_dev_w = runif(1, 1, 3),
         rho = runif(1, .7, .8),
-        lambda = runif(1, .6, .8),
-        sigma_std_dev_w = abs(rnorm(2, .5, .1)),
         # This assumes we have a fixed overdispersion parameter at admin level 1
         inv_od_param = abs(rnorm(stan_data$N_admin_lev - 1, 1, 1e-1))
       )
+      
+      if (config$do_sd_w_mixture) {
+        init <- append(
+          init,
+          list(lambda = runif(1, .6, .8),
+               sigma_std_dev_w = abs(rnorm(2, .5, .1)))
+          )
+      } else {
+        init <- append(
+          init,
+          list(lambda = array(dim = 0),
+               sigma_std_dev_w = abs(rnorm(1, .5, .1)))
+        )
+      }
+      
       
       if (config$time_effect) {
         if (config$do_zerosum_cnst) {
