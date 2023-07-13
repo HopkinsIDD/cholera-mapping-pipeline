@@ -1496,7 +1496,7 @@ get_multi_country_admin_units <- function(iso_code,
   if (clip_to_adm0) {
     adm0_geom <- adm_sf %>% dplyr::slice(1)
     adm_sf <- adm_sf %>% 
-      dplyr::mutate(geom = sf::st_intersection(geom, adm0_geom$geom))
+      dplyr::mutate(geom = sf::st_make_valid(sf::st_intersection(geom, adm0_geom$geom)))
   }
   
   # Fix geometry collections if any

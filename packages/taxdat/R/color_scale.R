@@ -6,7 +6,7 @@
 #' @param use_case string indicating type of map 'leaflet' or 'ggplot map' (default: 'leaflet')
 #' @param use_log logical for whether outcome should be log10 transformed (default: FALSE)
 #' @return leaflet or ggplot color palette for mapping
-color_scale = function(type='cases', use_case = 'leaflet', use_log = FALSE){
+color_scale = function(type='cases', use_case = 'leaflet', use_log = FALSE,admin_level="admin0"){
   rate_palette <- RColorBrewer::brewer.pal(9, name="RdBu")
   discrete_rate_palette <-colorRampPalette(rate_palette, space = "Lab")
   
@@ -33,7 +33,7 @@ color_scale = function(type='cases', use_case = 'leaflet', use_log = FALSE){
     }
   } else if (type %in% c('rate', 'rates')){
     colors <- c("blue","white","red")
-    limits <- c(1e-7,1e-1) # 1e-2 to 1e4 on cases per 1e5
+    limits <- c(1e-8,1e-1) # 1e-2 to 1e4 on cases per 1e5
     breaks <- function(x){
       logscale_x <- log(x*1e5)/log(10)
       return(10^seq(floor(logscale_x[1]),ceiling(logscale_x[2]),by=1)/1e5)
@@ -63,7 +63,31 @@ color_scale = function(type='cases', use_case = 'leaflet', use_log = FALSE){
       }
       
       limits <- c(exp(-5),NA)
-    } else {
+    } else if (type %in% "ratio"){
+      
+      colors <- c("blue","white","red")
+      if(admin_level=="admin0"){
+        limits <- c(1e-2,10) 
+      } else {
+        limits <- c(1,1e3) 
+      }
+      breaks <- function(x){
+        logscale_x <- log(x)/log(10)
+        return(10^seq(floor(logscale_x[1]),ceiling(logscale_x[2]),by=1))
+      }
+      if(use_log){
+        transform <- scales::trans_new(
+          name='log10per1e5',
+          transform = function(x){log10(x)},
+          inverse=function(x){(10^x)},
+          domain=c(1,Inf),
+          breaks = breaks
+        )
+      } else {
+        transform <- scales::trans_new(name='per1e5',transform = function(x){x*1e5},inverse=function(x){x/1e5})
+      }
+      
+      } else {
     stop(paste("The type",type,"is not recognized"))
   }
   if(use_case == "leaflet"){
