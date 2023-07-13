@@ -3,21 +3,21 @@
 #' @name automate_mapping_config
 #' @description Automate generation of model configuration files from a dataframe of parameters. Generates one config per row in the p dataframe.
 #' @include setup_helpers.R
-#' @param cholera_directory the cholera mapping directory 
+#' @param cholera_directory the cholera mapping directory
 #' @param p dataframe with config parameters, one config per row
-#' @param OC_list sometimes we include multiple OCs for one country 
+#' @param OC_list sometimes we include multiple OCs for one country
 #' @param covariate_names character vector with names of covariates to include in the model
 #' @param countries_names character vector with country codes to include in the model
 #' @param countries_ids character vector with country location ids to include in the model
-#' @param config_fname the name of the config file that will be generated or checked and updated 
-#' @return string with yaml config file 
+#' @param config_fname the name of the config file that will be generated or checked and updated
+#' @return string with yaml config file
 #' @export
 automate_mapping_config <- function(cholera_directory, p, OC_list = NULL, covariate_names, countries_names, countries_ids, config_fname){
-  
+
   ### First of all, check to see if the OCs are added from the external
   if(is.null(OC_list)){OC_list <- p$OCs}
 
-  ### Secondly, make the initial config file no matter if it's correct or not 
+  ### Secondly, make the initial config file no matter if it's correct or not
   map_name <- paste0(paste(countries_names, collapse="_"), "_", lubridate::year(as.Date(p$start_time)), "_", lubridate::year(as.Date(p$end_time)), "_", p$res_space, "km")
 
   this_script_path <- paste0(cholera_directory, '/', 'packages/taxdat/R/config_helpers.R')
@@ -47,25 +47,25 @@ automate_mapping_config <- function(cholera_directory, p, OC_list = NULL, covari
     "  genquant: '", ifelse(unspecified_parameter_check(p$genquant), "", p$genquant), ".stan'\n",
     "  iter_warmup: ", ifelse(unspecified_parameter_check(p$iter_warmup), "", p$iter_warmup), "\n",
     "  iter_sampling: ", ifelse(unspecified_parameter_check(p$iter_sampling), "", p$iter_sampling), "\n",
-    "  recompile: ", ifelse(unspecified_parameter_check(p$recompile), "", p$recompile), "\n", 
+    "  recompile: ", ifelse(unspecified_parameter_check(p$recompile), "", p$recompile), "\n",
     "file_names:\n",
-    { if(unspecified_parameter_check(p$output_directory)) "" 
+    { if(unspecified_parameter_check(p$output_directory)) ""
       else paste0("  output_directory: ", p$output_directory, "\n") },
-    { if(unspecified_parameter_check(p$observations_filename)) "" 
+    { if(unspecified_parameter_check(p$observations_filename)) ""
       else paste0("  observations_filename: ", p$observations_filename, "\n") },
-    { if(unspecified_parameter_check(p$covariate_filename)) "" 
+    { if(unspecified_parameter_check(p$covariate_filename)) ""
       else paste0("  covariate_filename: ", p$covariate_filename, "\n") },
-    { if(unspecified_parameter_check(p$stan_input_filename)) "" 
+    { if(unspecified_parameter_check(p$stan_input_filename)) ""
       else paste0("  stan_input_filename: ", p$stan_input_filename, "\n") },
-    { if(unspecified_parameter_check(p$initial_values_filename)) "" 
+    { if(unspecified_parameter_check(p$initial_values_filename)) ""
       else paste0("  initial_values_filename: ", p$initial_values_filename, "\n") },
-    { if(unspecified_parameter_check(p$stan_output_filename)) "" 
+    { if(unspecified_parameter_check(p$stan_output_filename)) ""
       else paste0("  stan_output_filename: ", p$stan_output_filename, "\n") },
-    { if(unspecified_parameter_check(p$stan_genquant_filename)) "" 
-      else paste0("  stan_genquant_filename: ", p$stan_genquant_filename, "\n") }, 
-    { if(unspecified_parameter_check(p$country_data_report_filename)) "" 
-      else paste0("  country_data_report_filename: ", p$country_data_report_filename, "\n") }, 
-    { if(unspecified_parameter_check(p$data_comparison_report_filename)) "" 
+    { if(unspecified_parameter_check(p$stan_genquant_filename)) ""
+      else paste0("  stan_genquant_filename: ", p$stan_genquant_filename, "\n") },
+    { if(unspecified_parameter_check(p$country_data_report_filename)) ""
+      else paste0("  country_data_report_filename: ", p$country_data_report_filename, "\n") },
+    { if(unspecified_parameter_check(p$data_comparison_report_filename)) ""
       else paste0("  data_comparison_report_filename: ", p$data_comparison_report_filename, "\n") }
   ) #the end of non_loop_part
 
@@ -76,17 +76,17 @@ automate_mapping_config <- function(cholera_directory, p, OC_list = NULL, covari
   sink(file = config_fname)
   cat(combined)
   sink()
-  
-  ### Check and update the config file 
+
+  ### Check and update the config file
   check_update_config(cholera_directory, config_fname)
 
 }
 
 #' @title unspecified_parameter_check
 #' @name unspecified_parameter_check
-#' @description check if there's one parameter really unspecified 
+#' @description check if there's one parameter really unspecified
 #' @param param parameter to check
-#' @param null_check initial check to pass to enable the function if the parameter doesn't exist at all 
+#' @param null_check initial check to pass to enable the function if the parameter doesn't exist at all
 #' @return T/F
 #' @export
 unspecified_parameter_check <- function(param = NULL, null_check = is.null(param)){
