@@ -108,7 +108,7 @@ if (!as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
     Sys.setenv(REINSTALL_TAXDAT = TRUE)
     stop("There are local changes to the repository.  This is not allowed for a production run. Please revert or commit local changes")
   }
-  
+
   if (Sys.getenv("REINSTALL_TAXDAT", FALSE)) {
     install.packages(paste0(cholera_directory, "packages/taxdat"), type = "source", repos = NULL)
   } else if (!require(taxdat)) {
@@ -234,12 +234,12 @@ inv_od_sd_nopool <- taxdat::check_od_param_sd_prior_nopooling(
   obs_model = obs_model)
 
 # SD of prior the mean and SD of the hierarchical inverse dispersion on the subnational level observations when there is pooling
-taxdat::check_h_mu_sd_inv_od(h_mu_sd_inv_od = config$h_mu_sd_inv_od, 
+taxdat::check_h_mu_sd_inv_od(h_mu_sd_inv_od = config$h_mu_sd_inv_od,
                              obs_model = obs_model)
-taxdat::check_h_sd_sd_inv_od(h_sd_sd_inv_od = config$h_sd_sd_inv_od, 
+taxdat::check_h_sd_sd_inv_od(h_sd_sd_inv_od = config$h_sd_sd_inv_od,
                              obs_model = obs_model)
 
-# mu_alpha and sd_alpha are the mean and sd of the intercept prior, respectively 
+# mu_alpha and sd_alpha are the mean and sd of the intercept prior, respectively
 mu_alpha <- taxdat::check_mu_alpha(config$mu_alpha)
 sd_alpha <- taxdat::check_sd_alpha(config$sd_alpha)
 
@@ -273,7 +273,7 @@ censoring_thresh <- taxdat::check_censoring_thresh(config$censoring_thresh)
 # User-specified value to set tfrac
 set_tfrac <- taxdat::check_set_tfrac(config$set_tfrac)
 # Tolerance for snap_to_period function
-snap_tol <- taxdat::check_snap_tol(snap_tol = config$snap_tol, 
+snap_tol <- taxdat::check_snap_tol(snap_tol = config$snap_tol,
                                    res_time = res_time)
 ncpus_parallel_prep <- taxdat::check_ncpus_parallel_prep(config$ncpus_parallel_prep)
 do_parallel_prep <- taxdat::check_do_parallel_prep(config$do_parallel_prep)
@@ -290,8 +290,10 @@ drop_censored_adm0_thresh <- taxdat::check_drop_censored_adm0_thresh(config$drop
 # - - - - - - - - - - - - - -
 # turn on subgrid feature
 use_pop_weight <- taxdat::check_use_pop_weight(config$use_pop_weight)
-# drop grid cells with overlaps below the specific sfrac threshold
-sfrac_thresh <- taxdat::check_sfrac_thresh(config$sfrac_thresh)
+# drop cells from master grid if the proportion of spatial overlap (based on pop-weighted area) does not exceed sfrac_thresh_border
+sfrac_thresh_border <- taxdat::check_sfrac_thresh_border(config$sfrac_thresh_border)
+# drop cells from location period if proportion of spatial overlap does not exceed sfrac_thresh_conn
+sfrac_thresh_conn <- taxdat::check_sfrac_thresh_conn(config$sfrac_thresh_conn)
 
 # Whether to include the spatial random effect in the model
 spatial_effect <- taxdat::check_spatial_effect(config$spatial_effect)
@@ -417,31 +419,31 @@ for(t_idx in 1:length(all_test_idx)){
     warning("We should revisit the way we name maps")
     map_name <- taxdat::make_map_name(config)
   }
-  
+
   if (is.null(short_covariates)) {
     covariate_name_part <- "nocovar"
   } else {
     covariate_name_part <- paste(short_covariates, collapse = '-')
   }
-  
+
   setwd(cholera_directory)
   dir.create("Analysis/output", showWarnings = FALSE)
-  
+
   # Load dictionary of configuration options
   config_dict <- yaml::read_yaml(paste0(cholera_directory, "/Analysis/configs/config_dictionary.yml"))
-  
+
   file_names <- taxdat::get_filenames(config=config, cholera_directory = cholera_directory)
-  
+
   # Check if the file names are valid
   new_file_names<-file_names[!sapply(file_names,file.exists)]
   if(!all(sapply(new_file_names,file.create))){
     stop(paste(names(sapply(new_file_names,file.create)[!sapply(new_file_names,file.create)]),"file name is invalid!"))
   }
   sapply(new_file_names,file.remove)
-  
+
   # Preparation: Load auxillary functions
   # source(stringr::str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
-  
+
   ## Step 1: process observation shapefiles and prepare data ##
   print(file_names[["data"]])
   if(file.exists(file_names[["data"]])){
@@ -453,9 +455,9 @@ for(t_idx in 1:length(all_test_idx)){
       print(normalizePath(file_names[["data"]]))
       stop("This shouldn't run on marcc")
     }
-    
+
     source(paste(cholera_directory, 'Analysis', 'R', 'prepare_grid.R', sep='/'))
-    
+
     # First prepare the computation grid and get the grid name
     full_grid_name <- prepare_grid(
       dbuser = dbuser,
@@ -463,14 +465,14 @@ for(t_idx in 1:length(all_test_idx)){
       res_space = res_space,
       ingest = config$ingest_covariates
     )
-    
+
     # Pull data from taxonomy database (either using the API or SQL)
     source(paste(cholera_directory,'Analysis','R','prepare_map_data_revised.R',sep='/'))
-    
+
   } else {
     source(paste(cholera_directory,"Analysis", "R", "create_standardized_testing_data.R",sep='/'))
   }
-  
+
   ## Step 2: Extract the covariate cube and grid ##
   print(file_names[["covar"]])
   if (file.exists(file_names[["covar"]])) {
@@ -481,12 +483,12 @@ for(t_idx in 1:length(all_test_idx)){
     if (as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
       stop("This shouldn't run on marcc")
     }
-    
+
     # Note: the first covariate is always the population raster
     ## Step 2a: ingest the required covariates ##
     # Load the function
     source(paste(cholera_directory, 'Analysis', 'R', 'prepare_covariates.R', sep='/'))
-    
+
     # Run covariate preparation. The function return the list of covariate names
     # included in the model
     covar_list <- prepare_covariates(
@@ -503,10 +505,10 @@ for(t_idx in 1:length(all_test_idx)){
       full_grid_name = full_grid_name,
       aoi_name = config$aoi
     )
-    
+
     ## Step 2b: create the covar cube
     source(paste(cholera_directory, "Analysis/R/prepare_covar_cube.R", sep = "/"))
-    
+
     covar_cube_output <- prepare_covar_cube(
       covar_list = covar_list,
       dbuser = dbuser,
@@ -519,13 +521,14 @@ for(t_idx in 1:length(all_test_idx)){
       res_time = res_time,
       username = dbuser,
       covariate_transformations = config[["covariate_transformations"]],
-      sfrac_thresh = sfrac_thresh
+      sfrac_thresh_border = sfrac_thresh_border,
+      sfrac_thresh_conn = sfrac_thresh_conn
     )
-    
+
     # Save results to file
     save(covar_cube_output, file = file_names[["covar"]])
   }
-  
+
   ## Step 3: Prepare the stan input ##
   print(file_names[["stan_input"]])
   if(!file.exists(file_names[["stan_input"]])){
@@ -533,7 +536,7 @@ for(t_idx in 1:length(all_test_idx)){
       stop("This shouldn't run on marcc")
     }
     source(paste(cholera_directory, "Analysis/R/prepare_stan_input.R", sep = "/"))
-    
+
     stan_input <-  prepare_stan_input(
       dbuser = dbuser,
       cholera_directory = cholera_directory,
@@ -554,28 +557,28 @@ for(t_idx in 1:length(all_test_idx)){
       opt = opt,
       stan_params = stan_params,
       aggregate = aggregate,
-      debug = debug, 
+      debug = debug,
       config = config
     )
-    
+
     # Save data
     save(stan_input, file = file_names[["stan_input"]])
     sink(gsub('rdata','json', file_names[["stan_input"]]))
     cat(jsonlite::toJSON(stan_input$stan_data, auto_unbox=TRUE,matrix='rowmajor'))
     sink(NULL)
-    
+
   } else {
     print("Stan input already created, skipping")
     warning("Stan input already created, skipping")
     load(file_names[["stan_input"]])
   }
-  
+
   stan_data <- stan_input$stan_data
   sf_cases_resized <- stan_input$sf_cases_resized
   sf_grid <- stan_input$sf_grid
   # Cleanup
   rm(stan_input)
-  
+
   ## Step 4: Prepare the initial conditions
   if(file.exists(file_names[["initial_values"]])){
     print("Initial_values already found, skipping")
@@ -588,12 +591,12 @@ for(t_idx in 1:length(all_test_idx)){
     source(paste(cholera_directory,'Analysis','R','prepare_initial_values.R',sep='/'))
     recompile <- FALSE
   }
-  
+
   # Cleanup
   rm(stan_data)
   rm(sf_cases_resized)
   rm(sf_grid)
-  
+
   ## Step 5: Run the model
   print(file_names[["stan_output"]])
   if(file.exists(file_names[["stan_output"]])){
@@ -607,7 +610,7 @@ for(t_idx in 1:length(all_test_idx)){
     source(paste(cholera_directory,'Analysis','R','run_stan_model.R',sep='/'))
     recompile <- FALSE
   }
-  
+
   ## Step 6: Run the generated quantities
   print(file_names[["stan_genquant"]])
   if(file.exists(file_names[["stan_genquant"]])){
@@ -621,9 +624,9 @@ for(t_idx in 1:length(all_test_idx)){
     source(paste(cholera_directory,'Analysis','R','run_stan_genquant.R',sep='/'))
     recompile <- FALSE
   }
-  
+
   if (!as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
     taxdat::clean_all_tmp(dbuser = dbuser, config = config)
   }
-  
+
 }
