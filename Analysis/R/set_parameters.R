@@ -406,7 +406,7 @@ for (param in names(taxdat::get_all_config_options())) {
 }
 # Pipeline steps ---------------------------------------------------------------
 
-original_countries <- countries
+original_countries <- config$countries
 
 for(t_idx in 1:length(all_test_idx)){
   gc()
