@@ -484,7 +484,7 @@ prepare_stan_input <- function(
   output_low_sfrac <- output_location_periods_table %>% 
     dplyr::group_by(rid, x, y) %>% 
     dplyr::slice_max(pop_weight) %>% 
-    dplyr::filter(pop_weight < config$sfrac_thresh) %>% 
+    dplyr::filter(pop_weight < config$sfrac_thresh_conn) %>% 
     dplyr::select(rid, x, y) %>% 
     dplyr::inner_join(sf_grid %>% sf::st_drop_geometry())
 
@@ -497,11 +497,11 @@ prepare_stan_input <- function(
     dplyr::mutate(connect_id = dplyr::row_number())
   
   output_low_sfrac_connections <- output_location_periods_table %>% 
-    dplyr::filter(pop_weight < config$sfrac_thresh)
+    dplyr::filter(pop_weight < config$sfrac_thresh_conn)
   
   cat("Dropping", nrow(output_low_sfrac_connections), "/", nrow(output_location_periods_table),
       "connections between grid cells",
-      "and output location periods which have sfrac <", config$sfrac_thresh,  "\n")
+      "and output location periods which have sfrac <", config$sfrac_thresh_conn,  "\n")
   
   output_location_periods_table <- output_location_periods_table %>% 
     dplyr::filter(!(connect_id %in% output_low_sfrac_connections$connect_id))
