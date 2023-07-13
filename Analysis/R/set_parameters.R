@@ -523,14 +523,14 @@ for(t_idx in 1:length(all_test_idx)){
       map_name = map_name,
       cholera_directory = cholera_directory,
       full_grid_name = full_grid_name,
-      start_time = start_time,
-      end_time = end_time,
-      res_space = res_space,
+      start_time = config$start_time,
+      end_time = config$end_time,
+      res_space = config$res_space,
       res_time = res_time,
       username = dbuser,
       covariate_transformations = config[["covariate_transformations"]],
-      sfrac_thresh_border = sfrac_thresh_border,
-      sfrac_thresh_conn = sfrac_thresh_conn
+      sfrac_thresh_border = config$sfrac_thresh_border,
+      sfrac_thresh_conn = config$sfrac_thresh_conn
     )
 
     # Save results to file
@@ -550,7 +550,7 @@ for(t_idx in 1:length(all_test_idx)){
       cholera_directory = cholera_directory,
       ncore = ncores,
       res_time = res_time,
-      res_space = res_space,
+      res_space = config$res_space,
       time_slices = time_slices,
       grid_rand_effects_N = grid_rand_effects_N,
       cases_column = cases_column,
