@@ -396,6 +396,14 @@ for (param in names(taxdat::get_all_config_options())) {
 print("This is the explicit runtime config (printed for debugging).")
 print(config)
 
+# Remove environmental variables to keep clean
+for (param in names(taxdat::get_all_config_options())) {
+  if (param != "stan"){
+    if (exists(param)){
+      eval(parse(text = stringr::str_glue("rm({param})")))
+    }
+  }
+}
 # Pipeline steps ---------------------------------------------------------------
 
 original_countries <- countries
