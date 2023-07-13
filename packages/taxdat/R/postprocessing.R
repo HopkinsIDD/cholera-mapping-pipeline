@@ -760,3 +760,29 @@ cri_interval <- function() {
 custom_quantile2 <- function(x, cri = cri_interval()) {
   posterior::quantile2(x, probs = cri)
 }
+
+
+#' get_coverage
+#'
+#' @param df 
+#' @param widths 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_coverage <- function(df, 
+                         widths = c(seq(.05, .95, by = .1), .99)){
+  
+  purrr::map_df(widths, function(w) {
+    bounds <- str_c("q", c(.5 - w/2, .5 + w/2)*100)
+    
+    df %>% 
+      dplyr::select(admin_level, obs, censoring, dplyr::one_of(bounds)) %>%
+      dplyr::mutate(in_cri = obs >= !!rlang::sym(bounds[1]) &
+                      obs <= !!rlang::sym(bounds[2])) %>% 
+      dplyr::group_by(admin_level) %>% 
+      dplyr::summarise(frac_covered = sum(in_cri)/n()) %>% 
+      dplyr::mutate(cri = w)
+  })
+}
