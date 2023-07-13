@@ -2033,3 +2033,78 @@ drop_censored_adm0 <- function(sf_cases_resized,
   }
   
 }
+
+
+#' get_loctime_combs
+#'
+#' @param stan_data 
+#'
+#' @return
+#' @export
+#'
+#' 
+get_loctime_combs <- function(stan_data) {
+  # Get unique observations
+  u_obs <- sort(unique(stan_data$map_obs_loctime_obs))
+  
+  # Get all loctime combinations
+  loctime_combs <- purrr::map(u_obs, function(x) {
+    res <- sort(stan_data$map_obs_loctime_loc[stan_data$map_obs_loctime_obs == x])
+    names(res) <- NULL
+    res
+  })
+  # Set names for identification
+  names(loctime_combs) <- u_obs
+  
+  loctime_combs
+}
+
+
+#' get_loctime_combs_mappings
+#'
+#' @param stan_data 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+#'
+get_loctime_combs_mappings <- function(stan_data) {
+  
+  # Get all location-time combinations that appear in the data
+  loctime_combs <- get_loctime_combs(stan_data)
+  
+  # Unique set of combinations
+  stan_data$u_loctime_combs <- unique(loctime_combs)
+  stan_data$L_combs <- length(stan_data$u_loctime_combs)
+  
+  # Mapping to location-times
+  stan_data$map_loctime_combs_loc <- unlist(stan_data$u_loctime_combs) %>% as.array()
+  # Number of map elements for stan
+  stan_data$K3 <- length(stan_data$map_loctime_combs_loc)
+  # Mapping to unique combinations
+  stan_data$map_loctime_combs_comb <- purrr::map(1:stan_data$L_combs, ~ rep(., length(stan_data$u_loctime_combs[[.]]))) %>% 
+    unlist()
+  
+  # Get the admin level to use in each loctime combination
+  stan_data$map_u_loctime_combs_admin_lev <- purrr::map_dbl(
+    1:stan_data$L_combs, function(x) {
+      # Get loctimes
+      loctimes <- stan_data$map_loctime_combs_loc[stan_data$map_loctime_combs_comb == x]
+      
+      # Get one observation of this loctime
+      obs_id <- first(stan_data$map_obs_loctime_obs[stan_data$map_obs_loctime_loc == loctimes[1]])
+      
+      # Get the corresponding admin level
+      stan_data$map_obs_admin_lev[obs_id]
+    })
+  
+  # Map between location_time combinations and unique location_time combinations
+  stan_data$map_obs_loctime_combs <- purrr::map_dbl(
+    loctime_combs,
+    function(x) {
+      which(purrr::map_lgl(stan_data$u_loctime_combs, ~ identical(., x)))
+    })
+  
+  stan_data
+}
