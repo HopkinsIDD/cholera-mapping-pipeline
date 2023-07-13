@@ -312,8 +312,8 @@ prepare_stan_input <- function(
   stan_data$use_pop_weight <- config$use_pop_weight
 
   if (config$use_pop_weight) {
+ 
     # Make sure that all observations for have a pop_loctime > 0
-
     pop_loctimes <- taxdat::compute_pop_loctimes(stan_data = stan_data)
 
     if (any(pop_loctimes == 0)) {
@@ -346,15 +346,12 @@ prepare_stan_input <- function(
     }
 
 
+    stan_data$map_loc_grid_sfrac <- taxdat::check_pop_weight_validity(stan_data$map_loc_grid_sfrac)
+    
   } else {
     stan_data$map_loc_grid_sfrac <- array(data = 0, dim = 0)
   }
 
-  if (config$use_pop_weight) {
-
-    stan_data$map_loc_grid_sfrac <- taxdat::check_pop_weight_validity(stan_data$map_loc_grid_sfrac)
-  }
-  
   #  ---- H. Observations ----
   stan_data$y <- as.array(sf_cases_resized[[cases_column]])
   
@@ -572,18 +569,7 @@ prepare_stan_input <- function(
   stan_data$map_output_loc_adminlev <- output_lps_space$admin_lev
 
   if (config$use_pop_weight) {
-    stan_data$map_loc_grid_sfrac_output <- ind_mapping_output$u_loc_grid_weights
-
-    # Check if sfrac is valid
-    if (any(stan_data$map_loc_grid_sfrac_output > 1.01)) {
-      warning("Invalid sfrac values > 1 in outputs.", " Maximum value of ",
-              max(stan_data$map_loc_grid_sfrac_output), ".",
-              "Capping all values to 1.")
-      stan_data$map_loc_grid_sfrac_output <- pmin(stan_data$map_loc_grid_sfrac_output, 1) 
-    }
-    # Make sure all values are <= 1 (possible rounding errors)
-    stan_data$map_loc_grid_sfrac_output <- pmin(1, stan_data$map_loc_grid_sfrac_output)
-
+    stan_data$map_loc_grid_sfrac_output <- taxdat::check_pop_weight_validity(ind_mapping_output$u_loc_grid_weights)
   } else {
     stan_data$map_loc_grid_sfrac_output <- array(data = 0, dim = 0)
   }
