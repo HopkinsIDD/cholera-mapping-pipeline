@@ -315,8 +315,8 @@ use_weights <- taxdat::check_use_weights(config$use_weights)
 use_rho_prior <- taxdat::check_use_rho_prior(config$use_rho_prior)
 exp_prior <- taxdat::check_exp_prior(config$exp_prior)
 use_intercept <- taxdat::check_use_intercept(config$use_intercept)
-do_zerosum_cnst <- taxdat::do_zerosum_cnst(config$do_zerosum_cnst)
-do_infer_sd_eta <- taxdat::do_infer_sd_eta(config$do_infer_sd_eta)
+do_zerosum_cnst <- taxdat::check_do_zerosum_cnst(config$do_zerosum_cnst)
+do_infer_sd_eta <- taxdat::check_do_infer_sd_eta(config$do_infer_sd_eta)
 
 # Pull default stan model options if not specified in config
 stan_params <- taxdat::get_stan_parameters(append(config, config$stan))
