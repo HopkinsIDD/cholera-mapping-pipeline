@@ -242,17 +242,28 @@ sd_alpha <- taxdat::check_sd_alpha(config$sd_alpha)
 mu_sd_w <- taxdat::check_mu_sd_w(config$mu_sd_w)
 sd_sd_w <- taxdat::check_mu_sd_w(config$sd_sd_w)
 do_sd_w_mixture <- taxdat::check_do_sd_w_mixture(config$do_sd_w_mixture)
+use_rho_prior <- taxdat::check_use_rho_prior(config$use_rho_prior)
 
-# time_effect, time_effect_autocorr, use_intercept are in get_stan_parameters
+# Intercept structure
+time_effect <- taxdat::check_time_effect(config$time_effect)
+time_effect_autocorr <- taxdat::check_time_effect_autocorr(config$time_effect_autocorr)
+use_intercept <- taxdat::check_use_intercept(config$use_intercept)
 
 # - - - - - - - - - - - - - -
 ## PRIORS
 # - - - - - - - - - - - - - -
-# beta_sigma_scale, sigma_eta_scale, exp_prior, do_infer_sd_eta, do_zero_sum_cnst, and optional use_weights are in get_stan_parameters
+sigma_eta_scale <- taxdat::check_sigma_eta_scale(config$sigma_eta_scale)
+beta_sigma_scale <- taxdat::check_beta_sigma_scale(config$beta_sigma_scale)
+exp_prior <- taxdat::check_exp_prior(config$exp_prior)
+do_infer_sd_eta <- taxdat::check_do_infer_sd_eta(config$do_infer_sd_eta)
+do_zerosum_cnst <- taxdat::check_do_zerosum_cnst(config$do_zerosum_cnst)
+use_weights <- taxdat::check_use_weights(config$use_weights)
+
 # - - - - - - - - - - - - - -
 ## GAM WARMUP
 # - - - - - - - - - - - - - -
-# covar_warmup, warmup are in get_stan_parameters
+warmup <- taxdat::check_warmup(config$warmup)
+covar_warmup <- taxdat::check_covar_warmup(config$check_covar_warmup)
 
 # - - - - - - - - - - - - - -
 ## OBSERVATION DATA PROCESSING
@@ -305,18 +316,6 @@ ingest_new_covariates <- taxdat:: check_ingest_new_covariates(config$ingest_new_
 ## STAN PARAMETERS
 # - - - - - - - - - - - - - -
 debug <- taxdat::check_stan_debug(config$debug)
-sigma_eta_scale <- taxdat::check_sigma_eta_scale(config$sigma_eta_scale)
-beta_sigma_scale <- taxdat::check_beta_sigma_scale(config$beta_sigma_scale)
-warmup <- taxdat::check_warmup(config$warmup)
-covar_warmup <- taxdat::check_covar_warmup(config$check_covar_warmup)
-time_effect <- taxdat::check_time_effect(config$time_effect)
-time_effect_autocorr <- taxdat::check_time_effect_autocorr(config$time_effect_autocorr)
-use_weights <- taxdat::check_use_weights(config$use_weights)
-use_rho_prior <- taxdat::check_use_rho_prior(config$use_rho_prior)
-exp_prior <- taxdat::check_exp_prior(config$exp_prior)
-use_intercept <- taxdat::check_use_intercept(config$use_intercept)
-do_zerosum_cnst <- taxdat::check_do_zerosum_cnst(config$do_zerosum_cnst)
-do_infer_sd_eta <- taxdat::check_do_infer_sd_eta(config$do_infer_sd_eta)
 
 # Pull default stan model options if not specified in config
 stan_params <- taxdat::get_stan_parameters(append(config, config$stan))
