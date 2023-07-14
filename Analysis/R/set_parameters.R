@@ -470,7 +470,7 @@ for(t_idx in 1:length(all_test_idx)){
     full_grid_name <- prepare_grid(
       dbuser = dbuser,
       cholera_directory = cholera_directory,
-      res_space = res_space,
+      res_space = config$res_space,
       ingest = config$ingest_covariates
     )
 
@@ -502,7 +502,7 @@ for(t_idx in 1:length(all_test_idx)){
     covar_list <- prepare_covariates(
       dbuser = dbuser,
       cholera_covariates_directory = laydir,
-      res_space = res_space,
+      res_space = config$res_space,
       res_time = res_time,
       ingest = config$ingest_covariates,
       do_parallel = F,
