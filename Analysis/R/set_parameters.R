@@ -552,7 +552,7 @@ for(t_idx in 1:length(all_test_idx)){
       res_time = res_time,
       res_space = config$res_space,
       time_slices = time_slices,
-      grid_rand_effects_N = grid_rand_effects_N,
+      grid_rand_effects_N = config$grid_rand_effects_N,
       cases_column = cases_column,
       sf_cases = sf_cases,
       non_na_gridcells = covar_cube_output$non_na_gridcells,
