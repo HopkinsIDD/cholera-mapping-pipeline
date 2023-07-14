@@ -233,11 +233,6 @@ inv_od_sd_nopool <- taxdat::check_od_param_sd_prior_nopooling(
   inv_od_sd_nopool = config$inv_od_sd_nopool,
   obs_model = obs_model)
 
-# SD of prior the mean and SD of the hierarchical inverse dispersion on the subnational level observations when there is pooling
-taxdat::check_h_mu_sd_inv_od(h_mu_sd_inv_od = config$h_mu_sd_inv_od,
-                             obs_model = obs_model)
-taxdat::check_h_sd_sd_inv_od(h_sd_sd_inv_od = config$h_sd_sd_inv_od,
-                             obs_model = obs_model)
 
 # mu_alpha and sd_alpha are the mean and sd of the intercept prior, respectively
 mu_alpha <- taxdat::check_mu_alpha(config$mu_alpha)
@@ -247,17 +242,28 @@ sd_alpha <- taxdat::check_sd_alpha(config$sd_alpha)
 mu_sd_w <- taxdat::check_mu_sd_w(config$mu_sd_w)
 sd_sd_w <- taxdat::check_mu_sd_w(config$sd_sd_w)
 do_sd_w_mixture <- taxdat::check_do_sd_w_mixture(config$do_sd_w_mixture)
+use_rho_prior <- taxdat::check_use_rho_prior(config$use_rho_prior)
 
-# time_effect, time_effect_autocorr, use_intercept are in get_stan_parameters
+# Intercept structure
+time_effect <- taxdat::check_time_effect(config$time_effect)
+time_effect_autocorr <- taxdat::check_time_effect_autocorr(config$time_effect_autocorr)
+use_intercept <- taxdat::check_use_intercept(config$use_intercept)
 
 # - - - - - - - - - - - - - -
 ## PRIORS
 # - - - - - - - - - - - - - -
-# beta_sigma_scale, sigma_eta_scale, exp_prior, do_infer_sd_eta, do_zero_sum_cnst, and optional use_weights are in get_stan_parameters
+sigma_eta_scale <- taxdat::check_sigma_eta_scale(config$sigma_eta_scale)
+beta_sigma_scale <- taxdat::check_beta_sigma_scale(config$beta_sigma_scale)
+exp_prior <- taxdat::check_exp_prior(config$exp_prior)
+do_infer_sd_eta <- taxdat::check_do_infer_sd_eta(config$do_infer_sd_eta)
+do_zerosum_cnst <- taxdat::check_do_zerosum_cnst(config$do_zerosum_cnst)
+use_weights <- taxdat::check_use_weights(config$use_weights)
+
 # - - - - - - - - - - - - - -
 ## GAM WARMUP
 # - - - - - - - - - - - - - -
-# covar_warmup, warmup are in get_stan_parameters
+warmup <- taxdat::check_warmup(config$warmup)
+covar_warmup <- taxdat::check_covar_warmup(config$check_covar_warmup)
 
 # - - - - - - - - - - - - - -
 ## OBSERVATION DATA PROCESSING
@@ -280,7 +286,7 @@ do_parallel_prep <- taxdat::check_do_parallel_prep(config$do_parallel_prep)
 
 # Drop multi-year data at the national level
 drop_multiyear_adm0 <- taxdat::check_drop_multiyear_adm0(config$drop_multiyear_adm0)
-  
+
 # Drop censored amd0-level observations
 drop_censored_adm0 <- taxdat::check_drop_censored_adm0(config$drop_censored_adm0)
 drop_censored_adm0_thresh <- taxdat::check_drop_censored_adm0_thresh(config$drop_censored_adm0_thresh)
@@ -310,6 +316,7 @@ ingest_new_covariates <- taxdat:: check_ingest_new_covariates(config$ingest_new_
 ## STAN PARAMETERS
 # - - - - - - - - - - - - - -
 debug <- taxdat::check_stan_debug(config$debug)
+
 # Pull default stan model options if not specified in config
 stan_params <- taxdat::get_stan_parameters(append(config, config$stan))
 
