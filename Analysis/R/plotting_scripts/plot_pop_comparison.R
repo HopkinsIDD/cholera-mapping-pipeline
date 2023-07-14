@@ -43,10 +43,12 @@ for (year_idx in seq(period)){
 ggplot2::ggplot(data=pop_by_year %>% 
                   dplyr::rename("pipeline_pop" = "median") %>% 
                   dplyr::mutate(difference_percentage = paste0(round(100*(pipeline_pop-wpp_pop)/wpp_pop,2),"%")) %>% 
-                  tidyr::pivot_longer(cols= c(pipeline_pop,wpp_pop),
+                  dplyr::rename(worldpopRaster_pop = wpp_pop) %>%
+                  tidyr::pivot_longer(cols= c(pipeline_pop,worldpopRaster_pop),
                                       names_to = "Source",
                                       values_to = "population") %>% 
-                  dplyr::mutate(difference_percentage = replace(difference_percentage,Source =="wpp_pop","")),
+                  dplyr::mutate(difference_percentage = replace(difference_percentage,Source
+                  =="worldpopRaster_pop","")),
                 ggplot2::aes(
                   x= lubridate::year(TL),
                   y= population)) +
