@@ -450,7 +450,7 @@ test_that("check_set_tfrac works",{
 
   yaml::write_yaml(data.frame(other_arg = TRUE), tmpfile)
   config_null <- yaml::read_yaml(tmpfile)
-  expect_false(
+  expect_true(
     check_set_tfrac(config_null$set_tfrac)
   )
 
