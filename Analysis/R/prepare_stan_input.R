@@ -190,7 +190,7 @@ prepare_stan_input <- function(
   #  ---- Ea. Drop tfrac threshold ----
   
   # If specified threshold of minimum tfrac filter out data
-  if (tfrac_thresh > 0) {
+  if (config$tfrac_thresh > 0) {
     # Which observations to remove
     obs_remove_thresh <- unique(ind_mapping_resized$obs[ind_mapping_resized$tfrac < as.numeric(config$tfrac_thresh)])
     
@@ -221,7 +221,7 @@ prepare_stan_input <- function(
     dplyr::mutate(admin_level = purrr::map_dbl(location_name, ~ taxdat::get_admin_level(.)))
   
   # Drop multi-year observations if present
-  if (drop_multiyear_adm0) {
+  if (config$drop_multiyear_adm0) {
     sf_cases_resized <- taxdat::drop_multiyear(df = sf_cases_resized,
                                                admin_levels = 0)
     
