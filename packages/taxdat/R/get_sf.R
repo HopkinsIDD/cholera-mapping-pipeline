@@ -79,9 +79,9 @@ get_disaggregated_rates_sf <- function(cache,cholera_directory,config
 get_unique_db_shps <- function(cache,config,cholera_directory){
   get_sf_cases_resized(name="sf_cases_resized",cache=cache,config = config,cholera_directory = cholera_directory)
   unique_db_shps <- cache[["sf_cases_resized"]] %>% 
-    dplyr::group_by(locationPeriod_id) %>% 
-    dplyr::slice(1) %>%
     dplyr::mutate(time_slice = lubridate::year(ref_TL)) %>% 
+    dplyr::group_by(locationPeriod_id,time_slice) %>% 
+    dplyr::slice(1) %>%
     dplyr::select(loctime,geom,time_slice)
   return(unique_db_shps)
 }
