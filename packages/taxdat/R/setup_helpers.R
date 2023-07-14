@@ -363,7 +363,7 @@ check_tfrac_thresh <- function(tfrac_thresh) {
 #' @export
 check_censoring <- function(censoring) {
   if (is.null(censoring)) {
-    censoring <- FALSE
+    censoring <- TRUE
   }
   if (!is.logical(censoring)) {
     stop("The censoring parameter must be logical.")
@@ -380,7 +380,7 @@ check_censoring <- function(censoring) {
 check_censoring_thresh <- function(censoring_thresh) {
   if (is.null(censoring_thresh)) {
     message("No censoring_thresh was assigned. Setting default to 0.95.")
-    censoring_thresh <- 0.95
+    censoring_thresh <- 0.65
   }
   if (!is.numeric(censoring_thresh)) {
     stop("Invalid censoring threshold. Must be numeric.")
@@ -481,7 +481,7 @@ check_sfrac_thresh_border <- function(sfrac_thresh_border) {
 
   if (is.null(sfrac_thresh_border)) {
     cat("---- sfrac thresh border not specified, setting to default: 1e-3 \n")
-    sfrac_thresh_border <- 0.001
+    sfrac_thresh_border <- 0.3
   }
   if (sfrac_thresh_border < 0 | sfrac_thresh_border > 1) {
     stop("---- sfrac thresh border cannot be < 0 or > 1, value passed: ", sfrac_thresh_border)
@@ -499,7 +499,7 @@ check_sfrac_thresh_conn <- function(sfrac_thresh_conn) {
 
   if (is.null(sfrac_thresh_conn)) {
     cat("---- sfrac thresh conn not specified, setting to default: 1e-3 \n")
-    sfrac_thresh_conn <- 0.001
+    sfrac_thresh_conn <- 0.05
   }
   if (sfrac_thresh_conn < 0 | sfrac_thresh_conn > 1) {
     stop("---- sfrac thresh conn cannot be < 0 or > 1, value passed: ", sfrac_thresh_conn)
@@ -964,7 +964,7 @@ check_sd_sd_w <- function(x,
 #' @export
 #'
 check_stan_iter_warmup <- function(x,
-                                   default_value = 1100) {
+                                   default_value = 1000) {
   
   if (unspecified_parameter_check(x)) {
     par <- default_value
