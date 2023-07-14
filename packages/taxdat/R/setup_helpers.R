@@ -670,23 +670,23 @@ get_all_config_options <- function() {
     drop_multiyear_adm0 = as.function(check_drop_multiyear_adm0),
     drop_censored_adm0 = as.function(check_drop_censored_adm0),
     drop_censored_adm0_thresh = as.function(check_drop_censored_adm0_thresh),
-    time_effect = "stan-check",
-    time_effect_autocorr = "stan-check",
+    time_effect = as.function(check_time_effect),
+    time_effect_autocorr = as.function(check_time_effect_autocorr),
     spatial_effect = as.function(check_spatial_effect),
     do_sd_w_mixture = as.function(check_do_sd_w_mixture),
-    use_intercept = "stan-check",
+    use_intercept = as.function(check_use_intercept),
     covariate_transformations = "no-check",
-    beta_sigma_scale = "stan-check",
-    sigma_eta_scale = "stan-check",
+    beta_sigma_scale = as.function(check_beta_sigma_scale),
+    sigma_eta_scale = as.function(check_sigma_eta_scale),
     mu_alpha = as.function(check_mu_alpha),
     sd_alpha = as.function(check_sd_alpha),
-    exp_prior = "stan-check",
-    do_infer_sd_eta = "stan-check",
-    do_zerosum_cnst = "stan-check",
-    use_weights = "stan-check",
-    use_rho_prior = "stan-check",
-    covar_warmup = "stan-check",
-    warmup = "stan-check",
+    exp_prior = as.function(check_exp_prior),
+    do_infer_sd_eta = as.function(check_do_infer_sd_eta),
+    do_zerosum_cnst = as.function(check_do_zerosum_cnst),
+    use_weights = as.function(check_use_weights),
+    use_rho_prior = as.function(check_use_rho_prior),
+    covar_warmup = as.function(check_covar_warmup),
+    warmup = as.function(check_warmup),
     aggregate = as.function(check_aggregate),
     tfrac_thresh = as.function(check_tfrac_thresh),
     censoring = as.function(check_censoring),
@@ -1133,4 +1133,251 @@ check_drop_censored_adm0_thresh <- function(x,
   par
 }
 
+#' check_sigma_eta_scale
+#'
+#' @param x
+#' @param default_value
+#' @return
+#' @export
+#'
+#' @examples
+check_sigma_eta_scale <- function(x,
+                                default_value = 1) {
 
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- try_conv_numeric(x)
+  }
+
+  par
+}
+
+#' check_beta_sigma_scale
+#'
+#' @param x
+#' @param default_value
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_beta_sigma_scale <- function(x,
+                                default_value = 1) {
+
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- try_conv_numeric(x)
+  }
+
+  par
+}
+
+#' check_warmup
+#'
+#' @param x
+#' @param default_value
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_warmup <- function(x,
+                         default_value = TRUE) {
+
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- as.logical(x)
+  }
+
+  par
+}
+
+#' check_covar_warmup
+#'
+#' @param x
+#' @param default_value
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_covar_warmup <- function(x,
+                         default_value = TRUE) {
+
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- as.logical(x)
+  }
+
+  par
+}
+
+#' check_time_effect
+#'
+#' @param x
+#' @param default_value
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_time_effect <- function(x,
+                         default_value = TRUE) {
+
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- as.logical(x)
+  }
+
+  par
+}
+
+#' check_time_effect_autocorr
+#'
+#' @param x
+#' @param default_value
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_time_effect_autocorr <- function(x,
+                         default_value = FALSE) {
+
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- as.logical(x)
+  }
+
+  par
+}
+
+#' check_use_weights
+#'
+#' @param x
+#' @param default_value
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_use_weights <- function(x,
+                         default_value = FALSE) {
+
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- as.logical(x)
+  }
+
+  par
+}
+
+#' check_use_rho_prior
+#'
+#' @param x
+#' @param default_value
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_use_rho_prior <- function(x,
+                         default_value = TRUE) {
+
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- as.logical(x)
+  }
+
+  par
+}
+
+#' check_exp_prior
+#'
+#' @param x
+#' @param default_value
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_exp_prior <- function(x,
+                         default_value = FALSE) {
+
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- as.logical(x)
+  }
+
+  par
+}
+
+#' check_use_intercept
+#'
+#' @param x
+#' @param default_value
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_use_intercept <- function(x,
+                         default_value = FALSE) {
+
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- as.logical(x)
+  }
+
+  par
+}
+
+#' check_do_zerosum_cnst
+#'
+#' @param x
+#' @param default_value
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_do_zerosum_cnst <- function(x,
+                         default_value = TRUE) {
+
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- as.logical(x)
+  }
+
+  par
+}
+#'
+#' @param x
+#' @param default_value
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_do_infer_sd_eta <- function(x,
+                         default_value = FALSE) {
+
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- as.logical(x)
+  }
+
+  par
+}

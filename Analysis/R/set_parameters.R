@@ -305,6 +305,19 @@ ingest_new_covariates <- taxdat:: check_ingest_new_covariates(config$ingest_new_
 ## STAN PARAMETERS
 # - - - - - - - - - - - - - -
 debug <- taxdat::check_stan_debug(config$debug)
+sigma_eta_scale <- taxdat::check_sigma_eta_scale(config$sigma_eta_scale)
+beta_sigma_scale <- taxdat::check_beta_sigma_scale(config$beta_sigma_scale)
+warmup <- taxdat::check_warmup(config$warmup)
+covar_warmup <- taxdat::check_covar_warmup(config$check_covar_warmup)
+time_effect <- taxdat::check_time_effect(config$time_effect)
+time_effect_autocorr <- taxdat::check_time_effect_autocorr(config$time_effect_autocorr)
+use_weights <- taxdat::check_use_weights(config$use_weights)
+use_rho_prior <- taxdat::check_use_rho_prior(config$use_rho_prior)
+exp_prior <- taxdat::check_exp_prior(config$exp_prior)
+use_intercept <- taxdat::check_use_intercept(config$use_intercept)
+do_zerosum_cnst <- taxdat::do_zerosum_cnst(config$do_zerosum_cnst)
+do_infer_sd_eta <- taxdat::do_infer_sd_eta(config$do_infer_sd_eta)
+
 # Pull default stan model options if not specified in config
 stan_params <- taxdat::get_stan_parameters(append(config, config$stan))
 
