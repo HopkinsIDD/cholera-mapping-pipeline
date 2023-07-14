@@ -25,7 +25,9 @@ if (config$data_source == "api") {
     username <- database_username
     password <- database_api_key
   }
-  cat("cntry:", long_countries, "u:", ifelse(nchar(username) > 0, "****", ""), "psswd:", ifelse(nchar(password) > 0, "****", ""), "st:", start_time, "et:", end_time, "\n")
+  cat("cntry:", long_countries, "u:", ifelse(nchar(username) > 0, "****", ""), "psswd:",
+  ifelse(nchar(password) > 0, "****", ""), "st:", config$start_time, "et:",
+  config$end_time, "\n")
 } else if (config$data_source == "sql") {
   long_countries <- config$countries
   username <- Sys.getenv("CHOLERA_SQL_USERNAME", "NONE")
