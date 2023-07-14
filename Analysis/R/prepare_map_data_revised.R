@@ -182,7 +182,8 @@ if (nrow(drop_shapefiles) > 0) {
 }
 
 shapefiles <- shapefiles %>% 
-  dplyr::mutate(geom = sf::st_intersection(geom, adm0_geom$geom))
+  dplyr::mutate(geom = sf::st_intersection(geom, adm0_geom$geom)) %>% 
+  taxdat::fix_geomcollections()
 
 # Write to database
 taxdat::write_shapefiles_table(
@@ -224,7 +225,9 @@ cat("-- Creating tables for output summary lps in database \n")
 output_shapefiles <- taxdat::get_multi_country_admin_units(
   iso_code = iso_code,
   admin_levels = config$summary_admin_levels,
-  lps = shapefiles
+  lps = shapefiles,
+  source = "database",
+  dbuser = dbuser
 )
 
 # Name for output location periods

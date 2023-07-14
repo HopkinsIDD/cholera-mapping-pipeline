@@ -155,6 +155,11 @@ file_names <- taxdat::get_filenames(
   config = str_c(params$cholera_directory, params$config, sep = "/") %>% yaml::read_yaml(), 
   cholera_directory = params$cholera_directory)
 get_output_shapefiles(name="output_shapefiles", config = params$config,cache=cache,cholera_directory = params$cholera_directory)
+
+# remove shapefiles that are not in the fake_output_obs
+cache[["output_shapefiles"]] <- cache[["output_shapefiles"]] %>%
+  dplyr::filter(location_period_id %in% cache[["stan_input"]]$fake_output_obs$locationPeriod_id) %>%
+  dplyr::arrange(location_period_id)
 ```
 
 ```{r output}
@@ -467,7 +472,7 @@ risk_cat_num %>%
 
 ### Posterior probability of districts in a given risk category
 ```{r risk_cat_prob,fig.height=5,fig.width=10,fig.cap=capFig("Posterior probability of districts in a given risk category.")}
-risk_cat_dict <- c("<1", "1-10", "10-20", "20-50", "50-100", ">100")
+risk_cat_dict <- taxdat::get_risk_cat_dict()
 
 risk_cat_prob<-cache[["genquant"]]$draws(variables = "location_risk_cat")%>%
   apply(.,c(1,2),rbind) %>%
@@ -560,6 +565,10 @@ plot_time_varying_pop_raster(cache=cache,config=params$config,cholera_directory 
     kableExtra::kable_styling(full_width = FALSE) %>% 
     kableExtra::pack_rows(index = table(pop_summ$admin_level))
 
+```
+
+```{r pop-comparison,fig.height=5,fig.width=10,fig.cap=capFig("Comparison of population data between genquant and wpp")}
+plot_pop_comparison(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
 ```
 
 ## Validation
