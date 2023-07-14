@@ -1,4 +1,4 @@
-#' @title Prepapre stan input
+#' @title Prepare stan input
 #' @description Prepares the data for the Stan code
 #'
 #' @param dbuser
