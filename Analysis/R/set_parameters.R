@@ -233,11 +233,6 @@ inv_od_sd_nopool <- taxdat::check_od_param_sd_prior_nopooling(
   inv_od_sd_nopool = config$inv_od_sd_nopool,
   obs_model = obs_model)
 
-# SD of prior the mean and SD of the hierarchical inverse dispersion on the subnational level observations when there is pooling
-taxdat::check_h_mu_sd_inv_od(h_mu_sd_inv_od = config$h_mu_sd_inv_od,
-                             obs_model = obs_model)
-taxdat::check_h_sd_sd_inv_od(h_sd_sd_inv_od = config$h_sd_sd_inv_od,
-                             obs_model = obs_model)
 
 # mu_alpha and sd_alpha are the mean and sd of the intercept prior, respectively
 mu_alpha <- taxdat::check_mu_alpha(config$mu_alpha)
@@ -280,7 +275,7 @@ do_parallel_prep <- taxdat::check_do_parallel_prep(config$do_parallel_prep)
 
 # Drop multi-year data at the national level
 drop_multiyear_adm0 <- taxdat::check_drop_multiyear_adm0(config$drop_multiyear_adm0)
-  
+
 # Drop censored amd0-level observations
 drop_censored_adm0 <- taxdat::check_drop_censored_adm0(config$drop_censored_adm0)
 drop_censored_adm0_thresh <- taxdat::check_drop_censored_adm0_thresh(config$drop_censored_adm0_thresh)
