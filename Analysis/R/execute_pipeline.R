@@ -134,6 +134,19 @@ grid_adjacency <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(
 ))
 print("Pulled adjacency matrix")
 
+# The following code is changing grid_adjacency
+# Only keep rook as neighbors, delete queen way neighbors
+data = grid_adjacency
+subset_list = (unique(data$id_1))
+include_or_not = vector()
+for(i in 1:length(subset_list)){
+  subset = data[data$id_1 == subset_list[i],]
+  subset_include_i = (subset$x_2 == subset$x_1) | (subset$y_2 == subset$y_1)
+  include_or_not = c(include_or_not,subset_include_i)
+}
+data_clean = data[include_or_not,]
+grid_adjacency = data_clean
+
 observation_temporal_location_mapping <- DBI::dbGetQuery(conn = conn_pg, statement = glue::glue_sql(
   .con = conn_pg,
   "SELECT * FROM pull_observation_location_period_map(
@@ -504,6 +517,16 @@ nneighbors <- grid_adjacency %>%
   dplyr::select(nneighbors)
 nneighbors[is.na(nneighbors)] <- 0
 
+nneighbors_rook <- grid_adjacency %>%
+  dplyr::group_by(id_2) %>%
+  dplyr::summarize(nneighbors = length(unique(id_1))) %>%
+  dplyr::right_join(tibble::tibble(id = unique(covar_cube[["id"]])), by = c(id_2 = "id")) %>%
+  dplyr::arrange(id_2) %>%
+  dplyr::select(nneighbors)
+nneighbors_rook[is.na(nneighbors_rook)] <- 0
+
+nneighbors = nneighbors_rook
+
 observation_data <- observation_data %>%
   dplyr::filter(observation_id %in% fully_covered_observation_ids) %>%
   taxdat::reindex("observation_id", "updated_observation_id")
@@ -672,8 +695,12 @@ if (config[["initial_values"]][["warmup"]]) {
   eta_effect <- initial_etas[as.factor(covar_cube[["t"]])]
 
   initial_rho <- 0.9999
-
-  residuals <- gam_predict - beta0_effect - covariate_effect - eta_effect
+  if(config[["stan"]][["do_time_slice"]][["perform"]]){
+    residuals <- gam_predict - beta0_effect - covariate_effect - eta_effect
+  }else{
+    residuals <- gam_predict - beta0_effect - covariate_effect
+  }
+  #residuals <- gam_predict - beta0_effect - covariate_effect - eta_effect
   initial_ws <- dplyr::tibble(value = residuals, spatial_id = covar_cube[["updated_id"]]) %>%
     dplyr::group_by(spatial_id) %>%
     dplyr::summarize(value = mean(value)) %>%

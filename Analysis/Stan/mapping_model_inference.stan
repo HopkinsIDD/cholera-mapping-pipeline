@@ -33,7 +33,7 @@ data {
   // Note: The adjacency matrix node1 should be sorted and lower triangular
   int <lower=1, upper=smooth_grid_N> node1[N_edges];    // column 1 of the adjacency matrix
   int <lower=1, upper=smooth_grid_N> node2[N_edges];    // column 2 of the adjacency matrix
-  vector<lower=0, upper=smooth_grid_N>[smooth_grid_N] diag;    // rowSums of directed adjacency matrix
+  vector<lower=0, upper=smooth_grid_N>[smooth_grid_N] diag;    // colSums of directed adjacency matrix
   
   // Observations
   int <lower=0> y[M];    // observed counts of cholera cases
@@ -338,7 +338,8 @@ model {
       t_rowsum[i] = 0;
     }
     for(i in 1:N_edges){
-      t_rowsum[node1[i]] += w[node2[i]] * b[node1[i]];
+      //t_rowsum[node1[i]] += w[node2[i]] * b[node1[i]];
+      t_rowsum[node2[i]] += w[node1[i]] * b[node2[i]];
     }
     
     // NOTE:  no prior on phi_raw, it is used to construct phi
