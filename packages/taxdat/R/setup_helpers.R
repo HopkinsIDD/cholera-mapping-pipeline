@@ -1091,7 +1091,7 @@ check_do_sd_w_mixture <- function(x,
 #'
 #' @examples
 check_drop_censored_adm0 <- function(x,
-                                     default_value = FALSE) {
+                                     default_value = TRUE) {
 
   if (unspecified_parameter_check(x)) {
     par <- default_value
@@ -1113,7 +1113,7 @@ check_drop_censored_adm0 <- function(x,
 #'
 #' @examples
 check_drop_censored_adm0_thresh <- function(x,
-                                            default_value = 1) {
+                                            default_value = 2) {
 
   if (unspecified_parameter_check(x)) {
     par <- default_value
