@@ -306,7 +306,7 @@ sf_cases$TR <- lubridate::ymd(sf_cases$TR)
 sf_cases <- taxdat::snap_to_time_period_df(df = sf_cases,
                                            TL_col = "TL",
                                            TR_col = "TR",
-                                           res_time = res_time,
+                                           res_time = config$res_time,
                                            tol = config$snap_tol)
 
 # Set admin level
