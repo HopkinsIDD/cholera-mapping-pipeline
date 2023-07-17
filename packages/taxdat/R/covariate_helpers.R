@@ -782,8 +782,6 @@ space_aggregate <- function(src_file, res_file, ref_grid_db, covar_type, aggrega
 #' @export
 get_temporal_bands <- function(model_time_slices, covar_TL_seq, covar_TR_seq) {
   
-  print(model_time_slices)
-  warning("Remove me and the line above")
   # Get the covariate stack band indices that correspond to the model time slices
   ind_vec <- purrr::map(1:nrow(model_time_slices), ~which(covar_TL_seq == model_time_slices$TL[.] &
                                                             covar_TR_seq == model_time_slices$TR[.]))
@@ -795,7 +793,6 @@ get_temporal_bands <- function(model_time_slices, covar_TL_seq, covar_TR_seq) {
   
   ind_vec <- unlist(ind_vec)
   
-  print("checkpoint 1")
   return(list(ind = ind_vec, tl = covar_TL_seq[ind_vec], tr = covar_TR_seq[ind_vec]))
 }
 
@@ -1184,8 +1181,6 @@ get_covariate_values <- function(covar_name,
   covar_date_metadata <-  get_covariate_metadata(conn_pg = conn_pg,
                                                  covar = covar)
   
-  print(covar_date_metadata)
-  warning("Remove me and the above line")
   if (nrow(covar_date_metadata) == 0) {
     stop("Couldn't find covariate ", covar, "in metadata table")
   }
@@ -1251,7 +1246,8 @@ get_pop_weights <- function(res_space,
     covar_name = stringr::str_glue("covariates.pop_1_years_{res_space}_{res_space}"),
     cntrd_table = cntrd_table,
     time_slices = time_slices, 
-    conn_pg = conn_pg)
+    conn_pg = conn_pg,
+    res_time = res_time)
   
   # Get covariate metadata then used to select temporal bands
   covar_date_metadata <- DBI::dbGetQuery(
@@ -1260,14 +1256,11 @@ get_pop_weights <- function(res_space,
           FROM covariates.metadata
           WHERE covariate = 'pop_1_years_1_1'",
                    .con = conn_pg))
-  print(covar_date_metadata)
-  warning("remove me and the lines above")
   
   # Define the left and right bounds of the temporal slices covered by the covariates
   covar_TL_seq <- seq.Date(as.Date(covar_date_metadata$first_tl[1]),
                            as.Date(covar_date_metadata$last_tl[1]),
                            by = res_time)
-  print("checkpoint 2")
   covar_TR_seq <- aggregate_to_end(time_change_func(covar_TL_seq))
   
   pop_1km_bands <- get_temporal_bands(model_time_slices = time_slices,
