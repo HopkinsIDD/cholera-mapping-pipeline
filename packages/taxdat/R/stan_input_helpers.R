@@ -1008,7 +1008,8 @@ get_censoring_inds <- function(ind_mapping_resized,
 #'
 #' @examples
 compute_mean_rate_subset <- function(stan_data, 
-                                     subset_ind = NULL) {
+                                     subset_ind = NULL,
+                                     res_time) {
   
   if (is.null(stan_data$y)) {
     stop("Missing y in stan_data for mean rate computation")
@@ -1069,7 +1070,8 @@ compute_mean_rate_subset <- function(stan_data,
 #' @export
 #'
 #' @examples
-compute_mean_rate <- function(stan_data) {
+compute_mean_rate <- function(stan_data,
+                              res_time) {
   
   if (is.null(stan_data$y)) {
     stop("Missing y in stan_data for mean rate computation")
@@ -1693,7 +1695,8 @@ impute_adm0_obs_single <- function(sf_cases_resized,
     if (frac_coverage > frac_coverage_thresh) {
       # Compute mean rate for the subnational data
       meanrate_tmp <- compute_mean_rate_subset(stan_data = stan_data,
-                                               subset_ind = subset_ind)
+                                               subset_ind = subset_ind,
+                                               res_time = res_time)
       # Imputed observation based on rates
       impute_obs <- round(meanrate_tmp * ref_pop)
       impute_type <- "subnat_rate"
