@@ -79,6 +79,7 @@ prepare_covar_cube <- function(
     tmp <- taxdat::get_covariate_values(covar_name = covar_list[j],
                                         cntrd_table = cntrd_table,
                                         time_slices = time_slices,
+                                        res_time = res_time,
                                         conn_pg = conn_pg)
 
     if (length(tmp) > 0) {

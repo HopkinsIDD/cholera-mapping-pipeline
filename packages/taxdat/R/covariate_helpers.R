@@ -1166,6 +1166,7 @@ get_covariate_metadata <- function(conn_pg,
 #' @param covar_name the name of the covariate in the database (with schema)
 #' @param cntrd_table the table of centroids at which to extract values
 #' @param time_slices the time slices
+#' @param res_time the time resolution
 #' @param conn_pg connection to pg database
 #'
 #' @return a dataframe with pixel ids and values
@@ -1174,6 +1175,7 @@ get_covariate_metadata <- function(conn_pg,
 get_covariate_values <- function(covar_name,
                                  cntrd_table,
                                  time_slices,
+                                 res_time,
                                  conn_pg) {
   
   covar <- strsplit(covar_name, "\\.")[[1]][2]
