@@ -300,6 +300,11 @@ run_all <- function(
         )
         
         res <- do.call(postprocess_wrapper, args)
+        
+        # Set country name
+        res$country <- get_country_from_string(config)
+        
+        res
       }
     
     if (!is.null(postprocess_fun)) {
@@ -335,8 +340,7 @@ postprocess_mean_annual_incidence <- function(config_list,
   genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
   
   # Get mean annual incidence summary
-  mai_summary <- genquant$summary("location_total_rates_output",
-                                  custom_summaries())
+  mai_summary <- genquant$summary("location_total_rates_output", custom_summaries())
   
   # Get the output shapefiles and join
   res <- get_output_sf_reload(config_list = config_list,
@@ -361,9 +365,7 @@ postprocess_coef_of_variation <- function(config_list,
   genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
   
   # Get mean annual incidence summary
-  cov_summary <- genquant$summary("location_cov_cases_output",
-                                  custom_summaries(),
-                                  .args = list(probs = cri_interval()))
+  cov_summary <- genquant$summary("location_cov_cases_output", custom_summaries())
   
   # Get the output shapefiles and join
   res <- get_output_sf_reload(config_list = config_list,
@@ -443,9 +445,7 @@ postprocess_pop_at_risk <- function(config_list,
   risk_cat_dict <- get_risk_cat_dict()
   
   # Get mean annual incidence summary
-  pop_at_risk <- genquant$summary("tot_pop_risk",
-                                  custom_summaries(),
-                                  .args = list(probs = cri_interval())) %>% 
+  pop_at_risk <- genquant$summary("tot_pop_risk", custom_summaries()) %>% 
     dplyr::mutate(risk_cat = risk_cat_dict[as.numeric(str_extract(variable, "(?<=\\[)[0-9]+(?=,)"))],
                   risk_cat = factor(risk_cat, levels = risk_cat_dict),
                   admin_level = as.numeric(str_extract(variable, "(?<=,)[0-9]+(?=\\])")) - 1,
@@ -469,9 +469,7 @@ postprocess_grid_mai_rates <- function(config_list,
   genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
   
   # Get mean annual incidence summary
-  mai_summary <- genquant$summary("space_grid_rates",
-                                  custom_summaries(),
-                                  .args = list(probs = cri_interval()))
+  mai_summary <- genquant$summary("space_grid_rates", custom_summaries())
   
   # Get the output shapefiles and join
   res <- get_space_grid(config_list = config_list,
@@ -497,9 +495,7 @@ postprocess_grid_mai_cases <- function(config_list,
   genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
   
   # Get mean annual incidence rates at space grid level
-  mai_summary <- genquant$summary("space_grid_rates",
-                                  custom_summaries(),
-                                  .args = list(probs = cri_interval()))
+  mai_summary <- genquant$summary("space_grid_rates", custom_summaries())
   
   # Get population and average over space grid
   mean_pop_sf <- get_mean_pop_grid(config_list = config_list,
@@ -509,12 +505,53 @@ postprocess_grid_mai_cases <- function(config_list,
   res <- mean_pop_sf %>% 
     dplyr::bind_cols(mai_summary) %>% 
     dplyr::select(-variable) %>% 
-    dplyr::mutate(dplyr::across(.cols = c("mean", "q5", "q95"),
+    dplyr::mutate(dplyr::across(.cols = c("mean", "q2.5", "q97.5"),
                                 ~ . * pop))
   
   res
 }
 
+
+#' postprocess_gen_obs
+#' Get summaries for generated observations
+#'
+#' @param config_list 
+#' @param redo_aux 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+postprocess_gen_obs <- function(config_list,
+                                redo_aux = FALSE) {
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # Get quantiles of generated observations for unique combinations of
+  # location-times
+  gen_obs <- dplyr::inner_join(
+    genquant$summary("gen_obs_loctime_combs", mean),
+    genquant$summary("gen_obs_loctime_combs", 
+                     ~ posterior::quantile2(., probs = c(0.005, seq(0.025, 0.975, by = .025), .995)))
+  )
+  
+  
+  # Join with data
+  load(config_list$file_names$stan_input_filename)
+  
+  mapped_gen_obs <- gen_obs[stan_input$stan_data$map_obs_loctime_combs, ] %>% 
+    dplyr::bind_cols(stan_input$sf_cases_resized %>% 
+                       sf::st_drop_geometry() %>% 
+                       dplyr::select(observation = attributes.fields.suspected_cases,
+                                     censoring,
+                                     admin_level)) %>% 
+    dplyr::mutate(obs_gen_id = stringr::str_extract(variable, "[0-9]+") %>% as.numeric()) %>% 
+    dplyr::add_count(obs_gen_id)
+  
+  
+  mapped_gen_obs
+  
+}
 
 # Output shapefiles -------------------------------------------------------
 
@@ -759,4 +796,31 @@ cri_interval <- function() {
 #' @examples
 custom_quantile2 <- function(x, cri = cri_interval()) {
   posterior::quantile2(x, probs = cri)
+}
+
+
+#' get_coverage
+#'
+#' @param df 
+#' @param widths 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_coverage <- function(df, 
+                         widths = c(seq(.05, .95, by = .1), .99)){
+  
+  purrr::map_df(widths, function(w) {
+    bounds <- str_c("q", c(.5 - w/2, .5 + w/2)*100)
+    
+    df %>% 
+      dplyr::select(country, admin_level, observation, censoring, 
+                    dplyr::one_of(bounds)) %>%
+      dplyr::mutate(in_cri = observation >= !!rlang::sym(bounds[1]) &
+                      observation <= !!rlang::sym(bounds[2])) %>% 
+      dplyr::group_by(country, admin_level) %>% 
+      dplyr::summarise(frac_covered = sum(in_cri)/n()) %>% 
+      dplyr::mutate(cri = w)
+  })
 }

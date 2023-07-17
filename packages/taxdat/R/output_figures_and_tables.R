@@ -10,6 +10,8 @@ color_no_run_intended <- function(){c("#E2FFDE")}
 colors_lisa_clusters <- function(){c("lightgray", "#D40A07", "#4543C4", "#F26F6D", "#7C7AC2", "#424141", "#A059F7")}
 coloramp_cases <- function(){c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404")}
 
+colors_admin_levels <- function(){c( "#4F802A", "#5449C7", "#BF0B07", "#DBB50B")}
+
 # Figure functions --------------------------------------------------------
 
 #' output_plot_map
@@ -106,6 +108,27 @@ output_plot_map <- function(sf_obj,
   
 }
 
+
+#' plot_posterior_coverage
+#'
+#' @param gen_obs 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+plot_posterior_coverage <- function(gen_obs) {
+  gen_obs %>% 
+    dplyr::filter(censoring == "full") %>% 
+    get_coverage() %>% 
+    ggplot2::ggplot(aes(x = cri, y = frac_covered, color = factor(admin_level))) +
+    ggplot2::geom_line() +
+    ggplot2::facet_wrap(~ country) +
+    ggplot2::theme_bw() +
+    ggplot2::coord_cartesian(ylim = c(0, 1)) +
+    ggplot2::labs(x = "CrI width", y = "Fraction of observations covered", color = "Admin level") +
+    ggplot2::scale_color_manual(values = colors_admin_levels())
+}
 
 # Auxiliary functions ----------------------------------------------------
 
