@@ -405,7 +405,7 @@ print(config)
 
 # Remove environmental variables to keep clean
 for (param in names(taxdat::get_all_config_options())) {
-  if (param != "stan" & param != "res_time"){
+  if (param != "stan"){
     if (exists(param)){
       eval(parse(text = stringr::str_glue("rm({param})")))
     }
@@ -510,7 +510,7 @@ for(t_idx in 1:length(all_test_idx)){
       dbuser = dbuser,
       cholera_covariates_directory = laydir,
       res_space = config$res_space,
-      res_time = res_time,
+      res_time = config$res_time,
       ingest = config$ingest_covariates,
       do_parallel = F,
       ovrt_covar = config$ingest_new_covariates,
@@ -533,7 +533,7 @@ for(t_idx in 1:length(all_test_idx)){
       start_time = config$start_time,
       end_time = config$end_time,
       res_space = config$res_space,
-      res_time = res_time,
+      res_time = config$res_time,
       username = dbuser,
       covariate_transformations = config[["covariate_transformations"]],
       sfrac_thresh_border = config$sfrac_thresh_border,
@@ -556,7 +556,7 @@ for(t_idx in 1:length(all_test_idx)){
       dbuser = dbuser,
       cholera_directory = cholera_directory,
       ncore = ncores,
-      res_time = res_time,
+      res_time = config$res_time,
       res_space = config$res_space,
       time_slices = time_slices,
       grid_rand_effects_N = config$grid_rand_effects_N,
