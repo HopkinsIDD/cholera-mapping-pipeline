@@ -421,7 +421,8 @@ prepare_stan_input <- function(
   stan_data$map_spacetime_space_grid <- sf_grid$space_id[sf_grid$upd_id]
 
   # ---- I. Mean rate ----
-  stan_data$meanrate <- taxdat::compute_mean_rate(stan_data = stan_data)
+  stan_data$meanrate <- taxdat::compute_mean_rate(stan_data = stan_data,
+                                                  res_time = res_time)
 
   #  ---- J. Imputation ----
 
