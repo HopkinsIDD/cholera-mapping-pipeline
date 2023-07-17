@@ -16,16 +16,18 @@ library(taxdat)
 # User-supplied options
 opt_list <- list(
   make_option(c("-d", "--config_dir"), 
-              default = "./Analysis/cholera-configs/postprocessing_test",
+              default = "./Analysis/cholera-configs/postprocessing_test_2",
               action ="store", type = "character", help = "Directory"),
   make_option(opt_str = c("-r", "--redo"), type = "logical",
               default = T, help = "redo final outputs"),
   make_option(opt_str = c("-i", "--redo_interm"), type = "logical",
-              default = F, help = "redo intermediate"),
+              default = T, help = "redo intermediate"),
   make_option(opt_str = c("-j", "--redo_auxilliary"), type = "logical",
               default = F, help = "redo auxilliary files"),
   make_option(opt_str = c("-v", "--verbose"), type = "logical",
               default = T, help = "Print statements"),
+  make_option(opt_str = c("-p", "--prefix"), type = "character",
+              default = NULL, help = "Prefix to use in output file names"),
   make_option(opt_str = c("-s", "--suffix"), type = "character",
               default = NULL, help = "Suffix to use in output file names"),
   make_option(opt_str = c("-e", "--error_handling"), type = "character",
@@ -74,7 +76,7 @@ all_country_sf <- run_all(
   fun = postprocess_adm0_sf,
   fun_name = "adm0_sf",
   fun_opts = NULL,
-  prefix = "test",
+  prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
   redo = opt$redo,
@@ -96,7 +98,7 @@ mai_stats <- run_all(
   fun = postprocess_mean_annual_incidence,
   fun_name = "mai",
   fun_opts = NULL,
-  prefix = "test",
+  prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
   redo = opt$redo,
@@ -114,7 +116,7 @@ cov_stats <- run_all(
   fun = postprocess_coef_of_variation,
   fun_name = "cov",
   fun_opts = NULL,
-  prefix = "test",
+  prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
   redo = opt$redo,
@@ -133,7 +135,7 @@ mai_grid_rates_stats <- run_all(
   fun_name = "mai_grid_rates",
   postprocess_fun = collapse_grid,
   fun_opts = NULL,
-  prefix = "test",
+  prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
   redo = opt$redo,
@@ -154,7 +156,7 @@ mai_grid_cases_stats <- run_all(
   fun_name = "mai_grid_cases",
   post_process_fun = collapse_grid,
   fun_opts = NULL,
-  prefix = "test",
+  prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
   redo = opt$redo,
@@ -172,7 +174,7 @@ risk_categories <- run_all(
   fun = postprocess_risk_category,
   fun_name = "risk_categories",
   fun_opts = NULL,
-  prefix = "test",
+  prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
   redo = opt$redo,
@@ -191,7 +193,7 @@ pop_at_risk_grid <- run_all(
   fun = postprocess_pop_at_risk,
   fun_name = "pop_at_risk_grid",
   fun_opts = NULL,
-  prefix = "test",
+  prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
   redo = opt$redo,
@@ -202,6 +204,26 @@ pop_at_risk_grid <- run_all(
   data_dir = opt$data_dir,
   output_file_type = "rds",
   verbose = opt$verbose)
+
+
+# Get the generated observations to plot posterior retrodictive checks
+gen_obs <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_gen_obs,
+  fun_name = "gen_obs",
+  fun_opts = NULL,
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  inter_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+
 
 # Figure 1: Mean annual incidence ADM0 ------------------------------------
 
@@ -336,7 +358,7 @@ ggsave(p_fig6,
 
 
 
-# Figure 7 Coefficient of variation ------------------------------------------------
+# Figure 7: Coefficient of variation ------------------------------------------------
 
 mai_cov <- mai_stats %>% 
   filter(admin_level == "ADM0") %>% 
@@ -359,4 +381,16 @@ ggsave(p_cov,
        file = str_glue("{opt$output_dir}/figure_mai_cov_{suffix}.png"),
        width = 7,
        height = 6, 
+       dpi = 300)
+
+
+
+# Figure 8: posterior coverage --------------------------------------------
+
+p_coverage <- plot_posterior_coverage(gen_obs) 
+  
+ggsave(p_coverage,
+       file = str_glue("{opt$output_dir}/figure_posterior_coverage_{suffix}.png"),
+       width = 10,
+       height = 8, 
        dpi = 300)
