@@ -274,7 +274,7 @@ test_that("check_obs_model works", {
   config <- yaml::read_yaml(tmpfile)
   expect_warning(
     check_obs_model(config$obs_model),
-    "The obs_model parameter cannot be null, now returning the default value 1, meaning the poisson observation model will be used in Stan. "
+    "The obs_model parameter cannot be null, now returning the default value 3, meaning the negative binomial observation model will be used in Stan. "
   )
 
   yaml::write_yaml(data.frame(obs_model = NULL), tmpfile)
@@ -283,7 +283,7 @@ test_that("check_obs_model works", {
   options(warn = -1)
   expect_equal(
     check_obs_model(config$obs_model),
-    1
+    3
   )
   options(warn = defaultW)
 
@@ -291,7 +291,7 @@ test_that("check_obs_model works", {
   config <- yaml::read_yaml(tmpfile)
   expect_warning(
     check_obs_model(config$obs_model),
-    "The obs_model parameter can only be 1, 2, or 3, now returning the default value 1, meaning the poisson observation model will be used in Stan. "
+    "The obs_model parameter can only be 1, 2, or 3, now returning the default value 3, meaning the negative binomial observation model will be used in Stan. "
   )
 
   yaml::write_yaml(data.frame(obs_model = "5"), tmpfile)
@@ -300,7 +300,7 @@ test_that("check_obs_model works", {
   options(warn = -1)
   expect_equal(
     check_obs_model(config$obs_model),
-    1
+    3
   )
   options(warn = defaultW)
 
@@ -308,7 +308,7 @@ test_that("check_obs_model works", {
   config <- yaml::read_yaml(tmpfile)
   expect_warning(
     check_obs_model(config$obs_model),
-    "The obs_model parameter can only be 1, 2, or 3, now returning the default value 1, meaning the poisson observation model will be used in Stan. "
+    "The obs_model parameter can only be 1, 2, or 3, now returning the default value 3, meaning the negative binomial observation model will be used in Stan. "
   )
 
   yaml::write_yaml(data.frame(obs_model = "random string"), tmpfile)
@@ -317,7 +317,7 @@ test_that("check_obs_model works", {
   options(warn = -1)
   expect_equal(
     check_obs_model(config$obs_model),
-    1
+    3
   )
   options(warn = defaultW)
 
@@ -396,7 +396,7 @@ test_that("check_censoring_thresh works", {
   config <- yaml::read_yaml(tmpfile)
   expect_equal(
     check_censoring_thresh(config$censoring_thresh),
-    0.95
+    0.65
   )
   yaml::write_yaml(data.frame(censoring_thresh = "random string"), tmpfile)
   config <- yaml::read_yaml(tmpfile)
@@ -450,7 +450,7 @@ test_that("check_set_tfrac works",{
 
   yaml::write_yaml(data.frame(other_arg = TRUE), tmpfile)
   config_null <- yaml::read_yaml(tmpfile)
-  expect_false(
+  expect_true(
     check_set_tfrac(config_null$set_tfrac)
   )
 
@@ -678,12 +678,12 @@ test_that("check_stan_iter_warmup works",{
 
   expect_equal(
     check_stan_iter_warmup(NULL),
-    1100
+    1000
   )
 
   expect_equal(
     check_stan_iter_warmup(""),
-    1100
+    1000
   )
 
   x <- "character"
@@ -760,19 +760,19 @@ test_that("get_all_config_options works",{
   expect_equal(config_options$ncpus_parallel_prep, as.function(check_ncpus_parallel_prep))
   expect_equal(config_options$do_parallel_prep, as.function(check_do_parallel_prep))
   expect_equal(config_options$obs_model, as.function(check_obs_model))
-  expect_equal(config_options$time_effect, stan_check)
-  expect_equal(config_options$time_effect_autocorr, stan_check)
-  expect_equal(config_options$use_intercept, stan_check)
+  expect_equal(config_options$time_effect, as.function(check_time_effect))
+  expect_equal(config_options$time_effect_autocorr, as.function(check_time_effect_autocorr))
+  expect_equal(config_options$use_intercept, as.function(check_use_intercept))
   expect_equal(config_options$covariate_transformations, no_check)
-  expect_equal(config_options$beta_sigma_scale, stan_check)
-  expect_equal(config_options$sigma_eta_scale, stan_check)
-  expect_equal(config_options$exp_prior, stan_check)
-  expect_equal(config_options$do_infer_sd_eta, stan_check)
-  expect_equal(config_options$do_zerosum_cnst, stan_check)
-  expect_equal(config_options$use_weights, stan_check)
-  expect_equal(config_options$use_rho_prior, stan_check)
-  expect_equal(config_options$covar_warmup, stan_check)
-  expect_equal(config_options$warmup, stan_check)
+  expect_equal(config_options$beta_sigma_scale, as.function(check_beta_sigma_scale))
+  expect_equal(config_options$sigma_eta_scale, as.function(check_sigma_eta_scale))
+  expect_equal(config_options$exp_prior, as.function(check_exp_prior))
+  expect_equal(config_options$do_infer_sd_eta, as.function(check_do_infer_sd_eta))
+  expect_equal(config_options$do_zerosum_cnst, as.function(check_do_zerosum_cnst))
+  expect_equal(config_options$use_weights, as.function(check_use_weights))
+  expect_equal(config_options$use_rho_prior, as.function(check_use_rho_prior))
+  expect_equal(config_options$covar_warmup, as.function(check_covar_warmup))
+  expect_equal(config_options$warmup, as.function(check_warmup))
   expect_equal(config_options$aggregate, as.function(check_aggregate))
   expect_equal(config_options$tfrac_thresh, as.function(check_tfrac_thresh))
   expect_equal(config_options$drop_multiyear_adm0, as.function(check_drop_multiyear_adm0))
@@ -816,7 +816,7 @@ test_that("check_sfrac_thresh_border works", {
 
   yaml::write_yaml(data.frame(sfrac_thresh_border = NULL), tempfile)
   config_null <- yaml::read_yaml(tempfile)
-  expect_equal(check_sfrac_thresh_border(sfrac_thresh_border = config_null$sfrac_thresh_border), 0.001)
+  expect_equal(check_sfrac_thresh_border(sfrac_thresh_border = config_null$sfrac_thresh_border), 0.3)
 })
 
 test_that("check_sfrac_thresh_conn works", {
@@ -845,7 +845,7 @@ test_that("check_sfrac_thresh_conn works", {
 
   yaml::write_yaml(data.frame(sfrac_thresh_conn=NULL), tempfile)
   config_null <- yaml::read_yaml(tempfile)
-  expect_equal(check_sfrac_thresh_conn(sfrac_thresh_conn = config_null$sfrac_thresh_conn), 0.001)
+  expect_equal(check_sfrac_thresh_conn(sfrac_thresh_conn = config_null$sfrac_thresh_conn), 0.05)
 })
 
 test_that("Default sfrac_thresh_border >= default sfrac_thresh_conn", {
@@ -949,17 +949,17 @@ test_that("check_drop_censored_adm0_thresh works", {
   yaml::write_yaml(data.frame(censored_adm0_thresh = 1.5), tmpfile)
   config_error <- yaml::read_yaml(tmpfile)
   expect_equal(check_drop_censored_adm0_thresh(x = config_error$censored_adm0_thresh), 1.5)
-  
+
   yaml::write_yaml(data.frame(censored_adm0_thresh = -0.5), tmpfile)
   config_error <- yaml::read_yaml(tmpfile)
   expect_error(check_drop_censored_adm0_thresh(x = config_error$censored_adm0_thresh),
                "---- Censored ADM0 threshold must be positive. Value passed: -0.5")
-  
+
   yaml::write_yaml(data.frame(censored_adm0_thresh = 0), tmpfile)
   config_equal <- yaml::read_yaml(tmpfile)
-  expect_warning(check_drop_censored_adm0_thresh(x = config_equal$censored_adm0_thresh), 
+  expect_warning(check_drop_censored_adm0_thresh(x = config_equal$censored_adm0_thresh),
                  "Censored ADM0 threshold below 1, setting to 1. Value passed: 0")
-  
+
   yaml::write_yaml(data.frame(censored_adm0_thresh=NULL), tmpfile)
   config_null <- yaml::read_yaml(tmpfile)
   expect_equal(check_drop_censored_adm0_thresh(x = config_null$censored_adm0_thresh), 2)
@@ -967,23 +967,23 @@ test_that("check_drop_censored_adm0_thresh works", {
 
 test_that("check_drop_censored_adm0 works",{
   tmpfile <- tempfile(fileext = ".yml")
-  
+
   yaml::write_yaml(data.frame(drop_censored_adm0 = TRUE), tmpfile)
   config_true <- yaml::read_yaml(tmpfile)
   expect_true(
     check_drop_censored_adm0(config_true$drop_censored_adm0)
   )
-  
+
   yaml::write_yaml(data.frame(drop_censored_adm0 = FALSE), tmpfile)
   config_false <- yaml::read_yaml(tmpfile)
   expect_false(
     check_drop_censored_adm0(config_false$drop_censored_adm0)
   )
-  
+
   yaml::write_yaml(data.frame(other_arg = TRUE), tmpfile)
   config_null <- yaml::read_yaml(tmpfile)
   expect_true(
     check_drop_censored_adm0(config_null$drop_censored_adm0)
   )
-  
+
 })

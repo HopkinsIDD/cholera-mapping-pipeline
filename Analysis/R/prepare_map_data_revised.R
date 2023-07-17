@@ -11,12 +11,12 @@ print(paste("Saving output data to ", file_names[["data"]]))
 
 
 # Define credentials for data pull
-if (data_source == "api") {
+if (config$data_source == "api") {
   # NEED TO ADD WHO REGION LOOKUP AND APPEND FOR ALL LOCATIONS
-  countries <- sapply(countries_name, taxdat::fix_country_name)
-  who_region <- sapply(countries_name, taxdat::lookup_WHO_region)
-  long_countries <- paste("CT-World", who_region, gsub("_", "::", countries_name), sep = "::")
-  worldpop_region <- unique(sapply(countries_name, taxdat::lookup_WorldPop_region))
+  countries <- sapply(config$countries_name, taxdat::fix_country_name)
+  who_region <- sapply(config$countries_name, taxdat::lookup_WHO_region)
+  long_countries <- paste("CT-World", who_region, gsub("_", "::", config$countries_name), sep = "::")
+  worldpop_region <- unique(sapply(config$countries_name, taxdat::lookup_WorldPop_region))
   username <- Sys.getenv("CHOLERA_API_USERNAME", "NONE")
   password <- Sys.getenv("CHOLERA_API_KEY", "NONE")
   website <- Sys.getenv("CHOLERA_API_WEBSITE", "")
@@ -25,9 +25,11 @@ if (data_source == "api") {
     username <- database_username
     password <- database_api_key
   }
-  cat("cntry:", long_countries, "u:", ifelse(nchar(username) > 0, "****", ""), "psswd:", ifelse(nchar(password) > 0, "****", ""), "st:", start_time, "et:", end_time, "\n")
-} else if (data_source == "sql") {
-  long_countries <- countries
+  cat("cntry:", long_countries, "u:", ifelse(nchar(username) > 0, "****", ""), "psswd:",
+  ifelse(nchar(password) > 0, "****", ""), "st:", config$start_time, "et:",
+  config$end_time, "\n")
+} else if (config$data_source == "sql") {
+  long_countries <- config$countries
   username <- Sys.getenv("CHOLERA_SQL_USERNAME", "NONE")
   password <- Sys.getenv("CHOLERA_SQL_PASSWORD", "NONE")
   website <- Sys.getenv("CHOLERA_SQL_WEBSITE", "")
@@ -51,13 +53,13 @@ cases <- taxdat::pull_taxonomy_data(
   username = username,
   password = password,
   locations = long_countries,
-  time_left = start_time,
-  time_right = end_time,
-  source = data_source,
-  uids = OCs,
+  time_left = config$start_time,
+  time_right = config$end_time,
+  source = config$data_source,
+  uids = config$OCs,
   website = website
 ) %>%
-  taxdat::rename_database_fields(source = data_source)
+  taxdat::rename_database_fields(source = config$data_source)
 
 index <- sf::st_geometry_type(cases) == sf::st_geometry_type(sf::st_geometrycollection())
 sf::st_geometry(cases[index, ]) <- sf::st_as_sfc(lapply(sf::st_geometry(cases[index, ]), sf::st_collection_extract, type = "POLYGON"))
@@ -304,15 +306,15 @@ sf_cases$TR <- lubridate::ymd(sf_cases$TR)
 sf_cases <- taxdat::snap_to_time_period_df(df = sf_cases,
                                            TL_col = "TL",
                                            TR_col = "TR",
-                                           res_time = res_time,
-                                           tol = snap_tol)
+                                           res_time = config$res_time,
+                                           tol = config$snap_tol)
 
 # Set admin level
 sf_cases <- sf_cases %>% 
   dplyr::mutate(admin_level = purrr::map_dbl(location_name, ~ taxdat::get_admin_level(.)))
 
 # Drop multi-year observations if present
-if (drop_multiyear_adm0) {
+if (config$drop_multiyear_adm0) {
   sf_cases <- taxdat::drop_multiyear(df = sf_cases,
                                      admin_levels = 0)
 }

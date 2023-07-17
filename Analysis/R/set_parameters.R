@@ -233,11 +233,6 @@ inv_od_sd_nopool <- taxdat::check_od_param_sd_prior_nopooling(
   inv_od_sd_nopool = config$inv_od_sd_nopool,
   obs_model = obs_model)
 
-# SD of prior the mean and SD of the hierarchical inverse dispersion on the subnational level observations when there is pooling
-taxdat::check_h_mu_sd_inv_od(h_mu_sd_inv_od = config$h_mu_sd_inv_od,
-                             obs_model = obs_model)
-taxdat::check_h_sd_sd_inv_od(h_sd_sd_inv_od = config$h_sd_sd_inv_od,
-                             obs_model = obs_model)
 
 # mu_alpha and sd_alpha are the mean and sd of the intercept prior, respectively
 mu_alpha <- taxdat::check_mu_alpha(config$mu_alpha)
@@ -247,17 +242,28 @@ sd_alpha <- taxdat::check_sd_alpha(config$sd_alpha)
 mu_sd_w <- taxdat::check_mu_sd_w(config$mu_sd_w)
 sd_sd_w <- taxdat::check_mu_sd_w(config$sd_sd_w)
 do_sd_w_mixture <- taxdat::check_do_sd_w_mixture(config$do_sd_w_mixture)
+use_rho_prior <- taxdat::check_use_rho_prior(config$use_rho_prior)
 
-# time_effect, time_effect_autocorr, use_intercept are in get_stan_parameters
+# Intercept structure
+time_effect <- taxdat::check_time_effect(config$time_effect)
+time_effect_autocorr <- taxdat::check_time_effect_autocorr(config$time_effect_autocorr)
+use_intercept <- taxdat::check_use_intercept(config$use_intercept)
 
 # - - - - - - - - - - - - - -
 ## PRIORS
 # - - - - - - - - - - - - - -
-# beta_sigma_scale, sigma_eta_scale, exp_prior, do_infer_sd_eta, do_zero_sum_cnst, and optional use_weights are in get_stan_parameters
+sigma_eta_scale <- taxdat::check_sigma_eta_scale(config$sigma_eta_scale)
+beta_sigma_scale <- taxdat::check_beta_sigma_scale(config$beta_sigma_scale)
+exp_prior <- taxdat::check_exp_prior(config$exp_prior)
+do_infer_sd_eta <- taxdat::check_do_infer_sd_eta(config$do_infer_sd_eta)
+do_zerosum_cnst <- taxdat::check_do_zerosum_cnst(config$do_zerosum_cnst)
+use_weights <- taxdat::check_use_weights(config$use_weights)
+
 # - - - - - - - - - - - - - -
 ## GAM WARMUP
 # - - - - - - - - - - - - - -
-# covar_warmup, warmup are in get_stan_parameters
+warmup <- taxdat::check_warmup(config$warmup)
+covar_warmup <- taxdat::check_covar_warmup(config$check_covar_warmup)
 
 # - - - - - - - - - - - - - -
 ## OBSERVATION DATA PROCESSING
@@ -280,7 +286,7 @@ do_parallel_prep <- taxdat::check_do_parallel_prep(config$do_parallel_prep)
 
 # Drop multi-year data at the national level
 drop_multiyear_adm0 <- taxdat::check_drop_multiyear_adm0(config$drop_multiyear_adm0)
-  
+
 # Drop censored amd0-level observations
 drop_censored_adm0 <- taxdat::check_drop_censored_adm0(config$drop_censored_adm0)
 drop_censored_adm0_thresh <- taxdat::check_drop_censored_adm0_thresh(config$drop_censored_adm0_thresh)
@@ -310,6 +316,7 @@ ingest_new_covariates <- taxdat:: check_ingest_new_covariates(config$ingest_new_
 ## STAN PARAMETERS
 # - - - - - - - - - - - - - -
 debug <- taxdat::check_stan_debug(config$debug)
+
 # Pull default stan model options if not specified in config
 stan_params <- taxdat::get_stan_parameters(append(config, config$stan))
 
@@ -396,9 +403,17 @@ for (param in names(taxdat::get_all_config_options())) {
 print("This is the explicit runtime config (printed for debugging).")
 print(config)
 
+# Remove environmental variables to keep clean
+for (param in names(taxdat::get_all_config_options())) {
+  if (param != "stan"){
+    if (exists(param)){
+      eval(parse(text = stringr::str_glue("rm({param})")))
+    }
+  }
+}
 # Pipeline steps ---------------------------------------------------------------
 
-original_countries <- countries
+original_countries <- config$countries
 
 for(t_idx in 1:length(all_test_idx)){
   gc()
@@ -462,7 +477,7 @@ for(t_idx in 1:length(all_test_idx)){
     full_grid_name <- prepare_grid(
       dbuser = dbuser,
       cholera_directory = cholera_directory,
-      res_space = res_space,
+      res_space = config$res_space,
       ingest = config$ingest_covariates
     )
 
@@ -494,8 +509,8 @@ for(t_idx in 1:length(all_test_idx)){
     covar_list <- prepare_covariates(
       dbuser = dbuser,
       cholera_covariates_directory = laydir,
-      res_space = res_space,
-      res_time = res_time,
+      res_space = config$res_space,
+      res_time = config$res_time,
       ingest = config$ingest_covariates,
       do_parallel = F,
       ovrt_covar = config$ingest_new_covariates,
@@ -515,14 +530,14 @@ for(t_idx in 1:length(all_test_idx)){
       map_name = map_name,
       cholera_directory = cholera_directory,
       full_grid_name = full_grid_name,
-      start_time = start_time,
-      end_time = end_time,
-      res_space = res_space,
-      res_time = res_time,
+      start_time = config$start_time,
+      end_time = config$end_time,
+      res_space = config$res_space,
+      res_time = config$res_time,
       username = dbuser,
       covariate_transformations = config[["covariate_transformations"]],
-      sfrac_thresh_border = sfrac_thresh_border,
-      sfrac_thresh_conn = sfrac_thresh_conn
+      sfrac_thresh_border = config$sfrac_thresh_border,
+      sfrac_thresh_conn = config$sfrac_thresh_conn
     )
 
     # Save results to file
@@ -541,23 +556,19 @@ for(t_idx in 1:length(all_test_idx)){
       dbuser = dbuser,
       cholera_directory = cholera_directory,
       ncore = ncores,
-      res_time = res_time,
-      res_space = res_space,
+      res_time = config$res_time,
+      res_space = config$res_space,
       time_slices = time_slices,
-      grid_rand_effects_N = grid_rand_effects_N,
+      grid_rand_effects_N = config$grid_rand_effects_N,
       cases_column = cases_column,
       sf_cases = sf_cases,
       non_na_gridcells = covar_cube_output$non_na_gridcells,
       sf_grid = covar_cube_output$sf_grid,
       location_periods_dict = covar_cube_output$location_periods_dict,
       covar_cube = covar_cube_output$covar_cube,
-      set_tfrac = set_tfrac,
-      tfrac_thresh = tfrac_thresh,
-      snap_tol = snap_tol,
       opt = opt,
       stan_params = stan_params,
-      aggregate = aggregate,
-      debug = debug,
+      debug = debug, 
       config = config
     )
 
