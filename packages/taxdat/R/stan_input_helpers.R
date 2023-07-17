@@ -1613,11 +1613,7 @@ impute_adm0_obs_single <- function(sf_cases_resized,
     dplyr::filter(ref_TL == m_TL,
                   ref_TR == m_TR) 
   
-  # All national level data (censored) 
-  ## ECL: So here, we presume these are all censored because this function only 
-  ## gets called within impute_adm0_obs? It's a bit sloppy... Should we add the
-  ## explicit censorings argument?
-  ## JPS: this is an error, this is all data. Added the explicit argument. 
+  # All national level data
   ts_all_adm0 <- sf_cases_resized %>% 
     get_admin_level_data(res_time = res_time,
                          censorings = NULL,
@@ -1660,7 +1656,6 @@ impute_adm0_obs_single <- function(sf_cases_resized,
             if (nrow(x)> 1) {
               dplyr::rowwise(x) %>% 
                 # Only compute tfrac-adjusted counts for full obs
-                ## ECL: So this is assuming a set_tfrac = TRUE config, right?  
                 dplyr::mutate(tfrac = compute_tfrac(TL, TR, ref_TL, ref_TR),
                               obs_cases = !!rlang::sym(cases_column)/tfrac) %>% 
                 dplyr::ungroup() 
@@ -1721,11 +1716,7 @@ impute_adm0_obs_single <- function(sf_cases_resized,
           "cases. \n")
       
     } else if (frac_coverage == 0 & nrow(ts_all_adm0) > 0) {
-      # No subnational-level data use censored national level data if available ## ECL: comes back
-      # to my comment about ts_all_adm0 above... This only works as expected when this function is
-      # called within impute_adm0_obs, right? Otherwise you technically have a mix of censored and
-      # full obs in ts_all_adm0
-      # JPS: This should be OK, error was in the comment, not the code.
+      # No subnational-level data use national level data if available
       
       impute_obs <- max(ts_all_adm0[[cases_column]])
       impute_type <- "nat_max"
