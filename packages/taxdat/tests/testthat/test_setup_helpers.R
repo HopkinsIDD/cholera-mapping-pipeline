@@ -962,7 +962,7 @@ test_that("check_drop_censored_adm0_thresh works", {
 
   yaml::write_yaml(data.frame(censored_adm0_thresh=NULL), tmpfile)
   config_null <- yaml::read_yaml(tmpfile)
-  expect_equal(check_drop_censored_adm0_thresh(x = config_null$censored_adm0_thresh), 1)
+  expect_equal(check_drop_censored_adm0_thresh(x = config_null$censored_adm0_thresh), 2)
 })
 
 test_that("check_drop_censored_adm0 works",{
@@ -982,7 +982,7 @@ test_that("check_drop_censored_adm0 works",{
 
   yaml::write_yaml(data.frame(other_arg = TRUE), tmpfile)
   config_null <- yaml::read_yaml(tmpfile)
-  expect_false(
+  expect_true(
     check_drop_censored_adm0(config_null$drop_censored_adm0)
   )
 
