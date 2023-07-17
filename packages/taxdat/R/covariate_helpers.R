@@ -1243,7 +1243,8 @@ get_pop_weights <- function(res_space,
                             cntrd_table,
                             intersections_table,
                             lp_table,
-                            conn_pg) {
+                            conn_pg,
+                            res_time) {
   
   # First get the 20km populations in all cells
   pop_grid <- get_covariate_values(
@@ -1582,6 +1583,7 @@ get_country_isocode <- function(config) {
 #' @param cntrd_table 
 #' @param res_space 
 #' @param sf_grid 
+#' @param res_time
 #'
 #' @export
 #'
@@ -1591,7 +1593,8 @@ make_location_periods_dict <- function(conn_pg,
                                        cntrd_table,
                                        res_space,
                                        sf_grid,
-                                       grid_changer
+                                       grid_changer,
+                                       res_time
 ) {
   
   location_periods_table <- paste0(lp_name, "_dict")
@@ -1617,7 +1620,8 @@ make_location_periods_dict <- function(conn_pg,
                                          cntrd_table = cntrd_table,
                                          intersections_table = intersections_table,
                                          lp_table = lp_name,
-                                         conn_pg = conn_pg)
+                                         conn_pg = conn_pg,
+                                         res_time = res_time)
   
   location_periods_dict <- location_periods_dict %>% 
     dplyr::left_join(pop_weights,

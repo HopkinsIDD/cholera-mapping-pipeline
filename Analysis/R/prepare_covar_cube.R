@@ -149,7 +149,8 @@ prepare_covar_cube <- function(
                                                               cntrd_table = cntrd_table,
                                                               res_space = res_space,
                                                               sf_grid = sf_grid,
-                                                              grid_changer = grid_changer)
+                                                              grid_changer = grid_changer,
+                                                              res_time = res_time)
 
 
   # Get cell ids in output summary shapefiles

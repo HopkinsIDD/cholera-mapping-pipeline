@@ -478,7 +478,8 @@ prepare_stan_input <- function(
     cntrd_table = output_cntrds_table,
     res_space = res_space,
     sf_grid = sf_grid,
-    grid_changer = grid_changer)
+    grid_changer = grid_changer,
+    res_time = res_time)
 
   # Get pixels with low sfrac
   output_low_sfrac <- output_location_periods_table %>% 
