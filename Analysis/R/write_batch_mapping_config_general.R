@@ -86,6 +86,7 @@ params_df <- data.frame(
     set_tfrac = 'yes',
     snap_tol =  '7/365',
     use_pop_weight = 'yes',
+    use_rho_prior = 'yes',
     sfrac_thresh_border = '0.3',
     sfrac_thresh_conn = '0.05',
     ingest_covariates = 'no',
