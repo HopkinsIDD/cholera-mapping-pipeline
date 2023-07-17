@@ -24,7 +24,7 @@ plot_pop_comparison <- function(config, cache, cholera_directory){
     dplyr::arrange(TL)
   
   # load pop data from world pop csv file
-  load(paste0(cholera_directory,"/packages/taxdat/data/WHO_regions.rdata"))
+  load(paste0(cholera_directory,"/packages/taxdat/data/WHO_regions.RData"))
   
   afr_regions <- WHO_regions %>% 
     filter(WHO.region %in% c("Africa","Eastern Mediterranean"))

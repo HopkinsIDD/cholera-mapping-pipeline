@@ -100,7 +100,7 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
       dplyr::filter(((TR - TL+1)/365) >= censoring_threshold & ((TR - TL+1)/366) <=1) %>%
       dplyr::select(OC_UID, TL, TR, observed, modeled)
     
-    who_annual_cases_from_db <- rbind(who_annual_cases_from_db, country_level_agg_cases) %>%
+    who_annual_cases_from_db <- rbind(country_level_agg_cases) %>%
       dplyr::arrange(TL, desc(TR))
   }
   #mean observed annual cases
