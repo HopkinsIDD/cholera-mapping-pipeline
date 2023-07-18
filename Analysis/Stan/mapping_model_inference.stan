@@ -462,7 +462,7 @@ model {
   
   if (do_sd_w_mixture == 1) {
     target += log_mix(lambda[1], normal_lpdf(std_dev_w |mu_sd_w, sigma_std_dev_w[1]), normal_lpdf(std_dev_w |0, sigma_std_dev_w[2]));
-    lambda[1] ~ beta(2, 1);
+    lambda[1] ~ beta(1, 3);
     
     sigma_std_dev_w[1] ~ normal(0, 2);
     sigma_std_dev_w[2] ~ normal(0, .5);
