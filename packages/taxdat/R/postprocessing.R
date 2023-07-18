@@ -776,8 +776,8 @@ compute_cumul_proportion_thresh <- function(v, thresh = .95) {
   cum_prob <- cumsum(rev(res))
   
   c(
-    "risk_cat" = first(rev(names(all_counts))[which(cum_prob >= thresh)]) %>% as.numeric(),
-    "cumul_prob" = cum_prob[first(which(cum_prob >= thresh))]
+    "risk_cat" = dplyr::first(rev(names(all_counts))[which(cum_prob >= thresh)]) %>% as.numeric(),
+    "cumul_prob" = cum_prob[dplyr::first(which(cum_prob >= thresh))]
     )
 }
 
