@@ -986,15 +986,14 @@ get_map_obs_loctime_obs <- function(x, obs_changer) {
 #' @export
 #'
 #' @examples
-get_censoring_inds <- function(stan_data, 
-                               ind_mapping_resized,
+get_censoring_inds <- function(ind_mapping_resized,
                                censoring_thresh) {
   
   purrr::map_chr(
-    1:stan_data$M, 
+    unique(ind_mapping_resized$map_obs_loctime_obs), 
     function(x) {
       # Get all tfracs for the given observation
-      tfracs <- ind_mapping_resized$tfrac[stan_data$map_obs_loctime_obs == x]
+      tfracs <- ind_mapping_resized$tfrac[ind_mapping_resized$map_obs_loctime_obs == x]
       # Define right-censored if any tfrac is smaller than 95% of the time slice
       ifelse(any(tfracs <= censoring_thresh), "right-censored", "full")
     })
@@ -1009,7 +1008,8 @@ get_censoring_inds <- function(stan_data,
 #'
 #' @examples
 compute_mean_rate_subset <- function(stan_data, 
-                                     subset_ind = NULL) {
+                                     subset_ind = NULL,
+                                     res_time) {
   
   if (is.null(stan_data$y)) {
     stop("Missing y in stan_data for mean rate computation")
@@ -1070,7 +1070,8 @@ compute_mean_rate_subset <- function(stan_data,
 #' @export
 #'
 #' @examples
-compute_mean_rate <- function(stan_data) {
+compute_mean_rate <- function(stan_data,
+                              res_time) {
   
   if (is.null(stan_data$y)) {
     stop("Missing y in stan_data for mean rate computation")
@@ -1571,8 +1572,9 @@ get_cells_ts <- function(stan_data,
 #'
 #' @param sf_cases_resized 
 #' @param stan_data 
-#' @param ref_amd0_obs_id 
+#' @param ref_adm0_obs_id 
 #' @param time_slices 
+#' @param res_time
 #' @param m_ts 
 #' @param cases_column 
 #' @param frac_coverage_thresh 
@@ -1583,14 +1585,15 @@ get_cells_ts <- function(stan_data,
 #' @examples
 impute_adm0_obs_single <- function(sf_cases_resized,
                                    stan_data,
-                                   ref_amd0_obs_id,
+                                   ref_adm0_obs_id,
                                    time_slices,
+                                   res_time,
                                    m_ts,
                                    cases_column,
                                    frac_coverage_thresh) {
   
   adm0_template <- sf_cases_resized %>% 
-    dplyr::slice(ref_amd0_obs_id) %>% 
+    dplyr::slice(ref_adm0_obs_id) %>% 
     dplyr::mutate(loctime = NA,
                   OC_UID = "imputed",
                   TL = NA,
@@ -1601,7 +1604,7 @@ impute_adm0_obs_single <- function(sf_cases_resized,
   m_TR <- time_slices$TR[m_ts]
   
   ref_pop <- compute_pop_ts_loc(stan_data = stan_data,
-                                loctime = get_loctime_obs(stan_data, ref_amd0_obs_id),
+                                loctime = get_loctime_obs(stan_data, ref_adm0_obs_id),
                                 ts = m_ts)
   
   # All data in the missing year
@@ -1610,9 +1613,10 @@ impute_adm0_obs_single <- function(sf_cases_resized,
     dplyr::filter(ref_TL == m_TL,
                   ref_TR == m_TR) 
   
-  # All national level data (censored)
+  # All national level data
   ts_all_adm0 <- sf_cases_resized %>% 
     get_admin_level_data(res_time = res_time,
+                         censorings = NULL,
                          admin_levels = 0) %>%  
     dplyr::filter(ref_TL == m_TL,
                   ref_TR == m_TR) 
@@ -1682,11 +1686,12 @@ impute_adm0_obs_single <- function(sf_cases_resized,
       frac_coverage <- 0
     }
     
-    # !! If coverage OK compute mean rate (threshold of 10% is hardcoded)
+    # !! If coverage OK compute mean rate 
     if (frac_coverage > frac_coverage_thresh) {
       # Compute mean rate for the subnational data
       meanrate_tmp <- compute_mean_rate_subset(stan_data = stan_data,
-                                               subset_ind = subset_ind)
+                                               subset_ind = subset_ind,
+                                               res_time = res_time)
       # Imputed observation based on rates
       impute_obs <- round(meanrate_tmp * ref_pop)
       impute_type <- "subnat_rate"
@@ -1711,7 +1716,7 @@ impute_adm0_obs_single <- function(sf_cases_resized,
           "cases. \n")
       
     } else if (frac_coverage == 0 & nrow(ts_all_adm0) > 0) {
-      # No subnational-level data use censored national level data if available
+      # No subnational-level data use national level data if available
       
       impute_obs <- max(ts_all_adm0[[cases_column]])
       impute_type <- "nat_max"
@@ -1791,7 +1796,7 @@ impute_adm0_obs <- function(sf_cases_resized,
   missing_ts <- missing_adm0 %>% dplyr::filter(is.na(in_set))
   
   if (nrow(missing_ts) == 0) {
-    cat("-- No missing times slices with missing full ADM0 data. \n")
+    cat("-- No times slices missing full ADM0 data. \n")
     return(sf_cases_resized)
   } else {
     missing_adm0 %>% 
@@ -1815,8 +1820,9 @@ impute_adm0_obs <- function(sf_cases_resized,
       
       impute_adm0_obs_single(sf_cases_resized = sf_cases_resized,
                              stan_data = stan_data,
-                             ref_amd0_obs_id = y_adm0_full$obs_id[1], 
+                             ref_adm0_obs_id = y_adm0_full$obs_id[1], 
                              time_slices = time_slices,
+                             res_time = res_time,
                              m_ts = missing_ts$ts[i],
                              cases_column = cases_column,
                              frac_coverage_thresh = frac_coverage_thresh)
@@ -2031,7 +2037,76 @@ drop_censored_adm0 <- function(sf_cases_resized,
   } else {
     return(sf_cases_resized)
   }
+}
+
+
+#' update_stan_data_indexing
+#'
+#' @param stan_data 
+#' @param ind_mapping_resized 
+#' @param config 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+update_stan_data_indexing <- function(stan_data,
+                                      ind_mapping_resized,
+                                      config) {
+  # Number of unique locations
+  stan_data$L <- length(ind_mapping_resized$u_loctimes)
   
+  stan_data$M <- length(unique(ind_mapping_resized$map_obs_loctime_obs))
+  
+  # Define censored observations
+  stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
+  
+  for (var in names(ind_mapping_resized)) {
+    if (var == "map_obs_loctime_obs") {
+      
+      non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
+      obs_changer <- make_changer(x = non_na_obs_resized) 
+      
+      stan_data$map_obs_loctime_obs <- get_map_obs_loctime_obs(x = ind_mapping_resized$map_obs_loctime_obs,
+                                                               obs_changer = obs_changer)
+    } else if (var == "tfrac") {
+      if (config$set_tfrac) {
+        cat("-- Overwriting tfrac for non-censored observations with 1")
+        stan_data$tfrac <- rep(1.0, length(ind_mapping_resized$tfrac))
+      } else {
+        stan_data$tfrac <- ind_mapping_resized$tfrac
+      }
+    } else if (var == "u_loc_grid_weights") {
+      stan_data$map_loc_grid_sfrac <- ind_mapping_resized$u_loc_grid_weights
+    } else {
+      stan_data[[var]] <- as.array(ind_mapping_resized[[var]])
+    }
+  }
+  
+  stan_data
+}
+
+#' check_pop_weight_validity
+#'
+#' @param map_loc_grid_sfrac 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_pop_weight_validity <- function(map_loc_grid_sfrac) {
+  # Check if sfrac is valid
+  if (any(map_loc_grid_sfrac > 1.01)) {
+    
+    warning("Invalid sfrac values > 1", " Maximum value of ", 
+            max(map_loc_grid_sfrac), ".",
+            "Caping all values to 1.")
+  }
+  
+  # Make sure all values are <= 1 (possible rounding errors)
+  map_loc_grid_sfrac <- pmin(1, map_loc_grid_sfrac)
+  
+  map_loc_grid_sfrac
 }
 
 
