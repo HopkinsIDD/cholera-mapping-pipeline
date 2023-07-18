@@ -1,7 +1,7 @@
 # This is a re-purpousing of the functions in crsuggest
 # https://github.com/walkerke/crsuggest
 # This is basically a copy of the code except for line
-# st_crs(crs_type) <- st_crs("EPSG:32663")
+# sf::st_crs(crs_type) <- sf::st_crs("EPSG:32663")
 
 
 #' Title
@@ -24,23 +24,22 @@ suggest_crs_v2 <- function (input,
                             units = NULL, 
                             drop_na = TRUE) {
   
-  if (is.na(st_crs(input))) {
+  if (is.na(sf::st_crs(input))) {
     stop("Your dataset is missing an existing CRS definition.\nEither assign an appropriate CRS to your dataset or find one with\nthe crsuggest::guess_crs() function.", 
          call. = FALSE)
   }
   if (inherits(input, "RasterLayer") || inherits(input, "SpatRaster") || 
       inherits(input, "SpatVector")) {
-    input <- input %>% st_bbox() %>% st_as_sfc()
+    input <- input %>% sf::st_bbox() %>% sf::st_as_sfc()
   }
   if (any(grepl("Spatial", class(input)))) {
-    input <- st_as_sf(input)
+    input <- sf::st_as_sf(input)
   }
   if (inherits(input, "sfc")) {
-    input <- st_sf(input)
+    input <- sf::st_sf(input)
   }
-  crs_type <- dplyr::filter(crsuggest::crs_sf, crs_type == 
-                              type)
-  st_crs(crs_type) <- st_crs("EPSG:32663")
+  crs_type <- dplyr::filter(crs_sf, crs_type == type)
+  sf::st_crs(crs_type) <- sf::st_crs("EPSG:32663")
   
   if (drop_na) {
     crs_type <- dplyr::filter(crs_type, !is.na(crs_proj4))
@@ -55,52 +54,52 @@ suggest_crs_v2 <- function (input,
     }
     crs_type <- dplyr::filter(crs_type, crs_units == units)
   }
-  sf_proj <- st_transform(input, st_crs(crs_type))
-  geom_type <- unique(st_geometry_type(sf_proj))
+  sf_proj <- sf::st_transform(input, sf::st_crs(crs_type))
+  geom_type <- unique(sf::st_geometry_type(sf_proj))
   if (length(geom_type) > 1) {
-    geom_buf <- st_buffer(st_union(sf_proj), 100)
-    geom_type <- unique(st_geometry_type(geom_buf))
-    sf_proj <- st_sf(geom_buf)
+    geom_buf <- sf::st_buffer(sf::st_union(sf_proj), 100)
+    geom_type <- unique(sf::st_geometry_type(geom_buf))
+    sf_proj <- sf::st_sf(geom_buf)
   }
   if (geom_type %in% c("POINT", "MULTIPOINT")) {
     if (nrow(sf_proj) %in% 1:2) {
-      sf_proj <- st_buffer(sf_proj, 1000)
+      sf_proj <- sf::st_buffer(sf_proj, 1000)
     }
-    sf_poly <- sf_proj %>% st_union() %>% st_convex_hull()
+    sf_poly <- sf_proj %>% sf::st_union() %>% sf::st_convex_hull()
   }
   else if (geom_type %in% c("LINESTRING", "MULTILINESTRING")) {
-    sf_poly <- sf_proj %>% st_cast("MULTIPOINT") %>% st_union() %>% 
-      st_convex_hull()
+    sf_poly <- sf_proj %>% sf::st_cast("MULTIPOINT") %>% sf::st_union() %>% 
+      sf::st_convex_hull()
   }
   else if (geom_type %in% c("POLYGON", "MULTIPOLYGON")) {
-    sf_poly <- sf_proj %>% st_union()
+    sf_poly <- sf_proj %>% sf::st_union()
   }
-  reverse_buf <- st_buffer(sf_poly, -500)
+  reverse_buf <- sf::st_buffer(sf_poly, -500)
   crs_sub <- crs_type[reverse_buf, ]
   if (nrow(crs_sub) == 0) {
     rows <- nrow(crs_sub)
     bufdist <- -250
     while (rows == 0) {
-      new_buf <- st_buffer(sf_poly, bufdist)
+      new_buf <- sf::st_buffer(sf_poly, bufdist)
       crs_sub <- crs_type[new_buf, ]
       rows <- nrow(crs_sub)
       bufdist <- bufdist/2
     }
   }
-  vertex_count <- mapview::npts(sf_poly)
+  vertex_count <- npts(sf_poly)
   sf_poly2 <- sf_poly
   if (vertex_count > 500) {
     tol <- 5000
     vc <- vertex_count
     previous_vc <- vc
     while (vc > 500) {
-      sf_poly <- st_simplify(sf_poly, dTolerance = tol)
-      if (st_is_empty(sf_poly)) {
+      sf_poly <- sf::st_simplify(sf_poly, dTolerance = tol)
+      if (sf::st_is_empty(sf_poly)) {
         vc <- 499
         sf_poly <- sf_poly2
       }
       else {
-        vc <- mapview::npts(sf_poly)
+        vc <- npts(sf_poly)
         tol <- tol * 2
       }
       if (vc == previous_vc) 
@@ -108,10 +107,15 @@ suggest_crs_v2 <- function (input,
       previous_vc <- vc
     }
   }
-  crs_output <- crs_sub %>% dplyr::mutate(hausdist = as.numeric(st_distance(sf_poly, 
-                                                                            ., which = "Hausdorff"))) %>% st_drop_geometry() %>% 
-    dplyr::arrange(hausdist, desc(crs_code)) %>% dplyr::filter(dplyr::row_number() <= 
-                                                                 limit) %>% dplyr::select(-hausdist)
+  crs_output <- crs_sub %>% 
+    dplyr::mutate(hausdist = as.numeric(sf::st_distance(sf_poly, 
+                                                        ., which = "Hausdorff"))) %>% 
+    sf::st_drop_geometry() %>% 
+    dplyr::arrange(hausdist, desc(crs_code)) %>%
+    dplyr::filter(dplyr::row_number() <= 
+                    limit) %>% 
+    dplyr::select(-hausdist)
+  
   return(crs_output)
 }
 
@@ -162,21 +166,21 @@ guess_crs_v2 <- function (input,
       target_coords <- target_location
     }
   }
-  target_sf <- target_coords %>% st_point() %>% st_sfc(crs = 4326) %>% 
-    st_sf()
+  target_sf <- target_coords %>% sf::st_point() %>% sf::st_sfc(crs = 4326) %>% 
+    sf::st_sf()
   crs_options <- suggest_crs_v2(target_sf, limit = 50, 
                                 units = units) %>% dplyr::filter(!is.na(crs_units))
   if (inherits(input, "RasterLayer") || inherits(input, "SpatRaster") || 
       inherits(input, "SpatVector")) {
-    input <- input %>% st_bbox() %>% st_as_sfc()
+    input <- input %>% sf::st_bbox() %>% sf::st_as_sfc()
   }
   if (any(grepl("Spatial", class(input)))) {
-    input <- st_as_sf(input)
+    input <- sf::st_as_sf(input)
   }
   if (inherits(input, "sfc")) {
-    input <- st_sf(input)
+    input <- sf::st_sf(input)
   }
-  no_crs_centroid <- suppressMessages(suppressWarnings(st_centroid(st_union(input))))
+  no_crs_centroid <- suppressMessages(suppressWarnings(sf::st_centroid(sf::st_union(input))))
   codes <- crs_options$crs_code
   message("Evaluating CRS options...")
   dist_df <- purrr::map_df(codes, ~{
@@ -186,7 +190,9 @@ guess_crs_v2 <- function (input,
                                         as.integer(.x))
     dist <- sf::st_distance(target_sf_transformed, centroid_with_crs) %>% 
       units::set_units("km") %>% as.numeric()
-    dplyr::tibble(crs_code = .x, dist_km = dist)
+    dplyr::tibble(crs_code = .x, 
+                  dist_km = dist)
+    
   }) %>% dplyr::arrange(dist_km, dplyr::desc(crs_code)) %>% 
     dplyr::slice_min(dist_km, n = n_return)
   top_crs <- dist_df$crs_code[1]
@@ -212,3 +218,23 @@ guess_crs_v2 <- function (input,
 }
 
 
+
+# From mapview
+npts <- function(x) {
+  sum(nVerts(sf::st_geometry(x)))
+}
+
+nVerts <- function (x) {
+  out = if (is.list(x)) 
+    sapply(sapply(x, nVerts), sum)
+  else {
+    if (is.matrix(x)) 
+      nrow(x)
+    else {
+      if (sf::st_is_empty(x)) 
+        0
+      else 1
+    }
+  }
+  unname(out)
+}
