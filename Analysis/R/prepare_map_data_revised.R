@@ -70,7 +70,7 @@ cases <- dplyr::filter(cases, !is.na(.data[[cases_column]])) %>%
 # Shapefile manipulations -------------------------------------------------
 
 # Build shapefiles
-cases <- taxdat::build_shapfiles_from_geojson(cases)
+cases <- taxdat::build_shapefiles_from_geojson(cases)
 
 # Keep only certain admin level depth
 # (This seems to be a rest from previous implementation which we do not use anymore)

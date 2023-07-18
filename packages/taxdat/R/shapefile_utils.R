@@ -9,7 +9,7 @@
 #'
 #' @examples
 #' 
-build_shapfiles_from_geojson <- function(cases) {
+build_shapefiles_from_geojson <- function(cases) {
   index <- sf::st_geometry_type(cases) == sf::st_geometry_type(sf::st_geometrycollection())
   sf::st_geometry(cases[index, ]) <- sf::st_as_sfc(lapply(sf::st_geometry(cases[index, ]), sf::st_collection_extract, type = "POLYGON"))
   
@@ -182,7 +182,7 @@ fix_projection <- function(shapefiles) {
   
   # Problematic shapefiles have unreasonable numbers in coordinates
   issues <- bboxes %>% 
-    dplyr::filter(xmin < -180 | xmax > 180 | ymin < -180 | ymax > 180)
+    dplyr::filter(xmin < -180 | xmax > 180 | ymin < -90 | ymax > 90)
   
   # If no issues return
   if (nrow(issues) == 0) {
