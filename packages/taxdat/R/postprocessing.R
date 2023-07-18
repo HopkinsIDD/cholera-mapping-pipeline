@@ -144,6 +144,7 @@ postprocess_wrapper <- function(config,
                                 redo_aux = FALSE,
                                 fun_name = "mai",
                                 fun = NULL, 
+                                fun_opts = NULL,
                                 prefix = NULL,
                                 suffix = NULL,
                                 data_dir = "cholera-mapping-output",
@@ -178,8 +179,10 @@ postprocess_wrapper <- function(config,
                                       data_dir = data_dir)
     
     # Run post-processinf function
-    res <- fun(config_list = config_list,
-               redo_aux = redo_aux) %>% 
+    res <- do.call(fun, 
+                   c(list(config_list = config_list,
+                          redo_aux = redo_aux), 
+                     fun_opts)) %>% 
       dplyr::mutate(postproc_var = fun_name)
     
     # Save result
@@ -285,19 +288,17 @@ run_all <- function(
       .errorhandling = error_handling,
       .packages = export_packages) %do% { 
         
-        args <- c(
-          list(config = config,
-               redo = redo_interm,
-               redo_aux = redo_aux,
-               prefix = prefix,
-               suffix = suffix,
-               fun_name = fun_name,
-               fun = fun,
-               output_dir = interm_dir,
-               data_dir = data_dir,
-               verbose = verbose),
-          fun_opts
-        )
+        args <- list(config = config,
+                     redo = redo_interm,
+                     redo_aux = redo_aux,
+                     prefix = prefix,
+                     suffix = suffix,
+                     fun_name = fun_name,
+                     fun = fun,
+                     output_dir = interm_dir,
+                     data_dir = data_dir,
+                     verbose = verbose,
+                     fun_opts = fun_opts)
         
         res <- do.call(postprocess_wrapper, args)
         
@@ -404,7 +405,8 @@ postprocess_adm0_sf <- function(config_list,
 #'
 #' @examples
 postprocess_risk_category <- function(config_list,
-                                      redo_aux = FALSE) {
+                                      redo_aux = FALSE,
+                                      cum_prob_thresh = .95) {
   
   # Get genquant data
   genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
@@ -415,9 +417,12 @@ postprocess_risk_category <- function(config_list,
   # Get the population per output
   output_location_pop <- genquant$summary("pop_loc_output")
   
-  # Get mean annual incidence summary
-  risk_cat <- genquant$summary("location_risk_cat", mode = compute_mode) %>% 
-    dplyr::mutate(risk_cat = risk_cat_dict[mode],
+  # Get proportion
+  risk_cat <- genquant$summary("location_risk_cat",
+                               compute_cumul_proportion_thresh,
+                               .args = list(thresh = cum_prob_thresh)
+                               ) %>% 
+    dplyr::mutate(risk_cat = risk_cat_dict[risk_cat],
                   risk_cat = factor(risk_cat, levels = risk_cat_dict),
                   pop = output_location_pop$mean) %>% 
     dplyr::bind_cols(get_output_sf_reload(config_list = config_list,
@@ -747,6 +752,35 @@ compute_mode <- function(v) {
   uniqv[which.max(tabulate(match(v, uniqv)))]
 }
 
+
+#' compute_proportions
+#'
+#' @param v 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+compute_cumul_proportion_thresh <- function(v, thresh = .95) {
+  
+  counts <- table(v)
+  
+  # Complete with all cases
+  u_cats <- seq_along(get_risk_cat_dict())
+  all_counts <- rep(0, length(u_cats))
+  names(all_counts) <- u_cats
+  all_counts[names(counts)] <- counts
+  
+  # Compute cumulative probability of being in a risk category larger or equal
+  res <- all_counts/sum(all_counts)
+  cum_prob <- cumsum(rev(res))
+  
+  c(
+    "risk_cat" = dplyr::first(rev(names(all_counts))[which(cum_prob >= thresh)]) %>% as.numeric(),
+    "cumul_prob" = cum_prob[dplyr::first(which(cum_prob >= thresh))]
+    )
+}
+
 #' Title
 #'
 #' @return
@@ -756,7 +790,6 @@ compute_mode <- function(v) {
 get_country_from_string <- function(x) {
   stringr::str_extract(x, "[A-Z]{3}")
 }
-
 
 #' custom_summaries
 #' Custom summaries to get the 95% CrI

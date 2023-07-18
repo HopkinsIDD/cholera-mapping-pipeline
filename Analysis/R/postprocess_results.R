@@ -173,7 +173,7 @@ risk_categories <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_risk_category,
   fun_name = "risk_categories",
-  fun_opts = NULL,
+  fun_opts = list(cum_prob_thresh = 0.95),
   prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
