@@ -203,7 +203,8 @@ sf::st_geometry(cases) <- NULL
 sf_cases <- sf::st_as_sf(
   dplyr::inner_join(cases,
                     shapefiles,
-                    by = c("attributes.location_period_id" = "location_period_id")
+                    by = c("attributes.location_period_id" = "location_period_id",
+                           "location_name" = "location_name")
   )
 )
 
