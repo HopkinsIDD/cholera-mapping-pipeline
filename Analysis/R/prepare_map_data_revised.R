@@ -72,12 +72,6 @@ cases <- dplyr::filter(cases, !is.na(.data[[cases_column]])) %>%
 # Build shapefiles
 cases <- taxdat::build_shapefiles_from_geojson(cases)
 
-# Keep only certain admin level depth
-# (This seems to be a rest from previous implementation which we do not use anymore)
-cases <- taxdat::truncate_cases_by_location(cases = cases,
-                                            config = config)
-
-
 # Sanity check (There should be at least one report)
 if (nrow(cases) == 0) {
   stop("No primary, non-NA observations were found.")

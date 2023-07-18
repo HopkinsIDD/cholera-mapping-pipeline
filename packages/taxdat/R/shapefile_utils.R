@@ -240,30 +240,3 @@ fix_projection <- function(shapefiles) {
   ) 
 }
 
-#' truncate_cases_by_location
-#' NOTE: we do not use this anymore and this seems to be a rest from the previous
-#' implementation of the pipeline
-#' @param cases 
-#' @param config 
-#'
-#' @return
-#' @export
-#'
-#' @examples
-#' 
-truncate_cases_by_location <- function(cases,
-                                       config) {
-  if ("truncate" %in% names(config)) {
-    if (!all(c("method", "smallest_spatial_scale") %in% names(config$truncate))) {
-      stop("In order to truncate, we require both an aggregation `method` and `smallest_spatial_scale` to truncate to.")
-    }
-    if (config$truncate$method == "truncate") {
-      cases$depth <- stringr::str_count(pattern = ":", cases$location_name) / 2
-      cases <- cases %>% dplyr::filter(depth <= config$truncate$smallest_spatial_scale)
-    } else {
-      stop(paste("method", method, "is not implemented"))
-    }
-  }
-  
-  cases
-}
