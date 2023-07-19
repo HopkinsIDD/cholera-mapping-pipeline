@@ -69,8 +69,12 @@ cases <- dplyr::filter(cases, !is.na(.data[[cases_column]])) %>%
 
 # Shapefile manipulations -------------------------------------------------
 
-# Build shapefiles
-cases <- taxdat::build_shapefiles_from_geojson(cases)
+# Fix geometry collections
+cases <- taxdat::fix_geomcollections(cases)
+
+# Drop observations with missing shapefiles
+cases <- taxdat::drop_missing_shapefiles(cases = cases,
+                                         cases_column = cases_column)
 
 # Sanity check (There should be at least one report)
 if (nrow(cases) == 0) {
@@ -78,10 +82,6 @@ if (nrow(cases) == 0) {
 } else {
   print(paste(nrow(cases), "observations were found."))
 }
-
-# Drop observations with missing shapefiles
-cases <- taxdat::drop_missing_shapefiles(cases = cases,
-                                         cases_column = cases_column)
 
 # Get the set of unique valid shapefiles for spatial operations in database
 shapefiles <- taxdat::get_valid_shapefiles(cases)

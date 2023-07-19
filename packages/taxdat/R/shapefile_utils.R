@@ -1,23 +1,4 @@
 
-#' build_shapfiles_from_geojson
-#' Build the sf objects from the geojsons
-#' 
-#' @param cases 
-#'
-#' @return
-#' @export
-#'
-#' @examples
-#' 
-build_shapefiles_from_geojson <- function(cases) {
-  index <- sf::st_geometry_type(cases) == sf::st_geometry_type(sf::st_geometrycollection())
-  sf::st_geometry(cases[index, ]) <- sf::st_as_sfc(lapply(sf::st_geometry(cases[index, ]), sf::st_collection_extract, type = "POLYGON"))
-  
-  cases %>%
-    dplyr::mutate(shapefile.exists = !is.na(sf::st_dimension(geojson)) & (sf::st_dimension(geojson) > 0))
-}
-
-
 #' clip_shapefiles_to_adm0
 #'
 #' @param iso_code 
@@ -71,6 +52,11 @@ clip_shapefiles_to_adm0 <- function(iso_code,
 #' 
 drop_missing_shapefiles <- function(cases,
                                     cases_column) {
+  
+  # Flag missing shapefiles
+  cases <- cases %>%
+    dplyr::mutate(shapefile.exists = !is.na(sf::st_dimension(geojson)) & 
+                    (sf::st_dimension(geojson) > 0))
   
   if (sum(!cases$shapefile.exists) > 0) {
     warning("There was a problem with at least one shapefile. See output for details.")
