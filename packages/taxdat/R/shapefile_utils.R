@@ -98,7 +98,8 @@ get_valid_shapefiles <- function(cases) {
   shapefiles <- cases %>%
     dplyr::group_by(attributes.location_period_id) %>%
     dplyr::slice(1) %>% 
-    dplyr::rename(location_period_id = attributes.location_period_id)
+    dplyr::rename(location_period_id = attributes.location_period_id) %>% 
+    dplyr::ungroup()
   
   shapefiles$valid <- sf::st_is_valid(shapefiles)
   if (!all(shapefiles$valid)) {
@@ -146,19 +147,20 @@ fix_geomcollections <- function(shapefiles,
                                 geom_col = "geom") {
   
   for (i in 1:nrow(shapefiles)) {
+    
     tmp <- shapefiles[i,]
+    
     if (stringr::str_detect(sf::st_geometry_type(tmp), "COLL")) {
+      
+      cat("---- Found GEOMETRYCOLLECTION, converting to MULTIPOLYGON. \n")
+      
       new_geom <- tmp  %>% 
         sf::st_collection_extract(type = "POLYGON") %>% 
         dplyr::summarise(geom = sf::st_union(!!rlang::sym(geom_col)))
       
-      # Reset name of geom column for sf
-      sf::st_geometry(new_geom) <- "geom"
-      
       # Overwrite the geometry
       sf::st_geometry(shapefiles[i, ]) <- sf::st_geometry(new_geom)
-      
-      cat("---- Found GEOMETRYCOLLECTION, converting to MULTIPOLYGON. \n")
+      sf::st_geometry(shapefiles) <- geom_col
     }
   }
   
