@@ -113,17 +113,8 @@ get_valid_shapefiles <- function(cases) {
     print("An attempt was made to fix the invalid shapefiles")
   }
   
-  ## This is not a long term solution in any capacity
-  if (any(grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles)))) {
-    warning("Geometry collections present in locations.  See output for details")
-    print(paste("The following location periods are affected:", paste(shapefiles[grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles)), ][["location_period_id"]], collapse = ", ")))
-    warning("Attempting to fix geometry collections, but not in a smart way.  Please fix the underlying data instead.")
-    problem_indices <- which(grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles)))
-    tmp2 <- do.call(sf:::rbind.sf, lapply(shapefiles$geojson[problem_indices], function(x) {
-      sf::st_sf(sf::st_sfc(x[[1]]))
-    }))
-    shapefiles[["geojson"]][problem_indices] <- sf::st_geometry(tmp2)
-  }
+  ## Fix geometry collections
+  shapefiles <- fix_geomcollections(shapefiles, geom_col = "geojson")
   
   # Make sf object to multiploygons to be consistent
   shapefiles <- sf::st_cast(shapefiles, "MULTIPOLYGON") %>%
@@ -143,6 +134,32 @@ get_valid_shapefiles <- function(cases) {
   shapefiles
 }
 
+
+#' Fix geometry collections
+#'
+#' @param shapefiles shapefiles to modify (sfc object)
+#'
+#' @return
+#' @export
+#'
+fix_geomcollections <- function(shapefiles,
+                                geom_col = "geom") {
+  
+  for (i in 1:nrow(shapefiles)) {
+    tmp <- shapefiles[i,]
+    if (stringr::str_detect(sf::st_geometry_type(tmp), "COLL")) {
+      new_geom <- tmp  %>% 
+        sf::st_collection_extract(type = "POLYGON") %>% 
+        dplyr::summarise(geom = sf::st_union(!!rlang::sym(geom_col)))
+      
+      sf::st_geometry(shapefiles[i, ]) <- sf::st_geometry(new_geom)
+      
+      cat("---- Found GEOMETRYCOLLECTION, converting to MULTIPOLYGON. \n")
+    }
+  }
+  
+  shapefiles
+}
 
 
 #' fix_projection

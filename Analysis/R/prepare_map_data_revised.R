@@ -69,9 +69,6 @@ cases <- dplyr::filter(cases, !is.na(.data[[cases_column]])) %>%
 
 # Shapefile manipulations -------------------------------------------------
 
-# Fix geometry collections
-cases <- taxdat::fix_geomcollections(cases)
-
 # Drop observations with missing shapefiles
 cases <- taxdat::drop_missing_shapefiles(cases = cases,
                                          cases_column = cases_column)
