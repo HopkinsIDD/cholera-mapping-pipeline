@@ -212,13 +212,22 @@ fix_projection <- function(shapefiles) {
       if (inherits(crs_fix, "try-error")) {
         cat("-- Failed to fix crs for following shapefile\n")
         print(this_issue)
-        return(this_issue %>% 
-                 dplyr::mutate(reprojection_epsg = "failed"))
+        
+        sf::st_crs(this_issue) <- 4326
+        this_issue <- this_issue %>% 
+          dplyr::mutate(reprojection_epsg = "failed")
+        
       } else {
         sf::st_crs(this_issue) <- crs_fix$crs_code %>% as.numeric()
-        this_issue %>% 
+        
+        this_issue <- this_issue %>% 
           dplyr::mutate(reprojection_epsg = crs_fix$crs_code)
       }
+      
+      # Project back to WGS84
+      this_issue <- sf::st_transform(this_issue, 4326)
+      
+      this_issue
     })
   
   failed_fixes <- fixed_shapefiles %>% 
@@ -228,9 +237,6 @@ fix_projection <- function(shapefiles) {
     cat("---- Failed re-projecting for", nrow(failed_fixes), "shapefiles. These will be dropped. \n")
     print(failed_fixes)
   } 
-  
-  # Project back to WGS84
-  fixed_shapefiles <- sf::st_transform(fixed_shapefiles, 4326)
   
   # Indicate if any shapefile was reprojected
   dplyr::bind_rows(
