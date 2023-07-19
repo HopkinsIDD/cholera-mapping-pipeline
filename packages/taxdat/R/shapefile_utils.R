@@ -116,7 +116,7 @@ get_valid_shapefiles <- function(cases) {
   ## Fix geometry collections
   shapefiles <- fix_geomcollections(shapefiles, geom_col = "geojson")
   
-  # Make sf object to multiploygons to be consistent
+  # Make sf object to multipolygons to be consistent
   shapefiles <- sf::st_cast(shapefiles, "MULTIPOLYGON") %>%
     dplyr::rename(geom = geojson)
   
@@ -152,6 +152,10 @@ fix_geomcollections <- function(shapefiles,
         sf::st_collection_extract(type = "POLYGON") %>% 
         dplyr::summarise(geom = sf::st_union(!!rlang::sym(geom_col)))
       
+      # Reset name of geom column for sf
+      sf::st_geometry(new_geom) <- "geom"
+      
+      # Overwrite the geometry
       sf::st_geometry(shapefiles[i, ]) <- sf::st_geometry(new_geom)
       
       cat("---- Found GEOMETRYCOLLECTION, converting to MULTIPOLYGON. \n")
