@@ -492,7 +492,7 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
 #' @details Code follows taxdat::read_taxonomy_data_api template.
 #' @return An sf object containing data extracted from the database
 #' @export
-read_taxonomy_data_sql <- suppressWarnings(function(username, password, locations = NULL, time_left = NULL,
+read_taxonomy_data_sql <- function(username, password, locations = NULL, time_left = NULL,
                                    time_right = NULL, uids = NULL, discard_incomplete_observation_collections = TRUE, unified_dataset_behaviour = "drop", host = "db.cholera-taxonomy.middle-distance.com") {
   if (missing(username) | missing(password)) {
     stop("Please provide username and password to connect to the taxonomy database.")
@@ -588,11 +588,11 @@ read_taxonomy_data_sql <- suppressWarnings(function(username, password, location
 
   # Run query for observations
   obs_query <- glue::glue_sql(paste(obs_query, filters, ";"), .con = conn)
-  observations <- sf::st_as_sf(sf::st_read(conn, query = obs_query))
+  observations <- suppressWarnings(sf::st_as_sf(sf::st_read(conn, query = obs_query)))
   if (nrow(observations) == 0) {
     stop(paste0("No observations found using query ||", obs_query, "||"))
   }
 
   # observations <- dplyr::filter(observations, !is.na(nchar(geojson)))
   return(observations)
-})
+}
