@@ -414,6 +414,33 @@ postprocess_lp_shapefiles <- function(config_list,
     dplyr::arrange(admin_level, location_name)
 }
 
+#' postprocess_lp_obs_counts
+#' Extracts observation counts by location period
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_lp_obs_counts <- function(config_list,
+                                      redo_aux = FALSE) {
+  
+  stan_input <- taxdat::read_file_of_type(config_list$file_names$stan_input_filename, "stan_input")
+  
+  cases_column <- taxdat::check_case_definition(config_list$case_definition) %>% 
+    taxdat::case_definition_to_column_name(database = T)
+  
+  stan_input$sf_cases_resized %>% 
+    sf::st_drop_geometry() %>% 
+    dplyr::mutate(imputed = stringr::str_detect(OC_UID, "impute")) %>% 
+    dplyr::group_by(locationPeriod_id, location_name, admin_level, imputed) %>% 
+    dplyr::mutate(cases = !!rlang::sym(cases_column)) %>% 
+    dplyr::summarise(n_obs = n(),
+                     n_cases = sum(cases),
+                     mean_cases = mean(cases)) %>% 
+    dplyr::ungroup()
+}
+
 #' postprocess_risk_category
 #'
 #' @param config_list 

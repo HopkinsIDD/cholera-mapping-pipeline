@@ -89,9 +89,9 @@ all_country_sf <- run_all(
   output_file_type = "rds",
   verbose = opt$verbose) %>% 
   mutate(intended_run = TRUE)
- 
 
-# All the country-level shapefiles for overlay
+
+# All the data shapfiles for spatial coverage
 all_shapefiles <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_lp_shapefiles,
@@ -108,6 +108,25 @@ all_shapefiles <- run_all(
   data_dir = opt$data_dir,
   output_file_type = "rds",
   verbose = opt$verbose) 
+
+# All the obveration counts
+all_obs_counts <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_lp_obs_counts,
+  fun_name = "obs_counts",
+  fun_opts = NULL,
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  inter_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose) 
+
 
 # Get outputs -------------------------------------------------------------
 
@@ -436,3 +455,13 @@ ggsave(p_fig9,
        width = 10,
        height = 8, 
        dpi = 300)
+
+
+# Table with obs counts per admin level -----------------------------------
+
+all_obs_counts %>% 
+  mutate(admin_level = str_c("ADM", admin_level)) %>% 
+  bind_rows(all_obs_counts %>% mutate(admin_level = "all")) %>% 
+  group_by(country, admin_level, imputed) %>% 
+  summarise(n_loc = n(),
+            n_obs = sum(n_obs))
