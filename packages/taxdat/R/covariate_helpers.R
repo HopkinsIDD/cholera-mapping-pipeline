@@ -1407,7 +1407,7 @@ get_country_admin_units <- function(iso_code,
       dplyr::mutate(source = "rgeoboundaries")
     
   } else {
-    message("Using the gadm shapefile for this country at admin level", admin_level)
+    message("Using the gadm shapefile for this country at admin level ", admin_level)
     boundary_sf <- geodata::gadm(country = iso_code, 
                                  level = admin_level, 
                                  path = tempdir()) 
