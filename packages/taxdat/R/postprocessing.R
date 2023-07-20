@@ -352,6 +352,31 @@ postprocess_mean_annual_incidence <- function(config_list,
   res
 }
 
+
+#' postprocess_mai_adm0_cases
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_mai_adm0_cases <- function(config_list,
+                                       redo_aux = FALSE) {
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # This assumes that the first output shapefile is always the national-level shapefile
+  mai_adm0 <- genquant$draws("location_mean_cases_output[1]") %>% 
+    posterior::as_draws() %>% 
+    posterior::as_draws_df() %>% 
+    dplyr::as_tibble() %>% 
+    dplyr::rename(country_cases = `location_mean_cases_output[1]`)
+  
+  
+  mai_adm0
+}
+
 #' postprocess_coef_of_variation
 #' 
 #' @param config_list config list
@@ -421,7 +446,7 @@ postprocess_risk_category <- function(config_list,
   risk_cat <- genquant$summary("location_risk_cat",
                                compute_cumul_proportion_thresh,
                                .args = list(thresh = cum_prob_thresh)
-                               ) %>% 
+  ) %>% 
     dplyr::mutate(risk_cat = risk_cat_dict[risk_cat],
                   risk_cat = factor(risk_cat, levels = risk_cat_dict),
                   pop = output_location_pop$mean) %>% 
@@ -778,7 +803,7 @@ compute_cumul_proportion_thresh <- function(v, thresh = .95) {
   c(
     "risk_cat" = dplyr::first(rev(names(all_counts))[which(cum_prob >= thresh)]) %>% as.numeric(),
     "cumul_prob" = cum_prob[dplyr::first(which(cum_prob >= thresh))]
-    )
+  )
 }
 
 #' Title
@@ -856,4 +881,21 @@ get_coverage <- function(df,
       dplyr::summarise(frac_covered = sum(in_cri)/n()) %>% 
       dplyr::mutate(cri = w)
   })
+}
+
+#' aggregate_and_summarise_case_draws
+#'
+#' @param df 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+aggregate_and_summarise_case_draws <- function(df, 
+                                               case_col = "country_cases") {
+  df %>% 
+    dplyr::group_by(.draw) %>% 
+    dplyr::summarise(tot_cases = sum(!!rlang::sym(case_col))) %>% 
+    posterior::as_draws() %>% 
+    posterior::summarise_draws()
 }
