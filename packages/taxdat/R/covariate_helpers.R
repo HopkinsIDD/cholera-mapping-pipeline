@@ -1275,7 +1275,7 @@ get_pop_weights <- function(res_space,
         collapse = ','))}`}
       FROM covariates.pop_1_years_1_1 r, {`{DBI::SQL(intersections_table)}`} g
       WHERE ST_Intersects(rast, geom)
-      GROUP BY g.location_period_id, g.rid, g.x, g.y",
+      GROUP BY g.location_period_id, g.rid, g.x, g.y, g.lp_covered, g.area_ratio",
                           .con = conn_pg
   )
   
