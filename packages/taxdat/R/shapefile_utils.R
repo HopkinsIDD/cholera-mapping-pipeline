@@ -201,18 +201,22 @@ fix_projection <- function(shapefiles) {
   
   cat("---- Found", nrow(issues), "shapefiles with coordinate projection issues. Trying to fix. \n")
   
+  # Get reference point to which to attempt to project to
+  ref_shapefiles <- shapefiles[-issues$shapefile, ]
+  
+  
   fixed_shapefiles <- purrr::map_df(
     issues$shapefile,
     function(x) {
       
       this_issue <- shapefiles[x, ]
       
-      # Get reference point to which to attempt to project to
-      ref_shapefiles <- shapefiles[-issues$shapefile, ]
-      
       # To be smarter try to use location nesting
       # This will eventually return the national level shapefile if 
       # no containing subnational units are in the data
+      
+      # Initialize
+      new_ref <- ref_shapefiles
       for (i in 1:get_admin_level(this_issue$location_name)) {
         # Get the name of the nesting location
         upper_level <- move_up_location_hierarchy(this_issue$location_name, n_steps = i)
