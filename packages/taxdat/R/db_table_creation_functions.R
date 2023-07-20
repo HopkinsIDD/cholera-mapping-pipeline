@@ -64,6 +64,10 @@ make_grid_lp_mapping_table <- function(conn_pg,
 }
 
 #' Make grid intersections table
+#' The aim of this function is to provide the intersection geometries for all 
+#' location period shapefiles that either touch a grid cell border, or that are
+#' completely covered by a grid cell. These intersections will then be used to
+#' compute population-weighted spatial fractions for the mapping.
 #'
 #' @param conn_pg 
 #' @param full_grid_name 
@@ -86,8 +90,9 @@ make_grid_intersections_table <- function(conn_pg,
   DBI::dbClearResult(DBI::dbSendStatement(
     conn_pg,
     glue::glue_sql("CREATE TABLE {`{DBI::SQL(intersections_table)}`} AS (
-                  SELECT location_period_id , b.rid, b.x, b.y, ST_Intersection(b.geom, a.geom) as geom,
-                  g.geom as grid_centroid
+                  SELECT location_period_id , b.rid, b.x, b.y, 
+                  ST_CoveredBy(a.geom, b.geom) as lp_covered,
+                  ST_Intersection(b.geom, a.geom) as geom, g.geom as grid_centroid
                   FROM {`{DBI::SQL(lp_name)}`} a
                   JOIN {`{DBI::SQL(paste0(full_grid_name, '_polys'))}`} b
                   ON ST_Intersects(b.geom, ST_Boundary(a.geom)) OR ST_CoveredBy(a.geom, b.geom)
