@@ -92,6 +92,7 @@ make_grid_intersections_table <- function(conn_pg,
     glue::glue_sql("CREATE TABLE {`{DBI::SQL(intersections_table)}`} AS (
                   SELECT location_period_id , b.rid, b.x, b.y, 
                   ST_CoveredBy(a.geom, b.geom) as lp_covered,
+                  ST_Area(a.geom)/ST_Area(b.geom) as area_ratio,
                   ST_Intersection(b.geom, a.geom) as geom, g.geom as grid_centroid
                   FROM {`{DBI::SQL(lp_name)}`} a
                   JOIN {`{DBI::SQL(paste0(full_grid_name, '_polys'))}`} b
