@@ -16,7 +16,7 @@ library(taxdat)
 # User-supplied options
 opt_list <- list(
   make_option(c("-d", "--config_dir"), 
-              default = "./Analysis/cholera-configs/postprocessing_test_2",
+              default = "./Analysis/cholera-configs/postprocessing_test",
               action ="store", type = "character", help = "Directory"),
   make_option(opt_str = c("-r", "--redo"), type = "logical",
               default = T, help = "redo final outputs"),
@@ -129,6 +129,26 @@ all_obs_counts <- run_all(
 
 
 # Get outputs -------------------------------------------------------------
+
+# Get the MAI summary at all admin levels 
+mai_overall_stats <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_mai_adm0_cases,
+  fun_name = "mai_adm0_draws",
+  fun_opts = NULL,
+  postprocess_fun = aggregate_and_summarise_case_draws,
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  inter_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+
 
 # Get the MAI summary at all admin levels 
 mai_stats <- run_all(
