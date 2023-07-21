@@ -352,6 +352,31 @@ postprocess_mean_annual_incidence <- function(config_list,
   res
 }
 
+
+#' postprocess_mai_adm0_cases
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_mai_adm0_cases <- function(config_list,
+                                       redo_aux = FALSE) {
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # This assumes that the first output shapefile is always the national-level shapefile
+  mai_adm0 <- genquant$draws("location_mean_cases_output[1]") %>% 
+    posterior::as_draws() %>% 
+    posterior::as_draws_df() %>% 
+    dplyr::as_tibble() %>% 
+    dplyr::rename(country_cases = `location_mean_cases_output[1]`)
+  
+  
+  mai_adm0
+}
+
 #' postprocess_coef_of_variation
 #' 
 #' @param config_list config list
@@ -904,6 +929,23 @@ get_coverage <- function(df,
   })
 }
 
+#' aggregate_and_summarise_case_draws
+#'
+#' @param df 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+aggregate_and_summarise_case_draws <- function(df, 
+                                               case_col = "country_cases") {
+  df %>% 
+    dplyr::group_by(.draw) %>% 
+    dplyr::summarise(tot_cases = sum(!!rlang::sym(case_col))) %>% 
+    posterior::as_draws() %>% 
+    posterior::summarise_draws()
+}
+  
 #' tidy_shapefiles
 #'
 #' @param df 
@@ -915,7 +957,7 @@ get_coverage <- function(df,
 tidy_shapefiles <- function(df) {
   
   df %>% 
-    # Remove wholes 
+    # Remove holes 
     nngeo::st_remove_holes() %>% 
     # Remove small islands 
     rmapshaper::ms_filter_islands(min_area = 1e9) %>% 
