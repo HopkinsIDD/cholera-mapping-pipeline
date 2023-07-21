@@ -1268,13 +1268,14 @@ get_pop_weights <- function(res_space,
                                       covar_TR_seq = covar_TR_seq)
   
   query <- glue::glue_sql("
-      SELECT g.location_period_id, g.rid, g.x, g.y, {`{DBI::SQL(
+      SELECT g.location_period_id, g.rid, g.x, g.y, g.lp_covered, g.area_ratio,
+      {`{DBI::SQL(
       paste0(
         paste0('sum((ST_SummaryStats(ST_Clip(rast,', {pop_1km_bands$ind}, ', geom, true), 1, true)).sum) as values_', {pop_1km_bands$ind}),
         collapse = ','))}`}
       FROM covariates.pop_1_years_1_1 r, {`{DBI::SQL(intersections_table)}`} g
       WHERE ST_Intersects(rast, geom)
-      GROUP BY g.location_period_id, g.rid, g.x, g.y",
+      GROUP BY g.location_period_id, g.rid, g.x, g.y, g.lp_covered, g.area_ratio",
                           .con = conn_pg
   )
   
@@ -1291,7 +1292,7 @@ get_pop_weights <- function(res_space,
       tidyr::pivot_longer(cols = dplyr::contains("values"),
                           values_to = "pop_grid"),
     by = c("rid", "x", "y", "name")) %>%
-    dplyr::group_by(location_period_id, rid, x, y, name) %>%
+    dplyr::group_by(location_period_id, rid, x, y, lp_covered, area_ratio, name) %>%
     dplyr::summarise(pop_weight = pop_1km/pop_grid) %>%
     # Set fractions to 1 for all pixels contained within location periods
     # which were not selected by design in the intersections
