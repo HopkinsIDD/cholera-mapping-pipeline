@@ -1399,27 +1399,12 @@ get_country_admin_units <- function(iso_code,
                     shapeType) %>% 
       dplyr::mutate(source = "gadm")
     
-  } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA") & admin_level == 0){
+  } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA")){
     
-    message("Using the rgeoboundaries national shapefile for this country.")
+    message("Using the rgeoboundaries shapefiles for this country at admin level ", admin_level)
     
-    boundary_sf <- rgeoboundaries::gb_adm0(iso_code) %>%
-      dplyr::select(shapeName, shapeID, shapeType, geometry) %>% 
-      dplyr::mutate(source = "rgeoboundaries")
-    
-  } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA") & admin_level == 1){
-    
-    message("Using the rgeoboundaries shapefiles for this country's admin1 units.")
-    
-    boundary_sf <- rgeoboundaries::gb_adm1(iso_code) %>%
-      dplyr::select(shapeName, shapeID, shapeType, geometry) %>% 
-      dplyr::mutate(source = "rgeoboundaries")
-    
-  } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA") & admin_level == 2){
-    
-    message("Using the rgeoboundaries shapefiles for this country's admin2 units.")
-    
-    boundary_sf <- rgeoboundaries::gb_adm2(iso_code) %>%
+    boundary_sf <- rgeoboundaries::geoboundaries(country = iso_code,
+                                                 adm_lvl = paste0('adm',admin_level)) %>%
       dplyr::select(shapeName, shapeID, shapeType, geometry) %>% 
       dplyr::mutate(source = "rgeoboundaries")
     
