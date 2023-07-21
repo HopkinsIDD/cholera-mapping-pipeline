@@ -16,7 +16,7 @@ library(taxdat)
 # User-supplied options
 opt_list <- list(
   make_option(c("-d", "--config_dir"), 
-              default = "./Analysis/cholera-configs/postprocessing_test_2",
+              default = "./Analysis/cholera-configs/postprocessing_test",
               action ="store", type = "character", help = "Directory"),
   make_option(opt_str = c("-r", "--redo"), type = "logical",
               default = T, help = "redo final outputs"),
@@ -76,6 +76,7 @@ all_country_sf <- run_all(
   fun = postprocess_adm0_sf,
   fun_name = "adm0_sf",
   fun_opts = NULL,
+  postprocess_fun = tidy_shapefiles,
   prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
@@ -90,7 +91,64 @@ all_country_sf <- run_all(
   mutate(intended_run = TRUE)
 
 
+# All the data shapfiles for spatial coverage
+all_shapefiles <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_lp_shapefiles,
+  fun_name = "shapefiles",
+  fun_opts = NULL,
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  inter_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose) 
+
+# All the obveration counts
+all_obs_counts <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_lp_obs_counts,
+  fun_name = "obs_counts",
+  fun_opts = NULL,
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  inter_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose) 
+
+
 # Get outputs -------------------------------------------------------------
+
+# Get the MAI summary at all admin levels 
+mai_overall_stats <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_mai_adm0_cases,
+  fun_name = "mai_adm0_draws",
+  fun_opts = NULL,
+  postprocess_fun = aggregate_and_summarise_case_draws,
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  inter_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+
 
 # Get the MAI summary at all admin levels 
 mai_stats <- run_all(
@@ -388,9 +446,42 @@ ggsave(p_cov,
 # Figure 8: posterior coverage --------------------------------------------
 
 p_coverage <- plot_posterior_coverage(gen_obs) 
-  
+
 ggsave(p_coverage,
        file = str_glue("{opt$output_dir}/figure_posterior_coverage_{suffix}.png"),
        width = 10,
        height = 8, 
        dpi = 300)
+
+
+
+# Figure 9: data shapefiles -----------------------------------------------
+
+p_fig9 <- all_shapefiles %>% 
+  mutate(admin_level = factor(admin_level, levels = 0:6)) %>% 
+  output_plot_map(sf_obj = ., 
+                  lakes_sf = lakes_sf,
+                  all_countries_sf = all_country_sf,
+                  fill_var = "admin_level",
+                  fill_color_scale_type = "admin levels",
+                  border_width = .3,
+                  border_color = "gray",
+                  lake_alpha = 1,
+                  country_border_color = "black",
+                  country_border_width = 1)
+
+ggsave(p_fig9,
+       file = str_glue("{opt$output_dir}/figure_data_spatial_coverage_{suffix}.png"),
+       width = 10,
+       height = 8, 
+       dpi = 300)
+
+
+# Table with obs counts per admin level -----------------------------------
+
+all_obs_counts %>% 
+  mutate(admin_level = str_c("ADM", admin_level)) %>% 
+  bind_rows(all_obs_counts %>% mutate(admin_level = "all")) %>% 
+  group_by(country, admin_level, imputed) %>% 
+  summarise(n_loc = n(),
+            n_obs = sum(n_obs))
