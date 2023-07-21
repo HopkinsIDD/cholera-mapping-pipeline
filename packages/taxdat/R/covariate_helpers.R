@@ -1409,7 +1409,7 @@ get_country_admin_units <- function(iso_code,
     
   } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA") & admin_level == 1){
     
-    message("Using the rgeoboundaries admin1 shapefile for this country.")
+    message("Using the rgeoboundaries shapefiles for this country's admin1 units.")
     
     boundary_sf <- rgeoboundaries::gb_adm1(iso_code) %>%
       dplyr::select(shapeName, shapeID, shapeType, geometry) %>% 
@@ -1417,7 +1417,7 @@ get_country_admin_units <- function(iso_code,
     
   } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA") & admin_level == 2){
     
-    message("Using the rgeoboundaries admin2 shapefile for this country.")
+    message("Using the rgeoboundaries shapefiles for this country's admin2 units.")
     
     boundary_sf <- rgeoboundaries::gb_adm2(iso_code) %>%
       dplyr::select(shapeName, shapeID, shapeType, geometry) %>% 
