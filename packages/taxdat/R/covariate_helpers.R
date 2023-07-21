@@ -1407,6 +1407,22 @@ get_country_admin_units <- function(iso_code,
       dplyr::select(shapeName, shapeID, shapeType, geometry) %>% 
       dplyr::mutate(source = "rgeoboundaries")
     
+  } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA") & admin_level == 1){
+    
+    message("Using the rgeoboundaries admin1 shapefile for this country.")
+    
+    boundary_sf <- rgeoboundaries::gb_adm1(iso_code) %>%
+      dplyr::select(shapeName, shapeID, shapeType, geometry) %>% 
+      dplyr::mutate(source = "rgeoboundaries")
+    
+  } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA") & admin_level == 2){
+    
+    message("Using the rgeoboundaries admin2 shapefile for this country.")
+    
+    boundary_sf <- rgeoboundaries::gb_adm2(iso_code) %>%
+      dplyr::select(shapeName, shapeID, shapeType, geometry) %>% 
+      dplyr::mutate(source = "rgeoboundaries")
+    
   } else {
     message("Using the gadm shapefile for this country at admin level ", admin_level)
     boundary_sf <- geodata::gadm(country = iso_code, 
