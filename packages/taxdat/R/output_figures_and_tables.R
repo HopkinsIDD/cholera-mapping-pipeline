@@ -10,7 +10,8 @@ color_no_run_intended <- function(){c("#E2FFDE")}
 colors_lisa_clusters <- function(){c("lightgray", "#D40A07", "#4543C4", "#F26F6D", "#7C7AC2", "#424141", "#A059F7")}
 coloramp_cases <- function(){c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404")}
 
-colors_admin_levels <- function(){c( "#4F802A", "#5449C7", "#BF0B07", "#DBB50B")}
+# colors_admin_levels <- function(){c( "#4F802A", "#5449C7", "#BF0B07", "#DBB50B")}
+colors_admin_levels <- function(){c("#CAE0C9", "#5C695C", "#282E28", "black", "black")}
 
 # Figure functions --------------------------------------------------------
 
@@ -30,7 +31,12 @@ output_plot_map <- function(sf_obj,
                             all_countries_sf,
                             lakes_sf = get_lakes(),
                             fill_var,
-                            fill_color_scale_type) {
+                            fill_color_scale_type,
+                            border_width = 0.02,
+                            border_color = "white",
+                            lake_alpha = 0.6,
+                            country_border_width = .3,
+                            country_border_color = "black") {
   
   sf_obj %>% 
     ggplot2::ggplot(aes(fill = !!sym(fill_var))) +
@@ -46,14 +52,15 @@ output_plot_map <- function(sf_obj,
                      linewidth = 0,
                      alpha = 1,
                      fill = color_run_intended()) +
-    ggplot2::geom_sf(linewidth = .02, color = "white") + 
+    ggplot2::geom_sf(linewidth = border_width, color = border_color) + 
     ggplot2::geom_sf(data = lakes_sf, fill = color_lake_fill(),
                      color = color_lake_border(), 
                      linewidth = .06,
-                     alpha = .6) +
+                     alpha = lake_alpha) +
     ggplot2::geom_sf(data = all_countries_sf,
                      inherit.aes = FALSE,
-                     linewidth = .3,
+                     linewidth = country_border_width,
+                     color = country_border_color,
                      alpha = 0) +
     {  
       if(fill_color_scale_type == "rates") {
@@ -98,6 +105,8 @@ output_plot_map <- function(sf_obj,
         scale_fill_viridis_d()
       } else if(fill_color_scale_type == "lisa cluster") {
         scale_fill_manual(values = colors_lisa_clusters())
+      } else if(fill_color_scale_type == "admin levels") {
+        scale_fill_manual(values = colors_admin_levels())
       }
     } +
     taxdat::map_theme() +
@@ -121,12 +130,14 @@ plot_posterior_coverage <- function(gen_obs) {
   gen_obs %>% 
     dplyr::filter(censoring == "full") %>% 
     get_coverage() %>% 
-    ggplot2::ggplot(aes(x = cri, y = frac_covered, color = factor(admin_level))) +
-    ggplot2::geom_line() +
+    dplyr::mutate(admin_level = factor(admin_level, levels = 0:10)) %>% 
+    ggplot2::ggplot(aes(x = cri, y = frac_covered, color = admin_level)) +
+    ggplot2::geom_line(aes(lty = admin_level), linewidth = 1) +
     ggplot2::facet_wrap(~ country) +
     ggplot2::theme_bw() +
     ggplot2::coord_cartesian(ylim = c(0, 1)) +
-    ggplot2::labs(x = "CrI width", y = "Fraction of observations covered", color = "Admin level") +
+    ggplot2::labs(x = "CrI width", y = "Fraction of observations covered",
+                  color = "Admin level", lty = "Admin level") +
     ggplot2::scale_color_manual(values = colors_admin_levels())
 }
 

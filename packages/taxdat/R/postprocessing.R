@@ -394,6 +394,52 @@ postprocess_adm0_sf <- function(config_list,
   res
 }
 
+#' postprocess_lp_shapefiles
+#' Extracts the unique shapefiles available in the dataset
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_lp_shapefiles <- function(config_list,
+                                      redo_aux = FALSE) {
+  
+  stan_input <- taxdat::read_file_of_type(config_list$file_names$stan_input_filename, "stan_input")
+  
+  stan_input$sf_cases_resized %>% 
+    dplyr::group_by(locationPeriod_id) %>% 
+    dplyr::slice(1) %>% 
+    dplyr::select(locationPeriod_id, location_name, admin_level) %>% 
+    dplyr::arrange(admin_level, location_name)
+}
+
+#' postprocess_lp_obs_counts
+#' Extracts observation counts by location period
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_lp_obs_counts <- function(config_list,
+                                      redo_aux = FALSE) {
+  
+  stan_input <- taxdat::read_file_of_type(config_list$file_names$stan_input_filename, "stan_input")
+  
+  cases_column <- taxdat::check_case_definition(config_list$case_definition) %>% 
+    taxdat::case_definition_to_column_name(database = T)
+  
+  stan_input$sf_cases_resized %>% 
+    sf::st_drop_geometry() %>% 
+    dplyr::mutate(imputed = stringr::str_detect(OC_UID, "impute")) %>% 
+    dplyr::group_by(locationPeriod_id, location_name, admin_level, imputed) %>% 
+    dplyr::mutate(cases = !!rlang::sym(cases_column)) %>% 
+    dplyr::summarise(n_obs = n(),
+                     n_cases = sum(cases),
+                     mean_cases = mean(cases)) %>% 
+    dplyr::ungroup()
+}
 
 #' postprocess_risk_category
 #'
@@ -421,7 +467,7 @@ postprocess_risk_category <- function(config_list,
   risk_cat <- genquant$summary("location_risk_cat",
                                compute_cumul_proportion_thresh,
                                .args = list(thresh = cum_prob_thresh)
-                               ) %>% 
+  ) %>% 
     dplyr::mutate(risk_cat = risk_cat_dict[risk_cat],
                   risk_cat = factor(risk_cat, levels = risk_cat_dict),
                   pop = output_location_pop$mean) %>% 
@@ -778,7 +824,7 @@ compute_cumul_proportion_thresh <- function(v, thresh = .95) {
   c(
     "risk_cat" = dplyr::first(rev(names(all_counts))[which(cum_prob >= thresh)]) %>% as.numeric(),
     "cumul_prob" = cum_prob[dplyr::first(which(cum_prob >= thresh))]
-    )
+  )
 }
 
 #' Title
@@ -856,4 +902,24 @@ get_coverage <- function(df,
       dplyr::summarise(frac_covered = sum(in_cri)/n()) %>% 
       dplyr::mutate(cri = w)
   })
+}
+
+#' tidy_shapefiles
+#'
+#' @param df 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+tidy_shapefiles <- function(df) {
+  
+  df %>% 
+    # Remove wholes 
+    nngeo::st_remove_holes() %>% 
+    # Remove small islands 
+    rmapshaper::ms_filter_islands(min_area = 1e9) %>% 
+    rmapshaper::ms_simplify(keep = 0.05,
+                            keep_shapes = FALSE) 
+  
 }
