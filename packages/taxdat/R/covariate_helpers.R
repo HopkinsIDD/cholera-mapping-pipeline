@@ -1663,30 +1663,6 @@ make_location_periods_dict <- function(conn_pg,
   return(location_periods_dict)
 }
 
-#' Fix geometry collections
-#'
-#' @param shapefiles shapefiles to modify (sfc object)
-#'
-#' @return
-#' @export
-#'
-fix_geomcollections <- function(shapefiles) {
-  
-  for (i in 1:nrow(shapefiles)) {
-    tmp <- shapefiles[i,]
-    if (stringr::str_detect(sf::st_geometry_type(tmp), "COLL")) {
-      new_geom <- tmp  %>% 
-        sf::st_collection_extract(type = "POLYGON") %>% 
-        dplyr::summarise(geom = sf::st_union(geom))
-      
-      sf::st_geometry(shapefiles[i, ]) <- sf::st_geometry(new_geom)
-      
-      cat("---- Found GEOMETRYCOLLECTION, converting to MULTIPOLYGON. \n")
-    }
-  }
-  
-  shapefiles
-}
 
 # Modifications of the gdalUtils package ---------------------------------------
 

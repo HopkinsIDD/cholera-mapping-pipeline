@@ -4,9 +4,10 @@
 
 setwd(cholera_directory)
 
-# Shapefile check ------------------------------------------------------------
-print("Starting Data Preparation Process")
 
+# Pull data from taxonomy DB ----------------------------------------------
+
+print("Starting Data Preparation Process")
 print(paste("Saving output data to ", file_names[["data"]]))
 
 
@@ -26,8 +27,8 @@ if (config$data_source == "api") {
     password <- database_api_key
   }
   cat("cntry:", long_countries, "u:", ifelse(nchar(username) > 0, "****", ""), "psswd:",
-  ifelse(nchar(password) > 0, "****", ""), "st:", config$start_time, "et:",
-  config$end_time, "\n")
+      ifelse(nchar(password) > 0, "****", ""), "st:", config$start_time, "et:",
+      config$end_time, "\n")
 } else if (config$data_source == "sql") {
   long_countries <- config$countries
   username <- Sys.getenv("CHOLERA_SQL_USERNAME", "NONE")
@@ -61,28 +62,16 @@ cases <- taxdat::pull_taxonomy_data(
 ) %>%
   taxdat::rename_database_fields(source = config$data_source)
 
-index <- sf::st_geometry_type(cases) == sf::st_geometry_type(sf::st_geometrycollection())
-sf::st_geometry(cases[index, ]) <- sf::st_as_sfc(lapply(sf::st_geometry(cases[index, ]), sf::st_collection_extract, type = "POLYGON"))
-
-# Get OC UIDs for all extracted data
-uids <- sort(unique(as.numeric(cases$OC_UID)))
-
-# Filter out NA cases, which represent missing observations, and non-primary observations (primary observations are only space-time stratified and these are the ones we want to focus on in these maps)
+# !! Filter out NA cases, which represent missing observations, and non-primary observations (primary observations are only space-time stratified and these are the ones we want to focus on in these maps)
 cases <- dplyr::filter(cases, !is.na(.data[[cases_column]])) %>%
-  dplyr::filter(is_primary) %>%
-  dplyr::mutate(shapefile.exists = !is.na(sf::st_dimension(geojson)) & (sf::st_dimension(geojson) > 0))
+  dplyr::filter(is_primary) 
 
-if ("truncate" %in% names(config)) {
-  if (!all(c("method", "smallest_spatial_scale") %in% names(config$truncate))) {
-    stop("In order to truncate, we require both an aggregation `method` and `smallest_spatial_scale` to truncate to.")
-  }
-  if (config$truncate$method == "truncate") {
-    cases$depth <- stringr::str_count(pattern = ":", cases$location_name) / 2
-    cases <- cases %>% dplyr::filter(depth <= config$truncate$smallest_spatial_scale)
-  } else {
-    stop(paste("method", method, "is not implemented"))
-  }
-}
+
+# Shapefile manipulations -------------------------------------------------
+
+# Drop observations with missing shapefiles
+cases <- taxdat::drop_missing_shapefiles(cases = cases,
+                                         cases_column = cases_column)
 
 # Sanity check (There should be at least one report)
 if (nrow(cases) == 0) {
@@ -91,58 +80,15 @@ if (nrow(cases) == 0) {
   print(paste(nrow(cases), "observations were found."))
 }
 
-### Perform checks on shapefiles
-print("Finding Locations")
+# Get the set of unique valid shapefiles for spatial operations in database
+shapefiles <- taxdat::get_valid_shapefiles(cases)
 
-if (sum(!cases$shapefile.exists) > 0) {
-  warning("There was a problem with at least one shapefile. See output for details.")
-  print(paste(sum(!cases$shapefile.exists), "of", length(cases$shapefile.exists), "observations have shapefile problems."))
-  
-  problem_cases <- dplyr::filter(cases, !shapefile.exists)
-  problem_indices <- which(!cases$shapefile.exists)
-  problem_OCs <- unique(problem_cases$OC_UID) ## relationships.observation_collection.data.id)
-  
-  # print(paste("The following indexes are affected:", paste(problem_indices, collapse = ", ")))
-  print(paste("The following OC UIDs are affected:", paste(problem_OCs, collapse = ", ")))
-  print(paste(sum(problem_cases[[cases_column]]), "/", sum(cases[[cases_column]]), cases_column, "are missing due to shapefile problems."))
-  
-  print("Observations attached to problematic location-periods will be ignored. Here are the problematic location-periods *****************")
-  print(dplyr::select(problem_cases, location_name) %>%
-          as.data.frame() %>%
-          dplyr::distinct(location_name) %>%
-          dplyr::arrange(location_name))
-  
-  cases <- cases %>%
-    dplyr::filter(shapefile.exists)
-}
+# !! This assumes only one country present, would need to be changed if list of countries
+iso_code <- taxdat::get_country_isocode(config)
 
-print("Validate Shapefiles")
-shapefiles <- cases %>%
-  dplyr::group_by(attributes.location_period_id) %>%
-  dplyr::summarize(n = dplyr::n()) %>%
-  dplyr::rename(location_period_id = attributes.location_period_id)
-
-shapefiles$valid <- sf::st_is_valid(shapefiles)
-if (!all(shapefiles$valid)) {
-  warning("At least one location period is invalid.  See output for details")
-  print(paste(sum(!shapefiles$valid), "shapefiles were invalid."))
-  print(paste("The following location periods were affected:", paste(shapefiles$location_period_id[!shapefiles$valid], collapse = ", ")))
-  shapefiles$geojson[!shapefiles$valid] <- sf::st_make_valid(shapefiles$geojson[!shapefiles$valid])
-  shapefiles$valid <- sf::st_is_valid(shapefiles)
-  print("An attempt was made to fix the invalid shapefiles")
-}
-
-## This is not a long term solution in any capacity
-if (any(grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles)))) {
-  warning("Geometry collections present in locations.  See output for details")
-  print(paste("The following location periods are affected:", paste(shapefiles[grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles)), ][["location_period_id"]], collapse = ", ")))
-  warning("Attempting to fix geometry collections, but not in a smart way.  Please fix the underlying data instead.")
-  problem_indices <- which(grepl("GEOMETRYCOLLECTION", sf::st_geometry_type(shapefiles)))
-  tmp2 <- do.call(sf:::rbind.sf, lapply(shapefiles$geojson[problem_indices], function(x) {
-    sf::st_sf(sf::st_sfc(x[[1]]))
-  }))
-  shapefiles[["geojson"]][problem_indices] <- sf::st_geometry(tmp2)
-}
+# Clip to adm0
+shapefiles <- taxdat::clip_shapefiles_to_adm0(iso_code = iso_code,
+                                              shapefiles = shapefiles)
 
 # Write location periods in data ---------------------------------------
 cat("-- Creating tables for observed lps in database \n")
@@ -152,40 +98,6 @@ conn_pg <- taxdat::connect_to_db(dbuser)
 
 # Set user-specific name for location_periods table to use
 lp_name <- taxdat::make_locationperiods_table_name(config = config)
-
-# Make sf object to multiploygons to be consistent
-shapefiles <- sf::st_cast(shapefiles, "MULTIPOLYGON") %>%
-  dplyr::rename(geom = geojson)
-
-# !! This assumes only one country present, would need to be changed if list of countries
-iso_code <- taxdat::get_country_isocode(config)
-
-# Clip shapefiles to the national level output shapefile
-adm0_geom <- taxdat::get_multi_country_admin_units(
-  iso_code = iso_code,
-  admin_levels = c(0),
-  lps = shapefiles
-)
-
-sf::st_crs(adm0_geom) <- sf::st_crs(shapefiles) ## same crs needed for st_intersection
-
-# Drop data with no intersections
-shapefiles <- shapefiles %>% 
-  dplyr::mutate(adm0_intersect = sf::st_intersects(shapefiles$geom, adm0_geom$geom, sparse = FALSE) %>% 
-                  as.vector())
-
-drop_shapefiles <- shapefiles %>% 
-  dplyr::filter(!adm0_intersect)
-
-if (nrow(drop_shapefiles) > 0) {
-  cat("-- Dropping", nrow(drop_shapefiles), "that do not intersect the national level output shapefile\n")
-  shapefiles <- shapefiles %>% 
-    dplyr::filter(!(location_period_id %in% drop_shapefiles$location_period_id))
-}
-
-shapefiles <- shapefiles %>% 
-  dplyr::mutate(geom = sf::st_intersection(geom, adm0_geom$geom)) %>% 
-  taxdat::fix_geomcollections()
 
 # Write to database
 taxdat::write_shapefiles_table(
@@ -282,7 +194,8 @@ sf::st_geometry(cases) <- NULL
 sf_cases <- sf::st_as_sf(
   dplyr::inner_join(cases,
                     shapefiles,
-                    by = c("attributes.location_period_id" = "location_period_id")
+                    by = c("attributes.location_period_id" = "location_period_id",
+                           "location_name" = "location_name")
   )
 )
 
