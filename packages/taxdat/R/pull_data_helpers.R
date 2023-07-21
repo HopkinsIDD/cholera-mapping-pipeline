@@ -10,8 +10,8 @@ time_unit_to_start_function <- function(unit) {
   unit <- gsub("s$", "", unit)
   unit_type <- unit[[2]]
   unit_count <- as.numeric(unit[[1]])
-
-
+  
+  
   changer <- list(year = function(x) {
     x <- x * unit_count
     return(as.Date(paste(x, "01", "01", sep = "-"), format = "%Y-%m-%d"))
@@ -39,8 +39,8 @@ time_unit_to_end_function <- function(unit) {
   unit <- gsub("s$", "", unit)
   unit_type <- unit[[2]]
   unit_count <- as.numeric(unit[[1]])
-
-
+  
+  
   changer <- list(year = function(x) {
     x <- x * unit_count
     return(as.Date(paste(x, "12", "31", sep = "-"), format = "%Y-%m-%d"))
@@ -49,7 +49,7 @@ time_unit_to_end_function <- function(unit) {
     month <- ((x - 1) %% 12) + 1
     year <- (x - month) / 12
     return(as.Date(paste(year, month, lubridate::days_in_month(month), sep = "-"),
-      format = "%Y-%m-%d"
+                   format = "%Y-%m-%d"
     ))
   }, isoweek = function(x) {
     x <- x * unit_count
@@ -70,7 +70,7 @@ time_unit_to_aggregate_function <- function(unit) {
   unit <- gsub("s$", "", unit)
   unit_type <- unit[[2]]
   unit_count <- as.numeric(unit[[1]])
-
+  
   changer <- list(year = function(x) {
     return(floor(lubridate::year(x) / unit_count))
   }, month = function(x) {
@@ -226,7 +226,7 @@ flatten_json_result <- function(json_results) {
 #' @return An sf object containing data pulled from the database
 read_taxonomy_data_api <- function(username, api_key, locations = NULL, time_left = NULL,
                                    time_right = NULL, uids = NULL, website = "https://api.cholera-taxonomy.middle-distance.com/") {
-
+  
   ## First, we want to set up the https POST request.  We make a list
   ## containing the arguments for the request: If the API changes, we will
   ## just need to change this list
@@ -236,16 +236,16 @@ read_taxonomy_data_api <- function(username, api_key, locations = NULL, time_lef
     if (length(locations == 1)) {
       locations <- c(locations, locations)
     }
-
+    
     ## Prevent continents, or too many countries
     if (any(!grepl("::", locations))) {
       stop("Trying to pull data for a continent is not allowed")
     }
     if ((sum(stringr::str_count(string = unique(locations), pattern = "::") ==
-      1) > 2)) {
+             1) > 2)) {
       stop("Trying to pull data for more than 2 countries at a time is not allowed")
     }
-
+    
     https_post_argument_list <- list(email = username, api_key = api_key, locations = gsub(
       "::",
       " ", locations
@@ -256,9 +256,9 @@ read_taxonomy_data_api <- function(username, api_key, locations = NULL, time_lef
   } else {
     stop("Not supported")
   }
-
+  
   website <- paste0(website, "/api/v1/observations/", api_type)
-
+  
   ## Every object in R is a vector, even the primitives.  For example,
   ## c(1,5,6) is of type integer.  Because of this, we need to explicitly
   ## tell the JSON parser to treat vectors of length 1 differently.  The
@@ -268,16 +268,16 @@ read_taxonomy_data_api <- function(username, api_key, locations = NULL, time_lef
   ## and a normal print.  In this case, this function might take a while to
   ## run, so we let the user know up front.
   message("Fetching results from JSON API")
-
+  
   ## This is the line that actually fetches the results.  The syntax for
   ## adding headers is a little weird.  The function add_headers takes named
   ## arguments and returns whatever the arguments to POST are supposed to be.
   ## body is the body encode is the transformation to perform on the body to
   ## make it into text
   results <- httr::POST(website, httr::add_headers(`Content-Type` = "application/json"),
-    body = json, encode = "form"
+                        body = json, encode = "form"
   )
-
+  
   ## Now we process the status code to make sure that things are working
   ## correctly
   code <- httr::status_code(results)
@@ -285,7 +285,7 @@ read_taxonomy_data_api <- function(username, api_key, locations = NULL, time_lef
   if (code != 200) {
     stop(paste("Error: Status Code", code))
   }
-
+  
   ## Next we extract just the content of the results
   original_results_data <- httr::content(results)
   ## This returns something correct, but the formatting is really odd.  It is
@@ -296,36 +296,36 @@ read_taxonomy_data_api <- function(username, api_key, locations = NULL, time_lef
     stop("Could not validate json response")
   }
   results_data <- jsonlite::fromJSON(jsondata)
-
+  
   ## Now we have the results of the api data as a nested list.  We want to do
   ## the following in no particular order for the observations, we want to
   ## turn them into a data frame with one row per observation for the
   ## location_periods, we want to turn them into a geometry object and link
   ## them to the observations
-
+  
   ## We start with the observations The | operator is logical or The results
   ## should have observations The observations should have data The data
   ## should be the only thing in observations
   if ((!("observations" %in% names(results_data))) | (!("data" %in% names(results_data[["observations"]]))) |
-    (length(results_data[["observations"]]) > 1)) {
+      (length(results_data[["observations"]]) > 1)) {
     stop("Could not parse results properly.  Contact package maintainer")
   }
   results_data[["observations"]] <- flatten_json_result(results_data[["observations"]][["data"]])
-
+  
   observation_collections_present <- FALSE
   ## The results should have observations The observations should have data
   ## The data should be the only thing in observations
   if (("observation_collections" %in% names(results_data)) && ("data" %in% names(results_data[["observation_collections"]])) &&
-    (length(results_data[["observation_collections"]]) == 1)) {
+      (length(results_data[["observation_collections"]]) == 1)) {
     results_data[["observation_collections"]] <- flatten_json_result(results_data[["observation_collections"]][["data"]])
     observation_collections_present <- TRUE
   }
-
+  
   ## Check to make sure that the number of ids and number of rows match
   if (!length(unique(results_data$observations$id)) == nrow(results_data$observations)) {
     stop("Could not parse results properly.  Contact package maintainer")
   }
-
+  
   ## Now we want to handle the location periods We need to process these
   ## individually, so we'll loop over location periods to extract the
   ## geojsons We use the original_results_data here, since the formatting
@@ -338,11 +338,11 @@ read_taxonomy_data_api <- function(username, api_key, locations = NULL, time_lef
   if (length(tmp_results) > 0) {
     for (idx in 1:length(tmp_results)) {
       message(paste(idx, "/", length(tmp_results)))
-
+      
       ## We process the geojson in three pieces.  #1. Extract the json
       ## string #2.  Convert to sf object #3. Add to location list Ignore
       ## NULL elements.  Undefined list elements default to NULL anyway
-
+      
       ## Determine which shape we are working with
       shape_id <- tmp_results[[idx]][["relationships"]][["shape"]][["data"]][["id"]]
       this_shape_index <- match(shape_id, all_shape_ids)
@@ -362,7 +362,7 @@ read_taxonomy_data_api <- function(username, api_key, locations = NULL, time_lef
   ## the badly formatted ones
   results_data$location_periods$data$geojson <- NULL
   results_data$location_periods$data$attributes$geojson <- NULL
-
+  
   results_data$location_periods <- flatten_json_result(results_data$location_periods$data)
   if (nrow(results_data$location_periods) > 0) {
     results_data$location_periods$sf_id <- seq_len(nrow(results_data$location_periods))
@@ -371,26 +371,26 @@ read_taxonomy_data_api <- function(username, api_key, locations = NULL, time_lef
     results_data$observations$attributes.location_period_id,
     class(results_data$location_periods$id)
   )
-
+  
   ## We then join (as in sql) by the location_periods with the observations
   ## by location_period_id
   all_results <- results_data$observations
   if (observation_collections_present && (nrow(all_results) > 0) && (nrow(results_data$observation_collections) >
-    0)) {
+                                                                     0)) {
     all_results <- dplyr::left_join(results_data$observations, results_data$observation_collections,
-      by = c(
-        relationships.observation_collection.data.id = "id" # lhs column name = rhs column name
-      )
+                                    by = c(
+                                      relationships.observation_collection.data.id = "id" # lhs column name = rhs column name
+                                    )
     )
   }
   if ((nrow(all_results) > 0) && (nrow(results_data$location_periods) > 0)) {
     all_results <- dplyr::left_join(all_results, results_data$location_periods,
-      by = c(
-        attributes.location_period_id = "id" # lhs column name = rhs column name
-      )
+                                    by = c(
+                                      attributes.location_period_id = "id" # lhs column name = rhs column name
+                                    )
     )
   }
-
+  
   geoinput <- sf::st_sf(geometry = sf::st_sfc(sf::st_point(1 * c(NA, NA))))$geometry
   if (nrow(all_results) == 0) {
     geoinput <- geoinput[0]
@@ -424,7 +424,7 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
   if (missing(source) | is.null(source)) {
     stop("No source specified to pull taxonomy data, please specify one of 'api' or 'sql'.")
   }
-
+  
   if (source == "api") {
     if (website == "") {
       website <- "https://api.cholera-taxonomy.middle-distance.com/"
@@ -432,11 +432,23 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
     if (missing(username) | missing(password) | is.null(username) | is.null(password) | (website == "")) {
       stop("Trying to pull data from API, please provide username and api_key.")
     }
-
+    
+    if (!is.null(time_left)) {
+      time_left <- as.character(time_left)
+    }
+    
+    
+    if (!is.null(time_right)) {
+      time_right <- as.character(time_right)
+    }
+    
     # Return API data pull
     rc <- read_taxonomy_data_api(
-      username = username, api_key = password, locations = locations,
-      time_left = as.character(time_left), time_right = as.character(time_right),
+      username = username, 
+      api_key = password, 
+      locations = locations,
+      time_left = time_left, 
+      time_right = time_right,
       uids = uids, website = website
     )
   } else if (source == "sql") {
@@ -446,7 +458,7 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
     if (missing(username) | missing(password) | is.null(username) | is.null(password) | (website == "")) {
       stop("Trying to pull data using sql on idemodelin2, please provide database username and password.")
     }
-
+    
     # Return SQL data pull
     rc <- read_taxonomy_data_sql(
       username = username, password = password, locations = locations,
@@ -459,7 +471,7 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
   } else {
     stop("Parameter 'source' needs to be one of 'api' or 'sql'.")
   }
-
+  
   if (nrow(rc) == 0) {
     if (!is.null(uids)) {
       err_mssg <- paste("in uids", paste(uids, collapse = ","))
@@ -469,9 +481,9 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
       err_mssg <- ""
     }
     stop("Didn't find any data ", err_mssg, " in time range [", ifelse(is.null(time_left),
-      "-Inf", as.character(time_left)
+                                                                       "-Inf", as.character(time_left)
     ), " - ", ifelse(is.null(time_right),
-      "-nf", as.character(time_right)
+                     "-nf", as.character(time_right)
     ), "]")
   }
   return(rc)
@@ -497,22 +509,22 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL, time_le
   if (missing(username) | missing(password)) {
     stop("Please provide username and password to connect to the taxonomy database.")
   }
-
+  
   # Connect to database
   if ((password == "") && (website == "localhost")) {
     print("HERE")
     conn <- RPostgres::dbConnect(RPostgres::Postgres(),
-      dbname = "CholeraTaxonomy_production", user = username,
-      port = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
+                                 dbname = "CholeraTaxonomy_production", user = username,
+                                 port = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
     )
   } else {
     conn <- RPostgres::dbConnect(RPostgres::Postgres(),
-      host = host,
-      dbname = "CholeraTaxonomy_production", user = username, password = password,
-      port = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
+                                 host = host,
+                                 dbname = "CholeraTaxonomy_production", user = username, password = password,
+                                 port = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
     )
   }
-
+  
   # Build query for observations
   obs_query <- paste(
     "SELECT", "observations.id::text, observations.observation_collection_id::text, observations.time_left, observations.time_right,observations.suspected_cases, observations.confirmed_cases, observations.deaths, observations.phantom, observations.primary",
@@ -523,9 +535,9 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL, time_le
     "left join locations on observations.location_id = locations.id", "left join location_periods on observations.location_period_id = location_periods.id",
     "left join shapes on shapes.location_period_id = location_periods.id", " WHERE"
   )
-
+  
   cat("-- Pulling data from taxonomy database with SQL \n")
-
+  
   if (unified_dataset_behaviour == "drop") {
     unified_filter <- c("((observation_collections.unified is NULL) OR (observation_collections.unified!='t'))") # QZ: updated the operator
   } else if (unified_dataset_behaviour == "keep") {
@@ -543,7 +555,7 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL, time_le
   } else {
     warning("No filters specified on data pull, pulling all data.")
   }
-
+  
   if (!is.null(time_left)) {
     time_left_filter <- paste0(
       "time_left >= '", format(time_left, "%Y-%m-%d"),
@@ -553,7 +565,7 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL, time_le
     time_left_filter <- NULL
     warning("No time filters.")
   }
-
+  
   if (!is.null(time_right)) {
     time_right_filter <- paste0(
       "time_right <= '", format(time_right, "%Y-%m-%d"),
@@ -563,7 +575,7 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL, time_le
     time_right_filter <- NULL
     warning("No time filters.")
   }
-
+  
   if (!is.null(locations)) {
     if (all(is.numeric(locations))) {
       locations_filter <- paste0("ancestor_id in ({locations*})")
@@ -574,25 +586,25 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL, time_le
     locations_filter <- paste0("ancestor_id = descendant_id")
     stop("Please use a containing location as the location. Locations can't be NULL.")
   }
-
+  
   if (!is.null(uids)) {
     uids_filter <- paste0("observation_collection_id IN ({uids*})")
   } else {
     uids_filter <- NULL
     warning("No uid filters.")
   }
-
+  
   # Combine filters
   filters <- c(time_left_filter, time_right_filter, locations_filter, uids_filter, oc_filter, unified_filter) %>%
     paste(collapse = " AND ")
-
+  
   # Run query for observations
   obs_query <- glue::glue_sql(paste(obs_query, filters, ";"), .con = conn)
   observations <- sf::st_as_sf(sf::st_read(conn, query = obs_query))
   if (nrow(observations) == 0) {
     stop(paste0("No observations found using query ||", obs_query, "||"))
   }
-
+  
   # observations <- dplyr::filter(observations, !is.na(nchar(geojson)))
   return(observations)
 }
