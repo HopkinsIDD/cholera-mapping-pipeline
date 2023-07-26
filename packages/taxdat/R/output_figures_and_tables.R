@@ -6,6 +6,7 @@ color_lake_fill <- function(){"#aad3df"}
 color_lake_border <- function(){"#7fb4c4"}
 color_run_intended <- function(){c("#A1A1A1")}
 color_no_run_intended <- function(){c("#E2FFDE")}
+color_afr_continent_fill <- function(){c("#FFFFFF")}
 
 colors_lisa_clusters <- function(){c("lightgray", "#D40A07", "#4543C4", "#F26F6D", "#7C7AC2", "#424141", "#A059F7")}
 coloramp_cases <- function(){c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404")}
@@ -36,7 +37,9 @@ output_plot_map <- function(sf_obj,
                             border_color = "white",
                             lake_alpha = 0.6,
                             country_border_width = .3,
-                            country_border_color = "black") {
+                            country_border_color = "black",
+                            cholera_dir = 'cholera-mapping-pipeline') {
+  afr_sf <- sf::st_read(paste(cholera_dir,"packages/taxdat/data/afr_sf.shp",sep="/"))
   
   sf_obj %>% 
     ggplot2::ggplot(aes(fill = !!sym(fill_var))) +
@@ -57,6 +60,11 @@ output_plot_map <- function(sf_obj,
                      color = color_lake_border(), 
                      linewidth = .06,
                      alpha = lake_alpha) +
+    ggplot2::geom_sf(data = afr_sf,
+                     fill = color_afr_continent_fill(),
+                     color = "black",
+                     linewidth = country_border_width,
+                     alpha = 0) +
     ggplot2::geom_sf(data = all_countries_sf,
                      inherit.aes = FALSE,
                      linewidth = country_border_width,
