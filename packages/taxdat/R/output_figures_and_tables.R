@@ -12,7 +12,7 @@ colors_lisa_clusters <- function(){c("lightgray", "#D40A07", "#4543C4", "#F26F6D
 coloramp_cases <- function(){c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404")}
 
 # colors_admin_levels <- function(){c( "#4F802A", "#5449C7", "#BF0B07", "#DBB50B")}
-colors_admin_levels <- function(){c("#CAE0C9", "#5C695C", "#282E28", "black", "black")}
+colors_admin_levels <- function(){c("#CAE0C9", "#5C695C", "#282E28", "black", "black",'black')}
 
 # Figure functions --------------------------------------------------------
 
@@ -39,7 +39,7 @@ output_plot_map <- function(sf_obj,
                             country_border_width = .3,
                             country_border_color = "black",
                             cholera_dir = 'cholera-mapping-pipeline') {
-  afr_sf <- sf::st_read(paste(cholera_dir,"packages/taxdat/data/afr_sf.shp",sep="/"))
+  afr_sf <- sf::st_read(paste(cholera_dir,"packages/taxdat/data/afr_sf_cleaned.shp",sep="/"))
   
   sf_obj %>% 
     ggplot2::ggplot(aes(fill = !!sym(fill_var))) +
@@ -120,7 +120,7 @@ output_plot_map <- function(sf_obj,
     taxdat::map_theme() +
     # Zoom to bounding box
     ggplot2::coord_sf(xlim = st_bbox(sf_obj)[c(1, 3)],
-                      ylim = st_bbox(sf_obj)[c(2, 4)]) +
+                      ylim = st_bbox(sf_obj)[c(5, 6)]) +
     theme(panel.border = element_blank())
   
 }
