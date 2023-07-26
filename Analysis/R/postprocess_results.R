@@ -39,7 +39,7 @@ opt_list <- list(
   make_option(opt_str = c("-o", "--output_dir"), type = "character",
               default = "./Analysis/output/processed_outputs/", help = "Output directory"),
   make_option(opt_str = c("-c", "--cholera_dir"), type = "character",
-              default = "C:/Users/zheng/Cholera/cholera-mapping-pipeline", help = "Cholera mapping pipeline directory")
+              default = "cholera-mapping-pipeline", help = "Cholera mapping pipeline directory")
 )
 
 opt <- parse_args(OptionParser(option_list = opt_list))
