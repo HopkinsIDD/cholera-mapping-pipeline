@@ -18,11 +18,11 @@ jobs:
       options: --user root
     steps:
       - name: Remove unnecessary files
-        uses: easimon/maximize-build-space@v7
-        with:
-          root-reserve-mb: 512
-          swap-size-mb: 1024
-          remove-dotnet: 'true'
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
       - name: Checkout
         uses: actions/checkout@v3
       - name: Checkout Analysis/configs
