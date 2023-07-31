@@ -18,9 +18,11 @@ jobs:
       options: --user root
     steps:
       - name: Remove unnecessary files
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 512
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
       - name: Checkout
         uses: actions/checkout@v3
       - name: Checkout Analysis/configs
