@@ -2131,6 +2131,19 @@ get_loctime_combs <- function(stan_data) {
   # Set names for identification
   names(loctime_combs) <- u_obs
   
+  # for multi-year observations, separate the loctime. 
+  if(any(sapply(loctime_combs,length)>1)){
+    loctime_combs_tmp <- loctime_combs[sapply(loctime_combs,length)>1]
+    fixed_loctime_combs<-list()
+    for(row_idx in seq(length(loctime_combs_tmp))){
+      loctime_combs_tmp2 <- as.list(rep(loctime_combs_tmp[[row_idx]],length(loctime_combs_tmp[[row_idx]][[1]])))
+      names(loctime_combs_tmp2)<-rep(names(loctime_combs_tmp)[row_idx],length(loctime_combs_tmp2))
+      fixed_loctime_combs <- c(fixed_loctime_combs,loctime_combs_tmp2)
+    }
+    loctime_combs <- c(loctime_combs[sapply(loctime_combs,length)==1],fixed_loctime_combs)
+    loctime_combs<-loctime_combs[order(as.numeric(names(loctime_combs)))]
+  }
+  
   loctime_combs
 }
 
@@ -2150,7 +2163,7 @@ get_loctime_combs_mappings <- function(stan_data) {
   loctime_combs <- get_loctime_combs(stan_data)
   
   # Unique set of combinations
-  stan_data$u_loctime_combs <- unique(loctime_combs)
+  stan_data$u_loctime_combs <- as.list(unique(unlist(loctime_combs))) #make sure each element represents one loctime
   stan_data$L_combs <- length(stan_data$u_loctime_combs)
   
   # Mapping to location-times
@@ -2178,7 +2191,7 @@ get_loctime_combs_mappings <- function(stan_data) {
   stan_data$map_obs_loctime_combs <- purrr::map_dbl(
     loctime_combs,
     function(x) {
-      which(purrr::map_lgl(stan_data$u_loctime_combs, ~ identical(., x)))
+      which(purrr::map_lgl(stan_data$u_loctime_combs, ~ identical(., unlist(x))))
     })
   
   stan_data
