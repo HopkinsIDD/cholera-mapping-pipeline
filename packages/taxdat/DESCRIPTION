@@ -63,9 +63,11 @@ Collate:
     'population_helpers.R'
     'postprocessing.R'
     'shapefile_manipulation.R'
+    'shapefile_utils.R'
     'simulation_framework_helpers.R'
     'snap_to_time_period.R'
     'stan_input_helpers.R'
     'stitch_caches.R'
+    'suggest_crs.R'
     'transform_covariates.R'
 VignetteBuilder: knitr

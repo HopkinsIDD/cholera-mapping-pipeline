@@ -1268,13 +1268,14 @@ get_pop_weights <- function(res_space,
                                       covar_TR_seq = covar_TR_seq)
   
   query <- glue::glue_sql("
-      SELECT g.location_period_id, g.rid, g.x, g.y, {`{DBI::SQL(
+      SELECT g.location_period_id, g.rid, g.x, g.y, g.lp_covered, g.area_ratio,
+      {`{DBI::SQL(
       paste0(
         paste0('sum((ST_SummaryStats(ST_Clip(rast,', {pop_1km_bands$ind}, ', geom, true), 1, true)).sum) as values_', {pop_1km_bands$ind}),
         collapse = ','))}`}
       FROM covariates.pop_1_years_1_1 r, {`{DBI::SQL(intersections_table)}`} g
       WHERE ST_Intersects(rast, geom)
-      GROUP BY g.location_period_id, g.rid, g.x, g.y",
+      GROUP BY g.location_period_id, g.rid, g.x, g.y, g.lp_covered, g.area_ratio",
                           .con = conn_pg
   )
   
@@ -1291,7 +1292,7 @@ get_pop_weights <- function(res_space,
       tidyr::pivot_longer(cols = dplyr::contains("values"),
                           values_to = "pop_grid"),
     by = c("rid", "x", "y", "name")) %>%
-    dplyr::group_by(location_period_id, rid, x, y, name) %>%
+    dplyr::group_by(location_period_id, rid, x, y, lp_covered, area_ratio, name) %>%
     dplyr::summarise(pop_weight = pop_1km/pop_grid) %>%
     # Set fractions to 1 for all pixels contained within location periods
     # which were not selected by design in the intersections
@@ -1373,7 +1374,10 @@ get_country_admin_units <- function(iso_code,
   }
   
   if (iso_code == "ZNZ" ) {
-    if(admin_level==0){
+    
+    message("Using the aggregated gadm shapefiles for Zanzibar")
+    
+    if(admin_level == 0){
       boundary_sf <- sf::st_as_sf(geodata::gadm(country="TZA", level=1, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
       unionized <- sf::st_union(boundary_sf)
       boundary_sf <- boundary_sf[1, ]
@@ -1381,6 +1385,7 @@ get_country_admin_units <- function(iso_code,
     } else {
       boundary_sf <- sf::st_as_sf(geodata::gadm(country="TZA", level=admin_level, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
     }
+    
     # Fix colnames for compatibility with rest of code
     boundary_sf <- boundary_sf %>% 
       magrittr::set_colnames(.,tolower(colnames(boundary_sf))) %>%
@@ -1391,16 +1396,20 @@ get_country_admin_units <- function(iso_code,
                     shapeType = paste0("ADM", admin_level))%>% 
       dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
                     shapeID,
-                    shapeType)
-    sf::st_crs(boundary_sf) <- sf::st_crs(4326)
-    message("Using the aggregated gadm shapefiles for this region")
-  } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA")&admin_level==0){
-    boundary_sf <- rgeoboundaries::gb_adm0(iso_code) %>%
-      dplyr::select(shapeName,shapeID,shapeType,geometry)
-    sf::st_crs(boundary_sf) <- sf::st_crs(4326)
-    message("Using the rgeoboundaries national shapefile for this country.")
+                    shapeType) %>% 
+      dplyr::mutate(source = "gadm")
+    
+  } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA")){
+    
+    message("Using the rgeoboundaries shapefiles for this country at admin level ", admin_level)
+    
+    boundary_sf <- rgeoboundaries::geoboundaries(country = iso_code,
+                                                 adm_lvl = paste0('adm',admin_level)) %>%
+      dplyr::select(shapeName, shapeID, shapeType, geometry) %>% 
+      dplyr::mutate(source = "rgeoboundaries")
+    
   } else {
-    message("Using the gadm national shapefile for this country.")
+    message("Using the gadm shapefile for this country at admin level ", admin_level)
     boundary_sf <- geodata::gadm(country = iso_code, 
                                  level = admin_level, 
                                  path = tempdir()) 
@@ -1412,6 +1421,7 @@ get_country_admin_units <- function(iso_code,
     # Fix colnames for compatibility with rest of code
     boundary_sf <- boundary_sf %>% 
       sf::st_as_sf() 
+    
     boundary_sf <- boundary_sf %>%
       magrittr::set_colnames(.,tolower(colnames(boundary_sf))) %>%
       dplyr::mutate(name_0 = country,
@@ -1419,11 +1429,12 @@ get_country_admin_units <- function(iso_code,
                     shapeType = paste0("ADM", admin_level)) %>% 
       dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
                     shapeID,
-                    shapeType)
-    
-    sf::st_crs(boundary_sf) <- sf::st_crs(4326)
+                    shapeType) %>% 
+      dplyr::mutate(source = "gadm")
   }
   
+  # Set reference WGS84 projection
+  sf::st_crs(boundary_sf) <- sf::st_crs(4326)
   sf::st_geometry(boundary_sf) <- "geom"
   
   boundary_sf <- boundary_sf %>% 
@@ -1438,7 +1449,8 @@ get_country_admin_units <- function(iso_code,
     dplyr::group_by(shapeName) %>% 
     dplyr::summarise(location_period_id = stringr::str_c(location_period_id, 
                                                          collapse = "_"),
-                     shapeType = shapeType[1])
+                     shapeType = shapeType[1],
+                     source = source[1])
   
   return(boundary_sf)
 }
@@ -1636,30 +1648,6 @@ make_location_periods_dict <- function(conn_pg,
   return(location_periods_dict)
 }
 
-#' Fix geometry collections
-#'
-#' @param shapefiles shapefiles to modify (sfc object)
-#'
-#' @return
-#' @export
-#'
-fix_geomcollections <- function(shapefiles) {
-  
-  for (i in 1:nrow(shapefiles)) {
-    tmp <- shapefiles[i,]
-    if (stringr::str_detect(sf::st_geometry_type(tmp), "COLL")) {
-      new_geom <- tmp  %>% 
-        sf::st_collection_extract(type = "POLYGON") %>% 
-        dplyr::summarise(geom = sf::st_union(geom))
-      
-      sf::st_geometry(shapefiles[i, ]) <- sf::st_geometry(new_geom)
-      
-      cat("---- Found GEOMETRYCOLLECTION, converting to MULTIPOLYGON. \n")
-    }
-  }
-  
-  shapefiles
-}
 
 # Modifications of the gdalUtils package ---------------------------------------
 
