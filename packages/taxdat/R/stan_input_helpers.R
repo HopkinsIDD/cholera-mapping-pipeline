@@ -2134,12 +2134,19 @@ get_loctime_combs <- function(stan_data) {
   # for multi-year observations, separate the loctime. 
   if(any(sapply(loctime_combs,length)>1)){
     loctime_combs_tmp <- loctime_combs[sapply(loctime_combs,length)>1]
-    fixed_loctime_combs <- as.list(rep(NA, length(loctime_combs_tmp)))
+    fixed_loctime_combs <- as.list(rep(NA,  sum(sapply(loctime_combs_tmp,length))))
     
+    # index for the order of the elements in the list
+    id_L <- 1 #starting row number of the elements
+
     for(row_idx in seq(length(loctime_combs_tmp))){
+      id_R <- id_L + length(loctime_combs_tmp[[row_idx]])-1  #ending row number of the elements
+      
       loctime_combs_tmp2 <- as.list(rep(loctime_combs_tmp[[row_idx]],length(loctime_combs_tmp[[row_idx]][[1]])))
-      names(loctime_combs_tmp2)<-rep(names(loctime_combs_tmp)[row_idx],length(loctime_combs_tmp2))
-      fixed_loctime_combs[[row_idx]] <- loctime_combs_tmp2
+      fixed_loctime_combs[id_L:id_R] <- loctime_combs_tmp2
+      names(fixed_loctime_combs)[id_L:id_R]<-rep(names(loctime_combs_tmp)[row_idx],length(loctime_combs_tmp2))
+      
+      id_L <- id_R+1
     }
     loctime_combs <- c(loctime_combs[sapply(loctime_combs,length)==1],fixed_loctime_combs)
     loctime_combs<-loctime_combs[order(as.numeric(names(loctime_combs)))]
