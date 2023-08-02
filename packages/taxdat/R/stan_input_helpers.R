@@ -2182,7 +2182,7 @@ get_loctime_combs_mappings <- function(stan_data) {
       loctimes <- stan_data$map_loctime_combs_loc[stan_data$map_loctime_combs_comb == x]
       
       # Get one observation of this loctime
-      obs_id <- gdata::first(stan_data$map_obs_loctime_obs[stan_data$map_obs_loctime_loc == loctimes[1]])
+      obs_id <- first(stan_data$map_obs_loctime_obs[stan_data$map_obs_loctime_loc == loctimes[1]])
       
       # Get the corresponding admin level
       stan_data$map_obs_admin_lev[obs_id]
