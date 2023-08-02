@@ -11,9 +11,9 @@ test_that("get_loctime_combs_mappings works for single-year obs and single lp", 
     
     stan_data$map_obs_admin_lev <- rep(1:5,2)
     
-    stan_data <- taxdat::get_loctime_combs_mappings(stan_data)
+    stan_data <- get_loctime_combs_mappings(stan_data)
 
-    testthat::expect_true(all(sapply(stan_data$u_loctime_combs,length)==1))
+    expect_true(all(sapply(stan_data$u_loctime_combs,length)==1))
 
 })
 
@@ -28,9 +28,9 @@ test_that("get_loctime_combs_mappings works for single-year obs and multiple lps
   
   stan_data$map_obs_admin_lev <- rep(1:5,2)
   
-  stan_data <- taxdat::get_loctime_combs_mappings(stan_data)
+  stan_data <- get_loctime_combs_mappings(stan_data)
   
-  testthat::expect_true(all(sapply(stan_data$u_loctime_combs,length)==1))
+  expect_true(all(sapply(stan_data$u_loctime_combs,length)==1))
   
 })
 
@@ -45,10 +45,10 @@ test_that("get_loctime_combs_mappings works for multi-year obs and single lp", {
   
   stan_data$map_obs_admin_lev <- rep(1:5,2)
   
-  stan_data <- taxdat::get_loctime_combs_mappings(stan_data)
+  stan_data <- get_loctime_combs_mappings(stan_data)
   
-  testthat::expect_true(all(sapply(stan_data$u_loctime_combs,length)==1))
-  testthat::expect_false(all(table(names(stan_data$map_obs_loctime_combs))==1))
+  expect_true(all(sapply(stan_data$u_loctime_combs,length)==1))
+  expect_false(all(table(names(stan_data$map_obs_loctime_combs))==1))
   
 })
 
@@ -63,9 +63,9 @@ test_that("get_loctime_combs_mappings works for multi-year obs and multiple lps"
   
   stan_data$map_obs_admin_lev <- rep(1:5,2)
   
-  stan_data <- taxdat::get_loctime_combs_mappings(stan_data)
+  stan_data <- get_loctime_combs_mappings(stan_data)
   
-  testthat::expect_true(all(sapply(stan_data$u_loctime_combs,length)==1))
-  testthat::expect_false(all(table(names(stan_data$map_obs_loctime_combs))==1))
+  expect_true(all(sapply(stan_data$u_loctime_combs,length)==1))
+  expect_false(all(table(names(stan_data$map_obs_loctime_combs))==1))
   
 })
