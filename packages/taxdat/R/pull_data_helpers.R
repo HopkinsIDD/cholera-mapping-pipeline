@@ -600,7 +600,7 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL, time_le
   
   # Run query for observations
   obs_query <- glue::glue_sql(paste(obs_query, filters, ";"), .con = conn)
-  observations <- sf::st_as_sf(sf::st_read(conn, query = obs_query))
+  observations <- suppressWarnings(sf::st_as_sf(sf::st_read(conn, query = obs_query)))
   if (nrow(observations) == 0) {
     stop(paste0("No observations found using query ||", obs_query, "||"))
   }
