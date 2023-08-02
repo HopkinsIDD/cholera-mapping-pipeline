@@ -1,7 +1,7 @@
 ## testing for get_loctime_combs function
 
 # single year obs, single lp
-test_that("get_loctime_combs works", { 
+test_that("get_loctime_combs works for single-year obs and single lp", { 
   stan_data <-list() 
   stan_data$map_obs_loctime_obs <- array(1:10)
   names(stan_data$map_obs_loctime_obs) <- 1:10
@@ -18,7 +18,7 @@ test_that("get_loctime_combs works", {
 
 
 # single year obs, multiple lps
-test_that("get_loctime_combs works", { 
+test_that("get_loctime_combs works for single-year obs and multiple lps", { 
   stan_data <-list() 
   stan_data$map_obs_loctime_obs <- array(1:10)
   names(stan_data$map_obs_loctime_obs) <- 1:10
@@ -34,7 +34,7 @@ test_that("get_loctime_combs works", {
 })
 
 # multi year obs, single lp
-test_that("get_loctime_combs works", { 
+test_that("get_loctime_combs works for multi-year obs and single lp", { 
   stan_data <-list() 
   stan_data$map_obs_loctime_obs <- array(c(1:8,9,9))
   names(stan_data$map_obs_loctime_obs) <- 1:10
@@ -49,8 +49,8 @@ test_that("get_loctime_combs works", {
   
 })
 
-# multi year obs, single lp
-test_that("get_loctime_combs works", { 
+# multi year obs, multiple lps
+test_that("get_loctime_combs works for multi-year obs and multiple lps", { 
   stan_data <-list() 
   stan_data$map_obs_loctime_obs <- array(c(1:8,9,9))
   names(stan_data$map_obs_loctime_obs) <- 1:10

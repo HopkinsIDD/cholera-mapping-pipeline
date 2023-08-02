@@ -2134,11 +2134,12 @@ get_loctime_combs <- function(stan_data) {
   # for multi-year observations, separate the loctime. 
   if(any(sapply(loctime_combs,length)>1)){
     loctime_combs_tmp <- loctime_combs[sapply(loctime_combs,length)>1]
-    fixed_loctime_combs<-list()
+    fixed_loctime_combs <- as.list(rep(NA, length(loctime_combs_tmp)))
+    
     for(row_idx in seq(length(loctime_combs_tmp))){
       loctime_combs_tmp2 <- as.list(rep(loctime_combs_tmp[[row_idx]],length(loctime_combs_tmp[[row_idx]][[1]])))
       names(loctime_combs_tmp2)<-rep(names(loctime_combs_tmp)[row_idx],length(loctime_combs_tmp2))
-      fixed_loctime_combs <- c(fixed_loctime_combs,loctime_combs_tmp2)
+      fixed_loctime_combs[[row_idx]] <- loctime_combs_tmp2
     }
     loctime_combs <- c(loctime_combs[sapply(loctime_combs,length)==1],fixed_loctime_combs)
     loctime_combs<-loctime_combs[order(as.numeric(names(loctime_combs)))]
@@ -2181,7 +2182,7 @@ get_loctime_combs_mappings <- function(stan_data) {
       loctimes <- stan_data$map_loctime_combs_loc[stan_data$map_loctime_combs_comb == x]
       
       # Get one observation of this loctime
-      obs_id <- first(stan_data$map_obs_loctime_obs[stan_data$map_obs_loctime_loc == loctimes[1]])
+      obs_id <- gdata::first(stan_data$map_obs_loctime_obs[stan_data$map_obs_loctime_loc == loctimes[1]])
       
       # Get the corresponding admin level
       stan_data$map_obs_admin_lev[obs_id]
