@@ -37,7 +37,9 @@ opt_list <- list(
   make_option(opt_str = c("-y", "--interm_dir"), type = "character",
               default = "./Analysis/output/interm/", help = "Intermediate outputs directory"),
   make_option(opt_str = c("-o", "--output_dir"), type = "character",
-              default = "./Analysis/output/processed_outputs/", help = "Output directory")
+              default = "./Analysis/output/processed_outputs/", help = "Output directory"),
+  make_option(opt_str = c("-c", "--cholera_dir"), type = "character",
+              default = "cholera-mapping-pipeline", help = "Cholera mapping pipeline directory")
 )
 
 opt <- parse_args(OptionParser(option_list = opt_list))
@@ -299,7 +301,8 @@ p_fig1 <- output_plot_map(sf_obj = mai_adm0 %>%
                           lakes_sf = lakes_sf,
                           all_countries_sf = all_country_sf,
                           fill_var = "log10_rate_per_1e5",
-                          fill_color_scale_type = "rates") +
+                          fill_color_scale_type = "rates",
+                          cholera_dir = opt$cholera_dir) +
   ggtitle(str_glue("Mean mean annual incidence rate\nat national level"))
 
 ggsave(p_fig1,
@@ -323,7 +326,8 @@ p_fig2 <- output_plot_map(sf_obj = mai_adm2 %>%
                           lakes_sf = lakes_sf,
                           all_countries_sf = all_country_sf,
                           fill_var = "log10_rate_per_1e5",
-                          fill_color_scale_type = "rates")  +
+                          fill_color_scale_type = "rates",
+                          cholera_dir = opt$cholera_dir)  +
   ggtitle(str_glue("Mean mean annual incidence rate\n at ADM2 level"))
 
 
@@ -341,7 +345,8 @@ p_fig3 <- output_plot_map(sf_obj = mai_grid_rates_stats %>%
                           lakes_sf = lakes_sf,
                           all_countries_sf = all_country_sf,
                           fill_var = "log10_rate_per_1e5",
-                          fill_color_scale_type = "rates")
+                          fill_color_scale_type = "rates",
+                          cholera_dir = opt$cholera_dir)
 
 ggsave(p_fig3,
        file = str_glue("{opt$output_dir}/figure_mai_grid_rates_{suffix}.png"),
@@ -356,7 +361,8 @@ p_fig4 <- output_plot_map(sf_obj = mai_grid_cases_stats %>%
                           lakes_sf = lakes_sf,
                           all_countries_sf = all_country_sf,
                           fill_var = "log10_cases",
-                          fill_color_scale_type = "cases")
+                          fill_color_scale_type = "cases",
+                          cholera_dir = opt$cholera_dir)
 
 ggsave(p_fig4,
        file = str_glue("{opt$output_dir}/figure_mai_grid_cases_{suffix}.png"),
@@ -372,7 +378,8 @@ p_fig5 <- output_plot_map(sf_obj = risk_categories,
                           lakes_sf = lakes_sf,
                           all_countries_sf = all_country_sf,
                           fill_var = "risk_cat",
-                          fill_color_scale_type = "risk category") +
+                          fill_color_scale_type = "risk category",
+                          cholera_dir = opt$cholera_dir) +
   facet_wrap(~admin_level)
 
 ggsave(p_fig5,
@@ -468,7 +475,8 @@ p_fig9 <- all_shapefiles %>%
                   border_color = "gray",
                   lake_alpha = 1,
                   country_border_color = "black",
-                  country_border_width = 1)
+                  country_border_width = 1,
+                  cholera_dir = opt$cholera_dir)
 
 ggsave(p_fig9,
        file = str_glue("{opt$output_dir}/figure_data_spatial_coverage_{suffix}.png"),
