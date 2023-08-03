@@ -12,6 +12,7 @@ params:
 knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(ggplot2)
+library(grid)
 ```
 
 ```{r load data, echo=FALSE}
@@ -95,15 +96,23 @@ for(idx in 1:nrow(new_file_names)){
 }
 ```
 
-```{r tfrac max plot,fig.height=10, fig.width=15,echo=FALSE}
+```{r tfrac max plot,fig.height=8,fig.width=8,echo=FALSE}
 # Plotting
-  tfrac_table %>%
+for(run_id_idx in unique(tfrac_table$run_id)){
+  for(iso_idx in unique(tfrac_table[tfrac_table$run_id==run_id_idx,]$iso)){
+  
+  grid.newpage()
+
+  p<-tfrac_table %>%
+  dplyr::filter(run_id==run_id_idx & iso == iso_idx) %>%
   ggplot(aes(x=year, y=max_tfrac)) +
   geom_bar(stat="identity", fill="lightblue") +
   geom_text(aes(label = ifelse(zero_case, as.character("zero-case"), "")), fontface = "bold", size = 1.0) + 
   theme_minimal() + 
-  scale_y_continuous(limits=c(0, 1)) + 
-  theme_minimal()+
-  facet_wrap(~run_id+iso,ncol=2,scales = "free")
-
+  scale_y_continuous(limits=c(0, 1))
+  
+    print(p)
+    cat('\r\n\r\n')
+ }
+}
 ```

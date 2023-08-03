@@ -80,6 +80,8 @@ drop_missing_shapefiles <- function(cases,
       dplyr::filter(shapefile.exists)
     
     cases
+  } else {
+    cases
   }
 }
 
