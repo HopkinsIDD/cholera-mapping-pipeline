@@ -110,9 +110,17 @@ if (!as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
   }
 
   if (Sys.getenv("REINSTALL_TAXDAT", FALSE)) {
-    install.packages(paste0(cholera_directory, "packages/taxdat"), type = "source", repos = NULL)
+    if(stringr::str_ends(cholera_directory, "/")){
+      install.packages(paste0(cholera_directory, "packages/taxdat"), type = "source", repos = NULL)
+    }else{
+      install.packages(paste0(cholera_directory, "/packages/taxdat"), type = "source", repos = NULL)
+    }
   } else if (!require(taxdat)) {
-    install.packages(paste0(cholera_directory, "packages/taxdat"), type = "source", repos = NULL)
+    if(stringr::str_ends(cholera_directory, "/")){
+      install.packages(paste0(cholera_directory, "packages/taxdat"), type = "source", repos = NULL)
+    }else{
+      install.packages(paste0(cholera_directory, "/packages/taxdat"), type = "source", repos = NULL)
+    }
   } else {
     detach("package:taxdat")
   }
