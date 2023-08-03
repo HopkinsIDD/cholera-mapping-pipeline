@@ -618,6 +618,7 @@ postprocess_gen_obs <- function(config_list,
   mapped_gen_obs <- gen_obs[stan_input$stan_data$map_obs_loctime_combs, ] %>% 
     dplyr::bind_cols(stan_input$sf_cases_resized %>% 
                        sf::st_drop_geometry() %>% 
+                       dplyr::filter(!is.na(loctime)) %>% 
                        dplyr::select(observation = attributes.fields.suspected_cases,
                                      censoring,
                                      admin_level)) %>% 
