@@ -611,14 +611,18 @@ postprocess_gen_obs <- function(config_list,
                      ~ posterior::quantile2(., probs = c(0.005, seq(0.025, 0.975, by = .025), .995)))
   )
   
-  
   # Join with data
   load(config_list$file_names$stan_input_filename)
   
-  mapped_gen_obs <- gen_obs[stan_input$stan_data$map_obs_loctime_combs, ] %>% 
+  #get row number for multi-year gen_obs_loctime_combs
+  multi_year_row_num <- names(stan_input$stan_data$map_obs_loctime_combs[duplicated(names(stan_input$stan_data$map_obs_loctime_combs))])
+  multi_year_row_num <- ifelse(length(multi_year_row_num)==0,NA,multi_year_row_num)
+  
+  mapped_gen_obs <- gen_obs[stan_input$stan_data$map_obs_loctime_combs[!names(stan_input$stan_data$map_obs_loctime_combs)==multi_year_row_num],] %>% 
     dplyr::bind_cols(stan_input$sf_cases_resized %>% 
                        sf::st_drop_geometry() %>% 
                        dplyr::filter(!is.na(loctime)) %>% 
+                       dplyr::filter(lubridate::year(TL)==lubridate::year(TR)) %>% #for now remove the multi-year observations
                        dplyr::select(observation = attributes.fields.suspected_cases,
                                      censoring,
                                      admin_level)) %>% 
