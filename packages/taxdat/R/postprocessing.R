@@ -616,18 +616,31 @@ postprocess_gen_obs <- function(config_list,
   
   #get row number for multi-year gen_obs_loctime_combs
   multi_year_row_num <- names(stan_input$stan_data$map_obs_loctime_combs[duplicated(names(stan_input$stan_data$map_obs_loctime_combs))])
-  multi_year_row_num <- ifelse(length(multi_year_row_num)==0,NA,multi_year_row_num)
   
-  mapped_gen_obs <- gen_obs[stan_input$stan_data$map_obs_loctime_combs[!names(stan_input$stan_data$map_obs_loctime_combs)==multi_year_row_num],] %>% 
-    dplyr::bind_cols(stan_input$sf_cases_resized %>% 
-                       sf::st_drop_geometry() %>% 
-                       dplyr::filter(!is.na(loctime)) %>% 
-                       dplyr::filter(lubridate::year(TL)==lubridate::year(TR)) %>% #for now remove the multi-year observations
-                       dplyr::select(observation = attributes.fields.suspected_cases,
-                                     censoring,
-                                     admin_level)) %>% 
-    dplyr::mutate(obs_gen_id = stringr::str_extract(variable, "[0-9]+") %>% as.numeric()) %>% 
-    dplyr::add_count(obs_gen_id)
+  if(!length(multi_year_row_num) == 0) {
+    mapped_gen_obs <- gen_obs[stan_input$stan_data$map_obs_loctime_combs[!names(stan_input$stan_data$map_obs_loctime_combs) %in% multi_year_row_num],] %>% 
+      dplyr::bind_cols(stan_input$sf_cases_resized %>% 
+                         sf::st_drop_geometry() %>% 
+                         dplyr::filter(!is.na(loctime)) %>% 
+                         dplyr::filter(lubridate::year(TL)==lubridate::year(TR)) %>% #for now remove the multi-year observations
+                         dplyr::select(observation = attributes.fields.suspected_cases,
+                                       censoring,
+                                       admin_level)) %>% 
+      dplyr::mutate(obs_gen_id = stringr::str_extract(variable, "[0-9]+") %>% as.numeric()) %>% 
+      dplyr::add_count(obs_gen_id)    
+  }else{
+    mapped_gen_obs <- gen_obs[stan_input$stan_data$map_obs_loctime_combs,] %>% 
+      dplyr::bind_cols(stan_input$sf_cases_resized %>% 
+                         sf::st_drop_geometry() %>% 
+                         dplyr::filter(!is.na(loctime)) %>% 
+                         dplyr::filter(lubridate::year(TL)==lubridate::year(TR)) %>% #for now remove the multi-year observations
+                         dplyr::select(observation = attributes.fields.suspected_cases,
+                                       censoring,
+                                       admin_level)) %>% 
+      dplyr::mutate(obs_gen_id = stringr::str_extract(variable, "[0-9]+") %>% as.numeric()) %>% 
+      dplyr::add_count(obs_gen_id) 
+  }
+
   
   
   mapped_gen_obs
