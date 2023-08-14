@@ -13,6 +13,8 @@ cmdstan_draws <- posterior::as_draws(model.rand)
 
 # Remove censoring inds that are character
 initial_values_data$stan_data$censoring_inds <- NULL
+# Remove u_loctime_combs because it may have different lengths
+initial_values_data$stan_data$u_loctime_combs <- NULL
 
 # Compile cmdstanr gen quantities
 chol_gen_model <- cmdstanr::cmdstan_model(stan_genquant_path,
