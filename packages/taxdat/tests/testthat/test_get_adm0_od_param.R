@@ -1,13 +1,14 @@
 
 test_that("get_adm0_od_param works general", {
   
-  sf_cases_resized <- tibble::tibble(
+  sf_cases_resized <- sf::st_sf(
     cases = 10,
     TL = as.Date("2000-01-01"),
     TR = as.Date("2000-12-31"),
     admin_level = 0,
-    censoring = "full"
-  )
+    censoring = "full",
+    geometry = sf::st_sfc(sf::st_geometrycollection())
+  ) 
   
   cases_column <- "cases"
   res_time <- "1 years"
