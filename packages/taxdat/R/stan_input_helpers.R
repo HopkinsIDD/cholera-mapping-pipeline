@@ -2183,3 +2183,34 @@ get_loctime_combs_mappings <- function(stan_data) {
   
   stan_data
 }
+
+
+#' get_adm0_od_param
+#'
+#' @param sf_cases_resized 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_adm0_od_param <- function(sf_cases_resized,
+                              res_time,
+                              cases_column) {
+  
+  # Get single-year data at adm0
+  ts_subset <- sf_cases_resized %>% 
+    get_admin_level_data(res_time = res_time,
+                         admin_levels = 0,
+                         censorings = "full")
+  
+  # Get the maximum of adm0 observations
+  max_adm0_obs <- max(ts_subset[[cases_column]])
+  
+  if (max_adm0_obs > 1e4) {
+    od_param <- 1e3
+  } else {
+    od_param <- 1e2
+  }
+  
+  od_param
+} 

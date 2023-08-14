@@ -603,6 +603,10 @@ prepare_stan_input <- function(
   # Infer the sd of the prior on yearly random effects
   stan_data$do_infer_sd_eta <- config$do_infer_sd_eta
   
+  # The over-dispersion at adm0
+  stan_data$adm0_od <- taxdat::get_adm0_od_param(sf_cases_resized = sf_cases_resized,
+                                                 res_time = res_time,
+                                                 cases_column = cases_column)
   
   # ---- O. Priors ----
   # Set sigma_eta_scale for all models (not used for models without time effect)
