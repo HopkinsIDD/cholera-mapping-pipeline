@@ -453,7 +453,7 @@ model {
   
   // prior on rho if provided
   if (use_rho_prior == 1) {
-    rho ~ beta(5,1.5);
+    rho ~ beta(1.5, 3);
     if (debug && (previous_debugs == 0)) {
       print("rho", target());
     }
