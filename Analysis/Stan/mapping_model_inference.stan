@@ -532,113 +532,113 @@ model {
   }
   
   // ---- 4. Observations likelihood ----
-  
-  if (do_censoring == 1) {
-    
-    if (M_full > 0) {
-      
-      if (obs_model == 1) {
-        // data model for estimated rates for full time slice observations
-        target += poisson_lpmf(y[ind_full]| modeled_cases[ind_full]);
-      } else if (obs_model == 2) {
-        target += neg_binomial_2_lpmf(y[ind_full] | modeled_cases[ind_full], od_param[map_obs_admin_lev[ind_full]] .* modeled_cases[ind_full]);
-      } else {
-        target += neg_binomial_2_lpmf(y[ind_full] | modeled_cases[ind_full], od_param[map_obs_admin_lev[ind_full]]);
-      }
-      
-      if (debug && (previous_debugs == 0)) {
-        print("full obs", target());
-      }
-    }
-    
-    if (M_right > 0) {
-      //data model for estimated rates for right-censored time slice observations
-      //note that according to Stan the complementary CDF, or CCDF(Y|modeled_cases)
-      // is defined as Pr(Y > y | modeled_cases),
-      // we therefore add the probability Pr(Y = y|modeled_cases) to CCDF(y|modeled_cases)
-      // to get Pr(Y >= y|modeled_cases)
-      //https://mc-stan.org/docs/2_25/functions-reference/cumulative-distribution-functions.html
-      
-      vector[M_right] lp_censored;
-      
-      for(i in 1:M_right){
-        real lpmf;
-        
-        if (obs_model == 1) {
-          // Poisson likelihood
-          lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
-        } else if (obs_model == 2) {
-          // Quasi-poisson likelihood
-          lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]] * modeled_cases[ind_right[i]]);
-        } else {
-          // Neg-binom likelihood
-          lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]]);
-        }
-        
-        // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
-        if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
-          real lls[2];
-          if (obs_model == 1) {
-            // Poisson likelihood
-            lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
-          } else if (obs_model == 2) {
-            // Quasi-poisson likelihood
-            lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]] * modeled_cases[ind_right[i]]);
-          } else {
-            // print("i: ", i, " y: ", y[ind_right[i]], " mcases: ", modeled_cases[ind_right[i]], " od: ", od_param[map_obs_admin_lev[ind_right[i]]]);
-            // Neg-binom likelihood
-            lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]]);
-          }
-          lls[2] = lpmf;
-          lp_censored[i] = log_sum_exp(lls);
-        } else {
-          lp_censored[i] = lpmf;
-        }
-      }
-      
-      target += sum(lp_censored);
-      
-      if (debug && (previous_debugs == 0)) {
-        print("right censored obs", target());
-      }
-      // add a 0-centered prior on the censored cases
-      // for (idx in ind_right) {
-        //   modeled_cases[idx] ~ cauchy(0, 2);
-        // }
-    }
-  } else {
-    if (use_weights == 1) {
-      //data model for estimated rates
-      for(i in 1:M){
-        if (obs_model == 1) {
-          // Poisson likelihood
-          target += poisson_lpmf(y[i] | modeled_cases[i])/weights[i];
-        } else if (obs_model == 2) {
-          // Quasi-poisson likelihood
-          target += neg_binomial_2_lpmf(y[i] | modeled_cases[i], od_param[map_obs_admin_lev[i]] * modeled_cases[i])/weights[i];
-        } else {
-          // Neg-binom likelihood
-          target += neg_binomial_2_lpmf(y[i] | modeled_cases[i], od_param[map_obs_admin_lev[i]])/weights[i];
-        }
-        if (debug && (previous_debugs == 0)) {
-          print("weighted obs", target());
-        }
-      }
-    } else {
-      if (obs_model == 1) {
-        // Poisson likelihood
-        target += poisson_lpmf(y | modeled_cases);
-      } else if (obs_model == 2) {
-        // Quasi-poisson likelihood
-        target += neg_binomial_2_lpmf(y | modeled_cases, od_param[map_obs_admin_lev] .* modeled_cases);
-      } else {
-        // Neg-binom likelihood
-        target += neg_binomial_2_lpmf(y | modeled_cases, od_param[map_obs_admin_lev]);
-      }
-      
-      if (debug && (previous_debugs == 0)) {
-        print("unweighted obs", target());
-      }
-    }
-  }
+  // 
+  // if (do_censoring == 1) {
+    //   
+    //   if (M_full > 0) {
+      //     
+      //     if (obs_model == 1) {
+        //       // data model for estimated rates for full time slice observations
+        //       target += poisson_lpmf(y[ind_full]| modeled_cases[ind_full]);
+        //     } else if (obs_model == 2) {
+          //       target += neg_binomial_2_lpmf(y[ind_full] | modeled_cases[ind_full], od_param[map_obs_admin_lev[ind_full]] .* modeled_cases[ind_full]);
+          //     } else {
+            //       target += neg_binomial_2_lpmf(y[ind_full] | modeled_cases[ind_full], od_param[map_obs_admin_lev[ind_full]]);
+            //     }
+            //     
+            //     if (debug && (previous_debugs == 0)) {
+              //       print("full obs", target());
+              //     }
+              //   }
+              //   
+              //   if (M_right > 0) {
+                //     //data model for estimated rates for right-censored time slice observations
+                //     //note that according to Stan the complementary CDF, or CCDF(Y|modeled_cases)
+                //     // is defined as Pr(Y > y | modeled_cases),
+                //     // we therefore add the probability Pr(Y = y|modeled_cases) to CCDF(y|modeled_cases)
+                //     // to get Pr(Y >= y|modeled_cases)
+                //     //https://mc-stan.org/docs/2_25/functions-reference/cumulative-distribution-functions.html
+                //     
+                //     vector[M_right] lp_censored;
+                //     
+                //     for(i in 1:M_right){
+                  //       real lpmf;
+                  //       
+                  //       if (obs_model == 1) {
+                    //         // Poisson likelihood
+                    //         lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+                    //       } else if (obs_model == 2) {
+                      //         // Quasi-poisson likelihood
+                      //         lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]] * modeled_cases[ind_right[i]]);
+                      //       } else {
+                        //         // Neg-binom likelihood
+                        //         lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]]);
+                        //       }
+                        //       
+                        //       // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
+                        //       if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
+                          //         real lls[2];
+                          //         if (obs_model == 1) {
+                            //           // Poisson likelihood
+                            //           lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+                            //         } else if (obs_model == 2) {
+                              //           // Quasi-poisson likelihood
+                              //           lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]] * modeled_cases[ind_right[i]]);
+                              //         } else {
+                                //           // print("i: ", i, " y: ", y[ind_right[i]], " mcases: ", modeled_cases[ind_right[i]], " od: ", od_param[map_obs_admin_lev[ind_right[i]]]);
+                                //           // Neg-binom likelihood
+                                //           lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]]);
+                                //         }
+                                //         lls[2] = lpmf;
+                                //         lp_censored[i] = log_sum_exp(lls);
+                                //       } else {
+                                  //         lp_censored[i] = lpmf;
+                                  //       }
+                                  //     }
+                                  //     
+                                  //     target += sum(lp_censored);
+                                  //     
+                                  //     if (debug && (previous_debugs == 0)) {
+                                    //       print("right censored obs", target());
+                                    //     }
+                                    //     // add a 0-centered prior on the censored cases
+                                    //     // for (idx in ind_right) {
+                                      //       //   modeled_cases[idx] ~ cauchy(0, 2);
+                                      //       // }
+                                      //   }
+                                      // } else {
+                                        //   if (use_weights == 1) {
+                                          //     //data model for estimated rates
+                                          //     for(i in 1:M){
+                                            //       if (obs_model == 1) {
+                                              //         // Poisson likelihood
+                                              //         target += poisson_lpmf(y[i] | modeled_cases[i])/weights[i];
+                                              //       } else if (obs_model == 2) {
+                                                //         // Quasi-poisson likelihood
+                                                //         target += neg_binomial_2_lpmf(y[i] | modeled_cases[i], od_param[map_obs_admin_lev[i]] * modeled_cases[i])/weights[i];
+                                                //       } else {
+                                                  //         // Neg-binom likelihood
+                                                  //         target += neg_binomial_2_lpmf(y[i] | modeled_cases[i], od_param[map_obs_admin_lev[i]])/weights[i];
+                                                  //       }
+                                                  //       if (debug && (previous_debugs == 0)) {
+                                                    //         print("weighted obs", target());
+                                                    //       }
+                                                    //     }
+                                                    //   } else {
+                                                      //     if (obs_model == 1) {
+                                                        //       // Poisson likelihood
+                                                        //       target += poisson_lpmf(y | modeled_cases);
+                                                        //     } else if (obs_model == 2) {
+                                                          //       // Quasi-poisson likelihood
+                                                          //       target += neg_binomial_2_lpmf(y | modeled_cases, od_param[map_obs_admin_lev] .* modeled_cases);
+                                                          //     } else {
+                                                            //       // Neg-binom likelihood
+                                                            //       target += neg_binomial_2_lpmf(y | modeled_cases, od_param[map_obs_admin_lev]);
+                                                            //     }
+                                                            //     
+                                                            //     if (debug && (previous_debugs == 0)) {
+                                                              //       print("unweighted obs", target());
+                                                              //     }
+                                                              //   }
+                                                              // }
 }
