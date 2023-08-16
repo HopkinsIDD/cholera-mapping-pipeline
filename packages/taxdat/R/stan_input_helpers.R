@@ -2214,3 +2214,54 @@ get_adm0_od_param <- function(sf_cases_resized,
   
   od_param
 } 
+
+
+#' drop_obs_by_OC
+#'
+#' @param sf_cases_resized 
+#' @param model_time_slices 
+#' @param res_time 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+#' 
+drop_obs_by_OC <- function(sf_cases_resized,
+                           res_time) {
+  
+  # Add obs id for filtering
+  sf_cases_resized <- sf_cases_resized %>% 
+    dplyr::mutate(tmp_obs_id = dplyr::row_number())
+  
+  # Get single-year data at adm0
+  ts_subset <- sf_cases_resized %>% 
+    get_admin_level_data(res_time = res_time,
+                         admin_levels = 0,
+                         censorings = NULL)
+  
+  # Get maximum tfrac obs by OC
+  max_tfrac_obs <- ts_subset %>% 
+    dplyr::filter(ref_TL == get_start_timeslice(TR, res_time), 
+                  get_end_timeslice(TL, res_time) == ref_TR) %>% 
+    dplyr::rowwise() %>% 
+    dplyr::mutate(tfrac = compute_tfrac(TL, TR, ref_TL, ref_TR)) %>% 
+    dplyr::ungroup() %>% 
+    dplyr::group_by(OC_UID, locationPeriod_id, ref_TL, ref_TR) %>% 
+    dplyr::slice_max(tfrac) %>% 
+    dplyr::ungroup()
+  
+  # Drop from data everyting that is not in subset
+  drop_ids <- ts_subset %>% 
+    dplyr::filter(!(tmp_obs_id %in% max_tfrac_obs$tmp_obs_id))
+  
+  if (nrow(drop_ids) > 0) {
+    cat("Dropping", nrow(drop_ids), "adm0 observations based on maximum tfrac.\n")
+    
+    sf_cases_resized <- sf_cases_resized %>% 
+      dplyr::filter(!(tmp_obs_id %in% drop_ids$tmp_obs_id))
+  }
+  
+  sf_cases_resized %>% 
+    dplyr::select(-tmp_obs_id)
+}

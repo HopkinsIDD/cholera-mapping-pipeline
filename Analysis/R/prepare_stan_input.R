@@ -131,7 +131,7 @@ prepare_stan_input <- function(
     duplicated()
   
   sf_cases <- sf_cases[!sf_cases_dup_obs, ]
-
+  
   
   # ---- D. Aggregation ----
   
@@ -196,7 +196,7 @@ prepare_stan_input <- function(
     if (length(obs_remove_thresh) == 0){
       cat("---- FOUND none of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", config$tfrac_thresh, "\n")
     } else {
-
+      
       cat("---- REMOVING", length(obs_remove_thresh), "of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", config$tfrac_thresh, "\n")
       # Remove observations
       sf_cases_resized <- sf_cases_resized[-c(obs_remove_thresh), ]
@@ -233,9 +233,24 @@ prepare_stan_input <- function(
       do_parallel = config$do_parallel_prep)
   }
   
+  #  ---- Ec. Drop observations by OC ----
+  
+  sf_cases_resized <- taxdat::drop_obs_by_OC(sf_cases_resized = sf_cases_resized,
+                                             model_time_slices = time_slices,
+                                             res_time = res_time
+  )
+  
+  # Re-compute space-time indices based on dropped data
+  ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+    df = sf_cases_resized, 
+    lp_dict = location_periods_dict,
+    model_time_slices = time_slices,
+    res_time = res_time,
+    n_cpus = config$ncpus_parallel_prep,
+    do_parallel = config$do_parallel_prep)
+  
   # ---- F. Censoring ----
   
-
   # Set stan_data at this point
   stan_data <- taxdat::update_stan_data_indexing(stan_data = stan_data,
                                                  ind_mapping_resized = ind_mapping_resized,
@@ -244,7 +259,7 @@ prepare_stan_input <- function(
   # Extract censoring information
   sf_cases_resized$censoring <- taxdat::get_censoring_inds(ind_mapping_resized = ind_mapping_resized,
                                                            censoring_thresh = config$censoring_thresh)
-
+  
   sf_cases_resized <- sf_cases_resized %>% 
     dplyr::mutate(ref_TL = taxdat::get_start_timeslice(TL, res_time),
                   ref_TR = taxdat::get_end_timeslice(TR, res_time),
@@ -257,7 +272,7 @@ prepare_stan_input <- function(
     cat("-- Checking for 0 censored observations \n")
     
     y <- sf_cases_resized[[cases_column]]
-
+    
     censored_zero_obs <- which(y == 0 & sf_cases_resized$censoring == "right-censored")
     
     if (length(censored_zero_obs) > 0) {
@@ -304,13 +319,13 @@ prepare_stan_input <- function(
                                                  ind_mapping_resized = ind_mapping_resized,
                                                  config = config)
   
-
+  
   # ---- G. Spatial fraction ----
   # Add 1km population fraction (this is deprecated in new stan model)
   stan_data$use_pop_weight <- config$use_pop_weight
   
   if (config$use_pop_weight) {
- 
+    
     # Make sure that all observations for have a pop_loctime > 0
     pop_loctimes <- taxdat::compute_pop_loctimes(stan_data = stan_data)
     
@@ -341,14 +356,14 @@ prepare_stan_input <- function(
                                                      ind_mapping_resized = ind_mapping_resized,
                                                      config = config)
     }
-
-
+    
+    
     stan_data$map_loc_grid_sfrac <- taxdat::check_pop_weight_validity(stan_data$map_loc_grid_sfrac)
     
   } else {
     stan_data$map_loc_grid_sfrac <- array(data = 0, dim = 0)
   }
-
+  
   #  ---- H. Observations ----
   stan_data$y <- as.array(sf_cases_resized[[cases_column]])
   
@@ -437,7 +452,7 @@ prepare_stan_input <- function(
                                               res_time = res_time,
                                               cases_column = cases_column,
                                               frac_coverage_thresh = 0.1)
-
+  
   stan_data <- taxdat::update_stan_data_imputation(sf_cases_resized = sf_cases_resized,
                                                    stan_data = stan_data,
                                                    time_slices = time_slices,
