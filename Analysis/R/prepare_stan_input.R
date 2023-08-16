@@ -236,7 +236,6 @@ prepare_stan_input <- function(
   #  ---- Ec. Drop observations by OC ----
   
   sf_cases_resized <- taxdat::drop_obs_by_OC(sf_cases_resized = sf_cases_resized,
-                                             model_time_slices = time_slices,
                                              res_time = res_time
   )
   
