@@ -104,6 +104,9 @@ data {
   
   // Debug
   int debug;
+  
+  // Over-dispersion at adm0
+  real<lower=0> adm0_od;
 }
 
 transformed data {
@@ -230,7 +233,7 @@ transformed parameters {
   
   
   if (do_overdispersion == 1) {
-    od_param[1] = 1e2;
+    od_param[1] = adm0_od;
     for (i in 2:N_admin_lev) {
       od_param[i] = 1/inv_od_param[(i-1)];
     }

@@ -123,6 +123,9 @@ data {
   int<lower=0> N_cat;    // Number of incidence categories. For now there are no checks whether categories are mutually exclusive or not
   real<lower=0> risk_cat_low[N_cat];    // lower bound of categories
   real<lower=0> risk_cat_high[N_cat];   // upper bound of categories
+  
+  // Over-dispersion at adm0
+  real<lower=0> adm0_od;
 }
 
 transformed data {
@@ -240,7 +243,7 @@ transformed parameters {
   vector[N_admin_lev*do_overdispersion] od_param;
   
   if (do_overdispersion == 1) {
-    od_param[1] = 1e2;
+    od_param[1] = adm0_od;
     for (i in 2:N_admin_lev) {
       od_param[i] = 1/inv_od_param[(i-1)];
     }
