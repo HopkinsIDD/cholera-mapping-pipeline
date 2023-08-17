@@ -233,22 +233,7 @@ prepare_stan_input <- function(
       do_parallel = config$do_parallel_prep)
   }
   
-  #  ---- Ec. Drop observations by OC ----
-  
-  sf_cases_resized <- taxdat::drop_obs_by_OC(sf_cases_resized = sf_cases_resized,
-                                             res_time = res_time
-  )
-  
-  # Re-compute space-time indices based on dropped data
-  ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
-    df = sf_cases_resized, 
-    lp_dict = location_periods_dict,
-    model_time_slices = time_slices,
-    res_time = res_time,
-    n_cpus = config$ncpus_parallel_prep,
-    do_parallel = config$do_parallel_prep)
-  
-  # ---- F. Censoring ----
+  # ---- Fa. Censoring ----
   
   # Set stan_data at this point
   stan_data <- taxdat::update_stan_data_indexing(stan_data = stan_data,
@@ -318,6 +303,25 @@ prepare_stan_input <- function(
                                                  ind_mapping_resized = ind_mapping_resized,
                                                  config = config)
   
+  #  ---- Fb. Drop observations by OC ----
+  
+  sf_cases_resized <- taxdat::drop_obs_by_OC(sf_cases_resized = sf_cases_resized,
+                                             res_time = res_time
+  )
+  
+  # Re-compute space-time indices based on dropped data
+  ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+    df = sf_cases_resized, 
+    lp_dict = location_periods_dict,
+    model_time_slices = time_slices,
+    res_time = res_time,
+    n_cpus = config$ncpus_parallel_prep,
+    do_parallel = config$do_parallel_prep)
+  
+  # First define censored observations 
+  stan_data <- taxdat::update_stan_data_indexing(stan_data = stan_data,
+                                                 ind_mapping_resized = ind_mapping_resized,
+                                                 config = config)
   
   # ---- G. Spatial fraction ----
   # Add 1km population fraction (this is deprecated in new stan model)
