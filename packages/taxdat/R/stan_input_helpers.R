@@ -2281,9 +2281,7 @@ drop_obs_by_OC <- function(sf_cases_resized,
     sf_cases_resized <- sf_cases_resized %>% 
       dplyr::filter(!(tmp_obs_id %in% drop_ids$tmp_obs_id))
   }
-} 
-
-
-sf_cases_resized %>% 
-  dplyr::select(-tmp_obs_id)
+  
+  sf_cases_resized %>% 
+    dplyr::select(-tmp_obs_id)
 }
