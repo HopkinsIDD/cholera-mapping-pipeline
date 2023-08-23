@@ -588,7 +588,7 @@ generated quantities {
         }
         
         // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
-        if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
+        if ((y[ind_right[i]] < modeled_cases[ind_right[i]] && (lpmf > -15)) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
           real lls[2];
           if (obs_model == 1) {
             // Poisson likelihood
@@ -602,6 +602,8 @@ generated quantities {
           }
           lls[2] = lpmf;
           log_lik[ind_right[i]] = log_sum_exp(lls);
+        } else if (y[ind_right[i]] < modeled_cases[ind_right[i]]) {
+          log_lik[ind_right[i]] = 0;
         } else {
           log_lik[ind_right[i]] = lpmf;
         }
