@@ -18,7 +18,6 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
   get_sf_cases_resized(name="sf_cases_resized",config=config, cache=cache, cholera_directory=cholera_directory)
   who_annual_cases <- cache[["sf_cases_resized"]] %>% sf::st_drop_geometry()
   
-
   ## if to get the sum of the grid-level modeled cases  
   if(!observation_level_modeled_cases){
     ### First get the non-na grid cells and their associated time 
@@ -56,19 +55,19 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
     }
 
   }else{
-    ### get the distribution of the observation-level modeled cases 
+    ### get 95% credible intervals of ppd modeled cases at the observational level 
     get_genquant(name="genquant",cache=cache,config=config,cholera_directory = cholera_directory)
-    varnames <- dimnames(cache[['genquant']]$draws())[[3]]
-    modeled_observed_cases <- as.array(cache[['genquant']]$draws())[, , grepl("^modeled_cases", varnames),drop=FALSE]
-    dim(modeled_observed_cases) <- c(dim(modeled_observed_cases)[1] * dim(modeled_observed_cases)[2], dim(modeled_observed_cases)[3])
-    modeled_obs_level_cases <- apply(modeled_observed_cases, 2, function(x){
-      paste0( format(round(mean(x),0),big.mark=","),
-              "(", format(round(quantile(x,prob=0.025),0),big.mark=","),
-              "-", format(round(quantile(x,prob=0.975),0),big.mark=","),
-              ")"
-            )
-      })
-    who_annual_cases$modeled <- modeled_obs_level_cases
+
+    gen_obs <- dplyr::inner_join(
+      cache[["genquant"]]$summary("gen_obs_loctime_combs", mean),
+      cache[["genquant"]]$summary("gen_obs_loctime_combs", 
+                       ~ posterior::quantile2(., probs = c(0.025,0.975)))
+    )
+    
+    gen_obs <- gen_obs[cache[["stan_input"]]$stan_data$map_obs_loctime_combs, ] %>% 
+      dplyr::mutate(modeled_obs_level_cases = paste0(round(mean,0),"(",round(q2.5,0),"-",round(q97.5,0),")"))
+
+    who_annual_cases$modeled <- gen_obs$modeled_obs_level_cases
 
     ### Get the WHO table and combine them 
     who_annual_cases <- who_annual_cases %>% dplyr::rename(observed = attributes.fields.suspected_cases)
@@ -132,7 +131,7 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
     if(aesthetic){
       who_annual_cases_from_db %>%
         dplyr::mutate_if(is.numeric, function(x) {format(round(x) , big.mark=",")}) %>%
-        kableExtra::kable(col.names = c("OC id", "start time", "end time", "# Observed cases", "# Modeled Cases (2.5%-97.5%)")) %>%
+        kableExtra::kable(col.names = c("OC id", "start time", "end time", "# Observed cases", "# Mean ppd Modeled Cases (95% CI)")) %>%
         kableExtra::kable_styling(bootstrap_options = c("striped"))
     }else{
       return(who_annual_cases_from_db)
