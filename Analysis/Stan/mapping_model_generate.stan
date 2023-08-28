@@ -238,6 +238,9 @@ parameters {
   // Overdispersion parameters
   vector<lower=0>[(N_admin_lev-1)*do_overdispersion] inv_od_param;
   real<lower=0> sigma_std_dev_w[size_sigma_std_dev_w];
+  
+  vector[M_right] raw_dummy_right;
+  
 }
 transformed parameters {
   vector[N_admin_lev*do_overdispersion] od_param;
