@@ -33,7 +33,6 @@ functions {
   // Replace the binomial coefficient with ratio of gamma functions
   // Following: https://stats.stackexchange.com/questions/310676/continuous-generalization-of-the-negative-binomial-distribution
   real neg_binomial_2_cont_lpdf(real x, real mu, real phi) {
-    real sigma = mu * (1+mu/phi);
     real ll;
     real log_gamma_ratio;    // the ratio of gamma functions replacing the binomial coefficient
     
@@ -47,10 +46,8 @@ functions {
   // Replace the factorial with a gamma function
   real poisson_cont_lpdf(real x, real lambda) {
     real ll;
-    real log_gamma;    // the ratio of gamma functions replacing the binomial coefficients
     
-    log_gamma = lgamma(x + 1);
-    ll = -log_gamma + x * log(lambda) - lambda;
+    ll = -lgamma(x + 1) + x * log(lambda) - lambda;
     
     return ll;
   }
