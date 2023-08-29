@@ -2206,7 +2206,7 @@ get_adm0_od_param <- function(sf_cases_resized,
   # Get the maximum of adm0 observations
   max_adm0_obs <- max(ts_subset[[cases_column]])
   
-  if (max_adm0_obs > 1e4) {
+  if (max_adm0_obs > 5e3) {
     od_param <- 1e3
   } else {
     od_param <- 1e2
