@@ -16,7 +16,7 @@
 plot_WHOcomparison_table <- function(config, cache, cholera_directory, observation_level_modeled_cases = TRUE, 
                                      allow_data_pull = TRUE, add_other_source = FALSE, aesthetic = TRUE) {
   get_sf_cases_resized(name="sf_cases_resized",config=config, cache=cache, cholera_directory=cholera_directory)
-  who_annual_cases <- cache[["sf_cases_resized"]] %>% sf::st_drop_geometry()
+  who_annual_cases <- cache[["sf_cases_resized"]] %>% sf::st_drop_geometry() %>% filter(!is.na(loctime))
   
   ## if to get the sum of the grid-level modeled cases  
   if(!observation_level_modeled_cases){
