@@ -470,7 +470,7 @@ model {
     sigma_std_dev_w[1] ~ normal(0, 2);
     sigma_std_dev_w[2] ~ normal(0, .5);
   } else {
-    std_dev_w ~ normal(0, sigma_std_dev_w[1]);
+    std_dev_w ~ normal(5, 0.5);
     sigma_std_dev_w[1] ~ normal(0, 1);
   }
   
