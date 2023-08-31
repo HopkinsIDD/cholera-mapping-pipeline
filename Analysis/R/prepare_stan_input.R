@@ -565,7 +565,8 @@ prepare_stan_input <- function(
   # Space-only location periods
   output_lps_space <- fake_output_obs %>%
     dplyr::distinct(locationPeriod_id, admin_lev) %>%
-    dplyr::arrange(locationPeriod_id)
+    dplyr::arrange(locationPeriod_id) %>% 
+    dplyr::mutate(shp_id = dplyr::row_number())
   
   # Set data for output in stan object
   stan_data$M_output <- nrow(fake_output_obs)
@@ -670,6 +671,7 @@ prepare_stan_input <- function(
          smooth_grid  = smooth_grid,
          fake_output_obs = fake_output_obs,
          config = config,
-         u_admin_levels = u_admin_levels)
+         u_admin_levels = u_admin_levels,
+         output_lps = output_lps_space)
   )
 }
