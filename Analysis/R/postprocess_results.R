@@ -86,7 +86,7 @@ all_country_sf <- run_all(
   redo_interm = opt$redo_interm,
   redo_aux = opt$redo_auxilliary,
   output_dir = opt$output_dir,
-  inter_dir = opt$interm_dir,
+  interm_dir = opt$interm_dir,
   data_dir = opt$data_dir,
   output_file_type = "rds",
   verbose = opt$verbose) %>% 
@@ -106,7 +106,7 @@ all_shapefiles <- run_all(
   redo_interm = opt$redo_interm,
   redo_aux = opt$redo_auxilliary,
   output_dir = opt$output_dir,
-  inter_dir = opt$interm_dir,
+  interm_dir = opt$interm_dir,
   data_dir = opt$data_dir,
   output_file_type = "rds",
   verbose = opt$verbose) 
@@ -124,7 +124,7 @@ all_obs_counts <- run_all(
   redo_interm = opt$redo_interm,
   redo_aux = opt$redo_auxilliary,
   output_dir = opt$output_dir,
-  inter_dir = opt$interm_dir,
+  interm_dir = opt$interm_dir,
   data_dir = opt$data_dir,
   output_file_type = "rds",
   verbose = opt$verbose) 
@@ -132,13 +132,14 @@ all_obs_counts <- run_all(
 
 # Get outputs -------------------------------------------------------------
 
-# Get the MAI summary at all admin levels 
+# Get the total number of cases
 mai_overall_stats <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_mai_adm0_cases,
   fun_name = "mai_adm0_draws",
   fun_opts = NULL,
-  postprocess_fun = aggregate_and_summarise_case_draws,
+  postprocess_fun = aggregate_and_summarise_draws,
+  postprocess_fun_opts = list(col = "country_cases"),
   prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
@@ -146,7 +147,28 @@ mai_overall_stats <- run_all(
   redo_interm = opt$redo_interm,
   redo_aux = opt$redo_auxilliary,
   output_dir = opt$output_dir,
-  inter_dir = opt$interm_dir,
+  interm_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+
+
+# Get the number of cases by WHO region
+mai_region_stats <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_mai_adm0_cases,
+  fun_name = "mai_adm0_draws_region",
+  fun_opts = NULL,
+  postprocess_fun = aggregate_and_summarise_draws_by_region,
+  postprocess_fun_opts = list(col = "country_cases"),
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  interm_dir = opt$interm_dir,
   data_dir = opt$data_dir,
   output_file_type = "rds",
   verbose = opt$verbose)
@@ -165,7 +187,7 @@ mai_stats <- run_all(
   redo_interm = opt$redo_interm,
   redo_aux = opt$redo_auxilliary,
   output_dir = opt$output_dir,
-  inter_dir = opt$interm_dir,
+  interm_dir = opt$interm_dir,
   data_dir = opt$data_dir,
   output_file_type = "rds",
   verbose = opt$verbose)
@@ -183,7 +205,7 @@ cov_stats <- run_all(
   redo_interm = opt$redo_interm,
   redo_aux = opt$redo_auxilliary,
   output_dir = opt$output_dir,
-  inter_dir = opt$interm_dir,
+  interm_dir = opt$interm_dir,
   data_dir = opt$data_dir,
   output_file_type = "rds",
   verbose = opt$verbose)
@@ -202,7 +224,7 @@ mai_grid_rates_stats <- run_all(
   redo_interm = opt$redo_interm,
   redo_aux = opt$redo_auxilliary,
   output_dir = opt$output_dir,
-  inter_dir = opt$interm_dir,
+  interm_dir = opt$interm_dir,
   data_dir = opt$data_dir,
   output_file_type = "rds",
   verbose = opt$verbose)
@@ -223,7 +245,7 @@ mai_grid_cases_stats <- run_all(
   redo_interm = opt$redo_interm,
   redo_aux = opt$redo_auxilliary,
   output_dir = opt$output_dir,
-  inter_dir = opt$interm_dir,
+  interm_dir = opt$interm_dir,
   data_dir = opt$data_dir,
   output_file_type = "rds",
   verbose = opt$verbose)
@@ -241,7 +263,7 @@ risk_categories <- run_all(
   redo_interm = opt$redo_interm,
   redo_aux = opt$redo_auxilliary,
   output_dir = opt$output_dir,
-  inter_dir = opt$interm_dir,
+  interm_dir = opt$interm_dir,
   data_dir = opt$data_dir,
   output_file_type = "rds",
   verbose = opt$verbose)
@@ -260,7 +282,7 @@ pop_at_risk_grid <- run_all(
   redo_interm = opt$redo_interm,
   redo_aux = opt$redo_auxilliary,
   output_dir = opt$output_dir,
-  inter_dir = opt$interm_dir,
+  interm_dir = opt$interm_dir,
   data_dir = opt$data_dir,
   output_file_type = "rds",
   verbose = opt$verbose)
@@ -279,7 +301,7 @@ gen_obs <- run_all(
   redo_interm = opt$redo_interm,
   redo_aux = opt$redo_auxilliary,
   output_dir = opt$output_dir,
-  inter_dir = opt$interm_dir,
+  interm_dir = opt$interm_dir,
   data_dir = opt$data_dir,
   output_file_type = "rds",
   verbose = opt$verbose)

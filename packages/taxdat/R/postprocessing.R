@@ -366,15 +366,43 @@ postprocess_mai_adm0_cases <- function(config_list,
   # Get genquant data
   genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
   
+  # Get index of national-level space output
+  adm0_ind <- get_adm0_index(config_list = config_list)
+  
   # This assumes that the first output shapefile is always the national-level shapefile
-  mai_adm0 <- genquant$draws("location_mean_cases_output[1]") %>% 
+  cases_adm0 <- genquant$draws(stringr::str_glue("location_total_cases_output[{adm0_ind}]")) %>% 
     posterior::as_draws() %>% 
     posterior::as_draws_df() %>% 
     dplyr::as_tibble() %>% 
-    dplyr::rename(country_cases = `location_mean_cases_output[1]`)
+    dplyr::rename(country_cases = `location_total_cases_output[1]`) %>% 
+    dplyr::mutate(country = get_country_from_string(config_list$file_names$stan_genquant_filename))
   
   
-  mai_adm0
+  cases_adm0
+}
+
+
+#' postprocess_mai_adm0_pop
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_mai_adm0_pop <- function(config_list,
+                                     redo_aux = FALSE) {
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # Get index of national-level output
+  adm0_ind <- get_adm0_index(config_list = config_list)
+  
+  # This assumes that the first output shapefile is always the national-level shapefile
+  pop_adm0 <- genquant$summary(stringr::str_glue("pop_loc_output[{adm0_ind}]", mean)) %>% 
+    dplyr::rename(country_pop = `pop_loc_output[1]`)
+  
+  pop_adm0
 }
 
 #' postprocess_coef_of_variation
@@ -667,6 +695,25 @@ get_output_sf_reload <- function(config_list,
   res
 }
 
+#' Title
+#'
+#' @param config_list 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+#' 
+get_adm0_index <- function(config_list) {
+  
+  # stan_input <- taxdat::read_file_of_type(config_list$file_names$stan_input_filename, "stan_input")
+  # 
+  # stan_input$output_lps %>% 
+  #   dplyr::filter(admin_level == 0) %>% 
+  #   dplyr::pull(shp_id)
+  1
+}
+
 # get regions for countries -------------------------------------------------------
 
 #' get_AFRO_region
@@ -938,15 +985,40 @@ get_coverage <- function(df,
 #' @export
 #'
 #' @examples
-aggregate_and_summarise_case_draws <- function(df, 
-                                               case_col = "country_cases") {
+aggregate_and_summarise_draws <- function(df, 
+                                          col = "country_cases") {
   df %>% 
     dplyr::group_by(.draw) %>% 
-    dplyr::summarise(tot_cases = sum(!!rlang::sym(case_col))) %>% 
+    dplyr::summarise(tot = sum(!!rlang::sym(col))) %>% 
     posterior::as_draws() %>% 
     posterior::summarise_draws()
 }
-  
+
+
+#' aggregate_and_summarise_case_draws_by_region
+#'
+#' @param df 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+aggregate_and_summarise_draws_by_region <- function(df, 
+                                                    col = "country_cases") {
+  df %>% 
+    get_AFRO_region(ctry_col = "country") %>% 
+    dplyr::group_by(.draw, AFRO_region) %>% 
+    dplyr::summarise(tot = sum(!!rlang::sym(col))) %>%
+    dplyr::ungroup() %>% 
+    tidyr::pivot_wider(names_from = "AFRO_region",
+                       values_from = "tot") %>% 
+    janitor::clean_names() %>% 
+    dplyr::select(-draw) %>% 
+    magrittr::set_names(stringr::str_c(col, colnames(.), sep = "_")) %>% 
+    posterior::as_draws() %>% 
+    posterior::summarise_draws()
+}
+
 #' tidy_shapefiles
 #'
 #' @param df 
