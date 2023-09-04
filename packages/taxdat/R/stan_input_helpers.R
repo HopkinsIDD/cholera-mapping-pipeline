@@ -2325,7 +2325,7 @@ compute_adjustement_UN_population <- function(country,
     adj_factors[years == y] <- tot_UN/tot_grid
     
     cat("---- Population adjustement factor for", country, y, ":", 
-        formatC(adj_factor, digits = 2, format = "f"), ".\n")
+        formatC(tot_UN/tot_grid, digits = 2, format = "f"), ".\n")
     
   }
   
