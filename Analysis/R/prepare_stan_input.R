@@ -292,7 +292,7 @@ prepare_stan_input <- function(
                                                          years = grid_years)
     
     # Probably a tidier way to do this but this should garantee the indexing is correct
-    stan_data$pop <- purrr::map_dbl(1:length(stan_data$pop), stan_data$pop[.] * adj_pop[output_adm0_cells == .])
+    stan_data$pop <- purrr::map_dbl(1:length(stan_data$pop), ~ stan_data$pop[.] * adj_pop[output_adm0_cells == .])
   }
   
   # ---- E. Pre-Aggregation Duplicates Removal in sf_cases ----

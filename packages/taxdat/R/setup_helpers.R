@@ -1394,7 +1394,7 @@ check_do_infer_sd_eta <- function(x,
 #'
 #' @examples
 check_adjust_pop_UN <- function(x,
-                                default_value = FALSE) {
+                                default_value = TRUE) {
   
   if (unspecified_parameter_check(x)) {
     par <- default_value
