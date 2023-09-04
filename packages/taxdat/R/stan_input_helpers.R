@@ -633,13 +633,13 @@ get_crs_africa <- function() {
 #' Title
 #'
 #' @param smooth_grid 
-#' @param model_time_slices 
+#' @param smooth_time_slices 
 #'
 #' @return
 #' @export
 #'
 make_adjacency <- function(smooth_grid,
-                           model_time_slices,
+                           smooth_time_slices,
                            non_na_gridcells) {
   
   grid_changer <- make_changer(x = non_na_gridcells)
@@ -654,7 +654,7 @@ make_adjacency <- function(smooth_grid,
   cnt <- 0    # Counter for number of cells
   
   # Iterate over time slices of space-time grid-level random effects
-  for (it in model_time_slices) {
+  for (it in smooth_time_slices) {
     
     smooth_grid_it <- smooth_grid %>%
       dplyr::filter(s == it) %>%
@@ -2284,4 +2284,50 @@ drop_obs_by_OC <- function(sf_cases_resized,
   
   sf_cases_resized %>% 
     dplyr::select(-tmp_obs_id)
+}
+
+
+
+#' compute_adjustement_UN_population
+#'
+#' @param country country ISO3 code
+#' @param pop grid-level population vector
+#' @param years years corresponding to each population value
+#'
+#' @return
+#' @export
+#'
+#' @examples
+compute_adjustement_UN_population <- function(country, 
+                                              pop, 
+                                              years) {
+  
+  # Checks
+  # Load UN population projections
+  data("WPP2022", package = "taxdat")
+  
+  if (any(!(years %in% WPP2022$Time))) {
+    stop("Please provide valid years vector that fall within the UN time range: ",
+         paste0(range(WPP2022$Time), collapse = "-"))
+  }
+  
+  if (!(country %in% WPP2022$ISO3_code)) {
+    stop("Invalid country ISO3 code.")
+  }
+  
+  adj_factors <- rep(1, length(pop))
+  
+  for (y in unique(years)) {
+    # Get total population for each year in grid
+    tot_grid <- sum(pop[years == y])
+    tot_UN <- WPP2022$PopTotal[WPP2022$Time == y & WPP2022$ISO3_code == country] * 1e3
+    
+    adj_factors[years == y] <- tot_UN/tot_grid
+    
+    cat("---- Population adjustement factor for", country, y, ":", 
+        formatC(adj_factor, digits = 2, format = "f"), ".\n")
+    
+  }
+  
+  adj_factors
 }
