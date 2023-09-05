@@ -12,12 +12,6 @@ if (Sys.getenv("INTERACTIVE_RUN", FALSE)) {
   )
 }
 
-if (Sys.getenv("PRODUCTION_RUN", TRUE)) {
-  Sys.setenv("REINSTALL_TAXDAT" = TRUE)
-}
-
-
-
 ### Libraries
 
 # Install required packages
