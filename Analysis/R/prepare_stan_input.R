@@ -287,7 +287,7 @@ prepare_stan_input <- function(
     grid_years <- lubridate::year(time_slices$TL)[sf_grid$t[output_adm0_cells]]
     
     # Compute population adjustment factor
-    adj_pop <- taxdat::compute_adjustement_UN_population(country = taxdat::get_country_isocode(config),
+    adj_pop <- taxdat::compute_adjustment_UN_population(country = taxdat::get_country_isocode(config),
                                                          pop = grid_pop,
                                                          years = grid_years)
     

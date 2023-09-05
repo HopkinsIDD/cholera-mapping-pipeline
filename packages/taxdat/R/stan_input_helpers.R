@@ -2288,7 +2288,7 @@ drop_obs_by_OC <- function(sf_cases_resized,
 
 
 
-#' compute_adjustement_UN_population
+#' compute_adjustment_UN_population
 #'
 #' @param country country ISO3 code
 #' @param pop grid-level population vector
@@ -2298,7 +2298,7 @@ drop_obs_by_OC <- function(sf_cases_resized,
 #' @export
 #'
 #' @examples
-compute_adjustement_UN_population <- function(country, 
+compute_adjustment_UN_population <- function(country, 
                                               pop, 
                                               years) {
   
@@ -2324,7 +2324,7 @@ compute_adjustement_UN_population <- function(country,
     
     adj_factors[years == y] <- tot_UN/tot_grid
     
-    cat("---- Population adjustement factor for", country, y, ":", 
+    cat("---- Population adjustment factor for", country, y, ":", 
         formatC(tot_UN/tot_grid, digits = 2, format = "f"), ".\n")
     
   }
