@@ -2018,7 +2018,7 @@ drop_censored_adm0 <- function(sf_cases_resized,
       obs_cens <- tmp[[paste0(cases_column, ".censored")]]
       obs_full <- tmp[[paste0(cases_column, ".full")]]
       
-      if (any((obs_full/obs_cens) > thresh)) {
+      if (any((obs_full/obs_cens) >= thresh)) {
         return(y_adm0_censored$obs_id[x])
       } else {
         return()
@@ -2206,7 +2206,7 @@ get_adm0_od_param <- function(sf_cases_resized,
   # Get the maximum of adm0 observations
   max_adm0_obs <- max(ts_subset[[cases_column]])
   
-  if (max_adm0_obs > 1e4) {
+  if (max_adm0_obs > 5e3) {
     od_param <- 1e3
   } else {
     od_param <- 1e2
