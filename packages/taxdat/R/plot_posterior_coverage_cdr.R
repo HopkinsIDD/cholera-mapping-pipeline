@@ -1,3 +1,6 @@
+#' @export
+#' @name plot_posterior_coverage_cdr
+
 plot_posterior_coverage_cdr <- function(config, cache, cholera_directory){
   
   config_list <-  yaml::read_yaml(paste0(cholera_directory, "/", config))
