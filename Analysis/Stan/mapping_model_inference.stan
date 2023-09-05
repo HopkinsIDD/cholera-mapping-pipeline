@@ -4,6 +4,7 @@
 //
 
 // https://discourse.mc-stan.org/t/test-soft-vs-hard-sum-to-zero-constrain-choosing-the-right-prior-for-soft-constrain/3884/31
+
 functions {
   vector Q_sum_to_zero_QR(int N) {
     vector [2*N] Q_r;
@@ -27,7 +28,31 @@ functions {
     x[N] = x_aux;
     return x;
   }
+  
+  // Continous version of the Negative binomial function
+  // Replace the binomial coefficient with ratio of gamma functions
+  // Following: https://stats.stackexchange.com/questions/310676/continuous-generalization-of-the-negative-binomial-distribution
+  real neg_binomial_2_cont_lpdf(real x, real mu, real phi) {
+    real ll;
+    real log_gamma_ratio;    // the ratio of gamma functions replacing the binomial coefficient
+    
+    log_gamma_ratio = lgamma(x + phi) - lgamma(x + 1) - lgamma(phi);
+    ll = log_gamma_ratio + x * log(mu) - phi * log1p(mu/phi) - x * log(mu + phi);
+    
+    return ll;
+  }
+  
+  // Continous version of the Poisson distribution
+  // Replace the factorial with a gamma function
+  real poisson_cont_lpdf(real x, real lambda) {
+    real ll;
+    
+    ll = -lgamma(x + 1) + x * log(lambda) - lambda;
+    
+    return ll;
+  }
 }
+
 data {
   
   // Data sizes
@@ -104,6 +129,9 @@ data {
   
   // Debug
   int debug;
+  
+  // Over-dispersion at adm0
+  real<lower=0> adm0_od;
 }
 
 transformed data {
@@ -216,6 +244,8 @@ parameters {
   // Overdispersion parameters
   vector<lower=0>[(N_admin_lev-1)*do_overdispersion] inv_od_param;
   real<lower=0> sigma_std_dev_w[size_sigma_std_dev_w];
+  
+  vector[M_right] raw_dummy_right;
 }
 
 transformed parameters {
@@ -230,7 +260,7 @@ transformed parameters {
   
   
   if (do_overdispersion == 1) {
-    od_param[1] = 1e2;
+    od_param[1] = adm0_od;
     for (i in 2:N_admin_lev) {
       od_param[i] = 1/inv_od_param[(i-1)];
     }
@@ -462,12 +492,12 @@ model {
   
   if (do_sd_w_mixture == 1) {
     target += log_mix(lambda[1], normal_lpdf(std_dev_w |mu_sd_w, sigma_std_dev_w[1]), normal_lpdf(std_dev_w |0, sigma_std_dev_w[2]));
-    lambda[1] ~ beta(2, 1);
+    lambda[1] ~ beta(1, 3);
     
     sigma_std_dev_w[1] ~ normal(0, 2);
     sigma_std_dev_w[2] ~ normal(0, .5);
   } else {
-    std_dev_w ~ normal(0, sigma_std_dev_w[1]);
+    std_dev_w ~ normal(5, 0.5);
     sigma_std_dev_w[1] ~ normal(0, 1);
   }
   
@@ -552,59 +582,35 @@ model {
     }
     
     if (M_right > 0) {
-      //data model for estimated rates for right-censored time slice observations
-      //note that according to Stan the complementary CDF, or CCDF(Y|modeled_cases)
-      // is defined as Pr(Y > y | modeled_cases),
-      // we therefore add the probability Pr(Y = y|modeled_cases) to CCDF(y|modeled_cases)
-      // to get Pr(Y >= y|modeled_cases)
-      //https://mc-stan.org/docs/2_25/functions-reference/cumulative-distribution-functions.html
-      
       vector[M_right] lp_censored;
+      
+      // Create constrained dummy variables
       
       for(i in 1:M_right){
         real lpmf;
+        real dummy_right;
+        int j = ind_right[i];
+        
+        dummy_right = y[j] + exp(raw_dummy_right[i]);
         
         if (obs_model == 1) {
           // Poisson likelihood
-          lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+          lpmf = poisson_cont_lpdf(dummy_right | modeled_cases[j]);
         } else if (obs_model == 2) {
           // Quasi-poisson likelihood
-          lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]] * modeled_cases[ind_right[i]]);
+          lpmf = neg_binomial_2_cont_lpdf(dummy_right | modeled_cases[j], od_param[map_obs_admin_lev[j]] * modeled_cases[j]);
         } else {
           // Neg-binom likelihood
-          lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]]);
+          lpmf = neg_binomial_2_cont_lpdf(dummy_right | modeled_cases[j], od_param[map_obs_admin_lev[j]]);
         }
         
-        // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
-        if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
-          real lls[2];
-          if (obs_model == 1) {
-            // Poisson likelihood
-            lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
-          } else if (obs_model == 2) {
-            // Quasi-poisson likelihood
-            lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]] * modeled_cases[ind_right[i]]);
-          } else {
-            // print("i: ", i, " y: ", y[ind_right[i]], " mcases: ", modeled_cases[ind_right[i]], " od: ", od_param[map_obs_admin_lev[ind_right[i]]]);
-            // Neg-binom likelihood
-            lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]]);
-          }
-          lls[2] = lpmf;
-          lp_censored[i] = log_sum_exp(lls);
-        } else {
-          lp_censored[i] = lpmf;
-        }
+        // Add constrained likelihood and log-jacobian det for transformation
+        target += lpmf + raw_dummy_right[i];
       }
-      
-      target += sum(lp_censored);
       
       if (debug && (previous_debugs == 0)) {
         print("right censored obs", target());
       }
-      // add a 0-centered prior on the censored cases
-      // for (idx in ind_right) {
-        //   modeled_cases[idx] ~ cauchy(0, 2);
-        // }
     }
   } else {
     if (use_weights == 1) {

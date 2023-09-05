@@ -24,7 +24,7 @@ plot_pop_comparison <- function(config, cache, cholera_directory){
     dplyr::arrange(TL)
   
   # load pop data from world pop csv file
-  load(paste0(cholera_directory,"/packages/taxdat/data/WHO_regions.rdata"))
+  load(paste0(cholera_directory,"/packages/taxdat/data/WHO_regions.RData"))
   
   afr_regions <- WHO_regions %>% 
     filter(WHO.region %in% c("Africa","Eastern Mediterranean"))
@@ -32,22 +32,14 @@ plot_pop_comparison <- function(config, cache, cholera_directory){
   wpppop_data<-read.csv(paste0(cholera_directory,"/packages/taxdat/data/WPP2022_TotalPopulationBySex.csv"))
   
   wpp_pop <-afr_regions %>% 
-    mutate(
-      Entity = replace(Entity, Entity == "Tanzania","United Republic of Tanzania"),
-      Entity = replace(Entity, Entity == "Cape Verde","Cabo Verde"),
-      Entity = replace(Entity, Entity == "Democratic Republic of Congo","Democratic Republic of the Congo"),
-      Entity = replace(Entity, Entity == "Swaziland","Eswatini"),
-      Entity = replace(Entity, Entity == "Iran","Iran (Islamic Republic of)"),
-      Entity = replace(Entity, Entity == "Syria","Syrian Arab Republic"),
-    ) %>% 
     dplyr::mutate(
-      Location = Entity
+      ISO3_code = Country.code
     ) %>% 
-    dplyr::select(Location,Country.code) %>% 
+    dplyr::select(ISO3_code) %>% 
     dplyr::inner_join(
-      wpppop_data %>% dplyr::filter(Time %in% period) %>% dplyr::select(Location, Time, PopTotal) %>% dplyr::mutate(PopTotal = 1000*PopTotal)
+      wpppop_data %>% dplyr::filter(Time %in% period) %>% dplyr::select(ISO3_code, Time, PopTotal) %>% dplyr::mutate(PopTotal = 1000*PopTotal)
     ) %>% 
-    dplyr::filter(Country.code == config_file$countries_name) %>%
+    dplyr::filter(ISO3_code == config_file$countries_name) %>%
     dplyr::arrange(Time)
 
   pop_by_year$wpp_pop <- wpp_pop$PopTotal

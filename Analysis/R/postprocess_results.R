@@ -21,11 +21,13 @@ opt_list <- list(
   make_option(opt_str = c("-r", "--redo"), type = "logical",
               default = T, help = "redo final outputs"),
   make_option(opt_str = c("-i", "--redo_interm"), type = "logical",
-              default = F, help = "redo intermediate"),
+              default = T, help = "redo intermediate"),
   make_option(opt_str = c("-j", "--redo_auxilliary"), type = "logical",
-              default = F, help = "redo auxilliary files"),
+              default = T, help = "redo auxilliary files"),
   make_option(opt_str = c("-v", "--verbose"), type = "logical",
               default = T, help = "Print statements"),
+  make_option(opt_str = c("-p", "--prefix"), type = "character",
+              default = NULL, help = "Prefix to use in output file names"),
   make_option(opt_str = c("-s", "--suffix"), type = "character",
               default = NULL, help = "Suffix to use in output file names"),
   make_option(opt_str = c("-e", "--error_handling"), type = "character",
@@ -35,7 +37,9 @@ opt_list <- list(
   make_option(opt_str = c("-y", "--interm_dir"), type = "character",
               default = "./Analysis/output/interm/", help = "Intermediate outputs directory"),
   make_option(opt_str = c("-o", "--output_dir"), type = "character",
-              default = "./Analysis/output/processed_outputs/", help = "Output directory")
+              default = "./Analysis/output/processed_outputs/", help = "Output directory"),
+  make_option(opt_str = c("-c", "--cholera_dir"), type = "character",
+              default = "cholera-mapping-pipeline", help = "Cholera mapping pipeline directory")
 )
 
 opt <- parse_args(OptionParser(option_list = opt_list))
@@ -74,7 +78,8 @@ all_country_sf <- run_all(
   fun = postprocess_adm0_sf,
   fun_name = "adm0_sf",
   fun_opts = NULL,
-  prefix = "test",
+  postprocess_fun = tidy_shapefiles,
+  prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
   redo = opt$redo,
@@ -88,7 +93,66 @@ all_country_sf <- run_all(
   mutate(intended_run = TRUE)
 
 
+opt$redo_auxilliary <- FALSE
+
+# All the data shapfiles for spatial coverage
+all_shapefiles <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_lp_shapefiles,
+  fun_name = "shapefiles",
+  fun_opts = NULL,
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  inter_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose) 
+
+# All the obveration counts
+all_obs_counts <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_lp_obs_counts,
+  fun_name = "obs_counts",
+  fun_opts = NULL,
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  inter_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose) 
+
+
 # Get outputs -------------------------------------------------------------
+
+# Get the MAI summary at all admin levels 
+mai_overall_stats <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_mai_adm0_cases,
+  fun_name = "mai_adm0_draws",
+  fun_opts = NULL,
+  postprocess_fun = aggregate_and_summarise_case_draws,
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  inter_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+
 
 # Get the MAI summary at all admin levels 
 mai_stats <- run_all(
@@ -96,7 +160,7 @@ mai_stats <- run_all(
   fun = postprocess_mean_annual_incidence,
   fun_name = "mai",
   fun_opts = NULL,
-  prefix = "test",
+  prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
   redo = opt$redo,
@@ -114,7 +178,7 @@ cov_stats <- run_all(
   fun = postprocess_coef_of_variation,
   fun_name = "cov",
   fun_opts = NULL,
-  prefix = "test",
+  prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
   redo = opt$redo,
@@ -133,7 +197,7 @@ mai_grid_rates_stats <- run_all(
   fun_name = "mai_grid_rates",
   postprocess_fun = collapse_grid,
   fun_opts = NULL,
-  prefix = "test",
+  prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
   redo = opt$redo,
@@ -154,7 +218,7 @@ mai_grid_cases_stats <- run_all(
   fun_name = "mai_grid_cases",
   post_process_fun = collapse_grid,
   fun_opts = NULL,
-  prefix = "test",
+  prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
   redo = opt$redo,
@@ -171,8 +235,8 @@ risk_categories <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_risk_category,
   fun_name = "risk_categories",
-  fun_opts = NULL,
-  prefix = "test",
+  fun_opts = list(cum_prob_thresh = 0.95),
+  prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
   redo = opt$redo,
@@ -191,7 +255,7 @@ pop_at_risk_grid <- run_all(
   fun = postprocess_pop_at_risk,
   fun_name = "pop_at_risk_grid",
   fun_opts = NULL,
-  prefix = "test",
+  prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
   redo = opt$redo,
@@ -202,6 +266,26 @@ pop_at_risk_grid <- run_all(
   data_dir = opt$data_dir,
   output_file_type = "rds",
   verbose = opt$verbose)
+
+
+# Get the generated observations to plot posterior retrodictive checks
+gen_obs <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_gen_obs,
+  fun_name = "gen_obs",
+  fun_opts = NULL,
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  inter_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+
 
 # Figure 1: Mean annual incidence ADM0 ------------------------------------
 
@@ -219,7 +303,8 @@ p_fig1 <- output_plot_map(sf_obj = mai_adm0 %>%
                           lakes_sf = lakes_sf,
                           all_countries_sf = all_country_sf,
                           fill_var = "log10_rate_per_1e5",
-                          fill_color_scale_type = "rates") +
+                          fill_color_scale_type = "rates",
+                          cholera_dir = opt$cholera_dir) +
   ggtitle(str_glue("Mean mean annual incidence rate\nat national level"))
 
 ggsave(p_fig1,
@@ -243,7 +328,8 @@ p_fig2 <- output_plot_map(sf_obj = mai_adm2 %>%
                           lakes_sf = lakes_sf,
                           all_countries_sf = all_country_sf,
                           fill_var = "log10_rate_per_1e5",
-                          fill_color_scale_type = "rates")  +
+                          fill_color_scale_type = "rates",
+                          cholera_dir = opt$cholera_dir)  +
   ggtitle(str_glue("Mean mean annual incidence rate\n at ADM2 level"))
 
 
@@ -261,7 +347,8 @@ p_fig3 <- output_plot_map(sf_obj = mai_grid_rates_stats %>%
                           lakes_sf = lakes_sf,
                           all_countries_sf = all_country_sf,
                           fill_var = "log10_rate_per_1e5",
-                          fill_color_scale_type = "rates")
+                          fill_color_scale_type = "rates",
+                          cholera_dir = opt$cholera_dir)
 
 ggsave(p_fig3,
        file = str_glue("{opt$output_dir}/figure_mai_grid_rates_{suffix}.png"),
@@ -276,7 +363,8 @@ p_fig4 <- output_plot_map(sf_obj = mai_grid_cases_stats %>%
                           lakes_sf = lakes_sf,
                           all_countries_sf = all_country_sf,
                           fill_var = "log10_cases",
-                          fill_color_scale_type = "cases")
+                          fill_color_scale_type = "cases",
+                          cholera_dir = opt$cholera_dir)
 
 ggsave(p_fig4,
        file = str_glue("{opt$output_dir}/figure_mai_grid_cases_{suffix}.png"),
@@ -292,7 +380,8 @@ p_fig5 <- output_plot_map(sf_obj = risk_categories,
                           lakes_sf = lakes_sf,
                           all_countries_sf = all_country_sf,
                           fill_var = "risk_cat",
-                          fill_color_scale_type = "risk category") +
+                          fill_color_scale_type = "risk category",
+                          cholera_dir = opt$cholera_dir) +
   facet_wrap(~admin_level)
 
 ggsave(p_fig5,
@@ -336,7 +425,7 @@ ggsave(p_fig6,
 
 
 
-# Figure 7 Coefficient of variation ------------------------------------------------
+# Figure 7: Coefficient of variation ------------------------------------------------
 
 mai_cov <- mai_stats %>% 
   filter(admin_level == "ADM0") %>% 
@@ -360,3 +449,49 @@ ggsave(p_cov,
        width = 7,
        height = 6, 
        dpi = 300)
+
+
+
+# Figure 8: posterior coverage --------------------------------------------
+
+p_coverage <- plot_posterior_coverage(gen_obs) 
+
+ggsave(p_coverage,
+       file = str_glue("{opt$output_dir}/figure_posterior_coverage_{suffix}.png"),
+       width = 10,
+       height = 8, 
+       dpi = 300)
+
+
+
+# Figure 9: data shapefiles -----------------------------------------------
+
+p_fig9 <- all_shapefiles %>% 
+  mutate(admin_level = factor(admin_level, levels = 0:6)) %>% 
+  output_plot_map(sf_obj = ., 
+                  lakes_sf = lakes_sf,
+                  all_countries_sf = all_country_sf,
+                  fill_var = "admin_level",
+                  fill_color_scale_type = "admin levels",
+                  border_width = .3,
+                  border_color = "gray",
+                  lake_alpha = 1,
+                  country_border_color = "black",
+                  country_border_width = 1,
+                  cholera_dir = opt$cholera_dir)
+
+ggsave(p_fig9,
+       file = str_glue("{opt$output_dir}/figure_data_spatial_coverage_{suffix}.png"),
+       width = 10,
+       height = 8, 
+       dpi = 300)
+
+
+# Table with obs counts per admin level -----------------------------------
+
+all_obs_counts %>% 
+  mutate(admin_level = str_c("ADM", admin_level)) %>% 
+  bind_rows(all_obs_counts %>% mutate(admin_level = "all")) %>% 
+  group_by(country, admin_level, imputed) %>% 
+  summarise(n_loc = n(),
+            n_obs = sum(n_obs))

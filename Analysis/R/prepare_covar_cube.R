@@ -79,6 +79,7 @@ prepare_covar_cube <- function(
     tmp <- taxdat::get_covariate_values(covar_name = covar_list[j],
                                         cntrd_table = cntrd_table,
                                         time_slices = time_slices,
+                                        res_time = res_time,
                                         conn_pg = conn_pg)
 
     if (length(tmp) > 0) {
@@ -148,7 +149,8 @@ prepare_covar_cube <- function(
                                                               cntrd_table = cntrd_table,
                                                               res_space = res_space,
                                                               sf_grid = sf_grid,
-                                                              grid_changer = grid_changer)
+                                                              grid_changer = grid_changer,
+                                                              res_time = res_time)
 
 
   # Get cell ids in output summary shapefiles
@@ -188,7 +190,7 @@ prepare_covar_cube <- function(
   low_sfrac <- location_periods_dict %>%
     dplyr::group_by(rid, x, y) %>%
     dplyr::slice_max(pop_weight) %>%
-    dplyr::filter(pop_weight < sfrac_thresh_border) %>%
+    dplyr::filter(pop_weight < sfrac_thresh_border & !lp_covered & area_ratio > 2) %>%
     dplyr::select(rid, x, y) %>%
     dplyr::inner_join(sf_grid %>% sf::st_drop_geometry())
 
@@ -224,7 +226,7 @@ prepare_covar_cube <- function(
     dplyr::mutate(connect_id = dplyr::row_number())
 
   low_sfrac_connections <- location_periods_dict %>%
-    dplyr::filter(pop_weight < sfrac_thresh_conn)
+    dplyr::filter(pop_weight < sfrac_thresh_conn & !lp_covered & area_ratio > 2)
 
   cat("Dropping", nrow(low_sfrac_connections), "/", nrow(location_periods_dict),
       "connections between grid cells",
