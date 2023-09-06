@@ -71,3 +71,4 @@ Collate:
     'suggest_crs.R'
     'transform_covariates.R'
 VignetteBuilder: knitr
+LazyData: true

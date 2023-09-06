@@ -243,7 +243,10 @@ spatial_effect <- taxdat::check_spatial_effect(config$spatial_effect)
 # ingest covariates to a specific aggregation
 ingest_covariates <- taxdat::check_ingest_covariates(config$ingest_covariates)
 # create a new metadata table for newly ingested covariates
-ingest_new_covariates <- taxdat:: check_ingest_new_covariates(config$ingest_new_covariates)
+ingest_new_covariates <- taxdat::check_ingest_new_covariates(config$ingest_new_covariates)
+
+# Whether to adjust the population counts to UN estimates
+adjust_pop_UN <- taxdat::check_adjust_pop_UN(config$adjust_pop_UN)
 
 # - - - - - - - - - - - - - -
 ## STAN PARAMETERS
