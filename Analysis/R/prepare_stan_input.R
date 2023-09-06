@@ -66,10 +66,10 @@ prepare_stan_input <- function(
   
   # Define model time slices
   # JPS: Could make this into a function
-  model_time_slices <- sort(unique(sf_grid$s))
+  smooth_time_slices <- sort(unique(sf_grid$s))
   
   adjacency <- taxdat::make_adjacency(smooth_grid = smooth_grid,
-                                      model_time_slices = model_time_slices,
+                                      smooth_time_slices = smooth_time_slices,
                                       non_na_gridcells = non_na_gridcells)
   
   # Stan inputs ------------------------------------------------------------------
@@ -122,350 +122,7 @@ prepare_stan_input <- function(
     stan_data$ncovar <- 0
   }
   
-  # ---- C. Pre-Aggregation Duplicates Removal in sf_cases ----
-  # JPS: could package this into a function for unit testing
-  sf_cases_dup_obs <- sf_cases %>% 
-    sf::st_drop_geometry() %>%
-    # don't decide on duplicates based on these variables
-    dplyr::select(-dplyr::one_of("id", "deaths")) %>%
-    duplicated()
-  
-  sf_cases <- sf_cases[!sf_cases_dup_obs, ]
-  
-  
-  # ---- D. Aggregation ----
-  
-  # Mapping between observations to location periods and between
-  # location periods and grid cells
-  ind_mapping <- taxdat::get_space_time_ind_speedup(
-    df = sf_cases,
-    lp_dict = location_periods_dict,
-    model_time_slices = time_slices,
-    res_time = res_time,
-    n_cpus = config$ncpus_parallel_prep,
-    do_parallel = config$do_parallel_prep)
-  
-  non_na_obs <- sort(unique(ind_mapping$map_obs_loctime_obs))
-  sf_cases_resized <- sf_cases[non_na_obs, ]
-  
-  
-  if (config$aggregate) {
-    
-    print("---- AGGREGATING CHOLERA DATA TO MODELING TIME RES ----")
-    
-    sf_cases_resized <- taxdat::aggregate_observations(sf_cases_resized = sf_cases_resized,
-                                                       non_na_obs = non_na_obs,
-                                                       ind_mapping = ind_mapping,
-                                                       cases_column = cases_column,
-                                                       verbose = opt$verbose,
-                                                       n_cpus = config$ncpus_parallel_prep,
-                                                       do_parallel = config$do_parallel_prep)
-    
-    # Snap to time period after aggregation
-    sf_cases_resized <- taxdat::snap_to_time_period_df(df = sf_cases_resized,
-                                                       TL_col = "TL",
-                                                       TR_col = "TR",
-                                                       res_time = res_time,
-                                                       tol = config$snap_tol)
-    
-    # Re-compute space-time indices based on aggretated data
-    ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
-      df = sf_cases_resized,
-      lp_dict = location_periods_dict,
-      model_time_slices = time_slices,
-      res_time = res_time,
-      n_cpus = config$ncpus_parallel_prep,
-      do_parallel = config$do_parallel_prep)
-    
-  } else {
-    print("---- USING RAW CHOLERA DATA ----")
-    ind_mapping_resized <- ind_mapping
-    sf_cases_resized <- sf_cases
-  }
-  
-  # Clean unused objects
-  rm(ind_mapping)
-  
-  #  ---- Ea. Drop tfrac threshold ----
-  
-  # If specified threshold of minimum tfrac filter out data
-  if (config$tfrac_thresh > 0) {
-    # Which observations to remove
-    obs_remove_thresh <- unique(ind_mapping_resized$obs[ind_mapping_resized$tfrac < as.numeric(config$tfrac_thresh)])
-    
-    if (length(obs_remove_thresh) == 0){
-      cat("---- FOUND none of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", config$tfrac_thresh, "\n")
-    } else {
-      
-      cat("---- REMOVING", length(obs_remove_thresh), "of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", config$tfrac_thresh, "\n")
-      # Remove observations
-      sf_cases_resized <- sf_cases_resized[-c(obs_remove_thresh), ]
-      
-      # Re-compute space-time indices based on aggretated data
-      ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
-        df = sf_cases_resized,
-        lp_dict = location_periods_dict,
-        model_time_slices = time_slices,
-        res_time = res_time,
-        n_cpus = config$ncpus_parallel_prep,
-        do_parallel = config$do_parallel_prep)
-    }
-  }
-  
-  # ---- Eb. Drop multi-year ----
-  
-  # Set admin level
-  sf_cases_resized <- sf_cases_resized %>% 
-    dplyr::mutate(admin_level = purrr::map_dbl(location_name, ~ taxdat::get_admin_level(.)))
-  
-  # Drop multi-year observations if present
-  if (config$drop_multiyear_adm0) {
-    sf_cases_resized <- taxdat::drop_multiyear(df = sf_cases_resized,
-                                               admin_levels = 0)
-    
-    # Re-compute space-time indices based on aggretated data
-    ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
-      df = sf_cases_resized, 
-      lp_dict = location_periods_dict,
-      model_time_slices = time_slices,
-      res_time = res_time,
-      n_cpus = config$ncpus_parallel_prep,
-      do_parallel = config$do_parallel_prep)
-  }
-  
-  # ---- Fa. Censoring ----
-  
-  # Set stan_data at this point
-  stan_data <- taxdat::update_stan_data_indexing(stan_data = stan_data,
-                                                 ind_mapping_resized = ind_mapping_resized,
-                                                 config = config)
-  
-  # Extract censoring information
-  sf_cases_resized$censoring <- taxdat::get_censoring_inds(ind_mapping_resized = ind_mapping_resized,
-                                                           censoring_thresh = config$censoring_thresh)
-  
-  sf_cases_resized <- sf_cases_resized %>% 
-    dplyr::mutate(ref_TL = taxdat::get_start_timeslice(TL, res_time),
-                  ref_TR = taxdat::get_end_timeslice(TR, res_time),
-                  obs_id = dplyr::row_number()) 
-  
-  
-  # Drop data that are censored and for which the observations are 0
-  if (config$censoring) {
-    
-    cat("-- Checking for 0 censored observations \n")
-    
-    y <- sf_cases_resized[[cases_column]]
-    
-    censored_zero_obs <- which(y == 0 & sf_cases_resized$censoring == "right-censored")
-    
-    if (length(censored_zero_obs) > 0) {
-      
-      cat("-- Dropping", length(censored_zero_obs), "observations that are 0 and censored.\n")
-      
-      sf_cases_resized <- sf_cases_resized[-c(censored_zero_obs), ]
-      
-      
-      # Re-compute indices
-      ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
-        df = sf_cases_resized,
-        lp_dict = location_periods_dict,
-        model_time_slices = time_slices,
-        res_time = res_time,
-        n_cpus = config$ncpus_parallel_prep,
-        do_parallel = config$do_parallel_prep)
-      
-    }
-  }
-  
-  
-  # Drop ADM0 observations that do not inform the model
-  if (config$drop_censored_adm0) {
-    
-    sf_cases_resized <- taxdat::drop_censored_adm0(sf_cases_resized = sf_cases_resized,
-                                                   thresh = config$drop_censored_adm0_thresh,
-                                                   res_time = res_time,
-                                                   cases_column = cases_column)
-    
-    # Re-compute indices
-    ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
-      df = sf_cases_resized, 
-      lp_dict = location_periods_dict,
-      model_time_slices = time_slices,
-      res_time = res_time,
-      n_cpus = config$ncpus_parallel_prep,
-      do_parallel = config$do_parallel_prep)
-  }
-  
-  
-  # First define censored observations 
-  stan_data <- taxdat::update_stan_data_indexing(stan_data = stan_data,
-                                                 ind_mapping_resized = ind_mapping_resized,
-                                                 config = config)
-  
-  #  ---- Fb. Drop observations by OC ----
-  
-  sf_cases_resized <- taxdat::drop_obs_by_OC(sf_cases_resized = sf_cases_resized,
-                                             res_time = res_time
-  )
-  
-  # Re-compute space-time indices based on dropped data
-  ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
-    df = sf_cases_resized, 
-    lp_dict = location_periods_dict,
-    model_time_slices = time_slices,
-    res_time = res_time,
-    n_cpus = config$ncpus_parallel_prep,
-    do_parallel = config$do_parallel_prep)
-  
-  # First define censored observations 
-  stan_data <- taxdat::update_stan_data_indexing(stan_data = stan_data,
-                                                 ind_mapping_resized = ind_mapping_resized,
-                                                 config = config)
-  
-  # ---- G. Spatial fraction ----
-  # Add 1km population fraction (this is deprecated in new stan model)
-  stan_data$use_pop_weight <- config$use_pop_weight
-  
-  if (config$use_pop_weight) {
-    
-    # Make sure that all observations for have a pop_loctime > 0
-    pop_loctimes <- taxdat::compute_pop_loctimes(stan_data = stan_data)
-    
-    if (any(pop_loctimes == 0)) {
-      # Remove pop_loctimes == 0
-      cat("-- Found", sum(pop_loctimes == 0), "location/times with weighted population == 0. \n")
-      nopop_loctimes <- which(pop_loctimes == 0)
-      nopop_obs <- purrr::map(nopop_loctimes, ~ stan_data$map_obs_loctime_obs[which(stan_data$map_obs_loctime_loc == .)]) %>%
-        unlist() %>%
-        unique()
-      
-      cat("---- REMOVING", length(nopop_obs), "of", nrow(sf_cases_resized), "observations for which the location/time population is 0. \n")
-      
-      # Remove observations
-      sf_cases_resized <- sf_cases_resized[-c(nopop_obs), ]
-      
-      # Re-compute space-time indices based on aggregated data
-      ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
-        df = sf_cases_resized,
-        lp_dict = location_periods_dict,
-        model_time_slices = time_slices,
-        res_time = res_time,
-        n_cpus = config$ncpus_parallel_prep,
-        do_parallel = config$do_parallel_prep)
-      
-      # First define censored observations
-      stan_data <- taxdat::update_stan_data_indexing(stan_data = stan_data,
-                                                     ind_mapping_resized = ind_mapping_resized,
-                                                     config = config)
-    }
-    
-    
-    stan_data$map_loc_grid_sfrac <- taxdat::check_pop_weight_validity(stan_data$map_loc_grid_sfrac)
-    
-  } else {
-    stan_data$map_loc_grid_sfrac <- array(data = 0, dim = 0)
-  }
-  
-  #  ---- H. Observations ----
-  stan_data$y <- as.array(sf_cases_resized[[cases_column]])
-  
-  # Get censoring indexes 
-  censoring_inds <- taxdat::get_censoring_inds(ind_mapping_resized = ind_mapping_resized,
-                                               censoring_thresh = config$censoring_thresh)
-  stan_data$ind_full <- which(censoring_inds == "full") %>% array()
-  stan_data$M_full <- length(stan_data$ind_full)
-  # TODO Left-censoring is not implemented for now
-  stan_data$ind_left <- which(censoring_inds == "left-censored") %>% array()
-  stan_data$M_left <- length(stan_data$ind_left)
-  stan_data$ind_right <- which(censoring_inds == "right-censored") %>% array()
-  stan_data$M_right <- length(stan_data$ind_right)
-  stan_data$censoring_inds <- censoring_inds
-  
-  # ---- I. Mappings ----
-  stan_data$K1 <- length(stan_data$map_obs_loctime_obs)
-  stan_data$K2 <- length(stan_data$map_loc_grid_loc)
-  
-  full_grid <- sf::st_drop_geometry(sf_grid) %>% 
-    dplyr::left_join(sf::st_drop_geometry(smooth_grid)) %>% 
-    dplyr::select(upd_id, smooth_id, t)
-  
-  stan_data$smooth_grid_N <- nrow(smooth_grid)
-  stan_data$map_smooth_grid <- full_grid$smooth_id
-  stan_data$map_grid_time <- full_grid$t
-  stan_data['T'] <- nrow(time_slices)
-  stan_data$map_full_grid <- full_grid$upd_id
-  
-  # What observation model to use
-  stan_data$obs_model <- config$obs_model
-  
-  # First define admin levels to get data ad upper admin levels
-  # Administrative levels for observation model
-  admin_levels <- sf_cases_resized$location_name %>%
-    purrr::map_dbl(~ taxdat::get_admin_level(.)) %>%
-    as.array()
-  
-  n_na_admin <- sum(is.na(admin_levels))
-  
-  if (n_na_admin > 0) {
-    cat("---- Replacing unknown admin level for ", n_na_admin, " observations corresponding to",
-        sum(stan_data$y[is.na(admin_levels)]), "cases. \n")
-  }
-  
-  # Make sure all admin levels are specified
-  admin_levels[is.na(admin_levels)] <- max(admin_levels, na.rm = T)
-  
-  # Get unique levels, this is necessary if not all admin levels are present
-  # in the data
-  u_admin_levels <- sort(unique(admin_levels))
-  
-  # index staring at 1
-  stan_data$map_obs_admin_lev <- purrr::map_dbl(admin_levels, ~ which(u_admin_levels == .))
-  
-  # Add unique number of admin levels for use in observation model
-  stan_data$N_admin_lev <- length(u_admin_levels)
-  
-  # Map from space x time grid to space grid
-  sf_grid <- sf_grid %>%
-    dplyr::group_by(rid, x, y) %>%
-    dplyr::mutate(space_id = min(upd_id)) %>%
-    dplyr::ungroup()
-  
-  stan_data$N_space <- length(unique(sf_grid$space_id))
-  stan_data$map_spacetime_space_grid <- sf_grid$space_id[sf_grid$upd_id]
-  
-  
-  # Unique location-time combinations in observations to produce posterior observations
-  stan_data <- taxdat::get_loctime_combs_mappings(stan_data)
-  
-  # ---- I. Mean rate ----
-  stan_data$meanrate <- taxdat::compute_mean_rate(stan_data = stan_data,
-                                                  res_time = res_time)
-  #  ---- J. Imputation ----
-  
-  sf_cases_resized$admin_level <- admin_levels
-  sf_cases_resized$censoring <- censoring_inds
-  sf_cases_resized <- sf_cases_resized %>% 
-    dplyr::mutate(obs_id = dplyr::row_number())
-  
-  
-  sf_cases_resized <- taxdat::impute_adm0_obs(sf_cases_resized = sf_cases_resized,
-                                              stan_data = stan_data,
-                                              time_slices = time_slices,
-                                              res_time = res_time,
-                                              cases_column = cases_column,
-                                              frac_coverage_thresh = 0.1)
-  
-  stan_data <- taxdat::update_stan_data_imputation(sf_cases_resized = sf_cases_resized,
-                                                   stan_data = stan_data,
-                                                   time_slices = time_slices,
-                                                   res_time = res_time,
-                                                   cases_column = cases_column)
-  
-  # Update censoring inds in sf_cases_resized
-  sf_cases_resized$censoring <- stan_data$censoring_inds
-  
-  # ---- K. Data for output summaries ----
+  # ---- C. Data for output summaries ----
   
   # Set user-specific name for location_periods table to use
   output_lp_name <- taxdat::make_output_locationperiods_table_name(
@@ -590,7 +247,398 @@ prepare_stan_input <- function(
     stan_data$map_loc_grid_sfrac_output <- array(data = 0, dim = 0)
   }
   
-  # ---- L. Population at risk ----
+  
+  # ---- D. Adjust population to match UN estimates ----
+  
+  if (config$adjust_pop_UN) {
+    
+    # Get the ADM0 fake observation ids
+    output_adm0_obs <- fake_output_obs %>% 
+      dplyr::mutate(obs_id = dplyr::row_number()) %>% 
+      dplyr::filter(admin_lev == 0) %>% 
+      dplyr::arrange(TL) %>% 
+      dplyr::pull(obs_id)
+    
+    # Get the corresponding mapping indices
+    output_adm0_locs <- purrr::map_dbl(output_adm0_obs, ~ which(stan_data$map_output_obs_loctime_obs == .))
+    
+    # Get the indices of the corresponding loctime/grid mapping
+    output_adm0_ind <- purrr::map(output_adm0_locs, ~ which(stan_data$map_output_loc_grid_loc == .)) %>% 
+      unlist() %>% 
+      sort()
+    
+    # Check if all grid cells are covered
+    if (nrow(sf_grid) != length(output_adm0_ind)) {
+      warning("Pop grid lengths do not match!")
+    }
+    
+    # Get the grid cell ids
+    output_adm0_cells <- stan_data$map_output_loc_grid_grid[output_adm0_ind]
+    
+    if (config$use_pop_weight) { 
+      # Get the sfracked population for each output
+      grid_pop <- stan_data$pop[output_adm0_cells] * stan_data$map_loc_grid_sfrac_output[output_adm0_ind]
+    } else {
+      # Get the sfracked population for each output
+      grid_pop <- stan_data$pop[output_adm0_cells]
+    }
+    
+    # Get the years
+    grid_years <- lubridate::year(time_slices$TL)[sf_grid$t[output_adm0_cells]]
+    
+    # Compute population adjustment factor
+    adj_pop <- taxdat::compute_adjustment_UN_population(country = taxdat::get_country_isocode(config),
+                                                         pop = grid_pop,
+                                                         years = grid_years)
+    
+    # Probably a tidier way to do this but this should garantee the indexing is correct
+    stan_data$pop <- purrr::map_dbl(1:length(stan_data$pop), ~ stan_data$pop[.] * adj_pop[output_adm0_cells == .])
+  }
+  
+  # ---- E. Pre-Aggregation Duplicates Removal in sf_cases ----
+  # JPS: could package this into a function for unit testing
+  sf_cases_dup_obs <- sf_cases %>% 
+    sf::st_drop_geometry() %>%
+    # don't decide on duplicates based on these variables
+    dplyr::select(-dplyr::one_of("id", "deaths")) %>%
+    duplicated()
+  
+  sf_cases <- sf_cases[!sf_cases_dup_obs, ]
+  
+  
+  # ---- F. Aggregation ----
+  
+  # Mapping between observations to location periods and between
+  # location periods and grid cells
+  ind_mapping <- taxdat::get_space_time_ind_speedup(
+    df = sf_cases,
+    lp_dict = location_periods_dict,
+    model_time_slices = time_slices,
+    res_time = res_time,
+    n_cpus = config$ncpus_parallel_prep,
+    do_parallel = config$do_parallel_prep)
+  
+  non_na_obs <- sort(unique(ind_mapping$map_obs_loctime_obs))
+  sf_cases_resized <- sf_cases[non_na_obs, ]
+  
+  
+  if (config$aggregate) {
+    
+    print("---- AGGREGATING CHOLERA DATA TO MODELING TIME RES ----")
+    
+    sf_cases_resized <- taxdat::aggregate_observations(sf_cases_resized = sf_cases_resized,
+                                                       non_na_obs = non_na_obs,
+                                                       ind_mapping = ind_mapping,
+                                                       cases_column = cases_column,
+                                                       verbose = opt$verbose,
+                                                       n_cpus = config$ncpus_parallel_prep,
+                                                       do_parallel = config$do_parallel_prep)
+    
+    # Snap to time period after aggregation
+    sf_cases_resized <- taxdat::snap_to_time_period_df(df = sf_cases_resized,
+                                                       TL_col = "TL",
+                                                       TR_col = "TR",
+                                                       res_time = res_time,
+                                                       tol = config$snap_tol)
+    
+    # Re-compute space-time indices based on aggretated data
+    ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+      df = sf_cases_resized,
+      lp_dict = location_periods_dict,
+      model_time_slices = time_slices,
+      res_time = res_time,
+      n_cpus = config$ncpus_parallel_prep,
+      do_parallel = config$do_parallel_prep)
+    
+  } else {
+    print("---- USING RAW CHOLERA DATA ----")
+    ind_mapping_resized <- ind_mapping
+    sf_cases_resized <- sf_cases
+  }
+  
+  # Clean unused objects
+  rm(ind_mapping)
+  
+  #  ---- G. Drop tfrac threshold ----
+  
+  # If specified threshold of minimum tfrac filter out data
+  if (config$tfrac_thresh > 0) {
+    # Which observations to remove
+    obs_remove_thresh <- unique(ind_mapping_resized$obs[ind_mapping_resized$tfrac < as.numeric(config$tfrac_thresh)])
+    
+    if (length(obs_remove_thresh) == 0){
+      cat("---- FOUND none of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", config$tfrac_thresh, "\n")
+    } else {
+      
+      cat("---- REMOVING", length(obs_remove_thresh), "of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", config$tfrac_thresh, "\n")
+      # Remove observations
+      sf_cases_resized <- sf_cases_resized[-c(obs_remove_thresh), ]
+      
+      # Re-compute space-time indices based on aggretated data
+      ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+        df = sf_cases_resized,
+        lp_dict = location_periods_dict,
+        model_time_slices = time_slices,
+        res_time = res_time,
+        n_cpus = config$ncpus_parallel_prep,
+        do_parallel = config$do_parallel_prep)
+    }
+  }
+  
+  # ---- H. Drop multi-year ----
+  
+  # Set admin level
+  sf_cases_resized <- sf_cases_resized %>% 
+    dplyr::mutate(admin_level = purrr::map_dbl(location_name, ~ taxdat::get_admin_level(.)))
+  
+  # Drop multi-year observations if present
+  if (config$drop_multiyear_adm0) {
+    sf_cases_resized <- taxdat::drop_multiyear(df = sf_cases_resized,
+                                               admin_levels = 0)
+    
+    # Re-compute space-time indices based on aggretated data
+    ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+      df = sf_cases_resized, 
+      lp_dict = location_periods_dict,
+      model_time_slices = time_slices,
+      res_time = res_time,
+      n_cpus = config$ncpus_parallel_prep,
+      do_parallel = config$do_parallel_prep)
+  }
+  
+  # ---- I. Censoring ----
+  
+  # Set stan_data at this point
+  stan_data <- taxdat::update_stan_data_indexing(stan_data = stan_data,
+                                                 ind_mapping_resized = ind_mapping_resized,
+                                                 config = config)
+  
+  # Extract censoring information
+  sf_cases_resized$censoring <- taxdat::get_censoring_inds(ind_mapping_resized = ind_mapping_resized,
+                                                           censoring_thresh = config$censoring_thresh)
+  
+  sf_cases_resized <- sf_cases_resized %>% 
+    dplyr::mutate(ref_TL = taxdat::get_start_timeslice(TL, res_time),
+                  ref_TR = taxdat::get_end_timeslice(TR, res_time),
+                  obs_id = dplyr::row_number()) 
+  
+  
+  # Drop data that are censored and for which the observations are 0
+  if (config$censoring) {
+    
+    cat("-- Checking for 0 censored observations \n")
+    
+    y <- sf_cases_resized[[cases_column]]
+    
+    censored_zero_obs <- which(y == 0 & sf_cases_resized$censoring == "right-censored")
+    
+    if (length(censored_zero_obs) > 0) {
+      
+      cat("-- Dropping", length(censored_zero_obs), "observations that are 0 and censored.\n")
+      
+      sf_cases_resized <- sf_cases_resized[-c(censored_zero_obs), ]
+      
+      
+      # Re-compute indices
+      ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+        df = sf_cases_resized,
+        lp_dict = location_periods_dict,
+        model_time_slices = time_slices,
+        res_time = res_time,
+        n_cpus = config$ncpus_parallel_prep,
+        do_parallel = config$do_parallel_prep)
+      
+    }
+  }
+  
+  
+  # Drop ADM0 observations that do not inform the model
+  if (config$drop_censored_adm0) {
+    
+    sf_cases_resized <- taxdat::drop_censored_adm0(sf_cases_resized = sf_cases_resized,
+                                                   thresh = config$drop_censored_adm0_thresh,
+                                                   res_time = res_time,
+                                                   cases_column = cases_column)
+    
+    # Re-compute indices
+    ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+      df = sf_cases_resized, 
+      lp_dict = location_periods_dict,
+      model_time_slices = time_slices,
+      res_time = res_time,
+      n_cpus = config$ncpus_parallel_prep,
+      do_parallel = config$do_parallel_prep)
+  }
+  
+  
+  # First define censored observations 
+  stan_data <- taxdat::update_stan_data_indexing(stan_data = stan_data,
+                                                 ind_mapping_resized = ind_mapping_resized,
+                                                 config = config)
+  
+  #  ---- J. Drop observations by OC ----
+  
+  sf_cases_resized <- taxdat::drop_obs_by_OC(sf_cases_resized = sf_cases_resized,
+                                             res_time = res_time
+  )
+  
+  # Re-compute space-time indices based on dropped data
+  ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+    df = sf_cases_resized, 
+    lp_dict = location_periods_dict,
+    model_time_slices = time_slices,
+    res_time = res_time,
+    n_cpus = config$ncpus_parallel_prep,
+    do_parallel = config$do_parallel_prep)
+  
+  # First define censored observations 
+  stan_data <- taxdat::update_stan_data_indexing(stan_data = stan_data,
+                                                 ind_mapping_resized = ind_mapping_resized,
+                                                 config = config)
+  
+  # ---- K. Spatial fraction ----
+  # Add 1km population fraction (this is deprecated in new stan model)
+  stan_data$use_pop_weight <- config$use_pop_weight
+  
+  if (config$use_pop_weight) {
+    
+    # Make sure that all observations for have a pop_loctime > 0
+    pop_loctimes <- taxdat::compute_pop_loctimes(stan_data = stan_data)
+    
+    if (any(pop_loctimes == 0)) {
+      # Remove pop_loctimes == 0
+      cat("-- Found", sum(pop_loctimes == 0), "location/times with weighted population == 0. \n")
+      nopop_loctimes <- which(pop_loctimes == 0)
+      nopop_obs <- purrr::map(nopop_loctimes, ~ stan_data$map_obs_loctime_obs[which(stan_data$map_obs_loctime_loc == .)]) %>%
+        unlist() %>%
+        unique()
+      
+      cat("---- REMOVING", length(nopop_obs), "of", nrow(sf_cases_resized), "observations for which the location/time population is 0. \n")
+      
+      # Remove observations
+      sf_cases_resized <- sf_cases_resized[-c(nopop_obs), ]
+      
+      # Re-compute space-time indices based on aggregated data
+      ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+        df = sf_cases_resized,
+        lp_dict = location_periods_dict,
+        model_time_slices = time_slices,
+        res_time = res_time,
+        n_cpus = config$ncpus_parallel_prep,
+        do_parallel = config$do_parallel_prep)
+      
+      # First define censored observations
+      stan_data <- taxdat::update_stan_data_indexing(stan_data = stan_data,
+                                                     ind_mapping_resized = ind_mapping_resized,
+                                                     config = config)
+    }
+    
+    
+    stan_data$map_loc_grid_sfrac <- taxdat::check_pop_weight_validity(stan_data$map_loc_grid_sfrac)
+    
+  } else {
+    stan_data$map_loc_grid_sfrac <- array(data = 0, dim = 0)
+  }
+  
+  #  ---- L. Observations ----
+  stan_data$y <- as.array(sf_cases_resized[[cases_column]])
+  
+  # Get censoring indexes 
+  censoring_inds <- taxdat::get_censoring_inds(ind_mapping_resized = ind_mapping_resized,
+                                               censoring_thresh = config$censoring_thresh)
+  stan_data$ind_full <- which(censoring_inds == "full") %>% array()
+  stan_data$M_full <- length(stan_data$ind_full)
+  # TODO Left-censoring is not implemented for now
+  stan_data$ind_left <- which(censoring_inds == "left-censored") %>% array()
+  stan_data$M_left <- length(stan_data$ind_left)
+  stan_data$ind_right <- which(censoring_inds == "right-censored") %>% array()
+  stan_data$M_right <- length(stan_data$ind_right)
+  stan_data$censoring_inds <- censoring_inds
+  
+  # ---- M. Mappings ----
+  stan_data$K1 <- length(stan_data$map_obs_loctime_obs)
+  stan_data$K2 <- length(stan_data$map_loc_grid_loc)
+  
+  full_grid <- sf::st_drop_geometry(sf_grid) %>% 
+    dplyr::left_join(sf::st_drop_geometry(smooth_grid)) %>% 
+    dplyr::select(upd_id, smooth_id, t)
+  
+  stan_data$smooth_grid_N <- nrow(smooth_grid)
+  stan_data$map_smooth_grid <- full_grid$smooth_id
+  stan_data$map_grid_time <- full_grid$t
+  stan_data['T'] <- nrow(time_slices)
+  stan_data$map_full_grid <- full_grid$upd_id
+  
+  # What observation model to use
+  stan_data$obs_model <- config$obs_model
+  
+  # First define admin levels to get data ad upper admin levels
+  # Administrative levels for observation model
+  admin_levels <- sf_cases_resized$location_name %>%
+    purrr::map_dbl(~ taxdat::get_admin_level(.)) %>%
+    as.array()
+  
+  n_na_admin <- sum(is.na(admin_levels))
+  
+  if (n_na_admin > 0) {
+    cat("---- Replacing unknown admin level for ", n_na_admin, " observations corresponding to",
+        sum(stan_data$y[is.na(admin_levels)]), "cases. \n")
+  }
+  
+  # Make sure all admin levels are specified
+  admin_levels[is.na(admin_levels)] <- max(admin_levels, na.rm = T)
+  
+  # Get unique levels, this is necessary if not all admin levels are present
+  # in the data
+  u_admin_levels <- sort(unique(admin_levels))
+  
+  # index staring at 1
+  stan_data$map_obs_admin_lev <- purrr::map_dbl(admin_levels, ~ which(u_admin_levels == .))
+  
+  # Add unique number of admin levels for use in observation model
+  stan_data$N_admin_lev <- length(u_admin_levels)
+  
+  # Map from space x time grid to space grid
+  sf_grid <- sf_grid %>%
+    dplyr::group_by(rid, x, y) %>%
+    dplyr::mutate(space_id = min(upd_id)) %>%
+    dplyr::ungroup()
+  
+  stan_data$N_space <- length(unique(sf_grid$space_id))
+  stan_data$map_spacetime_space_grid <- sf_grid$space_id[sf_grid$upd_id]
+  
+  
+  # Unique location-time combinations in observations to produce posterior observations
+  stan_data <- taxdat::get_loctime_combs_mappings(stan_data)
+  
+  # ---- N. Mean rate ----
+  stan_data$meanrate <- taxdat::compute_mean_rate(stan_data = stan_data,
+                                                  res_time = res_time)
+  #  ---- O. Imputation ----
+  
+  sf_cases_resized$admin_level <- admin_levels
+  sf_cases_resized$censoring <- censoring_inds
+  sf_cases_resized <- sf_cases_resized %>% 
+    dplyr::mutate(obs_id = dplyr::row_number())
+  
+  
+  sf_cases_resized <- taxdat::impute_adm0_obs(sf_cases_resized = sf_cases_resized,
+                                              stan_data = stan_data,
+                                              time_slices = time_slices,
+                                              res_time = res_time,
+                                              cases_column = cases_column,
+                                              frac_coverage_thresh = 0.1)
+  
+  stan_data <- taxdat::update_stan_data_imputation(sf_cases_resized = sf_cases_resized,
+                                                   stan_data = stan_data,
+                                                   time_slices = time_slices,
+                                                   res_time = res_time,
+                                                   cases_column = cases_column)
+  
+  # Update censoring inds in sf_cases_resized
+  sf_cases_resized$censoring <- stan_data$censoring_inds
+  
+  # ---- P. Population at risk ----
   # Data for people at risk
   risk_cat_low <- c(0, 1, 10, 20, 50, 100)*1e-5
   risk_cat_high <- c(risk_cat_low[-1], 1e6)
@@ -606,13 +654,13 @@ prepare_stan_input <- function(
     stan_data$debug <- debug
   }
   
-  # ---- M. Covariates ----
+  # ---- Q. Covariates ----
   
   # Option for double-exponential prior on betas
   stan_data$exp_prior <- config$exp_prior
   
   
-  # ---- N. Other options for stan ----
+  # ---- R. Other options for stan ----
   # Use intercept
   stan_data$use_intercept <- config$use_intercept
   
@@ -627,7 +675,7 @@ prepare_stan_input <- function(
                                                  res_time = res_time,
                                                  cases_column = cases_column)
   
-  # ---- O. Priors ----
+  # ---- S. Priors ----
   # Set sigma_eta_scale for all models (not used for models without time effect)
   stan_data$sigma_eta_scale <- config$sigma_eta_scale
   
@@ -652,7 +700,7 @@ prepare_stan_input <- function(
   stan_data$mu_sd_w <- config$mu_sd_w
   stan_data$sd_sd_w <- config$sd_sd_w
   
-  # ---- P. Data Structure Check ----
+  # ---- T. Data Structure Check ----
   taxdat::check_stan_input_objects(censoring_thresh = config$censoring_thresh,
                                    sf_cases = sf_cases,
                                    stan_data = stan_data,

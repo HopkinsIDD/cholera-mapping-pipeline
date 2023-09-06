@@ -53,6 +53,7 @@ params_df <- data.frame(
     OCs = '',
     taxonomy = '',
     summary_admin_levels = '[0,1,2]',
+    adjust_pop_UN = TRUE,
     obs_model = 3,
     inv_od_sd_adm0 = 0.01,
     inv_od_sd_nopool = 1,
