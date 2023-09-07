@@ -32,7 +32,9 @@ plot_DroppedData_table <- function(config, cache, cholera_directory, aesthetic =
   
   used_obs_stats <- obs_stats[order(obs_stats$year), ]
   #get all obs_stats
-  all_obs_stats <- tibble::as_tibble(cache[["sf_cases_resized"]])
+  get_stan_input(name="stan_input",config=config, cache=cache, cholera_directory=cholera_directory)
+
+  all_obs_stats <- tibble::as_tibble(cache[["sf_cases"]])
   all_obs_stats <- dplyr::mutate(all_obs_stats, year = lubridate::year(TL))
   alldf <- tibble::as_tibble(all_obs_stats)
   alldf <- dplyr::mutate(alldf, year = "all")
