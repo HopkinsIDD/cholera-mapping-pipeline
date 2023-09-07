@@ -660,6 +660,7 @@ get_all_config_options <- function() {
     taxonomy = as.function(check_taxonomy),
     summary_admin_levels = as.function(check_summary_admin_levels),
     covariate_choices = as.function(check_covariate_choices),
+    adjust_pop_UN = as.function(check_adjust_pop_UN),
     obs_model = as.function(check_obs_model),
     inv_od_sd_adm0 = as.function(check_od_param_sd_prior_adm0),
     inv_od_sd_nopool = as.function(check_od_param_sd_prior_nopooling),
@@ -1379,5 +1380,27 @@ check_do_infer_sd_eta <- function(x,
     par <- as.logical(x)
   }
 
+  par
+}
+
+
+#' Title
+#'
+#' @param x 
+#' @param default_value 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_adjust_pop_UN <- function(x,
+                                default_value = TRUE) {
+  
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- as.logical(x)
+  }
+  
   par
 }

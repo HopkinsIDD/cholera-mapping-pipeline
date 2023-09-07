@@ -16,9 +16,8 @@
 plot_WHOcomparison_table <- function(config, cache, cholera_directory, observation_level_modeled_cases = TRUE, 
                                      allow_data_pull = TRUE, add_other_source = FALSE, aesthetic = TRUE) {
   get_sf_cases_resized(name="sf_cases_resized",config=config, cache=cache, cholera_directory=cholera_directory)
-  who_annual_cases <- cache[["sf_cases_resized"]] %>% sf::st_drop_geometry()
+  who_annual_cases <- cache[["sf_cases_resized"]] %>% sf::st_drop_geometry() %>% filter(!is.na(loctime))
   
-
   ## if to get the sum of the grid-level modeled cases  
   if(!observation_level_modeled_cases){
     ### First get the non-na grid cells and their associated time 
@@ -56,8 +55,21 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
     }
 
   }else{
-    ### get the distribution of the observation-level modeled cases 
+    ### get 95% credible intervals of ppd modeled cases at the observational level 
     get_genquant(name="genquant",cache=cache,config=config,cholera_directory = cholera_directory)
+
+    gen_obs <- dplyr::inner_join(
+      cache[["genquant"]]$summary("gen_obs_loctime_combs", mean),
+      cache[["genquant"]]$summary("gen_obs_loctime_combs", 
+                       ~ posterior::quantile2(., probs = c(0.025,0.975)))
+    )
+    
+    gen_obs <- gen_obs[cache[["stan_input"]]$stan_data$map_obs_loctime_combs, ] %>% 
+      dplyr::mutate(modeled_obs_level_cases = paste0(round(mean,0),"(",round(q2.5,0),"-",round(q97.5,0),")"))
+
+    who_annual_cases$modeled_pi <- gen_obs$modeled_obs_level_cases
+
+    ### get 95% CI
     varnames <- dimnames(cache[['genquant']]$draws())[[3]]
     modeled_observed_cases <- as.array(cache[['genquant']]$draws())[, , grepl("^modeled_cases", varnames),drop=FALSE]
     dim(modeled_observed_cases) <- c(dim(modeled_observed_cases)[1] * dim(modeled_observed_cases)[2], dim(modeled_observed_cases)[3])
@@ -68,7 +80,8 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
               ")"
             )
       })
-    who_annual_cases$modeled <- modeled_obs_level_cases
+    who_annual_cases$modeled_ci <- modeled_obs_level_cases
+
 
     ### Get the WHO table and combine them 
     who_annual_cases <- who_annual_cases %>% dplyr::rename(observed = attributes.fields.suspected_cases)
@@ -86,7 +99,7 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
   ### Only need certain variables 
   who_annual_cases_from_db <- who_annual_cases_from_db %>%
         as.data.frame() %>%
-        dplyr::select(OC_UID, TL, TR, observed, modeled)
+        dplyr::select(OC_UID, TL, TR, observed, modeled_pi,modeled_ci)
 
   ### Whether add more rows that compare modeled cases with other annual country-level observed cases 
   if(add_other_source){
@@ -94,11 +107,11 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
     censoring_threshold <- ifelse(!is.null(config_file$censoring_thresh), as.numeric(config_file$censoring_thresh), 0.95)
     get_stan_input(name="stan_input",cache=cache,config = config,cholera_directory = cholera_directory)
     country_level_agg_cases <- cache[["stan_input"]]$sf_cases_resized %>% 
-      dplyr::mutate(observed = attributes.fields.suspected_cases, modeled = modeled_obs_level_cases) %>%
+      dplyr::mutate(observed = attributes.fields.suspected_cases, modeled_pi = gen_obs$modeled_obs_level_cases,modeled_ci = modeled_obs_level_cases) %>%
       sf::st_drop_geometry() %>%
       dplyr::filter(admin_level==0) %>% #select national observations
       dplyr::filter(((TR - TL+1)/365) >= censoring_threshold & ((TR - TL+1)/366) <=1) %>%
-      dplyr::select(OC_UID, TL, TR, observed, modeled)
+      dplyr::select(OC_UID, TL, TR, observed, modeled_pi, modeled_ci)
     
     who_annual_cases_from_db <- rbind(country_level_agg_cases) %>%
       dplyr::arrange(TL, desc(TR))
@@ -112,10 +125,12 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
   mean_modeled_annual_cases <- who_annual_cases_from_db%>%
     dplyr::group_by(year=lubridate::year(TL)) %>%
     dplyr::summarise(
-      mean_modeled_annual_cases_by_year = round(mean(as.numeric(unique(gsub("[[:punct:]]", "", sub("\\(.*", "", modeled))))),0)
+      mean_modeled_annual_cases_by_year_pi = round(mean(as.numeric(unique(gsub("[[:punct:]]", "", sub("\\(.*", "", modeled_pi))))),0),
+      mean_modeled_annual_cases_by_year_ci = round(mean(as.numeric(unique(gsub("[[:punct:]]", "", sub("\\(.*", "", modeled_ci))))),0),
     ) %>%
     dplyr::ungroup()%>%
-    dplyr::mutate(mean_modeled_annual_cases = round(mean(mean_modeled_annual_cases_by_year),0))
+    dplyr::mutate(mean_modeled_annual_cases_pi = round(mean(mean_modeled_annual_cases_by_year_pi),0),
+                  mean_modeled_annual_cases_ci = round(mean(mean_modeled_annual_cases_by_year_ci),0))
   #add to who annual cases table
   who_annual_cases_from_db<-rbind(
     who_annual_cases_from_db,
@@ -124,7 +139,8 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
       TL=lubridate::ymd(paste0((min(mean_modeled_annual_cases$year)),"-01-01")),
       TR=lubridate::ymd(paste0((max(mean_modeled_annual_cases$year)),"-12-31")),
       observed=unique(mean_observed_annual_cases$mean_observed_annual_cases),
-      modeled=unique(mean_modeled_annual_cases$mean_modeled_annual_cases)
+      modeled_pi=unique(mean_modeled_annual_cases$mean_modeled_annual_cases_pi),
+      modeled_ci=unique(mean_modeled_annual_cases$mean_modeled_annual_cases_ci)
     )
   )
   ### Whether make it pretty 
@@ -132,7 +148,7 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
     if(aesthetic){
       who_annual_cases_from_db %>%
         dplyr::mutate_if(is.numeric, function(x) {format(round(x) , big.mark=",")}) %>%
-        kableExtra::kable(col.names = c("OC id", "start time", "end time", "# Observed cases", "# Modeled Cases (2.5%-97.5%)")) %>%
+        kableExtra::kable(col.names = c("OC id", "start time", "end time", "# Observed cases", "# Modeled Cases, 95% PI", "# Modeled cases, mean 95% CI")) %>%
         kableExtra::kable_styling(bootstrap_options = c("striped"))
     }else{
       return(who_annual_cases_from_db)

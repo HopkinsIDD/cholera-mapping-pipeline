@@ -12,9 +12,9 @@ plot_pop_comparison <- function(config, cache, cholera_directory){
   
   #get the pop from genquant file
   pop_by_year <- cache[["genquant"]]$summary(variables = "pop_loctimes_output",
-                                     c(posterior::default_summary_measures(),
-                                       posterior::default_convergence_measures()),
-                                     .cores = 1) %>% 
+                                             c(posterior::default_summary_measures(),
+                                               posterior::default_convergence_measures()),
+                                             .cores = 1) %>% 
     dplyr::mutate(id = stringr::str_extract(variable, "[0-9]+") %>% as.numeric(),
                   location_period_id = cache[["stan_input"]]$fake_output_obs$locationPeriod_id[id],
                   TL = cache[["stan_input"]]$fake_output_obs$TL[id],
@@ -24,38 +24,39 @@ plot_pop_comparison <- function(config, cache, cholera_directory){
     dplyr::arrange(TL)
   
   # load pop data from world pop csv file
-  load(paste0(cholera_directory,"/packages/taxdat/data/WHO_regions.RData"))
+  data("WHO_regions", package = "taxdat")
   
   afr_regions <- WHO_regions %>% 
     filter(WHO.region %in% c("Africa","Eastern Mediterranean"))
   
-  wpppop_data<-read.csv(paste0(cholera_directory,"/packages/taxdat/data/WPP2022_TotalPopulationBySex.csv"))
+  # Load UN population estimates
+  data("WPP2022", package = "taxdat")
   
-  wpp_pop <-afr_regions %>% 
+  wpp_pop <- afr_regions %>% 
     dplyr::mutate(
       ISO3_code = Country.code
     ) %>% 
     dplyr::select(ISO3_code) %>% 
     dplyr::inner_join(
-      wpppop_data %>% dplyr::filter(Time %in% period) %>% dplyr::select(ISO3_code, Time, PopTotal) %>% dplyr::mutate(PopTotal = 1000*PopTotal)
+      WPP2022 %>% dplyr::filter(Time %in% period) %>% dplyr::select(ISO3_code, Time, PopTotal) %>% dplyr::mutate(PopTotal = 1000*PopTotal)
     ) %>% 
     dplyr::filter(ISO3_code == config_file$countries_name) %>%
     dplyr::arrange(Time)
-
+  
   pop_by_year$wpp_pop <- wpp_pop$PopTotal
-
+  
   # plot comparison
   
   plot <- ggplot2::ggplot(data=pop_by_year %>% 
-                    dplyr::rename("pipeline_pop" = "median") %>% 
-                    dplyr::mutate(difference_percentage = paste0(round(100*(pipeline_pop-wpp_pop)/wpp_pop,2),"%")) %>% 
-                    tidyr::pivot_longer(cols= c(pipeline_pop,wpp_pop),
-                                        names_to = "Source",
-                                        values_to = "population") %>% 
-                    dplyr::mutate(difference_percentage = replace(difference_percentage,Source =="wpp_pop","")),
-                  ggplot2::aes(
-                    x= lubridate::year(TL),
-                    y= population)) +
+                            dplyr::rename("pipeline_pop" = "median") %>% 
+                            dplyr::mutate(difference_percentage = paste0(round(100*(pipeline_pop-wpp_pop)/wpp_pop,2),"%")) %>% 
+                            tidyr::pivot_longer(cols= c(pipeline_pop,wpp_pop),
+                                                names_to = "Source",
+                                                values_to = "population") %>% 
+                            dplyr::mutate(difference_percentage = replace(difference_percentage,Source =="wpp_pop","")),
+                          ggplot2::aes(
+                            x= lubridate::year(TL),
+                            y= population)) +
     ggplot2::geom_bar(
       ggplot2::aes(
         fill = Source
