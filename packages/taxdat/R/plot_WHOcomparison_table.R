@@ -80,8 +80,11 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
               ")"
             )
       })
-    who_annual_cases$modeled_ci <- modeled_obs_level_cases
+     who_annual_cases_ci <- cache[["sf_cases_resized"]] %>% sf::st_drop_geometry()
 
+    who_annual_cases_ci$modeled_ci <- modeled_obs_level_cases
+    who_annual_cases_ci <- who_annual_cases_ci %>% filter(!is.na(loctime))
+    who_annual_cases$modeled_ci <- who_annual_cases_ci$modeled_ci
 
     ### Get the WHO table and combine them 
     who_annual_cases <- who_annual_cases %>% dplyr::rename(observed = attributes.fields.suspected_cases)
@@ -106,8 +109,8 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
     config_file <- yaml::read_yaml(paste0(cholera_directory, "/", config), eval.expr = TRUE)
     censoring_threshold <- ifelse(!is.null(config_file$censoring_thresh), as.numeric(config_file$censoring_thresh), 0.95)
     get_stan_input(name="stan_input",cache=cache,config = config,cholera_directory = cholera_directory)
-    country_level_agg_cases <- cache[["stan_input"]]$sf_cases_resized %>% 
-      dplyr::mutate(observed = attributes.fields.suspected_cases, modeled_pi = gen_obs$modeled_obs_level_cases,modeled_ci = modeled_obs_level_cases) %>%
+    country_level_agg_cases <- cache[["stan_input"]]$sf_cases_resized %>% sf::st_drop_geometry() %>% filter(!is.na(loctime)) %>% 
+      dplyr::mutate(observed = attributes.fields.suspected_cases, modeled_pi = who_annual_cases$modeled_pi,modeled_ci = who_annual_cases$modeled_ci) %>%
       sf::st_drop_geometry() %>%
       dplyr::filter(admin_level==0) %>% #select national observations
       dplyr::filter(((TR - TL+1)/365) >= censoring_threshold & ((TR - TL+1)/366) <=1) %>%
