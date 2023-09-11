@@ -572,7 +572,7 @@ plot_pop_comparison(config=params$config, cache=cache, cholera_directory=params$
 ```
 
 ## Validation
-**Fraction of observations covered by the prediction interval, by admin level:**
+**Fraction of full observations covered by the prediction interval, by admin level:**
 ```{r coverage,fig.height=5,fig.width=10,fig.cap=capFig("Fraction of full observations covered by the prediction interval, by admin level")}
 plot_posterior_coverage_cdr(cache=cache,config=params$config,cholera_directory = params$cholera_directory)
 ```
