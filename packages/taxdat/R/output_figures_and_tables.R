@@ -144,7 +144,7 @@ plot_posterior_coverage <- function(gen_obs) {
     ggplot2::facet_wrap(~ country) +
     ggplot2::theme_bw() +
     ggplot2::coord_cartesian(ylim = c(0, 1)) +
-    ggplot2::labs(x = "CrI width", y = "Fraction of observations covered",
+    ggplot2::labs(x = "CrI width", y = "Fraction of full observations covered",
                   color = "Admin level", lty = "Admin level") +
     ggplot2::scale_color_manual(values = colors_admin_levels())
 }
