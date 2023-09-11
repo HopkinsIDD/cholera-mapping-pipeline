@@ -30,7 +30,8 @@ plot_DroppedData_table <- function(config, cache, cholera_directory, aesthetic =
                                 u_OCs  = paste(sort(unique(OC_UID)), collapse = ",")
   )
   
-  used_obs_stats <- obs_stats[order(obs_stats$year), ]
+  used_obs_stats <- obs_stats[order(obs_stats$year), ] %>% 
+    dplyr::filter(!grepl('imputed',u_OCs))
   #get all obs_stats
   get_stan_input(name="stan_input",config=config, cache=cache, cholera_directory=cholera_directory)
 
