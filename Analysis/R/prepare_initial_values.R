@@ -297,55 +297,39 @@ if (config$obs_model == 3) {
   init.list <- purrr::map(
     1:nchain, function(x) {
       init <- list(
-        std_dev_w = runif(1, 1, 3),
-        rho = runif(1, .7, .8),
         # This assumes we have a fixed overdispersion parameter at admin level 1
         inv_od_param = abs(rnorm(stan_data$N_admin_lev - 1, 1, 1e-1))
       )
       
-      if (config$do_sd_w_mixture) {
+      if (config$use_intercept) {
         init <- append(
           init,
-          list(lambda = runif(1, .6, .8),
-               sigma_std_dev_w = abs(rnorm(2, .5, .1)))
-          )
-      } else {
-        init <- append(
-          init,
-          list(lambda = array(dim = 0),
-               sigma_std_dev_w = abs(rnorm(1, .5, .1)))
+          list(alpha = rnorm(1, -3, .5))
         )
       }
       
-      
-      if (config$time_effect) {
-        if (config$do_zerosum_cnst) {
-          n_eta <- stan_data$`T` - 1
-        } else {
-          n_eta <- stan_data$`T`
-        }
-        
-        init <- append(
-          init,
-          list(eta_tilde = rnorm(n_eta, 0, .1))
-        )
-      }
-      
-      # Spatial random effects
       if (config$spatial_effect) {
-        # Small values of spatial random effects
+        
         init <- append(
           init,
-          list(w = rnorm(stan_data$smooth_grid_N, 0, .1))
-        )
+          list(std_dev_w = array(runif(1, 1, 3)),
+               rho = array(runif(1, .7, .8)),
+               w = rnorm(stan_data$smooth_grid_N, 0, .1))
+          )
         
-        if (config$use_intercept) {
+        if (config$do_sd_w_mixture) {
           init <- append(
             init,
-            list(alpha = rnorm(1, -3, .5))
+            list(lambda = array(runif(1, .6, .8)),
+                 sigma_std_dev_w = array(abs(rnorm(2, .5, .1))))
+          )
+        } else {
+          init <- append(
+            init,
+            list(lambda = array(dim = 0),
+                 sigma_std_dev_w = array(abs(rnorm(1, .5, .1))))
           )
         }
-        
       } else {
         
         # Empty random effects
@@ -363,6 +347,20 @@ if (config$obs_model == 3) {
             list(alpha = array(rnorm(1, 0, .1), dim = 1))
           )
         }
+      }
+      
+      
+      if (config$time_effect) {
+        if (config$do_zerosum_cnst) {
+          n_eta <- stan_data$`T` - 1
+        } else {
+          n_eta <- stan_data$`T`
+        }
+        
+        init <- append(
+          init,
+          list(eta_tilde = rnorm(n_eta, 0, .1))
+        )
       }
       
       init
