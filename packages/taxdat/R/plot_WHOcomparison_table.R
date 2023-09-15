@@ -83,9 +83,15 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
      who_annual_cases_ci <- cache[["sf_cases_resized"]] %>% sf::st_drop_geometry()
 
     who_annual_cases_ci$modeled_ci <- modeled_obs_level_cases
-    who_annual_cases_ci <- who_annual_cases_ci %>% filter(!is.na(loctime))
-    who_annual_cases$modeled_ci <- who_annual_cases_ci$modeled_ci
-
+    who_annual_cases_ci_no_imputation <- who_annual_cases_ci %>% filter(!is.na(loctime))
+    who_annual_cases$modeled_ci <- who_annual_cases_ci_no_imputation$modeled_ci
+    
+    #add imputed observations
+    if(nrow(who_annual_cases_ci %>% filter(is.na(loctime)))>0){
+      who_annual_cases <- who_annual_cases %>% 
+        add_row(who_annual_cases_ci %>% filter(is.na(loctime)))
+    }
+  
     ### Get the WHO table and combine them 
     who_annual_cases <- who_annual_cases %>% dplyr::rename(observed = attributes.fields.suspected_cases)
     who_annual_cases_from_db <- NULL
