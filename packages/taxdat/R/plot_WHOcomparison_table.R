@@ -115,7 +115,7 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
     config_file <- yaml::read_yaml(paste0(cholera_directory, "/", config), eval.expr = TRUE)
     censoring_threshold <- ifelse(!is.null(config_file$censoring_thresh), as.numeric(config_file$censoring_thresh), 0.95)
     get_stan_input(name="stan_input",cache=cache,config = config,cholera_directory = cholera_directory)
-    country_level_agg_cases <- cache[["stan_input"]]$sf_cases_resized %>% sf::st_drop_geometry() %>% filter(!is.na(loctime)) %>% 
+    country_level_agg_cases <- cache[["stan_input"]]$sf_cases_resized %>% sf::st_drop_geometry() %>% 
       dplyr::mutate(observed = attributes.fields.suspected_cases, modeled_pi = who_annual_cases$modeled_pi,modeled_ci = who_annual_cases$modeled_ci) %>%
       sf::st_drop_geometry() %>%
       dplyr::filter(admin_level==0) %>% #select national observations
@@ -134,12 +134,12 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
   mean_modeled_annual_cases <- who_annual_cases_from_db%>%
     dplyr::group_by(year=lubridate::year(TL)) %>%
     dplyr::summarise(
-      mean_modeled_annual_cases_by_year_pi = round(mean(as.numeric(unique(gsub("[[:punct:]]", "", sub("\\(.*", "", modeled_pi))))),0),
-      mean_modeled_annual_cases_by_year_ci = round(mean(as.numeric(unique(gsub("[[:punct:]]", "", sub("\\(.*", "", modeled_ci))))),0),
+      mean_modeled_annual_cases_by_year_pi = round(mean(as.numeric(unique(gsub("[[:punct:]]", "", sub("\\(.*", "", modeled_pi)))),na.rm=T),0),
+      mean_modeled_annual_cases_by_year_ci = round(mean(as.numeric(unique(gsub("[[:punct:]]", "", sub("\\(.*", "", modeled_ci)))),na.rm=T),0),
     ) %>%
     dplyr::ungroup()%>%
-    dplyr::mutate(mean_modeled_annual_cases_pi = round(mean(mean_modeled_annual_cases_by_year_pi),0),
-                  mean_modeled_annual_cases_ci = round(mean(mean_modeled_annual_cases_by_year_ci),0))
+    dplyr::mutate(mean_modeled_annual_cases_pi = round(mean(mean_modeled_annual_cases_by_year_pi,na.rm=T),0),
+                  mean_modeled_annual_cases_ci = round(mean(mean_modeled_annual_cases_by_year_ci,na.rm=T),0))
   #add to who annual cases table
   who_annual_cases_from_db<-rbind(
     who_annual_cases_from_db,
