@@ -27,6 +27,29 @@ functions {
     x[N] = x_aux;
     return x;
   }
+  
+  // Continous version of the Negative binomial function
+  // Replace the binomial coefficient with ratio of gamma functions
+  // Following: https://stats.stackexchange.com/questions/310676/continuous-generalization-of-the-negative-binomial-distribution
+  real neg_binomial_2_cont_lpdf(real x, real mu, real phi) {
+    real ll;
+    real log_gamma_ratio;    // the ratio of gamma functions replacing the binomial coefficient
+    
+    log_gamma_ratio = lgamma(x + phi) - lgamma(x + 1) - lgamma(phi);
+    ll = log_gamma_ratio + x * log(mu) - phi * log1p(mu/phi) - x * log(mu + phi);
+    
+    return ll;
+  }
+  
+  // Continous version of the Poisson distribution
+  // Replace the factorial with a gamma function
+  real poisson_cont_lpdf(real x, real lambda) {
+    real ll;
+    
+    ll = -lgamma(x + 1) + x * log(lambda) - lambda;
+    
+    return ll;
+  }
 }
 data {
   
@@ -579,37 +602,25 @@ generated quantities {
       // rigth-censored observations
       for(i in 1:M_right){
         real lpmf;
+        real dummy_right;
+        int j = ind_right[i];
+        
+        dummy_right = y[j] + exp(raw_dummy_right[i]);
+        
         if (obs_model == 1) {
           // Poisson likelihood
-          lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+          log_lik[j] = poisson_cont_lpdf(dummy_right | modeled_cases[j]);
         } else if (obs_model == 2) {
           // Quasi-poisson likelihood
-          lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]] * modeled_cases[ind_right[i]]);
+          log_lik[j] = neg_binomial_2_cont_lpdf(dummy_right | modeled_cases[j], od_param[map_obs_admin_lev[j]] * modeled_cases[j]);
         } else {
           // Neg-binom likelihood
-          lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]]);
+          log_lik[j] = neg_binomial_2_cont_lpdf(dummy_right | modeled_cases[j], od_param[map_obs_admin_lev[j]]);
         }
         
-        // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
-        if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
-          array[2] real lls;
-          if (obs_model == 1) {
-            // Poisson likelihood
-            lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
-          } else if (obs_model == 2) {
-            // Quasi-poisson likelihood
-            lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]] * modeled_cases[ind_right[i]]);
-          } else {
-            // Neg-binom likelihood
-            lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]]);
-          }
-          lls[2] = lpmf;
-          log_lik[ind_right[i]] = log_sum_exp(lls);
-        } else {
-          log_lik[ind_right[i]] = lpmf;
-        }
       }
     }
+    
     // ---  End Part G ---
     
     // ---- Part H: Posterior observations ----
