@@ -39,6 +39,7 @@ output_plot_map <- function(sf_obj,
                             country_border_width = .3,
                             country_border_color = "black",
                             cholera_dir = 'cholera-mapping-pipeline') {
+  
   afr_sf <- sf::st_read(paste(cholera_dir,"packages/taxdat/data/afr_sf_cleaned.shp",sep="/"))
   
   sf_obj %>% 

@@ -137,6 +137,65 @@ read_yaml_for_data <- function(config,
   config_list
 }
 
+
+
+#' make_prefix_from_config_dir
+#'
+#' @param prefix 
+#' @param config_dir 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+make_prefix_from_config_dir <- function(prefix = NULL,
+                                        config_dir) {
+  # Add config directory to prefix
+  prefix_add <- config_dir %>% 
+    # Remove tailing / to ensure non-empty string
+    stringr::str_remove("/$") %>% 
+    stringr::str_split("/") %>% 
+    .[[1]] %>% 
+    last()
+  
+  prefix_dir <- ifelse(is.null(prefix), prefix_add, paste(prefix, prefix_add, sep = "_"))
+  prefix_dir
+}
+
+#' Title
+#'
+#' @param fun_name 
+#' @param prefix 
+#' @param suffix 
+#' @param output_dir 
+#' @param output_file_type 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+read_output <- function(fun_name, 
+                        prefix = NULL,
+                        suffix = NULL,
+                        output_dir = "./",
+                        output_file_type = "rds") {
+  
+  res_file <- make_std_output_name(output_dir = output_dir,
+                                   fun_name = fun_name,
+                                   prefix = prefix,
+                                   suffix = suffix,
+                                   file_type = output_file_type,
+                                   verbose = FALSE)
+  
+  if (!file.exists(res_file)) {
+    stop("Output file ", res_file, " does not exist.")
+  }
+  
+  read_file_generic(res_file = res_file,
+                    file_type = output_file_type)
+  
+}
+
 # Postprocessing wrapper --------------------------------------------------
 
 postprocess_wrapper <- function(config,
@@ -204,7 +263,6 @@ postprocess_wrapper <- function(config,
   res
 }
 
-
 #' @title Run all
 #'
 #' @description Runs a function over a set of combinations of country,
@@ -242,19 +300,10 @@ run_all <- function(
     verbose = FALSE,
     ...) {
   
-  # Add config directory to prefix
-  prefix_add <- config_dir %>% 
-    # Remove tailing / to ensure non-empty string
-    stringr::str_remove("/$") %>% 
-    stringr::str_split("/") %>% 
-    .[[1]] %>% 
-    last()
-  
-  prefix_dir <- ifelse(is.null(prefix), prefix_add, paste(prefix, prefix_add, sep = "_"))
-  
   res_file <- make_std_output_name(output_dir = output_dir,
                                    fun_name = fun_name,
-                                   prefix = prefix_dir,
+                                   prefix = make_prefix_from_config_dir(config_dir = config_dir,
+                                                                        prefix = prefix),
                                    suffix = suffix,
                                    file_type = output_file_type,
                                    verbose = verbose)
@@ -360,8 +409,8 @@ postprocess_mean_annual_incidence <- function(config_list,
 #' @return
 #' @export
 #'
-postprocess_mai_adm0_cases <- function(config_list,
-                                       redo_aux = FALSE) {
+postprocess_adm0_cases <- function(config_list,
+                                   redo_aux = FALSE) {
   
   # Get genquant data
   genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
@@ -370,11 +419,11 @@ postprocess_mai_adm0_cases <- function(config_list,
   adm0_ind <- get_adm0_index(config_list = config_list)
   
   # This assumes that the first output shapefile is always the national-level shapefile
-  cases_adm0 <- genquant$draws(stringr::str_glue("location_total_cases_output[{adm0_ind}]")) %>% 
+  cases_adm0 <- genquant$draws(stringr::str_glue("location_mean_cases_output[{adm0_ind}]")) %>% 
     posterior::as_draws() %>% 
     posterior::as_draws_df() %>% 
     dplyr::as_tibble() %>% 
-    dplyr::rename(country_cases = `location_total_cases_output[1]`) %>% 
+    dplyr::rename(country_cases = `location_mean_cases_output[1]`) %>% 
     dplyr::mutate(country = get_country_from_string(config_list$file_names$stan_genquant_filename))
   
   
@@ -382,15 +431,47 @@ postprocess_mai_adm0_cases <- function(config_list,
 }
 
 
-#' postprocess_mai_adm0_pop
+#' postprocess_mai_adm0_cases
 #' 
 #' @param config_list config list
 #'
 #' @return
 #' @export
 #'
-postprocess_mai_adm0_pop <- function(config_list,
-                                     redo_aux = FALSE) {
+postprocess_adm0_rates <- function(config_list,
+                                   redo_aux = FALSE) {
+  
+  # Get total cases over modeled time peroid
+  cases_adm0 <- postprocess_adm0_cases(config_list = config_list,
+                                       redo_aux = redo_aux)
+  
+  # Get total population over modeled time period
+  pop_adm0 <- postprocess_adm0_pop(config_list = config_list,
+                                   redo_aux = redo_aux,
+                                   total_pop = FALSE)
+  
+  # Add population and compute rates
+  cases_adm0 %>% 
+    mutate(country_pop = pop_adm0$country_pop[1],
+           country_rates = country_cases/country_pop)
+}
+
+#' postprocess_mai_adm0_pop
+#' The object pop_loc_output in generated quantites contains the average 
+#' population in the location, computed as the sum over time slices divided 
+#' by the number of time slices. The function enables to return either the average
+#' or the total population. 
+#' 
+#' @param config_list config list
+#' @param redo_aux redo auxiliary files
+#' @param total_pop whether to return total population over modeling period or average population
+#'
+#' @return
+#' @export
+#'
+postprocess_adm0_pop <- function(config_list,
+                                 redo_aux = FALSE,
+                                 total_pop = FALSE) {
   
   # Get genquant data
   genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
@@ -399,8 +480,15 @@ postprocess_mai_adm0_pop <- function(config_list,
   adm0_ind <- get_adm0_index(config_list = config_list)
   
   # This assumes that the first output shapefile is always the national-level shapefile
-  pop_adm0 <- genquant$summary(stringr::str_glue("pop_loc_output[{adm0_ind}]", mean)) %>% 
-    dplyr::rename(country_pop = `pop_loc_output[1]`)
+  pop_adm0 <- genquant$summary(stringr::str_glue("pop_loc_output[{adm0_ind}]"), mean) %>% 
+    dplyr::rename(country_pop = mean)
+  
+  
+  if (total_pop) {
+    stan_input <- read_file_of_type(config_list$file_names$stan_input_filename, "stan_input") 
+    n_time_slices <- stan_input$stan_data[["T"]]
+    pop_adm0$country_pop <- pop_adm0$country_pop * n_time_slices
+  }
   
   pop_adm0
 }
@@ -893,10 +981,12 @@ compute_cumul_proportion_thresh <- function(v, thresh = .95) {
   # Compute cumulative probability of being in a risk category larger or equal
   res <- all_counts/sum(all_counts)
   cum_prob <- cumsum(rev(res))
+  cum_prob_thresh <- cum_prob[dplyr::first(which(cum_prob >= thresh))]
+  names(cum_prob_thresh) <- NULL
   
   c(
     "risk_cat" = dplyr::first(rev(names(all_counts))[which(cum_prob >= thresh)]) %>% as.numeric(),
-    "cumul_prob" = cum_prob[dplyr::first(which(cum_prob >= thresh))]
+    "cumul_prob" = cum_prob_thresh
   )
 }
 
@@ -986,10 +1076,18 @@ get_coverage <- function(df,
 #'
 #' @examples
 aggregate_and_summarise_draws <- function(df, 
-                                          col = "country_cases") {
+                                          col = "country_cases",
+                                          weights_col = NULL) {
   df %>% 
-    dplyr::group_by(.draw) %>% 
-    dplyr::summarise(tot = sum(!!rlang::sym(col))) %>% 
+    dplyr::group_by(.draw) %>%
+    {
+      x <- .
+      if (is.null(weights_col)) {
+        dplyr::summarise(x, tot = sum(!!rlang::sym(col))) 
+      } else {
+        dplyr::summarise(x, tot = sum(!!rlang::sym(col) * !!rlang::sym(weights_col))/sum(!!rlang::sym(weights_col))) 
+      }
+    } %>% 
     posterior::as_draws() %>% 
     posterior::summarise_draws()
 }
@@ -1004,11 +1102,19 @@ aggregate_and_summarise_draws <- function(df,
 #'
 #' @examples
 aggregate_and_summarise_draws_by_region <- function(df, 
-                                                    col = "country_cases") {
+                                                    col = "country_cases",
+                                                    weights_col = NULL) {
   df %>% 
     get_AFRO_region(ctry_col = "country") %>% 
     dplyr::group_by(.draw, AFRO_region) %>% 
-    dplyr::summarise(tot = sum(!!rlang::sym(col))) %>%
+    {
+      x <- .
+      if (is.null(weights_col)) {
+        dplyr::summarise(x, tot = sum(!!rlang::sym(col))) 
+      } else {
+        dplyr::summarise(x, tot = sum(!!rlang::sym(col) * !!rlang::sym(weights_col))/sum(!!rlang::sym(weights_col))) 
+      }
+    } %>% 
     dplyr::ungroup() %>% 
     tidyr::pivot_wider(names_from = "AFRO_region",
                        values_from = "tot") %>% 
@@ -1018,6 +1124,7 @@ aggregate_and_summarise_draws_by_region <- function(df,
     posterior::as_draws() %>% 
     posterior::summarise_draws()
 }
+
 
 #' tidy_shapefiles
 #'

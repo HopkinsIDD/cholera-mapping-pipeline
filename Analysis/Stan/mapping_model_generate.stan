@@ -264,7 +264,7 @@ generated quantities {
   vector<lower=0>[L_output] location_cases_output;    //cases modeled in each (temporal) location.
   vector<lower=0>[L_output] location_rates_output;    //rates modeled in each (temporal) location.
   vector<lower=0>[L_output_space] location_total_cases_output;       //cases modeled in each location across time slices.
-  vector<lower=0>[L_output_space] location_mean_cases_output;    //variance of cases modeled in each location across time slices.
+  vector<lower=0>[L_output_space] location_mean_cases_output;        //mean number of cases modeled in each location across time slices.
   vector<lower=0>[L_output_space] location_variance_cases_output;    //variance of cases modeled in each location across time slices.
   vector<lower=0>[L_output_space] location_cov_cases_output;         //coefficient of variation of modeled in each location across time slices.
   vector<lower=0>[L_output_space] location_total_rates_output;       //rates modeled in each location  across time slices.
