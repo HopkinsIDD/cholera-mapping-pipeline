@@ -304,7 +304,7 @@ if (config$obs_model == 3) {
       if (config$use_intercept) {
         init <- append(
           init,
-          list(alpha = rnorm(1, -3, .5))
+          list(alpha = array(rnorm(1, -3, .5)))
         )
       }
       
@@ -341,14 +341,8 @@ if (config$obs_model == 3) {
         
         if (!config$use_intercept) {
           warning("!! Runing a model with no space effect and no intercept.")
-        } else {
-          init <- append(
-            init,
-            list(alpha = array(rnorm(1, 0, .1), dim = 1))
-          )
         }
       }
-      
       
       if (config$time_effect) {
         if (config$do_zerosum_cnst) {
