@@ -12,65 +12,7 @@ if (Sys.getenv("INTERACTIVE_RUN", FALSE)) {
   )
 }
 
-if (Sys.getenv("PRODUCTION_RUN", TRUE)) {
-  Sys.setenv("REINSTALL_TAXDAT" = TRUE)
-}
-
-
-
-### Libraries
-
-# Install required packages
-package_list <- c(
-  "DBI",
-  "digest",
-  "dplyr",
-  "foreach",
-  "gdalUtils",
-  "glue",
-  "geojsonsf",
-  "igraph",
-  "inline",
-  "itertools",
-  "jsonlite",
-  "lubridate",
-  "magrittr",
-  "mgcv",
-  "ncdf4",
-  "odbc",
-  "optparse",
-  "parallel",
-  "posterior",
-  "purrr",
-  "RCurl",
-  "R.utils",
-  "raster",
-  "rjson",
-  "rstan",
-  "rpostgis",
-  "rts",
-  "RPostgres",
-  "sf",
-  "spdep",
-  "stringr",
-  "tidync",
-  "tibble",
-  "zoo",
-  "geodata"
-)
-
 library(magrittr)
-
-# for (package in package_list) {
-#   if (!require(package = package, character.only = T)) {
-#     install.packages(pkgs = package)
-#     library(package = package, character.only = T)
-#   }
-#   detach(pos = which(grepl(package, search())), force = T)
-# }
-
-
-
 
 ### Run options
 
@@ -105,24 +47,7 @@ cholera_directory <- ifelse(is.null(opt$cholera_directory),
 if (!as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
   if (as.logical(Sys.getenv("PRODUCTION_RUN", TRUE)) && (nrow(gert::git_status(repo=cholera_directory)) != 0)) {
     print(gert::git_status(repo=cholera_directory))
-    Sys.setenv(REINSTALL_TAXDAT = TRUE)
     stop("There are local changes to the repository.  This is not allowed for a production run. Please revert or commit local changes")
-  }
-
-  if (Sys.getenv("REINSTALL_TAXDAT", FALSE)) {
-    if(stringr::str_ends(cholera_directory, "/")){
-      install.packages(paste0(cholera_directory, "packages/taxdat"), type = "source", repos = NULL)
-    }else{
-      install.packages(paste0(cholera_directory, "/packages/taxdat"), type = "source", repos = NULL)
-    }
-  } else if (!require(taxdat)) {
-    if(stringr::str_ends(cholera_directory, "/")){
-      install.packages(paste0(cholera_directory, "packages/taxdat"), type = "source", repos = NULL)
-    }else{
-      install.packages(paste0(cholera_directory, "/packages/taxdat"), type = "source", repos = NULL)
-    }
-  } else {
-    detach("package:taxdat")
   }
 }
 
@@ -318,7 +243,10 @@ spatial_effect <- taxdat::check_spatial_effect(config$spatial_effect)
 # ingest covariates to a specific aggregation
 ingest_covariates <- taxdat::check_ingest_covariates(config$ingest_covariates)
 # create a new metadata table for newly ingested covariates
-ingest_new_covariates <- taxdat:: check_ingest_new_covariates(config$ingest_new_covariates)
+ingest_new_covariates <- taxdat::check_ingest_new_covariates(config$ingest_new_covariates)
+
+# Whether to adjust the population counts to UN estimates
+adjust_pop_UN <- taxdat::check_adjust_pop_UN(config$adjust_pop_UN)
 
 # - - - - - - - - - - - - - -
 ## STAN PARAMETERS

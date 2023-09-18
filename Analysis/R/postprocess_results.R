@@ -23,7 +23,7 @@ opt_list <- list(
   make_option(opt_str = c("-i", "--redo_interm"), type = "logical",
               default = T, help = "redo intermediate"),
   make_option(opt_str = c("-j", "--redo_auxilliary"), type = "logical",
-              default = F, help = "redo auxilliary files"),
+              default = T, help = "redo auxilliary files"),
   make_option(opt_str = c("-v", "--verbose"), type = "logical",
               default = T, help = "Print statements"),
   make_option(opt_str = c("-p", "--prefix"), type = "character",
@@ -88,6 +88,8 @@ all_country_sf <- run_all(
   data_dir = opt$data_dir,
   output_file_type = "rds",
   verbose = opt$verbose) 
+
+opt$redo_auxilliary <- FALSE
 
 # All the data shapfiles for spatial coverage
 all_shapefiles <- run_all(

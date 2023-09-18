@@ -393,9 +393,12 @@ postprocess_mean_annual_incidence <- function(config_list,
   mai_summary <- genquant$summary("location_total_rates_output", custom_summaries())
   
   # Get the output shapefiles and join
-  res <- get_output_sf_reload(config_list = config_list,
-                              redo = redo_aux) %>% 
-    dplyr::bind_cols(mai_summary) %>% 
+  output_shapefiles <- get_output_sf_reload(config_list = config_list,
+                                            redo = redo_aux)
+  
+  res <- join_output_shapefiles(output = mai_summary, 
+                                output_shapefiles = output_shapefiles,
+                                var_col = "variable") %>% 
     dplyr::select(-variable)
   
   res
@@ -510,9 +513,12 @@ postprocess_coef_of_variation <- function(config_list,
   cov_summary <- genquant$summary("location_cov_cases_output", custom_summaries())
   
   # Get the output shapefiles and join
-  res <- get_output_sf_reload(config_list = config_list,
-                              redo = redo_aux) %>% 
-    dplyr::bind_cols(cov_summary) %>% 
+  output_shapefiles <- get_output_sf_reload(config_list = config_list,
+                                            redo = redo_aux)
+  
+  res <- join_output_shapefiles(output = cov_summary, 
+                                output_shapefiles = output_shapefiles,
+                                var_col = "variable") %>% 
     dplyr::select(-variable)
   
   res
@@ -611,11 +617,17 @@ postprocess_risk_category <- function(config_list,
   ) %>% 
     dplyr::mutate(risk_cat = risk_cat_dict[risk_cat],
                   risk_cat = factor(risk_cat, levels = risk_cat_dict),
-                  pop = output_location_pop$mean) %>% 
-    dplyr::bind_cols(get_output_sf_reload(config_list = config_list,
-                                          redo = redo_aux), .)
+                  pop = output_location_pop$mean)
   
-  risk_cat
+  # Get the output shapefiles and join
+  output_shapefiles <- get_output_sf_reload(config_list = config_list,
+                                            redo = redo_aux)
+  res <- join_output_shapefiles(output = risk_cat, 
+                                output_shapefiles = output_shapefiles,
+                                var_col = "variable") %>% 
+    dplyr::select(-variable)
+  
+  res
 }
 
 #' postprocess_pop_at_risk
@@ -770,12 +782,14 @@ get_output_sf_reload <- function(config_list,
   if (file.exists(output_space_sf_file) & !redo) {
     res <- readRDS(output_space_sf_file)
   } else {
-    res <- taxdat::read_file_of_type(config_list$file_names$observations_filename, "output_shapefiles")
+    output_shapefiles <- taxdat::read_file_of_type(config_list$file_names$observations_filename, "output_shapefiles")
     stan_input <- taxdat::read_file_of_type(config_list$file_names$stan_input_filename, "stan_input")
     
-    # Keep only output shapefiles with data
-    res <- res %>% 
-      dplyr::filter(location_period_id %in% stan_input$fake_output_obs$locationPeriod_id)
+    res <- output_shapefiles %>% 
+      dplyr::inner_join(stan_input$output_lps %>% 
+                          dplyr::select(locationPeriod_id, shp_id),
+                        by = c("location_period_id" = "locationPeriod_id")) %>% 
+      dplyr::arrange(shp_id)
     
     saveRDS(res, file = output_space_sf_file)
   }
@@ -1092,7 +1106,6 @@ aggregate_and_summarise_draws <- function(df,
     posterior::summarise_draws()
 }
 
-
 #' aggregate_and_summarise_case_draws_by_region
 #'
 #' @param df 
@@ -1143,5 +1156,25 @@ tidy_shapefiles <- function(df) {
     rmapshaper::ms_filter_islands(min_area = 1e9) %>% 
     rmapshaper::ms_simplify(keep = 0.05,
                             keep_shapes = FALSE) 
+  
+}
+
+#' join_output_shapefiles
+#'
+#' @param output 
+#' @param output_shapefiles 
+#' @param var_col
+#'
+#' @return
+#' @export
+#'
+#' @examples
+join_output_shapefiles <- function(output,
+                                   output_shapefiles,
+                                   var_col = "variable") {
+  
+  output %>% 
+    dplyr::mutate(shp_id = str_extract(!!rlang::sym(var_col), "[0-9]+") %>% as.numeric()) %>% 
+    dplyr::inner_join(output_shapefiles, ., by = "shp_id")
   
 }
