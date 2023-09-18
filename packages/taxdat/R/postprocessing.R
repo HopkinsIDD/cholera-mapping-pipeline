@@ -1178,3 +1178,15 @@ join_output_shapefiles <- function(output,
     dplyr::inner_join(output_shapefiles, ., by = "shp_id")
   
 }
+
+
+#' Title
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_no_w_runs <- function() {
+  # TODO
+  c("RWA-2011_2015")
+}

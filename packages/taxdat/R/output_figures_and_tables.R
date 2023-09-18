@@ -40,9 +40,6 @@ output_plot_map <- function(sf_obj,
                             country_border_color = "black",
                             cholera_dir = 'cholera-mapping-pipeline') {
   
-  # Load the ADM0 shapefiles for Africa
-  data(afr_sf, package = "taxdat")
-  
   sf_obj %>% 
     ggplot2::ggplot(aes(fill = !!sym(fill_var))) +
     ggplot2::geom_sf(data = all_countries_sf %>% 
@@ -62,11 +59,11 @@ output_plot_map <- function(sf_obj,
                      color = color_lake_border(), 
                      linewidth = .06,
                      alpha = lake_alpha) +
-    ggplot2::geom_sf(data = afr_sf,
-                     fill = color_afr_continent_fill(),
-                     color = "black",
-                     linewidth = country_border_width,
-                     alpha = 0) +
+    # ggplot2::geom_sf(data = all_countries_sf,
+    #                  fill = color_afr_continent_fill(),
+    #                  color = "black",
+    #                  linewidth = country_border_width,
+    #                  alpha = 0) +
     ggplot2::geom_sf(data = all_countries_sf,
                      inherit.aes = FALSE,
                      linewidth = country_border_width,
