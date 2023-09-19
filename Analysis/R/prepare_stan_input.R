@@ -185,8 +185,8 @@ prepare_stan_input <- function(
     dplyr::distinct(location_period_id, TL, TR) %>%
     dplyr::rename(locationPeriod_id = location_period_id) %>%
     dplyr::mutate(admin_lev = stringr::str_extract(locationPeriod_id, "ADM[0-9]{1}"),
-                  admin_lev = stringr::str_remove_all(admin_lev, "ADM") %>% as.integer())
-  
+                  admin_lev = stringr::str_remove_all(admin_lev, "ADM") %>% as.integer()) %>% 
+    dplyr::arrange(locationPeriod_id)
   
   # Check that all fake observations appear in all time slices, drop if not
   fake_output_obs <- fake_output_obs %>% 
@@ -292,7 +292,7 @@ prepare_stan_input <- function(
                                                         years = grid_years)
     
     # Probably a tidier way to do this but this should garantee the indexing is correct
-    stan_data$pop <- purrr::map_dbl(1:length(stan_data$pop), ~ stan_data$pop[.] * adj_pop[output_adm0_cells == .])
+    stan_data$pop <- purrr::map_dbl(1:length(output_adm0_cells), ~ stan_data$pop[output_adm0_cells[.]] * adj_pop[.])
   }
   
   # ---- E. Pre-Aggregation Duplicates Removal in sf_cases ----
