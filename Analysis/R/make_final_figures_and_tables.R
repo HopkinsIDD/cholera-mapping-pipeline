@@ -284,7 +284,7 @@ p_fig2C_scatter <- mai_adm0_changes %>%
   ggplot(aes(x = log10(`2011-2015`*1e5), 
              y =  log10(`2016-2020`*1e5), 
              col = AFRO_region)) +
-  geom_abline(lty = 2, lwd = .8) +
+  geom_abline(lty = 2, lwd = .2) +
   geom_point() +
   geom_point(data = mai_region_changes,
              pch = 5) +
