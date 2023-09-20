@@ -16,12 +16,12 @@ library(taxdat)
 # User-supplied options
 opt_list <- list(
   make_option(c("-d", "--config_dir"), 
-              default = "./Analysis/cholera-configs/postprocessing_test_3",
+              default = "./Analysis/cholera-configs/postprocessing_test_2011_2015",
               action ="store", type = "character", help = "Directory"),
   make_option(opt_str = c("-r", "--redo"), type = "logical",
               default = T, help = "redo final outputs"),
   make_option(opt_str = c("-i", "--redo_interm"), type = "logical",
-              default = T, help = "redo intermediate"),
+              default = F, help = "redo intermediate"),
   make_option(opt_str = c("-j", "--redo_auxilliary"), type = "logical",
               default = T, help = "redo auxilliary files"),
   make_option(opt_str = c("-v", "--verbose"), type = "logical",
@@ -33,7 +33,7 @@ opt_list <- list(
   make_option(opt_str = c("-e", "--error_handling"), type = "character",
               default = "stop", help = "Error handling"),
   make_option(opt_str = c("-x", "--data_dir"), type = "character",
-              default = "./cholera-mapping-output/", help = "Directory with all data"),
+              default = "./cholera-mapping-output-1/", help = "Directory with all data"),
   make_option(opt_str = c("-y", "--interm_dir"), type = "character",
               default = "./Analysis/output/interm/", help = "Intermediate outputs directory"),
   make_option(opt_str = c("-o", "--output_dir"), type = "character",

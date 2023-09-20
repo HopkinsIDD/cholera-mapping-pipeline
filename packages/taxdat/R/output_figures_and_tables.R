@@ -118,8 +118,8 @@ output_plot_map <- function(sf_obj,
     } +
     taxdat::map_theme() +
     # Zoom to bounding box
-    ggplot2::coord_sf(xlim = st_bbox(sf_obj)[c(1, 3)],
-                      ylim = st_bbox(sf_obj)[c(5, 6)]) +
+    # ggplot2::coord_sf(xlim = st_bbox(sf_obj)[c(1, 3)],
+    #                   ylim = st_bbox(sf_obj)[c(5, 6)]) +
     theme(panel.border = element_blank())
   
 }

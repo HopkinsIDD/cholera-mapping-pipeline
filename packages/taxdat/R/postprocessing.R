@@ -830,7 +830,7 @@ get_AFRO_region <- function(data, ctry_col) {
     dplyr::mutate(
       AFRO_region = dplyr::case_when(
         !!rlang::sym(ctry_col) %in% c("BDI","ETH","KEN","MDG","RWA","SDN","SSD","UGA","TZA") ~ "Eastern Africa",
-        !!rlang::sym(ctry_col) %in% c("MOZ","MWI","NAM","SWZ","ZMB","ZWE","ZAF") ~ "Southern Africa",
+        !!rlang::sym(ctry_col) %in% c("BWA","MOZ","MWI","NAM","SWZ","ZMB","ZWE","ZAF") ~ "Southern Africa",
         !!rlang::sym(ctry_col) %in% c("AGO","CMR","CAF","TCD","COG","COD","GNQ","GAN") ~ "Middle Africa",
         !!rlang::sym(ctry_col) %in% c("BEN","BFA","CIV","GHA","GIN","GNB","LBR","MLI","MRT","NER","NGA","SEN","SLE","TGO") ~ "Western Africa",
         !!rlang::sym(ctry_col) %in% c("DJI","SOM","SDN") ~ "Eastern Mediterranean"
@@ -838,6 +838,16 @@ get_AFRO_region <- function(data, ctry_col) {
     )
   
   return(data_with_AFRO_region)
+}
+
+#' Title
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_AFRO_region_levels <- function() {
+  c("Western Africa", "Middle Africa", "Eastern Africa", "Eastern Mediterranean", "Southern Africa")
 }
 
 
@@ -1189,4 +1199,26 @@ join_output_shapefiles <- function(output,
 get_no_w_runs <- function() {
   # TODO
   c("RWA-2011_2015")
+}
+
+
+#' get_intended_runs
+#'
+#' List of all countries with intended run
+#' Sheet Data Entry Tracking Feb 2022 from spreadsheet that can be downloaded from
+#' https://docs.google.com/spreadsheets/d/17MtTdUlC2tNLk3QPYdTzgFqiPacUg4rbi8cVTYoOaZE/edit#gid=1264119518
+#'
+#' @param csv_path 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_intended_runs <- function(csv_path = "Analysis/output/Data Entry Coordination - Data Entry Tracking - Feb 2022.csv") {
+  readr::read_csv(csv_path) %>% 
+    janitor::clean_names() %>% 
+    dplyr::filter(country != "GMB") %>% 
+    dplyr::mutate(isocode = dplyr::case_when(
+      stringr::str_detect(country, "TZA") ~ "TZA",
+      T ~ country))
 }

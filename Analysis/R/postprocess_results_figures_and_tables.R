@@ -16,7 +16,7 @@ library(taxdat)
 # User-supplied options
 opt_list <- list(
   make_option(c("-d", "--config_dir"), 
-              default = "./Analysis/cholera-configs/postprocessing_test_3",
+              default = "./Analysis/cholera-configs/postprocessing_test_2016_2020",
               action ="store", type = "character", help = "Directory"),
   make_option(opt_str = c("-p", "--prefix"), type = "character",
               default = NULL, help = "Prefix to use in output file names"),
@@ -84,7 +84,7 @@ all_obs_counts <- read_output(
 
 # Get the total number of cases
 mai_overall_stats <- read_output(
-  fun_name = "mai_adm0_draws",
+  fun_name = "mai_cases_all",
   prefix = prefix,
   suffix = opt$suffix,
   output_dir = opt$output_dir,
@@ -93,14 +93,14 @@ mai_overall_stats <- read_output(
 
 # Get the number of cases by WHO region
 mai_region_case_stats <- read_output(
-  fun_name = "cases_draws_region",
+  fun_name = "mai_cases_by_region",
   prefix = prefix,
   suffix = opt$suffix,
   output_dir = opt$output_dir,
   output_file_type = "rds")
 
 mai_region_rates_stats <- read_output(
-  fun_name = "rates_draws_region",
+  fun_name = "mai_rates_by_region",
   prefix = prefix,
   suffix = opt$suffix,
   output_dir = opt$output_dir,
