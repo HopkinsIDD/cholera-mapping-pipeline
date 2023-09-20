@@ -93,6 +93,10 @@ rates_by_region <- combine_period_output(prefix_list = prefix_list,
          AFRO_region = factor(AFRO_region, 
                               levels = get_AFRO_region_levels()))
 
+# Overall rates
+rates_overall <- combine_period_output(prefix_list = prefix_list,
+                                         output_name = "mai_rates_all",
+                                         output_dir = opt$output_dir)
 
 # Gridded cases
 grid_cases <- combine_period_output(prefix_list = prefix_list,
@@ -152,6 +156,14 @@ mai_region_changes <- rates_by_region %>%
            str_to_title(),
          AFRO_region = factor(AFRO_region, 
                               levels = get_AFRO_region_levels()))
+
+# Changes at the continent level
+mai_all_changes <- rates_overall %>% 
+  mutate(country = variable) %>% 
+  rename(location_period_id = variable) %>% 
+  compute_rate_changes() %>% 
+  mutate(country = "SSA")
+  
 
 # Get intended runs
 intended_runs <- get_intended_runs()
@@ -272,7 +284,7 @@ p_fig2C_scatter <- mai_adm0_changes %>%
   ggplot(aes(x = log10(`2011-2015`*1e5), 
              y =  log10(`2016-2020`*1e5), 
              col = AFRO_region)) +
-  geom_abline() +
+  geom_abline(lty = 2, lwd = .8) +
   geom_point() +
   geom_point(data = mai_region_changes,
              pch = 5) +
@@ -285,6 +297,10 @@ p_fig2C_scatter <- mai_adm0_changes %>%
                             aes(label = country),
                             min.segment.length = 0,
                             max.overlaps = Inf) +
+  geom_point(data = mai_all_changes,
+             pch = 3,
+             size = 4,
+             color = "black") +
   theme_bw() +
   guides(color = guide_legend("WHO regions")) +
   scale_x_continuous(limits = c(-2, 2),

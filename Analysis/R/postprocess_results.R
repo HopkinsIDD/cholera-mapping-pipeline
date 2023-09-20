@@ -16,7 +16,7 @@ library(taxdat)
 # User-supplied options
 opt_list <- list(
   make_option(c("-d", "--config_dir"), 
-              default = "./Analysis/cholera-configs/postprocessing_test_2011_2015",
+              default = "./Analysis/cholera-configs/postprocessing_test_2016_2020",
               action ="store", type = "character", help = "Directory"),
   make_option(opt_str = c("-r", "--redo"), type = "logical",
               default = T, help = "redo final outputs"),
@@ -176,6 +176,27 @@ mai_region_case_stats <- run_all(
 
 
 # D. Mean annual incidence rates ---------------------------------------------
+
+# Get the total number of cases
+overall_rate_stats <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_adm0_rates,
+  fun_name = "mai_rates_all",
+  fun_opts = NULL,
+  postprocess_fun = aggregate_and_summarise_draws,
+  postprocess_fun_opts = list(col = "country_rates",
+                              weights_col = "country_pop"),
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  interm_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
 
 mai_region_rates_stats <- run_all(
   config_dir = opt$config_dir,
