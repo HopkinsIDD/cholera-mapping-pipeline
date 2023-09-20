@@ -288,8 +288,8 @@ prepare_stan_input <- function(
     
     # Compute population adjustment factor
     adj_pop <- taxdat::compute_adjustment_UN_population(country = taxdat::get_country_isocode(config),
-                                                         pop = grid_pop,
-                                                         years = grid_years)
+                                                        pop = grid_pop,
+                                                        years = grid_years)
     
     # Probably a tidier way to do this but this should garantee the indexing is correct
     stan_data$pop <- purrr::map_dbl(1:length(stan_data$pop), ~ stan_data$pop[.] * adj_pop[output_adm0_cells == .])
@@ -691,10 +691,10 @@ prepare_stan_input <- function(
   # We assume that the largest admin level (admin level 0 for national) has
   # an informative prior so as to produce little overdispersion. The over-dispersion for other
   # admin levels are allowed to have more prior support for larger amount of over-dispersion.
-  stan_data$mu_inv_od <- rep(0, stan_data$N_admin_lev)   # center at 0 (note that this is on the scale of 1/tau)
-  stan_data$sd_inv_od <- c(config$inv_od_sd_adm0,
-                           rep(config$inv_od_sd_nopool,
-                               stan_data$N_admin_lev - 1))
+  stan_data$mu_inv_od <- array(rep(0, stan_data$N_admin_lev))   # center at 0 (note that this is on the scale of 1/tau)
+  stan_data$sd_inv_od <- array(c(config$inv_od_sd_adm0,
+                                 rep(config$inv_od_sd_nopool,
+                                     stan_data$N_admin_lev - 1)))
   
   # Prior on the std_dev_w
   stan_data$mu_sd_w <- config$mu_sd_w
