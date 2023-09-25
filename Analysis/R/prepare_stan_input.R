@@ -185,8 +185,8 @@ prepare_stan_input <- function(
     dplyr::distinct(location_period_id, TL, TR) %>%
     dplyr::rename(locationPeriod_id = location_period_id) %>%
     dplyr::mutate(admin_lev = stringr::str_extract(locationPeriod_id, "ADM[0-9]{1}"),
-                  admin_lev = stringr::str_remove_all(admin_lev, "ADM") %>% as.integer())
-  
+                  admin_lev = stringr::str_remove_all(admin_lev, "ADM") %>% as.integer()) %>% 
+    dplyr::arrange(locationPeriod_id)
   
   # Check that all fake observations appear in all time slices, drop if not
   fake_output_obs <- fake_output_obs %>% 
@@ -260,7 +260,7 @@ prepare_stan_input <- function(
       dplyr::pull(obs_id)
     
     # Get the corresponding mapping indices
-    output_adm0_locs <- purrr::map_dbl(output_adm0_obs, ~ which(stan_data$map_output_obs_loctime_obs == .))
+    output_adm0_locs <- purrr::map_dbl(output_adm0_obs, ~ stan_data$map_output_obs_loctime_loc[which(stan_data$map_output_obs_loctime_obs == .)])
     
     # Get the indices of the corresponding loctime/grid mapping
     output_adm0_ind <- purrr::map(output_adm0_locs, ~ which(stan_data$map_output_loc_grid_loc == .)) %>% 
@@ -269,7 +269,7 @@ prepare_stan_input <- function(
     
     # Check if all grid cells are covered
     if (nrow(sf_grid) != length(output_adm0_ind)) {
-      warning("Pop grid lengths do not match!")
+      warning("Pop grid lengths do not match! sf_grid:", nrow(sf_grid), " output cells:", length(output_adm0_ind))
     }
     
     # Get the grid cell ids
@@ -292,7 +292,8 @@ prepare_stan_input <- function(
                                                         years = grid_years)
     
     # Probably a tidier way to do this but this should garantee the indexing is correct
-    stan_data$pop <- purrr::map_dbl(1:length(stan_data$pop), ~ stan_data$pop[.] * adj_pop[output_adm0_cells == .])
+    stan_data$pop[output_adm0_cells] <- purrr::map_dbl(1:length(output_adm0_cells), 
+                                                       ~ stan_data$pop[output_adm0_cells[.]] * adj_pop[.])
   }
   
   # ---- E. Pre-Aggregation Duplicates Removal in sf_cases ----
