@@ -186,7 +186,7 @@ prepare_stan_input <- function(
     dplyr::rename(locationPeriod_id = location_period_id) %>%
     dplyr::mutate(admin_lev = stringr::str_extract(locationPeriod_id, "ADM[0-9]{1}"),
                   admin_lev = stringr::str_remove_all(admin_lev, "ADM") %>% as.integer()) %>% 
-    dplyr::arrange(locationPeriod_id)
+    dplyr::arrange(locationPeriod_id, TL)
   
   # Check that all fake observations appear in all time slices, drop if not
   fake_output_obs <- fake_output_obs %>% 
