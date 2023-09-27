@@ -1618,6 +1618,9 @@ make_location_periods_dict <- function(conn_pg,
   # Create a unique location period id which also accounts for the modeling time slice
   location_periods_dict <- location_periods_dict %>%
     dplyr::distinct(location_period_id, t) %>%
+    # !! Arrange by location period id to ensure consistency of ordering throughout
+    #   the pipeline
+    dplyr::arrange(location_period_id, t) %>%
     dplyr::mutate(loctime_id = dplyr::row_number()) %>%
     dplyr::inner_join(location_periods_dict)
   
