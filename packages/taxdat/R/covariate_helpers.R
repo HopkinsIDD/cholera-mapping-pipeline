@@ -1497,8 +1497,7 @@ get_multi_country_admin_units <- function(iso_code,
   adm_sf <- purrr::map_df(admin_levels, 
                           ~ get_country_admin_units(iso_code = iso_code, 
                                                     admin_level = .) %>% 
-                            dplyr::rename(admin_level = shapeType) %>% 
-                            dplyr::arrange(location_period_id)
+                            dplyr::rename(admin_level = shapeType)
   )
   
   if (clip_to_adm0) {
@@ -1510,7 +1509,8 @@ get_multi_country_admin_units <- function(iso_code,
   # Fix geometry collections if any
   adm_sf <- fix_geomcollections(adm_sf)
   
-  adm_sf
+  adm_sf %>% 
+    dplyr::arrange(location_period_id)
 }
 
 
