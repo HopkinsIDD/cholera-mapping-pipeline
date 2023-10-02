@@ -808,12 +808,11 @@ get_output_sf_reload <- function(config_list,
 #' 
 get_adm0_index <- function(config_list) {
   
-  # stan_input <- taxdat::read_file_of_type(config_list$file_names$stan_input_filename, "stan_input")
-  # 
-  # stan_input$output_lps %>% 
-  #   dplyr::filter(admin_level == 0) %>% 
-  #   dplyr::pull(shp_id)
-  1
+  stan_input <- taxdat::read_file_of_type(config_list$file_names$stan_input_filename, "stan_input")
+
+  stan_input$output_lps %>%
+    dplyr::filter(admin_lev == 0) %>%
+    dplyr::pull(shp_id)
 }
 
 # get regions for countries -------------------------------------------------------
