@@ -455,8 +455,8 @@ postprocess_adm0_rates <- function(config_list,
   
   # Add population and compute rates
   cases_adm0 %>% 
-    mutate(country_pop = pop_adm0$country_pop[1],
-           country_rates = country_cases/country_pop)
+    dplyr::mutate(country_pop = pop_adm0$country_pop[1],
+                  country_rates = country_cases/country_pop)
 }
 
 #' postprocess_mai_adm0_pop
@@ -482,7 +482,7 @@ postprocess_adm0_pop <- function(config_list,
   # Get index of national-level output
   adm0_ind <- get_adm0_index(config_list = config_list)
   
-  # This assumes that the first output shapefile is always the national-level shapefile
+  # Get population
   pop_adm0 <- genquant$summary(stringr::str_glue("pop_loc_output[{adm0_ind}]"), mean) %>% 
     dplyr::rename(country_pop = mean)
   
@@ -650,7 +650,7 @@ postprocess_pop_at_risk <- function(config_list,
   
   # Get mean annual incidence summary
   pop_at_risk <- genquant$summary("tot_pop_risk", custom_summaries()) %>% 
-    dplyr::mutate(risk_cat = risk_cat_dict[as.numeric(str_extract(variable, "(?<=\\[)[0-9]+(?=,)"))],
+    dplyr::mutate(risk_cat = risk_cat_dict[as.numeric(stringr::str_extract(variable, "(?<=\\[)[0-9]+(?=,)"))],
                   risk_cat = factor(risk_cat, levels = risk_cat_dict),
                   admin_level = as.numeric(str_extract(variable, "(?<=,)[0-9]+(?=\\])")) - 1,
                   country = taxdat::get_country_isocode(config_list))
@@ -809,7 +809,7 @@ get_output_sf_reload <- function(config_list,
 get_adm0_index <- function(config_list) {
   
   stan_input <- taxdat::read_file_of_type(config_list$file_names$stan_input_filename, "stan_input")
-
+  
   stan_input$output_lps %>%
     dplyr::filter(admin_lev == 0) %>%
     dplyr::pull(shp_id)
