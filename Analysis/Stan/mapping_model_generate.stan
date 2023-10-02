@@ -84,33 +84,33 @@ data {
   
   // Spatial adjacency
   // Note: The adjacency matrix node1 should be sorted and lower triangular
-  int <lower=1, upper=smooth_grid_N> node1[N_edges];    // column 1 of the adjacency matrix
-  int <lower=1, upper=smooth_grid_N> node2[N_edges];    // column 2 of the adjacency matrix
+  array[N_edges] int <lower=1, upper=smooth_grid_N> node1;    // column 1 of the adjacency matrix
+  array[N_edges] int <lower=1, upper=smooth_grid_N> node2;    // column 2 of the adjacency matrix
   vector<lower=0, upper=smooth_grid_N>[smooth_grid_N] diag;    // rowSums of directed adjacency matrix
   
   // Observations
-  int <lower=0> y[M];    // observed counts of cholera cases
+  array[M] int <lower=0> y;    // observed counts of cholera cases
   int <lower=0, upper=M> M_full;    // number of observations that cover a full modeling time slice
   int <lower=0, upper=M> M_left;    // number of left-censored observations (open lower bound on the observation)
   int <lower=0, upper=M> M_right;   // number of right-censored observations (open upper bound on the observation)
-  int <lower=1, upper=M> ind_full[M_full];      // indexes of full observations
-  int <lower=1, upper=M> ind_left[M_left];      // indexes of left-censored observations
-  int <lower=1, upper=M> ind_right[M_right];    // indexes of right-censored observations
-  real <lower=0, upper=1> tfrac[K1];            // the time fraction side of the mapping from observations to location/times
-  int <lower=0, upper=1> censored[K1]; // Whether data is censored in the mapping from observations to location/times
+  array[M_full] int <lower=1, upper=M> ind_full;      // indexes of full observations
+  array[M_left] int <lower=1, upper=M> ind_left;      // indexes of left-censored observations
+  array[M_right] int <lower=1, upper=M> ind_right;    // indexes of right-censored observations
+  array[K1] real <lower=0, upper=1> tfrac;            // the time fraction side of the mapping from observations to location/times
+  array[K1] int <lower=0, upper=1> censored;          // Whether data is censored in the mapping from observations to location/times
   
   // Mappings
-  int <lower=1, upper=M> map_obs_loctime_obs[K1];    // the observation side of the mapping from observations to location/times
-  int <lower=1, upper=L> map_obs_loctime_loc[K1];    // the location side of the mapping from observations to location/times
-  int <lower=1, upper=L> map_loc_grid_loc[K2];       // the location side of the mapping from locations to gridcells
-  int <lower=1, upper=N> map_loc_grid_grid[K2];      // the gridcell side of the mapping from locations to gridcells
-  int <lower=1, upper=smooth_grid_N> map_smooth_grid[N];    // vector with repeating smooth_grid_N indexes repeating 1:N
-  real <lower=0, upper=1> map_loc_grid_sfrac[K2];    // the population-weighed location spatial fraction covered by each gridcell
-  int <lower=1, upper=N_space> map_spacetime_space_grid[N];  // map from spacextime grid cells to space-only grid
-  int<lower=1, upper=N_admin_lev> map_obs_admin_lev[M];    // administrative level of each observation for observation model
-  int <lower=1, upper=L> map_loctime_combs_loc[K3];             // the location time side of the mapping from locations to unique location time combinations
-  int <lower=1, upper=L_combs> map_loctime_combs_comb[K3];      // the unique combination side of the mapping from locations to unique location time combinations
-  int <lower=1, upper=N_admin_lev> map_u_loctime_combs_admin_lev[L_combs];      // the unique combination side of the mapping from locations to unique location time combinations
+  array[K1] int <lower=0, upper=M> map_obs_loctime_obs;    // the observation side of the mapping from observations to location/times
+  array[K1] int <lower=0, upper=L> map_obs_loctime_loc;    // the location side of the mapping from observations to location/times
+  array[K2] int <lower=0, upper=L> map_loc_grid_loc;       // the location side of the mapping from locations to gridcells
+  array[K2] int <lower=0, upper=N> map_loc_grid_grid;      // the gridcell side of the mapping from locations to gridcells
+  array[N] int <lower=0, upper=smooth_grid_N> map_smooth_grid;    // vector with repeating smooth_grid_N indexes repeating 1:N
+  array[K2] real <lower=0, upper=1> map_loc_grid_sfrac;    // the population-weighed location spatial fraction covered by each gridcell
+  array[M] int<lower=1, upper=N_admin_lev> map_obs_admin_lev;    // administrative level of each observation for observation model
+  array[N] int <lower=1, upper=N_space> map_spacetime_space_grid;  // map from spacextime grid cells to space-only grid
+  array[K3] int <lower=1, upper=L> map_loctime_combs_loc;             // the location time side of the mapping from locations to unique location time combinations
+  array[K3] int <lower=1, upper=L_combs> map_loctime_combs_comb;      // the unique combination side of the mapping from locations to unique location time combinations
+  array[L_combs] int <lower=1, upper=N_admin_lev> map_u_loctime_combs_admin_lev;      // the unique combination side of the mapping from locations to unique location time combinations
   
   // Time slices
   vector<lower=0, upper=1>[N*do_time_slice_effect] has_data_year;
@@ -118,7 +118,7 @@ data {
   matrix[N*do_time_slice_effect + 2 * (do_time_slice_effect != 1), T*do_time_slice_effect + 2*(do_time_slice_effect != 1)] mat_grid_time; // The time side of the mapping from locations/times to grid (2x2 in case of missing just so it's easy to create)
   
   // Covariates
-  real <lower=1> pop[N];               // population by cell over all time points
+  array[N] real <lower=1> pop;               // population by cell over all time points
   real <lower=0, upper=1> meanrate;    // mean cholera rate used as offset
   matrix[N,ncovar] covar;              // covariate matrix
   
@@ -134,18 +134,18 @@ data {
   int <lower=L_output> K1_output; // the length of the mapping of observations to location periods and times
   int <lower=L_output> K2_output; // the length of the mapping of location periods to gridcells
   //  Mappings
-  int <lower=0, upper=M_output> map_output_obs_loctime_obs[K1_output]; // The observation side of the mapping from observations to location/times
-  int <lower=0, upper=L_output> map_output_obs_loctime_loc[K1_output]; // The location side of the mapping from observations to location/times
-  int <lower=0, upper=L_output> map_output_loc_grid_loc[K2_output]; // the location side of the mapping from locations to gridcells
-  int <lower=0, upper=N> map_output_loc_grid_grid[K2_output]; // the gridcell side of the mapping from locations to gridcells
-  int <lower=0, upper=L_output_space> map_output_loctime_loc[L_output]; // Map from space x time location ids to space only location
-  int <lower=0> map_output_loc_adminlev[L_output_space]; // Map from space location ids to admin level
-  real<lower=0> map_loc_grid_sfrac_output[K2_output];
+  array[K1_output] int <lower=0, upper=M_output> map_output_obs_loctime_obs; // The observation side of the mapping from observations to location/times
+  array[K1_output] int <lower=0, upper=L_output> map_output_obs_loctime_loc; // The location side of the mapping from observations to location/times
+  array[K2_output] int <lower=0, upper=L_output> map_output_loc_grid_loc; // the location side of the mapping from locations to gridcells
+  array[K2_output] int <lower=0, upper=N> map_output_loc_grid_grid; // the gridcell side of the mapping from locations to gridcells
+  array[L_output] int <lower=0, upper=L_output_space> map_output_loctime_loc; // Map from space x time location ids to space only location
+  array[L_output_space] int <lower=0> map_output_loc_adminlev; // Map from space location ids to admin level
+  array[K2_output] real<lower=0> map_loc_grid_sfrac_output;
   
   //  Population at risk 
   int<lower=0> N_cat;    // Number of incidence categories. For now there are no checks whether categories are mutually exclusive or not
-  real<lower=0> risk_cat_low[N_cat];    // lower bound of categories
-  real<lower=0> risk_cat_high[N_cat];   // upper bound of categories
+  array[N_cat] real<lower=0> risk_cat_low;    // lower bound of categories
+  array[N_cat] real<lower=0> risk_cat_high;   // upper bound of categories
   
   // Over-dispersion at adm0
   real<lower=0> adm0_od;
@@ -154,10 +154,9 @@ data {
 transformed data {
   vector<lower=0>[N] logpop;              // populations by timestep
   real log_meanrate = log(meanrate);
-  real<lower=0> weights[M*(1-do_censoring)*use_weights];    // a function of the expected offset for each observation used to downwight the likelihood
-  real <lower=0> pop_loctimes[L];        // pre-computed population in each location period
-  int N_output_adminlev = max(map_output_loc_adminlev)+1;    // number of admin levels in output
-  real <lower=0, upper=1> tfrac_censoring[K1]; // tfrac accounting for censoring
+  array[M*(1-do_censoring)*use_weights] real<lower=0> weights;    // a function of the expected offset for each observation used to downwight the likelihood
+  array[L] real<lower=0> pop_loctimes;        // pre-computed population in each location period
+  array[K1] real<lower=0, upper=1> tfrac_censoring; // tfrac accounting for censoring
   int<lower=0, upper=1> do_overdispersion;    // derived option to know whether the models contain overdispertion or not
   vector[2*T] Q_r = Q_sum_to_zero_QR(T);      // this is for the 0-centered temporal random effects if used
   real eta_zerosum_raw_sigma = inv_sqrt(1 - inv(T));
@@ -165,7 +164,8 @@ transformed data {
   int<lower=0, upper=1> size_sd_eta;
   int<lower=0, upper=smooth_grid_N> size_w; 
   int<lower=0, upper=1> size_lambda; 
-  int<lower=1, upper=2> size_sigma_std_dev_w; 
+  int<lower=0, upper=2> size_sigma_std_dev_w; 
+  int N_output_adminlev = max(map_output_loc_adminlev)+1;    // number of admin levels in output
   
   for (i in 1:K1) {
     if (censored[i] == 1) {
@@ -227,43 +227,43 @@ transformed data {
   // Saptial random effect
   if (do_spatial_effect == 1) {
     size_w = smooth_grid_N;
+    // Size of prior on std_dev_w
+    if (do_sd_w_mixture == 1) {
+      size_lambda = 1;
+      size_sigma_std_dev_w = 2;
+    } else {
+      size_lambda = 0;
+      size_sigma_std_dev_w = 1;
+    }
   } else {
     size_w = 0;
-  } 
-  
-  // Size of prior on std_dev_w
-  if (do_sd_w_mixture == 1) {
-    size_lambda = 1;
-    size_sigma_std_dev_w = 2;
-  } else {
     size_lambda = 0;
-    size_sigma_std_dev_w = 1;
+    size_sigma_std_dev_w = 0;
   }
 }
 
 parameters {
   // Intercept
-  real alpha[use_intercept];    
+  array[use_intercept] real alpha;    
   
   // Spatial random effects
-  real <lower=0, upper=1> rho;    // spatial correlation parameter
-  real<lower=0> std_dev_w;             // precision of the spatial effects
+  array[do_spatial_effect] real rho;    // spatial correlation parameter
+  array[do_spatial_effect] real<lower=0> std_dev_w;             // precision of the spatial effects
   vector[size_w] w;        // spatial random effect
-  real<lower=0, upper=1> lambda[size_lambda];
+  array[size_lambda] real<lower=0, upper=1> lambda;
   
   // Temporal random effects
   vector[size_eta] eta_tilde;    // uncentered temporal random effects
-  real <lower=0> sigma_eta[size_sd_eta];    // sd of temporal random effects
+  array[size_sd_eta] real <lower=0> sigma_eta;    // sd of temporal random effects
   
   // Covariate effects
   vector[ncovar] betas;
   
   // Overdispersion parameters
   vector<lower=0>[(N_admin_lev-1)*do_overdispersion] inv_od_param;
-  real<lower=0> sigma_std_dev_w[size_sigma_std_dev_w];
+  array[size_sigma_std_dev_w] real<lower=0> sigma_std_dev_w;
   
   vector[M_right] raw_dummy_right;
-  
 }
 transformed parameters {
   vector[N_admin_lev*do_overdispersion] od_param;
@@ -278,9 +278,9 @@ transformed parameters {
 generated quantities {
   
   // Model estimates
-  real<lower=0> tfrac_modeled_cases[M]; //expected number of cases for each observation
-  real<lower=0> modeled_cases[M]; //expected number of cases for each observation
-  real log_lik[M]; // log-likelihood of observations
+  array[M] real<lower=0> tfrac_modeled_cases; //expected number of cases for each observation
+  array[M] real<lower=0> modeled_cases; //expected number of cases for each observation
+  array[M] real log_lik; // log-likelihood of observations
   vector[N] grid_cases; //cases modeled in each gridcell and time point.
   vector[N] log_lambda; //local log rate
   vector[N_space] space_grid_rates; // mean annual incidence rates at grid level
@@ -296,15 +296,15 @@ generated quantities {
   vector<lower=0>[L_output_space] location_total_rates_output;       //rates modeled in each location  across time slices.
   matrix<lower=0>[L_output_space, N_cat] location_risk_cat_num;      // number of people in each location in each risk category
   matrix<lower=0>[L_output_space, N_cat] location_risk_cat_prop;     // proportion of people in each location in each risk category
-  int<lower=0> location_risk_cat[L_output_space] ;           // risk category for each space location
+  array[L_output_space] int<lower=0> location_risk_cat;           // risk category for each space location
   matrix<lower=0>[N_cat, N_output_adminlev] tot_pop_risk;    // total number of people in admin units in each risk category by admin level
   
   // Data outputs to return (same for all samples)
-  real <lower=0> pop_loctimes_output[L_output];    // population in each output location period
-  real <lower=0> pop_loc_output[L_output_space];   // population in each output location (space only)
+  array[L_output] real <lower=0> pop_loctimes_output;    // population in each output location period
+  array[L_output_space] real <lower=0> pop_loc_output;   // population in each output location (space only)
   
   // Posterior observations
-  int <lower=0> gen_obs_loctime_combs[L_combs];    // generated observation for each loctime combination
+  array[L_combs] int <lower=0> gen_obs_loctime_combs;    // generated observation for each loctime combination
   
   for (i in 1:L_output) {
     pop_loctimes_output[i] = 0;
@@ -416,7 +416,7 @@ generated quantities {
     
     {
       // This block computes the total cases and mean rates across time
-      real tot_loc_pop[L_output_space]; // store the total exposed population across time slices
+      array[L_output_space] real tot_loc_pop; // store the total exposed population across time slices
       
       for (i in 1:L_output_space) {
         tot_loc_pop[i] = 0;
@@ -460,7 +460,7 @@ generated quantities {
     {
       // Loop over space output locations and compute numbers at risk
       // Since there are T pixel/location intersections in K2_output we only add in the first.
-      int check_done[N_space, L_output_space];
+      array[N_space, L_output_space] int check_done;
       
       for (i in 1:N_space) {
         for (j in 1:L_output_space) {
@@ -609,25 +609,24 @@ generated quantities {
         
         if (obs_model == 1) {
           // Poisson likelihood
-          lpmf = poisson_cont_lpdf(dummy_right | modeled_cases[j]);
+          log_lik[j] = poisson_cont_lpdf(dummy_right | modeled_cases[j]);
         } else if (obs_model == 2) {
           // Quasi-poisson likelihood
-          lpmf = neg_binomial_2_cont_lpdf(dummy_right | modeled_cases[j], od_param[map_obs_admin_lev[j]] * modeled_cases[j]);
+          log_lik[j] = neg_binomial_2_cont_lpdf(dummy_right | modeled_cases[j], od_param[map_obs_admin_lev[j]] * modeled_cases[j]);
         } else {
           // Neg-binom likelihood
-          lpmf = neg_binomial_2_cont_lpdf(dummy_right | modeled_cases[j], od_param[map_obs_admin_lev[j]]);
+          log_lik[j] = neg_binomial_2_cont_lpdf(dummy_right | modeled_cases[j], od_param[map_obs_admin_lev[j]]);
         }
         
-        // Add constrained likelihood and log-jacobian det for transformation
-        log_lik[j] = lpmf;
       }
     }
+    
     // ---  End Part G ---
     
     // ---- Part H: Posterior observations ----
     // Generate observations for each unique location-period combination present in the data
     {
-      real u_loctime_comb_modeled_cases[L_combs];
+      array[L_combs] real u_loctime_comb_modeled_cases;
       
       for (i in 1:L_combs) {
         u_loctime_comb_modeled_cases[i] = 0;

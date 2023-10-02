@@ -16,7 +16,7 @@
 plot_WHOcomparison_table <- function(config, cache, cholera_directory, observation_level_modeled_cases = TRUE, 
                                      allow_data_pull = TRUE, add_other_source = FALSE, aesthetic = TRUE) {
   get_sf_cases_resized(name="sf_cases_resized",config=config, cache=cache, cholera_directory=cholera_directory)
-  who_annual_cases <- cache[["sf_cases_resized"]] %>% sf::st_drop_geometry() %>% filter(!is.na(loctime))
+  who_annual_cases <- cache[["sf_cases_resized"]] %>% sf::st_drop_geometry() %>% dplyr::filter(!is.na(loctime))
   
   ## if to get the sum of the grid-level modeled cases  
   if(!observation_level_modeled_cases){
@@ -80,8 +80,17 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
               ")"
             )
       })
-    who_annual_cases$modeled_ci <- modeled_obs_level_cases
+     who_annual_cases_ci <- cache[["sf_cases_resized"]] %>% sf::st_drop_geometry()
 
+    who_annual_cases_ci$modeled_ci <- modeled_obs_level_cases
+    who_annual_cases_ci_no_imputation <- who_annual_cases_ci %>% dplyr::filter(!is.na(loctime))
+    who_annual_cases$modeled_ci <- who_annual_cases_ci_no_imputation$modeled_ci
+    
+    #add imputed observations
+    if(nrow(who_annual_cases_ci %>% dplyr::filter(is.na(loctime)))>0){
+      who_annual_cases <- who_annual_cases %>% 
+        tibble::add_row(who_annual_cases_ci %>% dplyr::filter(is.na(loctime)))
+    }
 
     ### Get the WHO table and combine them 
     who_annual_cases <- who_annual_cases %>% dplyr::rename(observed = attributes.fields.suspected_cases)
@@ -106,8 +115,8 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
     config_file <- yaml::read_yaml(paste0(cholera_directory, "/", config), eval.expr = TRUE)
     censoring_threshold <- ifelse(!is.null(config_file$censoring_thresh), as.numeric(config_file$censoring_thresh), 0.95)
     get_stan_input(name="stan_input",cache=cache,config = config,cholera_directory = cholera_directory)
-    country_level_agg_cases <- cache[["stan_input"]]$sf_cases_resized %>% 
-      dplyr::mutate(observed = attributes.fields.suspected_cases, modeled_pi = gen_obs$modeled_obs_level_cases,modeled_ci = modeled_obs_level_cases) %>%
+    country_level_agg_cases <- cache[["stan_input"]]$sf_cases_resized %>% sf::st_drop_geometry() %>% 
+      dplyr::mutate(observed = attributes.fields.suspected_cases, modeled_pi = who_annual_cases$modeled_pi,modeled_ci = who_annual_cases$modeled_ci) %>%
       sf::st_drop_geometry() %>%
       dplyr::filter(admin_level==0) %>% #select national observations
       dplyr::filter(((TR - TL+1)/365) >= censoring_threshold & ((TR - TL+1)/366) <=1) %>%
@@ -125,12 +134,12 @@ plot_WHOcomparison_table <- function(config, cache, cholera_directory, observati
   mean_modeled_annual_cases <- who_annual_cases_from_db%>%
     dplyr::group_by(year=lubridate::year(TL)) %>%
     dplyr::summarise(
-      mean_modeled_annual_cases_by_year_pi = round(mean(as.numeric(unique(gsub("[[:punct:]]", "", sub("\\(.*", "", modeled_pi))))),0),
-      mean_modeled_annual_cases_by_year_ci = round(mean(as.numeric(unique(gsub("[[:punct:]]", "", sub("\\(.*", "", modeled_ci))))),0),
+      mean_modeled_annual_cases_by_year_pi = round(mean(as.numeric(unique(gsub("[[:punct:]]", "", sub("\\(.*", "", modeled_pi)))),na.rm=T),0),
+      mean_modeled_annual_cases_by_year_ci = round(mean(as.numeric(unique(gsub("[[:punct:]]", "", sub("\\(.*", "", modeled_ci)))),na.rm=T),0),
     ) %>%
     dplyr::ungroup()%>%
-    dplyr::mutate(mean_modeled_annual_cases_pi = round(mean(mean_modeled_annual_cases_by_year_pi),0),
-                  mean_modeled_annual_cases_ci = round(mean(mean_modeled_annual_cases_by_year_ci),0))
+    dplyr::mutate(mean_modeled_annual_cases_pi = round(mean(mean_modeled_annual_cases_by_year_pi,na.rm=T),0),
+                  mean_modeled_annual_cases_ci = round(mean(mean_modeled_annual_cases_by_year_ci,na.rm=T),0))
   #add to who annual cases table
   who_annual_cases_from_db<-rbind(
     who_annual_cases_from_db,
