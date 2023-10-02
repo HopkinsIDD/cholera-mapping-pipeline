@@ -15,14 +15,12 @@ clip_shapefiles_to_adm0 <- function(iso_code,
     iso_code = iso_code,
     admin_levels = c(0),
     lps = shapefiles
-  ) %>% 
-    sf::st_set_precision(1e8)
+  ) 
   
   sf::st_crs(adm0_geom) <- sf::st_crs(shapefiles) ## same crs needed for st_intersection
   
   # Drop data with no intersections
   shapefiles <- shapefiles %>% 
-    sf::st_set_precision(1e8) %>% 
     dplyr::mutate(adm0_intersect = sf::st_intersects(shapefiles$geom, adm0_geom$geom, sparse = FALSE) %>% 
                     as.vector())
   

@@ -1497,8 +1497,7 @@ get_multi_country_admin_units <- function(iso_code,
   adm_sf <- purrr::map_df(admin_levels, 
                           ~ get_country_admin_units(iso_code = iso_code, 
                                                     admin_level = .) %>% 
-                            dplyr::rename(admin_level = shapeType) %>% 
-                            dplyr::arrange(location_period_id)
+                            dplyr::rename(admin_level = shapeType)
   )
   
   if (clip_to_adm0) {
@@ -1510,7 +1509,8 @@ get_multi_country_admin_units <- function(iso_code,
   # Fix geometry collections if any
   adm_sf <- fix_geomcollections(adm_sf)
   
-  adm_sf
+  adm_sf %>% 
+    dplyr::arrange(location_period_id)
 }
 
 
@@ -1618,6 +1618,9 @@ make_location_periods_dict <- function(conn_pg,
   # Create a unique location period id which also accounts for the modeling time slice
   location_periods_dict <- location_periods_dict %>%
     dplyr::distinct(location_period_id, t) %>%
+    # !! Arrange by location period id to ensure consistency of ordering throughout
+    #   the pipeline
+    dplyr::arrange(location_period_id, t) %>%
     dplyr::mutate(loctime_id = dplyr::row_number()) %>%
     dplyr::inner_join(location_periods_dict)
   

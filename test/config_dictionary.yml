@@ -1,0 +1,36 @@
+smoothing_period: 
+  abbreviation: sp
+  definition:
+  allowed_values:
+warmup:
+  abbreviation: w
+covar_warmup: 
+  abbreviation: cw
+censoring: 
+  abbreviation: cs
+aggregate:
+  abbreviation: ag
+time_effect:
+  abbreviation: te
+time_effect_autocorr:
+  abbreviation: tea
+beta_sigma_scale:
+  abbreviation: bs
+sigma_eta_scale:
+  abbreviation: es
+tfrac_thresh:
+  abbreviation: tft
+set_tfrac:
+  abbreviation: tfs
+use_weights:
+  abbreviation: we
+overdispersion:
+  abbreviation: od
+use_pop_frac:
+  abbreviation: pf
+use_pop_weight:
+  abbreviation: pw
+censoring_thresh:
+  abbreviation: ct
+lambda:
+  abbreviation: lb

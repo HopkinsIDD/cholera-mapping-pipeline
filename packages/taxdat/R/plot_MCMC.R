@@ -133,7 +133,7 @@ plot_w_mean <- function(cache, config, cholera_directory) {
     sf_tmp <- cache[["stan_input"]]$sf_grid %>% subset(t == 1)
     w_sf <-data.frame()
     for(chain_idx in unique(w_mean_by_chain$chain)){
-    sf_tmp$w_mean <- w_mean_by_chain[w_mean_by_chain$chain==1,]$mean
+    sf_tmp$w_mean <- w_mean_by_chain[w_mean_by_chain$chain==chain_idx,]$mean
     sf_tmp$chain<-chain_idx
     w_sf <- rbind(w_sf,sf_tmp)
     }

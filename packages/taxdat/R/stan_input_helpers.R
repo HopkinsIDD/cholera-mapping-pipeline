@@ -995,7 +995,7 @@ get_censoring_inds <- function(ind_mapping_resized,
       # Get all tfracs for the given observation
       tfracs <- ind_mapping_resized$tfrac[ind_mapping_resized$map_obs_loctime_obs == x]
       # Define right-censored if any tfrac is smaller than 95% of the time slice
-      ifelse(any(tfracs <= censoring_thresh), "right-censored", "full")
+      ifelse(any(tfracs < censoring_thresh), "right-censored", "full")
     })
 }
 
@@ -2059,7 +2059,7 @@ update_stan_data_indexing <- function(stan_data,
   stan_data$M <- length(unique(ind_mapping_resized$map_obs_loctime_obs))
   
   # Define censored observations
-  stan_data$censored  <- as.array(ind_mapping_resized$tfrac <= config$censoring_thresh)
+  stan_data$censored  <- as.array(ind_mapping_resized$tfrac < config$censoring_thresh)
   
   for (var in names(ind_mapping_resized)) {
     if (var == "map_obs_loctime_obs") {
