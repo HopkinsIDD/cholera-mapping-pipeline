@@ -232,7 +232,7 @@ parameters {
   // Spatial random effects
   array[do_spatial_effect] real<lower=0, upper=.99> rho;    // spatial correlation parameter
   array[do_spatial_effect] real<lower=0> std_dev_w;             // precision of the spatial effects
-  vector<lower=-15, upper=15>[size_w] w;        // spatial random effect
+  vector<lower=-15, upper=(-log_meanrate + log(2))>[size_w] w;        // spatial random effect
   array[size_lambda] real<lower=0, upper=1> lambda;
   
   // Temporal random effects
