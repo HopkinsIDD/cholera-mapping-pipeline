@@ -1066,7 +1066,7 @@ get_country_from_string <- function(x) {
 custom_summaries <- function() {
   
   c(
-    "mean", "custom_quantile2",
+    "mean", "median", "custom_quantile2",
     posterior::default_convergence_measures(),
     posterior::default_mcse_measures()
   )
@@ -1145,7 +1145,7 @@ aggregate_and_summarise_draws <- function(df,
       }
     } %>% 
     posterior::as_draws() %>% 
-    posterior::summarise_draws()
+    posterior::summarise_draws(custom_summaries())
 }
 
 #' aggregate_and_summarise_case_draws_by_region
@@ -1177,7 +1177,7 @@ aggregate_and_summarise_draws_by_region <- function(df,
     dplyr::select(-draw) %>% 
     magrittr::set_names(stringr::str_c(col, colnames(.), sep = "_")) %>% 
     posterior::as_draws() %>% 
-    posterior::summarise_draws()
+    posterior::summarise_draws(custom_summaries())
 }
 
 
