@@ -185,5 +185,6 @@ get_lakes <- function(path = "Layers/geodata/Africa_waterbody.shp") {
 #' @examples
 get_risk_cat_dict <- function() {
   risk_cat_dict <- c("<1", "1-10", "10-20", "20-50", "50-100", ">100")
+  risk_cat_dict
 }
 

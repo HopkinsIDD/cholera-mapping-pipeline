@@ -341,6 +341,46 @@ pop_at_risk_grid <- run_all(
   output_file_type = "rds",
   verbose = opt$verbose)
 
+# Get the total number of people living in high risk areas (> 1/1'000)
+high_risk_pop <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_pop_at_high_risk,
+  fun_name = "pop_high_risk",
+  fun_opts = NULL,
+  postprocess_fun = aggregate_and_summarise_draws,
+  postprocess_fun_opts = list(col = "pop_high_risk"),
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  interm_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+
+
+# Get the number of cases by WHO region
+high_risk_pop_regions <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_pop_at_high_risk,
+  fun_name = "pop_high_risk_by_region",
+  fun_opts = NULL,
+  postprocess_fun = aggregate_and_summarise_draws_by_region,
+  postprocess_fun_opts = list(col = "pop_high_risk"),
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  interm_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
 
 # H. Generated observations --------------------------------------------------
 

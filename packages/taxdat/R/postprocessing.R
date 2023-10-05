@@ -659,6 +659,39 @@ postprocess_pop_at_risk <- function(config_list,
 }
 
 
+#' postprocess_pop_at_high_risk
+#' This is to match computations in the Lancet paper of > 100 cases/100'000
+#'
+#' @param config_list 
+#' @param redo_aux 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+postprocess_pop_at_high_risk <- function(config_list,
+                                         redo_aux = FALSE) {
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # Get dictionnary of risk categories
+  risk_cat_dict <- get_risk_cat_dict()
+  high_risk_ind <- which(risk_cat_dict == ">100")
+  high_risk_var <- stringr::str_glue("tot_pop_risk[{high_risk_ind},2]")                       
+  
+  # Get mean annual incidence summary
+  pop_at_hihgh_risk <- genquant$draws(high_risk_var) %>% 
+    posterior::as_draws() %>% 
+    posterior::as_draws_df() %>% 
+    dplyr::as_tibble() %>% 
+    dplyr::rename(c("pop_high_risk" =  high_risk_var)) %>% 
+    dplyr::mutate(country = get_country_from_string(config_list$file_names$stan_genquant_filename))
+  
+  
+  pop_at_hihgh_risk
+}
+
 #' postprocess_mean_annual_incidence
 #' 
 #' @param config_list config list
