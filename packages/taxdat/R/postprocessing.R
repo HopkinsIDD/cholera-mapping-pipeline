@@ -678,7 +678,7 @@ postprocess_pop_at_high_risk <- function(config_list,
   # Get dictionnary of risk categories
   risk_cat_dict <- get_risk_cat_dict()
   high_risk_ind <- which(risk_cat_dict == ">100")
-  high_risk_var <- stringr::str_glue("tot_pop_risk[{high_risk_ind},2]")                       
+  high_risk_var <- stringr::str_glue("tot_pop_risk[{high_risk_ind},3]")                       
   
   # Get mean annual incidence summary
   pop_at_hihgh_risk <- genquant$draws(high_risk_var) %>% 
