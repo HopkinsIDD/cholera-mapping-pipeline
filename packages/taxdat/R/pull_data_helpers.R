@@ -803,7 +803,7 @@ read_taxonomy_oc_metadata_sql <- function(username, password, locations = NULL, 
   # Run query for observation collection
   oc_query <- glue::glue_sql(paste(oc_query, filters, ";"), .con = conn)
   observation_collection <- DBI::dbGetQuery(conn, oc_query)
-  if (nrow(observations) == 0) {
+  if (nrow(observation_collection) == 0) {
     stop(paste0("No observation collections found using query ||", oc_querys, "||"))
   }
   
