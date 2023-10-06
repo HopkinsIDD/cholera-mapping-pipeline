@@ -770,8 +770,7 @@ read_taxonomy_oc_metadata_sql <- function(username, password, locations = NULL, 
     "FROM", "observation_collections",
     " WHERE"
   ) 
-  #observations.data includes the customized column: CFR, etc but also includes all the other observations)
-  
+
   cat("-- Pulling data from taxonomy database with SQL \n")
   
   if (unified_dataset_behaviour == "drop") {
@@ -803,7 +802,7 @@ read_taxonomy_oc_metadata_sql <- function(username, password, locations = NULL, 
   
   # Run query for observation collection
   oc_query <- glue::glue_sql(paste(oc_query, filters, ";"), .con = conn)
-  observation_collection <- suppressWarnings(DBI::dbGetQuery(conn, oc_query))
+  observation_collection <- DBI::dbGetQuery(conn, oc_query)
   if (nrow(observations) == 0) {
     stop(paste0("No observation collections found using query ||", oc_querys, "||"))
   }
@@ -826,10 +825,7 @@ read_taxonomy_oc_metadata_sql <- function(username, password, locations = NULL, 
 #' @details Code follows taxdat::read_taxonomy_data_api template.
 #' @return An sf object containing data extracted from the database
 #' @export
-read_taxonomy_locationperiods_sql <- function(username, password, locations = NULL, time_left = NULL,
-                                          time_right = NULL, uids = NULL, 
-                                          discard_incomplete_observation_collections = TRUE, 
-                                          unified_dataset_behaviour = "drop", 
+read_taxonomy_locationperiods_sql <- function(username, password, location_period = NULL,
                                           host = "db.cholera-taxonomy.middle-distance.com") {
   if (missing(username) | missing(password)) {
     stop("Please provide username and password to connect to the taxonomy database.")
@@ -852,18 +848,34 @@ read_taxonomy_locationperiods_sql <- function(username, password, locations = NU
   
   # Build query for observations
   lp_query <- paste(
-    "SELECT", "id, is_public, owner, contact, source, source_url, notes, created_at,unified",
-    "FROM", "observation_collections",
+    "SELECT", 
+    "locations.qualified_name as location_name, locations.id::text as location_id",
+    ",location_periods.id::text as location_period_id", ",shapes.shape as geojson",
+    "FROM", "observations", 
+    "left join location_hierarchies on observations.location_id = location_hierarchies.descendant_id",
+    "left join locations on observations.location_id = locations.id", "left join location_periods on observations.location_period_id = location_periods.id",
+    "left join shapes on shapes.location_period_id = location_periods.id",
     " WHERE"
-  ) 
-  #observations.data includes the customized column: CFR, etc but also includes all the other observations)
+  )
+
+  if (!is.null(location_period)) {
+    if (all(is.numeric(location_period))) {
+      location_period_filter <- paste0("location_periods.id in ({location_period*})")
+    } else {
+      stop("SQL access by location_period is not yet implemented")
+    }
+  } else {
+    location_period_filter <- paste0("ancestor_id = descendant_id")
+    stop("Please use a containing location as the location. Locations can't be NULL.")
+  }
   
   cat("-- Pulling data from taxonomy database with SQL \n")
-  
+
   # Run query for observation collection
-  lp_query <- glue::glue_sql(paste(lp_query, ";"), .con = conn)
-  location_periods <- suppressWarnings(sf::st_as_sf(sf::st_read(conn, query = lp_query)))
-  if (nrow(observations) == 0) {
+  lp_query <- glue::glue_sql(paste(lp_query,location_period_filter," ;"), .con = conn)
+  location_periods <- suppressWarnings(sf::st_as_sf(sf::st_read(conn, query = lp_query))) %>% dplyr::distinct()
+
+  if (nrow(location_periods) == 0) {
     stop(paste0("No location periods found using query ||", lp_query, "||"))
   }
   
