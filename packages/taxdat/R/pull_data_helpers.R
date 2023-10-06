@@ -651,26 +651,29 @@ read_taxonomy_observations_sql <- function(username, password, locations = NULL,
   # Build query for observations
   obs_query <- paste(
     "SELECT", "observations.observation_collection_id, observations.time_left, observations.time_right,observations.suspected_cases, observations.confirmed_cases, observations.deaths, observations.phantom, observations.primary,observations.tested,observations.location_period_id,",
-    "observation_collections.unified",
+    "observation_collections.unified,observation_collections.status",
     "FROM", "observations",
     " left join observation_collections on observations.observation_collection_id = observation_collections.id",
     " WHERE"
   ) 
   #observations.data includes the all the columns in observations: CFR, etc but also includes all the other observations)
   
-  SELECT observations.observation_collection_id, observations.time_left, observations.time_right,observations.suspected_cases, observations.confirmed_cases, observations.deaths, observations.phantom, observations.primary,observations.tested,observations.location_period_id, observation_collections.id, observation_collections.unified FROM observations  left join observation_collections on observations.observation_collection_id = observation_collections.id
-  
-  
   cat("-- Pulling data from taxonomy database with SQL \n")
   
   if (unified_dataset_behaviour == "drop") {
     unified_filter <- c("((observation_collections.unified is NULL) OR (observation_collections.unified!='t'))") # QZ: updated the operator
   } else if (unified_dataset_behaviour == "keep") {
-    unified_filter <- c("((observation_collections.unified is NOT NULL) AND (observation_collections.unified))")
+    unified_filter <- c("((observation_collections.unified is NULL) OR (observation_collections.unified='t'))")
   } else if (unified_dataset_behaviour == "select") {
     unified_filter <- c("(observation_collections.unified!='t')")
   } else {
     unified_filter <- NULL
+  }
+  
+  if (discard_incomplete_observation_collections) {
+    oc_filter <- c("(observation_collections.status != 'initialized') AND (observation_collections.status != 'validated') AND (observation_collections.status != 'inprogress')")
+  } else {
+    oc_filter <- NULL
   }
   
   # Add filters
@@ -699,17 +702,6 @@ read_taxonomy_observations_sql <- function(username, password, locations = NULL,
     warning("No time filters.")
   }
   
-  if (!is.null(locations)) {
-    if (all(is.numeric(locations))) {
-      locations_filter <- paste0("ancestor_id in ({locations*})")
-    } else {
-      stop("SQL access by location name is not yet implemented")
-    }
-  } else {
-    locations_filter <- paste0("ancestor_id = descendant_id")
-    stop("Please use a containing location as the location. Locations can't be NULL.")
-  }
-  
   if (!is.null(uids)) {
     uids_filter <- paste0("observation_collection_id IN ({uids*})")
   } else {
@@ -718,12 +710,12 @@ read_taxonomy_observations_sql <- function(username, password, locations = NULL,
   }
   
   # Combine filters
-  filters <- c(time_left_filter, time_right_filter, locations_filter, uids_filter, oc_filter, unified_filter) %>%
+  filters <- c(time_left_filter, time_right_filter, uids_filter, oc_filter, unified_filter) %>%
     paste(collapse = " AND ")
   
   # Run query for observations
   obs_query <- glue::glue_sql(paste(obs_query, filters, ";"), .con = conn)
-  observations <- suppressWarnings(sf::st_as_sf(sf::st_read(conn, query = obs_query)))
+  observations <- DBI::dbGetQuery(conn, obs_query)
   if (nrow(observations) == 0) {
     stop(paste0("No observations found using query ||", obs_query, "||"))
   }
@@ -773,8 +765,8 @@ read_taxonomy_oc_metadata_sql <- function(username, password, locations = NULL, 
   }
   
   # Build query for observations
-  obs_query <- paste(
-    "SELECT", "id, is_public, owner, contact, source, source_url, notes, created_at",
+  oc_query <- paste(
+    "SELECT", "id, is_public, owner, contact, source, source_url, notes, created_at,unified",
     "FROM", "observation_collections",
     " WHERE"
   ) 
@@ -785,68 +777,95 @@ read_taxonomy_oc_metadata_sql <- function(username, password, locations = NULL, 
   if (unified_dataset_behaviour == "drop") {
     unified_filter <- c("((observation_collections.unified is NULL) OR (observation_collections.unified!='t'))") # QZ: updated the operator
   } else if (unified_dataset_behaviour == "keep") {
-    unified_filter <- c("((observation_collections.unified is NOT NULL) AND (observation_collections.unified))")
+    unified_filter <- c("((observation_collections.unified is NULL) OR (observation_collections.unified='t'))")
   } else if (unified_dataset_behaviour == "select") {
-    unified_filter <- c("(observation_collections.unified!='t')")
+    unified_filter <- c("(observation_collections.unified='t')")
   } else {
     unified_filter <- NULL
   }
   
-  # Add filters
-  if (any(c(!is.null(time_left), !is.null(time_right), !is.null(uids)), !is.null(locations))) {
+  if (discard_incomplete_observation_collections) {
+    oc_filter <- c("(observation_collections.status != 'initialized') AND (observation_collections.status != 'validated') AND (observation_collections.status != 'inprogress')")
   } else {
-    warning("No filters specified on data pull, pulling all data.")
-  }
-  
-  if (!is.null(time_left)) {
-    time_left_filter <- paste0(
-      "time_left >= '", format(time_left, "%Y-%m-%d"),
-      "'"
-    )
-  } else {
-    time_left_filter <- NULL
-    warning("No time filters.")
-  }
-  
-  if (!is.null(time_right)) {
-    time_right_filter <- paste0(
-      "time_right <= '", format(time_right, "%Y-%m-%d"),
-      "'"
-    )
-  } else {
-    time_right_filter <- NULL
-    warning("No time filters.")
-  }
-  
-  if (!is.null(locations)) {
-    if (all(is.numeric(locations))) {
-      locations_filter <- paste0("ancestor_id in ({locations*})")
-    } else {
-      stop("SQL access by location name is not yet implemented")
-    }
-  } else {
-    locations_filter <- paste0("ancestor_id = descendant_id")
-    stop("Please use a containing location as the location. Locations can't be NULL.")
+    oc_filter <- NULL
   }
   
   if (!is.null(uids)) {
-    uids_filter <- paste0("observation_collection_id IN ({uids*})")
+    uids_filter <- paste0("id IN ({uids*})")
   } else {
     uids_filter <- NULL
     warning("No uid filters.")
   }
   
   # Combine filters
-  filters <- c(time_left_filter, time_right_filter, locations_filter, uids_filter, oc_filter, unified_filter) %>%
+  filters <- c(uids_filter, unified_filter, oc_filter) %>%
     paste(collapse = " AND ")
   
-  # Run query for observations
-  obs_query <- glue::glue_sql(paste(obs_query, filters, ";"), .con = conn)
-  observations <- suppressWarnings(sf::st_as_sf(sf::st_read(conn, query = obs_query)))
+  # Run query for observation collection
+  oc_query <- glue::glue_sql(paste(oc_query, filters, ";"), .con = conn)
+  observation_collection <- suppressWarnings(DBI::dbGetQuery(conn, oc_query))
   if (nrow(observations) == 0) {
-    stop(paste0("No observations found using query ||", obs_query, "||"))
+    stop(paste0("No observation collections found using query ||", oc_querys, "||"))
   }
   
-  # observations <- dplyr::filter(observations, !is.na(nchar(geojson)))
-  return(observations)
+  return(observation_collection)
+}
+
+#' @title Taxonomy SQL data pull
+#' @description Extracts data for a given set of country using SQL from the taxonomy
+#' postgresql database stored on idmodeling2
+#'
+#' @param username taxonomy username
+#' @param password taxonomy password
+#' @param locations list of locations to pull. For now this only supports country ISO codes.
+#' @param time_left  left bound for observation times (in date format)
+#' @param time_right right bound for observation times (in date format)
+#' @param uids list of unique observation collection ids to pull
+#' @param discard_incomplete_observation_collections whether to keep, drop or select unified observation collections (default is drop)
+#'
+#' @details Code follows taxdat::read_taxonomy_data_api template.
+#' @return An sf object containing data extracted from the database
+#' @export
+read_taxonomy_locationperiods_sql <- function(username, password, locations = NULL, time_left = NULL,
+                                          time_right = NULL, uids = NULL, 
+                                          discard_incomplete_observation_collections = TRUE, 
+                                          unified_dataset_behaviour = "drop", 
+                                          host = "db.cholera-taxonomy.middle-distance.com") {
+  if (missing(username) | missing(password)) {
+    stop("Please provide username and password to connect to the taxonomy database.")
+  }
+  
+  # Connect to database
+  if ((password == "") && (website == "localhost")) {
+    print("HERE")
+    conn <- RPostgres::dbConnect(RPostgres::Postgres(),
+                                 dbname = "CholeraTaxonomy_production", user = username,
+                                 port = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
+    )
+  } else {
+    conn <- RPostgres::dbConnect(RPostgres::Postgres(),
+                                 host = host,
+                                 dbname = "CholeraTaxonomy_production", user = username, password = password,
+                                 port = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
+    )
+  }
+  
+  # Build query for observations
+  lp_query <- paste(
+    "SELECT", "id, is_public, owner, contact, source, source_url, notes, created_at,unified",
+    "FROM", "observation_collections",
+    " WHERE"
+  ) 
+  #observations.data includes the customized column: CFR, etc but also includes all the other observations)
+  
+  cat("-- Pulling data from taxonomy database with SQL \n")
+  
+  # Run query for observation collection
+  lp_query <- glue::glue_sql(paste(lp_query, ";"), .con = conn)
+  location_periods <- suppressWarnings(sf::st_as_sf(sf::st_read(conn, query = lp_query)))
+  if (nrow(observations) == 0) {
+    stop(paste0("No location periods found using query ||", lp_query, "||"))
+  }
+  
+  return(location_periods)
 }
