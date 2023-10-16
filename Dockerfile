@@ -92,6 +92,7 @@ RUN apt-get update && \
 WORKDIR /home/app
 USER app
 ENV HOME /home/app
+ENV TMPDIR /home/app/.tmp
 
 ####
 # POSTGIS
@@ -121,13 +122,14 @@ RUN sudo service postgresql start \
 #####
 
 RUN sudo Rscript -e "install.packages('renv',repos='https://cloud.r-project.org/')" \
-    && cd /home/app 
+    && cd /home/app \
+    && mkdir $TMPDIR 
     # && Rscript -e "renv::restore()"
     # && Rscript -e "cmdstanr::install_cmdstan()"
 COPY --chown=app:app renv.cache $HOME/.cache
 COPY --chown=app:app renv.lock $HOME/renv.lock
 COPY --chown=app:app renv $HOME/renv
-RUN  sudo Rscript -e "renv::restore()"
+RUN  sudo Rscript -e 'Sys.setenv(TMPDIR = Sys.getenv("TMPDIR"));renv::restore()'
 COPY --chown=app:app Docker.Rprofile $HOME/.Rprofile
 
 RUN git clone https://www.github.com/stan-dev/cmdstan --recurse-submodules \
@@ -139,5 +141,5 @@ RUN git clone https://www.github.com/stan-dev/cmdstan --recurse-submodules \
 #   && cd cmdstan \
 #   && make build
 # RUN /bin/bash -c "/usr/bin/echo 'sudo service postgresql start' >> /home/app/.bashrc"
-
+RUN rm -rf $TMPDIR
 CMD ["/bin/bash"]
