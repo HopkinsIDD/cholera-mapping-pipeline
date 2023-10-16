@@ -67,8 +67,6 @@ RUN apt-get update && \
     libsnappy-dev \
     libncurses-dev \
     libreadline-dev \
-    # add for debug
-    libxt-dev \
     # for rstan
     libv8-dev \
     # for gdal
@@ -121,23 +119,17 @@ RUN sudo service postgresql start \
 #####
 
 RUN sudo Rscript -e "install.packages('renv',repos='https://cloud.r-project.org/')" \
-    && cd /home/app 
-    # && Rscript -e "renv::restore()"
+    && cd /home/app \
+    && Rscript -e "renv::restore()"
     # && Rscript -e "cmdstanr::install_cmdstan()"
 COPY --chown=app:app renv.cache $HOME/.cache
 COPY --chown=app:app renv.lock $HOME/renv.lock
 COPY --chown=app:app renv $HOME/renv
-RUN  sudo Rscript -e "renv::restore()"
 COPY --chown=app:app Docker.Rprofile $HOME/.Rprofile
 
 RUN git clone https://www.github.com/stan-dev/cmdstan --recurse-submodules \
   && cd cmdstan \
   && make build
-
-
-# RUN git clone https://www.github.com/stan-dev/cmdstan --recurse-submodules \
-#   && cd cmdstan \
-#   && make build
 # RUN /bin/bash -c "/usr/bin/echo 'sudo service postgresql start' >> /home/app/.bashrc"
 
 CMD ["/bin/bash"]
