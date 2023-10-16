@@ -619,10 +619,11 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL, time_le
 #' @param time_left  left bound for observation times (in date format)
 #' @param time_right right bound for observation times (in date format)
 #' @param uids list of unique observation collection ids to pull
-#' @param discard_incomplete_observation_collections whether to keep, drop or select unified observation collections (default is drop)
+#' @param discard_incomplete_observation_collections whether to discard incomplete observation collections (default is TRUE)
+#' @param unified_dataset_behaviour whether to keep, drop or select unified observation collections (default is drop)
 #'
-#' @details Code follows taxdat::read_taxonomy_data_api template.
-#' @return An sf object containing data extracted from the database
+#' @details Code follows taxdat::read_taxonomy_data_sql template.
+#' @return A data frame object containing data extracted from the database
 #' @export
 read_taxonomy_observations_sql <- function(username, password, locations = NULL, time_left = NULL,
                                    time_right = NULL, uids = NULL, 
@@ -665,7 +666,7 @@ read_taxonomy_observations_sql <- function(username, password, locations = NULL,
   } else if (unified_dataset_behaviour == "keep") {
     unified_filter <- c("((observation_collections.unified is NULL) OR (observation_collections.unified='t'))")
   } else if (unified_dataset_behaviour == "select") {
-    unified_filter <- c("(observation_collections.unified!='t')")
+    unified_filter <- c("(observation_collections.unified ='t')")
   } else {
     unified_filter <- NULL
   }
@@ -720,13 +721,12 @@ read_taxonomy_observations_sql <- function(username, password, locations = NULL,
     stop(paste0("No observations found using query ||", obs_query, "||"))
   }
   
-  # observations <- dplyr::filter(observations, !is.na(nchar(geojson)))
   return(observations)
 }
 
 
 #' @title Taxonomy SQL data pull
-#' @description Extracts data for a given set of country using SQL from the taxonomy
+#' @description Extracts metadata for observation collections using SQL from the taxonomy
 #' postgresql database stored on idmodeling2
 #'
 #' @param username taxonomy username
@@ -735,10 +735,11 @@ read_taxonomy_observations_sql <- function(username, password, locations = NULL,
 #' @param time_left  left bound for observation times (in date format)
 #' @param time_right right bound for observation times (in date format)
 #' @param uids list of unique observation collection ids to pull
-#' @param discard_incomplete_observation_collections whether to keep, drop or select unified observation collections (default is drop)
+#' @param discard_incomplete_observation_collections whether to discard incomplete observation collections (default is TRUE)
+#' @param unified_dataset_behaviour whether to keep, drop or select unified observation collections (default is drop)
 #'
-#' @details Code follows taxdat::read_taxonomy_data_api template.
-#' @return An sf object containing data extracted from the database
+#' @details Code follows taxdat::read_taxonomy_data_sql template.
+#' @return A data frame object containing data extracted from the database
 #' @export
 read_taxonomy_oc_metadata_sql <- function(username, password, locations = NULL, time_left = NULL,
                                            time_right = NULL, uids = NULL, 
@@ -764,15 +765,13 @@ read_taxonomy_oc_metadata_sql <- function(username, password, locations = NULL, 
     )
   }
   
-  # Build query for observations
+  # Build query for observation collection metadata
   oc_query <- paste(
     "SELECT", "id, is_public, owner, contact, source, source_url, notes, created_at,unified",
     "FROM", "observation_collections",
     " WHERE"
   ) 
 
-  cat("-- Pulling data from taxonomy database with SQL \n")
-  
   if (unified_dataset_behaviour == "drop") {
     unified_filter <- c("((observation_collections.unified is NULL) OR (observation_collections.unified!='t'))") # QZ: updated the operator
   } else if (unified_dataset_behaviour == "keep") {
@@ -800,11 +799,13 @@ read_taxonomy_oc_metadata_sql <- function(username, password, locations = NULL, 
   filters <- c(uids_filter, unified_filter, oc_filter) %>%
     paste(collapse = " AND ")
   
-  # Run query for observation collection
+  cat("-- Pulling observation collection metadata from taxonomy database with SQL \n")
+  
+  # Run query for observation collection metadata
   oc_query <- glue::glue_sql(paste(oc_query, filters, ";"), .con = conn)
   observation_collection <- DBI::dbGetQuery(conn, oc_query)
   if (nrow(observation_collection) == 0) {
-    stop(paste0("No observation collections found using query ||", oc_querys, "||"))
+    stop(paste0("No observation collection metadata found using query ||", oc_querys, "||"))
   }
   
   return(observation_collection)
@@ -816,13 +817,9 @@ read_taxonomy_oc_metadata_sql <- function(username, password, locations = NULL, 
 #'
 #' @param username taxonomy username
 #' @param password taxonomy password
-#' @param locations list of locations to pull. For now this only supports country ISO codes.
-#' @param time_left  left bound for observation times (in date format)
-#' @param time_right right bound for observation times (in date format)
-#' @param uids list of unique observation collection ids to pull
-#' @param discard_incomplete_observation_collections whether to keep, drop or select unified observation collections (default is drop)
+#' @param location_period list of location periods to pull.
 #'
-#' @details Code follows taxdat::read_taxonomy_data_api template.
+#' @details Code follows taxdat::read_taxonomy_data_sql template.
 #' @return An sf object containing data extracted from the database
 #' @export
 read_taxonomy_locationperiods_sql <- function(username, password, location_period = NULL,
@@ -846,7 +843,7 @@ read_taxonomy_locationperiods_sql <- function(username, password, location_perio
     )
   }
   
-  # Build query for observations
+  # Build query for location periods and shapefiles
   lp_query <- paste(
     "SELECT", 
     "locations.qualified_name as location_name, locations.id::text as location_id",
@@ -869,9 +866,9 @@ read_taxonomy_locationperiods_sql <- function(username, password, location_perio
     stop("Please use a containing location as the location. Locations can't be NULL.")
   }
   
-  cat("-- Pulling data from taxonomy database with SQL \n")
+  cat("-- Pulling location periods and shapefiles from taxonomy database with SQL \n")
 
-  # Run query for observation collection
+  # Run query for location period and shapefiles
   lp_query <- glue::glue_sql(paste(lp_query,location_period_filter," ;"), .con = conn)
   location_periods <- suppressWarnings(sf::st_as_sf(sf::st_read(conn, query = lp_query))) %>% dplyr::distinct()
 
