@@ -129,7 +129,7 @@ RUN sudo Rscript -e "install.packages('renv',repos='https://cloud.r-project.org/
 COPY --chown=app:app renv.cache $HOME/.cache
 COPY --chown=app:app renv.lock $HOME/renv.lock
 COPY --chown=app:app renv $HOME/renv
-RUN  sudo Rscript -e 'Sys.setenv(TMPDIR = Sys.getenv("TMPDIR"));renv::restore()'
+RUN  sudo Rscript -e 'options(renv.config.install.verbose=TRUE);Sys.setenv(TMPDIR = "/home/app/.tmp");renv::restore()'
 COPY --chown=app:app Docker.Rprofile $HOME/.Rprofile
 
 RUN git clone https://www.github.com/stan-dev/cmdstan --recurse-submodules \

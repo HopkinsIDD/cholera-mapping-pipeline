@@ -69,12 +69,6 @@ jobs:
           hopkinsidd/choleramappingpipeline:${{ github.sha }}
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
-    - name: Log Build Information
-      if: failure()
-      run: |
-        sudo du -sh /tmp
-        sudo du -sh /home/app
-        sudo df -Th
     - name: Move cache
       run: |
         rm -rf /tmp/.buildx-cache
