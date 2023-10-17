@@ -72,8 +72,9 @@ jobs:
     - name: Log Build Information
       if: failure()
       run: |
-        du -sh /tmp
-        du -sh /home/app
+        sudo du -sh /tmp
+        sudo du -sh /home/app
+        sudo df -Th
     - name: Move cache
       run: |
         rm -rf /tmp/.buildx-cache
