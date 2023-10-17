@@ -193,8 +193,11 @@ clean_tmp_tables <- function(dbuser) {
   
   # Filter temporary tables
   tmp_tables <- owned_tables %>% 
-    dplyr::filter(object_type == "TABLE",
-                  stringr::str_detect(object_name, "tmp"))
+    dplyr::filter(
+      object_type == "TABLE",
+      stringr::str_detect(
+        object_name, 
+        "tmp|location_periods|grid_cntrds|grid_intersections"))
   
   cat("-- Deleting", nrow(tmp_tables), "temporary tables from DB. \n")
   
