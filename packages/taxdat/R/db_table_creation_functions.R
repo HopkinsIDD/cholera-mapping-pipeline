@@ -153,3 +153,59 @@ make_grid_lp_centroids_table <- function(conn_pg,
   
   DBI::dbSendStatement(conn_pg, glue::glue_sql("VACUUM ANALYZE {`{DBI::SQL(cntrd_table)}`};", .con = conn_pg))
 }
+
+
+#' clean_tmp_tables
+#' https://dba.stackexchange.com/questions/30061/how-do-i-list-all-tables-in-all-schemas-owned-by-the-current-user-in-postgresql
+#'
+#' @return
+#'
+#' @examples
+clean_tmp_tables <- function(dbuser) {
+  
+  conn <- connect_to_db(dbuser)
+  
+  query <- "
+  select nsp.nspname as object_schema,
+       cls.relname as object_name, 
+       rol.rolname as owner, 
+       case cls.relkind
+         when 'r' then 'TABLE'
+         when 'm' then 'MATERIALIZED_VIEW'
+         when 'i' then 'INDEX'
+         when 'S' then 'SEQUENCE'
+         when 'v' then 'VIEW'
+         when 'c' then 'TYPE'
+         else cls.relkind::text
+       end as object_type
+       from pg_class cls
+       join pg_roles rol on rol.oid = cls.relowner
+       join pg_namespace nsp on nsp.oid = cls.relnamespace
+       where nsp.nspname not in ('information_schema', 'pg_catalog')
+       and nsp.nspname not like 'pg_toast%'
+       and rol.rolname = current_user  --- remove this if you want to see all objects
+       order by nsp.nspname, cls.relname;
+  "
+  
+  # Get all tables owned by user
+  owned_tables <- DBI::dbGetQuery(conn, statement = query) %>% 
+    dplyr::as_tibble()
+  
+  # Filter temporary tables
+  tmp_tables <- owned_tables %>% 
+    dplyr::filter(object_type == "TABLE",
+                  stringr::str_detect(object_name, "tmp"))
+  
+  cat("-- Deleting", nrow(tmp_tables), "temporary tables from DB. \n")
+  
+  # Loop over tables and delete
+  purrr::walk(tmp_tables$object_name,
+              function(x) {
+                DBI::dbSendStatement(
+                  conn, 
+                  statement = glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(x)}`};",
+                                             .con = conn))
+              })
+  
+  cat("-- Done deleting temporary tables. \n")
+}
