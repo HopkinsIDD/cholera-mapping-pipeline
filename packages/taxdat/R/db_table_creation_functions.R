@@ -156,7 +156,9 @@ make_grid_lp_centroids_table <- function(conn_pg,
 
 
 #' clean_tmp_tables
-#' https://dba.stackexchange.com/questions/30061/how-do-i-list-all-tables-in-all-schemas-owned-by-the-current-user-in-postgresql
+#' Query found in: https://dba.stackexchange.com/questions/30061/how-do-i-list-all-tables-in-all-schemas-owned-by-the-current-user-in-postgresql
+#' 
+#' Note that this function will delete tables that are used while the pipeline is running for a given config, so it should not be called while the pipeline is running for the config of interest. 
 #'
 #' @return
 #'
@@ -204,10 +206,10 @@ clean_tmp_tables <- function(dbuser) {
   # Loop over tables and delete
   purrr::walk(tmp_tables$object_name,
               function(x) {
-                DBI::dbSendStatement(
+                try(DBI::dbSendStatement(
                   conn, 
-                  statement = glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(x)}`};",
-                                             .con = conn))
+                  glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(x)}`};",
+                                 .con = conn)))
               })
   
   cat("-- Done deleting temporary tables. \n")
