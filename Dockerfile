@@ -68,7 +68,7 @@ RUN apt-get update && \
     libncurses-dev \
     libreadline-dev \
     # add for debug
-    libxt-dev \
+    # libxt-dev \
     # for rstan
     libv8-dev \
     # for gdal
@@ -134,10 +134,4 @@ RUN git clone https://www.github.com/stan-dev/cmdstan --recurse-submodules \
   && cd cmdstan \
   && make build
 
-
-# RUN git clone https://www.github.com/stan-dev/cmdstan --recurse-submodules \
-#   && cd cmdstan \
-#   && make build
-# RUN /bin/bash -c "/usr/bin/echo 'sudo service postgresql start' >> /home/app/.bashrc"
-RUN rm -rf $TMPDIR
 CMD ["/bin/bash"]
