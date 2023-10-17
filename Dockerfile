@@ -92,7 +92,6 @@ RUN apt-get update && \
 WORKDIR /home/app
 USER app
 ENV HOME /home/app
-ENV TMPDIR /home/app/.tmp
 
 ####
 # POSTGIS
@@ -122,14 +121,13 @@ RUN sudo service postgresql start \
 #####
 
 RUN sudo Rscript -e "install.packages('renv',repos='https://cloud.r-project.org/')" \
-    && cd /home/app \
-    && mkdir $TMPDIR 
+    && cd /home/app 
     # && Rscript -e "renv::restore()"
     # && Rscript -e "cmdstanr::install_cmdstan()"
 COPY --chown=app:app renv.cache $HOME/.cache
 COPY --chown=app:app renv.lock $HOME/renv.lock
 COPY --chown=app:app renv $HOME/renv
-RUN  sudo Rscript -e 'options(renv.config.install.verbose=TRUE);Sys.setenv(TMPDIR = "/home/app/.tmp");renv::restore()'
+RUN  sudo Rscript -e "options(renv.config.install.verbose=TRUE);renv::restore(lockfile='$HOME/renv.lock', library='$HOME/renv/library/R-4.2/x86_64-pc-linux-gnu')"
 COPY --chown=app:app Docker.Rprofile $HOME/.Rprofile
 
 RUN git clone https://www.github.com/stan-dev/cmdstan --recurse-submodules \
