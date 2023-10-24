@@ -541,7 +541,45 @@ prepare_stan_input <- function(
     stan_data$map_loc_grid_sfrac <- array(data = 0, dim = 0)
   }
   
-  #  ---- L. Observations ----
+  
+  #  ---- L. Drop low population lps ----
+  
+  if (config$drop_low_pop_lps) {
+    
+    # Compute lp populations
+    lp_pops <- taxdat::compute_pop_loctimes(stan_data = stan_data)
+    
+    # Which loctimes to drop
+    ind_drop_loctimes <- which(lp_pops < config$drop_low_pop_lps_thresh)
+    
+    # Which obs to drop
+    ind_drop_obs <- stan_data$map_obs_loctime_obs[stan_data$map_obs_loctime_loc %in% ind_drop_loctimes]
+    
+    if (length(ind_drop_obs) > 0) {
+      
+      cat("-- Dropping", length(ind_drop_obs), 
+          "observations due to low location period population.\n")
+      
+      # Drop the observations and reindex
+      sf_cases_resized <- sf_cases_resized[-c(ind_drop_obs),]
+      
+      ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+        df = sf_cases_resized,
+        lp_dict = location_periods_dict,
+        model_time_slices = time_slices,
+        res_time = res_time,
+        n_cpus = config$ncpus_parallel_prep,
+        do_parallel = config$do_parallel_prep)
+      
+      # Update indexing of stan_data
+      stan_data <- taxdat::update_stan_data_indexing(stan_data = stan_data,
+                                                     ind_mapping_resized = ind_mapping_resized,
+                                                     config = config)
+    }
+  }
+  
+  
+  #  ---- M. Observations ----
   stan_data$y <- as.array(sf_cases_resized[[cases_column]])
   
   # Get censoring indexes 
@@ -556,7 +594,8 @@ prepare_stan_input <- function(
   stan_data$M_right <- length(stan_data$ind_right)
   stan_data$censoring_inds <- censoring_inds
   
-  # ---- M. Mappings ----
+  
+  # ---- N. Mappings ----
   stan_data$K1 <- length(stan_data$map_obs_loctime_obs)
   stan_data$K2 <- length(stan_data$map_loc_grid_loc)
   
@@ -612,10 +651,10 @@ prepare_stan_input <- function(
   # Unique location-time combinations in observations to produce posterior observations
   stan_data <- taxdat::get_loctime_combs_mappings(stan_data)
   
-  # ---- N. Mean rate ----
+  # ---- O. Mean rate ----
   stan_data$meanrate <- taxdat::compute_mean_rate(stan_data = stan_data,
                                                   res_time = res_time)
-  #  ---- O. Imputation ----
+  #  ---- P. Imputation ----
   
   sf_cases_resized$admin_level <- admin_levels
   sf_cases_resized$censoring <- censoring_inds
@@ -639,7 +678,7 @@ prepare_stan_input <- function(
   # Update censoring inds in sf_cases_resized
   sf_cases_resized$censoring <- stan_data$censoring_inds
   
-  # ---- P. Population at risk ----
+  # ---- Q. Population at risk ----
   # Data for people at risk
   risk_cat_low <- c(0, 1, 10, 20, 50, 100)*1e-5
   risk_cat_high <- c(risk_cat_low[-1], 1e6)
@@ -655,13 +694,13 @@ prepare_stan_input <- function(
     stan_data$debug <- debug
   }
   
-  # ---- Q. Covariates ----
+  # ---- E. Covariates ----
   
   # Option for double-exponential prior on betas
   stan_data$exp_prior <- config$exp_prior
   
   
-  # ---- R. Other options for stan ----
+  # ---- S. Other options for stan ----
   # Use intercept
   stan_data$use_intercept <- config$use_intercept
   
@@ -676,7 +715,7 @@ prepare_stan_input <- function(
                                                  res_time = res_time,
                                                  cases_column = cases_column)
   
-  # ---- S. Priors ----
+  # ---- T. Priors ----
   # Set sigma_eta_scale for all models (not used for models without time effect)
   stan_data$sigma_eta_scale <- config$sigma_eta_scale
   
@@ -701,7 +740,7 @@ prepare_stan_input <- function(
   stan_data$mu_sd_w <- config$mu_sd_w
   stan_data$sd_sd_w <- config$sd_sd_w
   
-  # ---- T. Data Structure Check ----
+  # ---- U. Data Structure Check ----
   taxdat::check_stan_input_objects(censoring_thresh = config$censoring_thresh,
                                    sf_cases = sf_cases,
                                    stan_data = stan_data,
