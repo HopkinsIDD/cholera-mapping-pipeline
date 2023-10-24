@@ -1592,6 +1592,9 @@ impute_adm0_obs_single <- function(sf_cases_resized,
                                    cases_column,
                                    frac_coverage_thresh) {
   
+  # Get the reference location
+  ref_location <- sf_cases_resized$location_name[ref_adm0_obs_id]
+  
   adm0_template <- sf_cases_resized %>% 
     dplyr::slice(ref_adm0_obs_id) %>% 
     dplyr::mutate(loctime = NA,
@@ -1611,15 +1614,17 @@ impute_adm0_obs_single <- function(sf_cases_resized,
   ts_all <- sf_cases_resized %>% 
     get_admin_level_data(res_time = res_time) %>% 
     dplyr::filter(ref_TL == m_TL,
-                  ref_TR == m_TR) 
+                  ref_TR == m_TR,
+                  stringr::str_detect(location_name, ref_location)) 
   
-  # All national level data
+  # All ADM0 level data
   ts_all_adm0 <- sf_cases_resized %>% 
     get_admin_level_data(res_time = res_time,
                          censorings = NULL,
                          admin_levels = 0) %>%  
     dplyr::filter(ref_TL == m_TL,
-                  ref_TR == m_TR) 
+                  ref_TR == m_TR,
+                  stringr::str_detect(location_name, ref_location)) 
   
   # Try getting the full subnational level data corresponding to the year
   ts_subset <- sf_cases_resized %>% 
@@ -1627,7 +1632,8 @@ impute_adm0_obs_single <- function(sf_cases_resized,
                          admin_levels = c(1:10),
                          censorings = "full") %>% 
     dplyr::filter(ref_TL == m_TL,
-                  ref_TR == m_TR) 
+                  ref_TR == m_TR,
+                  stringr::str_detect(location_name, ref_location)) 
   
   # Try getting the censored subnational level data corresponding to the year
   ts_subset_censored <- sf_cases_resized %>% 
@@ -1635,7 +1641,8 @@ impute_adm0_obs_single <- function(sf_cases_resized,
                          admin_levels = c(1:10),
                          censorings = "right-censored") %>% 
     dplyr::filter(ref_TL == m_TL,
-                  ref_TR == m_TR) 
+                  ref_TR == m_TR,
+                  stringr::str_detect(location_name, ref_location)) 
   
   if (nrow(ts_all) == 0) {
     # Condition 1: No data available in year, impute a 0 observation
@@ -1776,56 +1783,82 @@ impute_adm0_obs <- function(sf_cases_resized,
                                       censorings = "full",
                                       res_time = res_time)
   
-  if (nrow(y_adm0_full) == 0) {
-    if (nrow(time_slices) == 1) {
-      cat("-- Imputation is not developed in the case a single modeling time slice \n")
-      return(sf_cases_resized)
-    }
-    stop("No full national-level observations in modeling time slices")
-  }
   
-  # Get years with no full national level observations that cover a single time slice
-  missing_adm0 <- time_slices  %>% 
-    dplyr::mutate(ts = row_number()) %>% 
-    dplyr::left_join(y_adm0_full %>% 
-                       dplyr::distinct(ref_TL, ref_TR) %>% 
-                       dplyr::mutate(in_set = TRUE),
-                     by = c("TL" = "ref_TL", "TR" = "ref_TR"))
+  # There may be multiple location names corresponding to ADM0. Then perform
+  # imputation for each unique location name. This fix was done especially for 
+  # TZA which has both AFR::TZA, AFR::TZA::Mainland and AFR::TZA::Zanzibar.
   
-  # Get missing time slices
-  missing_ts <- missing_adm0 %>% dplyr::filter(is.na(in_set))
+  u_locations <- unique(y_adm0_full$location_name)    # unique set of locations to loop over
   
-  if (nrow(missing_ts) == 0) {
-    cat("-- No times slices missing full ADM0 data. \n")
-    return(sf_cases_resized)
-  } else {
-    missing_adm0 %>% 
-      dplyr::filter(is.na(in_set)) %>% 
-      dplyr::pull(TL) %>% 
-      stringr::str_c(collapse = ", ") %>% 
-      cat("-- Missing national level full data in time slices", ., ". Trying imputation. \n")
-  }
+  cat("-- Found", length(u_locations), "ADM0 location names for which to attempt imputation:",
+      paste(u_locations, collapse = ", "), "\n")
   
-  # Load loctime populations
-  if (!exists("pop_loctimes")) {
-    pop_loctimes <- compute_pop_loctimes(stan_data = stan_data)
-  }
-  
-  # Get reference national observation to use as template for imputed data
   imputed_obs_df <- purrr::map_df(
-    1:nrow(missing_ts),
-    function(i) {
+    u_locations, 
+    function(loc) {
       
-      cat("-- Imputing data for", as.character(missing_ts$TL[i]), "\n")
+      # The subset of full ADM0 observations to work on
+      y_adm0_subset <- dplyr::filter(y_adm0_full, location_name == loc)
       
-      impute_adm0_obs_single(sf_cases_resized = sf_cases_resized,
-                             stan_data = stan_data,
-                             ref_adm0_obs_id = y_adm0_full$obs_id[1], 
-                             time_slices = time_slices,
-                             res_time = res_time,
-                             m_ts = missing_ts$ts[i],
-                             cases_column = cases_column,
-                             frac_coverage_thresh = frac_coverage_thresh)
+      if (nrow(y_adm0_subset) == 0) {
+        
+        # We cannot impute with only one time slice of available data, so 
+        if (nrow(time_slices) == 1) {
+          
+          cat("-- Found only one time slice for", loc ,
+              "\nImputation is not developed in the case a single modeling time slice \n")
+          
+          return(tibble::tibble())
+        }
+        stop("No full national-level observations in modeling time slices")
+      }
+      
+      # Get years with no full national level observations that cover a single time slice
+      missing_adm0 <- time_slices  %>% 
+        dplyr::mutate(ts = row_number()) %>% 
+        dplyr::left_join(y_adm0_subset %>% 
+                           dplyr::distinct(ref_TL, ref_TR) %>% 
+                           dplyr::mutate(in_set = TRUE),
+                         by = c("TL" = "ref_TL", "TR" = "ref_TR"))
+      
+      # Get missing time slices
+      missing_ts <- missing_adm0 %>% dplyr::filter(is.na(in_set))
+      
+      if (nrow(missing_ts) == 0) {
+        cat("-- No times slices missing full ADM0 data for", loc, ". \n")
+        return(sf_cases_resized)
+      } else {
+        missing_adm0 %>% 
+          dplyr::filter(is.na(in_set)) %>% 
+          dplyr::pull(TL) %>% 
+          stringr::str_c(collapse = ", ") %>% 
+          cat("-- Missing national level full data in time slices", ., "for",
+              loc, ". Trying imputation. \n")
+      }
+      
+      # Load loctime populations
+      if (!exists("pop_loctimes")) {
+        pop_loctimes <- compute_pop_loctimes(stan_data = stan_data)
+      }
+      
+      # Get reference national observation to use as template for imputed data
+      imputed_obs_df_tmp <- purrr::map_df(
+        1:nrow(missing_ts),
+        function(i) {
+          
+          cat("-- Imputing data for", as.character(missing_ts$TL[i]), "\n")
+          
+          impute_adm0_obs_single(sf_cases_resized = sf_cases_resized,
+                                 stan_data = stan_data,
+                                 ref_adm0_obs_id = y_adm0_subset$obs_id[1], 
+                                 time_slices = time_slices,
+                                 res_time = res_time,
+                                 m_ts = missing_ts$ts[i],
+                                 cases_column = cases_column,
+                                 frac_coverage_thresh = frac_coverage_thresh)
+        })
+      
+      imputed_obs_df_tmp
     })
   
   # Return sf_cases_resized with new data
@@ -2299,8 +2332,8 @@ drop_obs_by_OC <- function(sf_cases_resized,
 #'
 #' @examples
 compute_adjustment_UN_population <- function(country, 
-                                              pop, 
-                                              years) {
+                                             pop, 
+                                             years) {
   
   # Checks
   # Load UN population projections
