@@ -800,7 +800,7 @@ aggregate_single_lp <- function(.x,
   # Combine non-adjacent but overlapping observations
   .x <- .x %>% 
     dplyr::mutate(set = as.integer(NA)) %>% 
-    dplyr::arrange(dplyr::desc(TR))
+    dplyr::arrange(dplyr::desc(TR), dplyr::desc(!!rlang::sym(cases_column)))
   
   # Initialization
   .x$set[1] <- 0
