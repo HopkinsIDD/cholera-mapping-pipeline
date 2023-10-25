@@ -1863,10 +1863,16 @@ impute_adm0_obs <- function(sf_cases_resized,
       imputed_obs_df_tmp
     })
   
-  # Return sf_cases_resized with new data
-  sf_cases_resized %>%
-    dplyr::bind_rows(imputed_obs_df) %>% 
-    dplyr::mutate(obs_id = dplyr::row_number())
+  if (nrow(imputed_obs_df) > 0) {
+    # Return sf_cases_resized with new data
+    sf_cases_resized %>%
+      dplyr::bind_rows(imputed_obs_df) %>% 
+      dplyr::mutate(obs_id = dplyr::row_number())
+  } else {
+    # Return sf_cases_resized without changes
+    sf_cases_resized %>%
+      dplyr::mutate(obs_id = dplyr::row_number())
+  }
 }
 
 
