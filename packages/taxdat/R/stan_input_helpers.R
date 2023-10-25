@@ -1808,7 +1808,7 @@ impute_adm0_obs <- function(sf_cases_resized,
           cat("-- Found only one time slice for", loc ,
               "\nImputation is not developed in the case a single modeling time slice \n")
           
-          return(tibble::tibble())
+          return(NULL)
         }
         stop("No full national-level observations in modeling time slices")
       }
@@ -1827,7 +1827,7 @@ impute_adm0_obs <- function(sf_cases_resized,
       if (nrow(missing_ts) == 0) {
         
         cat("-- No times slices missing full ADM0 data for", loc, ". \n")
-        return(tibble::tibble())
+        return(NULL)
         
       } else {
         missing_adm0 %>% 
