@@ -1825,8 +1825,10 @@ impute_adm0_obs <- function(sf_cases_resized,
       missing_ts <- missing_adm0 %>% dplyr::filter(is.na(in_set))
       
       if (nrow(missing_ts) == 0) {
+        
         cat("-- No times slices missing full ADM0 data for", loc, ". \n")
-        return(sf_cases_resized)
+        return(tibble::tibble())
+        
       } else {
         missing_adm0 %>% 
           dplyr::filter(is.na(in_set)) %>% 
@@ -2104,7 +2106,7 @@ update_stan_data_indexing <- function(stan_data,
                                                                obs_changer = obs_changer)
     } else if (var == "tfrac") {
       if (config$set_tfrac) {
-        cat("-- Overwriting tfrac for non-censored observations with 1")
+        cat("-- Overwriting tfrac for non-censored observations with 1\n.")
         stan_data$tfrac <- rep(1.0, length(ind_mapping_resized$tfrac))
       } else {
         stan_data$tfrac <- ind_mapping_resized$tfrac
