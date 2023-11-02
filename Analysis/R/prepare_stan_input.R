@@ -575,6 +575,8 @@ prepare_stan_input <- function(
       stan_data <- taxdat::update_stan_data_indexing(stan_data = stan_data,
                                                      ind_mapping_resized = ind_mapping_resized,
                                                      config = config)
+      
+      stan_data$map_loc_grid_sfrac <- taxdat::check_pop_weight_validity(stan_data$map_loc_grid_sfrac)
     }
   }
   
