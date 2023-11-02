@@ -1938,17 +1938,29 @@ update_stan_data_imputation <- function(sf_cases_resized,
     # Remove imputed loctimes
     dplyr::filter(!stringr::str_detect(OC_UID, "imputed"))
   
-  # Get mapping objects for imputation
-  ref_cntry_mappings <- get_loctime_mappings(stan_data = stan_data,
-                                             loctime = get_loctime_obs(stan_data, y_adm0_full$obs_id[1]))
-  
-  
   # Numbers in stan data that may be updated due to imputation
   n_loc <- stan_data$L
   n_obs <- stan_data$M
   n_obs_full <- stan_data$M_full
   
   for (i in ind_imputed) {
+    
+    # Get mapping objects for imputation for this observation. This was introduced 
+    # in the case there are multiple locations that are subject to imputation as in TZA.
+    
+    this_location_name <- sf_cases_resized$location_name[i]
+    
+    ref_cntry_mappings <- get_loctime_mappings(
+      stan_data = stan_data,
+      loctime = get_loctime_obs(
+        stan_data = stan_data, 
+        obs_id = y_adm0_full %>% 
+          filter(location_name == this_location_name) %>% 
+          slice(1) %>% 
+          pull(obs_id)
+      )
+    )
+    
     
     # Get time slice of observation
     m_ts <- get_time_slices_obs(sf_cases_resized = sf_cases_resized,
