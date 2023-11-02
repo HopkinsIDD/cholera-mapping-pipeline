@@ -2149,7 +2149,7 @@ update_stan_data_indexing <- function(stan_data,
 #' @examples
 check_pop_weight_validity <- function(map_loc_grid_sfrac) {
   # Check if sfrac is valid
-  if (any(map_loc_grid_sfrac > 1.01)) {
+  if (any(map_loc_grid_sfrac > 1)) {
     
     warning("Invalid sfrac values > 1", " Maximum value of ", 
             max(map_loc_grid_sfrac), ".",
