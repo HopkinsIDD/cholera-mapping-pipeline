@@ -404,6 +404,40 @@ postprocess_mean_annual_incidence <- function(config_list,
   res
 }
 
+#' postprocess_mean_annual_incidence_draws
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_mean_annual_incidence_draws <- function(config_list,
+                                                    redo_aux = FALSE) {
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # Get mean annual incidence summary
+  mai_draws <- genquant$draws("location_total_rates_output") %>% 
+    posterior::as_draws() %>% 
+    posterior::as_draws_df() %>% 
+    dplyr::as_tibble() %>% 
+    tidyr::pivot_longer(cols = contains("location_total_rates_output"),
+                        names_to = "variable") %>% 
+    dplyr::select(-.iteration, -.chain)
+  
+  # # Get the output shapefiles and join
+  # output_shapefiles <- get_output_sf_reload(config_list = config_list,
+  #                                           redo = redo_aux)
+  # 
+  # res <- join_output_shapefiles(output = mai_draws, 
+  #                               output_shapefiles = output_shapefiles,
+  #                               var_col = "variable") %>% 
+  #   dplyr::select(-variable)
+  
+  mai_draws
+}
+
 
 #' postprocess_mai_adm0_cases
 #' 

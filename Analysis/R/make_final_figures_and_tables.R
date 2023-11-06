@@ -95,8 +95,8 @@ rates_by_region <- combine_period_output(prefix_list = prefix_list,
 
 # Overall rates
 rates_overall <- combine_period_output(prefix_list = prefix_list,
-                                         output_name = "mai_rates_all",
-                                         output_dir = opt$output_dir)
+                                       output_name = "mai_rates_all",
+                                       output_dir = opt$output_dir)
 
 # Gridded cases
 grid_cases <- combine_period_output(prefix_list = prefix_list,
@@ -137,6 +137,32 @@ mai_change_adm <- inner_join(u_space_sf,
                              compute_rate_changes(mai_adm)) %>% 
   ungroup()
 
+# Compute change statistics (could package into function)
+mai_change_draws <- inner_join(
+  readRDS(str_glue("{opt$output_dir}/{prefix_list[1]}_mai_draws.rds")) %>%
+    ungroup() %>% 
+    select(.draw, variable, value, country),
+  readRDS(str_glue("{opt$output_dir}/{prefix_list[2]}_mai_draws.rds")) %>%
+    ungroup() %>% 
+    select(.draw, variable, value, country),
+  by = c(".draw", "variable", "country"),
+  suffix = str_c(".", names(prefix_list))
+) 
+
+mai_change_stats <- mai_change_draws %>% 
+  mutate(ratio = `value.2016-2020`/`value.2011-2015`) %>% 
+  select(-contains("value.")) %>% 
+  group_by(country, variable) %>% 
+  summarise(mean = mean(ratio),
+            q2.5 = quantile(ratio, 0.025),
+            q97.5 = quantile(ratio, 0.975)) %>% 
+  ungroup() %>% 
+  mutate(shp_id = str_extract(variable, "[0-9]+") %>% as.numeric()) %>% 
+  inner_join(u_space_sf %>% 
+               select(country, location_period_id, shp_id, admin_level), .)
+
+saveRDS(mai_change_stats, file = str_glue("{opt$output_dir}/mai_ratio_stats.rds"))
+
 # Compute changes at ADM0 level
 mai_adm0_changes <-  mai_adm_all %>% 
   filter(admin_level == "ADM0") %>% 
@@ -163,7 +189,7 @@ mai_all_changes <- rates_overall %>%
   rename(location_period_id = variable) %>% 
   compute_rate_changes() %>% 
   mutate(country = "SSA")
-  
+
 
 # Get intended runs
 intended_runs <- get_intended_runs()
@@ -364,10 +390,10 @@ ggsave(plot = p_fig2,
 # Fig. 3A: Population at risk map
 p_fig3A <- output_plot_map(sf_obj = risk_pop_adm2 %>% 
                              filter(period == "2016-2020"), 
-                lakes_sf = lakes_sf,
-                all_countries_sf = afr_sf,
-                fill_var = "risk_cat",
-                fill_color_scale_type = "risk category") +
+                           lakes_sf = lakes_sf,
+                           all_countries_sf = afr_sf,
+                           fill_var = "risk_cat",
+                           fill_color_scale_type = "risk category") +
   scale_fill_viridis_d(direction = -1) + 
   theme(strip.background = element_blank(),
         strip.text = element_text(size = 15),
