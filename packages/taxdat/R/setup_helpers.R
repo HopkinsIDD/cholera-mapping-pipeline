@@ -1436,8 +1436,8 @@ check_drop_low_pop_lps <- function(x,
 check_drop_low_pop_lps_thresh <- function(drop_low_pop_lps_thresh) {
   
   if (is.null(drop_low_pop_lps_thresh)) {
-    cat("---- low pop thresh not specified, setting to default: 25 \n")
-    drop_low_pop_lps_thresh <- 25
+    cat("---- low pop thresh not specified, setting to default: 15 \n")
+    drop_low_pop_lps_thresh <- 15
   }
   if (drop_low_pop_lps_thresh < 0) {
     stop("---- low pop thresh cannot be < 0, value passed: ", drop_low_pop_lps_thresh)
