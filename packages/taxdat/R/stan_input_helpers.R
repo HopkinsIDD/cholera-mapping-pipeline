@@ -1951,7 +1951,7 @@ update_stan_data_imputation <- function(sf_cases_resized,
     if (new_loctime) {
       stan_data$map_loc_grid_grid <- c(stan_data$map_loc_grid_grid, cells)
       stan_data$map_loc_grid_loc <- c(stan_data$map_loc_grid_loc, rep(loctime, length(cells)))
-      stan_data$map_loc_grid_sfrac <- c(stan_data$map_loc_grid_sfrac, cells_sfrac)
+      stan_data$map_loc_grid_sfrac <- check_pop_weight_validity(c(stan_data$map_loc_grid_sfrac, cells_sfrac))
     }
   }
   
@@ -2077,7 +2077,7 @@ update_stan_data_indexing <- function(stan_data,
         stan_data$tfrac <- ind_mapping_resized$tfrac
       }
     } else if (var == "u_loc_grid_weights") {
-      stan_data$map_loc_grid_sfrac <- ind_mapping_resized$u_loc_grid_weights
+      stan_data$map_loc_grid_sfrac <- check_pop_weight_validity(ind_mapping_resized$u_loc_grid_weights)
     } else {
       stan_data[[var]] <- as.array(ind_mapping_resized[[var]])
     }

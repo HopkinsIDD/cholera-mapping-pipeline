@@ -82,6 +82,8 @@ params_df <- data.frame(
     drop_multiyear_adm0 = 'yes',
     drop_censored_adm0 = 'yes',
     drop_censored_adm0_thresh = 2,
+    drop_low_pop_lps = FALSE,
+    drop_low_pop_lps_thresh = '',
     censoring = 'yes',
     censoring_thresh = 0.65,
     set_tfrac = 'yes',
