@@ -224,6 +224,11 @@ drop_multiyear_adm0 <- taxdat::check_drop_multiyear_adm0(config$drop_multiyear_a
 drop_censored_adm0 <- taxdat::check_drop_censored_adm0(config$drop_censored_adm0)
 drop_censored_adm0_thresh <- taxdat::check_drop_censored_adm0_thresh(config$drop_censored_adm0_thresh)
 
+
+# Drop location periods with population below a specific threshold
+drop_low_pop_lps <- taxdat::check_drop_low_pop_lps(config$drop_low_pop_lps)
+drop_low_pop_lps_thresh <- taxdat::check_drop_low_pop_lps_thresh(config$drop_low_pop_lps_thresh)
+
 # - - - - - - - - - - - - - -
 ## SPATIAL GRID SETTINGS
 # - - - - - - - - - - - - - -
