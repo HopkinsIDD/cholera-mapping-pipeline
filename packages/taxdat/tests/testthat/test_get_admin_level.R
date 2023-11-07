@@ -24,9 +24,11 @@ test_that("get_admin_level works for TZA", {
   
   expect_identical(get_admin_level(loc1), 0)
   expect_identical(get_admin_level(loc1.1), 2)
-  expect_identical(get_admin_level(loc2), 0)
-  expect_identical(get_admin_level(loc2.1), 1)
-  expect_identical(get_admin_level(loc3), 0)
-  expect_identical(get_admin_level(loc3.1), 1)
+  
+  # Nov 7 2023: revert to having Mainland and ZNZ as ADM1 levels
+  expect_identical(get_admin_level(loc2), 1)
+  expect_identical(get_admin_level(loc2.1), 2)
+  expect_identical(get_admin_level(loc3), 1)
+  expect_identical(get_admin_level(loc3.1), 2)
   
 }) 
