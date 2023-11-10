@@ -56,16 +56,16 @@ plot_DroppedData_table <- function(config, cache, cholera_directory, aesthetic =
   if(nrow(used_obs_stats) < nrow(all_obs_stats)){ 
     dropped_year <- all_obs_stats$year[!all_obs_stats$year%in%used_obs_stats$year&!all_obs_stats$year=='all']
     used_obs_stats<-used_obs_stats%>%
-      add_row(year = dropped_year,
-              n_obs = rep(0,length(dropped_year)),
-              n_cases = rep(0,length(dropped_year)),
-              n_lp = rep(0,length(dropped_year)),
-              n_OCs = rep(0,length(dropped_year)),
-              u_lps = rep("none",length(dropped_year)),
-              u_OCs = rep("none",length(dropped_year))) %>% 
-      arrange(year) 
+      dplyr::add_row(year = dropped_year,
+                     n_obs = rep(0,length(dropped_year)),
+                     n_cases = rep(0,length(dropped_year)),
+                     n_lp = rep(0,length(dropped_year)),
+                     n_OCs = rep(0,length(dropped_year)),
+                     u_lps = rep("none",length(dropped_year)),
+                     u_OCs = rep("none",length(dropped_year))) %>% 
+      dplyr::arrange(year) 
   }
-  
+
   dropped_obs_stats <- all_obs_stats %>% 
     mutate(n_obs = all_obs_stats$n_obs - used_obs_stats$n_obs) %>% 
     mutate(n_cases = all_obs_stats$n_cases - used_obs_stats$n_cases) %>% 
