@@ -4,6 +4,7 @@
 #SBATCH --time=30-00:00
 #SBATCH --mem=8G
 #SBATCH -c 2
+#SBATCH --nodelist=idmodeling2
 
 echo "***** Beginning of script *****"
 date
