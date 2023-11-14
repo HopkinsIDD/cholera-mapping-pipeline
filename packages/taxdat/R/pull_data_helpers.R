@@ -621,6 +621,7 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL, time_le
 #' @param uids list of unique observation collection ids to pull
 #' @param discard_incomplete_observation_collections whether to discard incomplete observation collections (default is TRUE)
 #' @param unified_dataset_behaviour whether to keep, drop or select unified observation collections (default is drop)
+#' @param remove_private whether observations are from public data source
 #'
 #' @details Code follows taxdat::read_taxonomy_data_sql template.
 #' @return A data frame object containing data extracted from the database
@@ -629,6 +630,7 @@ read_taxonomy_observations_sql <- function(username, password, locations = NULL,
                                    time_right = NULL, uids = NULL, 
                                    discard_incomplete_observation_collections = TRUE, 
                                    unified_dataset_behaviour = "drop", 
+                                   remove_private = TRUE,
                                    host = "db.cholera-taxonomy.middle-distance.com") {
   if (missing(username) | missing(password)) {
     stop("Please provide username and password to connect to the taxonomy database.")
@@ -652,7 +654,7 @@ read_taxonomy_observations_sql <- function(username, password, locations = NULL,
   # Build query for observations
   obs_query <- paste(
     "SELECT", "observations.observation_collection_id, observations.time_left, observations.time_right,observations.suspected_cases, observations.confirmed_cases, observations.deaths, observations.phantom, observations.primary,observations.tested,observations.location_period_id,",
-    "observation_collections.unified,observation_collections.status",
+    "observation_collections.is_public,observation_collections.unified,observation_collections.status",
     "FROM", "observations",
     " left join observation_collections on observations.observation_collection_id = observation_collections.id",
     " WHERE"
@@ -710,8 +712,15 @@ read_taxonomy_observations_sql <- function(username, password, locations = NULL,
     warning("No uid filters.")
   }
   
+  if(remove_private){
+    private_filter <- paste0("is_public = TRUE")
+  } else {
+    private_filter <- NULL
+    warning("Observations from private sources are pulled.")
+  }
+  
   # Combine filters
-  filters <- c(time_left_filter, time_right_filter, uids_filter, oc_filter, unified_filter) %>%
+  filters <- c(time_left_filter, time_right_filter, uids_filter, oc_filter, unified_filter,private_filter) %>%
     paste(collapse = " AND ")
   
   # Run query for observations
@@ -737,6 +746,7 @@ read_taxonomy_observations_sql <- function(username, password, locations = NULL,
 #' @param uids list of unique observation collection ids to pull
 #' @param discard_incomplete_observation_collections whether to discard incomplete observation collections (default is TRUE)
 #' @param unified_dataset_behaviour whether to keep, drop or select unified observation collections (default is drop)
+#' @param remove_private remove private data sources
 #'
 #' @details Code follows taxdat::read_taxonomy_data_sql template.
 #' @return A data frame object containing data extracted from the database
@@ -745,6 +755,7 @@ read_taxonomy_oc_metadata_sql <- function(username, password, locations = NULL, 
                                            time_right = NULL, uids = NULL, 
                                            discard_incomplete_observation_collections = TRUE, 
                                            unified_dataset_behaviour = "drop", 
+                                           remove_private = TRUE,
                                            host = "db.cholera-taxonomy.middle-distance.com") {
   if (missing(username) | missing(password)) {
     stop("Please provide username and password to connect to the taxonomy database.")
@@ -767,7 +778,7 @@ read_taxonomy_oc_metadata_sql <- function(username, password, locations = NULL, 
   
   # Build query for observation collection metadata
   oc_query <- paste(
-    "SELECT", "id, is_public, owner, contact, source, source_url, notes, created_at,unified",
+    "SELECT", "id as observation_collection_id, is_public, owner, contact, source, source_url, notes, created_at,unified",
     "FROM", "observation_collections",
     " WHERE"
   ) 
@@ -795,8 +806,15 @@ read_taxonomy_oc_metadata_sql <- function(username, password, locations = NULL, 
     warning("No uid filters.")
   }
   
+  if(remove_private){
+    private_filter <- paste0("is_public = TRUE")
+  } else {
+    private_filter <- NULL
+    warning("Private observation collections are pulled.")
+  }
+  
   # Combine filters
-  filters <- c(uids_filter, unified_filter, oc_filter) %>%
+  filters <- c(uids_filter, unified_filter, oc_filter, private_filter) %>%
     paste(collapse = " AND ")
   
   cat("-- Pulling observation collection metadata from taxonomy database with SQL \n")
@@ -845,24 +863,19 @@ read_taxonomy_locationperiods_sql <- function(username, password, location_perio
   
   # Build query for location periods and shapefiles
   lp_query <- paste(
-    "SELECT", 
-    "locations.qualified_name as location_name, locations.id::text as location_id",
-    ",location_periods.id::text as location_period_id", ",shapes.shape as geojson",
-    "FROM", "observations", 
-    "left join location_hierarchies on observations.location_id = location_hierarchies.descendant_id",
-    "left join locations on observations.location_id = locations.id", "left join location_periods on observations.location_period_id = location_periods.id",
-    "left join shapes on shapes.location_period_id = location_periods.id",
+    "SELECT DISTINCT", 
+    "shape as geojson, location_period_id",
+    "FROM shapes",
     " WHERE"
   )
 
   if (!is.null(location_period)) {
     if (all(is.numeric(location_period))) {
-      location_period_filter <- paste0("location_periods.id in ({location_period*})")
+      location_period_filter <- paste0("location_period_id in ({location_period*})")
     } else {
       stop("SQL access by location_period is not yet implemented")
     }
   } else {
-    location_period_filter <- paste0("ancestor_id = descendant_id")
     stop("Please use a containing location as the location. Locations can't be NULL.")
   }
   
@@ -870,7 +883,7 @@ read_taxonomy_locationperiods_sql <- function(username, password, location_perio
 
   # Run query for location period and shapefiles
   lp_query <- glue::glue_sql(paste(lp_query,location_period_filter," ;"), .con = conn)
-  location_periods <- suppressWarnings(sf::st_as_sf(sf::st_read(conn, query = lp_query))) %>% dplyr::distinct()
+  location_periods <- suppressWarnings(sf::st_as_sf(sf::st_read(conn, query = lp_query)))
 
   if (nrow(location_periods) == 0) {
     stop(paste0("No location periods found using query ||", lp_query, "||"))
