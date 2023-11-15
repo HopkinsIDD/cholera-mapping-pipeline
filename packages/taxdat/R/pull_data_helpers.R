@@ -653,10 +653,12 @@ read_taxonomy_observations_sql <- function(username, password, locations = NULL,
   
   # Build query for observations
   obs_query <- paste(
-    "SELECT", "observations.observation_collection_id, observations.time_left, observations.time_right,observations.suspected_cases, observations.confirmed_cases, observations.deaths, observations.phantom, observations.primary,observations.tested,observations.location_period_id,",
-    "observation_collections.is_public,observation_collections.unified,observation_collections.status",
+    "SELECT", "observations.observation_collection_id, observations.time_left, observations.time_right,observations.suspected_cases, observations.confirmed_cases, observations.deaths, observations.phantom, observations.primary,observations.tested,observations.location_period_id,observations.location_id,",
+    "observation_collections.is_public,observation_collections.unified,observation_collections.status,",
+    "locations.qualified_name as location_name",
     "FROM", "observations",
     " left join observation_collections on observations.observation_collection_id = observation_collections.id",
+    " left join locations on observations.location_id = locations.id",
     " WHERE"
   ) 
   #observations.data includes the all the columns in observations: CFR, etc but also includes all the other observations)
