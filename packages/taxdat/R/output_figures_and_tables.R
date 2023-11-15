@@ -42,31 +42,31 @@ output_plot_map <- function(sf_obj,
   
   sf_obj %>% 
     ggplot2::ggplot(aes(fill = !!sym(fill_var))) +
-    ggplot2::geom_sf(data = all_countries_sf %>% 
+    ggplot2::geom_sf(data = all_countries_sf %>%
                        dplyr::filter(!intended_run),
                      inherit.aes = FALSE,
-                     linewidth = 0,
+                     lwd = 0,
                      alpha = 1,
                      fill = color_no_run_intended()) +
     ggplot2::geom_sf(data = all_countries_sf %>% 
                        dplyr::filter(intended_run),
                      inherit.aes = FALSE,
-                     linewidth = 0,
+                     lwd = 0,
                      alpha = 1,
                      fill = color_run_intended()) +
-    ggplot2::geom_sf(linewidth = border_width, color = border_color) + 
+    ggplot2::geom_sf(lwd = border_width, color = border_color) + 
     ggplot2::geom_sf(data = lakes_sf, fill = color_lake_fill(),
-                     color = color_lake_border(), 
-                     linewidth = .06,
+                     color = color_lake_border(),
+                     lwd = .06,
                      alpha = lake_alpha) +
-    # ggplot2::geom_sf(data = all_countries_sf,
-    #                  fill = color_afr_continent_fill(),
-    #                  color = "black",
-    #                  linewidth = country_border_width,
-    #                  alpha = 0) +
+    ggplot2::geom_sf(data = all_countries_sf,
+                     fill = color_afr_continent_fill(),
+                     color = "black",
+                     lwd = country_border_width,
+                     alpha = 0) +
     ggplot2::geom_sf(data = all_countries_sf,
                      inherit.aes = FALSE,
-                     linewidth = country_border_width,
+                     lwd = country_border_width,
                      color = country_border_color,
                      alpha = 0) +
     {  
@@ -139,7 +139,7 @@ plot_posterior_coverage <- function(gen_obs) {
     get_coverage() %>% 
     dplyr::mutate(admin_level = factor(admin_level, levels = 0:10)) %>% 
     ggplot2::ggplot(aes(x = cri, y = frac_covered, color = admin_level)) +
-    ggplot2::geom_line(aes(lty = admin_level), linewidth = 1) +
+    ggplot2::geom_line(aes(lty = admin_level), lwd = 1) +
     ggplot2::facet_wrap(~ country) +
     ggplot2::theme_bw() +
     ggplot2::coord_cartesian(ylim = c(0, 1)) +
