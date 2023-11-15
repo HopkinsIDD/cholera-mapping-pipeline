@@ -1,9 +1,9 @@
 #' @export
-#' @name plot_case_raster_admin_shp
+#' @name plot_case_raster_admin1_shp
 #' @param config
 #' @param cholera_directory
 #' @param cache
-plot_case_raster_admin_shp <- function(cache, cholera_directory, config) {
+plot_case_raster_admin1_shp <- function(cache, cholera_directory, config) {
   #load data and admin1 shapefiles
   taxdat::merge_modeled_cases_mean_into_raster(config=config, cache=cache, cholera_directory=cholera_directory,name = "modeled_cases_mean_raster")
   taxdat::get_output_shapefiles(config=config, cache=cache, cholera_directory=cholera_directory,name='output_shapefiles')
