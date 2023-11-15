@@ -1219,10 +1219,11 @@ get_sfrac_loctime <- function(stan_data, loctime) {
 #' @examples
 get_admin_level <- function(location_name) {
   
-  # Set admin levels for TZA: AFR::TZA, AFR::TZA::Mainland, and AFR::TZA::Zanzibar are adm0
-  if (stringr::str_detect(location_name, "TZA")) {
-    location_name <- stringr::str_remove(location_name, "::Mainland|::Zanzibar")
-  }
+  # Nov 7 2023: revert to having Mainland and ZNZ as ADM1 levels
+  # # Set admin levels for TZA: AFR::TZA, AFR::TZA::Mainland, and AFR::TZA::Zanzibar are adm0
+  # if (stringr::str_detect(location_name, "TZA")) {
+  #   location_name <- stringr::str_remove(location_name, "::Mainland|::Zanzibar")
+  # }
   
   stringr::str_count(location_name, "::") %>% 
     as.numeric() %>% 
