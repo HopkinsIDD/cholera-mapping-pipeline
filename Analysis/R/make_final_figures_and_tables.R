@@ -304,40 +304,69 @@ ggsave(p_fig2B,
        height = 6, 
        dpi = 600)
 
+mai_adm0_changes2 <- mai_adm0_changes %>% 
+  # !! change rate values to 1e-1/100'000 for display
+  mutate(across(c("2011-2015", "2016-2020"), function(x) {
+    x[x < 1e-6] <- 1e-6
+    x
+  })) 
+
+mai_region_changes2 <- mai_region_changes  %>% 
+  # !! change rate values to 1e-1/100'000 for display
+  mutate(across(c("2011-2015", "2016-2020"), function(x) {
+    x[x < 1e-6] <- 1e-6
+    x
+  })) 
+
+mai_all_changes2 <- mai_all_changes %>% 
+  # !! change rate values to 1e-1/100'000 for display
+  mutate(across(c("2011-2015", "2016-2020"), function(x) {
+    x[x < 1e-6] <- 1e-6
+    x
+  })) 
+  
 
 # Figure 3C: national-level scatterplot
-p_fig2C_scatter <- mai_adm0_changes %>% 
+p_fig2C_scatter <- mai_adm0_changes2 %>% 
   ggplot(aes(x = log10(`2011-2015`*1e5), 
              y =  log10(`2016-2020`*1e5), 
              col = AFRO_region)) +
   geom_abline(lty = 2, lwd = .2) +
   geom_point() +
-  geom_point(data = mai_region_changes,
+  geom_point(data = mai_region_changes2,
              pch = 5) +
   ggrepel::geom_label_repel(data = 
                               bind_rows(
-                                mai_region_changes %>% 
+                                mai_region_changes2 %>% 
                                   mutate(country = AFRO_region), 
-                                mai_adm0_changes 
-                              ),
-                            aes(label = country),
+                                mai_adm0_changes2,
+                                mai_all_changes2 %>% 
+                                  mutate(country = "SSA", 
+                                         AFRO_region = "SSA")
+                              ) %>% 
+                              mutate(is_region = str_detect(location_period_id, "country|tot")),
+                            aes(label = country, size = is_region, alpha = is_region),
                             min.segment.length = 0,
-                            max.overlaps = Inf) +
-  geom_point(data = mai_all_changes,
+                            max.overlaps = Inf, 
+                            xlim = c(-1, Inf),
+                            ylim = c(-1, Inf)) +
+  geom_point(data = mai_all_changes2,
              pch = 3,
              size = 4,
              color = "black") +
   theme_bw() +
   guides(color = guide_legend("WHO regions")) +
-  scale_x_continuous(limits = c(-2, 2),
-                     breaks = seq(-2, 2),
-                     labels = formatC(10^(seq(-2, 2)),
+  scale_size_manual(values = c(4, 6)) +
+  scale_alpha_manual(values = c(.6, 1)) +
+  scale_x_continuous(limits = c(-1.1, 2),
+                     breaks = seq(-1, 2),
+                     labels = formatC(10^(seq(-1, 2)),
                                       digits = 1,
                                       format = "fg", 
                                       big.mark = ",")) +
-  scale_y_continuous(limits = c(-2, 2),
-                     breaks = seq(-2, 2),
-                     labels = formatC(10^(seq(-2, 2)),
+  scale_y_continuous(limits = c(-1.1, 2),
+                     breaks = seq(-1, 2),
+                     labels = formatC(10^(seq(-1, 2)),
                                       digits = 1,
                                       format = "fg", 
                                       big.mark = ",")) +
@@ -353,8 +382,8 @@ p_fig_2C_regions <- ggplot(afr_sf, aes(fill = AFRO_region)) +
         panel.border = element_blank())
 
 p_fig2C <- ggdraw() +
-  draw_plot(p_fig2C_scatter) +
-  draw_plot(p_fig_2C_regions, x = 0.765, y = .7, width = .27, height = .27)
+  draw_plot(p_fig2C_scatter) #+
+  # draw_plot(p_fig_2C_regions, x = 0.765, y = .7, width = .27, height = .27)
 
 
 ggsave(p_fig2C,
