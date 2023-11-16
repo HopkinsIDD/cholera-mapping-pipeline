@@ -8,8 +8,9 @@
 #' @param cache the cache environment
 #' @param mean whether it's the average across all years 
 #' @param type rates or cases 
+#' @param use_log whether to use log (yes if w run and no if no w run)
 #' @return ggplot object
-plot_gam_fit_input <- function(name="initial_values_data", cache, mean = FALSE, type) {
+plot_gam_fit_input <- function(name="initial_values_data", cache, mean = FALSE, type, use_log = TRUE) {
   # Rates/cases 
   type_nrml <- ifelse(grepl('ase var', tolower(type)), "case variance", ifelse(grepl('ate var', tolower(type)),"rate variance",ifelse(grepl('ase', tolower(type)),"cases",ifelse(grepl('ate', tolower(type)),"rates","observations"))))
   
@@ -22,7 +23,7 @@ plot_gam_fit_input <- function(name="initial_values_data", cache, mean = FALSE, 
        { if(type_nrml == "rates") dplyr::mutate(., y = ifelse(y == 0, 1e-99, y)) else dplyr::mutate(., pop = 1) } %>%
        ggplot2::ggplot() +
        ggplot2::geom_tile(ggplot2::aes(x = sx, y = sy, fill = y / pop), color = 'black') +
-       taxdat::color_scale(type = type_nrml, use_case = "ggplot map", use_log = TRUE)+
+       taxdat::color_scale(type = type_nrml, use_case = "ggplot map", use_log = use_log)+
        ggplot2::labs(fill = ifelse(type_nrml == "cases", "Incidence [cases/year]", "Incidence rate (per 1e5)")) + 
        ggplot2::coord_fixed(ratio = 1) + 
        taxdat::map_theme()
@@ -41,7 +42,7 @@ plot_gam_fit_input <- function(name="initial_values_data", cache, mean = FALSE, 
       { if(type_nrml == "rates") dplyr::mutate(., y = ifelse(y == 0, 1e-99, y), y = y / pop) else dplyr::mutate(., y = y) } %>%
       ggplot2::ggplot() +
       ggplot2::geom_tile(ggplot2::aes(x = sx, y = sy, fill = y), color = 'black') +
-      taxdat::color_scale(type = type_nrml, use_case = "ggplot map", use_log = TRUE)+
+      taxdat::color_scale(type = type_nrml, use_case = "ggplot map", use_log = use_log)+
       ggplot2::labs(fill = ifelse(type_nrml == "cases", "Incidence [cases/year]", "Incidence rate (per 1e5)")) + 
       ggplot2::facet_wrap( ~ t) + 
       ggplot2::coord_fixed(ratio = 1) + 
@@ -65,7 +66,7 @@ plot_gam_fit_input <- function(name="initial_values_data", cache, mean = FALSE, 
       { if(type_nrml == "case variance") dplyr::group_by(.,t,sx, sy)%>%dplyr::summarize(variance = var(y)) else dplyr::group_by(.,t,sx, sy)%>%dplyr::summarize(variance = var(y/pop*1e5))} %>%
       ggplot2::ggplot() +
       ggplot2::geom_tile(ggplot2::aes(x = sx, y = sy, fill = variance), color = 'black') +
-      taxdat::color_scale(type = type_nrml, use_case = "ggplot map", use_log = TRUE)+
+      taxdat::color_scale(type = type_nrml, use_case = "ggplot map", use_log = use_log)+
       ggplot2::labs(fill = ifelse(type_nrml == "case variance", "Variance of cases \nper grid cell\n ", "Variance of rates per 1e5\n grid cell\n ")) + 
       ggplot2::facet_wrap( ~ t) + 
       ggplot2::coord_fixed(ratio = 1) + 
@@ -99,8 +100,9 @@ plot_gam_fit_input_cases_stitched <- function(name = "initial_values_data", cach
 #' @description plot the rasters with gam fitted input rates
 #' @param name the name of the dataset (initial values)
 #' @param cache the cache environment
+#' @param use_log whether to use log (yes if w run and no if no w run)
 #' @return ggplot object
-plot_gam_fit_input_rates_stitched <- function(name = "initial_values_data", cache) {
+plot_gam_fit_input_rates_stitched <- function(name = "initial_values_data", cache, use_log = TRUE) {
   cache[[name]]$gam_fit_input %>%
     dplyr::group_by(stitch_source, sx, sy) %>%
     dplyr::summarize(y = mean(y), pop = mean(pop)) %>%
@@ -110,7 +112,7 @@ plot_gam_fit_input_rates_stitched <- function(name = "initial_values_data", cach
     ggplot2::geom_tile(ggplot2::aes(x = sx, y = sy, fill = y / pop)) +
     ggplot2::facet_wrap(~stitch_source, ncol = 2, scales = "free") +
     taxdat::map_theme() +
-    taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
+    taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = use_log)+
     ggplot2::labs(fill="Incidence rate")
 }
 
@@ -162,14 +164,15 @@ plot_gam_fit_output_cases_stitched <- function(name = "gam_output_df", cache, ye
 #' @param name the name of the dataset (initial values)
 #' @param cache the cache environment
 #' @param year_vector vector of years to plot 
+#' @param use_log whether to use log (yes if w run and no if no w run)
 #' @return ggplot object
-plot_gam_fit_output_rates_stitched <- function(name = "gam_output_df", cache, year_vector){
+plot_gam_fit_output_rates_stitched <- function(name = "gam_output_df", cache, year_vector,use_log = TRUE){
   cache[[name]] %>%
     dplyr::mutate( t = t + (min(year_vector) - min(cache[[name]]$t)) ) %>% 
     ggplot2::ggplot() +
     ggplot2::geom_tile(ggplot2::aes(x = sx, y = sy, fill =lambda)) +
     taxdat::map_theme() +
-    taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = TRUE)+
+    taxdat::color_scale(type = "rates", use_case = "ggplot map", use_log = use_log)+
     ggplot2::labs(fill="Incidence rate")+
     ggplot2::facet_wrap(t~stitch_source, ncol = 2)
 }
