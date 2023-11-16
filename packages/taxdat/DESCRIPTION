@@ -51,6 +51,7 @@ Collate:
     'plot_MCMC.R'
     'plot_ObservationSummary_table.R'
     'plot_WHOcomparison_table.R'
+    'plot_case_raster_admin1_shp.R'
     'plot_covar_raster.R'
     'plot_map.R'
     'plot_modeled_cases_by_chain_time.R'
