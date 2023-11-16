@@ -33,7 +33,7 @@ plot_DroppedData_table <- function(config, cache, cholera_directory, aesthetic =
   used_obs_stats <- obs_stats[order(obs_stats$year), ] %>% 
     dplyr::filter(!grepl('imputed',u_OCs))
   #get all obs_stats
-  get_stan_input(name="stan_input",config=config, cache=cache, cholera_directory=cholera_directory)
+  get_sf_cases(name="sf_cases",config=config, cache=cache, cholera_directory=cholera_directory)
 
   all_obs_stats <- tibble::as_tibble(cache[["sf_cases"]])
   all_obs_stats <- dplyr::mutate(all_obs_stats, year = lubridate::year(TL))
@@ -52,6 +52,20 @@ plot_DroppedData_table <- function(config, cache, cholera_directory, aesthetic =
   
   all_obs_stats <- all_obs_stats[order(all_obs_stats$year), ]
   
+  #when all observations in a certain year are dropped:
+  if(nrow(used_obs_stats) < nrow(all_obs_stats)){ 
+    dropped_year <- all_obs_stats$year[!all_obs_stats$year%in%used_obs_stats$year&!all_obs_stats$year=='all']
+    used_obs_stats<-used_obs_stats%>%
+      dplyr::add_row(year = dropped_year,
+                     n_obs = rep(0,length(dropped_year)),
+                     n_cases = rep(0,length(dropped_year)),
+                     n_lp = rep(0,length(dropped_year)),
+                     n_OCs = rep(0,length(dropped_year)),
+                     u_lps = rep("none",length(dropped_year)),
+                     u_OCs = rep("none",length(dropped_year))) %>% 
+      dplyr::arrange(year) 
+  }
+
   dropped_obs_stats <- all_obs_stats %>% 
     mutate(n_obs = all_obs_stats$n_obs - used_obs_stats$n_obs) %>% 
     mutate(n_cases = all_obs_stats$n_cases - used_obs_stats$n_cases) %>% 
