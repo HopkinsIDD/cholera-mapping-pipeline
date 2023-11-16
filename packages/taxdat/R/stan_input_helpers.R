@@ -800,7 +800,7 @@ aggregate_single_lp <- function(.x,
   # Combine non-adjacent but overlapping observations
   .x <- .x %>% 
     dplyr::mutate(set = as.integer(NA)) %>% 
-    dplyr::arrange(dplyr::desc(TR))
+    dplyr::arrange(dplyr::desc(TR), dplyr::desc(!!rlang::sym(cases_column)))
   
   # Initialization
   .x$set[1] <- 0
@@ -1219,10 +1219,11 @@ get_sfrac_loctime <- function(stan_data, loctime) {
 #' @examples
 get_admin_level <- function(location_name) {
   
-  # Set admin levels for TZA: AFR::TZA, AFR::TZA::Mainland, and AFR::TZA::Zanzibar are adm0
-  if (stringr::str_detect(location_name, "TZA")) {
-    location_name <- stringr::str_remove(location_name, "::Mainland|::Zanzibar")
-  }
+  # Nov 7 2023: revert to having Mainland and ZNZ as ADM1 levels
+  # # Set admin levels for TZA: AFR::TZA, AFR::TZA::Mainland, and AFR::TZA::Zanzibar are adm0
+  # if (stringr::str_detect(location_name, "TZA")) {
+  #   location_name <- stringr::str_remove(location_name, "::Mainland|::Zanzibar")
+  # }
   
   stringr::str_count(location_name, "::") %>% 
     as.numeric() %>% 
@@ -1951,7 +1952,7 @@ update_stan_data_imputation <- function(sf_cases_resized,
     if (new_loctime) {
       stan_data$map_loc_grid_grid <- c(stan_data$map_loc_grid_grid, cells)
       stan_data$map_loc_grid_loc <- c(stan_data$map_loc_grid_loc, rep(loctime, length(cells)))
-      stan_data$map_loc_grid_sfrac <- c(stan_data$map_loc_grid_sfrac, cells_sfrac)
+      stan_data$map_loc_grid_sfrac <- check_pop_weight_validity(c(stan_data$map_loc_grid_sfrac, cells_sfrac))
     }
   }
   
@@ -2077,7 +2078,7 @@ update_stan_data_indexing <- function(stan_data,
         stan_data$tfrac <- ind_mapping_resized$tfrac
       }
     } else if (var == "u_loc_grid_weights") {
-      stan_data$map_loc_grid_sfrac <- ind_mapping_resized$u_loc_grid_weights
+      stan_data$map_loc_grid_sfrac <- check_pop_weight_validity(ind_mapping_resized$u_loc_grid_weights)
     } else {
       stan_data[[var]] <- as.array(ind_mapping_resized[[var]])
     }
@@ -2096,7 +2097,7 @@ update_stan_data_indexing <- function(stan_data,
 #' @examples
 check_pop_weight_validity <- function(map_loc_grid_sfrac) {
   # Check if sfrac is valid
-  if (any(map_loc_grid_sfrac > 1.01)) {
+  if (any(map_loc_grid_sfrac > 1)) {
     
     warning("Invalid sfrac values > 1", " Maximum value of ", 
             max(map_loc_grid_sfrac), ".",

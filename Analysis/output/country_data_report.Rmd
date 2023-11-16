@@ -679,13 +679,21 @@ print(config_file)
 **Observations input for the GAM model:**
 ```{r gam input of cases,fig.height=10, fig.width=15, fig.cap=capFig("Observations input for the GAM model (cases)")}
 if(config_file$warmup){
-plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="cases")
+  if(config_file$spatial_effect){
+    plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="cases", use_log = TRUE)
+  } else {
+    plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="cases", use_log = FALSE)
+  }
 }
 ```
 
 ```{r gam input of rates,fig.height=10, fig.width=15, fig.cap=capFig("Observations input for the GAM model (rates)")}
 if(config_file$warmup){
-plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="rates")
+    if(config_file$spatial_effect){
+    plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="rates", use_log = TRUE)
+  } else {
+    plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="rates", use_log = FALSE)
+  }
 }
 ```
 
@@ -697,13 +705,21 @@ plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="o
 
 ```{r variance of cases in gam input,fig.height=10, fig.width=15, fig.cap=capFig("Variance of cases in gam input per grid cell")}
 if(config_file$warmup){
-plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="case variance")
+  if(config_file$spatial_effect){
+    plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="case variance", use_log = TRUE)
+  } else {
+    plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="case variance", use_log = FALSE)
+  }
 }
 ```
 
 ```{r variance of rates in gam input,fig.height=10, fig.width=15, fig.cap=capFig("Variance of rates per 100000 in gam input per grid cell")}
 if(config_file$warmup){
-plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="rate variance")
+  if(config_file$spatial_effect){
+    plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="rate variance", use_log = TRUE)
+  } else {
+    plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="rate variance", use_log = FALSE)
+  }
 }
 ```
 

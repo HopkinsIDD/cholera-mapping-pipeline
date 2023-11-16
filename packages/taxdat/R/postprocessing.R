@@ -137,6 +137,65 @@ read_yaml_for_data <- function(config,
   config_list
 }
 
+
+
+#' make_prefix_from_config_dir
+#'
+#' @param prefix 
+#' @param config_dir 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+make_prefix_from_config_dir <- function(prefix = NULL,
+                                        config_dir) {
+  # Add config directory to prefix
+  prefix_add <- config_dir %>% 
+    # Remove tailing / to ensure non-empty string
+    stringr::str_remove("/$") %>% 
+    stringr::str_split("/") %>% 
+    .[[1]] %>% 
+    last()
+  
+  prefix_dir <- ifelse(is.null(prefix), prefix_add, paste(prefix, prefix_add, sep = "_"))
+  prefix_dir
+}
+
+#' Title
+#'
+#' @param fun_name 
+#' @param prefix 
+#' @param suffix 
+#' @param output_dir 
+#' @param output_file_type 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+read_output <- function(fun_name, 
+                        prefix = NULL,
+                        suffix = NULL,
+                        output_dir = "./",
+                        output_file_type = "rds") {
+  
+  res_file <- make_std_output_name(output_dir = output_dir,
+                                   fun_name = fun_name,
+                                   prefix = prefix,
+                                   suffix = suffix,
+                                   file_type = output_file_type,
+                                   verbose = FALSE)
+  
+  if (!file.exists(res_file)) {
+    stop("Output file ", res_file, " does not exist.")
+  }
+  
+  read_file_generic(res_file = res_file,
+                    file_type = output_file_type)
+  
+}
+
 # Postprocessing wrapper --------------------------------------------------
 
 postprocess_wrapper <- function(config,
@@ -204,7 +263,6 @@ postprocess_wrapper <- function(config,
   res
 }
 
-
 #' @title Run all
 #'
 #' @description Runs a function over a set of combinations of country,
@@ -242,19 +300,10 @@ run_all <- function(
     verbose = FALSE,
     ...) {
   
-  # Add config directory to prefix
-  prefix_add <- config_dir %>% 
-    # Remove tailing / to ensure non-empty string
-    stringr::str_remove("/$") %>% 
-    stringr::str_split("/") %>% 
-    .[[1]] %>% 
-    last()
-  
-  prefix_dir <- ifelse(is.null(prefix), prefix_add, paste(prefix, prefix_add, sep = "_"))
-  
   res_file <- make_std_output_name(output_dir = output_dir,
                                    fun_name = fun_name,
-                                   prefix = prefix_dir,
+                                   prefix = make_prefix_from_config_dir(config_dir = config_dir,
+                                                                        prefix = prefix),
                                    suffix = suffix,
                                    file_type = output_file_type,
                                    verbose = verbose)
@@ -363,21 +412,88 @@ postprocess_mean_annual_incidence <- function(config_list,
 #' @return
 #' @export
 #'
-postprocess_mai_adm0_cases <- function(config_list,
-                                       redo_aux = FALSE) {
+postprocess_adm0_cases <- function(config_list,
+                                   redo_aux = FALSE) {
   
   # Get genquant data
   genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
   
+  # Get index of national-level space output
+  adm0_ind <- get_adm0_index(config_list = config_list)
+  
   # This assumes that the first output shapefile is always the national-level shapefile
-  mai_adm0 <- genquant$draws("location_mean_cases_output[1]") %>% 
+  cases_adm0 <- genquant$draws(stringr::str_glue("location_mean_cases_output[{adm0_ind}]")) %>% 
     posterior::as_draws() %>% 
     posterior::as_draws_df() %>% 
     dplyr::as_tibble() %>% 
-    dplyr::rename(country_cases = `location_mean_cases_output[1]`)
+    dplyr::rename(country_cases = `location_mean_cases_output[1]`) %>% 
+    dplyr::mutate(country = get_country_from_string(config_list$file_names$stan_genquant_filename))
   
   
-  mai_adm0
+  cases_adm0
+}
+
+
+#' postprocess_mai_adm0_cases
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_adm0_rates <- function(config_list,
+                                   redo_aux = FALSE) {
+  
+  # Get total cases over modeled time peroid
+  cases_adm0 <- postprocess_adm0_cases(config_list = config_list,
+                                       redo_aux = redo_aux)
+  
+  # Get total population over modeled time period
+  pop_adm0 <- postprocess_adm0_pop(config_list = config_list,
+                                   redo_aux = redo_aux,
+                                   total_pop = FALSE)
+  
+  # Add population and compute rates
+  cases_adm0 %>% 
+    dplyr::mutate(country_pop = pop_adm0$country_pop[1],
+                  country_rates = country_cases/country_pop)
+}
+
+#' postprocess_mai_adm0_pop
+#' The object pop_loc_output in generated quantites contains the average 
+#' population in the location, computed as the sum over time slices divided 
+#' by the number of time slices. The function enables to return either the average
+#' or the total population. 
+#' 
+#' @param config_list config list
+#' @param redo_aux redo auxiliary files
+#' @param total_pop whether to return total population over modeling period or average population
+#'
+#' @return
+#' @export
+#'
+postprocess_adm0_pop <- function(config_list,
+                                 redo_aux = FALSE,
+                                 total_pop = FALSE) {
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # Get index of national-level output
+  adm0_ind <- get_adm0_index(config_list = config_list)
+  
+  # Get population
+  pop_adm0 <- genquant$summary(stringr::str_glue("pop_loc_output[{adm0_ind}]"), mean) %>% 
+    dplyr::rename(country_pop = mean)
+  
+  
+  if (total_pop) {
+    stan_input <- read_file_of_type(config_list$file_names$stan_input_filename, "stan_input") 
+    n_time_slices <- stan_input$stan_data[["T"]]
+    pop_adm0$country_pop <- pop_adm0$country_pop * n_time_slices
+  }
+  
+  pop_adm0
 }
 
 #' postprocess_coef_of_variation
@@ -534,7 +650,7 @@ postprocess_pop_at_risk <- function(config_list,
   
   # Get mean annual incidence summary
   pop_at_risk <- genquant$summary("tot_pop_risk", custom_summaries()) %>% 
-    dplyr::mutate(risk_cat = risk_cat_dict[as.numeric(str_extract(variable, "(?<=\\[)[0-9]+(?=,)"))],
+    dplyr::mutate(risk_cat = risk_cat_dict[as.numeric(stringr::str_extract(variable, "(?<=\\[)[0-9]+(?=,)"))],
                   risk_cat = factor(risk_cat, levels = risk_cat_dict),
                   admin_level = as.numeric(str_extract(variable, "(?<=,)[0-9]+(?=\\])")) - 1,
                   country = taxdat::get_country_isocode(config_list))
@@ -542,6 +658,39 @@ postprocess_pop_at_risk <- function(config_list,
   pop_at_risk
 }
 
+
+#' postprocess_pop_at_high_risk
+#' This is to match computations in the Lancet paper of > 100 cases/100'000
+#'
+#' @param config_list 
+#' @param redo_aux 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+postprocess_pop_at_high_risk <- function(config_list,
+                                         redo_aux = FALSE) {
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # Get dictionnary of risk categories
+  risk_cat_dict <- get_risk_cat_dict()
+  high_risk_ind <- which(risk_cat_dict == ">100")
+  high_risk_var <- stringr::str_glue("tot_pop_risk[{high_risk_ind},3]")                       
+  
+  # Get mean annual incidence summary
+  pop_at_hihgh_risk <- genquant$draws(high_risk_var) %>% 
+    posterior::as_draws() %>% 
+    posterior::as_draws_df() %>% 
+    dplyr::as_tibble() %>% 
+    dplyr::rename(c("pop_high_risk" =  high_risk_var)) %>% 
+    dplyr::mutate(country = get_country_from_string(config_list$file_names$stan_genquant_filename))
+  
+  
+  pop_at_hihgh_risk
+}
 
 #' postprocess_mean_annual_incidence
 #' 
@@ -681,6 +830,24 @@ get_output_sf_reload <- function(config_list,
   res
 }
 
+#' Title
+#'
+#' @param config_list 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+#' 
+get_adm0_index <- function(config_list) {
+  
+  stan_input <- taxdat::read_file_of_type(config_list$file_names$stan_input_filename, "stan_input")
+  
+  stan_input$output_lps %>%
+    dplyr::filter(admin_lev == 0) %>%
+    dplyr::pull(shp_id)
+}
+
 # get regions for countries -------------------------------------------------------
 
 #' get_AFRO_region
@@ -695,14 +862,24 @@ get_AFRO_region <- function(data, ctry_col) {
     dplyr::mutate(
       AFRO_region = dplyr::case_when(
         !!rlang::sym(ctry_col) %in% c("BDI","ETH","KEN","MDG","RWA","SDN","SSD","UGA","TZA") ~ "Eastern Africa",
-        !!rlang::sym(ctry_col) %in% c("MOZ","MWI","NAM","SWZ","ZMB","ZWE","ZAF") ~ "Southern Africa",
-        !!rlang::sym(ctry_col) %in% c("AGO","CMR","CAF","TCD","COG","COD","GNQ","GAN") ~ "Middle Africa",
+        !!rlang::sym(ctry_col) %in% c("BWA","MOZ","MWI","NAM","SWZ","ZMB","ZWE","ZAF") ~ "Southern Africa",
+        !!rlang::sym(ctry_col) %in% c("AGO","CMR","CAF","TCD","COG","COD","GNQ","GAN") ~ "Central Africa",
         !!rlang::sym(ctry_col) %in% c("BEN","BFA","CIV","GHA","GIN","GNB","LBR","MLI","MRT","NER","NGA","SEN","SLE","TGO") ~ "Western Africa",
         !!rlang::sym(ctry_col) %in% c("DJI","SOM","SDN") ~ "Eastern Mediterranean"
       ) 
     )
   
   return(data_with_AFRO_region)
+}
+
+#' Title
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_AFRO_region_levels <- function() {
+  c("Western Africa", "Central Africa", "Eastern Africa", "Eastern Mediterranean", "Southern Africa")
 }
 
 
@@ -860,10 +1037,12 @@ compute_cumul_proportion_thresh <- function(v, thresh = .95) {
   # Compute cumulative probability of being in a risk category larger or equal
   res <- all_counts/sum(all_counts)
   cum_prob <- cumsum(rev(res))
+  cum_prob_thresh <- cum_prob[dplyr::first(which(cum_prob >= thresh))]
+  names(cum_prob_thresh) <- NULL
   
   c(
     "risk_cat" = dplyr::first(rev(names(all_counts))[which(cum_prob >= thresh)]) %>% as.numeric(),
-    "cumul_prob" = cum_prob[dplyr::first(which(cum_prob >= thresh))]
+    "cumul_prob" = cum_prob_thresh
   )
 }
 
@@ -887,7 +1066,7 @@ get_country_from_string <- function(x) {
 custom_summaries <- function() {
   
   c(
-    "mean", "custom_quantile2",
+    "mean", "median", "custom_quantile2",
     posterior::default_convergence_measures(),
     posterior::default_mcse_measures()
   )
@@ -952,14 +1131,55 @@ get_coverage <- function(df,
 #' @export
 #'
 #' @examples
-aggregate_and_summarise_case_draws <- function(df, 
-                                               case_col = "country_cases") {
+aggregate_and_summarise_draws <- function(df, 
+                                          col = "country_cases",
+                                          weights_col = NULL) {
   df %>% 
-    dplyr::group_by(.draw) %>% 
-    dplyr::summarise(tot_cases = sum(!!rlang::sym(case_col))) %>% 
+    dplyr::group_by(.draw) %>%
+    {
+      x <- .
+      if (is.null(weights_col)) {
+        dplyr::summarise(x, tot = sum(!!rlang::sym(col))) 
+      } else {
+        dplyr::summarise(x, tot = sum(!!rlang::sym(col) * !!rlang::sym(weights_col))/sum(!!rlang::sym(weights_col))) 
+      }
+    } %>% 
     posterior::as_draws() %>% 
-    posterior::summarise_draws()
+    posterior::summarise_draws(custom_summaries())
 }
+
+#' aggregate_and_summarise_case_draws_by_region
+#'
+#' @param df 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+aggregate_and_summarise_draws_by_region <- function(df, 
+                                                    col = "country_cases",
+                                                    weights_col = NULL) {
+  df %>% 
+    get_AFRO_region(ctry_col = "country") %>% 
+    dplyr::group_by(.draw, AFRO_region) %>% 
+    {
+      x <- .
+      if (is.null(weights_col)) {
+        dplyr::summarise(x, tot = sum(!!rlang::sym(col))) 
+      } else {
+        dplyr::summarise(x, tot = sum(!!rlang::sym(col) * !!rlang::sym(weights_col))/sum(!!rlang::sym(weights_col))) 
+      }
+    } %>% 
+    dplyr::ungroup() %>% 
+    tidyr::pivot_wider(names_from = "AFRO_region",
+                       values_from = "tot") %>% 
+    janitor::clean_names() %>% 
+    dplyr::select(-draw) %>% 
+    magrittr::set_names(stringr::str_c(col, colnames(.), sep = "_")) %>% 
+    posterior::as_draws() %>% 
+    posterior::summarise_draws(custom_summaries())
+}
+
 
 #' tidy_shapefiles
 #'
@@ -999,4 +1219,38 @@ join_output_shapefiles <- function(output,
     dplyr::mutate(shp_id = str_extract(!!rlang::sym(var_col), "[0-9]+") %>% as.numeric()) %>% 
     dplyr::inner_join(output_shapefiles, ., by = "shp_id")
   
+}
+
+
+#' Title
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_no_w_runs <- function() {
+  # TODO
+  c("RWA-2011_2015")
+}
+
+
+#' get_intended_runs
+#'
+#' List of all countries with intended run
+#' Sheet Data Entry Tracking Feb 2022 from spreadsheet that can be downloaded from
+#' https://docs.google.com/spreadsheets/d/17MtTdUlC2tNLk3QPYdTzgFqiPacUg4rbi8cVTYoOaZE/edit#gid=1264119518
+#'
+#' @param csv_path 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_intended_runs <- function(csv_path = "Analysis/output/Data Entry Coordination - Data Entry Tracking - Feb 2022.csv") {
+  readr::read_csv(csv_path) %>% 
+    janitor::clean_names() %>% 
+    dplyr::filter(country != "GMB") %>% 
+    dplyr::mutate(isocode = dplyr::case_when(
+      stringr::str_detect(country, "TZA") ~ "TZA",
+      T ~ country))
 }

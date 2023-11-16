@@ -39,7 +39,6 @@ output_plot_map <- function(sf_obj,
                             country_border_width = .3,
                             country_border_color = "black",
                             cholera_dir = 'cholera-mapping-pipeline') {
-  afr_sf <- sf::st_read(paste(cholera_dir,"packages/taxdat/data/afr_sf_cleaned.shp",sep="/"))
   
   sf_obj %>% 
     ggplot2::ggplot(aes(fill = !!sym(fill_var))) +
@@ -60,11 +59,11 @@ output_plot_map <- function(sf_obj,
                      color = color_lake_border(), 
                      linewidth = .06,
                      alpha = lake_alpha) +
-    ggplot2::geom_sf(data = afr_sf,
-                     fill = color_afr_continent_fill(),
-                     color = "black",
-                     linewidth = country_border_width,
-                     alpha = 0) +
+    # ggplot2::geom_sf(data = all_countries_sf,
+    #                  fill = color_afr_continent_fill(),
+    #                  color = "black",
+    #                  linewidth = country_border_width,
+    #                  alpha = 0) +
     ggplot2::geom_sf(data = all_countries_sf,
                      inherit.aes = FALSE,
                      linewidth = country_border_width,
@@ -119,8 +118,8 @@ output_plot_map <- function(sf_obj,
     } +
     taxdat::map_theme() +
     # Zoom to bounding box
-    ggplot2::coord_sf(xlim = st_bbox(sf_obj)[c(1, 3)],
-                      ylim = st_bbox(sf_obj)[c(5, 6)]) +
+    # ggplot2::coord_sf(xlim = st_bbox(sf_obj)[c(1, 3)],
+    #                   ylim = st_bbox(sf_obj)[c(5, 6)]) +
     theme(panel.border = element_blank())
   
 }
@@ -186,5 +185,6 @@ get_lakes <- function(path = "Layers/geodata/Africa_waterbody.shp") {
 #' @examples
 get_risk_cat_dict <- function() {
   risk_cat_dict <- c("<1", "1-10", "10-20", "20-50", "50-100", ">100")
+  risk_cat_dict
 }
 
