@@ -45,7 +45,11 @@ package_list <- c(
   "coda", 
   "ggrepel", 
   "urltools", 
-  "cmdstanr"
+  "cmdstanr",
+  "Cairo",
+  "lwgeom",
+  "viridis",
+  "reshape2"
 )
 
 run_on_marcc <- as.logical(Sys.getenv("RUN_ON_MARCC",FALSE))
@@ -297,6 +301,7 @@ plot_unique_db_shps_by_time(config=params$config,cache=cache,cholera_directory=p
 cache[["case_raster"]] <-get_case_raster(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 cache[["disaggregated_rate_sf"]]<-get_disaggregated_rates_sf(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 cache[["disaggregated_case_sf"]]<-get_disaggregated_cases_sf (cache=cache,config=params$config,cholera_directory=params$cholera_directory)
+
 
 analysis_years <- lubridate::year(config_file$start_time):lubridate::year(config_file$end_time)
 obs_years <- min(lubridate::year(cache[["sf_cases_resized"]]$TL)):max(lubridate::year(cache[["sf_cases_resized"]]$TR))

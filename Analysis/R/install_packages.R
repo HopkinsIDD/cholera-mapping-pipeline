@@ -36,10 +36,10 @@ package_list <- c(
   "tibble",
   "zoo",
   "geodata",
-  "cmdstanr",
   "ISOcodes",
   "rgdal",
-)
+  "doParallel",
+  "tidyverse")
 
 chooseCRANmirror(graphics = FALSE, ind = 1)
 for (package in package_list) {
@@ -50,4 +50,6 @@ for (package in package_list) {
 
 # gdalUtils is not on CRAN, can be installed from github
 library(devtools)
-devtools:::install_github("gearslaboratory/gdalUtils")
+devtools::install_github("gearslaboratory/gdalUtils")
+devtools::install_github("wmgeolab/rgeoboundaries")
+devtools::install_github("stan-dev/cmdstanr")

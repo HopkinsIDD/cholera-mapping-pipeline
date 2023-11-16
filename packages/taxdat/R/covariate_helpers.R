@@ -1129,9 +1129,8 @@ write_metadata <- function(conn, covar_dir, covar_type, covar_alias, res_x, res_
 write_pg_raster <- function(dbuser, schema, table, outfile, band = 1) {
   dsn <- glue::glue("PG:dbname='cholera_covariates'", " user='{dbuser}' port=5432",
                     " schema='{schema}' table='{table}' mode=2")
-  
-  # ras <- rgdal::readGDAL(dsn)
-  ras <- terra::rast(dsn) 
+  # TODO: use terra instead of rgdal terra::rast(dsn, crs="+init=epsg:4326")
+  ras <- rgdal::readGDAL(dsn)
   ras2 <- raster::raster(ras)
   raster::writeRaster(ras2, outfile)
 }
