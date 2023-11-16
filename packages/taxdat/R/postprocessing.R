@@ -912,7 +912,7 @@ get_AFRO_region <- function(data, ctry_col) {
 #'
 #' @examples
 get_AFRO_region_levels <- function() {
-  c("Western Africa", "Central Africa", "Eastern Africa", "Eastern Mediterranean", "Southern Africa")
+  c("Western Africa", "Central Africa", "Eastern Africa", "Southern Africa")
 }
 
 
