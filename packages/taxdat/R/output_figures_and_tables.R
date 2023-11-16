@@ -14,6 +14,15 @@ coloramp_cases <- function(){c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993
 # colors_admin_levels <- function(){c( "#4F802A", "#5449C7", "#BF0B07", "#DBB50B")}
 colors_admin_levels <- function(){c("#CAE0C9", "#99CCFF", "#FF9999", "#CC9900", "#FF9933",'black')}
 
+#' @export
+colors_afro_regions <- function(){
+  colors <- RColorBrewer::brewer.pal("Set2", n = 6)
+  names(colors) <- c("Western Africa", "Central Africa",
+                     "Eastern Mediterranean",
+                     "Eastern Africa", "Southern Africa")
+  colors
+}
+
 # Figure functions --------------------------------------------------------
 
 #' output_plot_map
