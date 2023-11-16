@@ -1131,7 +1131,7 @@ write_pg_raster <- function(dbuser, schema, table, outfile, band = 1) {
                     " schema='{schema}' table='{table}' mode=2")
   # TODO: use terra instead of rgdal terra::rast(dsn, crs="+init=epsg:4326")
   ras <- rgdal::readGDAL(dsn)
-  ras2 <- raster::raster(ras)
+  ras2 <- raster::raster(ras, band)
   raster::writeRaster(ras2, outfile)
 }
 
