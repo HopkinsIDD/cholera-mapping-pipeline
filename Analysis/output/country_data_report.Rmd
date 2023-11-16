@@ -45,7 +45,11 @@ package_list <- c(
   "coda", 
   "ggrepel", 
   "urltools", 
-  "cmdstanr"
+  "cmdstanr",
+  "Cairo",
+  "lwgeom",
+  "viridis",
+  "reshape2"
 )
 
 run_on_marcc <- as.logical(Sys.getenv("RUN_ON_MARCC",FALSE))
@@ -155,6 +159,11 @@ file_names <- taxdat::get_filenames(
   config = str_c(params$cholera_directory, params$config, sep = "/") %>% yaml::read_yaml(), 
   cholera_directory = params$cholera_directory)
 get_output_shapefiles(name="output_shapefiles", config = params$config,cache=cache,cholera_directory = params$cholera_directory)
+
+# remove shapefiles that are not in the fake_output_obs
+cache[["output_shapefiles"]] <- cache[["output_shapefiles"]] %>%
+  dplyr::filter(location_period_id %in% cache[["stan_input"]]$fake_output_obs$locationPeriod_id) %>%
+  dplyr::arrange(location_period_id)
 ```
 
 ```{r output}
@@ -292,6 +301,7 @@ plot_unique_db_shps_by_time(config=params$config,cache=cache,cholera_directory=p
 cache[["case_raster"]] <-get_case_raster(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 cache[["disaggregated_rate_sf"]]<-get_disaggregated_rates_sf(cache=cache,config=params$config,cholera_directory=params$cholera_directory)
 cache[["disaggregated_case_sf"]]<-get_disaggregated_cases_sf (cache=cache,config=params$config,cholera_directory=params$cholera_directory)
+
 
 analysis_years <- lubridate::year(config_file$start_time):lubridate::year(config_file$end_time)
 obs_years <- min(lubridate::year(cache[["sf_cases_resized"]]$TL)):max(lubridate::year(cache[["sf_cases_resized"]]$TR))
@@ -467,7 +477,7 @@ risk_cat_num %>%
 
 ### Posterior probability of districts in a given risk category
 ```{r risk_cat_prob,fig.height=5,fig.width=10,fig.cap=capFig("Posterior probability of districts in a given risk category.")}
-risk_cat_dict <- c("<1", "1-10", "10-20", "20-50", "50-100", ">100")
+risk_cat_dict <- taxdat::get_risk_cat_dict()
 
 risk_cat_prob<-cache[["genquant"]]$draws(variables = "location_risk_cat")%>%
   apply(.,c(1,2),rbind) %>%
@@ -562,7 +572,16 @@ plot_time_varying_pop_raster(cache=cache,config=params$config,cholera_directory 
 
 ```
 
+```{r pop-comparison,fig.height=5,fig.width=10,fig.cap=capFig("Comparison of population data between genquant and wpp")}
+plot_pop_comparison(config=params$config, cache=cache, cholera_directory=params$cholera_directory)
+```
+
 ## Validation
+**Fraction of full observations covered by the prediction interval, by admin level:**
+```{r coverage,fig.height=5,fig.width=10,fig.cap=capFig("Fraction of full observations covered by the prediction interval, by admin level")}
+plot_posterior_coverage_cdr(cache=cache,config=params$config,cholera_directory = params$cholera_directory)
+```
+
 ```{r import_modelfidel}
 cache[["data_fidelity"]]<-get_data_fidelity(cache=cache,cholera_directory=params$cholera_directory,config=params$config)
 ```
@@ -660,13 +679,21 @@ print(config_file)
 **Observations input for the GAM model:**
 ```{r gam input of cases,fig.height=10, fig.width=15, fig.cap=capFig("Observations input for the GAM model (cases)")}
 if(config_file$warmup){
-plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="cases")
+  if(config_file$spatial_effect){
+    plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="cases", use_log = TRUE)
+  } else {
+    plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="cases", use_log = FALSE)
+  }
 }
 ```
 
 ```{r gam input of rates,fig.height=10, fig.width=15, fig.cap=capFig("Observations input for the GAM model (rates)")}
 if(config_file$warmup){
-plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="rates")
+    if(config_file$spatial_effect){
+    plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="rates", use_log = TRUE)
+  } else {
+    plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="rates", use_log = FALSE)
+  }
 }
 ```
 
@@ -678,13 +705,21 @@ plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="o
 
 ```{r variance of cases in gam input,fig.height=10, fig.width=15, fig.cap=capFig("Variance of cases in gam input per grid cell")}
 if(config_file$warmup){
-plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="case variance")
+  if(config_file$spatial_effect){
+    plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="case variance", use_log = TRUE)
+  } else {
+    plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="case variance", use_log = FALSE)
+  }
 }
 ```
 
 ```{r variance of rates in gam input,fig.height=10, fig.width=15, fig.cap=capFig("Variance of rates per 100000 in gam input per grid cell")}
 if(config_file$warmup){
-plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="rate variance")
+  if(config_file$spatial_effect){
+    plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="rate variance", use_log = TRUE)
+  } else {
+    plot_gam_fit_input (name="initial_values_data", cache=cache, mean=FALSE, type="rate variance", use_log = FALSE)
+  }
 }
 ```
 

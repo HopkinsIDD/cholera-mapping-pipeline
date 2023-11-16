@@ -782,8 +782,6 @@ space_aggregate <- function(src_file, res_file, ref_grid_db, covar_type, aggrega
 #' @export
 get_temporal_bands <- function(model_time_slices, covar_TL_seq, covar_TR_seq) {
   
-  print(model_time_slices)
-  warning("Remove me and the line above")
   # Get the covariate stack band indices that correspond to the model time slices
   ind_vec <- purrr::map(1:nrow(model_time_slices), ~which(covar_TL_seq == model_time_slices$TL[.] &
                                                             covar_TR_seq == model_time_slices$TR[.]))
@@ -795,7 +793,6 @@ get_temporal_bands <- function(model_time_slices, covar_TL_seq, covar_TR_seq) {
   
   ind_vec <- unlist(ind_vec)
   
-  print("checkpoint 1")
   return(list(ind = ind_vec, tl = covar_TL_seq[ind_vec], tr = covar_TR_seq[ind_vec]))
 }
 
@@ -1132,9 +1129,9 @@ write_metadata <- function(conn, covar_dir, covar_type, covar_alias, res_x, res_
 write_pg_raster <- function(dbuser, schema, table, outfile, band = 1) {
   dsn <- glue::glue("PG:dbname='cholera_covariates'", " user='{dbuser}' port=5432",
                     " schema='{schema}' table='{table}' mode=2")
-  
+  # TODO: use terra instead of rgdal terra::rast(dsn, crs="+init=epsg:4326")
   ras <- rgdal::readGDAL(dsn)
-  ras2 <- raster::raster(ras, band)
+  ras2 <- raster::raster(ras)
   raster::writeRaster(ras2, outfile)
 }
 
@@ -1166,6 +1163,7 @@ get_covariate_metadata <- function(conn_pg,
 #' @param covar_name the name of the covariate in the database (with schema)
 #' @param cntrd_table the table of centroids at which to extract values
 #' @param time_slices the time slices
+#' @param res_time the time resolution
 #' @param conn_pg connection to pg database
 #'
 #' @return a dataframe with pixel ids and values
@@ -1174,6 +1172,7 @@ get_covariate_metadata <- function(conn_pg,
 get_covariate_values <- function(covar_name,
                                  cntrd_table,
                                  time_slices,
+                                 res_time,
                                  conn_pg) {
   
   covar <- strsplit(covar_name, "\\.")[[1]][2]
@@ -1182,8 +1181,6 @@ get_covariate_values <- function(covar_name,
   covar_date_metadata <-  get_covariate_metadata(conn_pg = conn_pg,
                                                  covar = covar)
   
-  print(covar_date_metadata)
-  warning("Remove me and the above line")
   if (nrow(covar_date_metadata) == 0) {
     stop("Couldn't find covariate ", covar, "in metadata table")
   }
@@ -1241,14 +1238,16 @@ get_pop_weights <- function(res_space,
                             cntrd_table,
                             intersections_table,
                             lp_table,
-                            conn_pg) {
+                            conn_pg,
+                            res_time) {
   
   # First get the 20km populations in all cells
   pop_grid <- get_covariate_values(
     covar_name = stringr::str_glue("covariates.pop_1_years_{res_space}_{res_space}"),
     cntrd_table = cntrd_table,
     time_slices = time_slices, 
-    conn_pg = conn_pg)
+    conn_pg = conn_pg,
+    res_time = res_time)
   
   # Get covariate metadata then used to select temporal bands
   covar_date_metadata <- DBI::dbGetQuery(
@@ -1257,14 +1256,11 @@ get_pop_weights <- function(res_space,
           FROM covariates.metadata
           WHERE covariate = 'pop_1_years_1_1'",
                    .con = conn_pg))
-  print(covar_date_metadata)
-  warning("remove me and the lines above")
   
   # Define the left and right bounds of the temporal slices covered by the covariates
   covar_TL_seq <- seq.Date(as.Date(covar_date_metadata$first_tl[1]),
                            as.Date(covar_date_metadata$last_tl[1]),
                            by = res_time)
-  print("checkpoint 2")
   covar_TR_seq <- aggregate_to_end(time_change_func(covar_TL_seq))
   
   pop_1km_bands <- get_temporal_bands(model_time_slices = time_slices,
@@ -1272,13 +1268,14 @@ get_pop_weights <- function(res_space,
                                       covar_TR_seq = covar_TR_seq)
   
   query <- glue::glue_sql("
-      SELECT g.location_period_id, g.rid, g.x, g.y, {`{DBI::SQL(
+      SELECT g.location_period_id, g.rid, g.x, g.y, g.lp_covered, g.area_ratio,
+      {`{DBI::SQL(
       paste0(
         paste0('sum((ST_SummaryStats(ST_Clip(rast,', {pop_1km_bands$ind}, ', geom, true), 1, true)).sum) as values_', {pop_1km_bands$ind}),
         collapse = ','))}`}
       FROM covariates.pop_1_years_1_1 r, {`{DBI::SQL(intersections_table)}`} g
       WHERE ST_Intersects(rast, geom)
-      GROUP BY g.location_period_id, g.rid, g.x, g.y",
+      GROUP BY g.location_period_id, g.rid, g.x, g.y, g.lp_covered, g.area_ratio",
                           .con = conn_pg
   )
   
@@ -1295,7 +1292,7 @@ get_pop_weights <- function(res_space,
       tidyr::pivot_longer(cols = dplyr::contains("values"),
                           values_to = "pop_grid"),
     by = c("rid", "x", "y", "name")) %>%
-    dplyr::group_by(location_period_id, rid, x, y, name) %>%
+    dplyr::group_by(location_period_id, rid, x, y, lp_covered, area_ratio, name) %>%
     dplyr::summarise(pop_weight = pop_1km/pop_grid) %>%
     # Set fractions to 1 for all pixels contained within location periods
     # which were not selected by design in the intersections
@@ -1309,6 +1306,57 @@ get_pop_weights <- function(res_space,
 }
 
 
+#' get_country_admin_units_db
+#'
+#' @param iso_code 
+#' @param admin_levels 
+#' @param dbuser 
+#' @param source 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_country_admin_units_db <- function(iso_code,
+                                       admin_levels = 0:2,
+                                       dbuser = Sys.getenv("USER")) {
+  
+  db_conn <- try(connect_to_db(dbuser = dbuser))
+  
+  if (inherits(db_conn, "try-error")) {
+    stop("Failed to connect to database")
+  } else {
+    adm_sf <- sf::st_read(dsn = db_conn,
+                          query = 
+                            glue::glue_sql(.con = db_conn,
+                                           "SELECT *
+                                           FROM output_shapefiles
+                                           WHERE country = {iso_code} AND
+                                           admin_level IN ({paste0('ADM', admin_levels)*});")
+    ) 
+  }
+  
+  if (nrow(adm_sf) == 0) {
+    stop("-- Failed pulling output shapefiles from database. \n")
+  } else {
+    cat("-- Found output shapefiles in database.\n")
+  } 
+  
+  # Check hash of get_country_admin_units to make sure the data in the database matches the
+  # latest version of get_country_admin_units
+  ref_hash <- digest::digest(deparse(taxdat::get_country_admin_units), algo = "md5")
+  
+  if (any(adm_sf$get_country_admin_units_hash != ref_hash)) {
+    warning("Different get_country_admin_units hashes found in database and taxdat.",
+            "Check if get_country_admin_units was updated since the last pull.")
+  } else {
+    cat("-- get_country_admin_units hash check passed.\n")
+  }
+  
+  return(adm_sf)
+}
+
+
 #' Get country admin units
 #' Pulls the admin units based on the iso3 code using rgeoboundaries
 #' @param iso_code 
@@ -1319,43 +1367,49 @@ get_pop_weights <- function(res_space,
 #'
 get_country_admin_units <- function(iso_code, 
                                     admin_level = 1) {
-  library(sf)
   
   if (admin_level > 3) {
-    stop('Error: the current admin level is unnecessarily high or invalid, 
-
+    stop('Error: the current admin level is unnecessarily high or invalid,
             please check and change the parameters for the country data report before running again. ')
   }
   
   if (iso_code == "ZNZ" ) {
-    if(admin_level==0){
-      boundary_sf =sf::st_as_sf(geodata::gadm(country="TZA", level=1, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
+    
+    message("Using the aggregated gadm shapefiles for Zanzibar")
+    
+    if(admin_level == 0){
+      boundary_sf <- sf::st_as_sf(geodata::gadm(country="TZA", level=1, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
       unionized <- sf::st_union(boundary_sf)
       boundary_sf <- boundary_sf[1, ]
       sf::st_geometry(boundary_sf) <- unionized
-      } else {
-      boundary_sf =sf::st_as_sf(geodata::gadm(country="TZA", level=admin_level, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
+    } else {
+      boundary_sf <- sf::st_as_sf(geodata::gadm(country="TZA", level=admin_level, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
     }
-     # Fix colnames for compatibility with rest of code
+    
+    # Fix colnames for compatibility with rest of code
     boundary_sf <- boundary_sf %>% 
-       magrittr::set_colnames(.,tolower(colnames(boundary_sf))) %>%
-       dplyr::mutate(country="Tanzania",
-              gid_0="TZA")%>%
-       dplyr::mutate(name_0 = country,
-              shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
-              shapeType = paste0("ADM", admin_level))%>% 
-       dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
-                shapeID,
-                shapeType)
-    sf::st_crs(boundary_sf) <- sf::st_crs(4326)
-    message("Using the aggregated gadm shapefiles for this region")
-  } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA")&admin_level==0){
-    boundary_sf <- rgeoboundaries::gb_adm0(iso_code) %>%
-      dplyr::select(shapeName,shapeID,shapeType,geometry)
-    sf::st_crs(boundary_sf) <- sf::st_crs(4326)
-    message("Using the rgeoboundaries national shapefile for this country.")
+      magrittr::set_colnames(.,tolower(colnames(boundary_sf))) %>%
+      dplyr::mutate(country="Tanzania",
+                    gid_0="TZA")%>%
+      dplyr::mutate(name_0 = country,
+                    shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
+                    shapeType = paste0("ADM", admin_level))%>% 
+      dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
+                    shapeID,
+                    shapeType) %>% 
+      dplyr::mutate(source = "gadm")
+    
+  } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA")){
+    
+    message("Using the rgeoboundaries shapefiles for this country at admin level ", admin_level)
+    
+    boundary_sf <- rgeoboundaries::geoboundaries(country = iso_code,
+                                                 adm_lvl = paste0('adm',admin_level)) %>%
+      dplyr::select(shapeName, shapeID, shapeType, geometry) %>% 
+      dplyr::mutate(source = "rgeoboundaries")
+    
   } else {
-    message("Using the gadm national shapefile for this country.")
+    message("Using the gadm shapefile for this country at admin level ", admin_level)
     boundary_sf <- geodata::gadm(country = iso_code, 
                                  level = admin_level, 
                                  path = tempdir()) 
@@ -1367,6 +1421,7 @@ get_country_admin_units <- function(iso_code,
     # Fix colnames for compatibility with rest of code
     boundary_sf <- boundary_sf %>% 
       sf::st_as_sf() 
+    
     boundary_sf <- boundary_sf %>%
       magrittr::set_colnames(.,tolower(colnames(boundary_sf))) %>%
       dplyr::mutate(name_0 = country,
@@ -1374,11 +1429,12 @@ get_country_admin_units <- function(iso_code,
                     shapeType = paste0("ADM", admin_level)) %>% 
       dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
                     shapeID,
-                    shapeType)
-    
-    sf::st_crs(boundary_sf) <- sf::st_crs(4326)
+                    shapeType) %>% 
+      dplyr::mutate(source = "gadm")
   }
   
+  # Set reference WGS84 projection
+  sf::st_crs(boundary_sf) <- sf::st_crs(4326)
   sf::st_geometry(boundary_sf) <- "geom"
   
   boundary_sf <- boundary_sf %>% 
@@ -1393,7 +1449,8 @@ get_country_admin_units <- function(iso_code,
     dplyr::group_by(shapeName) %>% 
     dplyr::summarise(location_period_id = stringr::str_c(location_period_id, 
                                                          collapse = "_"),
-                     shapeType = shapeType[1])
+                     shapeType = shapeType[1],
+                     source = source[1])
   
   return(boundary_sf)
 }
@@ -1410,12 +1467,28 @@ get_country_admin_units <- function(iso_code,
 get_multi_country_admin_units <- function(iso_code,
                                           admin_levels = 0:2,
                                           lps = NULL,
-                                          clip_to_adm0 = TRUE) {
+                                          clip_to_adm0 = TRUE,
+                                          dbuser = Sys.getenv("USER"),
+                                          source = "database") {
+  
+  if (!(source %in% c("database", "api"))) {
+    stop("Source for output shapfiles must either be 'database' or 'api', found: ", source)
+  }
   
   if (iso_code == "testing") {
     # If testing run return the same shapefiles as the ones on location periods
     return(lps)
   } 
+  
+  
+  if (source == "database") {
+    adm_sf <- try(get_country_admin_units_db(iso_code  = iso_code, 
+                                             admin_level = admin_levels,
+                                             dbuser = dbuser))
+    if (!inherits(adm_sf, "try-error")) {
+      return(adm_sf)
+    }
+  }
   
   if (clip_to_adm0 & !(0 %in% admin_levels)) {
     stop("Admin level 0 needs to be included if clip_to_adm0 = TRUE.")
@@ -1424,20 +1497,20 @@ get_multi_country_admin_units <- function(iso_code,
   adm_sf <- purrr::map_df(admin_levels, 
                           ~ get_country_admin_units(iso_code = iso_code, 
                                                     admin_level = .) %>% 
-                            dplyr::rename(admin_level = shapeType) %>% 
-                            dplyr::arrange(location_period_id)
+                            dplyr::rename(admin_level = shapeType)
   )
   
   if (clip_to_adm0) {
     adm0_geom <- adm_sf %>% dplyr::slice(1)
     adm_sf <- adm_sf %>% 
-      dplyr::mutate(geom = sf::st_intersection(geom, adm0_geom$geom))
+      dplyr::mutate(geom = sf::st_make_valid(sf::st_intersection(geom, adm0_geom$geom)))
   }
   
   # Fix geometry collections if any
   adm_sf <- fix_geomcollections(adm_sf)
   
-  adm_sf
+  adm_sf %>% 
+    dplyr::arrange(location_period_id)
 }
 
 
@@ -1515,6 +1588,7 @@ get_country_isocode <- function(config) {
 #' @param cntrd_table 
 #' @param res_space 
 #' @param sf_grid 
+#' @param res_time
 #'
 #' @export
 #'
@@ -1524,7 +1598,8 @@ make_location_periods_dict <- function(conn_pg,
                                        cntrd_table,
                                        res_space,
                                        sf_grid,
-                                       grid_changer
+                                       grid_changer,
+                                       res_time
 ) {
   
   location_periods_table <- paste0(lp_name, "_dict")
@@ -1543,6 +1618,9 @@ make_location_periods_dict <- function(conn_pg,
   # Create a unique location period id which also accounts for the modeling time slice
   location_periods_dict <- location_periods_dict %>%
     dplyr::distinct(location_period_id, t) %>%
+    # !! Arrange by location period id to ensure consistency of ordering throughout
+    #   the pipeline
+    dplyr::arrange(location_period_id, t) %>%
     dplyr::mutate(loctime_id = dplyr::row_number()) %>%
     dplyr::inner_join(location_periods_dict)
   
@@ -1550,7 +1628,8 @@ make_location_periods_dict <- function(conn_pg,
                                          cntrd_table = cntrd_table,
                                          intersections_table = intersections_table,
                                          lp_table = lp_name,
-                                         conn_pg = conn_pg)
+                                         conn_pg = conn_pg,
+                                         res_time = res_time)
   
   location_periods_dict <- location_periods_dict %>% 
     dplyr::left_join(pop_weights,
@@ -1572,30 +1651,6 @@ make_location_periods_dict <- function(conn_pg,
   return(location_periods_dict)
 }
 
-#' Fix geometry collections
-#'
-#' @param shapefiles shapefiles to modify (sfc object)
-#'
-#' @return
-#' @export
-#'
-fix_geomcollections <- function(shapefiles) {
-  
-  for (i in 1:nrow(shapefiles)) {
-    tmp <- shapefiles[i,]
-    if (stringr::str_detect(sf::st_geometry_type(tmp), "COLL")) {
-      new_geom <- tmp  %>% 
-        sf::st_collection_extract(type = "POLYGON") %>% 
-        dplyr::summarise(geom = sf::st_union(geom))
-      
-      sf::st_geometry(shapefiles[i, ]) <- sf::st_geometry(new_geom)
-      
-      cat("---- Found GEOMETRYCOLLECTION, converting to MULTIPOLYGON. \n")
-    }
-  }
-  
-  shapefiles
-}
 
 # Modifications of the gdalUtils package ---------------------------------------
 

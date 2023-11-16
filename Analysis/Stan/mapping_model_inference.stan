@@ -4,6 +4,7 @@
 //
 
 // https://discourse.mc-stan.org/t/test-soft-vs-hard-sum-to-zero-constrain-choosing-the-right-prior-for-soft-constrain/3884/31
+
 functions {
   vector Q_sum_to_zero_QR(int N) {
     vector [2*N] Q_r;
@@ -27,7 +28,31 @@ functions {
     x[N] = x_aux;
     return x;
   }
+  
+  // Continous version of the Negative binomial function
+  // Replace the binomial coefficient with ratio of gamma functions
+  // Following: https://stats.stackexchange.com/questions/310676/continuous-generalization-of-the-negative-binomial-distribution
+  real neg_binomial_2_cont_lpdf(real x, real mu, real phi) {
+    real ll;
+    real log_gamma_ratio;    // the ratio of gamma functions replacing the binomial coefficient
+    
+    log_gamma_ratio = lgamma(x + phi) - lgamma(x + 1) - lgamma(phi);
+    ll = log_gamma_ratio + x * log(mu) - phi * log1p(mu/phi) - x * log(mu + phi);
+    
+    return ll;
+  }
+  
+  // Continous version of the Poisson distribution
+  // Replace the factorial with a gamma function
+  real poisson_cont_lpdf(real x, real lambda) {
+    real ll;
+    
+    ll = -lgamma(x + 1) + x * log(lambda) - lambda;
+    
+    return ll;
+  }
 }
+
 data {
   
   // Data sizes
@@ -54,32 +79,33 @@ data {
   int<lower=0, upper=1> do_zerosum_cnst;    // Whether to enforce a 0-sum constraint on the yearly random effects
   int<lower=0, upper=1> do_infer_sd_eta;    // Whether to infer the sd of the temporal random effect
   int<lower=0, upper=1> do_spatial_effect;    // Whether to have a spatial random effect
+  int<lower=0, upper=1> do_sd_w_mixture;    // Whether to have a spatial random effect
   
   // Spatial adjacency
   // Note: The adjacency matrix node1 should be sorted and lower triangular
-  int <lower=1, upper=smooth_grid_N> node1[N_edges];    // column 1 of the adjacency matrix
-  int <lower=1, upper=smooth_grid_N> node2[N_edges];    // column 2 of the adjacency matrix
+  array[N_edges] int <lower=1, upper=smooth_grid_N> node1;    // column 1 of the adjacency matrix
+  array[N_edges] int <lower=1, upper=smooth_grid_N> node2;    // column 2 of the adjacency matrix
   vector<lower=0, upper=smooth_grid_N>[smooth_grid_N] diag;    // rowSums of directed adjacency matrix
   
   // Observations
-  int <lower=0> y[M];    // observed counts of cholera cases
+  array[M] int <lower=0> y;    // observed counts of cholera cases
   int <lower=0, upper=M> M_full;    // number of observations that cover a full modeling time slice
   int <lower=0, upper=M> M_left;    // number of left-censored observations (open lower bound on the observation)
   int <lower=0, upper=M> M_right;   // number of right-censored observations (open upper bound on the observation)
-  int <lower=1, upper=M> ind_full[M_full];      // indexes of full observations
-  int <lower=1, upper=M> ind_left[M_left];      // indexes of left-censored observations
-  int <lower=1, upper=M> ind_right[M_right];    // indexes of right-censored observations
-  real <lower=0, upper=1> tfrac[K1];            // the time fraction side of the mapping from observations to location/times
-  int <lower=0, upper=1> censored[K1];          // Whether data is censored in the mapping from observations to location/times
+  array[M_full] int <lower=1, upper=M> ind_full;      // indexes of full observations
+  array[M_left] int <lower=1, upper=M> ind_left;      // indexes of left-censored observations
+  array[M_right] int <lower=1, upper=M> ind_right;    // indexes of right-censored observations
+  array[K1] real <lower=0, upper=1> tfrac;            // the time fraction side of the mapping from observations to location/times
+  array[K1] int <lower=0, upper=1> censored;          // Whether data is censored in the mapping from observations to location/times
   
   // Mappings
-  int <lower=0, upper=M> map_obs_loctime_obs[K1];    // the observation side of the mapping from observations to location/times
-  int <lower=0, upper=L> map_obs_loctime_loc[K1];    // the location side of the mapping from observations to location/times
-  int <lower=0, upper=L> map_loc_grid_loc[K2];       // the location side of the mapping from locations to gridcells
-  int <lower=0, upper=N> map_loc_grid_grid[K2];      // the gridcell side of the mapping from locations to gridcells
-  int <lower=0, upper=smooth_grid_N> map_smooth_grid[N];    // vector with repeating smooth_grid_N indexes repeating 1:N
-  real <lower=0, upper=1> map_loc_grid_sfrac[K2];    // the population-weighed location spatial fraction covered by each gridcell
-  int<lower=1, upper=N_admin_lev> map_obs_admin_lev[M];    // administrative level of each observation for observation model
+  array[K1] int <lower=0, upper=M> map_obs_loctime_obs;    // the observation side of the mapping from observations to location/times
+  array[K1] int <lower=0, upper=L> map_obs_loctime_loc;    // the location side of the mapping from observations to location/times
+  array[K2] int <lower=0, upper=L> map_loc_grid_loc;       // the location side of the mapping from locations to gridcells
+  array[K2] int <lower=0, upper=N> map_loc_grid_grid;      // the gridcell side of the mapping from locations to gridcells
+  array[N] int <lower=0, upper=smooth_grid_N> map_smooth_grid;    // vector with repeating smooth_grid_N indexes repeating 1:N
+  array[K2] real <lower=0, upper=1> map_loc_grid_sfrac;    // the population-weighed location spatial fraction covered by each gridcell
+  array[M] int<lower=1, upper=N_admin_lev> map_obs_admin_lev;    // administrative level of each observation for observation model
   
   // Time slices
   vector<lower=0, upper=1>[N*do_time_slice_effect] has_data_year;
@@ -87,7 +113,7 @@ data {
   matrix[N*do_time_slice_effect + 2 * (do_time_slice_effect != 1), T*do_time_slice_effect + 2*(do_time_slice_effect != 1)] mat_grid_time; // The time side of the mapping from locations/times to grid (2x2 in case of missing just so it's easy to create)
   
   // Covariates
-  real <lower=1> pop[N];               // population by cell over all time points
+  array[N] real <lower=1> pop;               // population by cell over all time points
   real <lower=0, upper=1> meanrate;    // mean cholera rate used as offset
   matrix[N,ncovar] covar;              // covariate matrix
   
@@ -96,27 +122,32 @@ data {
   real<lower=0> sigma_eta_scale;    // the scale of temporal random effects sd
   real mu_alpha;             // the mean of the intercept, if used
   real<lower=0> sd_alpha;    // the sd of the intercept, if used
-  real<lower=0> mu_inv_od[N_admin_lev];    // the means of the inverse over-dispersion parameters
-  real<lower=0> sd_inv_od[N_admin_lev];    // the sds of the inverse over-dispersion parameters
+  array[N_admin_lev] real<lower=0> mu_inv_od;    // the means of the inverse over-dispersion parameters
+  array[N_admin_lev] real<lower=0> sd_inv_od;    // the sds of the inverse over-dispersion parameters
   real<lower=0> mu_sd_w;
   real<lower=0> sd_sd_w;
   
   // Debug
   int debug;
+  
+  // Over-dispersion at adm0
+  real<lower=0> adm0_od;
 }
 
 transformed data {
   vector<lower=0>[N] logpop;              // populations by timestep
   real log_meanrate = log(meanrate);
-  real<lower=0> weights[M*(1-do_censoring)*use_weights];    // a function of the expected offset for each observation used to downwight the likelihood
-  real <lower=0> pop_loctimes[L];        // pre-computed population in each location period
-  real <lower=0, upper=1> tfrac_censoring[K1]; // tfrac accounting for censoring
+  array[M*(1-do_censoring)*use_weights] real<lower=0> weights;    // a function of the expected offset for each observation used to downwight the likelihood
+  array[L] real<lower=0> pop_loctimes;        // pre-computed population in each location period
+  array[K1] real<lower=0, upper=1> tfrac_censoring; // tfrac accounting for censoring
   int<lower=0, upper=1> do_overdispersion;    // derived option to know whether the models contain overdispertion or not
   vector[2*T] Q_r = Q_sum_to_zero_QR(T);      // this is for the 0-centered temporal random effects if used
   real eta_zerosum_raw_sigma = inv_sqrt(1 - inv(T));
   int<lower=0, upper=T> size_eta;
   int<lower=0, upper=1> size_sd_eta;
   int<lower=0, upper=smooth_grid_N> size_w; 
+  int<lower=0, upper=1> size_lambda; 
+  int<lower=0, upper=2> size_sigma_std_dev_w; 
   
   for (i in 1:K1) {
     if (censored[i] == 1) {
@@ -179,31 +210,43 @@ transformed data {
   // Saptial random effect
   if (do_spatial_effect == 1) {
     size_w = smooth_grid_N;
+    // Size of prior on std_dev_w
+    if (do_sd_w_mixture == 1) {
+      size_lambda = 1;
+      size_sigma_std_dev_w = 2;
+    } else {
+      size_lambda = 0;
+      size_sigma_std_dev_w = 1;
+    }
   } else {
     size_w = 0;
+    size_lambda = 0;
+    size_sigma_std_dev_w = 0;
   }
 }
 
 parameters {
   // Intercept
-  real alpha[use_intercept];    
+  array[use_intercept] real<lower=-8, upper=8> alpha;    
   
   // Spatial random effects
-  real <lower=0, upper=.99> rho;    // spatial correlation parameter
-  real<lower=0> std_dev_w;             // precision of the spatial effects
+  array[do_spatial_effect] real<lower=0, upper=.99> rho;    // spatial correlation parameter
+  array[do_spatial_effect] real<lower=0> std_dev_w;             // precision of the spatial effects
   vector<lower=-15, upper=15>[size_w] w;        // spatial random effect
-  real<lower=0, upper=1> lambda;
+  array[size_lambda] real<lower=0, upper=1> lambda;
   
   // Temporal random effects
   vector[size_eta] eta_tilde;    // uncentered temporal random effects
-  real <lower=0> sigma_eta[size_sd_eta];    // sd of temporal random effects
+  array[size_sd_eta] real <lower=0> sigma_eta;    // sd of temporal random effects
   
   // Covariate effects
   vector[ncovar] betas;
   
   // Overdispersion parameters
   vector<lower=0>[(N_admin_lev-1)*do_overdispersion] inv_od_param;
-  real<lower=0> sigma_std_dev_w[2];
+  array[size_sigma_std_dev_w] real<lower=0> sigma_std_dev_w;
+  
+  vector[M_right] raw_dummy_right;
 }
 
 transformed parameters {
@@ -218,7 +261,7 @@ transformed parameters {
   
   
   if (do_overdispersion == 1) {
-    od_param[1] = 1e2;
+    od_param[1] = adm0_od;
     for (i in 2:N_admin_lev) {
       od_param[i] = 1/inv_od_param[(i-1)];
     }
@@ -419,9 +462,9 @@ model {
     vector[smooth_grid_N] t_rowsum; // only the rowsum of t is used
     
     // Construct w
-    b = rho ./ (1 + (diag - 1) * rho * rho );
-    vec_var = (1 - rho * rho) ./ (1 + (1. * diag - 1) * rho * rho);
-    std_dev = std_dev_w * sqrt(vec_var);
+    b = rho[1] ./ (1 + (diag - 1) * rho[1] * rho[1]);
+    vec_var = (1 - rho[1] * rho[1]) ./ (1 + (1. * diag - 1) * rho[1] * rho[1]);
+    std_dev = std_dev_w[1] * sqrt(vec_var);
     
     // Linear in number of edges
     for(i in 1:smooth_grid_N){
@@ -437,22 +480,26 @@ model {
     if (debug && (previous_debugs == 0)) {
       print("dagar", target());
     }
-  }
-  
-  // prior on rho if provided
-  if (use_rho_prior == 1) {
-    rho ~ beta(5,1.5);
-    if (debug && (previous_debugs == 0)) {
-      print("rho", target());
+    
+    // prior on rho if provided
+    if (use_rho_prior == 1) {
+      rho ~ beta(5,1.5);
+      if (debug && (previous_debugs == 0)) {
+        print("rho", target());
+      }
+    }
+    
+    if (do_sd_w_mixture == 1) {
+      target += log_mix(lambda[1], normal_lpdf(std_dev_w |mu_sd_w, sigma_std_dev_w[1]), normal_lpdf(std_dev_w |0, sigma_std_dev_w[2]));
+      lambda[1] ~ beta(1, 3);
+      
+      sigma_std_dev_w[1] ~ normal(0, 2);
+      sigma_std_dev_w[2] ~ normal(0, .5);
+    } else {
+      std_dev_w ~ normal(5, 0.5);
+      sigma_std_dev_w[1] ~ normal(0, 1);
     }
   }
-  
-  target += log_mix(lambda, normal_lpdf(std_dev_w |mu_sd_w, sigma_std_dev_w[1]), normal_lpdf(std_dev_w |0, sigma_std_dev_w[2]));
-  lambda ~ beta(2, 1);
-  
-  sigma_std_dev_w[1] ~ normal(0, 2);
-  sigma_std_dev_w[2] ~ normal(0, .5);
-  
   
   if (debug && (previous_debugs == 0)) {
     print("dagar std", target());
@@ -535,59 +582,35 @@ model {
     }
     
     if (M_right > 0) {
-      //data model for estimated rates for right-censored time slice observations
-      //note that according to Stan the complementary CDF, or CCDF(Y|modeled_cases)
-      // is defined as Pr(Y > y | modeled_cases),
-      // we therefore add the probability Pr(Y = y|modeled_cases) to CCDF(y|modeled_cases)
-      // to get Pr(Y >= y|modeled_cases)
-      //https://mc-stan.org/docs/2_25/functions-reference/cumulative-distribution-functions.html
-      
       vector[M_right] lp_censored;
+      
+      // Create constrained dummy variables
       
       for(i in 1:M_right){
         real lpmf;
+        real dummy_right;
+        int j = ind_right[i];
+        
+        dummy_right = y[j] + exp(raw_dummy_right[i]);
         
         if (obs_model == 1) {
           // Poisson likelihood
-          lpmf = poisson_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
+          lpmf = poisson_cont_lpdf(dummy_right | modeled_cases[j]);
         } else if (obs_model == 2) {
           // Quasi-poisson likelihood
-          lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]] * modeled_cases[ind_right[i]]);
+          lpmf = neg_binomial_2_cont_lpdf(dummy_right | modeled_cases[j], od_param[map_obs_admin_lev[j]] * modeled_cases[j]);
         } else {
           // Neg-binom likelihood
-          lpmf = neg_binomial_2_lpmf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]]);
+          lpmf = neg_binomial_2_cont_lpdf(dummy_right | modeled_cases[j], od_param[map_obs_admin_lev[j]]);
         }
         
-        // heuristic condition to only use the PMF if Prob(Y>y| modeled_cases) ~ 0
-        if ((y[ind_right[i]] < modeled_cases[ind_right[i]]) || ((y[ind_right[i]] > modeled_cases[ind_right[i]]) && (lpmf > -35))) {
-          real lls[2];
-          if (obs_model == 1) {
-            // Poisson likelihood
-            lls[1] = poisson_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]]);
-          } else if (obs_model == 2) {
-            // Quasi-poisson likelihood
-            lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]] * modeled_cases[ind_right[i]]);
-          } else {
-            // print("i: ", i, " y: ", y[ind_right[i]], " mcases: ", modeled_cases[ind_right[i]], " od: ", od_param[map_obs_admin_lev[ind_right[i]]]);
-            // Neg-binom likelihood
-            lls[1] = neg_binomial_2_lccdf(y[ind_right[i]] | modeled_cases[ind_right[i]], od_param[map_obs_admin_lev[ind_right[i]]]);
-          }
-          lls[2] = lpmf;
-          lp_censored[i] = log_sum_exp(lls);
-        } else {
-          lp_censored[i] = lpmf;
-        }
+        // Add constrained likelihood and log-jacobian det for transformation
+        target += lpmf + raw_dummy_right[i];
       }
-      
-      target += sum(lp_censored);
       
       if (debug && (previous_debugs == 0)) {
         print("right censored obs", target());
       }
-      // add a 0-centered prior on the censored cases
-      // for (idx in ind_right) {
-        //   modeled_cases[idx] ~ cauchy(0, 2);
-        // }
     }
   } else {
     if (use_weights == 1) {

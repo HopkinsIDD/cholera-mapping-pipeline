@@ -2,15 +2,15 @@
 library(readr)
 library(taxdat)
 #========================================================READ ME========================================================#
-# This new general config writer is updated for the general pipeline run in Jan, 2023 
-# This new writer with the updated "automate_mapping_config" function in the config_helpers.R 
-# All script settings and relevant parameters should be specified to generate the configs needed                                              
-#========================================================READ ME========================================================#  
+# This new general config writer is updated for the general pipeline run in Jan, 2023
+# This new writer with the updated "automate_mapping_config" function in the config_helpers.R
+# All script settings and relevant parameters should be specified to generate the configs needed
+#========================================================READ ME========================================================#
 
 
 
-####       Modify the following settings      ############## 
-cholera_directory <- "." 
+####       Modify the following settings      ##############
+cholera_directory <- "."
 setwd(cholera_directory)
 config_path <- "Analysis/configs/..." #<-----dependent on where to save the configs
 dir.create(file.path(cholera_directory, config_path), FALSE)
@@ -19,8 +19,8 @@ Sys.setenv("CHOLERA_TESTING" = "FALSE")
 scale <- "country" ## country or region maps
 specified_countries <- c("SDN") #<-----by default NULL if running all countries
 # covar_names <- c("dist_to_water", "water_access", "san_access", "open_defe", "stunting", "wasting", "access_cities")
-# ^-----refer to "Layers/covariate_dictionary.yml" for covariate names if running any covariates other than the population 
-covar_names <- c() #<-----if running without using any covariates other than population 
+# ^-----refer to "Layers/covariate_dictionary.yml" for covariate names if running any covariates other than the population
+covar_names <- c() #<-----if running without using any covariates other than population
 Sys.setenv("CHOLERA_START_TIME" = "2016-01-01")
 Sys.setenv("CHOLERA_END_TIME" = "2020-12-31")
 
@@ -40,68 +40,74 @@ config_start_time <- Sys.getenv("CHOLERA_START_TIME","2016-01-01")
 config_end_time <- Sys.getenv("CHOLERA_END_TIME","2020-12-31")
 
 params_df <- data.frame(
-    name = 'prd-2023',  
+    name = 'prd-jul2023',
     aoi = 'raw',
     res_space = 20,
-    res_time = '1 years', 
+    res_time = '1 years',
     grid_rand_effects_N = 1,
     case_definition = 'suspected',
     start_time = config_start_time,
     end_time = config_end_time,
     data_source = 'sql',
-    ovrt_metadata_table = 'no', 
-    OCs = '', 
-    taxonomy = '', 
+    ovrt_metadata_table = 'no',
+    OCs = '',
+    taxonomy = '',
     summary_admin_levels = '[0,1,2]',
-    obs_model = 3, 
+    adjust_pop_UN = TRUE,
+    obs_model = 3,
     inv_od_sd_adm0 = 0.01,
     inv_od_sd_nopool = 1,
-    h_mu_sd_inv_od = 0.01,
-    h_sd_sd_inv_od = 0.05,
     spatial_effect = 'yes',
-    mu_sd_w = 10, 
-    sd_sd_w = 3, 
+    do_sd_w_mixture = 'yes',
+    mu_sd_w = 10,
+    sd_sd_w = 3,
     ncpus_parallel_prep = 2,
     do_parallel_prep = 'yes',
     time_effect = 'yes',
     time_effect_autocorr = 'no',
-    use_intercept = 'no', 
-    covariate_transformations = '', 
+    use_intercept = 'no',
+    covariate_transformations = '',
     beta_sigma_scale = 1,
     sigma_eta_scale = 1,
-    mu_alpha = 0, 
-    sd_alpha = 1, 
-    exp_prior = 'no', 
-    do_infer_sd_eta = 0, 
-    do_zerosum_cnst = 1, 
-    use_weights = 'no', 
+    mu_alpha = 0,
+    sd_alpha = 1,
+    exp_prior = 'no',
+    do_infer_sd_eta = 'no',
+    do_zerosum_cnst = 'yes',
+    use_weights = 'no',
     covar_warmup = 'yes',
     warmup = 'yes',
     aggregate = 'yes',
     tfrac_thresh = 0,
-    drop_multiyear_adm0 = 'no',
+    drop_multiyear_adm0 = 'yes',
+    drop_censored_adm0 = 'yes',
+    drop_censored_adm0_thresh = 2,
+    drop_low_pop_lps = FALSE,
+    drop_low_pop_lps_thresh = '',
     censoring = 'yes',
-    censoring_thresh = 0.65, 
+    censoring_thresh = 0.65,
     set_tfrac = 'yes',
-    snap_tol =  '7/365', 
-    use_pop_weight = 'yes', 
-    sfrac_thresh = '0.05', 
+    snap_tol =  '7/365',
+    use_pop_weight = 'yes',
+    use_rho_prior = 'yes',
+    sfrac_thresh_border = '0.3',
+    sfrac_thresh_conn = '0.05',
     ingest_covariates = 'no',
-    ingest_new_covariates = 'no', 
+    ingest_new_covariates = 'no',
     ncores = 4,
-    model = 'mapping_model_inference', 
-    genquant = 'mapping_model_generate', 
-    iter_warmup = 1100, 
-    iter_sampling = 1000, 
-    recompile = 'yes', 
-    output_directory = '', 
-    observations_filename = '', 
-    covariate_filename = '', 
-    stan_input_filename = '', 
-    initial_values_filename = '', 
-    stan_output_filename = '', 
-    stan_genquant_filename = '', 
-    country_data_report_filename = '', 
+    model = 'mapping_model_inference',
+    genquant = 'mapping_model_generate',
+    iter_warmup = 1000,
+    iter_sampling = 1000,
+    recompile = 'yes',
+    output_directory = '',
+    observations_filename = '',
+    covariate_filename = '',
+    stan_input_filename = '',
+    initial_values_filename = '',
+    stan_output_filename = '',
+    stan_genquant_filename = '',
+    country_data_report_filename = '',
     data_comparison_report_filename = ''
     )
 

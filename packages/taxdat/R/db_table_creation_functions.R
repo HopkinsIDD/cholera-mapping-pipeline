@@ -64,6 +64,10 @@ make_grid_lp_mapping_table <- function(conn_pg,
 }
 
 #' Make grid intersections table
+#' The aim of this function is to provide the intersection geometries for all 
+#' location period shapefiles that either touch a grid cell border, or that are
+#' completely covered by a grid cell. These intersections will then be used to
+#' compute population-weighted spatial fractions for the mapping.
 #'
 #' @param conn_pg 
 #' @param full_grid_name 
@@ -86,8 +90,10 @@ make_grid_intersections_table <- function(conn_pg,
   DBI::dbClearResult(DBI::dbSendStatement(
     conn_pg,
     glue::glue_sql("CREATE TABLE {`{DBI::SQL(intersections_table)}`} AS (
-                  SELECT location_period_id , b.rid, b.x, b.y, ST_Intersection(b.geom, a.geom) as geom,
-                  g.geom as grid_centroid
+                  SELECT location_period_id , b.rid, b.x, b.y, 
+                  ST_CoveredBy(a.geom, b.geom) as lp_covered,
+                  ST_Area(a.geom)/ST_Area(b.geom) as area_ratio,
+                  ST_Intersection(b.geom, a.geom) as geom, g.geom as grid_centroid
                   FROM {`{DBI::SQL(lp_name)}`} a
                   JOIN {`{DBI::SQL(paste0(full_grid_name, '_polys'))}`} b
                   ON ST_Intersects(b.geom, ST_Boundary(a.geom)) OR ST_CoveredBy(a.geom, b.geom)
@@ -146,4 +152,65 @@ make_grid_lp_centroids_table <- function(conn_pg,
       .con = conn_pg)))
   
   DBI::dbSendStatement(conn_pg, glue::glue_sql("VACUUM ANALYZE {`{DBI::SQL(cntrd_table)}`};", .con = conn_pg))
+}
+
+
+#' clean_tmp_tables
+#' Query found in: https://dba.stackexchange.com/questions/30061/how-do-i-list-all-tables-in-all-schemas-owned-by-the-current-user-in-postgresql
+#' 
+#' Note that this function will delete tables that are used while the pipeline is running for a given config, so it should not be called while the pipeline is running for the config of interest. 
+#'
+#' @return
+#'
+#' @examples
+clean_tmp_tables <- function(dbuser) {
+  
+  conn <- connect_to_db(dbuser)
+  
+  query <- "
+  select nsp.nspname as object_schema,
+       cls.relname as object_name, 
+       rol.rolname as owner, 
+       case cls.relkind
+         when 'r' then 'TABLE'
+         when 'm' then 'MATERIALIZED_VIEW'
+         when 'i' then 'INDEX'
+         when 'S' then 'SEQUENCE'
+         when 'v' then 'VIEW'
+         when 'c' then 'TYPE'
+         else cls.relkind::text
+       end as object_type
+       from pg_class cls
+       join pg_roles rol on rol.oid = cls.relowner
+       join pg_namespace nsp on nsp.oid = cls.relnamespace
+       where nsp.nspname not in ('information_schema', 'pg_catalog')
+       and nsp.nspname not like 'pg_toast%'
+       and rol.rolname = current_user  --- remove this if you want to see all objects
+       order by nsp.nspname, cls.relname;
+  "
+  
+  # Get all tables owned by user
+  owned_tables <- DBI::dbGetQuery(conn, statement = query) %>% 
+    dplyr::as_tibble()
+  
+  # Filter temporary tables
+  tmp_tables <- owned_tables %>% 
+    dplyr::filter(
+      object_type == "TABLE",
+      stringr::str_detect(
+        object_name, 
+        "tmp|location_periods|grid_cntrds|grid_intersections"))
+  
+  cat("-- Deleting", nrow(tmp_tables), "temporary tables from DB. \n")
+  
+  # Loop over tables and delete
+  purrr::walk(tmp_tables$object_name,
+              function(x) {
+                try(DBI::dbSendStatement(
+                  conn, 
+                  glue::glue_sql("DROP TABLE IF EXISTS {`{DBI::SQL(x)}`};",
+                                 .con = conn)))
+              })
+  
+  cat("-- Done deleting temporary tables. \n")
 }

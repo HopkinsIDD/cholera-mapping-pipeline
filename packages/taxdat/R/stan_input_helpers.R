@@ -633,13 +633,13 @@ get_crs_africa <- function() {
 #' Title
 #'
 #' @param smooth_grid 
-#' @param model_time_slices 
+#' @param smooth_time_slices 
 #'
 #' @return
 #' @export
 #'
 make_adjacency <- function(smooth_grid,
-                           model_time_slices,
+                           smooth_time_slices,
                            non_na_gridcells) {
   
   grid_changer <- make_changer(x = non_na_gridcells)
@@ -654,7 +654,7 @@ make_adjacency <- function(smooth_grid,
   cnt <- 0    # Counter for number of cells
   
   # Iterate over time slices of space-time grid-level random effects
-  for (it in model_time_slices) {
+  for (it in smooth_time_slices) {
     
     smooth_grid_it <- smooth_grid %>%
       dplyr::filter(s == it) %>%
@@ -800,7 +800,7 @@ aggregate_single_lp <- function(.x,
   # Combine non-adjacent but overlapping observations
   .x <- .x %>% 
     dplyr::mutate(set = as.integer(NA)) %>% 
-    dplyr::arrange(dplyr::desc(TR))
+    dplyr::arrange(dplyr::desc(TR), dplyr::desc(!!rlang::sym(cases_column)))
   
   # Initialization
   .x$set[1] <- 0
@@ -986,17 +986,16 @@ get_map_obs_loctime_obs <- function(x, obs_changer) {
 #' @export
 #'
 #' @examples
-get_censoring_inds <- function(stan_data, 
-                               ind_mapping_resized,
+get_censoring_inds <- function(ind_mapping_resized,
                                censoring_thresh) {
   
   purrr::map_chr(
-    1:stan_data$M, 
+    unique(ind_mapping_resized$map_obs_loctime_obs), 
     function(x) {
       # Get all tfracs for the given observation
-      tfracs <- ind_mapping_resized$tfrac[stan_data$map_obs_loctime_obs == x]
+      tfracs <- ind_mapping_resized$tfrac[ind_mapping_resized$map_obs_loctime_obs == x]
       # Define right-censored if any tfrac is smaller than 95% of the time slice
-      ifelse(any(tfracs <= censoring_thresh), "right-censored", "full")
+      ifelse(any(tfracs < censoring_thresh), "right-censored", "full")
     })
 }
 
@@ -1009,7 +1008,8 @@ get_censoring_inds <- function(stan_data,
 #'
 #' @examples
 compute_mean_rate_subset <- function(stan_data, 
-                                     subset_ind = NULL) {
+                                     subset_ind = NULL,
+                                     res_time) {
   
   if (is.null(stan_data$y)) {
     stop("Missing y in stan_data for mean rate computation")
@@ -1070,7 +1070,8 @@ compute_mean_rate_subset <- function(stan_data,
 #' @export
 #'
 #' @examples
-compute_mean_rate <- function(stan_data) {
+compute_mean_rate <- function(stan_data,
+                              res_time) {
   
   if (is.null(stan_data$y)) {
     stop("Missing y in stan_data for mean rate computation")
@@ -1218,10 +1219,11 @@ get_sfrac_loctime <- function(stan_data, loctime) {
 #' @examples
 get_admin_level <- function(location_name) {
   
-  # Set admin levels for TZA: AFR::TZA, AFR::TZA::Mainland, and AFR::TZA::Zanzibar are adm0
-  if (stringr::str_detect(location_name, "TZA")) {
-    location_name <- stringr::str_remove(location_name, "::Mainland|::Zanzibar")
-  }
+  # Nov 7 2023: revert to having Mainland and ZNZ as ADM1 levels
+  # # Set admin levels for TZA: AFR::TZA, AFR::TZA::Mainland, and AFR::TZA::Zanzibar are adm0
+  # if (stringr::str_detect(location_name, "TZA")) {
+  #   location_name <- stringr::str_remove(location_name, "::Mainland|::Zanzibar")
+  # }
   
   stringr::str_count(location_name, "::") %>% 
     as.numeric() %>% 
@@ -1445,7 +1447,7 @@ get_admin_level_data <- function(data,
   # Check res_time
   res_time <- purrr::quietly(check_res_time)(res_time)$result
   
-  data %>% 
+  res <- data %>% 
     sf::st_drop_geometry() %>% 
     dplyr::mutate(ref_TL = get_start_timeslice(TL, res_time),
                   ref_TR = get_end_timeslice(TR, res_time)) %>% 
@@ -1465,6 +1467,13 @@ get_admin_level_data <- function(data,
     } %>% 
     dplyr::filter(ref_TL == get_start_timeslice(TR, res_time),
                   get_end_timeslice(TL, res_time) == ref_TR)
+  
+  
+  if(is.null(res)) {
+    stop("get_admin_level_data is returning NULL. Something probably went wrong during filtering.")
+  }
+  
+  res
 }
 
 
@@ -1564,8 +1573,9 @@ get_cells_ts <- function(stan_data,
 #'
 #' @param sf_cases_resized 
 #' @param stan_data 
-#' @param ref_amd0_obs_id 
+#' @param ref_adm0_obs_id 
 #' @param time_slices 
+#' @param res_time
 #' @param m_ts 
 #' @param cases_column 
 #' @param frac_coverage_thresh 
@@ -1576,14 +1586,15 @@ get_cells_ts <- function(stan_data,
 #' @examples
 impute_adm0_obs_single <- function(sf_cases_resized,
                                    stan_data,
-                                   ref_amd0_obs_id,
+                                   ref_adm0_obs_id,
                                    time_slices,
+                                   res_time,
                                    m_ts,
                                    cases_column,
                                    frac_coverage_thresh) {
   
   adm0_template <- sf_cases_resized %>% 
-    dplyr::slice(ref_amd0_obs_id) %>% 
+    dplyr::slice(ref_adm0_obs_id) %>% 
     dplyr::mutate(loctime = NA,
                   OC_UID = "imputed",
                   TL = NA,
@@ -1594,7 +1605,7 @@ impute_adm0_obs_single <- function(sf_cases_resized,
   m_TR <- time_slices$TR[m_ts]
   
   ref_pop <- compute_pop_ts_loc(stan_data = stan_data,
-                                loctime = get_loctime_obs(stan_data, ref_amd0_obs_id),
+                                loctime = get_loctime_obs(stan_data, ref_adm0_obs_id),
                                 ts = m_ts)
   
   # All data in the missing year
@@ -1603,9 +1614,10 @@ impute_adm0_obs_single <- function(sf_cases_resized,
     dplyr::filter(ref_TL == m_TL,
                   ref_TR == m_TR) 
   
-  # All national level data (censored)
+  # All national level data
   ts_all_adm0 <- sf_cases_resized %>% 
     get_admin_level_data(res_time = res_time,
+                         censorings = NULL,
                          admin_levels = 0) %>%  
     dplyr::filter(ref_TL == m_TL,
                   ref_TR == m_TR) 
@@ -1675,11 +1687,12 @@ impute_adm0_obs_single <- function(sf_cases_resized,
       frac_coverage <- 0
     }
     
-    # !! If coverage OK compute mean rate (threshold of 10% is hardcoded)
+    # !! If coverage OK compute mean rate 
     if (frac_coverage > frac_coverage_thresh) {
       # Compute mean rate for the subnational data
       meanrate_tmp <- compute_mean_rate_subset(stan_data = stan_data,
-                                               subset_ind = subset_ind)
+                                               subset_ind = subset_ind,
+                                               res_time = res_time)
       # Imputed observation based on rates
       impute_obs <- round(meanrate_tmp * ref_pop)
       impute_type <- "subnat_rate"
@@ -1704,7 +1717,7 @@ impute_adm0_obs_single <- function(sf_cases_resized,
           "cases. \n")
       
     } else if (frac_coverage == 0 & nrow(ts_all_adm0) > 0) {
-      # No subnational-level data use censored national level data if available
+      # No subnational-level data use national level data if available
       
       impute_obs <- max(ts_all_adm0[[cases_column]])
       impute_type <- "nat_max"
@@ -1767,10 +1780,7 @@ impute_adm0_obs <- function(sf_cases_resized,
   if (nrow(y_adm0_full) == 0) {
     if (nrow(time_slices) == 1) {
       cat("-- Imputation is not developed in the case a single modeling time slice \n")
-      return(
-        list(sf_cases_resized = sf_cases_resized,
-             stan_data = stan_data)
-      )
+      return(sf_cases_resized)
     }
     stop("No full national-level observations in modeling time slices")
   }
@@ -1787,7 +1797,7 @@ impute_adm0_obs <- function(sf_cases_resized,
   missing_ts <- missing_adm0 %>% dplyr::filter(is.na(in_set))
   
   if (nrow(missing_ts) == 0) {
-    cat("-- No missing times slices with missing full ADM0 data. \n")
+    cat("-- No times slices missing full ADM0 data. \n")
     return(sf_cases_resized)
   } else {
     missing_adm0 %>% 
@@ -1811,8 +1821,9 @@ impute_adm0_obs <- function(sf_cases_resized,
       
       impute_adm0_obs_single(sf_cases_resized = sf_cases_resized,
                              stan_data = stan_data,
-                             ref_amd0_obs_id = y_adm0_full$obs_id[1], 
+                             ref_adm0_obs_id = y_adm0_full$obs_id[1], 
                              time_slices = time_slices,
+                             res_time = res_time,
                              m_ts = missing_ts$ts[i],
                              cases_column = cases_column,
                              frac_coverage_thresh = frac_coverage_thresh)
@@ -1941,7 +1952,7 @@ update_stan_data_imputation <- function(sf_cases_resized,
     if (new_loctime) {
       stan_data$map_loc_grid_grid <- c(stan_data$map_loc_grid_grid, cells)
       stan_data$map_loc_grid_loc <- c(stan_data$map_loc_grid_loc, rep(loctime, length(cells)))
-      stan_data$map_loc_grid_sfrac <- c(stan_data$map_loc_grid_sfrac, cells_sfrac)
+      stan_data$map_loc_grid_sfrac <- check_pop_weight_validity(c(stan_data$map_loc_grid_sfrac, cells_sfrac))
     }
   }
   
@@ -1957,4 +1968,367 @@ update_stan_data_imputation <- function(sf_cases_resized,
                                  rep("full", n_imputed))
   
   stan_data
+}
+
+
+
+#' Title
+#'
+#' @param sf_cases_resized 
+#' @param thresh 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+drop_censored_adm0 <- function(sf_cases_resized,
+                               thresh,
+                               res_time,
+                               cases_column) {
+  
+  # Get national level data with censored observations
+  y_adm0_censored <- get_admin_level_data(data = sf_cases_resized,
+                                          admin_levels = 0,
+                                          censorings = "right-censored",
+                                          res_time = res_time)
+  # Break if no censored adm0
+  if (nrow(y_adm0_censored) == 0) {
+    cat("-- No censored adm0 data found with threshold of", thresh,". \n")
+    return(sf_cases_resized)
+  }
+  
+  # If censored adm0 data, then proceed and load full adm0 data
+  # to match and filter
+  y_adm0_full <- get_admin_level_data(data = sf_cases_resized,
+                                      admin_levels = 0,
+                                      censorings = "full",
+                                      res_time = res_time)
+  
+  drop_ids <- purrr::map(
+    1:nrow(y_adm0_censored),
+    function(x) {
+      tmp <- y_adm0_censored %>% 
+        dplyr::slice(x) %>% 
+        dplyr::inner_join(y_adm0_full, by = c("ref_TL", "ref_TR"),
+                          suffix = c(".censored", ".full"))
+      
+      if (nrow(tmp) == 0) {
+        return()
+      } 
+      
+      obs_cens <- tmp[[paste0(cases_column, ".censored")]]
+      obs_full <- tmp[[paste0(cases_column, ".full")]]
+      
+      if (any((obs_full/obs_cens) >= thresh)) {
+        return(y_adm0_censored$obs_id[x])
+      } else {
+        return()
+      }
+    }) %>% 
+    unlist() 
+  
+  
+  if (is.null(sf_cases_resized)) {
+    stop("sf_cases_resized is NULL, something probably went wrong during filtering.")  
+  }
+  
+  if (length(drop_ids) > 0) {
+    cat("-- Dropping", length(drop_ids), "that have censored ADM0 observations.\n")
+    return(sf_cases_resized %>% dplyr::filter(!(obs_id %in% drop_ids)))
+  } else {
+    return(sf_cases_resized)
+  }
+}
+
+
+#' update_stan_data_indexing
+#'
+#' @param stan_data 
+#' @param ind_mapping_resized 
+#' @param config 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+update_stan_data_indexing <- function(stan_data,
+                                      ind_mapping_resized,
+                                      config) {
+  # Number of unique locations
+  stan_data$L <- length(ind_mapping_resized$u_loctimes)
+  
+  stan_data$M <- length(unique(ind_mapping_resized$map_obs_loctime_obs))
+  
+  # Define censored observations
+  stan_data$censored  <- as.array(ind_mapping_resized$tfrac < config$censoring_thresh)
+  
+  for (var in names(ind_mapping_resized)) {
+    if (var == "map_obs_loctime_obs") {
+      
+      non_na_obs_resized <- sort(unique(ind_mapping_resized$map_obs_loctime_obs))
+      obs_changer <- make_changer(x = non_na_obs_resized) 
+      
+      stan_data$map_obs_loctime_obs <- get_map_obs_loctime_obs(x = ind_mapping_resized$map_obs_loctime_obs,
+                                                               obs_changer = obs_changer)
+    } else if (var == "tfrac") {
+      if (config$set_tfrac) {
+        cat("-- Overwriting tfrac for non-censored observations with 1")
+        stan_data$tfrac <- rep(1.0, length(ind_mapping_resized$tfrac))
+      } else {
+        stan_data$tfrac <- ind_mapping_resized$tfrac
+      }
+    } else if (var == "u_loc_grid_weights") {
+      stan_data$map_loc_grid_sfrac <- check_pop_weight_validity(ind_mapping_resized$u_loc_grid_weights)
+    } else {
+      stan_data[[var]] <- as.array(ind_mapping_resized[[var]])
+    }
+  }
+  
+  stan_data
+}
+
+#' check_pop_weight_validity
+#'
+#' @param map_loc_grid_sfrac 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_pop_weight_validity <- function(map_loc_grid_sfrac) {
+  # Check if sfrac is valid
+  if (any(map_loc_grid_sfrac > 1)) {
+    
+    warning("Invalid sfrac values > 1", " Maximum value of ", 
+            max(map_loc_grid_sfrac), ".",
+            "Caping all values to 1.")
+  }
+  
+  # Make sure all values are <= 1 (possible rounding errors)
+  map_loc_grid_sfrac <- pmin(1, map_loc_grid_sfrac)
+  
+  map_loc_grid_sfrac
+}
+
+
+#' get_loctime_combs
+#'
+#' @param stan_data 
+#'
+#' @return
+#' @export
+#'
+#' 
+get_loctime_combs <- function(stan_data) {
+  # Get unique observations
+  u_obs <- sort(unique(stan_data$map_obs_loctime_obs))
+  
+  # Get all loctime combinations
+  loctime_combs <- purrr::map(u_obs, function(x) {
+    res <- sort(stan_data$map_obs_loctime_loc[stan_data$map_obs_loctime_obs == x])
+    names(res) <- NULL
+    res
+  })
+  # Set names for identification
+  names(loctime_combs) <- u_obs
+  
+  loctime_combs
+}
+
+
+#' get_loctime_combs_mappings
+#'
+#' @param stan_data 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+#'
+get_loctime_combs_mappings <- function(stan_data) {
+  
+  # Get all location-time combinations that appear in the data
+  loctime_combs <- get_loctime_combs(stan_data)
+  
+  # Unique set of combinations
+  stan_data$u_loctime_combs <- unique(loctime_combs)
+  stan_data$L_combs <- length(stan_data$u_loctime_combs)
+  
+  # Mapping to location-times
+  stan_data$map_loctime_combs_loc <- unlist(stan_data$u_loctime_combs) %>% as.array()
+  # Number of map elements for stan
+  stan_data$K3 <- length(stan_data$map_loctime_combs_loc)
+  # Mapping to unique combinations
+  stan_data$map_loctime_combs_comb <- purrr::map(1:stan_data$L_combs, ~ rep(., length(stan_data$u_loctime_combs[[.]]))) %>% 
+    unlist()
+  
+  # Get the admin level to use in each loctime combination
+  stan_data$map_u_loctime_combs_admin_lev <- purrr::map_dbl(
+    1:stan_data$L_combs, function(x) {
+      # Get loctimes
+      loctimes <- stan_data$map_loctime_combs_loc[stan_data$map_loctime_combs_comb == x]
+      
+      # Get one observation of this loctime
+      obs_id <- first(stan_data$map_obs_loctime_obs[stan_data$map_obs_loctime_loc == loctimes[1]])
+      
+      # Get the corresponding admin level
+      stan_data$map_obs_admin_lev[obs_id]
+    })
+  
+  # Map between location_time combinations and unique location_time combinations
+  stan_data$map_obs_loctime_combs <- purrr::map_dbl(
+    loctime_combs,
+    function(x) {
+      which(purrr::map_lgl(stan_data$u_loctime_combs, ~ identical(., x)))
+    })
+  
+  stan_data
+}
+
+
+#' get_adm0_od_param
+#'
+#' @param sf_cases_resized 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_adm0_od_param <- function(sf_cases_resized,
+                              res_time,
+                              cases_column) {
+  
+  # Get single-year data at adm0
+  ts_subset <- sf_cases_resized %>% 
+    get_admin_level_data(res_time = res_time,
+                         admin_levels = 0,
+                         censorings = "full")
+  
+  # Get the maximum of adm0 observations
+  max_adm0_obs <- max(ts_subset[[cases_column]])
+  
+  if (max_adm0_obs > 5e3) {
+    od_param <- 1e3
+  } else {
+    od_param <- 1e2
+  }
+  
+  od_param
+} 
+
+
+#' drop_obs_by_OC
+#'
+#' @param sf_cases_resized 
+#' @param model_time_slices 
+#' @param res_time 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+#' 
+drop_obs_by_OC <- function(sf_cases_resized,
+                           res_time) {
+  
+  # Add obs id for filtering
+  sf_cases_resized <- sf_cases_resized %>% 
+    dplyr::mutate(tmp_obs_id = dplyr::row_number())
+  
+  # Get single-year data at adm0
+  ts_subset <- sf_cases_resized %>% 
+    get_admin_level_data(res_time = res_time,
+                         admin_levels = 0,
+                         censorings = NULL)
+  
+  # Get maximum tfrac obs by OC
+  max_tfrac_obs <- ts_subset %>% 
+    dplyr::filter(ref_TL == get_start_timeslice(TR, res_time), 
+                  get_end_timeslice(TL, res_time) == ref_TR) %>% 
+    dplyr::rowwise() %>% 
+    dplyr::mutate(tfrac = compute_tfrac(TL, TR, ref_TL, ref_TR)) %>% 
+    dplyr::ungroup() %>% 
+    dplyr::group_by(OC_UID, locationPeriod_id, ref_TL, ref_TR) %>% 
+    dplyr::slice_max(tfrac) %>% 
+    dplyr::ungroup()
+  
+  # Distinguish between censored and full max tfrac
+  full_max_tfrac <- max_tfrac_obs %>% 
+    dplyr::filter(censoring == "full")
+  
+  censored_max_tfrac <- max_tfrac_obs %>% 
+    dplyr::filter(censoring == "right-censored")
+  
+  # Define censored observations to keep because the max tfrac in the OC is censored
+  censored_obs_keep <- ts_subset %>% 
+    dplyr::inner_join(censored_max_tfrac %>% 
+                        dplyr::ungroup() %>% 
+                        dplyr::select(OC_UID, locationPeriod_id, ref_TL, ref_TR))
+  
+  # Drop from data everything that is not in subset
+  # We here keep multi-year observations which are handeled separately
+  drop_ids <- sf_cases_resized %>% 
+    dplyr::filter(
+      admin_level == 0,
+      !(tmp_obs_id %in% full_max_tfrac$tmp_obs_id) & 
+        !(tmp_obs_id %in% censored_obs_keep$tmp_obs_id |
+            ref_TL != get_start_timeslice(TR, res_time) |
+            get_end_timeslice(TL, res_time) != ref_TR)
+    )
+  
+  if (nrow(drop_ids) > 0) {
+    cat("Dropping", nrow(drop_ids), "adm0 observations based on maximum tfrac.\n")
+    
+    sf_cases_resized <- sf_cases_resized %>% 
+      dplyr::filter(!(tmp_obs_id %in% drop_ids$tmp_obs_id))
+  }
+  
+  sf_cases_resized %>% 
+    dplyr::select(-tmp_obs_id)
+}
+
+
+
+#' compute_adjustment_UN_population
+#'
+#' @param country country ISO3 code
+#' @param pop grid-level population vector
+#' @param years years corresponding to each population value
+#'
+#' @return
+#' @export
+#'
+#' @examples
+compute_adjustment_UN_population <- function(country, 
+                                              pop, 
+                                              years) {
+  
+  # Checks
+  # Load UN population projections
+  data("WPP2022", package = "taxdat")
+  
+  if (any(!(years %in% WPP2022$Time))) {
+    stop("Please provide valid years vector that fall within the UN time range: ",
+         paste0(range(WPP2022$Time), collapse = "-"))
+  }
+  
+  if (!(country %in% WPP2022$ISO3_code)) {
+    stop("Invalid country ISO3 code.")
+  }
+  
+  adj_factors <- rep(1, length(pop))
+  
+  for (y in unique(years)) {
+    # Get total population for each year in grid
+    tot_grid <- sum(pop[years == y])
+    tot_UN <- WPP2022$PopTotal[WPP2022$Time == y & WPP2022$ISO3_code == country] * 1e3
+    
+    adj_factors[years == y] <- tot_UN/tot_grid
+    
+    cat("---- Population adjustment factor for", country, y, ":", 
+        formatC(tot_UN/tot_grid, digits = 2, format = "f"), ".\n")
+    
+  }
+  
+  adj_factors
 }
