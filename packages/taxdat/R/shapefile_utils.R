@@ -98,7 +98,7 @@ drop_missing_shapefiles <- function(cases,
 get_valid_shapefiles <- function(cases) {
   
   shapefiles <- cases %>%
-    dplyr::group_by(attributes.location_period_id) %>%
+    dplyr::group_by(attributes.location_period_id, location_name) %>%
     dplyr::slice(1) %>% 
     dplyr::rename(location_period_id = attributes.location_period_id) %>% 
     dplyr::ungroup()
