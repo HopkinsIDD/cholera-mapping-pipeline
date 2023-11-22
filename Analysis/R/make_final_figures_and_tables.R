@@ -73,6 +73,10 @@ compute_rate_changes <- function(df) {
 # Load data ---------------------------------------------------------------
 
 # Total number of cases by region
+cases_continent <- combine_period_output(prefix_list = prefix_list,
+                                         output_name = "mai_cases_all",
+                                         output_dir = opt$output_dir)
+
 cases_by_region <- combine_period_output(prefix_list = prefix_list,
                                          output_name = "mai_cases_by_region",
                                          output_dir = opt$output_dir) %>% 
@@ -95,8 +99,8 @@ rates_by_region <- combine_period_output(prefix_list = prefix_list,
 
 # Overall rates
 rates_overall <- combine_period_output(prefix_list = prefix_list,
-                                         output_name = "mai_rates_all",
-                                         output_dir = opt$output_dir)
+                                       output_name = "mai_rates_all",
+                                       output_dir = opt$output_dir)
 
 # Gridded cases
 grid_cases <- combine_period_output(prefix_list = prefix_list,
@@ -137,6 +141,32 @@ mai_change_adm <- inner_join(u_space_sf,
                              compute_rate_changes(mai_adm)) %>% 
   ungroup()
 
+# Compute change statistics (could package into function)
+mai_change_draws <- inner_join(
+  readRDS(str_glue("{opt$output_dir}/{prefix_list[1]}_mai_draws.rds")) %>%
+    ungroup() %>% 
+    select(.draw, variable, value, country),
+  readRDS(str_glue("{opt$output_dir}/{prefix_list[2]}_mai_draws.rds")) %>%
+    ungroup() %>% 
+    select(.draw, variable, value, country),
+  by = c(".draw", "variable", "country"),
+  suffix = str_c(".", names(prefix_list))
+) 
+
+mai_change_stats <- mai_change_draws %>% 
+  mutate(ratio = `value.2016-2020`/`value.2011-2015`) %>% 
+  select(-contains("value.")) %>% 
+  group_by(country, variable) %>% 
+  summarise(mean = mean(ratio),
+            q2.5 = quantile(ratio, 0.025),
+            q97.5 = quantile(ratio, 0.975)) %>% 
+  ungroup() %>% 
+  mutate(shp_id = str_extract(variable, "[0-9]+") %>% as.numeric()) %>% 
+  inner_join(u_space_sf %>% 
+               select(country, location_period_id, shp_id, admin_level), .)
+
+saveRDS(mai_change_stats, file = str_glue("{opt$output_dir}/mai_ratio_stats.rds"))
+
 # Compute changes at ADM0 level
 mai_adm0_changes <-  mai_adm_all %>% 
   filter(admin_level == "ADM0") %>% 
@@ -163,7 +193,7 @@ mai_all_changes <- rates_overall %>%
   rename(location_period_id = variable) %>% 
   compute_rate_changes() %>% 
   mutate(country = "SSA")
-  
+
 
 # Get intended runs
 intended_runs <- get_intended_runs()
@@ -209,34 +239,61 @@ ggsave(p_fig1A,
        height = 6, 
        dpi = 300)
 
-# Fig. 1C: cases by region and time period
-p_fig1C <- cases_by_region %>% 
+# Fig. 1B: cases by region and time period
+p_fig1B <- cases_by_region %>% 
+  mutate(AFRO_region = factor(AFRO_region, levels = names(colors_afro_regions()))) %>% 
   ggplot(aes(x = mean, y = period, fill = AFRO_region)) +
   geom_bar(stat = "identity")  +
+  geom_errorbarh(data = cases_continent,
+                 inherit.aes = F,
+                 aes(xmin = q2.5, xmax = q97.5, y = period), 
+                 height = .2) +
+  scale_x_continuous(labels = function(x) {formatC(x, digits = 0, big.mark = "'", format = "f")}) +
+  scale_fill_manual(values = colors_afro_regions()) +
   theme_bw() +
-  labs(x = "Mean annual cholera incidence [cases/year]", y = "Time period")
+  theme(legend.key.size = unit(.2, units = "in")) +
+  labs(x = "Mean annual cholera incidence [cases/year]", 
+       y = "Time period",
+       fill = "WHO region")
 
-ggsave(plot = p_fig1C,
-       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_1C.png"),
+p_fig1B
+
+ggsave(plot = p_fig1B,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_1B.png"),
        width = 8,
        height = 2.5,
        dpi = 300)
 
+p_fig_BC_regions <- ggplot(afr_sf, aes(fill = AFRO_region)) +
+  geom_sf() +
+  taxdat::map_theme() +
+  guides(fill = "none") +
+  scale_fill_manual(values = colors_afro_regions()) +
+  theme(panel.background = element_blank(),
+        plot.background = element_blank(),
+        panel.border = element_blank())
+
 
 # Figure 1
-P_fig1 <- cowplot::plot_grid(
+p_fig1 <- cowplot::plot_grid(
   p_fig1A,
-  p_fig1C +
-    theme(plot.margin = unit(c(1, 5, 1, 5), "lines")),
+  p_fig1B +
+    theme(plot.margin = unit(c(2, 9, 1, 3), "lines")),
   nrow = 2,
   labels = "auto",
   rel_heights = c(1, .3)
 )  + theme(panel.background = element_rect(fill = "white"))
 
-ggsave(plot = P_fig1,
+
+p_fig1_v2 <- ggdraw() +
+  draw_plot(p_fig1) +
+  draw_plot(p_fig_BC_regions, x = 0.76, y = .02, width = .23, height = .23)
+
+
+ggsave(plot = p_fig1_v2,
        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_1.png"),
        width = 10,
-       height = 7,
+       height = 7.5,
        dpi = 300)
 
 
@@ -279,61 +336,82 @@ ggsave(p_fig2B,
        dpi = 600)
 
 
+# Combine mai change data
+combined_mai_changes <- bind_rows(
+  # AFRO regions
+  mai_region_changes %>% 
+    mutate(country = AFRO_region,
+           region = AFRO_region), 
+  # ADM2 level
+  mai_adm0_changes %>% 
+    mutate(region = AFRO_region),
+  # Continent level
+  mai_all_changes %>% 
+    mutate(country = "SSA", 
+           region = "SSA")
+) %>% 
+  mutate(
+    # !! change rate values to 1e-1/100'000 for display
+    across(
+      c("2011-2015", "2016-2020"), 
+      function(x) {
+        x[x < 1e-6] <- 1e-6
+        x
+      }),
+    admin_level = case_when(
+      str_detect(location_period_id, "country") ~ "region",
+      location_period_id == "tot" ~ "continent",
+      TRUE ~ "ADM2"),
+    admin_level = factor(admin_level, levels = c("continent", "region", "ADM2")),
+    region = factor(region, levels = c("SSA", names(colors_afro_regions())))
+  )
+
 # Figure 3C: national-level scatterplot
-p_fig2C_scatter <- mai_adm0_changes %>% 
+p_fig2C_scatter <- combined_mai_changes %>% 
   ggplot(aes(x = log10(`2011-2015`*1e5), 
              y =  log10(`2016-2020`*1e5), 
-             col = AFRO_region)) +
+             col = region)) +
   geom_abline(lty = 2, lwd = .2) +
-  geom_point() +
-  geom_point(data = mai_region_changes,
-             pch = 5) +
-  ggrepel::geom_label_repel(data = 
-                              bind_rows(
-                                mai_region_changes %>% 
-                                  mutate(country = AFRO_region), 
-                                mai_adm0_changes 
-                              ),
-                            aes(label = country),
-                            min.segment.length = 0,
-                            max.overlaps = Inf) +
-  geom_point(data = mai_all_changes,
-             pch = 3,
-             size = 4,
-             color = "black") +
+  geom_point(aes(pch = admin_level, alpha = admin_level), size = 2) +
+  ggrepel::geom_label_repel(
+    aes(label = country, size = admin_level, alpha = admin_level),
+    min.segment.length = 0,
+    nudge_x = 0,
+    # nudge_y = .1,
+    max.overlaps = Inf, 
+    xlim = c(-1, 2.2),
+    ylim = c(-1, 2.2)) +
+  scale_size_manual(values = c(7, 6, 3)) +
+  scale_shape_manual(values = c(15, 17, 16)) +
+  scale_alpha_manual(values = c(1, 1, .75)) +
+  scale_color_manual(values = c("black", colors_afro_regions())) +
   theme_bw() +
   guides(color = guide_legend("WHO regions")) +
-  scale_x_continuous(limits = c(-2, 2),
-                     breaks = seq(-2, 2),
-                     labels = formatC(10^(seq(-2, 2)),
+  scale_x_continuous(limits = c(-1.1, 2.3),
+                     breaks = seq(-1, 2),
+                     labels = formatC(10^(seq(-1, 2)),
                                       digits = 1,
                                       format = "fg", 
                                       big.mark = ",")) +
-  scale_y_continuous(limits = c(-2, 2),
-                     breaks = seq(-2, 2),
-                     labels = formatC(10^(seq(-2, 2)),
+  scale_y_continuous(limits = c(-1.1, 2.3),
+                     breaks = seq(-1, 2),
+                     labels = formatC(10^(seq(-1, 2)),
                                       digits = 1,
                                       format = "fg", 
                                       big.mark = ",")) +
   labs(x = "Incidence rate 2011-2015\n[cases per 100,000/year]",
-       y = "Incidence rate 2016-2020\n[cases per 100,000/year]")
-
-p_fig_2C_regions <- ggplot(afr_sf, aes(fill = AFRO_region)) +
-  geom_sf() +
-  taxdat::map_theme() +
-  guides(fill = "none") +
-  theme(panel.background = element_blank(),
-        plot.background = element_blank(),
-        panel.border = element_blank())
-
-p_fig2C <- ggdraw() +
-  draw_plot(p_fig2C_scatter) +
-  draw_plot(p_fig_2C_regions, x = 0.765, y = .7, width = .27, height = .27)
+       y = "Incidence rate 2016-2020\n[cases per 100,000/year]") +
+  guides(color = "none", size = "none", shape = "none", alpha = "none")
 
 
-ggsave(p_fig2C,
+# p_fig2C <- ggdraw() +
+#   draw_plot(p_fig2C_scatter) #+
+# draw_plot(p_fig_2C_regions, x = 0.765, y = .7, width = .27, height = .27)
+
+
+ggsave(p_fig2C_scatter,
        file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2C.png"),
-       width = 10,
+       width = 8,
        height = 7, 
        dpi = 600)
 
@@ -364,10 +442,10 @@ ggsave(plot = p_fig2,
 # Fig. 3A: Population at risk map
 p_fig3A <- output_plot_map(sf_obj = risk_pop_adm2 %>% 
                              filter(period == "2016-2020"), 
-                lakes_sf = lakes_sf,
-                all_countries_sf = afr_sf,
-                fill_var = "risk_cat",
-                fill_color_scale_type = "risk category") +
+                           lakes_sf = lakes_sf,
+                           all_countries_sf = afr_sf,
+                           fill_var = "risk_cat",
+                           fill_color_scale_type = "risk category") +
   scale_fill_viridis_d(direction = -1) + 
   theme(strip.background = element_blank(),
         strip.text = element_text(size = 15),
