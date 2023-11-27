@@ -404,6 +404,40 @@ postprocess_mean_annual_incidence <- function(config_list,
   res
 }
 
+#' postprocess_mean_annual_incidence_draws
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_mean_annual_incidence_draws <- function(config_list,
+                                                    redo_aux = FALSE) {
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # Get mean annual incidence summary
+  mai_draws <- genquant$draws("location_total_rates_output") %>% 
+    posterior::as_draws() %>% 
+    posterior::as_draws_df() %>% 
+    dplyr::as_tibble() %>% 
+    tidyr::pivot_longer(cols = contains("location_total_rates_output"),
+                        names_to = "variable") %>% 
+    dplyr::select(-.iteration, -.chain)
+  
+  # # Get the output shapefiles and join
+  # output_shapefiles <- get_output_sf_reload(config_list = config_list,
+  #                                           redo = redo_aux)
+  # 
+  # res <- join_output_shapefiles(output = mai_draws, 
+  #                               output_shapefiles = output_shapefiles,
+  #                               var_col = "variable") %>% 
+  #   dplyr::select(-variable)
+  
+  mai_draws
+}
+
 
 #' postprocess_mai_adm0_cases
 #' 
@@ -861,11 +895,10 @@ get_AFRO_region <- function(data, ctry_col) {
   data_with_AFRO_region <- data %>% 
     dplyr::mutate(
       AFRO_region = dplyr::case_when(
-        !!rlang::sym(ctry_col) %in% c("BDI","ETH","KEN","MDG","RWA","SDN","SSD","UGA","TZA") ~ "Eastern Africa",
-        !!rlang::sym(ctry_col) %in% c("BWA","MOZ","MWI","NAM","SWZ","ZMB","ZWE","ZAF") ~ "Southern Africa",
-        !!rlang::sym(ctry_col) %in% c("AGO","CMR","CAF","TCD","COG","COD","GNQ","GAN") ~ "Central Africa",
-        !!rlang::sym(ctry_col) %in% c("BEN","BFA","CIV","GHA","GIN","GNB","LBR","MLI","MRT","NER","NGA","SEN","SLE","TGO") ~ "Western Africa",
-        !!rlang::sym(ctry_col) %in% c("DJI","SOM","SDN") ~ "Eastern Mediterranean"
+        !!rlang::sym(ctry_col) %in% c("BDI","ETH","KEN","MDG","RWA","SDN","SSD","UGA","TZA","ERI","","DJI","SOM","SDN") ~ "Eastern Africa",
+        !!rlang::sym(ctry_col) %in% c("BWA","MOZ","MWI","NAM","SWZ","ZMB","ZWE","ZAF","LSO") ~ "Southern Africa",
+        !!rlang::sym(ctry_col) %in% c("AGO","CMR","CAF","TCD","COG","COD","GNQ","GAN","GAB") ~ "Central Africa",
+        !!rlang::sym(ctry_col) %in% c("BEN","BFA","CIV","GHA","GIN","GNB","LBR","MLI","MRT","NER","NGA","SEN","SLE","TGO","DJI","SOM","SDN") ~ "Western Africa",
       ) 
     )
   
@@ -879,7 +912,7 @@ get_AFRO_region <- function(data, ctry_col) {
 #'
 #' @examples
 get_AFRO_region_levels <- function() {
-  c("Western Africa", "Central Africa", "Eastern Africa", "Eastern Mediterranean", "Southern Africa")
+  c("Western Africa", "Central Africa", "Eastern Africa", "Southern Africa")
 }
 
 
