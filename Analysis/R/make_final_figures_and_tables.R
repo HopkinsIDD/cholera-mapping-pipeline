@@ -15,13 +15,13 @@ library(cowplot)
 # User-supplied options
 opt_list <- list(
   make_option(opt_str = c("-o", "--output_dir"), type = "character",
-              default = "./Analysis/output/processed_outputs/", help = "Output directory with postprocessed objects"),
+              default = "./processed_outputs/processed_outputs/", help = "Output directory with postprocessed objects"),
   make_option(opt_str = c("-x", "--prefix_p1"), type = "character",
-              default = "postprocessing_test_2011_2015", help = "Prefix of output files for first period"),
+              default = "2011_2015", help = "Prefix of output files for first period"),
   make_option(opt_str = c("-y", "--prefix_p2"), type = "character",
-              default = "postprocessing_test_2016_2020", help = "Prefix of output files for second period"),
+              default = "2016_2020", help = "Prefix of output files for second period"),
   make_option(opt_str = c("-p", "--out_prefix"), type = "character",
-              default = "postprocessing_test", help = "Prefix for output figures and tables"),
+              default = "postprocessing", help = "Prefix for output figures and tables"),
   make_option(opt_str = c("-d", "--out_dir"), type = "character",
               default = "./Analysis/output/figures", help = "Output directory for figures")
 )
@@ -115,6 +115,28 @@ risk_pop_adm2 <- combine_period_output(prefix_list = prefix_list,
   filter(admin_level == "ADM2") %>% 
   get_AFRO_region(ctry_col = "country")  %>% 
   mutate(AFRO_region = factor(AFRO_region, 
+                              levels = get_AFRO_region_levels())) %>% 
+  st_drop_geometry()
+
+
+
+# Number of people living in different risk categories using the "Lancet method"
+pop_at_risk <- combine_period_output(prefix_list = prefix_list,
+                                     output_name = "pop_at_risk",
+                                     output_dir = opt$output_dir) %>% 
+  mutate(admin_level = str_c("ADM", admin_level)) %>% 
+  filter(admin_level == "ADM2") %>% 
+  get_AFRO_region(ctry_col = "country")  %>% 
+  mutate(AFRO_region = factor(AFRO_region, 
+                              levels = get_AFRO_region_levels()))
+
+pop_at_risk_region <- combine_period_output(prefix_list = prefix_list,
+                                     output_name = "pop_at_risk_region",
+                                     output_dir = opt$output_dir) %>% 
+  mutate(admin_level = str_c("ADM", admin_level)) %>% 
+  filter(admin_level == "ADM2") %>% 
+  get_AFRO_region(ctry_col = "country")  %>% 
+  mutate(AFRO_region = factor(AFRO_region, 
                               levels = get_AFRO_region_levels()))
 
 
@@ -128,18 +150,24 @@ mai_adm_all <- combine_period_output(prefix_list = prefix_list,
 # Get unique spatial locations
 u_space_sf <- mai_adm_all %>% 
   group_by(location_period_id) %>%
-  slice(1)
+  slice(1) %>% 
+  ungroup() %>% 
+  select(shapeName, admin_level, country, shp_id, location_period_id)
+
+mai_adm_all <- mai_adm_all %>% 
+  st_drop_geometry() %>% 
+  as_tibble()
 
 # Combine results with no-w runs
 mai_adm <- bind_rows(
   mai_adm_all %>% filter(admin_level == "ADM0", run_id %in% get_no_w_runs()),
   mai_adm_all %>% filter(admin_level == "ADM2", !(run_id %in% get_no_w_runs()))
-)
+) %>% 
+  st_drop_geometry() %>% 
+  as_tibble()
 
 # Compute change map
-mai_change_adm <- inner_join(u_space_sf,
-                             compute_rate_changes(mai_adm)) %>% 
-  ungroup()
+mai_change_adm <- compute_rate_changes(mai_adm)
 
 # Compute change statistics (could package into function)
 mai_change_draws <- inner_join(
@@ -166,6 +194,12 @@ mai_change_stats <- mai_change_draws %>%
                select(country, location_period_id, shp_id, admin_level), .)
 
 saveRDS(mai_change_stats, file = str_glue("{opt$output_dir}/mai_ratio_stats.rds"))
+
+rm(mai_change_draws)
+
+mai_change_stats <- mai_change_stats %>% 
+  st_drop_geometry() %>% 
+  as_tibble()
 
 # Compute changes at ADM0 level
 mai_adm0_changes <-  mai_adm_all %>% 
@@ -217,6 +251,40 @@ afr_sf <- afr_sf %>%
 # Lakes for plots
 lakes_sf <- get_lakes()
 
+
+# Combine mai change data
+combined_mai_changes <- bind_rows(
+  # AFRO regions
+  mai_region_changes %>% 
+    mutate(country = AFRO_region,
+           region = AFRO_region), 
+  # ADM2 level
+  mai_adm0_changes %>% 
+    mutate(region = AFRO_region),
+  # Continent level
+  mai_all_changes %>% 
+    mutate(country = "SSA", 
+           region = "SSA")
+) %>% 
+  mutate(
+    # !! change rate values to 1e-1/100'000 for display
+    across(
+      c("2011-2015", "2016-2020"), 
+      function(x) {
+        x[x < 1e-6] <- 1e-6
+        x
+      }),
+    admin_level = case_when(
+      str_detect(location_period_id, "country") ~ "region",
+      location_period_id == "tot" ~ "continent",
+      TRUE ~ "ADM2"),
+    admin_level = factor(admin_level, levels = c("continent", "region", "ADM2")),
+    region = factor(region, levels = c("SSA", get_AFRO_region_levels()))
+  )
+
+
+save(list = ls(), file = "data_bundle_for_figures.rdata")
+
 # Figure 1: cases ---------------------------------------------------------
 
 # Figure 1A: gridded cases by time period
@@ -241,7 +309,7 @@ ggsave(p_fig1A,
 
 # Fig. 1B: cases by region and time period
 p_fig1B <- cases_by_region %>% 
-  mutate(AFRO_region = factor(AFRO_region, levels = names(colors_afro_regions()))) %>% 
+  mutate(AFRO_region = factor(AFRO_region, levels = get_AFRO_region_levels())) %>% 
   ggplot(aes(x = mean, y = period, fill = AFRO_region)) +
   geom_bar(stat = "identity")  +
   geom_errorbarh(data = cases_continent,
@@ -298,76 +366,28 @@ ggsave(plot = p_fig1_v2,
 
 
 # Figure 2: changes between periods ------------------------------------------
-
-# Figure 2A: ADM2 rate maps
-p_fig2A <- output_plot_map(sf_obj = mai_adm,
-                           lakes_sf = lakes_sf,
-                           all_countries_sf = afr_sf,
-                           fill_var = "log10_rate_per_1e5",
-                           fill_color_scale_type = "rates") +
-  facet_wrap(~ period) +
-  theme(strip.background = element_blank(),
-        strip.text = element_text(size = 15),
-        legend.position = c(.1, .3)) +
-  guides(fill = guide_colorbar("Mean annual incidence rate\n[cases/100,000 people]"))
-
-ggsave(plot = p_fig2A,
-       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2A.png"),
-       width = 10,
-       height = 6,
-       dpi = 300)
-
-# Figure 2b: Rate change map
-p_fig2B <- output_plot_map(sf_obj = mai_change_adm,
-                           lakes_sf = lakes_sf,
-                           all_countries_sf = afr_sf,
-                           fill_var = "log10_rate_ratio",
-                           fill_color_scale_type = "ratio") +
-  theme(legend.position = "right") +
-  guides(fill = guide_colorbar("Ratio of incidence rates\n[2016-2020/2011-2015]")) +
-  theme(strip.background = element_blank(),
-        strip.text = element_text(size = 15),
-        legend.position = c(.2, .3))
-
-ggsave(p_fig2B,
-       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2B.png"),
-       width = 7,
-       height = 6, 
-       dpi = 600)
+# 
+# # Figure 2A: ADM2 rate maps
+# p_fig2A <- output_plot_map(sf_obj = mai_adm,
+#                            lakes_sf = lakes_sf,
+#                            all_countries_sf = afr_sf,
+#                            fill_var = "log10_rate_per_1e5",
+#                            fill_color_scale_type = "rates") +
+#   facet_wrap(~ period) +
+#   theme(strip.background = element_blank(),
+#         strip.text = element_text(size = 15),
+#         legend.position = c(.1, .3)) +
+#   guides(fill = guide_colorbar("Mean annual incidence rate\n[cases/100,000 people]"))
+# 
+# ggsave(plot = p_fig2A,
+#        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2A.png"),
+#        width = 10,
+#        height = 6,
+#        dpi = 300)
 
 
-# Combine mai change data
-combined_mai_changes <- bind_rows(
-  # AFRO regions
-  mai_region_changes %>% 
-    mutate(country = AFRO_region,
-           region = AFRO_region), 
-  # ADM2 level
-  mai_adm0_changes %>% 
-    mutate(region = AFRO_region),
-  # Continent level
-  mai_all_changes %>% 
-    mutate(country = "SSA", 
-           region = "SSA")
-) %>% 
-  mutate(
-    # !! change rate values to 1e-1/100'000 for display
-    across(
-      c("2011-2015", "2016-2020"), 
-      function(x) {
-        x[x < 1e-6] <- 1e-6
-        x
-      }),
-    admin_level = case_when(
-      str_detect(location_period_id, "country") ~ "region",
-      location_period_id == "tot" ~ "continent",
-      TRUE ~ "ADM2"),
-    admin_level = factor(admin_level, levels = c("continent", "region", "ADM2")),
-    region = factor(region, levels = c("SSA", names(colors_afro_regions())))
-  )
-
-# Figure 3C: national-level scatterplot
-p_fig2C_scatter <- combined_mai_changes %>% 
+# Figure 2A: national-level scatterplot
+p_fig2A <- combined_mai_changes %>% 
   ggplot(aes(x = log10(`2011-2015`*1e5), 
              y =  log10(`2016-2020`*1e5), 
              col = region)) +
@@ -381,7 +401,7 @@ p_fig2C_scatter <- combined_mai_changes %>%
     max.overlaps = Inf, 
     xlim = c(-1, 2.2),
     ylim = c(-1, 2.2)) +
-  scale_size_manual(values = c(7, 6, 3)) +
+  scale_size_manual(values = c(6, 4, 2.5)) +
   scale_shape_manual(values = c(15, 17, 16)) +
   scale_alpha_manual(values = c(1, 1, .75)) +
   scale_color_manual(values = c("black", colors_afro_regions())) +
@@ -404,30 +424,161 @@ p_fig2C_scatter <- combined_mai_changes %>%
   guides(color = "none", size = "none", shape = "none", alpha = "none")
 
 
-# p_fig2C <- ggdraw() +
-#   draw_plot(p_fig2C_scatter) #+
-# draw_plot(p_fig_2C_regions, x = 0.765, y = .7, width = .27, height = .27)
-
-
-ggsave(p_fig2C_scatter,
-       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2C.png"),
+ggsave(p_fig2A,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2A.png"),
        width = 8,
        height = 7, 
        dpi = 600)
 
 
+mai_adm2_change_stats <- mai_change_stats %>% 
+  filter(admin_level == "ADM2") %>% 
+  mutate(change_direction = case_when(
+    q2.5 > 1 ~ "increase",
+    q97.5 < 1 ~ "decrease",
+    T ~ "no change"
+  ))#,
+# change_direction = factor(change_direction, levels = c("increase", "no change", "decrease")))
+
+# Figure 2b: Rate change map
+p_fig2B <- mai_change_adm %>% 
+  inner_join(u_space_sf, .) %>%
+  output_plot_map(sf_obj = .,
+                  lakes_sf = lakes_sf,
+                  all_countries_sf = afr_sf,
+                  fill_var = "log10_rate_ratio",
+                  fill_color_scale_type = "ratio") +
+  # Add the significance information
+  geom_sf(data = mai_adm2_change_stats  %>% 
+            inner_join(u_space_sf, .) %>% 
+            filter(change_direction == "no change"),
+          inherit.aes = F,
+          aes(color = change_direction),
+          alpha = 0,
+          lwd = .1) +
+  geom_sf(data = mai_adm2_change_stats  %>% 
+            inner_join(u_space_sf, .) %>% 
+            filter(change_direction != "no change"),
+          inherit.aes = F,
+          aes(color = change_direction),
+          alpha = 0,
+          lwd = .1) +
+  theme(legend.position = "right") +
+  scale_color_manual(values = c("blue", "red", "darkgray")) +
+  guides(fill = guide_colorbar("Ratio of incidence rates\n[2016-2020/2011-2015]"),
+         color = guide_legend("Change significance")) +
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 15),
+        legend.position = c(.2, .3))
+
+ggsave(p_fig2B,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2B.png"),
+       width = 7,
+       height = 6, 
+       dpi = 600)
+
+
+# Figure 2C: "endemic areas" > 20/100'000 people
+high_rate_thresh <- 20e-5
+low_rate_thresh <- 1e-5
+
+endemicity_df <- mai_adm_all %>% 
+  filter(admin_level == "ADM2") %>% 
+  mutate(high_risk = q2.5 > high_rate_thresh,
+         low_risk = q97.5 < low_rate_thresh) %>% 
+  group_by(country, location_period_id) %>% 
+  summarise(
+    endemicity = case_when(
+      sum(high_risk) == 2 ~ "high-both",
+      sum(low_risk) == 2 ~ "low-both",
+      sum(high_risk) == 1 ~ "high-either",
+      T ~ "mix"
+    )
+  ) %>% 
+  mutate(endemicity = factor(endemicity, levels = c("high-both", "high-either",
+                                                    "mix", "low-both")))  
+p_fig2C <-  endemicity_df %>% 
+  inner_join(u_space_sf, .) %>% 
+  # ggplot() +
+  # geom_sf(aes(fill = endemicity)) +
+  # taxdat::map_theme() +
+  output_plot_map(sf_obj = .,
+                  lakes_sf = lakes_sf,
+                  all_countries_sf = afr_sf,
+                  fill_var = "endemicity",
+                  fill_color_scale_type = "endemicity",
+                  border_width = .03) +
+  guides(fill = guide_legend(NULL))
+# scale_fill_manual(values = c("#FF0703", "#E88887", "#A303ED", "#837EE6", "#0C14ED", "#BFBFBF"))
+
+ggsave(p_fig2C,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2C_rate_20.png"),
+       width = 7,
+       height = 6, 
+       dpi = 600)
+
+
+p_endemicity <- endemicity_df  %>%
+  group_by(country) %>% 
+  complete(endemicity = unique(endemicity_df$endemicity)) %>% 
+  get_AFRO_region(ctry_col = "country") %>% 
+  group_by(AFRO_region, country, endemicity) %>%
+  summarise(n = sum(!is.na(location_period_id))) %>% 
+  group_by(AFRO_region, country) %>%
+  mutate(frac = n/sum(n)) %>% 
+  group_by(country) %>% 
+  mutate(
+    frac_other = frac[endemicity == "mix"],
+    frac_high = sum(frac[endemicity %in% c("high-both", "high-either")]),
+    frac_low = sum(frac[endemicity %in% c("low-both")])
+  ) %>% 
+  ungroup() %>% 
+  mutate(endemicity = forcats::fct_rev(endemicity),
+         country = factor(country, levels = unique(country[order(frac_high, frac_other)])),
+         # country = forcats::fct_reorder2(country, frac_low, frac_high, .desc = FALSE)
+         ) %>% 
+  ggplot(aes(y = country, x = frac, fill = endemicity)) +
+  geom_bar(stat = "identity") +
+  facet_grid(AFRO_region ~., scales = "free_y", space = "free_y") +
+  scale_fill_manual(values = rev(colors_endemicity())) +
+  theme_bw()
+
+ggsave(p_endemicity,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2C_endemicity_rate_20.png"),
+       width = 6,
+       height = 7, 
+       dpi = 600)
+
+# Supp figure low burden
+p_fig2C_supp <- mai_adm_all %>% 
+  filter(admin_level == "ADM2") %>% 
+  mutate(low_risk = q97.5 < low_rate_thresh) %>% 
+  group_by(location_period_id) %>% 
+  summarise(endemicity =  ifelse(sum(low_risk) == 2, "low-burden", "non low-burden")) %>% 
+  inner_join(u_space_sf, .) %>% 
+  output_plot_map(sf_obj = .,
+                  lakes_sf = lakes_sf,
+                  all_countries_sf = afr_sf,
+                  fill_var = "endemicity",
+                  fill_color_scale_type = "endemicity_low",
+                  border_width = .05) +
+  labs(fill = NULL)
+
+ggsave(p_fig2C_supp,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2C_supp_low.png"),
+       width = 7,
+       height = 6, 
+       dpi = 600)
+
 # Figure 2
 p_fig2 <- plot_grid(
   p_fig2A,
-  plot_grid(p_fig2B,
-            p_fig2C  +
-              theme(plot.margin = unit(c(2, 1, 2, 1), "lines")),
-            nrow = 1,
-            labels = c("b", "c"),
-            rel_widths = c(1, 1)),
+  p_fig2B,
+  p_fig2C,
+  p_fig2C_supp,
   nrow = 2,
-  labels = c("a", NULL),
-  rel_heights = c(1, 1)
+  labels = "auto"#,
+  # rel_heights = c(1, 1)
 )  + theme(panel.background = element_rect(fill = "white"))
 
 ggsave(plot = p_fig2,
@@ -439,13 +590,16 @@ ggsave(plot = p_fig2,
 
 # Figure 3: population at risk --------------------------------------------
 
+
 # Fig. 3A: Population at risk map
-p_fig3A <- output_plot_map(sf_obj = risk_pop_adm2 %>% 
-                             filter(period == "2016-2020"), 
-                           lakes_sf = lakes_sf,
-                           all_countries_sf = afr_sf,
-                           fill_var = "risk_cat",
-                           fill_color_scale_type = "risk category") +
+p_fig3A <- risk_pop_adm2 %>% 
+  filter(period == "2016-2020") %>% 
+  inner_join(u_space_sf, .) %>% 
+  output_plot_map(sf_obj = ., 
+                  lakes_sf = lakes_sf,
+                  all_countries_sf = afr_sf,
+                  fill_var = "risk_cat",
+                  fill_color_scale_type = "risk category") +
   scale_fill_viridis_d(direction = -1) + 
   theme(strip.background = element_blank(),
         strip.text = element_text(size = 15),
@@ -463,7 +617,6 @@ ggsave(p_fig3A,
 # This is at the ADM2 level per country
 p_fig3B <- risk_pop_adm2 %>% 
   bind_rows(risk_pop_adm2 %>% mutate(AFRO_region = "all")) %>%
-  st_drop_geometry() %>% 
   mutate(AFRO_region = factor(AFRO_region, 
                               levels = c("all", get_AFRO_region_levels()))) %>% 
   group_by(AFRO_region, risk_cat, period) %>% 
@@ -484,6 +637,75 @@ ggsave(plot = p_fig3B,
        width = 12,
        height = 7,
        dpi = 300)
+
+
+
+# Same as above but with risk categories
+
+endemicity_df_v2 <- risk_pop_adm2 %>% 
+  mutate(high_risk = risk_cat %in% get_risk_cat_dict()[3:6],
+         low_risk = risk_cat %in% get_risk_cat_dict()[1]) %>% 
+  group_by(country, location_period_id) %>% 
+  summarise(
+    endemicity = case_when(
+      sum(high_risk) == 2 ~ "high-both",
+      sum(low_risk) == 2 ~ "low-both",
+      sum(high_risk) == 1 ~ "high-either",
+      T ~ "mix"
+    ),
+    pop = max(pop)
+  ) %>% 
+  mutate(endemicity = factor(endemicity, levels = c("high-both", "high-either",
+                                                    "mix", "low-both")))  
+p_fig2C_v3 <-  endemicity_df_v2 %>% 
+  inner_join(u_space_sf, .) %>% 
+  output_plot_map(sf_obj = .,
+                  lakes_sf = lakes_sf,
+                  all_countries_sf = afr_sf,
+                  fill_var = "endemicity",
+                  fill_color_scale_type = "endemicity",
+                  border_width = .03) +
+  guides(fill = guide_legend(NULL))
+
+ggsave(p_fig2C_v3,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2C_risk_cat_10.png"),
+       width = 7,
+       height = 6, 
+       dpi = 600)
+
+
+p_endemicity_v2 <- endemicity_df_v2  %>%
+  group_by(country) %>% 
+  complete(endemicity = unique(endemicity_df$endemicity)) %>% 
+  get_AFRO_region(ctry_col = "country") %>% 
+  group_by(AFRO_region, country, endemicity) %>%
+  summarise(n = sum(!is.na(location_period_id)),
+            pop = sum(pop[!is.na(location_period_id)])) %>% 
+  group_by(AFRO_region, country) %>%
+  mutate(frac = pop/sum(pop)) %>% 
+  group_by(country) %>% 
+  mutate(
+    frac_other = frac[endemicity == "mix"],
+    frac_high = sum(frac[endemicity %in% c("high-both", "high-either")]),
+    frac_low = sum(frac[endemicity %in% c("low-both")])
+  ) %>% 
+  ungroup() %>% 
+  mutate(endemicity = forcats::fct_rev(endemicity),
+         country = factor(country, levels = unique(country[order(frac_high, frac_other)])),
+         # country = forcats::fct_reorder2(country, frac_low, frac_high, .desc = FALSE)
+  ) %>% 
+  ggplot(aes(y = country, x = frac, fill = endemicity)) +
+  geom_bar(stat = "identity") +
+  facet_grid(AFRO_region ~., scales = "free_y", space = "free_y") +
+  scale_fill_manual(values = rev(colors_endemicity())) +
+  theme_bw() +
+  labs(x = "Fraction of population")
+
+ggsave(p_endemicity_v2,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2C_endemicity_risk_cat_10.png"),
+       width = 6,
+       height = 7, 
+       dpi = 600)
 
 
 # Figure 2

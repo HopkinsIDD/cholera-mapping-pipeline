@@ -13,6 +13,19 @@ coloramp_cases <- function(){c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993
 
 # colors_admin_levels <- function(){c( "#4F802A", "#5449C7", "#BF0B07", "#DBB50B")}
 colors_admin_levels <- function(){c("#CAE0C9", "#99CCFF", "#FF9999", "#CC9900", "#FF9933",'black')}
+colors_endemicity_high <- function(){c("red", "gray")}
+colors_endemicity_low <- function(){c("blue", "gray")}
+colors_endemicity <- function(){c("#FF0000", "#E65F5F", "#F2A8A7", "#837EE6")} #"#0C14ED"
+colors_endemicity <- function(){
+  # result of : paletteer::paletteer_d("calecopal::desert", direction = -1)[1:3]
+  # c("#291611FF", "#632D1FFF", "#B09175FF", "gray")
+  # result of : paletteer::paletteer_d("colRoz::v_acanthurus", direction = -1)[c(1, 2, 4)]
+  c("#4A2C22FF","#BD6E39FF","#F8BC64FF", "gray")
+}
+
+colors_risk_categories <- function() {
+  c( "gray", paletteer::paletteer_d("fishualize::Epinephelus_striatus", direction = -1))
+}
 
 #' @export
 colors_afro_regions <- function(){
@@ -118,9 +131,15 @@ output_plot_map <- function(sf_obj,
                              na.value = "lightgray")
         
       } else if(fill_color_scale_type == "risk category") {
-        scale_fill_viridis_d()
+        scale_fill_manual(values = colors_risk_categories())
       } else if(fill_color_scale_type == "lisa cluster") {
         scale_fill_manual(values = colors_lisa_clusters())
+      } else if(fill_color_scale_type == "endemicity_high") {
+        scale_fill_manual(values = colors_endemicity_high())
+      } else if(fill_color_scale_type == "endemicity_low") {
+        scale_fill_manual(values = colors_endemicity_low())
+      } else if(fill_color_scale_type == "endemicity") {
+        scale_fill_manual(values = colors_endemicity())
       } else if(fill_color_scale_type == "admin levels") {
         scale_fill_manual(values = colors_admin_levels())
       }
