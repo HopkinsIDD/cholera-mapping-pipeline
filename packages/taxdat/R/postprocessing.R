@@ -427,15 +427,16 @@ postprocess_mean_annual_incidence_draws <- function(config_list,
     dplyr::select(-.iteration, -.chain)
   
   # # Get the output shapefiles and join
-  # output_shapefiles <- get_output_sf_reload(config_list = config_list,
-  #                                           redo = redo_aux)
-  # 
-  # res <- join_output_shapefiles(output = mai_draws, 
-  #                               output_shapefiles = output_shapefiles,
-  #                               var_col = "variable") %>% 
-  #   dplyr::select(-variable)
+  output_shapefiles <- get_output_sf_reload(config_list = config_list,
+                                            redo = redo_aux)
+
+  res <- join_output_shapefiles(output = mai_draws,
+                                output_shapefiles = output_shapefiles %>% 
+                                  sf::st_drop_geometry(),
+                                var_col = "variable") %>%
+    dplyr::select(-variable) 
   
-  mai_draws
+  res
 }
 
 
@@ -686,12 +687,47 @@ postprocess_pop_at_risk <- function(config_list,
   pop_at_risk <- genquant$summary("tot_pop_risk", custom_summaries()) %>% 
     dplyr::mutate(risk_cat = risk_cat_dict[as.numeric(stringr::str_extract(variable, "(?<=\\[)[0-9]+(?=,)"))],
                   risk_cat = factor(risk_cat, levels = risk_cat_dict),
-                  admin_level = as.numeric(str_extract(variable, "(?<=,)[0-9]+(?=\\])")) - 1,
+                  admin_level = str_c("ADM", as.numeric(str_extract(variable, "(?<=,)[0-9]+(?=\\])")) - 1),
                   country = taxdat::get_country_isocode(config_list))
   
   pop_at_risk
 }
 
+
+#' postprocess_pop_at_risk
+#'
+#' @param config_list 
+#' @param redo_aux 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+postprocess_pop_at_risk_draws <- function(config_list,
+                                          redo_aux = FALSE) {
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # Get dictionnary of risk categories
+  risk_cat_dict <- get_risk_cat_dict()
+  
+  # Get mean annual incidence summary
+  pop_at_risk <- genquant$draws("tot_pop_risk") %>% 
+    posterior::as_draws() %>% 
+    posterior::as_draws_df() %>% 
+    dplyr::as_tibble()  %>% 
+    tidyr::pivot_longer(cols = contains("tot_pop_risk"),
+                        names_to = "variable",
+                        values_to = "tot_pop_risk") %>% 
+    dplyr::select(-.iteration, -.chain) %>% 
+    dplyr::mutate(risk_cat = risk_cat_dict[as.numeric(stringr::str_extract(variable, "(?<=\\[)[0-9]+(?=,)"))],
+                  risk_cat = factor(risk_cat, levels = risk_cat_dict),
+                  admin_level = str_c("ADM", as.numeric(str_extract(variable, "(?<=,)[0-9]+(?=\\])")) - 1),
+                  country = taxdat::get_country_isocode(config_list))
+  
+  pop_at_risk
+}
 
 #' postprocess_pop_at_high_risk
 #' This is to match computations in the Lancet paper of > 100 cases/100'000
@@ -1159,6 +1195,9 @@ get_coverage <- function(df,
 #' aggregate_and_summarise_case_draws
 #'
 #' @param df 
+#' @param col 
+#' @param grouping_variables 
+#' @param weights_col 
 #'
 #' @return
 #' @export
@@ -1166,9 +1205,10 @@ get_coverage <- function(df,
 #' @examples
 aggregate_and_summarise_draws <- function(df, 
                                           col = "country_cases",
+                                          grouping_variables = NULL,
                                           weights_col = NULL) {
   df %>% 
-    dplyr::group_by(.draw) %>%
+    dplyr::group_by_at(c(".draw", grouping_variables)) %>% 
     {
       x <- .
       if (is.null(weights_col)) {
@@ -1184,6 +1224,9 @@ aggregate_and_summarise_draws <- function(df,
 #' aggregate_and_summarise_case_draws_by_region
 #'
 #' @param df 
+#' @param col 
+#' @param grouping_variables 
+#' @param weights_col 
 #'
 #' @return
 #' @export
@@ -1191,10 +1234,11 @@ aggregate_and_summarise_draws <- function(df,
 #' @examples
 aggregate_and_summarise_draws_by_region <- function(df, 
                                                     col = "country_cases",
+                                                    grouping_variables = NULL,
                                                     weights_col = NULL) {
   df %>% 
     get_AFRO_region(ctry_col = "country") %>% 
-    dplyr::group_by(.draw, AFRO_region) %>% 
+    dplyr::group_by_at(c(".draw", "AFRO_region", grouping_variables)) %>% 
     {
       x <- .
       if (is.null(weights_col)) {
