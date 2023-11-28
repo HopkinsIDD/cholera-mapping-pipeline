@@ -358,6 +358,27 @@ pop_at_risk <- run_all(
   output_file_type = "rds",
   verbose = opt$verbose)
 
+# Get the population at risk overall
+pop_at_risk_all <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_pop_at_risk_draws,
+  fun_name = "pop_at_risk_all",
+  fun_opts = NULL,
+  postprocess_fun = aggregate_and_summarise_draws,
+  postprocess_fun_opts = list(col = "tot_pop_risk",
+                              grouping_variables = "risk_cat"),
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  interm_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+
 # Get the population at risk by WHO region
 pop_at_risk_regions <- run_all(
   config_dir = opt$config_dir,

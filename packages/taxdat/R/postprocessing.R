@@ -429,7 +429,7 @@ postprocess_mean_annual_incidence_draws <- function(config_list,
   # # Get the output shapefiles and join
   output_shapefiles <- get_output_sf_reload(config_list = config_list,
                                             redo = redo_aux)
-
+  
   res <- join_output_shapefiles(output = mai_draws,
                                 output_shapefiles = output_shapefiles %>% 
                                   sf::st_drop_geometry(),
@@ -1207,6 +1207,7 @@ aggregate_and_summarise_draws <- function(df,
                                           col = "country_cases",
                                           grouping_variables = NULL,
                                           weights_col = NULL) {
+  
   df %>% 
     dplyr::group_by_at(c(".draw", grouping_variables)) %>% 
     {
@@ -1217,6 +1218,20 @@ aggregate_and_summarise_draws <- function(df,
         dplyr::summarise(x, tot = sum(!!rlang::sym(col) * !!rlang::sym(weights_col))/sum(!!rlang::sym(weights_col))) 
       }
     } %>% 
+    {
+      x <- .
+      if (is.null(grouping_variables)) {
+        x
+      } else {
+        x %>% dplyr::ungroup() %>% 
+          tidyr::pivot_wider(names_from = grouping_variables,
+                             values_from = "tot") %>% 
+          janitor::clean_names() %>% 
+          dplyr::select(-draw) %>% 
+          magrittr::set_names(stringr::str_c(col, colnames(.), sep = "_") %>% 
+                                stringr::str_remove("x"))
+      }
+    }  %>% 
     posterior::as_draws() %>% 
     posterior::summarise_draws(custom_summaries())
 }
@@ -1236,6 +1251,14 @@ aggregate_and_summarise_draws_by_region <- function(df,
                                                     col = "country_cases",
                                                     grouping_variables = NULL,
                                                     weights_col = NULL) {
+  
+  # Define columns from which to extract names
+  if (!is.null(grouping_variables)) {
+    name_cols <-   c("AFRO_region", grouping_variables)
+  } else {
+    name_cols <- "AFRO_region"
+  }
+  
   df %>% 
     get_AFRO_region(ctry_col = "country") %>% 
     dplyr::group_by_at(c(".draw", "AFRO_region", grouping_variables)) %>% 
@@ -1248,7 +1271,7 @@ aggregate_and_summarise_draws_by_region <- function(df,
       }
     } %>% 
     dplyr::ungroup() %>% 
-    tidyr::pivot_wider(names_from = "AFRO_region",
+    tidyr::pivot_wider(names_from = name_cols,
                        values_from = "tot") %>% 
     janitor::clean_names() %>% 
     dplyr::select(-draw) %>% 
