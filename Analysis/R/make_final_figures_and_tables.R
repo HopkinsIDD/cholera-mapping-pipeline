@@ -84,8 +84,8 @@ merge_ratio_draws <- function(df1, df2) {
   
   # Compute ratio samples
   for (i in 1:n_variables) {
-    ind2 <- df2$variable == u_lps[i]
-    ind <- df1$variable == u_lps[i]
+    ind2 <- df2$location_period_id == u_lps[i]
+    ind <- df1$location_period_id == u_lps[i]
     for (j in 1:n_draws) {
       ratios[i, j, ] <- df2$value[ind2 & df2$.draw == u_draws[j]]/
         df1$value[ind]
