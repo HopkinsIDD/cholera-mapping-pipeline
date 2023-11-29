@@ -77,7 +77,7 @@ compute_rate_changes <- function(df) {
 # Compute change statistics (could package into function)
 merge_ratio_draws <- function(df1, df2) {
   u_lps <- intersect(unique(df1$location_period_id), unique(df2$location_period_id))
-  n_variables <- max(length(u_lps1), length(u_lps2))
+  n_variables <- length(u_lps)
   u_draws <- unique(df1$.draw)
   n_draws <- length(u_draws)
   ratios <- array(NA, dim = c(n_variables, n_draws, n_draws))
@@ -174,12 +174,12 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
                                 levels = get_AFRO_region_levels()))
   
   pop_at_risk_region <- combine_period_output(prefix_list = prefix_list,
-                                              output_name = "pop_at_risk_region",
+                                              output_name = "pop_at_risk_by_region",
                                               output_dir = opt$output_dir) %>% 
-    mutate(admin_level = str_c("ADM", admin_level)) %>% 
-    filter(admin_level == "ADM2") %>% 
-    get_AFRO_region(ctry_col = "country")  %>% 
-    mutate(AFRO_region = factor(AFRO_region, 
+    mutate(AFRO_region = str_remove(variable, "country_cases_") %>% 
+             str_replace("_", " ") %>% 
+             str_to_title(),
+           AFRO_region = factor(AFRO_region, 
                                 levels = get_AFRO_region_levels()))
   
   
@@ -719,7 +719,7 @@ p_endemicity_v2 <- endemicity_df_v2  %>%
   ggplot(aes(y = country, x = frac, fill = endemicity)) +
   geom_bar(stat = "identity") +
   facet_grid(AFRO_region ~., scales = "free_y", space = "free_y") +
-  scale_fill_manual(values = rev(colors_endemicity())) +
+  scale_fill_manual(values = rev(taxdat:::colors_endemicity())) +
   theme_bw() +
   labs(x = "Fraction of population")
 
