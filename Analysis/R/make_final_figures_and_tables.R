@@ -122,7 +122,7 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   
   ## Cases by region and continent ---------------------------------------
   cases_continent <- combine_period_output(prefix_list = prefix_list,
-                                           output_name = "mai_cases_all",
+                                           output_name = "mai_simulated_cases_all",
                                            output_dir = opt$output_dir)
   
   cases_by_region <- combine_period_output(prefix_list = prefix_list,
@@ -619,7 +619,7 @@ p_fig3B <- risk_pop_regions %>%
   geom_bar(aes(fill = AFRO_region), stat = "identity", width = .5) +
   geom_errorbar(data = risk_pop_all,
                 inherit.aes = F,
-                aes(xmin = q2.5, xmax = q97.5, y = risk_cat), width = 0) +
+                aes(xmin = q2.5, xmax = q97.5, y = risk_cat), width = 0.2) +
   geom_point(data = risk_pop_all, aes(x = mean)) +
   theme_bw() +
   scale_fill_manual(values = colors_afro_regions()) +

@@ -468,6 +468,38 @@ postprocess_adm0_cases <- function(config_list,
   cases_adm0
 }
 
+#' postprocess_mai_adm0_simulated_cases
+#' This differs from postprocess_adm0_cases in that it accounts for eventual 
+#' over-dispersion in the observation in the model
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_mai_adm0_simulated_cases <- function(config_list,
+                                                 redo_aux = FALSE) {
+  
+  # First get the mean of the cases
+  mean_cases_adm0 <- postprocess_adm0_cases(config_list,
+                                            redo_aux = redo_aux)
+  
+  # Get the observation model
+  stan_input <- read_file_of_type(config_list$file_names$stan_input_filename, "stan_input") 
+  obs_model <- stan_input$stan_data$obs_model
+  adm0_od <- stan_input$stan_data$adm0_od
+  
+  # Simulate
+  res <- simulate_observations(mean_cases_adm0$country_cases,
+                               obs_model = obs_model,
+                               od_param = adm0_od)
+  
+  
+  mean_cases_adm0 %>% 
+    mutate(country_cases = res) %>% 
+    rename(sim_country_cases = country_cases)
+}
+
+
 #' postprocess_adm_mean_cases
 #' Mean number of cases for all output locations across time slices
 #' 
@@ -1385,4 +1417,30 @@ get_intended_runs <- function(csv_path = "Analysis/output/Data Entry Coordinatio
     dplyr::mutate(isocode = dplyr::case_when(
       stringr::str_detect(country, "TZA") ~ "TZA",
       T ~ country))
+}
+
+#' simulate_observations
+#' Simulated observations based on observation model
+#' 
+#' @param mu 
+#' @param obs_model 
+#' @param od_param 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+simulate_observations <- function(mu, 
+                                  obs_model, 
+                                  od_param = NULL) {
+  if (obs_model == 1) {
+    # Poisson
+    rpois(length(mu), mu)
+  } else if (obs_model == 2) {
+    # Quasi-poisson
+    rnbinom(length(mu), mu = mu, size = od_param * mu)
+  } else {
+    # Negative binomial
+    rnbinom(length(mu), mu = mu, size = od_param)
+  }
 }
