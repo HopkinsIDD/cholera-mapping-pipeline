@@ -15,19 +15,26 @@ library(cowplot)
 # User-supplied options
 opt_list <- list(
   make_option(opt_str = c("-o", "--output_dir"), type = "character",
-              default = "./processed_outputs/processed_outputs/", help = "Output directory with postprocessed objects"),
+              default = "./Analysis/output/processed_outputs/", 
+              help = "Output directory with postprocessed objects"),
   make_option(opt_str = c("-x", "--prefix_p1"), type = "character",
-              default = "2011_2015", help = "Prefix of output files for first period"),
+              default = "postprocessing_test_2011_2015", 
+              help = "Prefix of output files for first period"),
   make_option(opt_str = c("-y", "--prefix_p2"), type = "character",
-              default = "2016_2020", help = "Prefix of output files for second period"),
+              default = "postprocessing_test_2016_2020", 
+              help = "Prefix of output files for second period"),
   make_option(opt_str = c("-p", "--out_prefix"), type = "character",
-              default = "postprocessing", help = "Prefix for output figures and tables"),
+              default = "postprocessing", 
+              help = "Prefix for output figures and tables"),
   make_option(opt_str = c("-d", "--out_dir"), type = "character",
-              default = "./Analysis/output/figures", help = "Output directory for figures"),
+              default = "./Analysis/output/figures",
+              help = "Output directory for figures"),
   make_option(opt_str = c("-f", "--bundle_filename"), type = "character",
-              default = "./Analysis/output/data_bundle_for_figures.rdata", help = "Data bundle to avoid re-processing"),
+              default = "./Analysis/output/data_bundle_for_figures_test.rdata", 
+              help = "Data bundle to avoid re-processing"),
   make_option(opt_str = c("-r", "--redo"), type = "logical",
-              default = FALSE, help = "Redo re-processing")
+              default = FALSE, 
+              help = "Redo re-processing")
 )
 
 opt <- parse_args(OptionParser(option_list = opt_list))
@@ -167,21 +174,42 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   pop_at_risk <- combine_period_output(prefix_list = prefix_list,
                                        output_name = "pop_at_risk",
                                        output_dir = opt$output_dir) %>% 
-    mutate(admin_level = str_c("ADM", admin_level)) %>% 
     filter(admin_level == "ADM2") %>% 
     get_AFRO_region(ctry_col = "country")  %>% 
     mutate(AFRO_region = factor(AFRO_region, 
                                 levels = get_AFRO_region_levels()))
   
-  pop_at_risk_region <- combine_period_output(prefix_list = prefix_list,
+  
+  unpack_pop_at_risk <- function(df) {
+    risk_cat_map <- get_risk_cat_dict()
+    names(risk_cat_map) <- janitor::make_clean_names(risk_cat_map) %>% 
+      str_remove("x")
+    
+    
+    df %>% 
+      mutate(risk_cat = str_extract(variable, str_c(rev(names(risk_cat_map)), collapse = "|")),
+             risk_cat = risk_cat_map[risk_cat] %>% factor(levels = risk_cat_map),
+             admin_level = str_c("ADM", str_extract(variable, "(?<=adm)[0-9]+"))
+             )
+  }
+  
+  # Population at risk by WHO-AFRO region
+  pop_at_risk_regions <- combine_period_output(prefix_list = prefix_list,
                                               output_name = "pop_at_risk_by_region",
                                               output_dir = opt$output_dir) %>% 
-    mutate(AFRO_region = str_remove(variable, "country_cases_") %>% 
+    mutate(AFRO_region = str_extract(variable, "(?<=tot_pop_risk_)(.)*(?=_adm)") %>% 
              str_replace("_", " ") %>% 
              str_to_title(),
            AFRO_region = factor(AFRO_region, 
-                                levels = get_AFRO_region_levels()))
+                                levels = get_AFRO_region_levels())) %>% 
+    unpack_pop_at_risk()
   
+  
+  # Total population at risk
+  pop_at_risk_all <- combine_period_output(prefix_list = prefix_list,
+                                           output_name = "pop_at_risk_all",
+                                           output_dir = opt$output_dir)  %>% 
+    unpack_pop_at_risk()
   
   ## ADM2 level stats ---------------------------------------
   # Mean annual incidence rates at ADM2 level
@@ -572,20 +600,27 @@ ggsave(p_fig3A,
 
 ## Fig. 3B: People per risk category --------
 
-# This is at the ADM2 level per country
-risk_pop_by_region <- risk_pop_adm2 %>% 
-  # bind_rows(risk_pop_adm2 %>% mutate(AFRO_region = "all")) %>%
-  mutate(AFRO_region = factor(AFRO_region, 
-                              levels = get_AFRO_region_levels())) %>% 
-  group_by(AFRO_region, risk_cat, period) %>% 
-  summarise(pop = sum(pop)) %>% 
-  ungroup() %>% 
-  filter(risk_cat != "<1") 
+# Uncertainty bounds for totals
+risk_pop_all <- pop_at_risk_all %>% 
+  filter(period == "2016-2020", 
+         admin_level == "ADM2",
+         risk_cat != "<1") %>% 
+  select(risk_cat, mean, q2.5, q97.5)
 
-p_fig3B <- risk_pop_by_region %>% 
-  filter(period == "2016-2020") %>% 
-  ggplot(aes(y = risk_cat, x = pop, fill = AFRO_region)) +
-  geom_bar(stat = "identity", width = .5) +
+# Values by AFRO region
+risk_pop_regions <- pop_at_risk_regions %>% 
+  filter(period == "2016-2020", 
+         admin_level == "ADM2",
+         risk_cat != "<1") %>% 
+  select(AFRO_region, risk_cat, mean, q2.5, q97.5)
+
+p_fig3B <- risk_pop_regions %>%
+  ggplot(aes(y = risk_cat, x = mean)) +
+  geom_bar(aes(fill = AFRO_region), stat = "identity", width = .5) +
+  geom_errorbar(data = risk_pop_all,
+                inherit.aes = F,
+                aes(xmin = q2.5, xmax = q97.5, y = risk_cat), width = 0) +
+  geom_point(data = risk_pop_all, aes(x = mean)) +
   theme_bw() +
   scale_fill_manual(values = colors_afro_regions()) +
   scale_x_continuous(labels = function(x) {formatC(x/1e6)}) +
