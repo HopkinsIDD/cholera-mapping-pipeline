@@ -15,19 +15,26 @@ library(cowplot)
 # User-supplied options
 opt_list <- list(
   make_option(opt_str = c("-o", "--output_dir"), type = "character",
-              default = "./processed_outputs/processed_outputs/", help = "Output directory with postprocessed objects"),
+              default = "./Analysis/output/processed_outputs/", 
+              help = "Output directory with postprocessed objects"),
   make_option(opt_str = c("-x", "--prefix_p1"), type = "character",
-              default = "2011_2015", help = "Prefix of output files for first period"),
+              default = "postprocessing_test_2011_2015", 
+              help = "Prefix of output files for first period"),
   make_option(opt_str = c("-y", "--prefix_p2"), type = "character",
-              default = "2016_2020", help = "Prefix of output files for second period"),
+              default = "postprocessing_test_2016_2020", 
+              help = "Prefix of output files for second period"),
   make_option(opt_str = c("-p", "--out_prefix"), type = "character",
-              default = "postprocessing", help = "Prefix for output figures and tables"),
+              default = "postprocessing", 
+              help = "Prefix for output figures and tables"),
   make_option(opt_str = c("-d", "--out_dir"), type = "character",
-              default = "./Analysis/output/figures", help = "Output directory for figures"),
+              default = "./Analysis/output/figures",
+              help = "Output directory for figures"),
   make_option(opt_str = c("-f", "--bundle_filename"), type = "character",
-              default = "./Analysis/output/data_bundle_for_figures.rdata", help = "Data bundle to avoid re-processing"),
+              default = "./Analysis/output/data_bundle_for_figures_test.rdata", 
+              help = "Data bundle to avoid re-processing"),
   make_option(opt_str = c("-r", "--redo"), type = "logical",
-              default = FALSE, help = "Redo re-processing")
+              default = FALSE, 
+              help = "Redo re-processing")
 )
 
 opt <- parse_args(OptionParser(option_list = opt_list))
@@ -115,7 +122,7 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   
   ## Cases by region and continent ---------------------------------------
   cases_continent <- combine_period_output(prefix_list = prefix_list,
-                                           output_name = "mai_cases_all",
+                                           output_name = "mai_simulated_cases_all",
                                            output_dir = opt$output_dir)
   
   cases_by_region <- combine_period_output(prefix_list = prefix_list,
@@ -167,21 +174,42 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   pop_at_risk <- combine_period_output(prefix_list = prefix_list,
                                        output_name = "pop_at_risk",
                                        output_dir = opt$output_dir) %>% 
-    mutate(admin_level = str_c("ADM", admin_level)) %>% 
     filter(admin_level == "ADM2") %>% 
     get_AFRO_region(ctry_col = "country")  %>% 
     mutate(AFRO_region = factor(AFRO_region, 
                                 levels = get_AFRO_region_levels()))
   
-  pop_at_risk_region <- combine_period_output(prefix_list = prefix_list,
+  
+  unpack_pop_at_risk <- function(df) {
+    risk_cat_map <- get_risk_cat_dict()
+    names(risk_cat_map) <- janitor::make_clean_names(risk_cat_map) %>% 
+      str_remove("x")
+    
+    
+    df %>% 
+      mutate(risk_cat = str_extract(variable, str_c(rev(names(risk_cat_map)), collapse = "|")),
+             risk_cat = risk_cat_map[risk_cat] %>% factor(levels = risk_cat_map),
+             admin_level = str_c("ADM", str_extract(variable, "(?<=adm)[0-9]+"))
+             )
+  }
+  
+  # Population at risk by WHO-AFRO region
+  pop_at_risk_regions <- combine_period_output(prefix_list = prefix_list,
                                               output_name = "pop_at_risk_by_region",
                                               output_dir = opt$output_dir) %>% 
-    mutate(AFRO_region = str_remove(variable, "country_cases_") %>% 
+    mutate(AFRO_region = str_extract(variable, "(?<=tot_pop_risk_)(.)*(?=_adm)") %>% 
              str_replace("_", " ") %>% 
              str_to_title(),
            AFRO_region = factor(AFRO_region, 
-                                levels = get_AFRO_region_levels()))
+                                levels = get_AFRO_region_levels())) %>% 
+    unpack_pop_at_risk()
   
+  
+  # Total population at risk
+  pop_at_risk_all <- combine_period_output(prefix_list = prefix_list,
+                                           output_name = "pop_at_risk_all",
+                                           output_dir = opt$output_dir)  %>% 
+    unpack_pop_at_risk()
   
   ## ADM2 level stats ---------------------------------------
   # Mean annual incidence rates at ADM2 level
@@ -243,7 +271,6 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   
   saveRDS(mai_change_stats, file = str_glue("{opt$output_dir}/mai_ratio_stats.rds"))
   
-  rm(mai_change_draws)
   
   mai_change_stats <- mai_change_stats %>% 
     st_drop_geometry() %>% 
@@ -502,14 +529,14 @@ p_fig2B <- mai_change_adm %>%
           inherit.aes = F,
           aes(color = change_direction),
           alpha = 0,
-          lwd = .075) +
+          lwd = .05) +
   geom_sf(data = mai_adm2_change_stats  %>% 
             inner_join(u_space_sf, .) %>% 
             filter(change_direction != "no change"),
           inherit.aes = F,
           aes(color = change_direction),
           alpha = 0,
-          lwd = .075) +
+          lwd = .05) +
   theme(legend.position = "right") +
   scale_color_manual(values = c("blue", "red", "darkgray")) +
   guides(fill = guide_colorbar("Ratio of incidence rates\n[2016-2020/2011-2015]"),
@@ -573,20 +600,27 @@ ggsave(p_fig3A,
 
 ## Fig. 3B: People per risk category --------
 
-# This is at the ADM2 level per country
-risk_pop_by_region <- risk_pop_adm2 %>% 
-  # bind_rows(risk_pop_adm2 %>% mutate(AFRO_region = "all")) %>%
-  mutate(AFRO_region = factor(AFRO_region, 
-                              levels = get_AFRO_region_levels())) %>% 
-  group_by(AFRO_region, risk_cat, period) %>% 
-  summarise(pop = sum(pop)) %>% 
-  ungroup() %>% 
-  filter(risk_cat != "<1") 
+# Uncertainty bounds for totals
+risk_pop_all <- pop_at_risk_all %>% 
+  filter(period == "2016-2020", 
+         admin_level == "ADM2",
+         risk_cat != "<1") %>% 
+  select(risk_cat, mean, q2.5, q97.5)
 
-p_fig3B <- risk_pop_by_region %>% 
-  filter(period == "2016-2020") %>% 
-  ggplot(aes(y = risk_cat, x = pop, fill = AFRO_region)) +
-  geom_bar(stat = "identity", width = .5) +
+# Values by AFRO region
+risk_pop_regions <- pop_at_risk_regions %>% 
+  filter(period == "2016-2020", 
+         admin_level == "ADM2",
+         risk_cat != "<1") %>% 
+  select(AFRO_region, risk_cat, mean, q2.5, q97.5)
+
+p_fig3B <- risk_pop_regions %>%
+  ggplot(aes(y = risk_cat, x = mean)) +
+  geom_bar(aes(fill = AFRO_region), stat = "identity", width = .5) +
+  geom_errorbar(data = risk_pop_all,
+                inherit.aes = F,
+                aes(xmin = q2.5, xmax = q97.5, y = risk_cat), width = 0.2) +
+  geom_point(data = risk_pop_all, aes(x = mean)) +
   theme_bw() +
   scale_fill_manual(values = colors_afro_regions()) +
   scale_x_continuous(labels = function(x) {formatC(x/1e6)}) +
@@ -695,7 +729,7 @@ ggsave(plot = p_fig3,
 # Supplementary figures ---------------------------------------------------
 
 
-# Fraction by caetegories for supplement
+# Fraction by categories for supplement
 p_endemicity_v2 <- endemicity_df_v2  %>%
   group_by(country) %>% 
   complete(endemicity = unique(endemicity_df_v2$endemicity)) %>% 
@@ -714,7 +748,6 @@ p_endemicity_v2 <- endemicity_df_v2  %>%
   ungroup() %>% 
   mutate(endemicity = forcats::fct_rev(endemicity),
          country = factor(country, levels = unique(country[order(frac_high, frac_other)])),
-         # country = forcats::fct_reorder2(country, frac_low, frac_high, .desc = FALSE)
   ) %>% 
   ggplot(aes(y = country, x = frac, fill = endemicity)) +
   geom_bar(stat = "identity") +
@@ -729,143 +762,3 @@ ggsave(p_endemicity_v2,
        height = 7, 
        dpi = 150)
 
-
-# Scraps ------------------------------------------------------------------
-
-# mai_change_draws <- inner_join(
-#  ,
-#  ,
-#   by = c(".draw", "variable", "country"),
-#   suffix = str_c(".", names(prefix_list))
-# ) 
-
-# mai_change_stats <- mai_change_draws %>% 
-#   mutate(ratio = `value.2016-2020`/`value.2011-2015`) %>% 
-#   select(-contains("value.")) %>% 
-#   group_by(country, variable) %>% 
-#   summarise(mean = mean(ratio),
-#             q2.5 = quantile(ratio, 0.025),
-#             q97.5 = quantile(ratio, 0.975)) %>% 
-#   ungroup() %>% 
-#   mutate(shp_id = str_extract(variable, "[0-9]+") %>% as.numeric()) %>% 
-#   inner_join(u_space_sf %>% 
-#                select(country, location_period_id, shp_id, admin_level), .)
-
-
-
-# 
-# # Figure 2A: ADM2 rate maps
-# p_fig2A <- output_plot_map(sf_obj = mai_adm,
-#                            lakes_sf = lakes_sf,
-#                            all_countries_sf = afr_sf,
-#                            fill_var = "log10_rate_per_1e5",
-#                            fill_color_scale_type = "rates") +
-#   facet_wrap(~ period) +
-#   theme(strip.background = element_blank(),
-#         strip.text = element_text(size = 15),
-#         legend.position = c(.1, .3)) +
-#   guides(fill = guide_colorbar("Mean annual incidence rate\n[cases/100,000 people]"))
-# 
-# ggsave(plot = p_fig2A,
-#        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2A.png"),
-#        width = 10,
-#        height = 6,
-#        dpi = 300)
-#
-
-
-
-# 
-# # Figure 2C: "endemic areas" > 20/100'000 people
-# high_rate_thresh <- 20e-5
-# low_rate_thresh <- 1e-5
-# 
-# endemicity_df <- mai_adm_all %>% 
-#   filter(admin_level == "ADM2") %>% 
-#   mutate(high_risk = q2.5 > high_rate_thresh,
-#          low_risk = q97.5 < low_rate_thresh) %>% 
-#   group_by(country, location_period_id) %>% 
-#   summarise(
-#     endemicity = case_when(
-#       sum(high_risk) == 2 ~ "high-both",
-#       sum(low_risk) == 2 ~ "low-both",
-#       sum(high_risk) == 1 ~ "high-either",
-#       T ~ "mix"
-#     )
-#   ) %>% 
-#   mutate(endemicity = factor(endemicity, levels = c("high-both", "high-either",
-#                                                     "mix", "low-both")))  
-# p_fig2C <-  endemicity_df %>% 
-#   inner_join(u_space_sf, .) %>% 
-#   # ggplot() +
-#   # geom_sf(aes(fill = endemicity)) +
-#   # taxdat::map_theme() +
-#   output_plot_map(sf_obj = .,
-#                   lakes_sf = lakes_sf,
-#                   all_countries_sf = afr_sf,
-#                   fill_var = "endemicity",
-#                   fill_color_scale_type = "endemicity",
-#                   border_width = .03) +
-#   guides(fill = guide_legend(NULL))
-# # scale_fill_manual(values = c("#FF0703", "#E88887", "#A303ED", "#837EE6", "#0C14ED", "#BFBFBF"))
-# 
-# ggsave(p_fig2C,
-#        file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2C_rate_20.png"),
-#        width = 7,
-#        height = 6, 
-#        dpi = 150)
-# 
-# 
-# p_endemicity <- endemicity_df  %>%
-#   group_by(country) %>% 
-#   complete(endemicity = unique(endemicity_df$endemicity)) %>% 
-#   get_AFRO_region(ctry_col = "country") %>% 
-#   group_by(AFRO_region, country, endemicity) %>%
-#   summarise(n = sum(!is.na(location_period_id))) %>% 
-#   group_by(AFRO_region, country) %>%
-#   mutate(frac = n/sum(n)) %>% 
-#   group_by(country) %>% 
-#   mutate(
-#     frac_other = frac[endemicity == "mix"],
-#     frac_high = sum(frac[endemicity %in% c("high-both", "high-either")]),
-#     frac_low = sum(frac[endemicity %in% c("low-both")])
-#   ) %>% 
-#   ungroup() %>% 
-#   mutate(endemicity = forcats::fct_rev(endemicity),
-#          country = factor(country, levels = unique(country[order(frac_high, frac_other)])),
-#          # country = forcats::fct_reorder2(country, frac_low, frac_high, .desc = FALSE)
-#          ) %>% 
-#   ggplot(aes(y = country, x = frac, fill = endemicity)) +
-#   geom_bar(stat = "identity") +
-#   facet_grid(AFRO_region ~., scales = "free_y", space = "free_y") +
-#   scale_fill_manual(values = rev(colors_endemicity())) +
-#   theme_bw()
-# 
-# ggsave(p_endemicity,
-#        file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2C_endemicity_rate_20.png"),
-#        width = 6,
-#        height = 7, 
-#        dpi = 150)
-# 
-# # Supp figure low burden
-# p_fig2C_supp <- mai_adm_all %>% 
-#   filter(admin_level == "ADM2") %>% 
-#   mutate(low_risk = q97.5 < low_rate_thresh) %>% 
-#   group_by(location_period_id) %>% 
-#   summarise(endemicity =  ifelse(sum(low_risk) == 2, "low-burden", "non low-burden")) %>% 
-#   inner_join(u_space_sf, .) %>% 
-#   output_plot_map(sf_obj = .,
-#                   lakes_sf = lakes_sf,
-#                   all_countries_sf = afr_sf,
-#                   fill_var = "endemicity",
-#                   fill_color_scale_type = "endemicity_low",
-#                   border_width = .05) +
-#   labs(fill = NULL)
-# 
-# ggsave(p_fig2C_supp,
-#        file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2C_supp_low.png"),
-#        width = 7,
-#        height = 6, 
-#        dpi = 150)
-
-# Figure 2

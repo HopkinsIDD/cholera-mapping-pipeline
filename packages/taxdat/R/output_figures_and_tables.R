@@ -79,10 +79,6 @@ output_plot_map <- function(sf_obj,
                      alpha = 1,
                      fill = color_run_intended()) +
     ggplot2::geom_sf(lwd = border_width, color = border_color) + 
-    ggplot2::geom_sf(data = lakes_sf, fill = color_lake_fill(),
-                     color = color_lake_border(),
-                     lwd = .06,
-                     alpha = lake_alpha) +
     ggplot2::geom_sf(data = all_countries_sf,
                      fill = color_afr_continent_fill(),
                      color = "black",
@@ -93,6 +89,10 @@ output_plot_map <- function(sf_obj,
                      lwd = country_border_width,
                      color = country_border_color,
                      alpha = 0) +
+    ggplot2::geom_sf(data = lakes_sf, fill = color_lake_fill(),
+                     color = color_lake_border(),
+                     lwd = .06,
+                     alpha = lake_alpha) 
     {  
       if(fill_color_scale_type == "rates") {
         scale_fill_viridis_c(breaks = seq(-1, 2), 
