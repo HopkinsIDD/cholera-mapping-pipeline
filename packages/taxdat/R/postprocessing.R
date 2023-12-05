@@ -468,6 +468,38 @@ postprocess_adm0_cases <- function(config_list,
   cases_adm0
 }
 
+#' postprocess_adm_mean_cases
+#' Mean number of cases for all output locations across time slices
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_mean_annual_cases <- function(config_list,
+                                          redo_aux = FALSE) {
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # This assumes that the first output shapefile is always the national-level shapefile
+  cases <- genquant$summary("location_mean_cases_output") %>% 
+    dplyr::mutate(country = get_country_from_string(config_list$file_names$stan_genquant_filename))
+  
+  # Get output shapefiles for admin level informaiton
+  output_shapefiles <- get_output_sf_reload(config_list = config_list,
+                                            redo = redo_aux) %>% 
+    sf::st_drop_geometry() %>% 
+    tibble::as_tibble()
+  
+  res <- join_output_shapefiles(output = cases, 
+                                output_shapefiles = output_shapefiles,
+                                var_col = "variable") %>% 
+    dplyr::select(-variable)
+  
+  res
+}
+
 
 #' postprocess_mai_adm0_cases
 #' 
