@@ -153,8 +153,6 @@ make_adm_case_table <- function(mai_adm_cases,
   }
 }
 
-mai_adm_cases
-
 save_table_to_docx <- function(tbl, output_path) {
   tbl  %>% 
     flextable::as_flextable( max_row = Inf) %>%
