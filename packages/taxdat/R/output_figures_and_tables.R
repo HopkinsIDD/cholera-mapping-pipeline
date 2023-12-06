@@ -92,7 +92,7 @@ output_plot_map <- function(sf_obj,
     ggplot2::geom_sf(data = lakes_sf, fill = color_lake_fill(),
                      color = color_lake_border(),
                      lwd = .06,
-                     alpha = lake_alpha) 
+                     alpha = lake_alpha) +
     {  
       if(fill_color_scale_type == "rates") {
         scale_fill_viridis_c(breaks = seq(-1, 2), 
