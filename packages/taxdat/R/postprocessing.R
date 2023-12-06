@@ -1266,19 +1266,37 @@ custom_quantile2 <- function(x, cri = cri_interval()) {
 #'
 #' @examples
 get_coverage <- function(df, 
-                         widths = c(seq(.05, .95, by = .1), .99)){
+                         widths = c(seq(.05, .95, by = .1), .99),
+                         with_period = FALSE){
   
   purrr::map_df(widths, function(w) {
     bounds <- str_c("q", c(.5 - w/2, .5 + w/2)*100)
     
     df %>% 
-      dplyr::select(country, admin_level, observation, censoring, 
-                    dplyr::one_of(bounds)) %>%
+      {
+        x <- .
+        if (!with_period){
+          dplyr::select(x, country, admin_level, observation, censoring, 
+                        dplyr::one_of(bounds))
+        } else {
+          dplyr::select(x, country, admin_level, observation, censoring, 
+                        period,
+                        dplyr::one_of(bounds))
+        }
+      } %>%
       dplyr::mutate(in_cri = observation >= !!rlang::sym(bounds[1]) &
                       observation <= !!rlang::sym(bounds[2])) %>% 
-      dplyr::group_by(country, admin_level) %>% 
+      {
+        x <- .
+        if (!with_period){
+          dplyr::group_by(x, country, admin_level)
+        } else {
+          dplyr::group_by(x, period, country, admin_level)
+        }
+      } %>% 
       dplyr::summarise(frac_covered = sum(in_cri)/n()) %>% 
-      dplyr::mutate(cri = w)
+      dplyr::mutate(cri = w) %>% 
+      dplyr::ungroup()
   })
 }
 
