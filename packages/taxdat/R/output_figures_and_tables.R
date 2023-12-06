@@ -163,14 +163,21 @@ output_plot_map <- function(sf_obj,
 #' @export
 #'
 #' @examples
-plot_posterior_coverage <- function(gen_obs) {
+plot_posterior_coverage <- function(gen_obs,
+                                    with_period = FALSE) {
   gen_obs %>% 
     dplyr::filter(censoring == "full") %>% 
-    get_coverage() %>% 
+    get_coverage(with_period = with_period) %>% 
     dplyr::mutate(admin_level = factor(admin_level, levels = 0:10)) %>% 
     ggplot2::ggplot(aes(x = cri, y = frac_covered, color = admin_level)) +
     ggplot2::geom_line(aes(lty = admin_level), lwd = 1) +
-    ggplot2::facet_wrap(~ country) +
+    {
+      if (!with_period) {
+        ggplot2::facet_wrap(~ country)
+      } else {
+        ggplot2::facet_grid(country ~ period)
+      }
+    } +
     ggplot2::theme_bw() +
     ggplot2::coord_cartesian(ylim = c(0, 1)) +
     ggplot2::labs(x = "CrI width", y = "Fraction of full observations covered",

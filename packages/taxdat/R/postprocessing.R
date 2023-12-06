@@ -660,6 +660,27 @@ postprocess_lp_shapefiles <- function(config_list,
     dplyr::arrange(admin_level, location_name)
 }
 
+
+#' postprocess_observations
+#' Extracts observations
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_observations <- function(config_list,
+                                     redo_aux = FALSE) {
+  
+  stan_input <- taxdat::read_file_of_type(config_list$file_names$stan_input_filename, "stan_input")
+  
+  cases_column <- taxdat::check_case_definition(config_list$case_definition) %>% 
+    taxdat::case_definition_to_column_name(database = T)
+  
+  stan_input$sf_cases_resized %>% 
+    sf::st_drop_geometry()
+}
+
 #' postprocess_lp_obs_counts
 #' Extracts observation counts by location period
 #' 
@@ -910,13 +931,18 @@ postprocess_gen_obs <- function(config_list,
   # Join with data
   load(config_list$file_names$stan_input_filename)
   
-  mapped_gen_obs <- gen_obs[stan_input$stan_data$map_obs_loctime_combs, ] %>% 
+  mapped_gen_obs <- gen_obs %>% 
+    .[stan_input$stan_data$map_obs_loctime_combs, ] %>% 
     dplyr::bind_cols(stan_input$sf_cases_resized %>% 
                        sf::st_drop_geometry() %>% 
                        dplyr::filter(!is.na(loctime)) %>% 
                        dplyr::select(observation = attributes.fields.suspected_cases,
                                      censoring,
-                                     admin_level)) %>% 
+                                     admin_level,
+                                     locationPeriod_id,
+                                     TL, 
+                                     TR) %>% 
+                       dplyr::mutate(loctime_comb = stan_input$stan_data$map_obs_loctime_combs)) %>% 
     dplyr::mutate(obs_gen_id = stringr::str_extract(variable, "[0-9]+") %>% as.numeric()) %>% 
     dplyr::add_count(obs_gen_id)
   
@@ -1240,19 +1266,37 @@ custom_quantile2 <- function(x, cri = cri_interval()) {
 #'
 #' @examples
 get_coverage <- function(df, 
-                         widths = c(seq(.05, .95, by = .1), .99)){
+                         widths = c(seq(.05, .95, by = .1), .99),
+                         with_period = FALSE){
   
   purrr::map_df(widths, function(w) {
     bounds <- str_c("q", c(.5 - w/2, .5 + w/2)*100)
     
     df %>% 
-      dplyr::select(country, admin_level, observation, censoring, 
-                    dplyr::one_of(bounds)) %>%
+      {
+        x <- .
+        if (!with_period){
+          dplyr::select(x, country, admin_level, observation, censoring, 
+                        dplyr::one_of(bounds))
+        } else {
+          dplyr::select(x, country, admin_level, observation, censoring, 
+                        period,
+                        dplyr::one_of(bounds))
+        }
+      } %>%
       dplyr::mutate(in_cri = observation >= !!rlang::sym(bounds[1]) &
                       observation <= !!rlang::sym(bounds[2])) %>% 
-      dplyr::group_by(country, admin_level) %>% 
+      {
+        x <- .
+        if (!with_period){
+          dplyr::group_by(x, country, admin_level)
+        } else {
+          dplyr::group_by(x, period, country, admin_level)
+        }
+      } %>% 
       dplyr::summarise(frac_covered = sum(in_cri)/n()) %>% 
-      dplyr::mutate(cri = w)
+      dplyr::mutate(cri = w) %>% 
+      dplyr::ungroup()
   })
 }
 
