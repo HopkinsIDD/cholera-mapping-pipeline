@@ -817,3 +817,16 @@ ggsave(p_data_scatter,
        width = 10,
        height = 7, 
        dpi = 300)
+
+
+# Coverage plot
+p_coverage <- gen_obs %>%
+  filter(admin_level != "ADM0") %>% 
+  mutate(admin_level = str_extract(admin_level, "[0-9]") %>% as.numeric()) %>% 
+  plot_posterior_coverage()
+
+ggsave(p_coverage,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_validation_coverage.png"),
+       width = 12,
+       height = 10, 
+       dpi = 300)
