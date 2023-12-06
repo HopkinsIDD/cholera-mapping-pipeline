@@ -115,6 +115,50 @@ merge_ratio_draws <- function(df1, df2) {
 }
 
 
+make_adm_case_table <- function(mai_adm_cases,
+                                admin_levels = "ADM0") {
+  
+  dat <- mai_adm_cases %>% 
+    filter(admin_level %in% admin_level) %>% 
+    mutate(across(c("mean", "q2.5", "q97.5"), function(x) {
+      om <- pmax(1, round(log10(x)) - 2)
+      formatC(round(x/10^om)*10^om, format = "f", digits = 0, big.mark = ",")
+    })) %>% 
+    mutate(txt = str_c(mean, " (", q5, "-", q95, ")")) %>% 
+    select(admin_level, country, shapeName, period, txt) %>% 
+    pivot_wider(values_from = c("txt"),
+                names_from = "period")
+  
+  if (length(admin_levels) > 1) {
+    dat2 <- dat %>% 
+      filter(admin_level %in% admin_levels) %>% 
+      arrange(admin_level, country, shapeName)
+    
+    dat2 %>% 
+      dplyr::select(-admin_level)
+  } else {
+    dat2 <- dat %>% 
+      filter(admin_level == admin_levels) %>% 
+      arrange(country, shapeName)
+    
+    dat2 %>% 
+      {
+        x <-.
+        if (admin_levels == "ADM0")  {
+          dplyr::select(x, -country, -admin_level) 
+        } else {
+          dplyr::select(x, -admin_level) 
+        }
+      }
+  }
+}
+
+save_table_to_docx <- function(tbl, output_path) {
+  tbl  %>% 
+    flextable::as_flextable( max_row = Inf) %>%
+    flextable::set_table_properties(width = 1, layout = "autofit") %>%
+    flextable::save_as_docx(path = output_path)
+}
 
 # Second post-processing step ---------------------------------------------
 
@@ -210,6 +254,11 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
                                            output_name = "pop_at_risk_all",
                                            output_dir = opt$output_dir)  %>% 
     unpack_pop_at_risk()
+  
+  ## ADM Mean annual cases ---------------------------------------
+  mai_adm_cases <- combine_period_output(prefix_list = prefix_list,
+                                         output_name = "mai_cases_adm",
+                                         output_dir = opt$output_dir)
   
   ## ADM2 level stats ---------------------------------------
   # Mean annual incidence rates at ADM2 level
@@ -869,3 +918,16 @@ ggsave(p_coverage_adm0,
        width = 12,
        height = 10, 
        dpi = 300)
+
+## Mean case tables by amdin level -----
+
+# Save for admin levels 0 and 1
+walk(c("ADM0", "ADM1"), function(x) {
+  
+  tbl <- make_adm_case_table(mai_adm_cases = mai_adm_cases, 
+                             admin_levels = x)
+  save_table_to_docx(tbl,
+                     output_path =  str_glue("{opt$out_dir}/{opt$out_prefix}_cases_{x}.docx"))
+})
+
+
