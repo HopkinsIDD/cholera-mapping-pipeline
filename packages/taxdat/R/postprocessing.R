@@ -660,6 +660,27 @@ postprocess_lp_shapefiles <- function(config_list,
     dplyr::arrange(admin_level, location_name)
 }
 
+
+#' postprocess_observations
+#' Extracts observations
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_observations <- function(config_list,
+                                     redo_aux = FALSE) {
+  
+  stan_input <- taxdat::read_file_of_type(config_list$file_names$stan_input_filename, "stan_input")
+  
+  cases_column <- taxdat::check_case_definition(config_list$case_definition) %>% 
+    taxdat::case_definition_to_column_name(database = T)
+  
+  stan_input$sf_cases_resized %>% 
+    sf::st_drop_geometry()
+}
+
 #' postprocess_lp_obs_counts
 #' Extracts observation counts by location period
 #' 
@@ -910,13 +931,18 @@ postprocess_gen_obs <- function(config_list,
   # Join with data
   load(config_list$file_names$stan_input_filename)
   
-  mapped_gen_obs <- gen_obs[stan_input$stan_data$map_obs_loctime_combs, ] %>% 
+  mapped_gen_obs <- gen_obs %>% 
+    .[stan_input$stan_data$map_obs_loctime_combs, ] %>% 
     dplyr::bind_cols(stan_input$sf_cases_resized %>% 
                        sf::st_drop_geometry() %>% 
                        dplyr::filter(!is.na(loctime)) %>% 
                        dplyr::select(observation = attributes.fields.suspected_cases,
                                      censoring,
-                                     admin_level)) %>% 
+                                     admin_level,
+                                     locationPeriod_id,
+                                     TL, 
+                                     TR) %>% 
+                       dplyr::mutate(loctime_comb = stan_input$stan_data$map_obs_loctime_combs)) %>% 
     dplyr::mutate(obs_gen_id = stringr::str_extract(variable, "[0-9]+") %>% as.numeric()) %>% 
     dplyr::add_count(obs_gen_id)
   

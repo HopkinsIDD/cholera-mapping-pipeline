@@ -190,13 +190,13 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
       mutate(risk_cat = str_extract(variable, str_c(rev(names(risk_cat_map)), collapse = "|")),
              risk_cat = risk_cat_map[risk_cat] %>% factor(levels = risk_cat_map),
              admin_level = str_c("ADM", str_extract(variable, "(?<=adm)[0-9]+"))
-             )
+      )
   }
   
   # Population at risk by WHO-AFRO region
   pop_at_risk_regions <- combine_period_output(prefix_list = prefix_list,
-                                              output_name = "pop_at_risk_by_region",
-                                              output_dir = opt$output_dir) %>% 
+                                               output_name = "pop_at_risk_by_region",
+                                               output_dir = opt$output_dir) %>% 
     mutate(AFRO_region = str_extract(variable, "(?<=tot_pop_risk_)(.)*(?=_adm)") %>% 
              str_replace("_", " ") %>% 
              str_to_title(),
@@ -358,6 +358,14 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   # Lakes for plots
   lakes_sf <- get_lakes()
   
+  
+  ## Generated observations ------
+  gen_obs <- combine_period_output(prefix_list = prefix_list,
+                                   output_name = "gen_obs",
+                                   output_dir = opt$output_dir) %>% 
+    mutate(admin_level = str_c("ADM", admin_level)) %>% 
+    get_AFRO_region(ctry_col = "country") %>% 
+    mutate(AFRO_region = factor(AFRO_region, levels = get_AFRO_region_levels()))
   
   ## Save data  ---------------------------------------
   save(list = ls(), file = opt$bundle_filename)
@@ -762,3 +770,50 @@ ggsave(p_endemicity_v2,
        height = 7, 
        dpi = 150)
 
+## Model fit ----
+
+
+# Scatter plot of ADM0 level units
+p_data_adm0_scatter <- gen_obs %>%
+  filter(admin_level == "ADM0", censoring == "full") %>% 
+  group_by(loctime_comb) %>% 
+  mutate(mean_obs = mean(observation)) %>% 
+  slice(1) %>% 
+  ggplot(aes(x = mean_obs+1, y = mean+1)) +
+  geom_abline(lty = 2, lwd = .5, col = "red") +
+  geom_point(alpha = .7) +
+  geom_errorbar(aes(ymin = q2.5+1, ymax = q97.5+1), alpha = .5) +
+  facet_grid(. ~ AFRO_region) +
+  theme_bw() +
+  # coord_cartesian(xlim = c(0, 1e4), ylim = c(0, 1e4)) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(x = "Mean of ADM0 observed number of cases", y = "Modeled")
+
+
+ggsave(p_data_adm0_scatter,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_valiation_adm0_scatter.png"),
+       width = 10,
+       height = 3, 
+       dpi = 300)
+
+# Scatter plot of lower-level admin units
+p_data_scatter <- gen_obs %>%
+  filter(admin_level != "ADM0", censoring == "full") %>% 
+  ggplot(aes(x = observation+1, y = mean+1)) +
+  geom_abline(lty = 2, lwd = .5, col = "red") +
+  geom_point(alpha = .2) +
+  geom_errorbar(aes(ymin = q2.5+1, ymax = q97.5+1), alpha = .1) +
+  facet_grid(admin_level ~ AFRO_region) +
+  theme_bw() +
+  # coord_cartesian(xlim = c(0, 1e4), ylim = c(0, 1e4)) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(x = "Observed number of cases", y = "Modeled")
+
+
+ggsave(p_data_scatter,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_validation_scatter.png"),
+       width = 10,
+       height = 7, 
+       dpi = 300)
