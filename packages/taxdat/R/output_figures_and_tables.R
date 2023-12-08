@@ -12,7 +12,31 @@ colors_lisa_clusters <- function(){c("lightgray", "#D40A07", "#4543C4", "#F26F6D
 coloramp_cases <- function(){c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404")}
 
 # colors_admin_levels <- function(){c( "#4F802A", "#5449C7", "#BF0B07", "#DBB50B")}
-colors_admin_levels <- function(){c("#CAE0C9", "#99CCFF", "#FF9999", "#CC9900", "#FF9933",'black')}
+colors_admin_levels <- function(){c("#FFFF00","#CAE0C9", "#99CCFF", "#FF9999", "#CC9900", "#FF9933",'black')}
+colors_endemicity_high <- function(){c("red", "gray")}
+colors_endemicity_low <- function(){c("blue", "gray")}
+colors_endemicity <- function(){c("#FF0000", "#E65F5F", "#F2A8A7", "#837EE6")} #"#0C14ED"
+colors_endemicity <- function(){
+  # result of : paletteer::paletteer_d("calecopal::desert", direction = -1)[1:3]
+  # c("#291611FF", "#632D1FFF", "#B09175FF", "gray")
+  # result of : paletteer::paletteer_d("colRoz::v_acanthurus", direction = -1)[c(1, 2, 4)]
+  # c("#4A2C22FF","#BD6E39FF","#F8BC64FF", "gray")
+  # Based on cases
+  c("#993404", "#D95F0E", "#FED98E", "gray")
+}
+
+colors_risk_categories <- function() {
+  c( "gray", paletteer::paletteer_d("fishualize::Epinephelus_striatus", direction = -1))
+}
+
+#' @export
+colors_afro_regions <- function(){
+  colors <- RColorBrewer::brewer.pal("Set2", n = 6)
+  names(colors) <- c("Western Africa", "Central Africa",
+                     "Eastern Mediterranean",
+                     "Eastern Africa", "Southern Africa")
+  colors
+}
 
 # Figure functions --------------------------------------------------------
 
@@ -33,7 +57,7 @@ output_plot_map <- function(sf_obj,
                             lakes_sf = get_lakes(),
                             fill_var,
                             fill_color_scale_type,
-                            border_width = 0.02,
+                            border_width = 0.005,
                             border_color = "white",
                             lake_alpha = 0.6,
                             country_border_width = .3,
@@ -42,33 +66,33 @@ output_plot_map <- function(sf_obj,
   
   sf_obj %>% 
     ggplot2::ggplot(aes(fill = !!sym(fill_var))) +
-    ggplot2::geom_sf(data = all_countries_sf %>% 
+    ggplot2::geom_sf(data = all_countries_sf %>%
                        dplyr::filter(!intended_run),
                      inherit.aes = FALSE,
-                     linewidth = 0,
+                     lwd = 0,
                      alpha = 1,
                      fill = color_no_run_intended()) +
     ggplot2::geom_sf(data = all_countries_sf %>% 
                        dplyr::filter(intended_run),
                      inherit.aes = FALSE,
-                     linewidth = 0,
+                     lwd = 0,
                      alpha = 1,
                      fill = color_run_intended()) +
-    ggplot2::geom_sf(linewidth = border_width, color = border_color) + 
-    ggplot2::geom_sf(data = lakes_sf, fill = color_lake_fill(),
-                     color = color_lake_border(), 
-                     linewidth = .06,
-                     alpha = lake_alpha) +
-    # ggplot2::geom_sf(data = all_countries_sf,
-    #                  fill = color_afr_continent_fill(),
-    #                  color = "black",
-    #                  linewidth = country_border_width,
-    #                  alpha = 0) +
+    ggplot2::geom_sf(lwd = border_width, color = border_color) + 
+    ggplot2::geom_sf(data = all_countries_sf,
+                     fill = color_afr_continent_fill(),
+                     color = "black",
+                     lwd = country_border_width,
+                     alpha = 0) +
     ggplot2::geom_sf(data = all_countries_sf,
                      inherit.aes = FALSE,
-                     linewidth = country_border_width,
+                     lwd = country_border_width,
                      color = country_border_color,
                      alpha = 0) +
+    ggplot2::geom_sf(data = lakes_sf, fill = color_lake_fill(),
+                     color = color_lake_border(),
+                     lwd = .06,
+                     alpha = lake_alpha) +
     {  
       if(fill_color_scale_type == "rates") {
         scale_fill_viridis_c(breaks = seq(-1, 2), 
@@ -109,9 +133,15 @@ output_plot_map <- function(sf_obj,
                              na.value = "lightgray")
         
       } else if(fill_color_scale_type == "risk category") {
-        scale_fill_viridis_d()
+        scale_fill_manual(values = colors_risk_categories())
       } else if(fill_color_scale_type == "lisa cluster") {
         scale_fill_manual(values = colors_lisa_clusters())
+      } else if(fill_color_scale_type == "endemicity_high") {
+        scale_fill_manual(values = colors_endemicity_high())
+      } else if(fill_color_scale_type == "endemicity_low") {
+        scale_fill_manual(values = colors_endemicity_low())
+      } else if(fill_color_scale_type == "endemicity") {
+        scale_fill_manual(values = colors_endemicity())
       } else if(fill_color_scale_type == "admin levels") {
         scale_fill_manual(values = colors_admin_levels())
       }
@@ -133,14 +163,21 @@ output_plot_map <- function(sf_obj,
 #' @export
 #'
 #' @examples
-plot_posterior_coverage <- function(gen_obs) {
+plot_posterior_coverage <- function(gen_obs,
+                                    with_period = FALSE) {
   gen_obs %>% 
     dplyr::filter(censoring == "full") %>% 
-    get_coverage() %>% 
+    get_coverage(with_period = with_period) %>% 
     dplyr::mutate(admin_level = factor(admin_level, levels = 0:10)) %>% 
     ggplot2::ggplot(aes(x = cri, y = frac_covered, color = admin_level)) +
-    ggplot2::geom_line(aes(lty = admin_level), linewidth = 1) +
-    ggplot2::facet_wrap(~ country) +
+    ggplot2::geom_line(aes(lty = admin_level), lwd = 1) +
+    {
+      if (!with_period) {
+        ggplot2::facet_wrap(~ country)
+      } else {
+        ggplot2::facet_grid(country ~ period)
+      }
+    } +
     ggplot2::theme_bw() +
     ggplot2::coord_cartesian(ylim = c(0, 1)) +
     ggplot2::labs(x = "CrI width", y = "Fraction of full observations covered",

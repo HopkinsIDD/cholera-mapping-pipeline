@@ -149,8 +149,8 @@ risk_categories <- read_output(
 
 # Get the population at risk in each risk category by country 
 # This is the sum of gridcells with risk categories
-pop_at_risk_grid <- read_output(
-  fun_name = "pop_at_risk_grid",
+pop_at_risk <- read_output(
+  fun_name = "pop_at_risk",
   prefix = prefix,
   suffix = opt$suffix,
   output_dir = opt$output_dir,
