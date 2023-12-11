@@ -39,7 +39,9 @@ opt_list <- list(
   make_option(opt_str = c("-o", "--output_dir"), type = "character",
               default = "./Analysis/output/processed_outputs/", help = "Output directory"),
   make_option(opt_str = c("-c", "--cholera_dir"), type = "character",
-              default = "cholera-mapping-pipeline", help = "Cholera mapping pipeline directory")
+              default = "cholera-mapping-pipeline", help = "Cholera mapping pipeline directory"),
+  make_option(opt_str = c("-d", "--n_draws"), type = "numeric",
+              default = 4000, help = "Number of draws to save from rate/cases grids")
 )
 
 opt <- parse_args(OptionParser(option_list = opt_list))
@@ -354,6 +356,26 @@ mai_grid_rates_stats <- run_all(
   output_file_type = "rds",
   verbose = opt$verbose)
 
+# Get the MAI rates draws at space grid level 
+mai_grid_rates_draws <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_grid_mai_rates_draws,
+  fun_name = "mai_grid_rates_draws",
+  postprocess_fun = collapse_grid,
+  postprocess_fun_opts = list(by_draw = TRUE),
+  fun_opts = list(filter_draws = 1:opt$n_draws),
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  interm_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+
 
 # Get the MAI cases summary at space grid level 
 mai_grid_cases_stats <- run_all(
@@ -363,6 +385,27 @@ mai_grid_cases_stats <- run_all(
   fun_name = "mai_grid_cases",
   post_process_fun = collapse_grid,
   fun_opts = NULL,
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  interm_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+
+
+# Get the MAI cases draws at space grid level 
+mai_grid_cases_draws <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_grid_mai_cases_draws,
+  fun_name = "mai_grid_cases_draws",
+  postprocess_fun = collapse_grid,
+  postprocess_fun_opts = list(by_draw = TRUE),
+  fun_opts = list(filter_draws = 1:opt$n_draws),
   prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
