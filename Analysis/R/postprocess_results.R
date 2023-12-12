@@ -40,7 +40,7 @@ opt_list <- list(
               default = "./Analysis/output/processed_outputs/", help = "Output directory"),
   make_option(opt_str = c("-c", "--cholera_dir"), type = "character",
               default = "cholera-mapping-pipeline", help = "Cholera mapping pipeline directory"),
-  make_option(opt_str = c("-d", "--n_draws"), type = "numeric",
+  make_option(opt_str = c("-n", "--n_draws"), type = "numeric",
               default = 10, help = "Number of draws to save from rate/cases grids")
 )
 
