@@ -16,7 +16,7 @@ library(taxdat)
 # User-supplied options
 opt_list <- list(
   make_option(c("-d", "--config_dir"), 
-              default = "./Analysis/cholera-configs/postprocessing_test_2016_2020/",
+              default = "./Analysis/cholera-configs/postprocessing_test_2011_2015/",
               action ="store", type = "character", help = "Directory"),
   make_option(opt_str = c("-r", "--redo"), type = "logical",
               default = T, help = "redo final outputs"),
@@ -41,7 +41,7 @@ opt_list <- list(
   make_option(opt_str = c("-c", "--cholera_dir"), type = "character",
               default = "cholera-mapping-pipeline", help = "Cholera mapping pipeline directory"),
   make_option(opt_str = c("-d", "--n_draws"), type = "numeric",
-              default = 4000, help = "Number of draws to save from rate/cases grids")
+              default = 10, help = "Number of draws to save from rate/cases grids")
 )
 
 opt <- parse_args(OptionParser(option_list = opt_list))
@@ -363,7 +363,7 @@ mai_grid_rates_draws <- run_all(
   fun_name = "mai_grid_rates_draws",
   postprocess_fun = collapse_grid,
   postprocess_fun_opts = list(by_draw = TRUE),
-  fun_opts = list(filter_draws = 1:opt$n_draws),
+  fun_opts = list(filter_draws = opt$n_draws),
   prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
@@ -405,7 +405,7 @@ mai_grid_cases_draws <- run_all(
   fun_name = "mai_grid_cases_draws",
   postprocess_fun = collapse_grid,
   postprocess_fun_opts = list(by_draw = TRUE),
-  fun_opts = list(filter_draws = 1:opt$n_draws),
+  fun_opts = list(filter_draws = opt$n_draws),
   prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,

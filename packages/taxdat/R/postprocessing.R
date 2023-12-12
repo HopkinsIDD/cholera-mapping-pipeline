@@ -875,7 +875,9 @@ postprocess_grid_mai_rates <- function(config_list,
 #'
 postprocess_grid_mai_rates_draws <- function(config_list,
                                              redo_aux = FALSE,
-                                             filter_draws = 1:4000) {
+                                             filter_draws = 4000) {
+  
+  cat("---- Extracting", filter_draws, "draws of mean annual rate grid\n")
   
   # Get genquant data
   genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
@@ -949,7 +951,10 @@ postprocess_grid_mai_cases <- function(config_list,
 #'
 postprocess_grid_mai_cases_draws <- function(config_list,
                                              redo_aux = FALSE,
-                                             filter_draws = 1:4000) {
+                                             filter_draws = 4000) {
+  
+  
+  cat("---- Extracting", filter_draws, "draws of mean annual case grid\n")
   
   # Get genquant data
   genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
@@ -1300,10 +1305,28 @@ draws_to_df <- function(draws,
                         var_name,
                         to_name = "variable",
                         to_value = "value",
-                        filter_draws = 1:4000) {
+                        filter_draws = 4000) {
+  
+  draws <- draws %>% 
+    posterior::as_draws()
+  
+  # Subsample draws if asked for
+  if (!is.null(filter_draws)) {
+    
+    # Get all draws
+    all_draws <- prod(dim(draws)[1:2])
+    
+    if (filter_draws > all_draws) {
+      stop("Asked for ", filter_draws, " draws but only ", all_draws, " available.")
+    }
+    
+    draws_subset <- sample(seq_len(all_draws), filter_draws, replace = FALSE)
+    
+    draws <- draws %>% 
+      posterior::subset_draws(draw = draws_subset) 
+  } 
+  
   draws %>% 
-    posterior::as_draws() %>% 
-    posterior::subset_draws(draw = filter_draws) %>% 
     posterior::as_draws_df() %>% 
     dplyr::as_tibble() %>% 
     tidyr::pivot_longer(cols = contains(var_name),
