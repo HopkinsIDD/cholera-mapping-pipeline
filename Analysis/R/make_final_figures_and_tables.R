@@ -160,6 +160,113 @@ save_table_to_docx <- function(tbl, output_path) {
     flextable::save_as_docx(path = output_path)
 }
 
+irr_dist <- function(target,
+                     dist_vec = seq(5e4, 50e4, by = 5e4),
+                     mai_adm,
+                     grid_cases,
+                     afr_sf) {
+  
+  res <- map_df(
+    unique(mai_adm$country), 
+    function(this_country) {
+      map_df(
+        unique(mai_adm$period), 
+        function(this_period) {
+          
+          cat("country", this_country, "period", this_period, "\n")
+          
+          # Get all cells for which we have at least case
+          case_cells <- grid_cases %>% 
+            filter(mean > 1, period == this_period)
+          
+          in_country <- st_intersects(case_cells, 
+                                      afr_sf %>% 
+                                        filter(country == this_country),
+                                      sparse = FALSE) %>% 
+            rowSums() %>% 
+            {.>0}
+          
+          if (sum(in_country) == 0) {
+            res <- tibble(observed = NA,
+                          expected = NA,
+                          ratio = NA,
+                          dist_thresh = NA)
+          } else {
+            
+            this_case_cells <- case_cells[in_country, ]
+            
+            # Make buffer
+            centroids <- st_centroid(this_case_cells)
+            centroids <- st_transform(centroids, st_crs(target))
+            
+            # Filter all grid cells within distance
+            res <- map_df(
+              dist_vec, 
+              function(dist_thresh) {
+                
+                within_dist <-  st_is_within_distance(centroids, target,
+                                                      dist = dist_thresh,
+                                                      sparse = F) %>% 
+                  rowSums() %>% 
+                  {.>0}
+                
+                if (sum(within_dist) > 0) {
+                  
+                  target_cells_sf <- centroids[within_dist, ]
+                  
+                  # Get population of these cells
+                  target_cells <- grid_cases %>% 
+                    st_drop_geometry() %>% 
+                    select(rid, x, y, cases = mean) %>% 
+                    inner_join(
+                      grid_rates %>% 
+                        st_drop_geometry() %>% 
+                        select(rid, x, y, rate = mean),
+                      by = c("rid", "x", "y")
+                    ) %>% 
+                    mutate(pop = cases/rate) %>% 
+                    inner_join(target_cells_sf %>% 
+                                 st_drop_geometry(),
+                               by = c("rid", "x", "y"))
+                  
+                  # Get the mean rate of the country
+                  mean_rate <- mai_adm_all %>% 
+                    filter(admin_level == "ADM0",
+                           country == this_country,
+                           period == this_period) %>% 
+                    pull(mean)
+                  
+                  # Compute expected cases
+                  stat <- target_cells %>% 
+                    mutate(mean_rate = mean_rate,
+                           expected_cases = pop * mean_rate) %>% 
+                    summarise(observed = sum(mean),
+                              expected = sum(expected_cases),
+                              ratio = observed/expected)
+                } else {
+                  tibble(observed = NA,
+                         expected = NA,
+                         ratio = NA)
+                }
+                
+                stat %>% 
+                  mutate(dist = dist_thresh)
+              })
+          }
+          
+          res %>% 
+            mutate(country = this_country,
+                   period = this_period)
+        })
+    })
+  
+  res %>% 
+    rowwise() %>% 
+    mutate(lo = exp(log(ratio) - 1.96 * sqrt(1/observed + 1/expected)),
+           hi = exp(log(ratio) + 1.96 * sqrt(1/observed + 1/expected))) %>% 
+    ungroup() 
+}
+
 # Second post-processing step ---------------------------------------------
 
 if (opt$redo | !file.exists(opt$bundle_filename)) {
@@ -199,7 +306,9 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
                                       output_name = "mai_grid_cases",
                                       output_dir = opt$output_dir)
   
-  
+  grid_rates <- combine_period_output(prefix_list = prefix_list,
+                                      output_name = "mai_grid_rates",
+                                      output_dir = opt$output_dir)
   ## Population at risk ---------------------------------------
   
   # Number of people living in different risk categories
@@ -402,11 +511,22 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
       crs = 4326))) %>% 
     get_AFRO_region(ctry_col = "country") %>% 
     mutate(AFRO_region = factor(AFRO_region, 
-                                levels = get_AFRO_region_levels()))
+                                levels = get_AFRO_region_levels())) %>% 
+    st_make_valid()
   
-  # Lakes for plots
-  lakes_sf <- get_lakes()
+  afr_sf_ch <- st_union(afr_sf) %>% 
+    nngeo::st_remove_holes() %>% 
+    st_make_valid()
   
+  # Lakes and rivers for plots
+  lakes_sf <- get_lakes() %>% 
+    st_make_valid() %>% 
+    st_filter(afr_sf_ch, .predicate = st_within)
+  rivers_sf <- get_rivers() %>% 
+    st_make_valid() %>% 
+    st_filter(afr_sf_ch, .predicate = st_within)
+  
+  coasts <- st_cast(afr_sf_ch, "MULTILINESTRING") 
   
   ## Generated observations ------
   gen_obs <- combine_period_output(prefix_list = prefix_list,
@@ -415,6 +535,28 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     mutate(admin_level = str_c("ADM", admin_level)) %>% 
     get_AFRO_region(ctry_col = "country") %>% 
     mutate(AFRO_region = factor(AFRO_region, levels = get_AFRO_region_levels()))
+  
+  ## Incidence ratios around rivers and lakes -----
+  
+  dist_vec <- seq(5e4, 35e4, by = 5e4)
+  
+  irr_rivers <- irr_dist(rivers_sf,
+                         dist_vec = dist_vec,
+                         mai_adm = mai_adm,
+                         grid_cases = grid_cases,
+                         afr_sf = afr_sf)
+  
+  irr_lakes <- irr_dist(lakes_sf,
+                        dist_vec = dist_vec,
+                        mai_adm = mai_adm,
+                        grid_cases = grid_cases,
+                        afr_sf = afr_sf)
+  
+  irr_coasts <- irr_dist(coasts,
+                         dist_vec = dist_vec,
+                         mai_adm = mai_adm,
+                         grid_cases = grid_cases,
+                         afr_sf = afr_sf)
   
   ## Save data  ---------------------------------------
   save(list = ls(), file = opt$bundle_filename)
@@ -432,6 +574,7 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
 p_fig1A <- output_plot_map(sf_obj = grid_cases %>% 
                              mutate(log10_cases = log10(mean)),
                            lakes_sf = lakes_sf,
+                           rivers_sf = rivers_sf,
                            all_countries_sf = afr_sf,
                            fill_var = "log10_cases",
                            fill_color_scale_type = "cases",
@@ -491,17 +634,17 @@ p_fig_BC_regions <- ggplot(afr_sf, aes(fill = AFRO_region)) +
 ## Assemble Figure 1 ---------
 
 p_fig1 <- cowplot::plot_grid(
-  p_fig1A,
   p_fig1B +
     theme(plot.margin = unit(c(2, 9, 1, 3), "lines")),
+  p_fig1A,
   nrow = 2,
   labels = "auto",
-  rel_heights = c(1, .3)
+  rel_heights = c(.35, 1)
 )  + theme(panel.background = element_rect(fill = "white"))
 
 p_fig1_v2 <- ggdraw() +
   draw_plot(p_fig1) +
-  draw_plot(p_fig_BC_regions, x = 0.76, y = .02, width = .23, height = .23)
+  draw_plot(p_fig_BC_regions, x = 0.78, y = .77, width = .23, height = .23)
 
 # Save
 ggsave(plot = p_fig1_v2,
@@ -576,6 +719,7 @@ p_fig2B <- mai_change_adm %>%
   inner_join(u_space_sf, .) %>%
   output_plot_map(sf_obj = .,
                   lakes_sf = lakes_sf,
+                  rivers_sf = rivers_sf,
                   all_countries_sf = afr_sf,
                   fill_var = "log10_rate_ratio",
                   fill_color_scale_type = "ratio") +
@@ -625,7 +769,7 @@ p_fig2 <- plot_grid(
 # Save
 ggsave(plot = p_fig2,
        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2.png"),
-       width = 14,
+       width = 12,
        height = 6,
        dpi = 300)
 
@@ -638,6 +782,7 @@ p_fig3A <- risk_pop_adm2 %>%
   inner_join(u_space_sf, .) %>% 
   output_plot_map(sf_obj = ., 
                   lakes_sf = lakes_sf,
+                  rivers_sf = rivers_sf,
                   all_countries_sf = afr_sf,
                   fill_var = "risk_cat",
                   fill_color_scale_type = "risk category") +
@@ -691,8 +836,34 @@ ggsave(plot = p_fig3B,
        height = 7,
        dpi = 300)
 
+## Assemble Figure 3 ----
 
-## Fig. 3C: Change in risk categories ----
+p_fig3 <- plot_grid(
+  p_fig3B +
+    theme(plot.margin = unit(c(2, 1, 2, 2), units = "lines"),
+          legend.position = c(.75, .6)),
+  p_fig3A +
+    theme(plot.margin = unit(c(-5, -5, -5, -3), units = "lines")),
+  nrow = 1,
+  labels = "auto",
+  rel_widths = c(1, 1),
+  align = "v",
+  axis = "lr") +
+  theme(panel.background = element_rect(fill = "white"))
+
+
+# Save
+ggsave(plot = p_fig3,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_3.png"),
+       width = 12,
+       height = 6,
+       dpi = 600)
+
+
+
+# Figure 4 ----------------------------------------------------------------
+
+## Fig. 4A: Change in risk categories ----
 endemicity_df_v2 <- risk_pop_adm2 %>% 
   mutate(high_risk = risk_cat %in% get_risk_cat_dict()[3:6],
          low_risk = risk_cat %in% get_risk_cat_dict()[1]) %>% 
@@ -709,11 +880,12 @@ endemicity_df_v2 <- risk_pop_adm2 %>%
   mutate(endemicity = factor(endemicity, levels = c("high-both", "high-either",
                                                     "mix", "low-both")))  
 
-# Figure
-p_fig3C <- endemicity_df_v2 %>% 
+# Figure 4A
+p_fig4A <- endemicity_df_v2 %>% 
   inner_join(u_space_sf, .) %>% 
   output_plot_map(sf_obj = .,
                   lakes_sf = lakes_sf,
+                  rivers_sf = rivers_sf,
                   all_countries_sf = afr_sf,
                   fill_var = "endemicity",
                   fill_color_scale_type = "endemicity",
@@ -722,16 +894,16 @@ p_fig3C <- endemicity_df_v2 %>%
   guides(fill = guide_legend("'Endemicity'"))
 
 # Save
-ggsave(p_fig3C,
-       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_3C_risk_cat.png"),
+ggsave(p_fig4A,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4A_risk_cat.png"),
        width = 12,
-       height = 10, 
+       height = 6, 
        dpi = 150)
 
 
-## Fig. 3D: Change in risk categories barplot --------
+## Fig. 4B: Change in risk categories barplot --------
 
-p_fig3D <- endemicity_df_v2 %>% 
+p_fig4B <- endemicity_df_v2 %>% 
   ungroup() %>% 
   get_AFRO_region(ctry_col = "country") %>% 
   mutate(AFRO_region = factor(AFRO_region, 
@@ -748,26 +920,20 @@ p_fig3D <- endemicity_df_v2 %>%
 
 
 # Save
-ggsave(plot = p_fig3D,
-       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_3D.png"),
+ggsave(plot = p_fig4B,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4B.png"),
        width = 12,
        height = 7,
        dpi = 300)
 
-## Assemble Figure 3 ----
 
-p_fig3 <- plot_grid(
-  p_fig3A +
+p_fig4 <- plot_grid(
+  p_fig4A +
     theme(plot.margin = unit(c(0, 0, 0, -3), units = "lines")),
-  p_fig3B +
-    theme(plot.margin = unit(c(2, 1, 2, 2), units = "lines"),
-          legend.position = c(.75, .6)),
-  p_fig3C +
-    theme(plot.margin = unit(c(0, 0, 0, -3), units = "lines")),
-  p_fig3D +
+  p_fig4B +
     guides(fill = "none") +
     theme(plot.margin = unit(c(2, 1, 2, 2), units = "lines")),
-  nrow = 2,
+  nrow = 1,
   labels = "auto",
   rel_widths = c(1.3, 1),
   align = "v",
@@ -776,10 +942,10 @@ p_fig3 <- plot_grid(
 
 
 # Save
-ggsave(plot = p_fig3,
-       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_3.png"),
+ggsave(plot = p_fig4,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4.png"),
        width = 12,
-       height = 10,
+       height = 6,
        dpi = 600)
 
 
@@ -930,4 +1096,27 @@ walk(c("ADM0", "ADM1"), function(x) {
                      output_path =  str_glue("{opt$out_dir}/{opt$out_prefix}_cases_{x}.docx"))
 })
 
+## Incidence rate ratios ----
+irr_dat <-  bind_rows(
+  irr_rivers %>% mutate(what = "rivers"),
+  irr_lakes %>% mutate(what = "lakes"),
+  irr_coasts %>% mutate(what = "coasts")
+) 
+
+p_irr <- irr_dat %>% 
+  ggplot(aes(x = dist/1e4, y = ratio, color = country)) +
+  geom_point(alpha = 1) +
+  geom_errorbar(aes(ymin = lo, ymax = hi), width = 0, alpha = .5) +
+  geom_hline(aes(yintercept = 1), lty = 2, lwd = .5) +
+  theme_bw() +
+  facet_grid(what~period)
+
+
+ggsave(p_irr,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_irr_dist.png"),
+       width = 8,
+       height = 6, 
+       dpi = 300)
+
+saveRDS(irr_dat, file = str_glue("{opt$output_dir}/irr_dist.rds"))
 
