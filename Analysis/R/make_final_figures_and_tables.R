@@ -160,11 +160,73 @@ save_table_to_docx <- function(tbl, output_path) {
     flextable::save_as_docx(path = output_path)
 }
 
+
+get_mean_rate <- function(mai_adm_all,
+                          this_country,
+                          this_period) {
+  
+  # Get the mean rate of the country
+  mean_rate <- mai_adm_all %>% 
+    filter(admin_level == "ADM0",
+           country == this_country,
+           period == this_period) %>% 
+    pull(mean)
+  
+  mean_rate
+}
+
+compute_irr <- function(target_cells_sf, 
+                        grid_cases,
+                        grid_rates,
+                        mean_rate) {
+  
+  # Get population of these cells
+  target_cells <- grid_cases %>% 
+    st_drop_geometry() %>% 
+    select(rid, x, y, cases = mean) %>% 
+    inner_join(
+      grid_rates %>% 
+        st_drop_geometry() %>% 
+        select(rid, x, y, rate = mean),
+      by = c("rid", "x", "y")
+    ) %>% 
+    mutate(pop = cases/rate) %>% 
+    inner_join(target_cells_sf %>% 
+                 st_drop_geometry(),
+               by = c("rid", "x", "y"))
+  
+  
+  # Compute expected cases
+  stats <- target_cells %>% 
+    mutate(mean_rate = mean_rate,
+           expected_cases = pop * mean_rate) %>% 
+    summarise(observed = sum(mean),
+              expected = sum(expected_cases),
+              ratio = observed/expected)
+  
+  stats
+}
+
+
+#' Title
+#'
+#' @param target 
+#' @param dist_vec 
+#' @param mai_adm 
+#' @param grid_cases 
+#' @param afr_sf 
+#' @param dist_definition 
+#'
+#' @return
+#' @export
+#'
+#' @examples
 irr_dist <- function(target,
                      dist_vec = seq(5e4, 50e4, by = 5e4),
                      mai_adm,
                      grid_cases,
-                     afr_sf) {
+                     afr_sf,
+                     dist_definition = "within") {
   
   res <- map_df(
     unique(mai_adm$country), 
@@ -199,58 +261,80 @@ irr_dist <- function(target,
             centroids <- st_centroid(this_case_cells)
             centroids <- st_transform(centroids, st_crs(target))
             
+            # Define whether it is within distance or bands
+            if (dist_definition == "within") {
+              dist_vec2 <- dist_vec
+              len <- length(dist_vec2)
+              mean_dist <- dist_vec
+            } else {
+              dist_vec2 <- cbind(c(0, dist_vec[-length(dist_vec)]), dist_vec)
+              len <- nrow(dist_vec2)
+              mean_dist <- apply(dist_vec2, 1, mean)
+            }
+            
             # Filter all grid cells within distance
             res <- map_df(
-              dist_vec, 
-              function(dist_thresh) {
+              seq_len(len), 
+              function(x) {
                 
-                within_dist <-  st_is_within_distance(centroids, target,
-                                                      dist = dist_thresh,
-                                                      sparse = F) %>% 
-                  rowSums() %>% 
-                  {.>0}
                 
-                if (sum(within_dist) > 0) {
+                if (dist_definition == "within") {
+                  # Text to save
+                  dist_txt <- as.character(dist_vec[x]/1e3)
+                  
+                  within_dist <-  st_is_within_distance(centroids, target,
+                                                        dist = dist_vec[x],
+                                                        sparse = F) %>% 
+                    rowSums() %>% 
+                    {.>0} 
                   
                   target_cells_sf <- centroids[within_dist, ]
                   
-                  # Get population of these cells
-                  target_cells <- grid_cases %>% 
-                    st_drop_geometry() %>% 
-                    select(rid, x, y, cases = mean) %>% 
-                    inner_join(
-                      grid_rates %>% 
-                        st_drop_geometry() %>% 
-                        select(rid, x, y, rate = mean),
-                      by = c("rid", "x", "y")
-                    ) %>% 
-                    mutate(pop = cases/rate) %>% 
-                    inner_join(target_cells_sf %>% 
-                                 st_drop_geometry(),
-                               by = c("rid", "x", "y"))
-                  
-                  # Get the mean rate of the country
-                  mean_rate <- mai_adm_all %>% 
-                    filter(admin_level == "ADM0",
-                           country == this_country,
-                           period == this_period) %>% 
-                    pull(mean)
-                  
-                  # Compute expected cases
-                  stat <- target_cells %>% 
-                    mutate(mean_rate = mean_rate,
-                           expected_cases = pop * mean_rate) %>% 
-                    summarise(observed = sum(mean),
-                              expected = sum(expected_cases),
-                              ratio = observed/expected)
                 } else {
-                  tibble(observed = NA,
-                         expected = NA,
-                         ratio = NA)
+                  
+                  # Text to save
+                  dist_txt <- str_c(formatC(dist_vec2[x, ]/1e3, format = "f", digits = 0, big.mark = ","), collapse = "-")
+                  
+                  within_dist <- st_is_within_distance(centroids, target,
+                                                       dist = dist_vec2[x, 2],
+                                                       sparse = F) %>% 
+                    rowSums() %>% 
+                    {.>0}
+                  
+                  beyond_dist <- st_is_within_distance(centroids, target,
+                                                       dist = dist_vec2[x, 1] + 1,
+                                                       sparse = F) %>% 
+                    rowSums() %>% 
+                    {. > 0} %>% 
+                    {!.}
+                  
+                  target_cells_sf <- centroids[within_dist & beyond_dist, ]
+                  
                 }
                 
-                stat %>% 
-                  mutate(dist = dist_thresh)
+                if (sum(within_dist) > 0) {
+                  
+                  mean_rate <- get_mean_rate(mai_adm_all = mai_adm_all,
+                                             this_country = this_country,
+                                             this_period = this_period)
+                  
+                  
+                  stats <- compute_irr(target_cells_sf = target_cells_sf, 
+                                       grid_cases = grid_cases,
+                                       grid_rates = grid_rates,
+                                       mean_rate = mean_rate)
+                  
+                } else {
+                  stats <- tibble(observed = NA,
+                                  expected = NA,
+                                  ratio = NA)
+                }
+                
+                
+                stats %>% 
+                  mutate(dist = dist_txt,
+                         dist_definition = dist_definition,
+                         mean_dist = mean_dist[x])
               })
           }
           
@@ -526,7 +610,8 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     st_make_valid() %>% 
     st_filter(afr_sf_ch, .predicate = st_within)
   
-  coasts <- st_cast(afr_sf_ch, "MULTILINESTRING") 
+  coasts_sf <- st_cast(afr_sf_ch, "MULTILINESTRING") %>% 
+    st_as_sf()
   
   ## Generated observations ------
   gen_obs <- combine_period_output(prefix_list = prefix_list,
@@ -538,25 +623,34 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   
   ## Incidence ratios around rivers and lakes -----
   
-  dist_vec <- seq(5e4, 35e4, by = 5e4)
+  dist_sf <- list("rivers" = rivers_sf,
+                  "lakes" = lakes_sf,
+                  "coasts" = coasts_sf,
+                  "freshwater" = bind_rows(
+                    rivers_sf,
+                    lakes_sf
+                  ),
+                  "water" = bind_rows(
+                    rivers_sf,
+                    lakes_sf,
+                    coasts_sf
+                  ))
   
-  irr_rivers <- irr_dist(rivers_sf,
-                         dist_vec = dist_vec,
-                         mai_adm = mai_adm,
-                         grid_cases = grid_cases,
-                         afr_sf = afr_sf)
   
-  irr_lakes <- irr_dist(lakes_sf,
-                        dist_vec = dist_vec,
-                        mai_adm = mai_adm,
-                        grid_cases = grid_cases,
-                        afr_sf = afr_sf)
+  irr_dat <- map_df(seq_along(dist_sf), function(x) {
+    map_df(c("within", "category"), function(y) {
+      cat("---- ", names(dist_sf)[x], y, "\n")
+      
+      irr_dist(dist_sf[[x]],
+               dist_vec = seq(5e3, 100e3, by = 10e3),
+               mai_adm = mai_adm,
+               grid_cases = grid_cases,
+               afr_sf = afr_sf,
+               dist_definition = y) %>% 
+        mutate(what = names(dist_sf)[x])
+    })
+  })
   
-  irr_coasts <- irr_dist(coasts,
-                         dist_vec = dist_vec,
-                         mai_adm = mai_adm,
-                         grid_cases = grid_cases,
-                         afr_sf = afr_sf)
   
   ## Save data  ---------------------------------------
   save(list = ls(), file = opt$bundle_filename)
@@ -1097,25 +1191,26 @@ walk(c("ADM0", "ADM1"), function(x) {
 })
 
 ## Incidence rate ratios ----
-irr_dat <-  bind_rows(
-  irr_rivers %>% mutate(what = "rivers"),
-  irr_lakes %>% mutate(what = "lakes"),
-  irr_coasts %>% mutate(what = "coasts")
-) 
 
 p_irr <- irr_dat %>% 
-  ggplot(aes(x = dist/1e4, y = ratio, color = country)) +
+  filter(!is.na(dist_definition)) %>% 
+  mutate(dist = factor(dist),
+         dist = fct_reorder(dist, mean_dist)) %>% 
+  ggplot(aes(x = dist, y = ratio, color = country)) +
   geom_point(alpha = 1) +
   geom_errorbar(aes(ymin = lo, ymax = hi), width = 0, alpha = .5) +
   geom_hline(aes(yintercept = 1), lty = 2, lwd = .5) +
   theme_bw() +
-  facet_grid(what~period)
+  facet_grid(what ~ period + dist_definition, scales =  "free_x") +
+  labs(x = "distance to waterbody [km]", y = "IRR [observed/null]") +
+  coord_cartesian(ylim = c(0, 15)) +
+  theme(axis.text.x = element_text(angle = 45, hjust=  1, vjust = 1))
 
 
 ggsave(p_irr,
        file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_irr_dist.png"),
-       width = 8,
-       height = 6, 
+       width = 12,
+       height = 8, 
        dpi = 300)
 
 saveRDS(irr_dat, file = str_glue("{opt$output_dir}/irr_dist.rds"))
