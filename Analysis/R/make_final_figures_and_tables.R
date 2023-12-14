@@ -621,6 +621,14 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     get_AFRO_region(ctry_col = "country") %>% 
     mutate(AFRO_region = factor(AFRO_region, levels = get_AFRO_region_levels()))
   
+  
+  ## Mean ADM population by time period ------
+  population <- combine_period_output(prefix_list = prefix_list,
+                                      output_name = "population",
+                                      output_dir = opt$output_dir) %>% 
+    get_AFRO_region(ctry_col = "country") %>% 
+    mutate(AFRO_region = factor(AFRO_region, levels = get_AFRO_region_levels()))
+  
   ## Incidence ratios around rivers and lakes -----
   
   dist_sf <- list("rivers" = rivers_sf,
@@ -1214,4 +1222,93 @@ ggsave(p_irr,
        dpi = 300)
 
 saveRDS(irr_dat, file = str_glue("{opt$output_dir}/irr_dist.rds"))
+
+
+## Scatterplots of MAI against covariates ----
+
+### Distance to water ----
+adm2_sf <- u_space_sf %>% 
+  filter(admin_level == "ADM2")
+
+adm2_centroids_sf <- st_centroid(adm2_sf)
+
+dist_to_wb <- map_df(seq_along(dist_sf), function(y) {
+  
+  cat("--", names(dist_sf)[y], "\n")
+  
+  # Get index of nearest object
+  nearest_ind <- adm2_centroids_sf %>% 
+    st_nearest_feature(dist_sf[[y]], check_crs = TRUE)
+  
+  # Compute distances
+  distances <- st_distance(adm2_centroids_sf, dist_sf[[y]][nearest_ind, ], by_element = TRUE) %>% 
+    as.numeric()
+  
+  tibble(
+    location_period_id = adm2_centroids_sf$location_period_id,
+    country = adm2_centroids_sf$country,
+    dist = distances/1e3,    # in km
+    to_what = names(dist_sf)[y]
+  )
+})
+
+p_dist <- mai_adm_all %>% 
+  filter(admin_level == "ADM2") %>% 
+  inner_join(dist_to_wb) %>% 
+  ggplot(aes(x = dist, y = mean, color = period)) +
+  # geom_hex() +
+  geom_point(alpha = .15) +
+  geom_smooth() +
+  facet_grid(country~to_what, scales = "free_x") +
+  scale_y_log10() +
+  theme_bw() +
+  scale_color_manual(values = c("purple", "orange")) +
+  labs(x = "distance [km]", y = "mean annula incidence rate")
+
+
+ggsave(p_dist,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_scatterplot_mai_dist_water.png"),
+       width = 12,
+       height = 8, 
+       dpi = 300)
+
+saveRDS(dist_to_wb, file = str_glue("{opt$output_dir}/dist_to_wb.rds"))
+
+
+### Populatio Denstity ----
+
+# Compute density
+pop_density <- adm2_sf %>% 
+  mutate(area = st_area(geom) %>% 
+           as.numeric() %>% 
+           {./1e6}    # in sqkm
+  ) %>% 
+  st_drop_geometry() %>% 
+  inner_join(population %>% 
+               select(location_period_id, pop = mean)) %>% 
+  mutate(pop_density = pop/area)    # in pop/sqkm
+
+p_density <- mai_adm %>% 
+  filter(admin_level == "ADM2") %>% 
+  inner_join(pop_density) %>% 
+  ggplot(aes(x = pop_density, y = mean, color = period)) +
+  geom_point(alpha = .15) +
+  geom_smooth() +
+  facet_wrap(country~.) +
+  scale_y_log10() +
+  scale_x_log10() +
+  theme_bw() +
+  scale_color_manual(values = c("purple", "orange")) +
+  labs(x = "population density [peopl/sqkm]", y = "mean annula incidence rate")
+
+ggsave(p_density,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_scatterplot_mai_pop_density.png"),
+       width = 12,
+       height = 8, 
+       dpi = 300)
+
+saveRDS(pop_density, file = str_glue("{opt$output_dir}/pop_density.rds"))
+
+### WASH ----
+
 
