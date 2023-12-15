@@ -982,6 +982,8 @@ endemicity_df_v2 <- risk_pop_adm2 %>%
   mutate(endemicity = factor(endemicity, levels = c("high-both", "high-either",
                                                     "mix", "low-both")))  
 
+saveRDS(endemicity_df_v2, file = str_glue("{opt$output_dir}/endemicity.rds"))
+
 # Figure 4A
 p_fig4A <- endemicity_df_v2 %>% 
   inner_join(u_space_sf, .) %>% 
