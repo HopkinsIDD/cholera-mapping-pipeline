@@ -19,13 +19,12 @@ colors_endemicity_high <- function(){c("red", "gray")}
 colors_endemicity_low <- function(){c("blue", "gray")}
 colors_endemicity <- function(){c("#FF0000", "#E65F5F", "#F2A8A7", "#837EE6")} #"#0C14ED"
 colors_endemicity <- function(){
-  # result of : paletteer::paletteer_d("calecopal::desert", direction = -1)[1:3]
-  # c("#291611FF", "#632D1FFF", "#B09175FF", "gray")
-  # result of : paletteer::paletteer_d("colRoz::v_acanthurus", direction = -1)[c(1, 2, 4)]
-  # c("#4A2C22FF","#BD6E39FF","#F8BC64FF", "gray")
   # Based on cases
   c("#993404", "#D95F0E", "#FED98E", "gray")
 }
+
+
+colors_periods <- function(){c("purple", "orange")}
 
 colors_risk_categories <- function() {
   c( "gray", paletteer::paletteer_d("fishualize::Epinephelus_striatus", direction = -1))

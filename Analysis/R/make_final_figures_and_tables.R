@@ -1093,29 +1093,6 @@ ggsave(p_endemicity_v2,
 
 
 # Scatter plot of ADM0 level units
-p_data_adm0_scatter <- gen_obs %>%
-  filter(admin_level == "ADM0", censoring == "full") %>% 
-  group_by(country, period, loctime_comb) %>% 
-  mutate(mean_obs = mean(observation)) %>% 
-  slice(1) %>% 
-  ggplot(aes(x = mean_obs+1, y = mean+1)) +
-  geom_abline(lty = 2, lwd = .5, col = "red") +
-  geom_point(alpha = .7) +
-  geom_errorbar(aes(ymin = q2.5+1, ymax = q97.5+1), alpha = .5) +
-  facet_grid(. ~ AFRO_region) +
-  theme_bw() +
-  # coord_cartesian(xlim = c(0, 1e4), ylim = c(0, 1e4)) +
-  scale_x_log10() +
-  scale_y_log10() +
-  labs(x = "Mean of ADM0 observed number of cases", y = "Modeled")
-
-
-ggsave(p_data_adm0_scatter,
-       file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_valiation_adm0_scatter.png"),
-       width = 10,
-       height = 3, 
-       dpi = 300)
-
 # Scatter plot of all admin units for mean of observations
 p_data_scatter <- gen_obs %>%
   filter(censoring == "full") %>% 
@@ -1124,19 +1101,19 @@ p_data_scatter <- gen_obs %>%
   slice(1) %>% 
   ggplot(aes(x = mean_obs+1, y = mean+1)) +
   geom_abline(lty = 2, lwd = .5, col = "red") +
-  geom_point(alpha = .2) +
-  geom_errorbar(aes(ymin = q2.5+1, ymax = q97.5+1), alpha = .1) +
-  facet_grid(admin_level ~ period) +
+  geom_point(alpha = .5, aes(color = period)) +
+  geom_errorbar(aes(ymin = q2.5+1, ymax = q97.5+1, color = period), alpha = .25) +
+  facet_grid(country ~ admin_level) +
   theme_bw() +
-  # coord_cartesian(xlim = c(0, 1e4), ylim = c(0, 1e4)) +
   scale_x_log10() +
   scale_y_log10() +
-  labs(x = "Observed number of cases", y = "Modeled")
+  labs(x = "Observed number of cases", y = "Modeled") +
+  scale_color_manual(values = taxdat:::colors_periods())
 
 ggsave(p_data_scatter,
        file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_validation_scatter.png"),
-       width = 8,
-       height = 8, 
+       width = 15,
+       height = 15, 
        dpi = 300)
 
 
@@ -1145,48 +1122,36 @@ p_data_scatter_censored <- gen_obs %>%
   filter(censoring == "right-censored") %>% 
   ggplot(aes(x = observation+1, y = mean+1)) +
   geom_abline(lty = 2, lwd = .5, col = "red") +
-  geom_point(alpha = .2) +
-  geom_errorbar(aes(ymin = q2.5+1, ymax = q97.5+1), alpha = .1) +
-  facet_grid(admin_level ~ period) +
+  geom_point(alpha = .5, aes(color = period)) +
+  geom_errorbar(aes(ymin = q2.5+1, ymax = q97.5+1, color = period), alpha = .25) +
+  facet_grid(country ~ admin_level) +
   theme_bw() +
-  # coord_cartesian(xlim = c(0, 1e4), ylim = c(0, 1e4)) +
   scale_x_log10() +
   scale_y_log10() +
-  labs(x = "Observed number of cases", y = "Modeled")
+  labs(x = "Observed number of cases", y = "Modeled") +
+  scale_color_manual(values = taxdat:::colors_periods())
 
 ggsave(p_data_scatter_censored,
        file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_validation_censored_scatter.png"),
-       width = 8,
-       height = 8, 
+       width = 15,
+       height = 15, 
        dpi = 300)
 
 
-# Subnational level coverage plot
+# Coverage plot
 p_coverage <- gen_obs %>%
-  filter(admin_level != "ADM0") %>% 
-  mutate(admin_level = str_extract(admin_level, "[0-9]") %>% as.numeric()) %>% 
-  plot_posterior_coverage(with_period = TRUE)
-
-ggsave(p_coverage,
-       file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_validation_coverage.png"),
-       width = 12,
-       height = 10, 
-       dpi = 300)
-
-# National level coverage plot
-p_coverage_adm0 <- gen_obs %>%
   group_by(period, country, loctime_comb) %>% 
   mutate(observation = mean(observation)) %>% 
   slice(1) %>% 
   ungroup() %>% 
-  filter(admin_level == "ADM0") %>% 
   mutate(admin_level = str_extract(admin_level, "[0-9]") %>% as.numeric()) %>% 
-  plot_posterior_coverage(with_period = TRUE)
+  plot_posterior_coverage(with_period = TRUE) +
+  facet_grid(country ~ period)
 
-ggsave(p_coverage_adm0,
-       file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_validation_adm0_coverage.png"),
-       width = 12,
-       height = 10, 
+ggsave(p_coverage,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_validation_coverage.png"),
+       width = 10,
+       height = 15, 
        dpi = 300)
 
 ## Mean case tables by amdin level -----
@@ -1264,7 +1229,7 @@ p_dist <- mai_adm_all %>%
   facet_grid(country~to_what, scales = "free_x") +
   scale_y_log10() +
   theme_bw() +
-  scale_color_manual(values = c("purple", "orange")) +
+  scale_color_manual(values = taxdat:::colors_periods()) +
   labs(x = "distance [km]", y = "mean annula incidence rate")
 
 
@@ -1300,7 +1265,7 @@ p_density <- mai_adm %>%
   scale_y_log10() +
   scale_x_log10() +
   theme_bw() +
-  scale_color_manual(values = c("purple", "orange")) +
+  scale_color_manual(values = taxdat:::colors_periods()) +
   labs(x = "population density [peopl/sqkm]", y = "mean annula incidence rate")
 
 ggsave(p_density,
