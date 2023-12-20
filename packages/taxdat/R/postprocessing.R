@@ -1478,7 +1478,8 @@ get_coverage <- function(df,
 aggregate_and_summarise_draws <- function(df, 
                                           col = "country_cases",
                                           grouping_variables = NULL,
-                                          weights_col = NULL) {
+                                          weights_col = NULL,
+                                          do_summary = TRUE) {
   
   df %>% 
     dplyr::group_by_at(c(".draw", grouping_variables)) %>% 
@@ -1504,8 +1505,16 @@ aggregate_and_summarise_draws <- function(df,
                                 stringr::str_remove("x"))
       }
     }  %>% 
-    posterior::as_draws() %>% 
-    posterior::summarise_draws(custom_summaries())
+    posterior::as_draws() %>%
+    {
+      x <- .
+      if(do_summary) {
+        posterior::summarise_draws(x, custom_summaries())
+      } else {
+        posterior::as_draws_df(x) %>% 
+          dplyr::as_tibble()
+      }
+    }
 }
 
 #' aggregate_and_summarise_case_draws_by_region
@@ -1522,7 +1531,8 @@ aggregate_and_summarise_draws <- function(df,
 aggregate_and_summarise_draws_by_region <- function(df, 
                                                     col = "country_cases",
                                                     grouping_variables = NULL,
-                                                    weights_col = NULL) {
+                                                    weights_col = NULL,
+                                                    do_summary = TRUE) {
   
   # Define columns from which to extract names
   if (!is.null(grouping_variables)) {
@@ -1549,7 +1559,15 @@ aggregate_and_summarise_draws_by_region <- function(df,
     dplyr::select(-draw) %>% 
     magrittr::set_names(stringr::str_c(col, colnames(.), sep = "_")) %>% 
     posterior::as_draws() %>% 
-    posterior::summarise_draws(custom_summaries())
+    {
+      x <- .
+      if(do_summary) {
+        posterior::summarise_draws(x, custom_summaries())
+      } else {
+        posterior::as_draws_df(x) %>% 
+          dplyr::as_tibble()
+      }
+    }
 }
 
 
