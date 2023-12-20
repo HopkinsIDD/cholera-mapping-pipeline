@@ -487,6 +487,7 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   # Random draws
   random_draws <- sample(1:1000, 100)
   
+  
   mai_draws_p1 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[1]}_mai_draws.rds")) %>%
     ungroup() %>% 
     select(.draw, location_period_id, value, country) %>% 
@@ -512,6 +513,14 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
                  select(country, location_period_id, shp_id, admin_level), .)
   
   saveRDS(mai_change_stats, file = str_glue("{opt$output_dir}/mai_ratio_stats.rds"))
+  
+  # # Change stats for regions
+  # mai_region_change_stats <- merge_ratio_draws(
+  #   df1 = readRDS(str_glue("{opt$output_dir}/{prefix_list[1]}_mai_rates_by_region_draws.rds"))  %>% 
+  #     filter(.draw %in% random_draws),
+  #   df2 = readRDS(str_glue("{opt$output_dir}/{prefix_list[2]}_mai_rates_by_region_draws.rds"))  %>% 
+  #     filter(.draw %in% random_draws)
+  # )
   
   
   mai_change_stats <- mai_change_stats %>% 
@@ -1226,7 +1235,7 @@ p_dist <- mai_adm_all %>%
   # geom_hex() +
   geom_point(alpha = .15) +
   geom_smooth() +
-  facet_grid(country~to_what, scales = "free_x") +
+  facet_grid(.~to_what, scales = "free_x") +
   scale_y_log10() +
   theme_bw() +
   scale_color_manual(values = taxdat:::colors_periods()) +
@@ -1236,7 +1245,7 @@ p_dist <- mai_adm_all %>%
 ggsave(p_dist,
        file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_scatterplot_mai_dist_water.png"),
        width = 12,
-       height = 8, 
+       height = 5, 
        dpi = 300)
 
 saveRDS(dist_to_wb, file = str_glue("{opt$output_dir}/dist_to_wb.rds"))
@@ -1261,7 +1270,6 @@ p_density <- mai_adm %>%
   ggplot(aes(x = pop_density, y = mean, color = period)) +
   geom_point(alpha = .15) +
   geom_smooth() +
-  facet_wrap(country~.) +
   scale_y_log10() +
   scale_x_log10() +
   theme_bw() +
@@ -1278,4 +1286,32 @@ saveRDS(pop_density, file = str_glue("{opt$output_dir}/pop_density.rds"))
 
 ### WASH ----
 
+# Try reading in th wash data, this should be stored in a better place in the future
+wash_dat <- st_read("Analysis/output/adm2_sf_wash_prop_clean.gpkg")
+
+p_wash <- wash_dat %>% 
+  st_drop_geometry() %>% 
+  as_tibble() %>% 
+  select(location_period_id, contains("prop")) %>% 
+  pivot_longer(cols = contains("prop")) %>% 
+  mutate(period = case_when(str_detect(name, "2012") ~ "2011-2015",
+                            T ~ "2016-2020"),
+         what = str_remove(name, "prop_Y2012_|prop_Y2017_"),
+         category = str_extract(what, "W|S")) %>% 
+  select(-name) %>% 
+  inner_join(mai_adm) %>% 
+  ggplot(aes(x = value, y = log10(mean))) +
+  geom_point(aes(color = period), alpha = .3) +
+  geom_smooth(aes(color = period)) +
+  geom_smooth(color = "black") +
+  facet_wrap(~what) +
+  theme_bw() +
+  scale_color_manual(values = colors_periods())
+
+
+ggsave(p_wash,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_scatterplot_mai_WASH.png"),
+       width = 12,
+       height = 8, 
+       dpi = 300)
 
