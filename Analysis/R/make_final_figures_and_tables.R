@@ -1300,11 +1300,12 @@ p_wash <- wash_dat %>%
          category = str_extract(what, "W|S")) %>% 
   select(-name) %>% 
   inner_join(mai_adm) %>% 
-  ggplot(aes(x = value, y = log10(mean))) +
+  ggplot(aes(x = value, y = mean)) +
   geom_point(aes(color = period), alpha = .3) +
   geom_smooth(aes(color = period)) +
   geom_smooth(color = "black") +
   facet_wrap(~what) +
+  scale_y_log10() +
   theme_bw() +
   scale_color_manual(values = colors_periods()) +
   labs(x = "Proportion of population", y = "mean annula incidence rate")
