@@ -1306,7 +1306,8 @@ p_wash <- wash_dat %>%
   geom_smooth(color = "black") +
   facet_wrap(~what) +
   theme_bw() +
-  scale_color_manual(values = colors_periods())
+  scale_color_manual(values = colors_periods()) +
+  labs(x = "Proportion of population", y = "mean annula incidence rate")
 
 
 ggsave(p_wash,
