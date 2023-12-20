@@ -256,6 +256,27 @@ overall_rate_stats <- run_all(
   output_file_type = "rds",
   verbose = opt$verbose)
 
+overall_rate_draws <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_adm0_rates,
+  fun_name = "mai_rates_all_draws",
+  fun_opts = NULL,
+  postprocess_fun = aggregate_and_summarise_draws,
+  postprocess_fun_opts = list(col = "country_rates",
+                              weights_col = "country_pop",
+                              do_summary = FALSE),
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  interm_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+
 mai_region_rates_stats <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_adm0_rates,
@@ -264,6 +285,28 @@ mai_region_rates_stats <- run_all(
   postprocess_fun = aggregate_and_summarise_draws_by_region,
   postprocess_fun_opts = list(col = "country_rates",
                               weights_col = "country_pop"),
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  interm_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+
+
+mai_region_rates_draws <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_adm0_rates,
+  fun_name = "mai_rates_by_region_draws",
+  fun_opts = NULL,
+  postprocess_fun = aggregate_and_summarise_draws_by_region,
+  postprocess_fun_opts = list(col = "country_rates",
+                              weights_col = "country_pop",
+                              do_summary = FALSE),
   prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
