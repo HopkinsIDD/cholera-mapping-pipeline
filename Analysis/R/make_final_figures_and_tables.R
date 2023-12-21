@@ -11,7 +11,6 @@ library(optparse)
 library(rmapshaper)
 library(taxdat)
 library(cowplot)
-sf::sf_use_s2(FALSE)
 
 # User-supplied options
 opt_list <- list(
@@ -1207,7 +1206,7 @@ saveRDS(irr_dat, file = str_glue("{opt$output_dir}/irr_dist.rds"))
 adm2_sf <- u_space_sf %>% 
   filter(admin_level == "ADM2")
 
-adm2_centroids_sf <- st_centroid(adm2_sf)
+adm2_centroids_sf <- st_centroid(st_make_valid(adm2_sf))
 
 dist_to_wb <- map_df(seq_along(dist_sf), function(y) {
   
