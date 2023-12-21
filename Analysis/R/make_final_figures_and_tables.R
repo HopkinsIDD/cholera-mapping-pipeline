@@ -11,6 +11,7 @@ library(optparse)
 library(rmapshaper)
 library(taxdat)
 library(cowplot)
+sf::sf_use_s2(FALSE)
 
 # User-supplied options
 opt_list <- list(
@@ -1307,7 +1308,7 @@ p_wash <- wash_dat %>%
   facet_wrap(~what) +
   scale_y_log10() +
   theme_bw() +
-  scale_color_manual(values = colors_periods()) +
+  scale_color_manual(values = taxdat:::colors_periods()) +
   labs(x = "Proportion of population", y = "mean annula incidence rate")
 
 
