@@ -91,40 +91,8 @@ summary_obs_counts <-
         unique_OCs = length(unique(output_obs_1115$OC_UID))
       )
   )
-# 
-# summary_obs_counts_1620 <- output_obs_counts_1620 %>%
-#   group_by(imputed) %>% 
-#   summarise(
-#     time_period = '2016-2020',
-#     total_obs = sum(n_obs),
-#     unique_OCs = length(unique(output_obs_1620$OC_UID)),
-#     unique_loc = length(unique(location_name)),
-#     unique_admin_units = length(unique(admin_level)),
-#     total_national_obs = sum(admin_level==0),
-#     total_subnational_obs = sum(!admin_level==0),
-#     unique_countries = length(unique(country))
-#   ) 
-# 
-# summary_obs_counts_1120 <- output_obs_counts_1120 %>%
-#   group_by(imputed) %>% 
-#   summarise(
-#     time_period = 'all years',
-#     total_obs = sum(n_obs),
-#     unique_OCs = length(unique(output_obs_1120$OC_UID)),
-#     unique_loc = length(unique(location_name)),
-#     unique_admin_units = length(unique(admin_level)),
-#     total_national_obs = sum(admin_level==0),
-#     total_subnational_obs = sum(!admin_level==0),
-#     unique_countries = length(unique(country))
-#   ) 
 
 table1 <- summary_obs_counts %>% 
-  #   bind_rows(
-  #   summary_obs_counts_1115,
-  #   summary_obs_counts_1620,
-  #   summary_obs_counts_1120
-  # )
-  # %>% 
   arrange(time_period) %>% 
   mutate(row_number = row_number())
 
@@ -149,10 +117,6 @@ shp_adm2_1620 <- read_res_rds(out_dir = params$postprocessed_output_directory,
   filter(admin_level >= 2) %>% 
   sf::st_make_valid()
 
-# sf::st_make_valid(readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_shapefiles.rds')) %>% filter(admin_level >=2))
-# shp_adm2_1620 <- sf::st_make_valid(readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_shapefiles.rds')) %>% filter(admin_level >=2))
-
-
 shp_overlap_lp <- intersect(shp_adm2_1115$locationPeriod_id, shp_adm2_1620$locationPeriod_id)
 shp_diff_lp <- setdiff(shp_adm2_1115$locationPeriod_id,shp_adm2_1620$locationPeriod_id)
 
@@ -160,7 +124,7 @@ output_adm0_sf_1620 <- read_res_rds(out_dir = params$postprocessed_output_direct
                                     file_name = "2016_2020_adm0_sf.rds")
 
 subnational_obs_coverage <- data.frame()
-for (country_tmp in unique(shp_adm2_1115[shp_adm2_1620$locationPeriod_id%in%shp_overlap_lp,]$country)) {
+for (country_tmp in unique(shp_adm2_1115[shp_adm2_1115$locationPeriod_id%in%shp_overlap_lp,]$country)) {
   shp_union <- sf::st_make_valid(sf::st_union(sf::st_combine(shp_adm2_1115[shp_adm2_1115$locationPeriod_id%in%shp_overlap_lp & shp_adm2_1115$country==country_tmp,]$geom)))
   
   shp_adm0 <- output_adm0_sf_1620 %>% filter(country == country_tmp)
@@ -195,22 +159,6 @@ table3 <- output_obs_1120 %>%
         total_full_obs = sum(censoring == 'full'),
         total_obs = n()
       )
-    #   output_obs_1115 %>% 
-    #     summarise(
-    #       `% of full observations` = scales::percent(sum(censoring == 'full') / n()),
-    #       total_full_obs = sum(censoring == 'full'),
-    #       total_obs = n()
-    #     ) %>% 
-    #     mutate(time_period = '2011-2015')
-    # ) %>% 
-    # bind_rows(
-    #   output_obs_1620 %>% 
-    #     summarise(
-    #       `% of full observations` = scales::percent(sum(censoring == 'full') / n()),
-    #       total_full_obs = sum(censoring == 'full'),
-    #       total_obs = n()
-    #     ) %>% 
-    #     mutate(time_period = '2016-2020')
   ) %>%
   select(time_period, total_obs, total_full_obs, `% of full observations`) %>% 
   arrange(time_period) %>% 
@@ -233,28 +181,7 @@ table4 <- bind_rows(
     total_full_obs = sum(censoring == 'full'),
     total_obs = n()
   ) %>% 
-  # mutate(time_period = 'all years') %>% 
-  # bind_rows(
-  #   output_obs_1115 %>% 
-  #     group_by(admin_level) %>% 
-  #     summarise(
-  #       `% of full observations` = scales::percent(sum(censoring == 'full') / n()),
-  #       total_full_obs = sum(censoring == 'full'),
-  #       total_obs = n()
-  #     ) %>% 
-  #     mutate(time_period = '2011-2015')
-  # ) %>% 
-# bind_rows(
-#   output_obs_1620 %>% 
-#     group_by(admin_level) %>% 
-#     summarise(
-#       `% of full observations` = scales::percent(sum(censoring == 'full') / n()),
-#       total_full_obs = sum(censoring == 'full'),
-#       total_obs = n()
-#     ) %>% 
-#     mutate(time_period = '2016-2020')
-# ) %>% 
-select(time_period, admin_level, total_obs, total_full_obs, `% of full observations`) %>% 
+  select(time_period, admin_level, total_obs, total_full_obs, `% of full observations`) %>% 
   arrange(time_period, admin_level) %>% 
   mutate(row_number = row_number())
 
@@ -426,7 +353,6 @@ inner_join(
   mai_ratio_stats_adm2,
   read_res_rds(out_dir = params$postprocessed_output_directory,
                file_name = 'pop_density.rds') %>% 
-    sf::st_drop_geometry() %>% 
     filter(admin_level == "ADM2") %>% 
     group_by(location_period_id) %>% 
     top_n(1),
@@ -498,18 +424,20 @@ risk_categories_df <- combine_period_res(out_dir =  params$postprocessed_output_
                                                    '2016_2020_risk_categories.rds')) %>% 
   st_drop_geometry() %>% 
   filter(admin_level == "ADM2") %>% 
-  mutate(high_risk = ifelse(risk_cat %in% c('1-10','<1'),FALSE, TRUE))  
-  # mutate(time_period = '2011-2015') %>% 
-  # bind_rows(
-  #   readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_risk_categories.rds')) %>% 
-  #     st_drop_geometry() %>% 
-  #     filter(admin_level == "ADM2") %>% 
-  #     mutate(high_risk = ifelse(risk_cat %in% c('1-10','<1'),FALSE, TRUE)) %>% 
-  #     group_by(country) %>% 
-  #     summarise(highrisk_adm2_units = 100 * length(high_risk[high_risk==TRUE])/n()) %>% 
-  #     mutate(time_period = '2016-2020')
-  # ) %>% 
-  
+  mutate(high_risk = ifelse(risk_cat %in% c('1-10','<1'),FALSE, TRUE))  %>% 
+  as_tibble()
+
+# mutate(time_period = '2011-2015') %>% 
+# bind_rows(
+#   readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_risk_categories.rds')) %>% 
+#     st_drop_geometry() %>% 
+#     filter(admin_level == "ADM2") %>% 
+#     mutate(high_risk = ifelse(risk_cat %in% c('1-10','<1'),FALSE, TRUE)) %>% 
+#     group_by(country) %>% 
+#     summarise(highrisk_adm2_units = 100 * length(high_risk[high_risk==TRUE])/n()) %>% 
+#     mutate(time_period = '2016-2020')
+# ) %>% 
+
 
 risk_categories_df %>% 
   group_by(time_period, country) %>% 
@@ -526,19 +454,54 @@ risk_categories_df %>%
 summary_pop_risk_adm2_1120 <- risk_categories_df %>% 
   group_by(time_period) %>% 
   summarise(highrisk_adm2_units = 100 * length(high_risk[high_risk==TRUE])/n(),
+            highrisk_adm2_units_n = sum(high_risk==TRUE),
+            tot_adm2_units_n = n(),
             country_prop = 100 * length(unique(country[high_risk]))/43,
             total_country = length(unique(country[high_risk])))
 
 summary_pop_risk_adm2_1115 <-  summary_pop_risk_adm2_1120 %>% 
-  fitler(time_period == "2011-2015")
+  filter(time_period == "2011-2015")
 
-print(paste("Between 2011-2015, there are", round(summary_pop_risk_adm2_1115$highrisk_adm2_units,4),"% of adm2 units in the high risk category (>10 per 100000) among ", round(summary_pop_risk_adm2_1115$country_prop,4),"% countries(",summary_pop_risk_adm2_1115$total_country,"/43)."))
+print(
+  with(
+    summary_pop_risk_adm2_1115,
+    paste(
+      "Between 2011-2015, there are", 
+      round(highrisk_adm2_units,4),
+      "% of adm2 units in the high risk category (>10 per 100000) among ",
+      "(",
+      highrisk_adm2_units_n,
+      "/",
+      tot_adm2_units_n,
+      ")",
+      round(country_prop,4),
+      "% countries(",
+      total_country,"/43)."
+    )
+  )
+)
 
 summary_pop_risk_adm2_1620 <-  summary_pop_risk_adm2_1120 %>% 
-  fitler(time_period == "2016-2020")
+  filter(time_period == "2016-2020")
 
-print(paste("Between 2016-2020, there are", round(summary_pop_risk_adm2_1620$highrisk_adm2_units,4),"% of adm2 units in the high risk category (>10 per 100000) among ", round(summary_pop_risk_adm2_1620$country_prop,4),"% countries(",summary_pop_risk_adm2_1620$total_country,"/43)."))
-
+print(
+  with(
+    summary_pop_risk_adm2_1620,
+    paste(
+      "Between 2016-2020, there are", 
+      round(highrisk_adm2_units,4),
+      "% of adm2 units in the high risk category (>10 per 100000) among ",
+      "(",
+      highrisk_adm2_units_n,
+      "/",
+      tot_adm2_units_n,
+      ")",
+      round(country_prop,4),
+      "% countries(",
+      total_country,"/43)."
+    )
+  )
+)
 ```
 
 
@@ -561,10 +524,29 @@ output_endemicity %>%
 
 summary_both_high_risk_adm2_1120 <- output_endemicity %>% 
   ungroup() %>% 
-  summarise(bothhighrisk_adm2_units = 100 * length(endemicity[endemicity=="high-both"])/n(),
+  summarise(n_both = sum(endemicity == "high-both"),
+            n_tot = n(),
+            bothhighrisk_adm2_units = 100 * n_both/n_tot,
             country_prop = 100 * length(unique(country[endemicity=="high-both"]))/43,
             total_country = length(unique(country[endemicity=="high-both"])))
 
-print(paste("There are", round(summary_both_high_risk_adm2_1120$bothhighrisk_adm2_units,4),"% of the adm2 units in high risk category (>10 per 100000) for both time periods and they are concentrated in ",round(summary_both_high_risk_adm2_1120$country_prop,4),"% (",summary_both_high_risk_adm2_1120$total_country,"/43)of the countries."))
+print(
+  with(
+    summary_both_high_risk_adm2_1120,
+    paste(
+      "There are", 
+      round(bothhighrisk_adm2_units,4),
+      "% ",
+      "(",
+      n_both,
+      "/",
+      n_tot,
+      ")",
+      "of the adm2 units in high risk category (>10 per 100000) for both time periods and they are concentrated in ",
+      round(country_prop,4),
+      "% (",
+      total_country,"/43)of the countries.")
+  )
+)
 
 ```
