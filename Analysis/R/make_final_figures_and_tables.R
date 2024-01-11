@@ -831,7 +831,8 @@ ggsave(p_fig1A,
 ## Figure 1B: cases by region and time period --------------------------------
 # Horizontal barplot of cases by region
 p_fig1B <- cases_by_region %>% 
-  mutate(AFRO_region = factor(AFRO_region, levels = get_AFRO_region_levels())) %>% 
+  mutate(AFRO_region = factor(AFRO_region, levels = get_AFRO_region_levels()),
+         period = factor(period, levels = rev(c("2016-2020", "2011-2015")))) %>% 
   ggplot(aes(x = mean, y = period, fill = AFRO_region)) +
   geom_bar(stat = "identity")  +
   geom_errorbarh(data = cases_continent,
