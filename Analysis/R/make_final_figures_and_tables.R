@@ -375,6 +375,30 @@ unpack_pop_at_risk <- function(df) {
     )
 }
 
+parse_AFRO_region <- function(df) {
+  
+  if (!("AFRO_region" %in% colnames(df))) {
+    stop("AFRO_region needs to be defined to be parsed")
+  }
+  
+  df %>% 
+    mutate(AFRO_region = AFRO_region %>% 
+             str_replace("_", " ") %>% 
+             str_to_title(),
+           AFRO_region = factor(AFRO_region, 
+                                levels = get_AFRO_region_levels()))
+}
+
+unpack_region_draws <- function(df, 
+                                value_col = "country_rates") {
+  df %>% 
+    pivot_longer(cols = contains(value_col),
+                 names_to = "AFRO_region",
+                 values_to = "value") %>% 
+    mutate(AFRO_region = str_remove(AFRO_region, str_c(value_col, "_"))) %>% 
+    parse_AFRO_region()
+}
+
 # Second post-processing step ---------------------------------------------
 
 if (opt$redo | !file.exists(opt$bundle_filename)) {
@@ -387,22 +411,39 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   cases_by_region <- combine_period_output(prefix_list = prefix_list,
                                            output_name = "mai_cases_by_region",
                                            output_dir = opt$output_dir) %>% 
-    mutate(AFRO_region = str_remove(variable, "country_cases_") %>% 
-             str_replace("_", " ") %>% 
-             str_to_title(),
-           AFRO_region = factor(AFRO_region, 
-                                levels = get_AFRO_region_levels()))
+    mutate(AFRO_region = str_remove(variable, "country_cases_")) %>% 
+    parse_AFRO_region()
+  
+  
+  cases_by_region_draws <- combine_period_output(prefix_list = prefix_list,
+                                                 output_name = "mai_cases_by_region_draws",
+                                                 output_dir = opt$output_dir) %>% 
+    unpack_region_draws(value_col = "country_cases")
+  
+  # Compute percentage of cases in Eastern and Central Africa
+  frac_east_central_stats <- cases_by_region_draws %>% 
+    group_by(.draw, period) %>% 
+    summarise(
+      east_central = sum(value[AFRO_region %in% c("Eastern Africa", "Central Africa")]),
+      tot = sum(value),
+      frac_east_central = east_central/tot
+    ) %>% 
+    group_by(period) %>% 
+    summarise(
+      mean = mean(frac_east_central),
+      q025 = quantile(frac_east_central, 0.025),
+      q975 = quantile(frac_east_central, 0.975)
+    )
+  
+  saveRDS(frac_east_central_stats, file = str_glue("{opt$output_dir}/frac_cases_east_central_stats.rds"))
   
   ## Rates by region and continent ---------------------------------------
   rates_by_region <- combine_period_output(prefix_list = prefix_list,
                                            output_name = "mai_rates_by_region",
                                            output_dir = opt$output_dir) %>% 
-    mutate(AFRO_region = str_remove(variable, "country_rates_"))  %>% 
-    mutate(AFRO_region = str_remove(variable, "country_cases_") %>% 
-             str_replace("_", " ") %>% 
-             str_to_title(),
-           AFRO_region = factor(AFRO_region, 
-                                levels = get_AFRO_region_levels()))
+    mutate(AFRO_region = str_remove(variable, "country_cases_")) %>%
+    parse_AFRO_region()
+  
   
   # Overall rates
   rates_overall <- combine_period_output(prefix_list = prefix_list,
@@ -443,11 +484,8 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   pop_at_risk_regions <- combine_period_output(prefix_list = prefix_list,
                                                output_name = "pop_at_risk_by_region",
                                                output_dir = opt$output_dir) %>% 
-    mutate(AFRO_region = str_extract(variable, "(?<=tot_pop_risk_)(.)*(?=_adm)") %>% 
-             str_replace("_", " ") %>% 
-             str_to_title(),
-           AFRO_region = factor(AFRO_region, 
-                                levels = get_AFRO_region_levels())) %>% 
+    mutate(AFRO_region = str_extract(variable, "(?<=tot_pop_risk_)(.)*(?=_adm)")) %>%
+    parse_AFRO_region() %>% 
     unpack_pop_at_risk()
   
   
@@ -528,15 +566,6 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     as_tibble()
   
   ## Region ration stats ----
-  unpack_region_draws <- function(df) {
-    df %>% 
-      pivot_longer(cols = contains("country_rates"),
-                   names_to = "AFRO_region",
-                   values_to = "value") %>% 
-      mutate(AFRO_region = str_remove(AFRO_region, "country_rates_") %>% 
-               str_replace_all("_", " ") %>% 
-               str_to_title())
-  }
   
   mai_region_draws_p1 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[1]}_mai_rates_by_region_draws.rds")) %>%
     unpack_region_draws() %>% 
@@ -593,11 +622,8 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     mutate(country = variable) %>% 
     rename(location_period_id = variable) %>% 
     compute_rate_changes() %>% 
-    mutate(AFRO_region = str_remove(country, "country_rates_") %>% 
-             str_replace("_", " ") %>% 
-             str_to_title(),
-           AFRO_region = factor(AFRO_region, 
-                                levels = get_AFRO_region_levels()))
+    mutate(AFRO_region = str_remove(country, "country_rates_")) %>% 
+    parse_AFRO_region()
   
   # Changes at the continent level
   mai_all_changes <- rates_overall %>% 
