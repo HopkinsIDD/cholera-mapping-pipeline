@@ -172,15 +172,26 @@ save_table_to_docx <- function(tbl, output_path) {
 
 
 get_mean_rate <- function(mai_adm_all,
-                          this_country,
-                          this_period) {
+                          this_unit,
+                          this_period,
+                          by_region = FALSE) {
   
   # Get the mean rate of the country
-  mean_rate <- mai_adm_all %>% 
-    filter(admin_level == "ADM0",
-           country == this_country,
-           period == this_period) %>% 
-    pull(mean)
+  if (!by_region) {
+    mean_rate <- mai_adm_all %>% 
+      filter(admin_level == "ADM0",
+             country == this_unit,
+             period == this_period) %>% 
+      pull(mean)
+  } else {
+    mean_rate <- mai_adm_all %>% 
+      st_drop_geometry() %>% 
+      filter(admin_level == "ADM0",
+             AFRO_region == this_unit,
+             period == this_period) %>% 
+      summarise(mean = weighted.mean(mean, pop)) %>% 
+      pull(mean)
+  }
   
   mean_rate
 }
@@ -234,38 +245,56 @@ compute_irr <- function(target_cells_sf,
 irr_dist <- function(target,
                      dist_vec = seq(5e4, 50e4, by = 5e4),
                      mai_adm,
+                     mai_adm_all,
                      grid_cases,
                      afr_sf,
-                     dist_definition = "within") {
+                     dist_definition = "within",
+                     by_region = TRUE) {
+  
+  if (by_region) {
+    u_units <- unique(mai_adm$AFRO_region)
+  } else {
+    u_units <- unique(mai_adm$country)
+  }
   
   res <- map_df(
-    unique(mai_adm$country), 
-    function(this_country) {
+    u_units, 
+    function(this_unit) {
       map_df(
         unique(mai_adm$period), 
         function(this_period) {
           
-          cat("country", this_country, "period", this_period, "\n")
+          cat("Unit", this_unit, "period", this_period, "\n")
           
           # Get all cells for which we have at least case
           case_cells <- grid_cases %>% 
             filter(mean > 1, period == this_period)
           
-          in_country <- st_intersects(case_cells, 
-                                      afr_sf %>% 
-                                        filter(country == this_country),
-                                      sparse = FALSE) %>% 
-            rowSums() %>% 
-            {.>0}
+          if (by_region) {
+            in_unit <- st_intersects(case_cells, 
+                                        afr_sf %>% 
+                                          filter(AFRO_region== this_unit),
+                                        sparse = FALSE) %>% 
+              rowSums() %>% 
+              {.>0}
+          } else {
+            in_unit <- st_intersects(case_cells, 
+                                        afr_sf %>% 
+                                          filter(country == this_unit),
+                                        sparse = FALSE) %>% 
+              rowSums() %>% 
+              {.>0}
+          }
+         
           
-          if (sum(in_country) == 0) {
+          if (sum(in_unit) == 0) {
             res <- tibble(observed = NA,
                           expected = NA,
                           ratio = NA,
                           dist_thresh = NA)
           } else {
             
-            this_case_cells <- case_cells[in_country, ]
+            this_case_cells <- case_cells[in_unit, ]
             
             # Make buffer
             centroids <- st_centroid(this_case_cells)
@@ -325,8 +354,9 @@ irr_dist <- function(target,
                 if (sum(within_dist) > 0) {
                   
                   mean_rate <- get_mean_rate(mai_adm_all = mai_adm_all,
-                                             this_country = this_country,
-                                             this_period = this_period)
+                                             this_unit = this_unit,
+                                             this_period = this_period,
+                                             by_region = by_region)
                   
                   
                   stats <- compute_irr(target_cells_sf = target_cells_sf, 
@@ -349,10 +379,16 @@ irr_dist <- function(target,
           }
           
           res %>% 
-            mutate(country = this_country,
+            mutate(unit = this_unit,
                    period = this_period)
         })
     })
+  
+  if (by_region) {
+    res <- res %>% rename(AFRO_region = unit)
+  } else {
+    res <- res %>% rename(country = unit)
+  }
   
   res %>% 
     rowwise() %>% 
@@ -506,7 +542,8 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
                                        output_name = "mai",
                                        output_dir = opt$output_dir) %>% 
     mutate(run_id = str_c(country, period, sep = "-"),
-           log10_rate_per_1e5 = log10(mean * 1e5))
+           log10_rate_per_1e5 = log10(mean * 1e5)) %>% 
+    get_AFRO_region("country")
   
   # Get unique spatial locations
   u_space_sf <- mai_adm_all %>% 
@@ -525,7 +562,8 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     mai_adm_all %>% filter(admin_level == "ADM2", !(run_id %in% get_no_w_runs()))
   ) %>% 
     st_drop_geometry() %>% 
-    as_tibble()
+    as_tibble() %>% 
+    get_AFRO_region("country")
   
   # Compute change map
   mai_change_adm <- compute_rate_changes(mai_adm)
@@ -715,6 +753,13 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     get_AFRO_region(ctry_col = "country") %>% 
     mutate(AFRO_region = factor(AFRO_region, levels = get_AFRO_region_levels()))
   
+  # Add popultation to mai
+  mai_adm <- mai_adm %>% 
+    inner_join(population %>% select(location_period_id, pop = mean, period))
+  
+  mai_adm_all <- mai_adm_all  %>% 
+    inner_join(population %>% select(location_period_id, pop = mean, period)) 
+    
   ## Incidence ratios around rivers and lakes -----
   
   dist_sf <- list("rivers" = rivers_sf,
@@ -738,9 +783,11 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
       irr_dist(dist_sf[[x]],
                dist_vec = seq(5e3, 100e3, by = 10e3),
                mai_adm = mai_adm,
+               mai_adm_all = mai_adm_all,
                grid_cases = grid_cases,
                afr_sf = afr_sf,
-               dist_definition = y) %>% 
+               dist_definition = y,
+               by_region = T) %>% 
         mutate(what = names(dist_sf)[x])
     })
   })
@@ -760,7 +807,8 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
 
 # Gridded maps of cases
 p_fig1A <- output_plot_map(sf_obj = grid_cases %>% 
-                             mutate(log10_cases = log10(mean)),
+                             mutate(log10_cases = log10(mean),
+                                    period = factor(period, levels = c("2016-2020", "2011-2015"))),
                            lakes_sf = lakes_sf,
                            rivers_sf = rivers_sf,
                            all_countries_sf = afr_sf,
@@ -1253,11 +1301,11 @@ walk(c("ADM0", "ADM1"), function(x) {
 
 ## Incidence rate ratios ----
 
-p_irr <- irr_dat %>% 
-  filter(!is.na(dist_definition)) %>% 
+p_irr <- irr_dat %>%
+  filter(!is.na(dist_definition)) %>%
   mutate(dist = factor(dist),
-         dist = fct_reorder(dist, mean_dist)) %>% 
-  ggplot(aes(x = dist, y = ratio, color = country)) +
+         dist = fct_reorder(dist, mean_dist)) %>%
+  ggplot(aes(x = dist, y = ratio, color = AFRO_region)) +
   geom_point(alpha = 1) +
   geom_errorbar(aes(ymin = lo, ymax = hi), width = 0, alpha = .5) +
   geom_hline(aes(yintercept = 1), lty = 2, lwd = .5) +
@@ -1265,13 +1313,14 @@ p_irr <- irr_dat %>%
   facet_grid(what ~ period + dist_definition, scales =  "free_x") +
   labs(x = "distance to waterbody [km]", y = "IRR [observed/null]") +
   coord_cartesian(ylim = c(0, 15)) +
-  theme(axis.text.x = element_text(angle = 45, hjust=  1, vjust = 1))
+  theme(axis.text.x = element_text(angle = 45, hjust=  1, vjust = 1)) +
+  scale_color_manual(values = colors_afro_regions())
 
 
 ggsave(p_irr,
        file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_irr_dist.png"),
        width = 12,
-       height = 8, 
+       height = 8,
        dpi = 300)
 
 saveRDS(irr_dat, file = str_glue("{opt$output_dir}/irr_dist.rds"))
