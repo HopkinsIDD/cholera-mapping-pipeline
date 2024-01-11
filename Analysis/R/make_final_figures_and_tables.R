@@ -82,17 +82,25 @@ compute_rate_changes <- function(df) {
 }
 
 # Compute change statistics (could package into function)
-merge_ratio_draws <- function(df1, df2) {
-  u_lps <- intersect(unique(df1$location_period_id), unique(df2$location_period_id))
-  n_variables <- length(u_lps)
+merge_ratio_draws <- function(df1, 
+                              df2,
+                              unit_col = "location_period_id") {
+  
+  
+  if(!(unit_col %in% colnames(df1) & unit_col %in% colnames(df2))) {
+    stop("Unit column name not in both dfs: ", unit_col)
+  }
+  
+  u_units <- intersect(unique(df1[[unit_col]]), unique(df2[[unit_col]]))
+  n_variables <- length(u_units)
   u_draws <- unique(df1$.draw)
   n_draws <- length(u_draws)
   ratios <- array(NA, dim = c(n_variables, n_draws, n_draws))
   
   # Compute ratio samples
   for (i in 1:n_variables) {
-    ind2 <- df2$location_period_id == u_lps[i]
-    ind <- df1$location_period_id == u_lps[i]
+    ind2 <- df2[[unit_col]] == u_units[i]
+    ind <- df1[[unit_col]] == u_units[i]
     for (j in 1:n_draws) {
       ratios[i, j, ] <- df2$value[ind2 & df2$.draw == u_draws[j]]/
         df1$value[ind]
@@ -110,8 +118,10 @@ merge_ratio_draws <- function(df1, df2) {
     ratio_stats[i, "q97.5"] <- quantile(ratios[i, , ], 0.975)
   }
   
-  as_tibble(ratio_stats) %>% 
-    mutate(location_period_id = u_lps)
+  ratio_stats <- as_tibble(ratio_stats)
+  ratio_stats[[unit_col]] <- u_units
+  
+  ratio_stats
 }
 
 
@@ -351,6 +361,20 @@ irr_dist <- function(target,
     ungroup() 
 }
 
+
+unpack_pop_at_risk <- function(df) {
+  risk_cat_map <- get_risk_cat_dict()
+  names(risk_cat_map) <- janitor::make_clean_names(risk_cat_map) %>% 
+    str_remove("x")
+  
+  
+  df %>% 
+    mutate(risk_cat = str_extract(variable, str_c(rev(names(risk_cat_map)), collapse = "|")),
+           risk_cat = risk_cat_map[risk_cat] %>% factor(levels = risk_cat_map),
+           admin_level = str_c("ADM", str_extract(variable, "(?<=adm)[0-9]+"))
+    )
+}
+
 # Second post-processing step ---------------------------------------------
 
 if (opt$redo | !file.exists(opt$bundle_filename)) {
@@ -415,21 +439,6 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     get_AFRO_region(ctry_col = "country")  %>% 
     mutate(AFRO_region = factor(AFRO_region, 
                                 levels = get_AFRO_region_levels()))
-  
-  
-  unpack_pop_at_risk <- function(df) {
-    risk_cat_map <- get_risk_cat_dict()
-    names(risk_cat_map) <- janitor::make_clean_names(risk_cat_map) %>% 
-      str_remove("x")
-    
-    
-    df %>% 
-      mutate(risk_cat = str_extract(variable, str_c(rev(names(risk_cat_map)), collapse = "|")),
-             risk_cat = risk_cat_map[risk_cat] %>% factor(levels = risk_cat_map),
-             admin_level = str_c("ADM", str_extract(variable, "(?<=adm)[0-9]+"))
-      )
-  }
-  
   # Population at risk by WHO-AFRO region
   pop_at_risk_regions <- combine_period_output(prefix_list = prefix_list,
                                                output_name = "pop_at_risk_by_region",
@@ -485,8 +494,7 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   
   ## ADM2 mai ratio stats ---------------------------------------
   # Random draws
-  random_draws <- sample(1:1000, 100)
-  
+  random_draws <- sample(1:4000, 100)
   
   mai_draws_p1 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[1]}_mai_draws.rds")) %>%
     ungroup() %>% 
@@ -514,18 +522,61 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   
   saveRDS(mai_change_stats, file = str_glue("{opt$output_dir}/mai_ratio_stats.rds"))
   
-  # # Change stats for regions
-  # mai_region_change_stats <- merge_ratio_draws(
-  #   df1 = readRDS(str_glue("{opt$output_dir}/{prefix_list[1]}_mai_rates_by_region_draws.rds"))  %>% 
-  #     filter(.draw %in% random_draws),
-  #   df2 = readRDS(str_glue("{opt$output_dir}/{prefix_list[2]}_mai_rates_by_region_draws.rds"))  %>% 
-  #     filter(.draw %in% random_draws)
-  # )
-  
   
   mai_change_stats <- mai_change_stats %>% 
     st_drop_geometry() %>% 
     as_tibble()
+  
+  ## Region ration stats ----
+  unpack_region_draws <- function(df) {
+    df %>% 
+      pivot_longer(cols = contains("country_rates"),
+                   names_to = "AFRO_region",
+                   values_to = "value") %>% 
+      mutate(AFRO_region = str_remove(AFRO_region, "country_rates_") %>% 
+               str_replace_all("_", " ") %>% 
+               str_to_title())
+  }
+  
+  mai_region_draws_p1 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[1]}_mai_rates_by_region_draws.rds")) %>%
+    unpack_region_draws() %>% 
+    filter(.draw %in% random_draws)
+  
+  mai_region_draws_p2 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[2]}_mai_rates_by_region_draws.rds")) %>%
+    unpack_region_draws() %>% 
+    filter(.draw %in% random_draws)
+  
+  mai_region_change_stats <- map_df(unique(mai_region_draws_p2$AFRO_region), function(x) {
+    cat("--- ", x, "\n")
+    
+    merge_ratio_draws(
+      df1 = filter(mai_region_draws_p1, AFRO_region == x),
+      df2 = filter(mai_region_draws_p2, AFRO_region == x),
+      unit_col = "AFRO_region"
+    )
+  })
+  
+  saveRDS(mai_region_change_stats, file = str_glue("{opt$output_dir}/mai_region_ratio_stats.rds"))
+  
+  ## Overall stats ----
+  mai_afr_draws_p1 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[1]}_mai_rates_all_draws.rds")) %>%
+    mutate(value = tot,
+           unit = "AFR") %>% 
+    filter(.draw %in% random_draws)
+  
+  mai_afr_draws_p2 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[2]}_mai_rates_all_draws.rds")) %>%
+    mutate(value = tot,
+           unit = "AFR") %>% 
+    filter(.draw %in% random_draws)
+  
+  mai_afr_change_stats <- merge_ratio_draws(
+    df1 = mai_afr_draws_p1,
+    df2 = mai_afr_draws_p2,
+    unit_col = "unit"
+  ) 
+  
+  saveRDS(mai_afr_change_stats, file = str_glue("{opt$output_dir}/mai_Africa_ratio_stats.rds"))
+  
   
   ## Changes between periods ---------------------------------------
   # Compute changes at ADM0 level
