@@ -272,20 +272,20 @@ irr_dist <- function(target,
           
           if (by_region) {
             in_unit <- st_intersects(case_cells, 
-                                        afr_sf %>% 
-                                          filter(AFRO_region== this_unit),
-                                        sparse = FALSE) %>% 
+                                     afr_sf %>% 
+                                       filter(AFRO_region== this_unit),
+                                     sparse = FALSE) %>% 
               rowSums() %>% 
               {.>0}
           } else {
             in_unit <- st_intersects(case_cells, 
-                                        afr_sf %>% 
-                                          filter(country == this_unit),
-                                        sparse = FALSE) %>% 
+                                     afr_sf %>% 
+                                       filter(country == this_unit),
+                                     sparse = FALSE) %>% 
               rowSums() %>% 
               {.>0}
           }
-         
+          
           
           if (sum(in_unit) == 0) {
             res <- tibble(observed = NA,
@@ -759,7 +759,7 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   
   mai_adm_all <- mai_adm_all  %>% 
     inner_join(population %>% select(location_period_id, pop = mean, period)) 
-    
+  
   ## Incidence ratios around rivers and lakes -----
   
   dist_sf <- list("rivers" = rivers_sf,
@@ -818,7 +818,8 @@ p_fig1A <- output_plot_map(sf_obj = grid_cases %>%
   facet_wrap(~ period) +
   theme(strip.background = element_blank(),
         strip.text = element_text(size = 15),
-        legend.position = c(.1, .3)) +
+        legend.position = c(.1, .3),
+        panel.background = element_rect(fill = "white", color = "white")) +
   guides(fill = guide_colorbar("Mean annual incidence \n[cases/year]"))
 
 # Save
@@ -877,7 +878,7 @@ p_fig1 <- cowplot::plot_grid(
   nrow = 2,
   labels = "auto",
   rel_heights = c(.35, 1)
-)  + theme(panel.background = element_rect(fill = "white"))
+)  + theme(panel.background = element_rect(fill = "white", color = "white"))
 
 p_fig1_v2 <- ggdraw() +
   draw_plot(p_fig1) +
@@ -1000,8 +1001,8 @@ p_fig2 <- plot_grid(
     theme(plot.margin = unit(c(1, 1, 1, 1), "lines")),
   nrow = 1,
   labels = "auto"#,
-)  + theme(panel.background = element_rect(fill = "white"))
-
+) +
+  theme(panel.background = element_rect(fill = "white", color = "white"))
 
 # Save
 ggsave(plot = p_fig2,
@@ -1025,7 +1026,8 @@ p_fig3A <- risk_pop_adm2 %>%
                   fill_color_scale_type = "risk category") +
   theme(strip.background = element_blank(),
         strip.text = element_text(size = 15),
-        legend.position = c(.2, .3)) +
+        legend.position = c(.2, .3),
+        panel.background = element_rect(fill = "white", color = "white"))+
   guides(fill = guide_legend("Risk category"))
 
 
@@ -1086,8 +1088,7 @@ p_fig3 <- plot_grid(
   rel_widths = c(1, 1),
   align = "v",
   axis = "lr") +
-  theme(panel.background = element_rect(fill = "white"))
-
+  theme(panel.background = element_rect(fill = "white", color = "white"))
 
 # Save
 ggsave(plot = p_fig3,
@@ -1129,7 +1130,8 @@ p_fig4A <- endemicity_df_v2 %>%
                   fill_var = "endemicity",
                   fill_color_scale_type = "endemicity",
                   border_width = .03) +
-  theme(legend.position = c(.2, .3)) +
+  theme(legend.position = c(.2, .3),
+        panel.background = element_rect(fill = "white", color = "white")) +
   guides(fill = guide_legend("'Endemicity'"))
 
 # Save
@@ -1177,7 +1179,7 @@ p_fig4 <- plot_grid(
   rel_widths = c(1.3, 1),
   align = "v",
   axis = "lr") +
-  theme(panel.background = element_rect(fill = "white"))
+  theme(panel.background = element_rect(fill = "white", color = "white"))
 
 
 # Save
