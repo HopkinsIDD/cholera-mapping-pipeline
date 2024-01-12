@@ -153,9 +153,9 @@ output_plot_map <- function(sf_obj,
       } else if(fill_color_scale_type == "endemicity_low") {
         scale_fill_manual(values = colors_endemicity_low())
       } else if(fill_color_scale_type == "endemicity") {
-        scale_fill_manual(values = colors_endemicity())
+        scale_fill_manual(values = colors_endemicity(),drop=FALSE)
       } else if(fill_color_scale_type == "admin levels") {
-        scale_fill_manual(values = colors_admin_levels())
+        scale_fill_manual(values = colors_admin_levels(),drop=FALSE)
       }
     } + 
     ggplot2::geom_sf(data = all_countries_sf,
