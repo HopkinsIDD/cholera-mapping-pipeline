@@ -82,17 +82,25 @@ compute_rate_changes <- function(df) {
 }
 
 # Compute change statistics (could package into function)
-merge_ratio_draws <- function(df1, df2) {
-  u_lps <- intersect(unique(df1$location_period_id), unique(df2$location_period_id))
-  n_variables <- length(u_lps)
+merge_ratio_draws <- function(df1, 
+                              df2,
+                              unit_col = "location_period_id") {
+  
+  
+  if(!(unit_col %in% colnames(df1) & unit_col %in% colnames(df2))) {
+    stop("Unit column name not in both dfs: ", unit_col)
+  }
+  
+  u_units <- intersect(unique(df1[[unit_col]]), unique(df2[[unit_col]]))
+  n_variables <- length(u_units)
   u_draws <- unique(df1$.draw)
   n_draws <- length(u_draws)
   ratios <- array(NA, dim = c(n_variables, n_draws, n_draws))
   
   # Compute ratio samples
   for (i in 1:n_variables) {
-    ind2 <- df2$location_period_id == u_lps[i]
-    ind <- df1$location_period_id == u_lps[i]
+    ind2 <- df2[[unit_col]] == u_units[i]
+    ind <- df1[[unit_col]] == u_units[i]
     for (j in 1:n_draws) {
       ratios[i, j, ] <- df2$value[ind2 & df2$.draw == u_draws[j]]/
         df1$value[ind]
@@ -110,8 +118,10 @@ merge_ratio_draws <- function(df1, df2) {
     ratio_stats[i, "q97.5"] <- quantile(ratios[i, , ], 0.975)
   }
   
-  as_tibble(ratio_stats) %>% 
-    mutate(location_period_id = u_lps)
+  ratio_stats <- as_tibble(ratio_stats)
+  ratio_stats[[unit_col]] <- u_units
+  
+  ratio_stats
 }
 
 
@@ -162,15 +172,26 @@ save_table_to_docx <- function(tbl, output_path) {
 
 
 get_mean_rate <- function(mai_adm_all,
-                          this_country,
-                          this_period) {
+                          this_unit,
+                          this_period,
+                          by_region = FALSE) {
   
   # Get the mean rate of the country
-  mean_rate <- mai_adm_all %>% 
-    filter(admin_level == "ADM0",
-           country == this_country,
-           period == this_period) %>% 
-    pull(mean)
+  if (!by_region) {
+    mean_rate <- mai_adm_all %>% 
+      filter(admin_level == "ADM0",
+             country == this_unit,
+             period == this_period) %>% 
+      pull(mean)
+  } else {
+    mean_rate <- mai_adm_all %>% 
+      st_drop_geometry() %>% 
+      filter(admin_level == "ADM0",
+             AFRO_region == this_unit,
+             period == this_period) %>% 
+      summarise(mean = weighted.mean(mean, pop)) %>% 
+      pull(mean)
+  }
   
   mean_rate
 }
@@ -224,38 +245,56 @@ compute_irr <- function(target_cells_sf,
 irr_dist <- function(target,
                      dist_vec = seq(5e4, 50e4, by = 5e4),
                      mai_adm,
+                     mai_adm_all,
                      grid_cases,
                      afr_sf,
-                     dist_definition = "within") {
+                     dist_definition = "within",
+                     by_region = TRUE) {
+  
+  if (by_region) {
+    u_units <- unique(mai_adm$AFRO_region)
+  } else {
+    u_units <- unique(mai_adm$country)
+  }
   
   res <- map_df(
-    unique(mai_adm$country), 
-    function(this_country) {
+    u_units, 
+    function(this_unit) {
       map_df(
         unique(mai_adm$period), 
         function(this_period) {
           
-          cat("country", this_country, "period", this_period, "\n")
+          cat("Unit", this_unit, "period", this_period, "\n")
           
           # Get all cells for which we have at least case
           case_cells <- grid_cases %>% 
             filter(mean > 1, period == this_period)
           
-          in_country <- st_intersects(case_cells, 
-                                      afr_sf %>% 
-                                        filter(country == this_country),
-                                      sparse = FALSE) %>% 
-            rowSums() %>% 
-            {.>0}
+          if (by_region) {
+            in_unit <- st_intersects(case_cells, 
+                                     afr_sf %>% 
+                                       filter(AFRO_region== this_unit),
+                                     sparse = FALSE) %>% 
+              rowSums() %>% 
+              {.>0}
+          } else {
+            in_unit <- st_intersects(case_cells, 
+                                     afr_sf %>% 
+                                       filter(country == this_unit),
+                                     sparse = FALSE) %>% 
+              rowSums() %>% 
+              {.>0}
+          }
           
-          if (sum(in_country) == 0) {
+          
+          if (sum(in_unit) == 0) {
             res <- tibble(observed = NA,
                           expected = NA,
                           ratio = NA,
                           dist_thresh = NA)
           } else {
             
-            this_case_cells <- case_cells[in_country, ]
+            this_case_cells <- case_cells[in_unit, ]
             
             # Make buffer
             centroids <- st_centroid(this_case_cells)
@@ -315,8 +354,9 @@ irr_dist <- function(target,
                 if (sum(within_dist) > 0) {
                   
                   mean_rate <- get_mean_rate(mai_adm_all = mai_adm_all,
-                                             this_country = this_country,
-                                             this_period = this_period)
+                                             this_unit = this_unit,
+                                             this_period = this_period,
+                                             by_region = by_region)
                   
                   
                   stats <- compute_irr(target_cells_sf = target_cells_sf, 
@@ -339,16 +379,60 @@ irr_dist <- function(target,
           }
           
           res %>% 
-            mutate(country = this_country,
+            mutate(unit = this_unit,
                    period = this_period)
         })
     })
+  
+  if (by_region) {
+    res <- res %>% rename(AFRO_region = unit)
+  } else {
+    res <- res %>% rename(country = unit)
+  }
   
   res %>% 
     rowwise() %>% 
     mutate(lo = exp(log(ratio) - 1.96 * sqrt(1/observed + 1/expected)),
            hi = exp(log(ratio) + 1.96 * sqrt(1/observed + 1/expected))) %>% 
     ungroup() 
+}
+
+
+unpack_pop_at_risk <- function(df) {
+  risk_cat_map <- get_risk_cat_dict()
+  names(risk_cat_map) <- janitor::make_clean_names(risk_cat_map) %>% 
+    str_remove("x")
+  
+  
+  df %>% 
+    mutate(risk_cat = str_extract(variable, str_c(rev(names(risk_cat_map)), collapse = "|")),
+           risk_cat = risk_cat_map[risk_cat] %>% factor(levels = risk_cat_map),
+           admin_level = str_c("ADM", str_extract(variable, "(?<=adm)[0-9]+"))
+    )
+}
+
+parse_AFRO_region <- function(df) {
+  
+  if (!("AFRO_region" %in% colnames(df))) {
+    stop("AFRO_region needs to be defined to be parsed")
+  }
+  
+  df %>% 
+    mutate(AFRO_region = AFRO_region %>% 
+             str_replace("_", " ") %>% 
+             str_to_title(),
+           AFRO_region = factor(AFRO_region, 
+                                levels = get_AFRO_region_levels()))
+}
+
+unpack_region_draws <- function(df, 
+                                value_col = "country_rates") {
+  df %>% 
+    pivot_longer(cols = contains(value_col),
+                 names_to = "AFRO_region",
+                 values_to = "value") %>% 
+    mutate(AFRO_region = str_remove(AFRO_region, str_c(value_col, "_"))) %>% 
+    parse_AFRO_region()
 }
 
 # Second post-processing step ---------------------------------------------
@@ -363,22 +447,39 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   cases_by_region <- combine_period_output(prefix_list = prefix_list,
                                            output_name = "mai_cases_by_region",
                                            output_dir = opt$output_dir) %>% 
-    mutate(AFRO_region = str_remove(variable, "country_cases_") %>% 
-             str_replace("_", " ") %>% 
-             str_to_title(),
-           AFRO_region = factor(AFRO_region, 
-                                levels = get_AFRO_region_levels()))
+    mutate(AFRO_region = str_remove(variable, "country_cases_")) %>% 
+    parse_AFRO_region()
+  
+  
+  cases_by_region_draws <- combine_period_output(prefix_list = prefix_list,
+                                                 output_name = "mai_cases_by_region_draws",
+                                                 output_dir = opt$output_dir) %>% 
+    unpack_region_draws(value_col = "country_cases")
+  
+  # Compute percentage of cases in Eastern and Central Africa
+  frac_east_central_stats <- cases_by_region_draws %>% 
+    group_by(.draw, period) %>% 
+    summarise(
+      east_central = sum(value[AFRO_region %in% c("Eastern Africa", "Central Africa")]),
+      tot = sum(value),
+      frac_east_central = east_central/tot
+    ) %>% 
+    group_by(period) %>% 
+    summarise(
+      mean = mean(frac_east_central),
+      q025 = quantile(frac_east_central, 0.025),
+      q975 = quantile(frac_east_central, 0.975)
+    )
+  
+  saveRDS(frac_east_central_stats, file = str_glue("{opt$output_dir}/frac_cases_east_central_stats.rds"))
   
   ## Rates by region and continent ---------------------------------------
   rates_by_region <- combine_period_output(prefix_list = prefix_list,
                                            output_name = "mai_rates_by_region",
                                            output_dir = opt$output_dir) %>% 
-    mutate(AFRO_region = str_remove(variable, "country_rates_"))  %>% 
-    mutate(AFRO_region = str_remove(variable, "country_cases_") %>% 
-             str_replace("_", " ") %>% 
-             str_to_title(),
-           AFRO_region = factor(AFRO_region, 
-                                levels = get_AFRO_region_levels()))
+    mutate(AFRO_region = str_remove(variable, "country_cases_")) %>%
+    parse_AFRO_region()
+  
   
   # Overall rates
   rates_overall <- combine_period_output(prefix_list = prefix_list,
@@ -415,30 +516,12 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     get_AFRO_region(ctry_col = "country")  %>% 
     mutate(AFRO_region = factor(AFRO_region, 
                                 levels = get_AFRO_region_levels()))
-  
-  
-  unpack_pop_at_risk <- function(df) {
-    risk_cat_map <- get_risk_cat_dict()
-    names(risk_cat_map) <- janitor::make_clean_names(risk_cat_map) %>% 
-      str_remove("x")
-    
-    
-    df %>% 
-      mutate(risk_cat = str_extract(variable, str_c(rev(names(risk_cat_map)), collapse = "|")),
-             risk_cat = risk_cat_map[risk_cat] %>% factor(levels = risk_cat_map),
-             admin_level = str_c("ADM", str_extract(variable, "(?<=adm)[0-9]+"))
-      )
-  }
-  
   # Population at risk by WHO-AFRO region
   pop_at_risk_regions <- combine_period_output(prefix_list = prefix_list,
                                                output_name = "pop_at_risk_by_region",
                                                output_dir = opt$output_dir) %>% 
-    mutate(AFRO_region = str_extract(variable, "(?<=tot_pop_risk_)(.)*(?=_adm)") %>% 
-             str_replace("_", " ") %>% 
-             str_to_title(),
-           AFRO_region = factor(AFRO_region, 
-                                levels = get_AFRO_region_levels())) %>% 
+    mutate(AFRO_region = str_extract(variable, "(?<=tot_pop_risk_)(.)*(?=_adm)")) %>%
+    parse_AFRO_region() %>% 
     unpack_pop_at_risk()
   
   
@@ -459,7 +542,8 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
                                        output_name = "mai",
                                        output_dir = opt$output_dir) %>% 
     mutate(run_id = str_c(country, period, sep = "-"),
-           log10_rate_per_1e5 = log10(mean * 1e5))
+           log10_rate_per_1e5 = log10(mean * 1e5)) %>% 
+    get_AFRO_region("country")
   
   # Get unique spatial locations
   u_space_sf <- mai_adm_all %>% 
@@ -478,15 +562,15 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     mai_adm_all %>% filter(admin_level == "ADM2", !(run_id %in% get_no_w_runs()))
   ) %>% 
     st_drop_geometry() %>% 
-    as_tibble()
+    as_tibble() %>% 
+    get_AFRO_region("country")
   
   # Compute change map
   mai_change_adm <- compute_rate_changes(mai_adm)
   
   ## ADM2 mai ratio stats ---------------------------------------
   # Random draws
-  random_draws <- sample(1:1000, 100)
-  
+  random_draws <- sample(1:4000, 100)
   
   mai_draws_p1 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[1]}_mai_draws.rds")) %>%
     ungroup() %>% 
@@ -514,18 +598,52 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   
   saveRDS(mai_change_stats, file = str_glue("{opt$output_dir}/mai_ratio_stats.rds"))
   
-  # # Change stats for regions
-  # mai_region_change_stats <- merge_ratio_draws(
-  #   df1 = readRDS(str_glue("{opt$output_dir}/{prefix_list[1]}_mai_rates_by_region_draws.rds"))  %>% 
-  #     filter(.draw %in% random_draws),
-  #   df2 = readRDS(str_glue("{opt$output_dir}/{prefix_list[2]}_mai_rates_by_region_draws.rds"))  %>% 
-  #     filter(.draw %in% random_draws)
-  # )
-  
   
   mai_change_stats <- mai_change_stats %>% 
     st_drop_geometry() %>% 
     as_tibble()
+  
+  ## Region ration stats ----
+  
+  mai_region_draws_p1 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[1]}_mai_rates_by_region_draws.rds")) %>%
+    unpack_region_draws() %>% 
+    filter(.draw %in% random_draws)
+  
+  mai_region_draws_p2 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[2]}_mai_rates_by_region_draws.rds")) %>%
+    unpack_region_draws() %>% 
+    filter(.draw %in% random_draws)
+  
+  mai_region_change_stats <- map_df(unique(mai_region_draws_p2$AFRO_region), function(x) {
+    cat("--- ", x, "\n")
+    
+    merge_ratio_draws(
+      df1 = filter(mai_region_draws_p1, AFRO_region == x),
+      df2 = filter(mai_region_draws_p2, AFRO_region == x),
+      unit_col = "AFRO_region"
+    )
+  })
+  
+  saveRDS(mai_region_change_stats, file = str_glue("{opt$output_dir}/mai_region_ratio_stats.rds"))
+  
+  ## Overall stats ----
+  mai_afr_draws_p1 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[1]}_mai_rates_all_draws.rds")) %>%
+    mutate(value = tot,
+           unit = "AFR") %>% 
+    filter(.draw %in% random_draws)
+  
+  mai_afr_draws_p2 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[2]}_mai_rates_all_draws.rds")) %>%
+    mutate(value = tot,
+           unit = "AFR") %>% 
+    filter(.draw %in% random_draws)
+  
+  mai_afr_change_stats <- merge_ratio_draws(
+    df1 = mai_afr_draws_p1,
+    df2 = mai_afr_draws_p2,
+    unit_col = "unit"
+  ) 
+  
+  saveRDS(mai_afr_change_stats, file = str_glue("{opt$output_dir}/mai_Africa_ratio_stats.rds"))
+  
   
   ## Changes between periods ---------------------------------------
   # Compute changes at ADM0 level
@@ -542,11 +660,8 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     mutate(country = variable) %>% 
     rename(location_period_id = variable) %>% 
     compute_rate_changes() %>% 
-    mutate(AFRO_region = str_remove(country, "country_rates_") %>% 
-             str_replace("_", " ") %>% 
-             str_to_title(),
-           AFRO_region = factor(AFRO_region, 
-                                levels = get_AFRO_region_levels()))
+    mutate(AFRO_region = str_remove(country, "country_rates_")) %>% 
+    parse_AFRO_region()
   
   # Changes at the continent level
   mai_all_changes <- rates_overall %>% 
@@ -638,6 +753,13 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     get_AFRO_region(ctry_col = "country") %>% 
     mutate(AFRO_region = factor(AFRO_region, levels = get_AFRO_region_levels()))
   
+  # Add popultation to mai
+  mai_adm <- mai_adm %>% 
+    inner_join(population %>% select(location_period_id, pop = mean, period))
+  
+  mai_adm_all <- mai_adm_all  %>% 
+    inner_join(population %>% select(location_period_id, pop = mean, period)) 
+  
   ## Incidence ratios around rivers and lakes -----
   
   dist_sf <- list("rivers" = rivers_sf,
@@ -661,9 +783,11 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
       irr_dist(dist_sf[[x]],
                dist_vec = seq(5e3, 100e3, by = 10e3),
                mai_adm = mai_adm,
+               mai_adm_all = mai_adm_all,
                grid_cases = grid_cases,
                afr_sf = afr_sf,
-               dist_definition = y) %>% 
+               dist_definition = y,
+               by_region = T) %>% 
         mutate(what = names(dist_sf)[x])
     })
   })
@@ -683,7 +807,8 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
 
 # Gridded maps of cases
 p_fig1A <- output_plot_map(sf_obj = grid_cases %>% 
-                             mutate(log10_cases = log10(mean)),
+                             mutate(log10_cases = log10(mean),
+                                    period = factor(period, levels = c("2016-2020", "2011-2015"))),
                            lakes_sf = lakes_sf,
                            rivers_sf = rivers_sf,
                            all_countries_sf = afr_sf,
@@ -693,7 +818,8 @@ p_fig1A <- output_plot_map(sf_obj = grid_cases %>%
   facet_wrap(~ period) +
   theme(strip.background = element_blank(),
         strip.text = element_text(size = 15),
-        legend.position = c(.1, .3)) +
+        legend.position = c(.1, .3),
+        panel.background = element_rect(fill = "white", color = "white")) +
   guides(fill = guide_colorbar("Mean annual incidence \n[cases/year]"))
 
 # Save
@@ -706,7 +832,8 @@ ggsave(p_fig1A,
 ## Figure 1B: cases by region and time period --------------------------------
 # Horizontal barplot of cases by region
 p_fig1B <- cases_by_region %>% 
-  mutate(AFRO_region = factor(AFRO_region, levels = get_AFRO_region_levels())) %>% 
+  mutate(AFRO_region = factor(AFRO_region, levels = get_AFRO_region_levels()),
+         period = factor(period, levels = rev(c("2016-2020", "2011-2015")))) %>% 
   ggplot(aes(x = mean, y = period, fill = AFRO_region)) +
   geom_bar(stat = "identity")  +
   geom_errorbarh(data = cases_continent,
@@ -751,7 +878,7 @@ p_fig1 <- cowplot::plot_grid(
   nrow = 2,
   labels = "auto",
   rel_heights = c(.35, 1)
-)  + theme(panel.background = element_rect(fill = "white"))
+)  + theme(panel.background = element_rect(fill = "white", color = "white"))
 
 p_fig1_v2 <- ggdraw() +
   draw_plot(p_fig1) +
@@ -874,8 +1001,8 @@ p_fig2 <- plot_grid(
     theme(plot.margin = unit(c(1, 1, 1, 1), "lines")),
   nrow = 1,
   labels = "auto"#,
-)  + theme(panel.background = element_rect(fill = "white"))
-
+) +
+  theme(panel.background = element_rect(fill = "white", color = "white"))
 
 # Save
 ggsave(plot = p_fig2,
@@ -899,7 +1026,8 @@ p_fig3A <- risk_pop_adm2 %>%
                   fill_color_scale_type = "risk category") +
   theme(strip.background = element_blank(),
         strip.text = element_text(size = 15),
-        legend.position = c(.2, .3)) +
+        legend.position = c(.2, .3),
+        panel.background = element_rect(fill = "white", color = "white"))+
   guides(fill = guide_legend("Risk category"))
 
 
@@ -960,8 +1088,7 @@ p_fig3 <- plot_grid(
   rel_widths = c(1, 1),
   align = "v",
   axis = "lr") +
-  theme(panel.background = element_rect(fill = "white"))
-
+  theme(panel.background = element_rect(fill = "white", color = "white"))
 
 # Save
 ggsave(plot = p_fig3,
@@ -1003,7 +1130,8 @@ p_fig4A <- endemicity_df_v2 %>%
                   fill_var = "endemicity",
                   fill_color_scale_type = "endemicity",
                   border_width = .03) +
-  theme(legend.position = c(.2, .3)) +
+  theme(legend.position = c(.2, .3),
+        panel.background = element_rect(fill = "white", color = "white")) +
   guides(fill = guide_legend("'Endemicity'"))
 
 # Save
@@ -1051,7 +1179,7 @@ p_fig4 <- plot_grid(
   rel_widths = c(1.3, 1),
   align = "v",
   axis = "lr") +
-  theme(panel.background = element_rect(fill = "white"))
+  theme(panel.background = element_rect(fill = "white", color = "white"))
 
 
 # Save
@@ -1176,11 +1304,11 @@ walk(c("ADM0", "ADM1"), function(x) {
 
 ## Incidence rate ratios ----
 
-p_irr <- irr_dat %>% 
-  filter(!is.na(dist_definition)) %>% 
+p_irr <- irr_dat %>%
+  filter(!is.na(dist_definition)) %>%
   mutate(dist = factor(dist),
-         dist = fct_reorder(dist, mean_dist)) %>% 
-  ggplot(aes(x = dist, y = ratio, color = country)) +
+         dist = fct_reorder(dist, mean_dist)) %>%
+  ggplot(aes(x = dist, y = ratio, color = AFRO_region)) +
   geom_point(alpha = 1) +
   geom_errorbar(aes(ymin = lo, ymax = hi), width = 0, alpha = .5) +
   geom_hline(aes(yintercept = 1), lty = 2, lwd = .5) +
@@ -1188,13 +1316,14 @@ p_irr <- irr_dat %>%
   facet_grid(what ~ period + dist_definition, scales =  "free_x") +
   labs(x = "distance to waterbody [km]", y = "IRR [observed/null]") +
   coord_cartesian(ylim = c(0, 15)) +
-  theme(axis.text.x = element_text(angle = 45, hjust=  1, vjust = 1))
+  theme(axis.text.x = element_text(angle = 45, hjust=  1, vjust = 1)) +
+  scale_color_manual(values = colors_afro_regions())
 
 
 ggsave(p_irr,
        file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_irr_dist.png"),
        width = 12,
-       height = 8, 
+       height = 8,
        dpi = 300)
 
 saveRDS(irr_dat, file = str_glue("{opt$output_dir}/irr_dist.rds"))

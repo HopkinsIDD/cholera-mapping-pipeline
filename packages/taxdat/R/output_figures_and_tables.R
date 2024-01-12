@@ -4,7 +4,7 @@
 # Colors ------------------------------------------------------------------
 color_lake_fill <- function(){"#aad3df"}
 color_lake_border <- function(){"#7fb4c4"}
-color_rivers <- function(){"#1717E6"}
+color_rivers <- function(){"#7fb4c4"}
 
 color_run_intended <- function(){c("#A1A1A1")}
 color_no_run_intended <- function(){c("#E2FFDE")}
