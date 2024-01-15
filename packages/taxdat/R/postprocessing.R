@@ -913,30 +913,19 @@ postprocess_grid_mai_cases <- function(config_list,
   # Get genquant data
   genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
   
-  # Get mean annual incidence summary
-  rate_draws <- genquant$draws("space_grid_rates") %>% 
-    draws_to_df(var_name = "space_grid_rates") %>% 
-    dplyr::mutate(grid_id = stringr::str_extract(variable, "[0-9]+") %>% as.integer())
-  
+  # Get mean annual incidence rates at space grid level
+  mai_summary <- genquant$summary("space_grid_rates", custom_summaries())
   
   # Get population and average over space grid
   mean_pop_sf <- get_mean_pop_grid(config_list = config_list,
-                                   redo = redo_aux) %>% 
-    sf::st_drop_geometry() %>% 
-    dplyr::mutate(grid_id = dplyr::row_number()) %>% 
-    dplyr::ungroup()
-  
-  # Compute mai cases by grid cll
-  res <- mean_pop_sf %>% 
-    dplyr::inner_join(rate_draws) %>% 
-    dplyr::select(-variable) %>%
-    dplyr::mutate(value = value * pop)
+                                   redo = redo_aux)
   
   # Get the output shapefiles and join
-  res <- get_space_grid(config_list = config_list,
-                        redo = redo_aux) %>% 
-    dplyr::mutate(grid_id = dplyr::row_number()) %>% 
-    dplyr::inner_join(res)
+  res <- mean_pop_sf %>% 
+    dplyr::bind_cols(mai_summary) %>% 
+    dplyr::select(-variable) %>% 
+    dplyr::mutate(dplyr::across(.cols = c("mean", "q2.5", "q97.5"),
+                                ~ . * pop))
   
   res
 }
@@ -963,15 +952,28 @@ postprocess_grid_mai_cases_draws <- function(config_list,
   rate_draws <- genquant$draws("space_grid_rates") %>% 
     draws_to_df(var_name = "space_grid_rates",
                 filter_draws = filter_draws) %>% 
-    mutate(grid_id = stringr::str_extract(variable, "[0-9]+") %>% as.integer())
+    dplyr::mutate(grid_id = stringr::str_extract(variable, "[0-9]+") %>% as.integer())
   
+  # Get population and average over space grid
+  mean_pop_sf <- get_mean_pop_grid(config_list = config_list,
+                                   redo = redo_aux) %>% 
+    sf::st_drop_geometry() %>% 
+    dplyr::ungroup() %>% 
+    dplyr::mutate(grid_id = dplyr::row_number()) %>% 
+    dplyr::ungroup()
+  
+  # Compute mai cases by grid cll
+  res <- mean_pop_sf %>% 
+    dplyr::inner_join(rate_draws) %>% 
+    dplyr::select(-variable) %>%
+    dplyr::mutate(value = value * pop)
   
   # Get the output shapefiles and join
   res <- get_space_grid(config_list = config_list,
                         redo = redo_aux) %>% 
     dplyr::mutate(grid_id = dplyr::row_number()) %>% 
-    dplyr::inner_join(rate_draws) %>% 
-    dplyr::select(-variable)
+    dplyr::inner_join(res) %>% 
+    dply::select(-pop)
   
   res
 }
