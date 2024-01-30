@@ -1,0 +1,38 @@
+@article{Lessler2018,
+  title={Mapping the burden of cholera in sub-Saharan Africa and implications for control: an analysis of data across geographical scales},
+  author={Lessler, Justin and Moore, Sean M and Luquero, Francisco J and McKay, Heather S and Grais, Rebecca and Henkens, Myriam and Mengel, Martin and Dunoyer, Jessica and M'bangombe, Maurice and Lee, Elizabeth C and others},
+  journal={The Lancet},
+  volume={391},
+  number={10133},
+  pages={1908--1915},
+  year={2018},
+  publisher={Elsevier}
+}
+
+
+@misc{sumtozero,
+	title = {Test: {Soft} vs {Hard} sum-to-zero constrain + choosing the right prior for soft constrain},
+	shorttitle = {Test},
+	url = {https://discourse.mc-stan.org/t/test-soft-vs-hard-sum-to-zero-constrain-choosing-the-right-prior-for-soft-constrain/3884/31},
+	abstract = {vector Q\_sum\_to\_zero\_QR(int N) \{     vector [2*N] Q\_r;      for(i in 1:N) \{       Q\_r[i] = -sqrt((N-i)/(N-i+1.0));       Q\_r[i+N] = inv\_sqrt((N-i) * (N-i+1));     \}     return Q\_r;   \}    vector sum\_to\_zero\_QR(vector x\_raw, vector Q\_r) \{     int N = num\_elements(x\_raw) + 1;     vector [N] x;     real x\_aux = 0;      for(i in 1:N-1)\{       x[i] = x\_aux + x\_raw[i] * Q\_r[i];       x\_aux = x\_aux + x\_raw[i] * Q\_r[i+N];     \}     x[N] = x\_aux;     return x;   \}  To whom to use this in the future.  N...},
+	language = {en},
+	urldate = {2023-05-22},
+	author = {Goodman, Aaron},
+	journal = {The Stan Forums},
+	month = sep,
+	year = {2018},
+	note = {Section: Modeling},
+	file = {Snapshot:/home/perez/snap/zotero-snap/common/Zotero/storage/MWTXDZGR/31.html:text/html},
+}
+
+@misc{Gelman2020,
+  author = {Gelman, Andrew},
+	title = {Prior {Choice} {Recommendations}},
+	url = {https://github.com/stan-dev/stan/wiki/Prior-Choice-Recommendations},
+	abstract = {Stan development repository. The master branch contains the current release. The develop branch contains the latest stable development.  See the Developer Process Wiki for details.   - stan-dev/stan},
+	language = {en},
+	urldate = {2023-05-22},
+	journal = {GitHub},
+	year = {2020},
+	file = {Snapshot:/home/perez/snap/zotero-snap/common/Zotero/storage/9M4CBYUR/Prior-Choice-Recommendations.html:text/html},
+}
