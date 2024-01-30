@@ -1082,12 +1082,15 @@ p_fig3 <- plot_grid(
     theme(plot.margin = unit(c(2, 1, 2, 2), units = "lines"),
           legend.position = c(.75, .6)),
   p_fig3A +
-    theme(plot.margin = unit(c(-5, -5, -5, -3), units = "lines")),
+    theme(strip.background = element_blank(),
+          plot.margin = unit(c(1, 1, 1, 1), "lines")),
+  # theme(plot.margin = unit(c(-5, -5, -5, -3), units = "lines")),
   nrow = 1,
-  labels = "auto",
-  rel_widths = c(1, 1),
-  align = "v",
-  axis = "lr") +
+  labels = "auto"#,
+  # rel_widths = c(1, 1),
+  # align = "v",
+  # axis = "lr"
+) +
   theme(panel.background = element_rect(fill = "white", color = "white"))
 
 # Save
@@ -1096,7 +1099,7 @@ ggsave(plot = p_fig3,
        width = 12,
        height = 6,
        dpi = 600)
-
+``
 
 
 # Figure 4 ----------------------------------------------------------------
@@ -1115,8 +1118,13 @@ endemicity_df_v2 <- risk_pop_adm2 %>%
     ),
     pop = max(pop)
   ) %>% 
-  mutate(endemicity = factor(endemicity, levels = c("high-both", "high-either",
-                                                    "mix", "low-both")))  
+  mutate(endemicity = factor(endemicity, 
+                             levels = c("high-both", "high-either",
+                                        "mix", "low-both"),
+                             labels = c("sustained high risk", 
+                                        "history of high risk",
+                                        "history of moderate risk",
+                                        "sustained low risk")))  
 
 saveRDS(endemicity_df_v2, file = str_glue("{opt$output_dir}/endemicity.rds"))
 
@@ -1132,7 +1140,7 @@ p_fig4A <- endemicity_df_v2 %>%
                   border_width = .03) +
   theme(legend.position = c(.2, .3),
         panel.background = element_rect(fill = "white", color = "white")) +
-  guides(fill = guide_legend("'Endemicity'"))
+  guides(fill = guide_legend("10-year risk\ncategory"))
 
 # Save
 ggsave(p_fig4A,
@@ -1168,17 +1176,58 @@ ggsave(plot = p_fig4B,
        dpi = 300)
 
 
-p_fig4 <- plot_grid(
+
+# Tile for legend
+
+tile_dat <- expand.grid(x = levels(risk_pop_adm2$risk_cat), 
+                        y = levels(risk_pop_adm2$risk_cat)) %>% 
+  as_tibble() %>% 
+  mutate(endemicity = case_when(x == "<1" & y == "<1" ~ "sustained low risk",
+                                x != "1-10" & y != "1-10" ~ "sustained high risk",
+                                x != "1-10" | y != "1-10" ~ "history of high risk",
+                                T ~ "history of moderate risk"),
+         endemicity = factor(endemicity, levels = c("sustained high risk", 
+                                                    "history of high risk",
+                                                    "history of moderate risk",
+                                                    "sustained low risk")))
+
+endemicity_legend <- tile_dat %>% 
+  ggplot(aes(x = x, y = y, fill = endemicity)) +
+  geom_tile(color = "white") +
+  scale_fill_manual(values = taxdat:::colors_endemicity()) +
+  theme_bw() +
+  theme(panel.border = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+        axis.text = element_text(size = 3.5),
+        axis.title = element_text(size = 4.5),
+        axis.ticks = element_blank(),
+        legend.text = element_text(size = 4),
+        legend.title = element_text(size = 6),
+        legend.key.size = unit(.5, units = "lines"),
+        legend.box.spacing = unit(.1, units = "lines")) +
+  labs(x = "Risk category in 2011-2015", y = "Risk category in 2016-2020",
+       fill = "10-year risk\ncategory")
+
+
+p_fig4A_legend <- ggdraw(
   p_fig4A +
-    theme(plot.margin = unit(c(0, 0, 0, -3), units = "lines")),
+    theme(strip.background = element_blank(),
+          plot.margin = unit(c(1, 1, 1, 1), units = "lines")) +
+    guides(fill = "none")
+) +
+  draw_plot(endemicity_legend, .075, .3, .35, .2)
+
+p_fig4 <- plot_grid(
+  p_fig4A_legend,
   p_fig4B +
     guides(fill = "none") +
     theme(plot.margin = unit(c(2, 1, 2, 2), units = "lines")),
   nrow = 1,
-  labels = "auto",
-  rel_widths = c(1.3, 1),
-  align = "v",
-  axis = "lr") +
+  labels = "auto"#,
+  # rel_widths = c(1.3, 1),
+  # align = "v",
+  # axis = "lr",
+) +
   theme(panel.background = element_rect(fill = "white", color = "white"))
 
 
@@ -1187,8 +1236,7 @@ ggsave(plot = p_fig4,
        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4.png"),
        width = 12,
        height = 6,
-       dpi = 600)
-
+       dpi = 300)
 
 # Supplementary figures ---------------------------------------------------
 
@@ -1333,9 +1381,10 @@ saveRDS(irr_dat, file = str_glue("{opt$output_dir}/irr_dist.rds"))
 
 ### Distance to water ----
 adm2_sf <- u_space_sf %>% 
-  filter(admin_level == "ADM2")
+  filter(admin_level == "ADM2") %>% 
+  st_make_valid()
 
-adm2_centroids_sf <- st_centroid(st_make_valid(adm2_sf))
+adm2_centroids_sf <- st_centroid(adm2_sf)
 
 dist_to_wb <- map_df(seq_along(dist_sf), function(y) {
   
