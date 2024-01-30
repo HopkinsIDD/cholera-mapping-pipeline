@@ -524,6 +524,44 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     parse_AFRO_region() %>% 
     unpack_pop_at_risk()
   
+  # Population at risk by WHO-AFRO region
+  pop_at_risk_regions_draws <- combine_period_output(prefix_list = prefix_list,
+                                                     output_name = "pop_at_risk_by_region_draws",
+                                                     output_dir = opt$output_dir) %>% 
+    # Keep only adm2 data
+    select(-contains("adm0"), -contains("adm1")) %>% 
+    pivot_longer(cols = contains("tot"),
+                 values_to = "value",
+                 names_to = "variable") %>% 
+    mutate(AFRO_region = str_extract(variable, "(?<=tot_pop_risk_)(.)*(?=_adm)")) %>%
+    parse_AFRO_region() %>% 
+    unpack_pop_at_risk()
+  
+  # Compute population in high risk categories (> 10/100,000 cases) at ADM2 level by region
+  pop_high_risk_region_stats <- pop_at_risk_regions_draws %>% 
+    group_by(period, AFRO_region, .draw, admin_level) %>% 
+    summarise(n_high_risk = sum(value[!(risk_cat %in% get_risk_cat_dict()[1:2])])) %>% 
+    group_by(period, AFRO_region, admin_level) %>% 
+    summarise(mean = mean(n_high_risk),
+              q025 = quantile(n_high_risk, 0.025),
+              q975 = quantile(n_high_risk, 0.975)) %>% 
+    ungroup()
+  
+  saveRDS(pop_high_risk_region_stats, file = str_glue("{opt$output_dir}/pop_high_risk_region_stats.rds"))
+  
+  
+  # Compute population in high risk categories (> 10/100,000 cases) at ADM2 level overall
+  pop_high_risk_all_stats <- pop_at_risk_regions_draws %>% 
+    group_by(period, .draw, admin_level) %>% 
+    summarise(n_high_risk = sum(value[!(risk_cat %in% get_risk_cat_dict()[1:2])])) %>% 
+    group_by(period, admin_level) %>% 
+    summarise(mean = mean(n_high_risk),
+              q025 = quantile(n_high_risk, 0.025),
+              q975 = quantile(n_high_risk, 0.975)) %>% 
+    ungroup()
+  
+  saveRDS(pop_high_risk_all_stats, file = str_glue("{opt$output_dir}/pop_high_risk_all_stats.rds"))
+  
   
   # Total population at risk
   pop_at_risk_all <- combine_period_output(prefix_list = prefix_list,

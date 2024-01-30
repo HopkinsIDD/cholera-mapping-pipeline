@@ -16,7 +16,7 @@ library(taxdat)
 # User-supplied options
 opt_list <- list(
   make_option(c("-d", "--config_dir"), 
-              default = "./Analysis/cholera-configs/postprocessing_test_2016_2020/",
+              default = "./Analysis/cholera-configs/postprocessing_test_2011_2015/",
               action ="store", type = "character", help = "Directory"),
   make_option(opt_str = c("-r", "--redo"), type = "logical",
               default = T, help = "redo final outputs"),
@@ -551,6 +551,28 @@ pop_at_risk_regions <- run_all(
   postprocess_fun = aggregate_and_summarise_draws_by_region,
   postprocess_fun_opts = list(col = "tot_pop_risk",
                               grouping_variables = c("admin_level", "risk_cat")),
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  interm_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+
+# Get the population at risk draws by WHO region
+pop_at_risk_regions_draws <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_pop_at_risk_draws,
+  fun_name = "pop_at_risk_by_region_draws",
+  fun_opts = NULL,
+  postprocess_fun = aggregate_and_summarise_draws_by_region,
+  postprocess_fun_opts = list(col = "tot_pop_risk",
+                              grouping_variables = c("admin_level", "risk_cat"),
+                              do_summary = FALSE),
   prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
