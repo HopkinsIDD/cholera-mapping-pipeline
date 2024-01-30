@@ -134,7 +134,7 @@ make_adm_case_table <- function(mai_adm_cases,
       om <- pmax(1, round(log10(x)) - 2)
       formatC(round(x/10^om)*10^om, format = "f", digits = 0, big.mark = ",")
     })) %>% 
-    mutate(txt = str_c(mean, " (", q5, "-", q95, ")")) %>% 
+    mutate(txt = str_c(mean, " (", q2.5, "-", q97.5, ")")) %>% 
     select(admin_level, country, shapeName, period, txt) %>% 
     pivot_wider(values_from = c("txt"),
                 names_from = "period")
@@ -1431,6 +1431,7 @@ saveRDS(dist_to_wb, file = str_glue("{opt$output_dir}/dist_to_wb.rds"))
 
 ### Populatio Denstity ----
 
+adm2_sf <- sf::st_make_valid(adm2_sf)
 # Compute density
 pop_density <- adm2_sf %>% 
   mutate(area = st_area(geom) %>% 

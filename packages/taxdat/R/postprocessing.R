@@ -973,7 +973,7 @@ postprocess_grid_mai_cases_draws <- function(config_list,
                         redo = redo_aux) %>% 
     dplyr::mutate(grid_id = dplyr::row_number()) %>% 
     dplyr::inner_join(res) %>% 
-    dply::select(-pop)
+    dplyr::select(-pop)
   
   res
 }
