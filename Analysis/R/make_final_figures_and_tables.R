@@ -1291,9 +1291,9 @@ p_endemicity_v2 <- endemicity_df_v2  %>%
   mutate(frac = pop/sum(pop)) %>% 
   group_by(country) %>% 
   mutate(
-    frac_other = frac[endemicity == "mix"],
-    frac_high = sum(frac[endemicity %in% c("high-both", "high-either")]),
-    frac_low = sum(frac[endemicity %in% c("low-both")])
+    frac_other = frac[endemicity == "history of moderate risk"],
+    frac_high = sum(frac[endemicity %in% c("sustained high risk", "history of high risk")]),
+    frac_low = sum(frac[endemicity %in% c("sustained low risk")])
   ) %>% 
   ungroup() %>% 
   mutate(endemicity = forcats::fct_rev(endemicity),
