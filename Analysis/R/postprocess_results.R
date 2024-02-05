@@ -16,7 +16,7 @@ library(taxdat)
 # User-supplied options
 opt_list <- list(
   make_option(c("-d", "--config_dir"), 
-              default = "./Analysis/cholera-configs/postprocessing_test_2016_2020/",
+              default = "./Analysis/cholera-configs/postprocessing_test_2011_2015/",
               action ="store", type = "character", help = "Directory"),
   make_option(opt_str = c("-r", "--redo"), type = "logical",
               default = T, help = "redo final outputs"),
@@ -39,7 +39,9 @@ opt_list <- list(
   make_option(opt_str = c("-o", "--output_dir"), type = "character",
               default = "./Analysis/output/processed_outputs/", help = "Output directory"),
   make_option(opt_str = c("-c", "--cholera_dir"), type = "character",
-              default = "cholera-mapping-pipeline", help = "Cholera mapping pipeline directory")
+              default = "cholera-mapping-pipeline", help = "Cholera mapping pipeline directory"),
+  make_option(opt_str = c("-n", "--n_draws"), type = "numeric",
+              default = 10, help = "Number of draws to save from rate/cases grids")
 )
 
 opt <- parse_args(OptionParser(option_list = opt_list))
@@ -212,6 +214,27 @@ mai_region_case_stats <- run_all(
   output_file_type = "rds",
   verbose = opt$verbose)
 
+
+mai_region_case_draws <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_adm0_cases,
+  fun_name = "mai_cases_by_region_draws",
+  fun_opts = NULL,
+  postprocess_fun = aggregate_and_summarise_draws_by_region,
+  postprocess_fun_opts = list(col = "country_cases",
+                              do_summary = FALSE),
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  interm_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+
 # Country-level cases by admin level
 mean_cases <- run_all(
   config_dir = opt$config_dir,
@@ -254,6 +277,27 @@ overall_rate_stats <- run_all(
   output_file_type = "rds",
   verbose = opt$verbose)
 
+overall_rate_draws <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_adm0_rates,
+  fun_name = "mai_rates_all_draws",
+  fun_opts = NULL,
+  postprocess_fun = aggregate_and_summarise_draws,
+  postprocess_fun_opts = list(col = "country_rates",
+                              weights_col = "country_pop",
+                              do_summary = FALSE),
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  interm_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+
 mai_region_rates_stats <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_adm0_rates,
@@ -262,6 +306,28 @@ mai_region_rates_stats <- run_all(
   postprocess_fun = aggregate_and_summarise_draws_by_region,
   postprocess_fun_opts = list(col = "country_rates",
                               weights_col = "country_pop"),
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  interm_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+
+
+mai_region_rates_draws <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_adm0_rates,
+  fun_name = "mai_rates_by_region_draws",
+  fun_opts = NULL,
+  postprocess_fun = aggregate_and_summarise_draws_by_region,
+  postprocess_fun_opts = list(col = "country_rates",
+                              weights_col = "country_pop",
+                              do_summary = FALSE),
   prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
@@ -354,6 +420,26 @@ mai_grid_rates_stats <- run_all(
   output_file_type = "rds",
   verbose = opt$verbose)
 
+# Get the MAI rates draws at space grid level 
+mai_grid_rates_draws <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_grid_mai_rates_draws,
+  fun_name = "mai_grid_rates_draws",
+  postprocess_fun = collapse_grid,
+  postprocess_fun_opts = list(by_draw = TRUE),
+  fun_opts = list(filter_draws = opt$n_draws),
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  interm_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+
 
 # Get the MAI cases summary at space grid level 
 mai_grid_cases_stats <- run_all(
@@ -363,6 +449,27 @@ mai_grid_cases_stats <- run_all(
   fun_name = "mai_grid_cases",
   post_process_fun = collapse_grid,
   fun_opts = NULL,
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  interm_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+
+
+# Get the MAI cases draws at space grid level 
+mai_grid_cases_draws <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_grid_mai_cases_draws,
+  fun_name = "mai_grid_cases_draws",
+  postprocess_fun = collapse_grid,
+  postprocess_fun_opts = list(by_draw = TRUE),
+  fun_opts = list(filter_draws = opt$n_draws),
   prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
@@ -456,6 +563,28 @@ pop_at_risk_regions <- run_all(
   output_file_type = "rds",
   verbose = opt$verbose)
 
+# Get the population at risk draws by WHO region
+pop_at_risk_regions_draws <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_pop_at_risk_draws,
+  fun_name = "pop_at_risk_by_region_draws",
+  fun_opts = NULL,
+  postprocess_fun = aggregate_and_summarise_draws_by_region,
+  postprocess_fun_opts = list(col = "tot_pop_risk",
+                              grouping_variables = c("admin_level", "risk_cat"),
+                              do_summary = FALSE),
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  interm_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+
 # Get the total number of people living in high risk areas (> 1/1'000)
 high_risk_pop <- run_all(
   config_dir = opt$config_dir,
@@ -516,3 +645,27 @@ gen_obs <- run_all(
   data_dir = opt$data_dir,
   output_file_type = "rds",
   verbose = opt$verbose)
+
+
+
+# G. Population -----------------------------------------------------------
+
+
+# Country-level population
+pop <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_mean_population,
+  fun_name = "population",
+  fun_opts = NULL,
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  interm_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+

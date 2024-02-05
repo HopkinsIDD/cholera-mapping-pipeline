@@ -297,7 +297,7 @@ p_fig6 <- adm2_pop_at_risk %>%
 
 ggsave(p_fig6,
        file = str_glue("{opt$output_dir}/figure_risk_categories_prop_ADM2_{suffix}.png"),
-       width = 10,
+       width = 18,
        height = 8, 
        dpi = 300)
 
