@@ -1216,13 +1216,13 @@ ggsave(plot = p_fig4B,
 
 
 # Tile for legend
-
-tile_dat <- expand.grid(x = levels(risk_pop_adm2$risk_cat), 
-                        y = levels(risk_pop_adm2$risk_cat)) %>% 
+hrisk_cat <- taxdat::get_risk_cat_dict()[-c(1:2)]
+tile_dat <- expand.grid(x = taxdat::get_risk_cat_dict(), 
+                        y = taxdat::get_risk_cat_dict()) %>% 
   as_tibble() %>% 
   mutate(endemicity = case_when(x == "<1" & y == "<1" ~ "sustained low risk",
-                                x != "1-10" & y != "1-10" ~ "sustained high risk",
-                                x != "1-10" | y != "1-10" ~ "history of high risk",
+                                x %in% hrisk_cat & y %in% hrisk_cat ~ "sustained high risk",
+                                x %in% hrisk_cat | y %in% hrisk_cat~ "history of high risk",
                                 T ~ "history of moderate risk"),
          endemicity = factor(endemicity, levels = c("sustained high risk", 
                                                     "history of high risk",
