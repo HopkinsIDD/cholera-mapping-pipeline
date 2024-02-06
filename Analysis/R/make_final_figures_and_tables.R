@@ -884,10 +884,10 @@ p_fig1B <- cases_by_region %>%
     }) +
   scale_fill_manual(values = colors_afro_regions()) +
   theme_bw() +
-  theme(legend.key.size = unit(.2, units = "in")) +
+  theme(legend.key.size = unit(.2, units = "in"),
+        legend.title=element_blank()) +
   labs(x = "Mean annual cholera incidence [cases/year]", 
-       y = "Time period",
-       fill = "WHO region")
+       y = "Time period")
 
 # Save figure
 ggsave(plot = p_fig1B,
@@ -1103,8 +1103,8 @@ p_fig3B <- risk_pop_regions %>%
   theme_bw() +
   scale_fill_manual(values = colors_afro_regions()) +
   scale_x_continuous(labels = function(x) {formatC(x/1e6)}) +
-  labs(y = "Incidence risk category", x = "ADM2 population at risk [millions]")
-
+  labs(y = "Incidence risk category", x = "ADM2 population at risk [millions]") +
+  theme(legend.title=element_blank()) 
 
 # Save
 ggsave(plot = p_fig3B,
