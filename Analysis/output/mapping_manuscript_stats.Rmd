@@ -11,14 +11,6 @@ params:
 ---
 
 ```{r setup, include=FALSE}
-
-# params <- list(
-#   postprocessed_output_directory= "/home/cholerapipelinerestmp/postprocess/processed_outputs",
-#   interm_directory= "/home/cholerapipelinerestmp/postprocess/interm",
-#   output_directory = "/home/cholerapipelinerestmp/paper_stats/"
-# 
-# )
-
 package_list <- c(
   "taxdat",
   "sf",
@@ -355,7 +347,8 @@ if(file.exists(paste0(params$output_directory,"/subnational_obs_coverage.rds")))
   subnational_obs_coverage <- data.frame()
 for (country_tmp in unique(shp_adm2$country)) {
   #st_union adm2 shapefiles for a specific country
-  shp_union <- sf::st_make_valid(sf::st_union(sf::st_combine(shp_adm2[shp_adm2$country==country_tmp,]$geom)))
+  shp_union <- sf::st_make_valid(sf::st_union(shp_adm2[shp_adm2$country==country_tmp,]$geom))
+
   #get country shapefiles
   shp_adm0 <- output_adm0_sf_1620 %>% dplyr::filter(country == country_tmp)
   #calculate the proportion of area covered by adm2 or lower obs
