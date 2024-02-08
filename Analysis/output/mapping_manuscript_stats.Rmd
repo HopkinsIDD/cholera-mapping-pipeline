@@ -732,147 +732,33 @@ print(paste0("The median % of grid cells with >1 case/year in 2016-2020 is ",rou
 ```
 
 ```{r Results_paragraph_2_grid_level_pop, echo=FALSE,warning=FALSE,message=FALSE}
-# ??? Grid-level population by country summary
-# 2011-2015 ----
-if(file.exists(paste0(params$output_directory,"/grid_pop_adm0_1115_pop_num.rds"))){
-  grid_pop_adm0_1115 <- readRDS(paste0(params$output_directory,"/grid_pop_adm0_1115_pop_num.rds"))
-} else {
-  grid_pop_adm0_1115<-data.frame()
-for (row_tmp in 1:nrow(output_adm0_sf_1115)) {
+#Use the mean grid-level cases and rates to estimate the grid-level population.
+output_mai_grid_cases_1115 <- readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_mai_grid_cases.rds')) %>% 
+  sf::st_drop_geometry()
+output_mai_grid_cases_1620 <- readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_mai_grid_cases.rds')) %>% 
+  sf::st_drop_geometry()
 
-  iso = output_adm0_sf_1115$country[row_tmp]
-  
-  tmp_country_grid_case_1115 = readRDS(paste0(params$interm_directory,"/",intersect(list.files(path = params$interm_directory,pattern = "_mai_grid_cases_draws.rds"), list.files(path = params$interm_directory,pattern = paste0(iso,"_2011-01-01_2015-12-31"))))) %>% 
-    rename(cases = value) %>% 
-    data.frame() %>%
-    select(!postproc_var)
-    
-  tmp_country_grid_case_1115_mean_across_draw <- tmp_country_grid_case_1115 %>% 
-    group_by(rid,x,y,grid_id,geom) %>% 
-    summarize(
-      mean_cases = mean(cases)
-    )
-  
-  tmp_country_grid_rate_1115 = readRDS(paste0(params$interm_directory,"/",intersect(list.files(path = params$interm_directory,pattern = "_mai_grid_rates_draws.rds"), list.files(path = params$interm_directory,pattern = paste0(iso,"_2011-01-01_2015-12-31"))))) %>% 
-    rename(rates = value) %>% 
-    data.frame() %>%
-    select(!postproc_var)
+output_mai_grid_rates_1115 <- readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_mai_grid_rates.rds')) %>% 
+  sf::st_drop_geometry() %>% 
+  rename(`mean_rates`=mean) %>% 
+  select(-c(q2.5,q97.5,overlap))
+output_mai_grid_rates_1620 <- readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_mai_grid_rates.rds')) %>% 
+  sf::st_drop_geometry() %>% 
+  rename(`mean_rates`=mean) %>% 
+  select(-c(q2.5,q97.5,overlap))
 
-# join case and rate rasters by rid, x, y, grid_id, .draw and geom
-  grid_pop_adm0_1115_tmp <- inner_join(tmp_country_grid_case_1115,tmp_country_grid_rate_1115,by=c("rid",'x','y',"grid_id",'.draw',"geom")) %>%
-    mutate(pop = cases/rates) %>% 
-    left_join(tmp_country_grid_case_1115_mean_across_draw,by=c("rid",'x','y',"grid_id","geom")) %>% 
-    group_by(.draw) %>% 
-    summarize(
-      pop_case_1 = sum(pop[mean_cases>1]),
-      total_pop = sum(pop),
-      pop_prop = pop_case_1/total_pop*100
-    )
+# cases/rates to get the grid-level pop and sum across all grid cells
+mai_grid_pop_1115 <- output_mai_grid_cases_1115 %>% 
+  inner_join(output_mai_grid_rates_1115,by=c("rid",'x','y')) %>% 
+  mutate(pop = mean/mean_rates) %>% 
+  ungroup()
 
-  grid_pop_adm0_1115<-grid_pop_adm0_1115 %>% dplyr::bind_rows(
-    data.frame(
-    time_period = "2011-2015",
-    country = output_adm0_sf_1115$shapeName[row_tmp],
-    total_pop = round(median(grid_pop_adm0_1115_tmp$pop_case_1/10^6),2),
-    total_pop_CrI = paste0(round(quantile(grid_pop_adm0_1115_tmp$pop_case_1/10^6,probs=0.025)[[1]],2),"-",round(quantile(grid_pop_adm0_1115_tmp$pop_case_1/10^6,probs=0.975)[[1]],2)),
-    pop_prop = round(median(grid_pop_adm0_1115_tmp$pop_prop),2),
-    pop_prop_CrI = paste0(round(quantile(grid_pop_adm0_1115_tmp$pop_prop,probs=0.025)[[1]],2),"-",round(quantile(grid_pop_adm0_1115_tmp$pop_prop,probs=0.975)[[1]],2))
-    )
-  )
-  
-rm(tmp_country_grid_case_1115)
-rm(tmp_country_grid_rate_1115)
-invisible(gc())
+mai_grid_pop_1620 <- output_mai_grid_cases_1620 %>% 
+  inner_join(output_mai_grid_rates_1620,by=c("rid",'x','y')) %>% 
+  mutate(pop = mean/mean_rates) %>% 
+  ungroup()
 
-}
-  saveRDS(grid_pop_adm0_1115,paste0(params$output_directory,"/grid_pop_adm0_1115_pop_num.rds"))
-
-}
-#make tables
-grid_pop_adm0_1115<-grid_pop_adm0_1115 %>% 
-  select(!c(pop_prop,pop_prop_CrI)) %>% 
-  rename (`Number of people living in grid cells with >1 modeled cases/year`= total_pop,
-          `95% Credible Intervals, CrI` = total_pop_CrI)
-grid_pop_adm0_1115 %>% 
-  dplyr::arrange(dplyr::desc(`Number of people living in grid cells with >1 modeled cases/year`)) %>% 
-  kableExtra::kbl(caption = "Table 10. Number of people living in grid cells with >1 case/year in 2011-2015") %>% 
-  kableExtra::kable_styling(full_width = FALSE) %>% 
-  kableExtra::scroll_box(width = "100%")
-
-# 2016-2020 ----
-if(file.exists(paste0(params$output_directory,"/grid_pop_adm0_1620_pop_num.rds"))){
-  grid_pop_adm0_1620 <- readRDS(paste0(params$output_directory,"/grid_pop_adm0_1620_pop_num.rds"))
-  
-} else {
-  grid_pop_adm0_1620<-data.frame()
-for (row_tmp in 1:nrow(output_adm0_sf_1620)) {
-
-  iso = output_adm0_sf_1620$country[row_tmp]
-  
-  tmp_country_grid_case_1620 = readRDS(paste0(params$interm_directory,"/",intersect(list.files(path = params$interm_directory,pattern = "_mai_grid_cases_draws.rds"), list.files(path = params$interm_directory,pattern = paste0(iso,"_2016-01-01_2020-12-31"))))) %>% 
-    rename(cases = value) %>% 
-    data.frame() %>%
-    select(!postproc_var)
-    
-  tmp_country_grid_case_1620_mean_across_draw <- tmp_country_grid_case_1620 %>% 
-    group_by(rid,x,y,grid_id,geom) %>% 
-    summarize(
-      mean_cases = mean(cases)
-    )
-  
-  tmp_country_grid_rate_1620 = readRDS(paste0(params$interm_directory,"/",intersect(list.files(path = params$interm_directory,pattern = "_mai_grid_rates_draws.rds"), list.files(path = params$interm_directory,pattern = paste0(iso,"_2016-01-01_2020-12-31"))))) %>% 
-    rename(rates = value) %>% 
-    data.frame() %>%
-    select(!postproc_var)
-
-# join case and rate rasters by rid, x, y, grid_id, .draw and geom
-  grid_pop_adm0_1620_tmp <- inner_join(tmp_country_grid_case_1620,tmp_country_grid_rate_1620,by=c("rid",'x','y',"grid_id",'.draw',"geom")) %>%
-    mutate(pop = cases/rates) %>% 
-    left_join(tmp_country_grid_case_1620_mean_across_draw,by=c("rid",'x','y',"grid_id","geom")) %>% 
-    group_by(.draw) %>% 
-    summarize(
-      pop_case_1 = sum(pop[mean_cases>1]),
-      total_pop = sum(pop),
-      pop_prop = pop_case_1/total_pop*100
-    )
-
-  grid_pop_adm0_1620<-grid_pop_adm0_1620 %>% dplyr::bind_rows(
-    data.frame(
-    time_period = "2011-2015",
-    country = output_adm0_sf_1620$shapeName[row_tmp],
-    total_pop = round(median(grid_pop_adm0_1620_tmp$pop_case_1/10^6),2),
-    total_pop_CrI = paste0(round(quantile(grid_pop_adm0_1620_tmp$pop_case_1/10^6,probs=0.025)[[1]],2),"-",round(quantile(grid_pop_adm0_1620_tmp$pop_case_1/10^6,probs=0.975)[[1]],2)),
-    pop_prop = round(median(grid_pop_adm0_1620_tmp$pop_prop),2),
-    pop_prop_CrI = paste0(round(quantile(grid_pop_adm0_1620_tmp$pop_prop,probs=0.025)[[1]],2),"-",round(quantile(grid_pop_adm0_1620_tmp$pop_prop,probs=0.975)[[1]],2))
-    )
-  )
-  
-rm(tmp_country_grid_case_1620)
-rm(tmp_country_grid_rate_1620)
-invisible(gc())
-
-}
-  saveRDS(grid_pop_adm0_1620,paste0(params$output_directory,"/grid_pop_adm0_1620_pop_num.rds"))
-
-}
-
-#make tables
-grid_pop_adm0_1620<-grid_pop_adm0_1620 %>% 
-  select(!c(pop_prop,pop_prop_CrI)) %>% 
-  rename (`Number of people living in grid cells with >1 modeled cases/year`= total_pop,
-          `95% Credible Intervals, CrI` = total_pop_CrI)
-grid_pop_adm0_1620 %>% 
-  dplyr::arrange(dplyr::desc(`Number of people living in grid cells with >1 modeled cases/year`)) %>% 
-  kableExtra::kbl(caption = "Table 11. Number of people living in grid cells with >1 case/year in 2016-2020") %>% 
-  kableExtra::kable_styling(full_width = FALSE) %>% 
-  kableExtra::scroll_box(width = "100%")
-
-#print out the median and range for table 10 and 11
-print(paste0("The median number of people (million) living in cells with >1 case/year in 2011-2015 is ",round(median(grid_pop_adm0_1115$`Number of people living in grid cells with >1 modeled cases/year`),2)," (",round(min(grid_pop_adm0_1115$`Number of people living in grid cells with >1 modeled cases/year`),2)," - ",round(max(grid_pop_adm0_1115$`Number of people living in grid cells with >1 modeled cases/year`),2),")"))
-
-print(paste0("The median number of people (million) living in cells with >1 case/year in 2016-2020 is ",round(median(grid_pop_adm0_1620$`Number of people living in grid cells with >1 modeled cases/year`),2)," (",round(min(grid_pop_adm0_1620$`Number of people living in grid cells with >1 modeled cases/year`),2)," - ",round(max(grid_pop_adm0_1620$`Number of people living in grid cells with >1 modeled cases/year`),2),")"))
-
-invisible(gc())
+print(paste0("Overall, cholera cases were clustered in a relatively small percentage of the continent, affecting in 2016-2020 ", round(sum(mai_grid_pop_1620[mai_grid_pop_1620$mean>1,]$pop)/10^6,0), " million people (",round(sum(mai_grid_pop_1115[mai_grid_pop_1115$mean>1,]$pop)/10^6,0)," in 2011-2015) living in 20 km x 20 km grid cells having more than 1 case/year"))
 
 ```
 ## Paragraph 3
