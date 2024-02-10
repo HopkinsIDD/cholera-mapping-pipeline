@@ -26,7 +26,7 @@ Sys.setlocale("LC_ALL", "C")
 
 # Context
 
-Our new mapping estimates enable us to determine 10-year cholera risk categories. The question is whether these are predictive of locations with cholera outbreaks in 2022/2023.
+Our new mapping estimates enable us to determine 10-year cholera risk categories. The question is whether these are associated with locations with cholera outbreaks in 2022/2023.
 
 
 # Data
@@ -34,11 +34,6 @@ Our new mapping estimates enable us to determine 10-year cholera risk categories
 - 10-year risk categories from mapping models
 - Location of cholera outbreaks in 2022/2023 reported in WHO public situation reports
 
-## Data extraction
-
-We will need to extract data from the WHO external situation reports. The target is the location of cholera outbreaks to map to the ADM2 units we have risk categories for.
-
-The figure below shows an example of data extraction from situation report 10 (January 2024, [here](https://www.who.int/publications/m/item/multi-country-outbreak-of-cholera--external-situation-report--10---11-january-2024)). Only a subset of the data was extracted for testing purpouses (one panel in each figure), so final data extraction will change. Here we map directly the centroid of each location to the ADM2 shapefiles although some areas seems to be ADM1. We will need to do better in the final analysis.
 
 ```{r}
 library(tidyverse)
@@ -48,14 +43,32 @@ library(taxdat)
 library(here)
 
 # Load data
-load("Analysis/who_outbreak_analysis_test_data.rdata")
+load("Analysis/notebooks/outbreak_analysis_data.rdata")
 
 ```
 
-```{r Figure}
+## Data extraction
+
+We extracted data from the WHO external situation reports. The target is the location of cholera outbreaks to map to the ADM2 units we have risk categories for.
+
+The centroid of admin units figuring in the WHO sitreps were extracted by georeferencing map snapshots. We extracted metadata on the administrative level, the period of validity of the data, and uncertainty regarding the admin level assignment.
+
+```{r datoverview}
+outbreaks %>% 
+  st_drop_geometry() %>% 
+  select(admin_level, admin_level_confidence, time_left, time_right, country) %>% 
+  gtsummary::tbl_summary(by = "admin_level")  %>% 
+  gtsummary::as_gt() #%>% 
+# gt::tab_options(container.width = 500, container.height = 500)
+```
+
+
+```{r figdat}
 #| fig.width=10,
 #| fig.height=7,
-#| fig.cap='Example of data. Risk map from mapping analysis. Green points give the centroid of outbreak locations in the WHO situation report 10 based on figures 2, 6 and 8, one panel each. '
+#| fig.cap='Extracted data as of Feb th 2024. Risk map from mapping analysis. Purple lines show areas with reported cholera cases, and points give the centroids. Bar plot inset shows the proportion of risk categories in outbreak and non-outbreak locations (not that here all ADM2 units within an upper-level admin unit reporing cholera are considered as with an outbreak).'
+
+endemicity <- readRDS(here::here("Analysis/notebooks/endemicity_validated.rds"))
 
 endemicity <- endemicity %>% 
   mutate(endemicity = factor(endemicity, levels = c("sustained high risk",
@@ -69,133 +82,293 @@ dat <- dat %>%
                                                     "sustained low risk"))) 
 
 p_prop <- dat %>% 
-  ggplot(aes(x = outbreak, fill = endemicity)) +
+  ggplot(aes(x = in_outbreak, fill = endemicity)) +
   geom_bar(position = "fill") +
   scale_y_continuous(labels = scales::percent) +
   scale_fill_manual(values = taxdat:::colors_endemicity()) +
   theme_bw() +
-  guides(fill = "none")
+  guides(fill = "none") +
+  labs(x = "Observed outbreak\n(ADM2 level)")
 
 p_map <- endemicity %>% 
   ggplot() +
-  geom_sf(aes(fill = endemicity)) +
-  geom_sf(data = outbreaks, size = 1, col = "green") +
+  geom_sf(aes(fill = endemicity), lwd = .05) +
+  geom_sf(data = final_joins, 
+          alpha = 0, col = "purple",
+          lwd = .3) +
+  geom_sf(data = st_centroid(final_joins %>% select(-geom.y)), 
+          alpha = 1, col = "purple",
+          aes(pch = admin_level),
+          size = .6) +
   taxdat::map_theme() +
   scale_fill_manual(values = taxdat:::colors_endemicity()) +
-  theme(legend.position = "right")
+  theme(legend.position = "right") +
+  labs(fill = "10-year risk\ncategory",
+       pch = "Administrative\nlevel")
 
-cowplot::ggdraw(p_map) +
-  cowplot::draw_plot(p_prop, .075, .15, .2, .3)
+p_dat <- cowplot::ggdraw(p_map) +
+  cowplot::draw_plot(p_prop, .075, .15, .2, .3) +
+  theme(panel.background = element_rect(fill = "white"))
 
+ggsave(p_dat, filename = "ob_fig1.png",
+       width = 10, height = 7, dpi = 400)
+
+ggsave(p_dat, filename = "ob_fig1.pdf",
+       width = 10, height = 7)
+p_dat
 ```
 
 # Model
 
-The aim is to compute the effect of risk category on the probability of reporting an outbreak in 2022/2023. The challenge is that absence of reported outbreak can mean either no outbreak, or outbreak and no reporting. In this sense we can treate absence of outbreak as missing data, and marginalize out the true state.
+## Base model
+The aim is to compute the effect of risk category on the probability of reporting an outbreak in 2022/2023. The challenge is that absence of reported outbreak can mean either no outbreak, or outbreak and no reporting. In this sense we can treated absence of outbreak as missing data, and marginalize out the underlying outbreak state.
 
 
 For locations where we do have an outbreak reported, the likelihood is simply Bernoulli:
 
 $$
 \begin{aligned}
-(y_i = 1) &  \sim Bernoulli(p_i\phi_i),\\
+L(y_i = 1) &=  p_i\phi_i,\\
 logit(p_i) & = \alpha + \beta_i
 \end{aligned},
 $$
-where $\p_i$, $\beta_i$ is the effect of risk category of the ADM2 unit of observation $i$, and $\phi_i$ is the probability of reporting and outbreak if it occurs (outbreak detection sensitivity), that we can make location dependent as well (below each country has one value).
+where $p_i$, $\beta_i$ is the effect of risk category of the ADM2 unit of observation $i$, and $\phi_i$ is the probability of reporting and outbreak if it occurs (outbreak detection sensitivity), that we can make location dependent as well (below each country has one value).
 
 For all locations $l$ where we do not have reported outbreaks, we marginalize out the unobserved outcome:
 
 $$
 \begin{aligned}
-L(l) = p_l(1-\phi_l) + (1-p_l),
+L(l)& = p_l(1-\phi_l) + (1-p_l),\\
+& = p_l - p_l\phi_l + 1 - p_l,\\
+& = 1-p_l\phi_l,
 \end{aligned}
 $$
-where $logit(p_l) = \alpha + \beta_l$ as above, and $\phi_l$ the corresponding sensitivity. This assumes no false positives.
+where $logit(p_l) = \alpha + \beta_l$ as above, and $\phi_l$ the corresponding sensitivity. This assumes no false positives. We therefore have again a Bernoulli likelihood with success probability $p_l\phi_l$.
 
-The stan model is as follows:
+We can therefore model all ADM2 locations as:
+
+$$
+y_l \sim Bernoulli(p_l\phi_l).
+$$
+
+## Higher admin level observations
+
+As shown in Figure 1, we also have outbreak locations that are at ADM1 level, and could also imagine setting observations at the country level if no lower-level data is available.
+
+We can model upper-level admin units as:
+
+$$
+\begin{aligned}
+y_l & \sim Bernoulli(\eta),\\
+\eta & = 1-\prod_{i \in S} 1-p_i\phi_i,
+\end{aligned}
+$$
+where $S$ is the set of ADM2 level units that compose the admin unit $l$ (for instance if $l$ is the ADM1 level, all the ADM2 level units that compose $l$).
+
+## Hierarchical model
+
+Iy may be possible that the association between historical risk categories and outbreaks are not constant between regions and countries.
+
+We can set a hierarchical prior on the model parameters knowing the country $c$ and region $r$ ADM2 location $i$ is in:
+
+$$
+\begin{aligned}
+\beta^m_c & \sim N(\mu_{\beta, r}^m, \sigma_{\beta,r}^m), \\
+\mu_{\beta, r}^m & \sim N(\mu_{\beta}^m, \sigma_{\beta}^m), \\
+\end{aligned}
+$$
+where $m$ denotes the regression coefficient group, $\mu_{\beta, r}^m, \sigma_{\beta,r}^m$ are the regional-level mean and sd of the regression coefficients, and $\mu_{\beta}^m, \sigma_{\beta}^m$ the hyper-prior mean and sd.
+
+We can set things up similarly for the outbreak reporting sensitivity on the logit scale:
+
+$$
+\begin{aligned}
+logit(\phi_c) & \sim N(\mu_{logit(\phi), r}, \sigma_{logit(\phi),r}), \\
+\mu_{logit(\phi), r} & \sim N(\mu_{logit(\phi)}, \sigma_{logit(\phi)}). \\
+\end{aligned}
+$$
+
+## Priors
+
+We use the following priors:
+
+$$
+\begin{aligned}
+\sigma_{\beta,r}^m & \sim N^+(0, 2.5), \\
+\mu_{\beta}^m & \sim N(0, 2),\\
+\sigma_{\beta}^m& \sim N^+(0, 2.5), \\
+\sigma_{logit(\phi),r} & \sim N^+(0, 1) , \\
+\mu_{logit(\phi)} & \sim N(1.5, .5)\\
+\sigma_{logit(\phi)} & \sim N^+(0, 1).
+\end{aligned}
+$$
 
 ```{r}
 
 # Data for stan
-stan_model <- cmdstan_model("Analysis/R/scratchpads/02_who_outbreak_analysis.stan")
+stan_model <- cmdstan_model(here::here("Analysis/R/scratchpads/02_who_outbreak_analysis_multilevel_hierarchical.stan"),
+                            compile = FALSE)
 
 print(stan_model)
 ```
 
-```{r run-stan}
-dat2 <- filter(dat, AFRO_region != "Western Africa")
+# Results
 
-# Data for stan
-X <- model.matrix(data = dat2 %>% 
-                    mutate(endemicity = factor(endemicity) %>% 
-                             forcats::fct_relevel("sustained low risk")), 
-                  outbreak ~ endemicity)
-
-u_countries <- dat2$country %>% unique() %>% sort()
-map_unit_upper <- map_dbl(dat2$country, ~which(u_countries == .))
-
-stan_data <- list(
-  N = nrow(dat2),
-  M = ncol(X),
-  N_obs = sum(dat2$outbreak),
-  L = length(u_countries),
-  ind_obs = which(dat2$outbreak),
-  ind_non_obs = which(!dat2$outbreak),
-  map_unit_upper = map_unit_upper,
-  X = X
-)
-
-stan_fit <- stan_model$sample(
-  data = stan_data,
-  iter_warmup = 250,
-  iter_sampling = 100,
-  parallel_chains = 4
-)
-
-```
-
-
+## Parameter estimates
 ```{r estimates}
-#| fig.width=7,
-#| fig.height=4,
-#| fig.cap='Example of data. Risk map from mapping analysis. Green points give the centroid of outbreak locations in the WHO situation report 10 based on figures 2, 6 and 8, one panel each. '
+#| fig.width=10,
+#| fig.height=5.5,
+#| fig.cap='Coefficient estimates'
+
+stan_fit <- readRDS(here::here("Analysis/notebooks/stan_fit.rds"))
 
 
-stan_fit$summary("beta") %>% 
-  mutate(var = c("Intercept(ref sustained_low)", "beta_sustained_high", "beta_history_high", "beta_history_moderate"),
-         var = factor(var, levels = c("Intercept(ref sustained_low)", "beta_history_moderate", "beta_history_high", "beta_sustained_high"))) %>% 
-  slice(-1) %>% 
-  ggplot(aes(x = var, y = mean, ymin = q5, ymax = q95)) +
-  geom_point() +
-  geom_hline(aes(yintercept = 0), lty = 2, lwd = .4, col = "darkgray") +
-  geom_errorbar(width = .1) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)) +
+pd <- position_dodge(.3)
+beta_levels <- c("(Intercept)", "history of moderate risk", "history of high risk", "sustained high risk")
+
+p_fit <- stan_fit$summary("r_beta") %>% 
+  mutate(AFRO_region = u_regions[str_extract(variable, "(?<=\\[)[0-9](?=,)") %>% as.numeric()],
+         param = colnames(stan_data$X)[str_extract(variable, "(?<=,)[0-9](?=\\])") %>% as.numeric()] %>% 
+           str_remove("endemicity") %>% 
+           factor(levels = beta_levels)) %>%
+  bind_rows(stan_fit$summary("mu_beta") %>% 
+              mutate(param = colnames(stan_data$X)[str_extract(variable, "(?<=\\[)[0-9](?=\\])") %>% as.numeric()] %>% 
+                       str_remove("endemicity") %>% 
+                       factor(levels = beta_levels),
+                     AFRO_region = "overall")) %>% 
+  mutate(what = case_when(param == "(Intercept)" ~ "baseline logit-prob\n(sustained low risk)",
+                          T ~ "log(OR)"),
+         AFRO_region = factor(AFRO_region, levels = c("overall", get_AFRO_region_levels()))) %>% 
+  ggplot(aes(x = param, y = mean, ymin = q5, ymax = q95, color = AFRO_region)) +
+  geom_point(position = pd) +
+  geom_errorbar(width = 0, position = pd) +
+  geom_hline(aes(yintercept = 0), lty = 3, lwd = .6) +
+  facet_grid(. ~ what, scales = "free", space = "free") +
   theme_bw() +
-  labs(y = "coefficient", x = "risk cat (ref=sustained_low)")
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)) +
+  scale_color_manual(values = c("overall" = "black", taxdat::colors_afro_regions())) +
+  labs(x = "", y = "value")
+
+
+ggsave(p_fit, filename = "ob_fig2.png",
+       width = 8.5, height = 5, dpi = 300)
+
+ggsave(p_fit, filename = "ob_fig2.pdf",
+       width = 8.5, height = 5)
+
+p_fit
+
+# stan_fit$summary("beta") %>% 
+#   mutate(var = c("Intercept(ref sustained_low)", "beta_sustained_high", "beta_history_high", "beta_history_moderate"),
+#          var = factor(var, levels = c("Intercept(ref sustained_low)", "beta_history_moderate", "beta_history_high", "beta_sustained_high"))) %>% 
+#   slice(-1) %>% 
+#   ggplot(aes(x = var, y = mean, ymin = q5, ymax = q95)) +
+#   geom_point() +
+#   geom_hline(aes(yintercept = 0), lty = 2, lwd = .4, col = "darkgray") +
+#   geom_errorbar(width = .1) +
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)) +
+#   theme_bw() +
+#   labs(y = "coefficient", x = "risk cat (ref=sustained_low)")
 
 ```
+
+```{r estimates-by-country}
+#| fig.width=10,
+#| fig.height=10,
+#| fig.cap='Coefficient estimates by country.'
+
+p_country <- stan_fit$summary("c_beta") %>% 
+  mutate(country = u_countries[str_extract(variable, "(?<=\\[)[0-9]+(?=,)") %>% as.numeric()],
+         param = colnames(stan_data$X)[str_extract(variable, "(?<=,)[0-9](?=\\])") %>% as.numeric()] %>% 
+           str_remove("endemicity") %>% 
+           factor(levels = beta_levels)) %>% 
+  get_AFRO_region(ctry_col = "country") %>% 
+  mutate(AFRO_region = factor(AFRO_region, levels = get_AFRO_region_levels())) %>% 
+  ggplot(aes(x = param, y = mean, ymin = q5, ymax = q95, color = AFRO_region)) +
+  geom_point(position = pd) +
+  geom_errorbar(width = 0, position = pd) +
+  geom_hline(aes(yintercept = 0), lty = 3, lwd = .6) +
+  facet_wrap(~ country) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)) +
+  scale_color_manual(values = taxdat::colors_afro_regions()) +
+  labs(x = "", y = "value")
+
+
+ggsave(p_country, filename = "ob_fig3.png",
+       width = 12, height = 10, dpi = 300)
+ggsave(p_country, filename = "ob_fig3.pdf",
+       width = 12, height = 10)
+p_country
+```
+
 
 ```{r}
-#| fig.width=10,
+#| fig.width=7,
 #| fig.height=7,
-#| fig.cap='Predicted probability of observed outbreak. This accounts for underlying prob and reporting prob. West Africa is NA because no extracted data covers it, so was dropped from analysis.'
+#| fig.cap='Outbreak reporting sensitivity by country.'
 
-pred_mean <- stan_fit$summary("pred_prob", mean) %>% 
-  bind_cols(dat2)
-
-p_map2 <- endemicity %>% 
-  left_join(pred_mean) %>% 
-  ggplot() +
-  geom_sf(aes(fill = mean)) +
-  geom_sf(data = outbreaks, size = 1, col = "green") +
-  taxdat::map_theme() +
-  scale_fill_viridis_c() +
-  theme(legend.position = "right") +
-  labs(fill = "mean predicted\noutbreak prob")
-
-p_map2
+stan_fit$summary("log_phi") %>% 
+  mutate(country = u_countries) %>% 
+  ggplot(aes(y = country, x = exp(mean))) +
+  geom_errorbarh(aes(xmin = exp(q5), xmax = exp(q95))) +
+  geom_label(aes(label = country)) +
+  theme_bw() +
+  labs(x = "Probability of outbreak detectection\n (sensitivity)")
 ```
 
+## Maps
+```{r maps}
+#| fig.width=10,
+#| fig.height=6,
+#| fig.cap='a) Predicted probability of observed outbreak. This accounts for underlying prob and reporting prob. b) Predicted underlying probability of outbreak.'
 
+prob_stats <- stan_fit$summary("pred_prob", .cores = 6) 
+true_prob_stats <- stan_fit$summary("log_prob", .cores = 6) 
+
+p_map <- prob_stats %>% 
+  bind_cols(endemicity, .) %>% 
+  ggplot(aes(fill = mean)) +
+  geom_sf(color = "white", lwd = .05) +
+  scale_fill_viridis_c(limits = c(0, 1)) +
+  taxdat::map_theme()
+
+
+p_map2 <- true_prob_stats %>% 
+  bind_cols(endemicity, .) %>% 
+  ggplot(aes(fill = exp(mean))) +
+  geom_sf(color = "white", lwd = .05) +
+  scale_fill_viridis_c(limits = c(0, 1)) +
+  taxdat::map_theme()
+
+
+cowplot::plot_grid(
+  p_map +
+    ggtitle("Prob observing outbreak"), 
+  p_map2 +
+    ggtitle("Underlying prob outbreak"),
+  labels = "auto"
+)
+
+# pred_mean <- stan_fit$summary("pred_prob", mean) %>% 
+#   bind_cols(dat2)
+# 
+# p_map2 <- endemicity %>% 
+#   left_join(pred_mean) %>% 
+#   ggplot() +
+#   geom_sf(aes(fill = mean)) +
+#   geom_sf(data = outbreaks, size = 1, col = "green") +
+#   taxdat::map_theme() +
+#   scale_fill_viridis_c() +
+#   theme(legend.position = "right") +
+#   labs(fill = "mean predicted\noutbreak prob")
+# 
+# p_map2
+```
+
+# Points to discuss
+
+- Probability of detection: any information to give the model?
+- Information on countries that have at least one case missing here (eg. Congo, South Sudan)
+- Causal effect of risk cat on prob of detection?
 
