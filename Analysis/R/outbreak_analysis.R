@@ -122,6 +122,33 @@ final_joins <-
   ) %>% 
   arrange(location_period_id)
 
+# Counts for paper
+obs_outbreaks <- final_joins %>% 
+  st_drop_geometry() %>% 
+  filter(admin_level != "1") %>% 
+  distinct(location_period_id) %>% 
+  inner_join(endemicity %>% st_drop_geometry()) %>% 
+  count(endemicity) %>% 
+  mutate(frac = n/sum(n))
+
+print(obs_outbreaks)
+
+
+# Countries with outbreaks in sustained low regions
+final_joins %>% 
+  st_drop_geometry() %>% 
+  filter(admin_level != "1") %>% 
+  distinct(location_period_id) %>% 
+  inner_join(endemicity %>% st_drop_geometry()) %>% 
+  filter(endemicity == "sustained low risk") %>% 
+  distinct(country)
+
+non_obs_outbreaks <- endemicity %>% 
+  st_drop_geometry() %>% 
+  mutate(in_outbreak = location_period_id %in% unlist(final_joins$adm2_lps)) %>% 
+  filter(!in_outbreak) %>% 
+  count(endemicity) %>% 
+  mutate(frac = n/sum(n))
 
 # Prepare data for stan model ---------------------------------------------
 
@@ -235,15 +262,15 @@ stan_genquant$save_object("Analysis/notebooks/stan_genquant.rds")
 # Save for figures --------------------------------------------------------
 
 beta_levels <- c("history of moderate risk", "history of high risk", "sustained high risk")
-beta_levels <- c("history of moderate risk", "history of high risk", "sustained high risk")
 
+# Stats of log OR of outbreak observation
 logOR_stats <- bind_rows(
-  stan_fit$summary("r_beta") %>% 
+  stan_fit$summary("r_beta", mean, taxdat:::custom_quantile2) %>% 
     mutate(AFRO_region = u_regions[str_extract(variable, "(?<=\\[)[0-9](?=,)") %>% as.numeric()],
            param = colnames(stan_data$X)[as.numeric(str_extract(variable, "(?<=,)[0-9](?=\\])"))] %>% 
              str_remove("endemicity") %>% 
              factor(levels = beta_levels)),
-  stan_fit$summary("mu_beta") %>% 
+  stan_fit$summary("mu_beta", mean, taxdat:::custom_quantile2) %>% 
     mutate(param = colnames(stan_data$X)[str_extract(variable, "(?<=\\[)[0-9](?=\\])") %>% as.numeric()] %>% 
              str_remove("endemicity") %>% 
              factor(levels = beta_levels),
@@ -253,6 +280,48 @@ logOR_stats <- bind_rows(
   mutate(what = "2011-2020 cholera risk category and \n outbreak occurrence in 2022-2023",
          AFRO_region = factor(AFRO_region, levels = c("overall", get_AFRO_region_levels())))
 
+logOR_stats %>% 
+  mutate(
+    txt = str_c(
+      formatC(mean, format = "f", digits = 2),
+      " (",
+      formatC(q2.5, format = "f", digits = 2),
+      "-",
+      formatC(q97.5, format = "f", digits = 2),
+      ")"
+    )
+  ) %>% 
+  select(AFRO_region, param, txt)
+
+# Stats of OR of outbreak observation
+OR_stats <- bind_rows(
+  stan_genquant$summary("r_odd_ratios", mean, median, taxdat:::custom_quantile2) %>% 
+    mutate(AFRO_region = u_regions[str_extract(variable, "(?<=\\[)[0-9](?=,)") %>% as.numeric()],
+           param = colnames(stan_data$X)[as.numeric(str_extract(variable, "(?<=,)[0-9](?=\\])"))+1] %>% 
+             str_remove("endemicity") %>% 
+             factor(levels = beta_levels)),
+  stan_genquant$summary("odd_ratios", mean, median, taxdat:::custom_quantile2) %>% 
+    mutate(param = colnames(stan_data$X)[as.numeric(str_extract(variable, "(?<=\\[)[0-9](?=\\])"))+1] %>% 
+             str_remove("endemicity") %>% 
+             factor(levels = beta_levels),
+           AFRO_region = "overall")
+) %>% 
+  filter(param != "(Intercept)") %>% 
+  mutate(what = "2011-2020 cholera risk category and \n outbreak occurrence in 2022-2023",
+         AFRO_region = factor(AFRO_region, levels = c("overall", get_AFRO_region_levels())))
+
+OR_stats %>% 
+  mutate(
+    txt = str_c(
+      formatC(median, format = "f", digits = 2),
+      " (",
+      formatC(q2.5, format = "f", digits = 2),
+      "-",
+      formatC(q97.5, format = "f", digits = 2),
+      ")"
+    )
+  ) %>% 
+  select(AFRO_region, param, txt)
 
 baseline_prob_stats <- bind_rows(
   stan_genquant$summary("r_baseline_prob") %>% 
@@ -263,6 +332,14 @@ baseline_prob_stats <- bind_rows(
   mutate(param = "baseline \n (ref: sustained low risk)",
          what = "baseline outbreak\nprobability",
          AFRO_region = factor(AFRO_region, levels = c("overall", get_AFRO_region_levels())))
+
+
+
+stan_genquant$summary("ICC", mean, taxdat:::custom_quantile2) %>% 
+  mutate(AFRO_region = u_regions[str_extract(variable, "(?<=\\[)[0-9](?=,)") %>% as.numeric()],
+         param = colnames(stan_data$X)[as.numeric(str_extract(variable, "(?<=,)[0-9](?=\\])"))] %>% 
+           str_remove("endemicity") %>% 
+           factor(levels = c("(Intercept)", beta_levels)))
 
 
 save(final_joins, logOR_stats, baseline_prob_stats, file = "Analysis/notebooks/recent_cholera_outbreaks_res.rdata")

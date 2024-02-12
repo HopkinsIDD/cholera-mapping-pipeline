@@ -147,19 +147,24 @@ model {
 }
 
 generated quantities {
-  vector[N] pred_prob;
-  vector[N] pred_prob_true;
+  vector[N] pred_prob;         // predicted probability of outbreak observations (accounting for reporting)
+  vector[N] pred_prob_true;    // predicted underlying outbreak probability
   vector[N_obs_adm2] pred_obs_prob_adm2;
   vector[N_obs_other_adm] pred_obs_prob_other_adm;
-  vector[U] r_baseline_prob;
-  matrix[U, M-1] r_odd_ratios;
-  real baseline_prob;
-  vector[M-1] odd_ratios;
+  vector[U] r_baseline_prob;      // regional mean baseline probability (intercept of the regression)
+  matrix[U, M-1] r_odd_ratios;    // natural scale odds ratios
+  real baseline_prob;             // overall mean baseline probability
+  vector[M-1] odd_ratios;         // overall mean odds ratio
+  matrix[U, M] ICC;    // intra-class clustering cofficients  
   
   r_baseline_prob = inv_logit(r_beta[, 1]);
   r_odd_ratios = exp(r_beta[, 2:M]);
   baseline_prob = inv_logit(mu_beta[1]);
   odd_ratios = exp(mu_beta[2:M]);
+  
+  for (m in 1:M) {
+    ICC[, m] = sd_beta[m]^2./(sd_beta[m]^2 + r_sd_beta[, m].^2);
+  }
   
   {
     // temp vectors

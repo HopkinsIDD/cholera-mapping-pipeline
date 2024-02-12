@@ -1213,6 +1213,118 @@ ggsave(plot = p_fig4B,
        dpi = 300)
 
 
+## Figure 4B outbreaks --------
+
+final_joins <- final_joins %>% 
+  mutate(admin_level = str_c("ADM", admin_level))
+
+p_ob_map <- endemicity_df_v2 %>% 
+  inner_join(u_space_sf, .) %>% 
+  select(-admin_level) %>% 
+  ggplot() +
+  geom_sf(data = afr_sf %>% 
+            select(-admin_level),
+          inherit.aes = FALSE,
+          lwd = 0.15,
+          color = "darkgray",
+          alpha = 0) +
+  geom_sf(aes(fill = endemicity), alpha = .5, lwd = .005, color = "white") +
+  geom_sf(inherit.aes = FALSE,
+          data = final_joins %>% select(-admin_level), 
+          alpha = 0, col = "purple",
+          lwd = .075) +
+  geom_sf(inherit.aes = FALSE,
+          data = final_joins, 
+          alpha = 0, col = "purple",
+          lwd = .35) +
+  geom_sf(inherit.aes = FALSE,
+          data = st_centroid(final_joins %>% select(-geom.y)),
+          alpha = 1, col = "purple",
+          fill = "white",
+          pch = 21,
+          size = .6,
+          stroke = .2) +
+  # geom_sf(inherit.aes = FALSE,
+  #         aes(pch = admin_level),
+  #         data = st_centroid(final_joins %>% select(-geom.y)), 
+  #         alpha = 1, col = "purple",
+  #         size = .8, lwd = .05) +
+  taxdat::map_theme() +
+  theme(panel.border = element_blank()) +
+  theme(legend.position = c(.1, .3)) +
+  scale_fill_manual(values = taxdat:::colors_endemicity()) +
+  labs(fill = "10-year risk\ncategory",
+       pch = "Administrative\nlevel") +
+  guides(fill = "none") +
+  scale_shape_manual(values = c(1, 3, 4)) +
+  facet_wrap(~admin_level)
+
+ggsave(plot = p_ob_map,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4B2_map.png"),
+       width = 12,
+       height = 5,
+       dpi = 300)
+
+
+pd1 <- position_dodge(.4)
+pd2 <- position_dodge(.3)
+
+p_ob_1 <- baseline_prob_stats %>% 
+  ggplot(aes(x = param, y = mean, ymin = q5, ymax = q95, color = AFRO_region)) +
+  geom_point(position = pd1) +
+  geom_errorbar(width = 0, position = pd1) +
+  theme_bw() +
+  facet_grid(. ~ what, scales = "free", space = "free") +
+  scale_color_manual(values = c("overall" = "black", taxdat::colors_afro_regions())) +
+  labs(x = "", y = "Probability") +
+  guides(color = "none") +
+  coord_cartesian(ylim = c(0, 1))  +
+  theme(axis.text = element_text(size = 8),
+        axis.title = element_text(size = 10))
+
+p_ob_2 <- logOR_stats %>% 
+  ggplot(aes(x = param, y = mean, ymin = q5, ymax = q95, color = AFRO_region)) +
+  geom_point(position = pd2) +
+  geom_errorbar(width = 0, position = pd2) +
+  geom_hline(aes(yintercept = 0), lty = 3, lwd = .6) +
+  facet_grid(. ~ what, scales = "free", space = "free") +
+  theme_bw() +
+  scale_color_manual(values = c("overall" = "black", taxdat::colors_afro_regions())) +
+  labs(x = "", y = "log-Odds ratio", color = "WHO region") +
+  theme(legend.position = c(.11, .77),
+        legend.key.height = unit(.75, units = "lines"),
+        axis.text = element_text(size = 8),
+        axis.title = element_text(size = 10),
+        legend.title = element_text(size = 8),
+        legend.text = element_text(size = 6))
+
+p_fig4B2 <- cowplot::plot_grid(
+  p_ob_map +
+    theme(strip.background = element_blank(),
+          plot.margin = unit(c(.2, 1.5, 0, 1.5), units = "lines")),
+  cowplot::plot_grid(
+    p_ob_1, 
+    p_ob_2,
+    nrow = 1,
+    rel_widths = c(.3, 1),
+    align = "v",
+    axis = "tb"
+  ) +
+    theme(plot.margin = unit(c(1, 1, 1, 1), units = "lines")),
+  ncol = 1,
+  rel_heights = c(.8, 1),
+  labels = c("b", "c"),
+  align = "h",
+  axis = "lr"
+) +
+  theme(panel.background = element_rect(fill = "white", color = "white"))
+
+
+# ggsave(plot = p_fig4B2,
+#        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4B2.png"),
+#        width = 10,
+#        height = 8,
+#        dpi = 300)
 
 # Tile for legend
 hrisk_cat <- taxdat::get_risk_cat_dict()[-c(1:2)]
@@ -1235,11 +1347,11 @@ endemicity_legend <- tile_dat %>%
   theme_bw() +
   theme(panel.border = element_blank(),
         axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
-        axis.text = element_text(size = 3.5),
-        axis.title = element_text(size = 4.5),
+        axis.text = element_text(size = 4.5),
+        axis.title = element_text(size = 5.5),
         axis.ticks = element_blank(),
-        legend.text = element_text(size = 4),
-        legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.title = element_text(size = 7),
         legend.key.size = unit(.5, units = "lines"),
         legend.box.spacing = unit(.1, units = "lines")) +
   labs(x = "Risk category in 2011-2015", y = "Risk category in 2016-2020",
@@ -1255,13 +1367,16 @@ p_fig4A_legend <- ggdraw(
   draw_plot(endemicity_legend, .075, .3, .35, .2)
 
 p_fig4 <- plot_grid(
-  p_fig4A_legend,
-  p_fig4B +
-    guides(fill = "none") +
-    theme(plot.margin = unit(c(2, 1, 2, 2), units = "lines")),
+  p_fig4A_legend +
+    theme(panel.background = element_rect(fill = "white", color = "white")),
+  p_fig4B2 +
+    theme(panel.background = element_rect(fill = "white", color = "white")),
+  # p_fig4B +
+  #   guides(fill = "none") +
+  #   theme(plot.margin = unit(c(2, 1, 2, 2), units = "lines")),
   nrow = 1,
-  labels = "auto"#,
-  # rel_widths = c(1.3, 1),
+  labels = c("a", NA_character_),
+  rel_widths = c(1, 1.25)
   # align = "v",
   # axis = "lr",
 ) +
@@ -1271,8 +1386,8 @@ p_fig4 <- plot_grid(
 # Save
 ggsave(plot = p_fig4,
        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4.png"),
-       width = 12,
-       height = 6,
+       width = 15,
+       height = 7,
        dpi = 300)
 
 # Supplementary figures ---------------------------------------------------
