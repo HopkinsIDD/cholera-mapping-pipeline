@@ -42,25 +42,15 @@ parameters {
   matrix<lower=0>[U, M] r_sd_beta;
   matrix[C, M] c_beta_tilde;    
   
-  // probability of reporting at country level
-  real mu_logit_phi;    
-  real<lower=0> sd_logit_phi;    
-  vector[U] r_logit_phi_tilde;    // regression prob
-  vector<lower=0>[U] r_sd_logit_phi;    // regression prob
-  vector[C] c_logit_phi_tilde;    // regression prob
-  
 }
 
 transformed parameters {
   vector[N] log_prob;  
-  vector[C] log_phi;    // probability of reporting
   matrix[U, M] r_beta;  
   
   {
     // temp variables
     matrix[M, N] beta;
-    vector[U] r_logit_phi;
-    vector[C] c_logit_phi;
     matrix[C, M] c_beta;  
     
     // Regression coef
@@ -84,28 +74,13 @@ transformed parameters {
     for (i in 1:N) {
       log_prob[i] = -log1p_exp(-1 * X[i, ] * beta[, i]);
     }
-    
-    // Prob occurence
-    for (u in 1:U) {
-      r_logit_phi[u] = mu_logit_phi + r_logit_phi_tilde[u] * sd_logit_phi;
-    } 
-    
-    for (c in 1:C) {
-      int u = map_country_upper[c];
-      c_logit_phi[c] = r_logit_phi[u] + c_logit_phi_tilde[c] * r_sd_logit_phi[u];
-    }
-    
-    // Fill matrix beta
-    for (c in 1:C) {
-      log_phi[c] = -log1p_exp(-c_logit_phi[c]);
-    }
   }
 }
 
 model {
   
   // temp vectors
-  vector[N] log_eta = log_prob + log_phi[map_adm2_countries];     // total observation probabilities at adm2
+  vector[N] log_eta = log_prob;     // total observation probabilities at adm2
   vector[N] logit_eta = log_eta - log1m_exp(log_eta);     // total observation probabilities at adm2
   
   
@@ -138,12 +113,6 @@ model {
     c_beta_tilde[c, ] ~ std_normal();
   }
   
-  // probability of reporting at country level
-  mu_logit_phi ~ normal(1.5, .5);    
-  sd_logit_phi ~ normal(0, 1);    
-  r_logit_phi_tilde ~ std_normal();    // regression prob
-  r_sd_logit_phi ~ normal(0, 1);    // regression prob
-  c_logit_phi_tilde ~ std_normal();    // regression prob
 }
 
 generated quantities {
@@ -177,7 +146,7 @@ generated quantities {
   
   {
     // temp vectors
-    vector[N] log_eta = log_prob + log_phi[map_adm2_countries];     // total observation probabilities at adm2
+    vector[N] log_eta = log_prob;     // total observation probabilities at adm2
     
     pred_prob = exp(log_eta);
     pred_obs_prob_adm2 = pred_prob[ind_obs_adm2];

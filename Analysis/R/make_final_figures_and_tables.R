@@ -1215,6 +1215,11 @@ ggsave(plot = p_fig4B,
 
 ## Figure 4B outbreaks --------
 
+# Load outbreak data and results
+load(str_c(opt$output_dir, "/outbreak_analysis_data.rdata"))
+load(str_c(opt$output_dir, "/recent_cholera_outbreaks_res.rdata"))
+
+
 final_joins <- final_joins %>% 
   mutate(admin_level = str_c("ADM", admin_level))
 
@@ -1759,3 +1764,26 @@ ggsave(p_wash,
        height = 8, 
        dpi = 300)
 
+
+### Recent outbreaks country-level estimates ----
+p_country_coef <- param_by_country %>% 
+  filter(param != "(Intercept)") %>% 
+  ggplot(aes(x = mean, xmin = q2.5, xmax = q97.5, y = country)) +
+  geom_vline(data = tibble(param = levels(param_by_country$param)[-1] %>% 
+                             factor(levels = levels(param_by_country$param)),
+                           x = 0), 
+             aes(xintercept = x),
+             lty = 2) + 
+  geom_errorbarh(height = 0, alpha = .7, aes(color = AFRO_region)) +
+  geom_point(aes(color = AFRO_region), pch = 21, fill = "white") +
+  facet_grid(AFRO_region~param, scales = "free_y", space = "free_y") +
+  theme_bw() +
+  scale_color_manual(values = colors_afro_regions()) +
+  labs(x = "log-OR", color = NULL, fill = NULL)
+
+
+ggsave(p_country_coef,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_country_outbreak_coef.png"),
+       width = 10,
+       height = 8, 
+       dpi = 300)
