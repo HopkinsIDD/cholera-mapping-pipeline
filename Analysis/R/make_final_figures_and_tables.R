@@ -500,7 +500,7 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   risk_pop_adm2 <- combine_period_output(prefix_list = prefix_list,
                                          output_name = "risk_categories",
                                          output_dir = opt$output_dir) %>% 
-    filter(admin_level == "ADM2") %>% 
+    filter(admin_level == "ADM2"|(admin_level == "ADM1" & country == "LSO")) %>% 
     get_AFRO_region(ctry_col = "country")  %>% 
     mutate(AFRO_region = factor(AFRO_region, 
                                 levels = get_AFRO_region_levels())) %>% 
@@ -597,7 +597,9 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   # Combine results with no-w runs
   mai_adm <- bind_rows(
     mai_adm_all %>% filter(admin_level == "ADM0", run_id %in% get_no_w_runs()),
-    mai_adm_all %>% filter(admin_level == "ADM2", !(run_id %in% get_no_w_runs()))
+    mai_adm_all %>% filter(admin_level == "ADM2", !(run_id %in% get_no_w_runs())),
+    mai_adm_all %>% filter(admin_level == "ADM1" & country == "LSO", !(run_id %in% get_no_w_runs())),
+    
   ) %>% 
     st_drop_geometry() %>% 
     as_tibble() %>% 
@@ -982,7 +984,7 @@ ggsave(p_fig2A,
 
 # Compute significant changes in terms of quantiles of rate ratios
 mai_adm2_change_stats <- mai_change_stats %>% 
-  filter(admin_level == "ADM2") %>% 
+  filter(admin_level == "ADM2"|(admin_level == "ADM1" & country == "LSO")) %>% 
   mutate(change_direction = case_when(
     q2.5 > 1 ~ "increase",
     q97.5 < 1 ~ "decrease",
@@ -1054,6 +1056,7 @@ ggsave(plot = p_fig2,
 
 ## Fig. 3A: ADM2 level risk category map --------
 p_fig3A <- risk_pop_adm2 %>% 
+  select(-shp_id) %>% 
   filter(period == "2016-2020") %>% 
   inner_join(u_space_sf, .) %>% 
   output_plot_map(sf_obj = ., 
