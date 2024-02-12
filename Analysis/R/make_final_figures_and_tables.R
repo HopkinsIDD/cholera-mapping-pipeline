@@ -1406,7 +1406,7 @@ p_ob_2 <- logOR_stats %>%
         legend.key.height = unit(.75, units = "lines"),
         axis.text = element_text(size = 8),
         axis.title = element_text(size = 10),
-        legend.title = element_text(size = 8),
+        legend.title = element_blank(),
         legend.text = element_text(size = 6))
 
 p_fig4B2 <- cowplot::plot_grid(
