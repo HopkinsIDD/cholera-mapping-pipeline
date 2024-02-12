@@ -608,7 +608,7 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   
   ## ADM2 mai ratio stats ---------------------------------------
   # Random draws
-  random_draws <- sample(1:4000, 100)
+  random_draws <- sample(1:4000, 4000)
   
   mai_draws_p1 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[1]}_mai_draws.rds")) %>%
     ungroup() %>% 
