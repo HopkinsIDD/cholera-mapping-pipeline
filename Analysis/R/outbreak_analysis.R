@@ -122,13 +122,28 @@ final_joins <-
   ) %>% 
   arrange(location_period_id)
 
+# Stats by admin level
+final_joins %>% 
+  st_drop_geometry() %>% 
+  distinct(location_period_id, admin_level) %>% 
+  count(admin_level) %>% mutate(frac = n/sum(n))
+
 # Counts for paper
 obs_outbreaks <- final_joins %>% 
   st_drop_geometry() %>% 
   filter(admin_level != "1") %>% 
-  distinct(location_period_id) %>% 
+  get_AFRO_region(ctry_col = "country") %>% 
+  {
+    x <- .
+    bind_rows(
+      x,
+      x %>% mutate(AFRO_region = "overall")
+    )
+  } %>% 
+  distinct(location_period_id, AFRO_region) %>% 
   inner_join(endemicity %>% st_drop_geometry()) %>% 
-  count(endemicity) %>% 
+  count(AFRO_region, endemicity) %>% 
+  group_by(AFRO_region) %>% 
   mutate(frac = n/sum(n))
 
 print(obs_outbreaks)
@@ -147,7 +162,18 @@ non_obs_outbreaks <- endemicity %>%
   st_drop_geometry() %>% 
   mutate(in_outbreak = location_period_id %in% unlist(final_joins$adm2_lps)) %>% 
   filter(!in_outbreak) %>% 
-  count(endemicity) %>% 
+  get_AFRO_region(ctry_col = "country") %>% 
+  {
+    x <- .
+    bind_rows(
+      x,
+      x %>% mutate(AFRO_region = "overall")
+    )
+  } %>% 
+  distinct(location_period_id, AFRO_region) %>% 
+  inner_join(endemicity %>% st_drop_geometry()) %>% 
+  count(AFRO_region, endemicity) %>% 
+  group_by(AFRO_region) %>% 
   mutate(frac = n/sum(n))
 
 # Prepare data for stan model ---------------------------------------------
@@ -232,6 +258,7 @@ stan_data <- list(
 
 
 save(outbreaks, final_joins, stan_data, dat, u_countries, u_regions,
+     obs_outbreaks, non_obs_outbreaks,
      file = "Analysis/notebooks/outbreak_analysis_data.rdata")
 
 # Stan model --------------------------------------------------------------
@@ -324,9 +351,9 @@ OR_stats %>%
   select(AFRO_region, param, txt)
 
 baseline_prob_stats <- bind_rows(
-  stan_genquant$summary("r_baseline_prob") %>% 
+  stan_genquant$summary("r_baseline_prob", mean, median, taxdat:::custom_quantile2) %>% 
     mutate(AFRO_region = u_regions[str_extract(variable, "(?<=\\[)[0-9](?=\\])") %>% as.numeric()]),
-  stan_genquant$summary("baseline_prob") %>% 
+  stan_genquant$summary("baseline_prob", mean, median, taxdat:::custom_quantile2) %>% 
     mutate(AFRO_region = "overall")
 ) %>% 
   mutate(param = "baseline \n (ref: sustained low risk)",

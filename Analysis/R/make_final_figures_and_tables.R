@@ -1218,7 +1218,48 @@ ggsave(plot = p_fig4B,
 final_joins <- final_joins %>% 
   mutate(admin_level = str_c("ADM", admin_level))
 
-p_ob_map <- endemicity_df_v2 %>% 
+# p_ob_map <- endemicity_df_v2 %>% 
+#   inner_join(u_space_sf, .) %>% 
+#   select(-admin_level) %>% 
+#   ggplot() +
+#   geom_sf(data = afr_sf %>% 
+#             select(-admin_level),
+#           inherit.aes = FALSE,
+#           lwd = 0.15,
+#           color = "darkgray",
+#           alpha = 0) +
+#   geom_sf(aes(fill = endemicity), alpha = .5, lwd = .005, color = "white") +
+#   geom_sf(inherit.aes = FALSE,
+#           data = final_joins %>% select(-admin_level), 
+#           alpha = 0, col = "purple",
+#           lwd = .075) +
+#   geom_sf(inherit.aes = FALSE,
+#           data = final_joins, 
+#           alpha = 0, col = "purple",
+#           lwd = .35) +
+#   geom_sf(inherit.aes = FALSE,
+#           data = st_centroid(final_joins %>% select(-geom.y)),
+#           alpha = 1, col = "purple",
+#           fill = "white",
+#           pch = 21,
+#           size = .6,
+#           stroke = .2) +
+#   # geom_sf(inherit.aes = FALSE,
+#   #         aes(pch = admin_level),
+#   #         data = st_centroid(final_joins %>% select(-geom.y)), 
+#   #         alpha = 1, col = "purple",
+#   #         size = .8, lwd = .05) +
+#   taxdat::map_theme() +
+#   theme(panel.border = element_blank()) +
+#   theme(legend.position = c(.1, .3)) +
+#   scale_fill_manual(values = taxdat:::colors_endemicity()) +
+#   labs(fill = "10-year risk\ncategory",
+#        pch = "Administrative\nlevel") +
+#   guides(fill = "none") +
+#   scale_shape_manual(values = c(1, 3, 4)) +
+#   facet_wrap(~admin_level)
+
+p_ob_map2 <- endemicity_df_v2 %>% 
   inner_join(u_space_sf, .) %>% 
   select(-admin_level) %>% 
   ggplot() +
@@ -1230,11 +1271,7 @@ p_ob_map <- endemicity_df_v2 %>%
           alpha = 0) +
   geom_sf(aes(fill = endemicity), alpha = .5, lwd = .005, color = "white") +
   geom_sf(inherit.aes = FALSE,
-          data = final_joins %>% select(-admin_level), 
-          alpha = 0, col = "purple",
-          lwd = .075) +
-  geom_sf(inherit.aes = FALSE,
-          data = final_joins, 
+          data = final_joins,
           alpha = 0, col = "purple",
           lwd = .35) +
   geom_sf(inherit.aes = FALSE,
@@ -1244,11 +1281,6 @@ p_ob_map <- endemicity_df_v2 %>%
           pch = 21,
           size = .6,
           stroke = .2) +
-  # geom_sf(inherit.aes = FALSE,
-  #         aes(pch = admin_level),
-  #         data = st_centroid(final_joins %>% select(-geom.y)), 
-  #         alpha = 1, col = "purple",
-  #         size = .8, lwd = .05) +
   taxdat::map_theme() +
   theme(panel.border = element_blank()) +
   theme(legend.position = c(.1, .3)) +
@@ -1256,11 +1288,85 @@ p_ob_map <- endemicity_df_v2 %>%
   labs(fill = "10-year risk\ncategory",
        pch = "Administrative\nlevel") +
   guides(fill = "none") +
-  scale_shape_manual(values = c(1, 3, 4)) +
-  facet_wrap(~admin_level)
+  scale_shape_manual(values = c(1, 3, 4))
 
-ggsave(plot = p_ob_map,
+ggsave(plot = p_ob_map2,
        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4B2_map.png"),
+       width = 12,
+       height = 5,
+       dpi = 300)
+
+ob_count_dat <-  obs_outbreaks %>% 
+  mutate(outbreak = "       outbreak\n       observed") %>% 
+  bind_rows(non_obs_outbreaks %>% 
+              mutate(outbreak = "no outbreak       \nobserved       ")) %>% 
+  mutate(outbreak = factor(outbreak, 
+                           levels = c("no outbreak       \nobserved       ",
+                                      "       outbreak\n       observed"))) %>% 
+  mutate(endemicity = factor(endemicity, 
+                             levels = levels(endemicity_df_v2$endemicity)),
+         AFRO_region = factor(AFRO_region %>% 
+                                str_replace(" ", "\n"),
+                              levels = rev(c("overall", get_AFRO_region_levels() %>% 
+                                               str_replace(" ", "\n"))),
+                              labels = rev(c("overall", get_AFRO_region_levels() %>% 
+                                               str_replace(" ", "\n")))))
+
+p_frac_regions <- ob_count_dat %>% 
+  filter(AFRO_region != "overall")  %>%
+  mutate(outbreak = str_remove_all(outbreak, "       ")) %>% 
+  ggplot(aes(x = frac, y = AFRO_region, fill = endemicity)) +
+  geom_bar(stat = "identity") +
+  theme_bw() +
+  scale_fill_manual(values = taxdat:::colors_endemicity()) +
+  labs(x = "proportion of locations", y = "") +
+  guides(fill = "none") +
+  facet_grid(outbreak ~ ., switch = "y") +
+  theme(strip.placement = "outer")
+
+p_frac_overall <- ob_count_dat %>% 
+  filter(AFRO_region == "overall")  %>% 
+  ggplot(aes(x = outbreak, y = frac, fill = endemicity)) +
+  geom_bar(stat = "identity") +
+  theme_bw() +
+  scale_fill_manual(values = taxdat:::colors_endemicity()) +
+  labs(y = "proportion of locations", x = "") +
+  guides(fill = "none")
+
+
+p_ob_frac_comb <- cowplot::plot_grid(
+  p_frac_overall +
+    theme(plot.margin = unit(c(1, .3, 0, 1), units = "lines")) +
+    theme(axis.text = element_text(size = 8, hjust = .5),
+          axis.title = element_text(size = 10)),
+  p_frac_regions +
+    theme(plot.margin = unit(c(1, 1, 0, 1), units = "lines"),
+          strip.switch.pad.grid = unit(.7, units = "line")) +
+    theme(axis.text = element_text(size = 8),
+          axis.title = element_text(size = 10),
+          strip.text = element_text(size = 8)), 
+  nrow = 1,
+  labels = c("c", "d"),
+  rel_widths = c(.6, 1),
+  align = "h",
+  axis = "tb"
+)
+
+p_ob_frac_comb
+
+p_ob_map2_comb <- cowplot::plot_grid(
+  p_ob_map2,
+  p_ob_frac_comb,
+  nrow = 1,
+  labels = c("b", NA),
+  rel_widths = c(.6, 1),
+  align = "h",
+  axis = "tb"
+) +
+  theme(plot.background = element_rect(fill = "white", color = "white"))
+
+ggsave(plot = p_ob_map2_comb,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4B2_comb.png"),
        width = 12,
        height = 5,
        dpi = 300)
@@ -1270,7 +1376,7 @@ pd1 <- position_dodge(.4)
 pd2 <- position_dodge(.3)
 
 p_ob_1 <- baseline_prob_stats %>% 
-  ggplot(aes(x = param, y = mean, ymin = q5, ymax = q95, color = AFRO_region)) +
+  ggplot(aes(x = param, y = mean, ymin = q2.5, ymax = q97.5, color = AFRO_region)) +
   geom_point(position = pd1) +
   geom_errorbar(width = 0, position = pd1) +
   theme_bw() +
@@ -1283,15 +1389,15 @@ p_ob_1 <- baseline_prob_stats %>%
         axis.title = element_text(size = 10))
 
 p_ob_2 <- logOR_stats %>% 
-  ggplot(aes(x = param, y = mean, ymin = q5, ymax = q95, color = AFRO_region)) +
+  ggplot(aes(x = param, y = mean, ymin = q2.5, ymax = q97.5, color = AFRO_region)) +
   geom_point(position = pd2) +
   geom_errorbar(width = 0, position = pd2) +
   geom_hline(aes(yintercept = 0), lty = 3, lwd = .6) +
   facet_grid(. ~ what, scales = "free", space = "free") +
   theme_bw() +
   scale_color_manual(values = c("overall" = "black", taxdat::colors_afro_regions())) +
-  labs(x = "", y = "log-Odds ratio", color = "WHO region") +
-  theme(legend.position = c(.11, .77),
+  labs(x = "", y = "log-Odds ratio", color = NULL) +
+  theme(legend.position = c(.11, .8),
         legend.key.height = unit(.75, units = "lines"),
         axis.text = element_text(size = 8),
         axis.title = element_text(size = 10),
@@ -1299,9 +1405,14 @@ p_ob_2 <- logOR_stats %>%
         legend.text = element_text(size = 6))
 
 p_fig4B2 <- cowplot::plot_grid(
-  p_ob_map +
-    theme(strip.background = element_blank(),
-          plot.margin = unit(c(.2, 1.5, 0, 1.5), units = "lines")),
+  # p_ob_map +
+  #   theme(strip.background = element_blank(),
+  #         plot.margin = unit(c(.2, 1.5, 0, 1.5), units = "lines")),
+  p_ob_map2_comb +
+    theme(
+      # strip.background = element_blank(),
+      # plot.margin = unit(c(.2, 1.5, 0, 1.5), units = "lines")
+    ),
   cowplot::plot_grid(
     p_ob_1, 
     p_ob_2,
@@ -1310,10 +1421,10 @@ p_fig4B2 <- cowplot::plot_grid(
     align = "v",
     axis = "tb"
   ) +
-    theme(plot.margin = unit(c(1, 1, 1, 1), units = "lines")),
+    theme(plot.margin = unit(c(.5, .5, .5, .5), units = "lines")),
   ncol = 1,
-  rel_heights = c(.8, 1),
-  labels = c("b", "c"),
+  rel_heights = c(.95, 1),
+  labels = c(NA, "e"),
   align = "h",
   axis = "lr"
 ) +
