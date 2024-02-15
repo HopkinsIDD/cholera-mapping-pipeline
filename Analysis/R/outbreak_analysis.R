@@ -265,7 +265,7 @@ save(outbreaks, final_joins, stan_data, dat, u_countries, u_regions,
 
 
 # Data for stan
-stan_model <- cmdstan_model("Analysis/Stan/outbreak_analysis_multilevel_hierarchical_full_sens.stan")
+stan_model <- cmdstan_model("Analysis/Stan/outbreak_analysis_multilevel_hierarchical.stan")
 
 
 stan_fit <- stan_model$sample(
@@ -276,7 +276,7 @@ stan_fit <- stan_model$sample(
   refresh = 100
 )
 
-stan_fit$save_object("Analysis/notebooks/stan_fit_full_sens.rds")
+stan_fit$save_object("Analysis/notebooks/stan_fit.rds")
 
 stan_genquant <- stan_model$generate_quantities(
   stan_fit,
@@ -284,7 +284,7 @@ stan_genquant <- stan_model$generate_quantities(
   parallel_chains = 4
 )
 
-stan_genquant$save_object("Analysis/notebooks/stan_genquant_full_sens.rds")
+stan_genquant$save_object("Analysis/notebooks/stan_genquant.rds")
 
 # Save for figures --------------------------------------------------------
 
@@ -362,7 +362,7 @@ baseline_prob_stats <- bind_rows(
 
 
 
-stan_genquant$summary("ICC", mean, taxdat:::custom_quantile2) %>% 
+ICC_stats <- stan_genquant$summary("ICC", mean, taxdat:::custom_quantile2) %>% 
   mutate(AFRO_region = u_regions[str_extract(variable, "(?<=\\[)[0-9](?=,)") %>% as.numeric()],
          param = colnames(stan_data$X)[as.numeric(str_extract(variable, "(?<=,)[0-9](?=\\])"))] %>% 
            str_remove("endemicity") %>% 
@@ -378,8 +378,8 @@ param_by_country <- stan_genquant$summary("c_beta", mean, median, taxdat:::custo
   get_AFRO_region(ctry_col = "country") %>% 
   mutate(AFRO_region = factor(AFRO_region, levels = get_AFRO_region_levels())) 
 
-save(final_joins, logOR_stats, baseline_prob_stats, param_by_country,
-     file = "Analysis/notebooks/recent_cholera_outbreaks_res_full_sens.rdata")
+save(final_joins, logOR_stats, OR_stats, baseline_prob_stats, param_by_country, ICC_stats,
+     file = "Analysis/notebooks/recent_cholera_outbreaks_res.rdata")
 
 # Plots -------------------------------------------------------------------
 # 
