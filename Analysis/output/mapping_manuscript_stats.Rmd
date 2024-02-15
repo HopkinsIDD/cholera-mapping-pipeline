@@ -1194,7 +1194,7 @@ cat(
     - Sustained high risk OR:
       - Central Africa: {with(OR_txt, txt[param == 'sustained high risk' & AFRO_region == 'Central Africa'])}
       - Eastern Africa: {with(OR_txt, txt[param == 'sustained high risk' & AFRO_region == 'Eastern Africa'])}
-    - ICC sustained high risk ranges: {range(ICC_stats$mean[ICC_stats$param == 'sustained high risk'])}
+    - ICC sustained high risk ranges: {str_c(formatC(digits = 2, format = 'f', range(ICC_stats$mean[ICC_stats$param == 'sustained high risk'])), collapse = '-')}
     ")
 )
 ```
