@@ -934,6 +934,45 @@ ggsave(plot = p_fig1_v2,
 
 # Figure 2: changes between periods ------------------------------------------
 
+
+# Alternative figure 2A
+p_fig2A_alternative <- combined_mai_changes %>% 
+  mutate(p1 = log10(`2011-2015`*1e5), 
+         p2 = log10(`2016-2020`*1e5),
+         AFRO_region = case_when(admin_level != "ADM2" ~ admin_level,
+                                 TRUE ~ region),
+         admin_level = ifelse(admin_level == "ADM2", "country", admin_level),
+         country = factor(country) %>% 
+           forcats::fct_reorder(p2),
+         increase = rate_ratio > 1) %>% 
+  ggplot(aes(y = country)) +
+  geom_point(aes(x = p1))  +
+  geom_point(aes(x = p2), color = "red") + 
+  geom_segment(aes(x = p1, y = country, xend = p2, yend = country,
+                   lty = increase),
+               arrow = arrow(length = unit(0.15, "cm"), 
+                             type="closed")) +
+  ggh4x::facet_nested(admin_level + AFRO_region ~ ., scale = "free", 
+                      space = "free", switch = "y") +
+  theme_bw() +
+  theme(strip.placement = "out") +
+  labs(y = NULL, x = "Cholera incidence rate \n[reported cases per 100,000/year]",) +
+  scale_linetype_manual(values = c(4, 1))  +
+  scale_x_continuous(limits = c(-1.1, 2.3),
+                     breaks = seq(-1, 2),
+                     labels = formatC(10^(seq(-1, 2)),
+                                      digits = 1,
+                                      format = "fg", 
+                                      big.mark = ",") %>% 
+                       str_replace("0.1", "<= 0.1"))
+
+# Save
+ggsave(p_fig2A_alternative,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2A_alternative.png"),
+       width = 6,
+       height = 8, 
+       dpi = 150)
+
 ## Figure 2A: national-level scatterplot  ---------
 p_fig2A <- combined_mai_changes %>% 
   ggplot(aes(x = log10(`2011-2015`*1e5), 
@@ -1343,8 +1382,8 @@ ob_count_dat <-  obs_outbreaks %>%
   bind_rows(non_obs_outbreaks %>% 
               mutate(ocurrence = "no cholera       \nobserved       ")) %>% 
   mutate(ocurrence = factor(ocurrence, 
-                           levels = c("no cholera       \nobserved       ",
-                                      "       cholera\n       observed"))) %>% 
+                            levels = c("no cholera       \nobserved       ",
+                                       "       cholera\n       observed"))) %>% 
   mutate(endemicity = factor(endemicity, 
                              levels = levels(endemicity_df_v2$endemicity)),
          AFRO_region = factor(AFRO_region %>% 
