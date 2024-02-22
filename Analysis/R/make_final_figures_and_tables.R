@@ -949,7 +949,7 @@ p_fig2A_alternative <- combined_mai_changes %>%
   geom_point(aes(x = p1))  +
   geom_point(aes(x = p2), color = "red") + 
   geom_segment(aes(x = p1, y = country, xend = p2, yend = country,
-                   lty = increase),
+                   alpha = increase),
                arrow = arrow(length = unit(0.15, "cm"), 
                              type="closed")) +
   ggh4x::facet_nested(admin_level + AFRO_region ~ ., scale = "free", 
@@ -957,7 +957,8 @@ p_fig2A_alternative <- combined_mai_changes %>%
   theme_bw() +
   theme(strip.placement = "out") +
   labs(y = NULL, x = "Cholera incidence rate \n[reported cases per 100,000/year]",) +
-  scale_linetype_manual(values = c(4, 1))  +
+  # scale_linetype_manual(values = c(4, 1))  +
+  scale_alpha_manual(values = c(.2, .55)) +
   scale_x_continuous(limits = c(-1.1, 2.3),
                      breaks = seq(-1, 2),
                      labels = formatC(10^(seq(-1, 2)),
@@ -971,7 +972,7 @@ ggsave(p_fig2A_alternative,
        file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2A_alternative.png"),
        width = 6,
        height = 8, 
-       dpi = 150)
+       dpi = 300)
 
 ## Figure 2A: national-level scatterplot  ---------
 p_fig2A <- combined_mai_changes %>% 
