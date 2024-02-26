@@ -934,7 +934,6 @@ ggsave(plot = p_fig1_v2,
 
 # Figure 2: changes between periods ------------------------------------------
 
-
 # Alternative figure 2A
 p_fig2A_alternative <- combined_mai_changes %>% 
   mutate(p1 = log10(`2011-2015`*1e5), 
@@ -980,7 +979,9 @@ p_fig2A <- combined_mai_changes %>%
              y =  log10(`2016-2020`*1e5), 
              col = region)) +
   geom_abline(lty = 2, lwd = .2) +
-  geom_point(aes(pch = admin_level, alpha = admin_level), size = 2) +
+  geom_point(aes(pch = admin_level,
+                 # alpha = admin_level
+                 size = admin_level)) +
   ggrepel::geom_label_repel(
     aes(label = country, size = admin_level, alpha = admin_level),
     min.segment.length = 0,
@@ -991,7 +992,7 @@ p_fig2A <- combined_mai_changes %>%
     ylim = c(-1, 2.2)) +
   scale_size_manual(values = c(6, 4, 2.5)) +
   scale_shape_manual(values = c(15, 17, 16)) +
-  scale_alpha_manual(values = c(1, 1, .75)) +
+  # scale_alpha_manual(values = c(1, 1, .75)) +
   scale_color_manual(values = c("black", colors_afro_regions())) +
   theme_bw() +
   guides(color = guide_legend("WHO regions")) +
@@ -1009,7 +1010,9 @@ p_fig2A <- combined_mai_changes %>%
                                       big.mark = ",")) +
   labs(x = "Incidence rate 2011-2015\n[cases per 100,000/year]",
        y = "Incidence rate 2016-2020\n[cases per 100,000/year]") +
-  guides(color = "none", size = "none", shape = "none", alpha = "none")
+  guides(color = "none", size = "none", shape = "none", alpha = "none") +
+  scale_alpha_manual(values = c(1, 1, 0)) #+
+# scale_size_manual(values = c(3, 2, .7))
 
 
 # Save
@@ -1090,6 +1093,63 @@ ggsave(plot = p_fig2,
        width = 12,
        height = 6,
        dpi = 300)
+
+# Alternative with both dotplots and scatter plot
+p_fig2_alternative <- plot_grid(
+  p_fig2A_alternative +
+    theme(plot.margin = unit(c(2, 1, 1, 1), "lines")),
+  plot_grid(
+    p_fig2A +
+      theme(plot.margin = unit(c(2, 3, 2.5, 1.5), "lines")),
+    p_fig2B ,#+
+    # theme(plot.margin = unit(c(2, 2, 2, 2), "lines")),
+    ncol = 1,
+    labels = c("b", "c")
+  ) +
+    theme(panel.background = element_rect(fill = "white", color = "white")),
+  ncol = 2,
+  nrow = 1,
+  labels = c("a", NA_character_),
+  rel_widths = c(1, 1)
+) +
+  theme(panel.background = element_rect(fill = "white", color = "white"))
+
+# Save
+ggsave(plot = p_fig2_alternative,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2_alternative.png"),
+       width = 15,
+       height = 10,
+       dpi = 300)
+
+
+p_fig2_alternative2 <- plot_grid(
+  plot_grid(
+    p_fig2A +
+      theme(plot.margin = unit(c(1, 1, 0, 1), "lines")),
+    p_fig2A_alternative +
+      theme(plot.margin = unit(c(2, 1, 1, 1), "lines")),
+    ncol = 1,
+    labels = c("a", "b"),
+    rel_heights = c(.5, 1),
+    align = "v",
+    axis = "lr"
+  ) +
+    theme(panel.background = element_rect(fill = "white", color = "white")),
+  p_fig2B,
+  ncol = 2,
+  nrow = 1,
+  labels = c(NA_character_, "c"),
+  rel_widths = c(1, 1.6)
+) +
+  theme(panel.background = element_rect(fill = "white", color = "white"))
+
+# Save
+ggsave(plot = p_fig2_alternative2,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2_alternative2.png"),
+       width = 21,
+       height = 12,
+       dpi = 100)
+
 
 
 # Figure 3: population at risk --------------------------------------------
@@ -1352,7 +1412,7 @@ p_ob_map2 <- endemicity_df_v2 %>%
   geom_sf(aes(fill = endemicity), alpha = .5, lwd = .005, color = "white") +
   geom_sf(inherit.aes = FALSE,
           data = final_joins,
-          aes(color = "locations with\nreportedcholera\nin 2022-2023"),
+          aes(color = "locations with\nreported cholera\nin 2022-2023"),
           alpha = 0,
           lwd = .35) +
   geom_sf(inherit.aes = FALSE,
@@ -1368,7 +1428,7 @@ p_ob_map2 <- endemicity_df_v2 %>%
   theme(legend.position = c(.23, .4)) +
   scale_fill_manual(values = taxdat:::colors_endemicity()) +
   labs(color = NULL) +
-  guides(fill = "none") +
+  guides(fill = guide_legend("10-year risk\ncategory", override.aes = list(alpha = 1))) +
   scale_shape_manual(values = c(1, 3, 4))
 
 ggsave(plot = p_ob_map2,
@@ -1379,10 +1439,10 @@ ggsave(plot = p_ob_map2,
 
 # Distribution of 10-year risk categories among ADM2 locations
 ob_count_dat <-  obs_outbreaks %>% 
-  mutate(ocurrence = "       cholera\n       observed") %>% 
+  mutate(occurrence = "       cholera\n       observed") %>% 
   bind_rows(non_obs_outbreaks %>% 
-              mutate(ocurrence = "no cholera       \nobserved       ")) %>% 
-  mutate(ocurrence = factor(ocurrence, 
+              mutate(occurrence = "no cholera       \nobserved       ")) %>% 
+  mutate(occurrence = factor(occurrence, 
                             levels = c("no cholera       \nobserved       ",
                                        "       cholera\n       observed"))) %>% 
   mutate(endemicity = factor(endemicity, 
@@ -1396,25 +1456,35 @@ ob_count_dat <-  obs_outbreaks %>%
 
 p_frac_regions <- ob_count_dat %>% 
   filter(AFRO_region != "overall")  %>%
-  mutate(ocurrence = str_remove_all(ocurrence, "       ")) %>% 
+  mutate(occurrence = str_remove_all(occurrence, "       ")) %>% 
   ggplot(aes(x = frac, y = AFRO_region, fill = endemicity)) +
   geom_bar(stat = "identity") +
   theme_bw() +
   scale_fill_manual(values = taxdat:::colors_endemicity()) +
-  labs(x = "proportion of locations", y = "") +
+  labs(x = "proportion of locations (ADM2 or lower)", y = "") +
   guides(fill = "none") +
-  facet_grid(ocurrence ~ ., switch = "y") +
+  facet_grid(occurrence ~ ., switch = "y") +
   theme(strip.placement = "outer")
 
 p_frac_overall <- ob_count_dat %>% 
   filter(AFRO_region == "overall")  %>% 
-  ggplot(aes(x = ocurrence, y = frac, fill = endemicity)) +
+  ggplot(aes(x = occurrence, y = frac, fill = endemicity)) +
+  geom_bar(stat = "identity") +
+  theme_bw() +
+  scale_fill_manual(values = taxdat:::colors_endemicity()) +
+  labs(y = "proportion of locations (ADM2 or lower)", x = "") +
+  guides(fill = "none")
+
+p_frac_overall2 <- ob_count_dat %>% 
+  mutate(occurrence = str_remove_all(occurrence, "  ")) %>% 
+  filter(AFRO_region == "overall")  %>% 
+  ggplot(aes(x = occurrence, y = frac, fill = endemicity)) +
   geom_bar(stat = "identity") +
   theme_bw() +
   scale_fill_manual(values = taxdat:::colors_endemicity()) +
   labs(y = "proportion of locations", x = "") +
-  guides(fill = "none")
-
+  guides(fill = "none") +
+  coord_flip()
 
 p_ob_frac_comb <- cowplot::plot_grid(
   p_frac_overall +
@@ -1465,11 +1535,11 @@ p_ob_2 <- logOR_stats %>%
   scale_color_manual(values = c("overall" = "black", taxdat::colors_afro_regions())) +
   labs(x = "10-year cholera risk category", y = "log-Odds ratio", color = NULL) +
   theme(legend.position = c(.145, .84),
-        legend.key.height = unit(.5, units = "lines"),
+        legend.key.height = unit(.75, units = "lines"),
         axis.text = element_text(size = 8),
         axis.title = element_text(size = 10),
         legend.title = element_blank(),
-        legend.text = element_text(size = 6))
+        legend.text = element_text(size = 8))
 
 p_fig5_bcd <- cowplot::plot_grid(
   p_ob_frac_comb,
@@ -1509,6 +1579,63 @@ ggsave(plot = p_fig5,
        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_5.png"),
        width = 13,
        height = 7,
+       dpi = 300)
+
+
+# Alternative for figure 5 with only 4 panels
+p_ob_map3 <- ggdraw() +
+  draw_plot(p_ob_map2 +
+              theme(legend.position = c(.23, .5))) +
+  draw_plot(p_frac_overall, x = .3, y = .3, width = .2, height = .3)
+
+p_fig5_alternative <- plot_grid(
+  plot_grid(
+    p_ob_map2, 
+    plot_grid(
+      p_frac_overall2  +
+        theme(plot.margin = unit(c(2, 3, 0, 1), units = "lines"),
+              axis.text.x = element_blank(),
+              axis.title.x = element_blank(),
+              axis.ticks.x = element_blank()),
+      p_frac_regions +
+        theme(plot.margin = unit(c(.5, 3, 1, 1), units = "lines")), 
+      labels = c("c", "d"),
+      align = "v",
+      axis = "lr",
+      rel_heights = c(.4, 1),
+      ncol = 1
+    ),
+    nrow = 1,
+    rel_widths = c(1.2, 1),
+    align = "h",
+    axis = "tb",
+    labels = c("a", NA_character_)
+  ),
+  plot_grid(
+    p_ob_1 +
+      guides(color = guide_legend("region")) +
+      theme(legend.position = "right") +
+      theme(plot.margin = unit(c(1, 3, 1, 1), units = "lines")), 
+    p_ob_2 +
+      guides(color = "none"),
+    nrow = 1,
+    rel_widths = c(.7, 1),
+    align = "h",
+    axis = "tb"
+  ) +
+    theme(plot.margin = unit(c(1, 3, 1, 3), units = "lines")),
+  ncol = 1,
+  rel_heights = c(1.5, 1),
+  labels = c(NA_character_, "e"),
+  align = "h",
+  axis = "lr"
+) +
+  theme(plot.background = element_rect(fill = "white", color = "white"))
+
+ggsave(plot = p_fig5_alternative,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_5_alternative.png"),
+       width = 13,
+       height = 12,
        dpi = 100)
 
 
