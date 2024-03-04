@@ -486,11 +486,30 @@ mai_grid_cases_draws <- run_all(
 # G. Risk categories ---------------------------------------------------------
 
 # Get the risk category by location at all admin levels 
-risk_categories <- run_all(
+risk_categories_95 <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_risk_category,
-  fun_name = "risk_categories",
+  fun_name = "risk_categories_95",
   fun_opts = list(cum_prob_thresh = 0.95),
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  interm_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)
+
+
+# Get the risk category by location at all admin levels 
+risk_categories_50 <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_risk_category,
+  fun_name = "risk_categories_50",
+  fun_opts = list(cum_prob_thresh = 0.50),
   prefix = opt$prefix,
   suffix = opt$suffix,
   error_handling = opt$error_handling,
