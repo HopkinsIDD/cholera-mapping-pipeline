@@ -17,7 +17,7 @@ coloramp_cases <- function(){c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993
 colors_admin_levels <- function(){c("#FFFF00","#CAE0C9", "#99CCFF", "#FF9999", "#CC9900", "#FF9933",'black')}
 colors_endemicity_high <- function(){c("red", "gray")}
 colors_endemicity_low <- function(){c("blue", "gray")}
-colors_endemicity <- function(){c("#FF0000", "#E65F5F", "#F2A8A7", "#837EE6")} #"#0C14ED"
+# colors_endemicity <- function(){c("#FF0000", "#E65F5F", "#F2A8A7", "#837EE6")} #"#0C14ED"
 colors_endemicity <- function(){
   # Based on cases
   c("#993404", "#D95F0E", "#FED98E", "gray")
@@ -62,7 +62,7 @@ output_plot_map <- function(sf_obj,
                             border_width = 0.005,
                             border_color = "white",
                             lake_alpha = 1,
-                            country_border_width = .3,
+                            country_border_width = .15,
                             country_border_color = "black",
                             cholera_dir = 'cholera-mapping-pipeline') {
   
