@@ -1160,3 +1160,96 @@ print(paste("There are", round(summary_both_high_risk_adm2_1120$bothhighrisk_adm
 invisible(gc())
 
 ```
+
+
+# Paragraph 6
+We modeled the association of 10-year risk categories with outbreak locations reported during the 2022-2024 WHO-declared cholera outbreak emergency to evaluate the practical utility of 10-year risk categories for disease control targeting (Figure 4B). A total of 502 locations reported cholera outbreaks in Africa in 2022-2023, among which 65.9% were at ADM2 level or lower (331 locations). After spatially joining ADM2 or lower locations to our ADM2 level 10-year risk categories, we found that 17.3% of outbreak locations were in sustained high ADM2 units (49 distinct ADM2 locations, vs. 1.6% of non-outbreak locations) and 23.0% in history of high risk ADM2 units (65 distinct ADM2 locations, vs. 11.4% of non-outbreak locations) (Figure 4C). Notably, 34.6% of distinct ADM2 outbreak locations (98 locations across 9 countries –  Burundi, Democratic Republic of Congo, Ethiopia, Kenya, Mozambique, Rwanda, Tanzania, South Africa and Zimbabwe, vs. 60.6% of non-outbreak locations) occurred in “sustained low risk” ADM2 units, 80.6% of which occurred in Southern Africa (79 of 98, Figure 4D). After accounting for possible under-reporting of cholera outbreak occurrence, we found that the odds for ADM2 units to experience a 2022-2023 outbreak increased with the severity of their 10-year (2011-2020) risk category relative to sustained low-risk ADM2 units, although the increases were not statistically significant in all regions; the largest odds ratios were observed in the “sustained high risk” category in Central (median OR 133.5, 95% CrI: 1.6-104,109.4) and Eastern Africa (median OR 71.3, 95% CrI: 2,9-16,474.6) (Figure 4E), with variations between country within regions (mean ICC range of sustained high risk category: 0.53-0.61, Supplementary Figure XX).
+
+
+```{r cholrea-occurrence-analysis}
+
+load(here("/home/cholerapipelinerestmp/postprocess/outbreak_analysis_data.rdata"))
+
+cat("Number of locations with occurrence data:\n")
+n_occ_loc <- nrow(final_joins)
+cat(n_occ_loc, "\n")
+
+cat("Number of locations with occurrence data at ADM2 or lower level (%):\n")
+n_occ_loc_adm2 <- nrow(final_joins %>% filter(admin_level >= 2))
+cat(str_glue("{n_occ_loc_adm2}/{n_occ_loc}, {formatC(format = 'f', digits = 1, n_occ_loc_adm2/n_occ_loc*100)}%\n"))
+
+
+occurrence_stats <- bind_rows(
+  obs_outbreaks %>% 
+    mutate(chol_occurrence = "observed outbreak"),
+  non_obs_outbreaks %>% 
+    mutate(chol_occurrence = "no observed outbreak")
+  ) %>% 
+  arrange(chol_occurrence) %>% 
+  group_by(chol_occurrence, AFRO_region) %>% 
+  mutate(tot = sum(n)) %>% 
+  ungroup() %>% 
+  mutate(text = str_glue("{n}/{tot} ({formatC(frac * 100, format = 'f', digits = 1)}%)")) %>% 
+  select(chol_occurrence, AFRO_region, endemicity, text) %>% 
+  pivot_wider(values_from = "text", 
+              names_from = "chol_occurrence") %>% 
+  mutate(AFRO_region = factor(AFRO_region, c("overall", taxdat::get_AFRO_region_levels()))) %>% 
+  arrange(AFRO_region, endemicity)
+
+cat("Distribution of 10-year classes in ADM2 or lower locations by observed outbreaks:\n")
+occurrence_stats %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F) %>% 
+  kableExtra::pack_rows(index = table(occurrence_stats$AFRO_region))
+
+
+cat("ADM units with outbreaks in sustained low regions\n")
+obs_outbreaks %>% 
+  ungroup() %>% 
+  filter(endemicity == "sustained low risk",
+         AFRO_region != "overall") %>% 
+  mutate(frac = n/sum(n),
+         tot = sum(n)) %>% 
+  mutate(text = str_glue("{n}/{tot} ({formatC(frac * 100, format = 'f', digits = 1)}%)")) %>%
+  select(-n, -frac, -tot) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+cat("Countries with outbreaks in sustained low regions\n")
+final_joins %>% 
+  st_drop_geometry() %>% 
+  filter(admin_level != "1") %>% 
+  distinct(location_period_id) %>% 
+  inner_join(endemicity %>% st_drop_geometry()) %>% 
+  filter(endemicity == "sustained low risk") %>% 
+  distinct(country) %>% 
+  get_AFRO_region(ctry_col = "country") %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
+
+```{r occurrence-model}
+load(here("/home/cholerapipelinerestmp/postprocess/recent_cholera_outbreaks_res.rdata"))
+
+cat("Odd ratios of cholera occurrence by region:\n")
+OR_text <- OR_stats %>% 
+  mutate(
+    text = str_c(
+      formatC(median, format = "f", digits = 1),
+      " (",
+      formatC(q2.5, format = "f", digits = 1),
+      "-",
+      formatC(q97.5, format = "f", digits = 1),
+      ")"
+    )
+  ) %>% 
+  select(AFRO_region, param, text) %>% 
+  arrange(AFRO_region, param) %>% 
+  pivot_wider(values_from = "text",
+              names_from = "AFRO_region")
+
+OR_text %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F) 
+```
+
