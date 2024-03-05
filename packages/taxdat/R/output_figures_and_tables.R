@@ -33,7 +33,7 @@ colors_risk_categories <- function() {
 #' @export
 colors_afro_regions <- function(){
   # colors <- RColorBrewer::brewer.pal("Set2", n = 4)
-  colors <- c("#024554", "#FFA378", "#D9CCC1", "#A8B545")
+  colors <- c("#FFA378", "#A8B545", "#8C796D", "#024554")
   names(colors) <- c("Western Africa", "Central Africa",
                      # "Eastern Mediterranean",
                      "Eastern Africa", "Southern Africa")
