@@ -849,6 +849,32 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
 } else {
   cat("---- Loading pre-computed data. \n")
   load(opt$bundle_filename)
+  
+  #load mai_change_stats (4000 draws a separate file)
+  mai_change_stats <- readRDS(str_glue("{opt$output_dir}/mai_ratio_stats.rds")) %>% 
+    st_drop_geometry() %>% 
+    as_tibble()
+  
+  # Number of people living in different risk categories
+  # threshold is 50%
+  risk_pop_50_adm2 <- combine_period_output(prefix_list = prefix_list,
+                                            output_name = "risk_categories_50",
+                                            output_dir = opt$output_dir) %>% 
+    filter(admin_level == "ADM2"|(admin_level == "ADM1" & country == "LSO")) %>% 
+    get_AFRO_region(ctry_col = "country")  %>% 
+    mutate(AFRO_region = factor(AFRO_region, 
+                                levels = get_AFRO_region_levels())) %>% 
+    st_drop_geometry()
+  
+  # threshold is 95%
+  risk_pop_95_adm2 <- combine_period_output(prefix_list = prefix_list,
+                                            output_name = "risk_categories_95",
+                                            output_dir = opt$output_dir) %>% 
+    filter(admin_level == "ADM2"|(admin_level == "ADM1" & country == "LSO")) %>% 
+    get_AFRO_region(ctry_col = "country")  %>% 
+    mutate(AFRO_region = factor(AFRO_region, 
+                                levels = get_AFRO_region_levels())) %>% 
+    st_drop_geometry()
 }
 
 # Figure 1: cases ---------------------------------------------------------
@@ -944,6 +970,9 @@ ggsave(plot = p_fig1_v2,
 
 # Figure 2: changes between periods ------------------------------------------
 
+## load mai region change stats 
+mai_region_change_stats<-readRDS(str_glue("{opt$output_dir}/mai_region_ratio_stats.rds"))
+
 # Combine incidence rate ratio stats across countries and regions
 irr_periods <- bind_rows(
   mai_change_stats %>% 
@@ -1005,7 +1034,7 @@ make_dotlineplot <- function(df) {
                                         big.mark = ",") %>% 
                          str_replace("0.1", "<= 0.1")) +
     scale_color_manual(values = c("red", "blue")) +
-    scale_shape_manual(values = c(18, 4)) +
+    scale_shape_manual(values = c(1, 16)) +
     # ggh4x::facet_nested(admin_level + AFRO_region ~ ., scale = "free", 
     # space = "free", switch = "y") +
     theme_bw() +
@@ -1021,7 +1050,7 @@ make_dotlineplot <- function(df) {
 # Solution for strip colors in https://stackoverflow.com/questions/19440069/ggplot2-facet-wrap-strip-color-based-on-variable-in-data-set
 strip <- ggh4x::strip_themed(
   background_y = ggh4x::elem_list_rect(fill = colors_afro_regions()[c(2, 3, 4, 1)]),
-  text_y = ggh4x::elem_list_text(color = c("black", "black", "black", "white"))
+  text_y = ggh4x::elem_list_text(color = c("white", "white", "white", "white"))
 )
 
 p_fig2A <- plot_grid(
@@ -1338,6 +1367,30 @@ endemicity_df_50_v2 <- risk_pop_50_adm2 %>%
 
 saveRDS(endemicity_df_50_v2, file = str_glue("{opt$output_dir}/endemicity_50.rds"))
 
+# 95% cutoff ----
+endemicity_df_95_v2 <- risk_pop_95_adm2 %>% 
+  mutate(high_risk = risk_cat %in% get_risk_cat_dict()[3:6],
+         low_risk = risk_cat %in% get_risk_cat_dict()[1]) %>% 
+  group_by(country, location_period_id) %>% 
+  summarise(
+    endemicity = case_when(
+      sum(high_risk) == 2 ~ "high-both",
+      sum(low_risk) == 2 ~ "low-both",
+      sum(high_risk) == 1 ~ "high-either",
+      T ~ "mix"
+    ),
+    pop = max(pop)
+  ) %>% 
+  mutate(endemicity = factor(endemicity, 
+                             levels = c("high-both", "high-either",
+                                        "mix", "low-both"),
+                             labels = c("sustained high risk", 
+                                        "history of high risk",
+                                        "history of moderate risk",
+                                        "sustained low risk")))  
+
+saveRDS(endemicity_df_95_v2, file = str_glue("{opt$output_dir}/endemicity_95.rds"))
+
 # Figure 4A
 p_fig4A <- endemicity_df_50_v2 %>% 
   inner_join(u_space_sf, .) %>% 
@@ -1458,6 +1511,10 @@ ggsave(plot = p_fig4,
 # Load outbreak data and results
 load(str_c(opt$output_dir, "/outbreak_analysis_data.rdata"))
 load(str_c(opt$output_dir, "/recent_cholera_outbreaks_res.rdata"))
+
+# Load endemicity data for 50% cutoff and 95% cutoff 
+endemicity_df_v2_50 <- readRDS(str_glue("{opt$output_dir}/endemicity_50.rds"))
+endemicity_df_v2_95 <- readRDS(str_glue("{opt$output_dir}/endemicity_95.rds"))
 
 # Fix admin level naming
 final_joins <- final_joins %>% 
@@ -1603,7 +1660,7 @@ p_fig5 <- plot_grid(
   plot_grid(
     p_ob_map2, 
     plot_grid(
-      p_frac_overall2  +
+      p_frac_overall  +
         theme(plot.margin = unit(c(2, 3, 0, 1), units = "lines"),
               axis.text.x = element_blank(),
               axis.title.x = element_blank(),
@@ -1778,7 +1835,284 @@ ggsave(p_risk_cat_95,
        height = 6, 
        dpi = 300)
 
+## 95% cutoff related figures ----
+### Figure 3 supplement figures (95% cutoff) ----
+p_fig3B_95 <- risk_pop_95_adm2 %>% 
+  select(-shp_id) %>% 
+  filter(period == "2016-2020") %>% 
+  inner_join(u_space_sf, .) %>% 
+  output_plot_map(sf_obj = ., 
+                  lakes_sf = lakes_sf,
+                  rivers_sf = rivers_sf,
+                  all_countries_sf = afr_sf,
+                  fill_var = "risk_cat",
+                  fill_color_scale_type = "risk category") +
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 15),
+        legend.position = c(.2, .3),
+        panel.background = element_rect(fill = "white", color = "white"))+
+  guides(fill = guide_legend("Risk category"))
 
+# Save
+ggsave(p_fig3B_95,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_3B_95.png"),
+       width = 7,
+       height = 6, 
+       dpi = 300)
+
+p_fig3_95 <- plot_grid(
+  p_fig3A +
+    theme(plot.margin = unit(c(2, 1, 2, 2), units = "lines"),
+          legend.position = c(.75, .6)),
+  p_fig3B_95 +
+    theme(strip.background = element_blank(),
+          plot.margin = unit(c(1, 1, 1, 1), "lines")),
+  # theme(plot.margin = unit(c(-5, -5, -5, -3), units = "lines")),
+  nrow = 1,
+  labels = "auto"#,
+  # rel_widths = c(1, 1),
+  # align = "v",
+  # axis = "lr"
+) +
+  theme(panel.background = element_rect(fill = "white", color = "white"))
+
+# Save
+ggsave(plot = p_fig3_95,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_3_95.png"),
+       width = 12,
+       height = 6,
+       dpi = 600)
+
+### Figure 4 supplement figures (95% cutoff) ----
+p_fig4A_95 <- endemicity_df_95_v2 %>% 
+  inner_join(u_space_sf, .) %>% 
+  output_plot_map(sf_obj = .,
+                  lakes_sf = lakes_sf,
+                  rivers_sf = rivers_sf,
+                  all_countries_sf = afr_sf,
+                  fill_var = "endemicity",
+                  fill_color_scale_type = "endemicity",
+                  border_width = .03) +
+  theme(legend.position = c(.2, .3),
+        panel.background = element_rect(fill = "white", color = "white")) +
+  guides(fill = guide_legend("10-year risk\ncategory"))
+
+# Save
+ggsave(p_fig4A_95,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4A_risk_cat_95.png"),
+       width = 12,
+       height = 6, 
+       dpi = 150)
+
+p_fig4A_legend_95 <- ggdraw(
+  p_fig4A_95 +
+    theme(strip.background = element_blank(),
+          plot.margin = unit(c(1, 0, 1, 0), units = "lines")) +
+    guides(fill = "none")
+) +
+  draw_plot(endemicity_legend, .075, .24, .35, .25)
+
+p_fig4B_95 <- endemicity_df_95_v2  %>%
+  group_by(country) %>% 
+  complete(endemicity = unique(endemicity_df_95_v2$endemicity)) %>% 
+  get_AFRO_region(ctry_col = "country") %>% 
+  group_by(AFRO_region, country, endemicity) %>%
+  summarise(n = sum(!is.na(location_period_id)),
+            pop = sum(pop[!is.na(location_period_id)])) %>% 
+  group_by(AFRO_region, country) %>%
+  mutate(frac = pop/sum(pop)) %>% 
+  group_by(country) %>% 
+  mutate(
+    frac_other = frac[endemicity == "history of moderate risk"],
+    frac_high = sum(frac[endemicity %in% c("sustained high risk", "history of high risk")]),
+    frac_low = sum(frac[endemicity %in% c("sustained low risk")])
+  ) %>% 
+  ungroup() %>% 
+  mutate(endemicity = forcats::fct_rev(endemicity),
+         country = factor(country, levels = unique(country[order(frac_high, frac_other)])),
+  ) %>% 
+  ggplot(aes(y = country, x = frac, fill = endemicity)) +
+  geom_bar(stat = "identity") +
+  facet_grid(AFRO_region ~., scales = "free_y", space = "free_y") +
+  scale_fill_manual(values = rev(taxdat:::colors_endemicity())) +
+  theme_bw() +
+  labs(x = "fraction of population\n per 10-year risk category")
+
+ggsave(p_fig4B_95,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4B_95.png"),
+       width = 6,
+       height = 7, 
+       dpi = 150)
+
+p_fig4_95 <- plot_grid(
+  p_fig4A_legend_95 +
+    theme(panel.background = element_rect(fill = "white", color = "white")),
+  p_fig4B_95 +
+    guides(fill = "none") +
+    theme(panel.background = element_rect(fill = "white", color = "white"),
+          plot.margin = unit(c(2, 1.5, 1.5, 1.5), units = "lines")),
+  nrow = 1,
+  labels = "auto",
+  rel_widths = c(1, .5)
+) +
+  theme(panel.background = element_rect(fill = "white", color = "white"))
+
+# Save
+ggsave(plot = p_fig4_95,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4_95.png"),
+       width = 12,
+       height = 7,
+       dpi = 300)
+
+### Figure 5 supplement figures (95% cutoff) ----
+# Map of cholera occurrence locations
+p_ob_map2_95 <- endemicity_df_v2_95 %>% 
+  inner_join(u_space_sf, .) %>% 
+  select(-admin_level) %>% 
+  ggplot() +
+  geom_sf(data = afr_sf %>% 
+            select(-admin_level),
+          inherit.aes = FALSE,
+          lwd = 0.15,
+          color = "darkgray",
+          alpha = 0) +
+  geom_sf(aes(fill = endemicity), alpha = .5, lwd = .005, color = "white") +
+  geom_sf(inherit.aes = FALSE,
+          data = final_joins,
+          aes(color = "locations with\nreported cholera\nin 2022-2023"),
+          alpha = 0,
+          lwd = .35) +
+  geom_sf(inherit.aes = FALSE,
+          data = st_centroid(final_joins %>% select(-geom.y)),
+          alpha = 1, col = "purple",
+          fill = "white",
+          pch = 21,
+          size = .6,
+          stroke = .2) +
+  taxdat::map_theme() +
+  scale_color_manual(values = c("purple")) +
+  theme(panel.border = element_blank()) +
+  theme(legend.position = c(.23, .4)) +
+  scale_fill_manual(values = taxdat:::colors_endemicity()) +
+  labs(color = NULL) +
+  guides(fill = guide_legend("10-year risk\ncategory", override.aes = list(alpha = 1))) +
+  scale_shape_manual(values = c(1, 3, 4))
+
+ggsave(plot = p_ob_map2_95,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_5_a_map_95.png"),
+       width = 12,
+       height = 5,
+       dpi = 100)
+
+# Distribution of 10-year risk categories among ADM2 locations
+ob_count_dat_95 <-  obs_outbreaks %>% 
+  mutate(occurrence = "       cholera\n       observed") %>% 
+  bind_rows(non_obs_outbreaks %>% 
+              mutate(occurrence = "no cholera       \nobserved       ")) %>% 
+  mutate(occurrence = factor(occurrence, 
+                             levels = c("no cholera       \nobserved       ",
+                                        "       cholera\n       observed"))) %>% 
+  mutate(endemicity = factor(endemicity, 
+                             levels = levels(endemicity_df_v2_95$endemicity)),
+         AFRO_region = factor(AFRO_region %>% 
+                                str_replace(" ", "\n"),
+                              levels = rev(c("overall", get_AFRO_region_levels() %>% 
+                                               str_replace(" ", "\n"))),
+                              labels = rev(c("overall", get_AFRO_region_levels() %>% 
+                                               str_replace(" ", "\n")))))
+
+p_frac_regions_95 <- ob_count_dat_95 %>% 
+  filter(AFRO_region != "overall")  %>%
+  mutate(occurrence = str_remove_all(occurrence, "       ")) %>% 
+  ggplot(aes(x = frac, y = AFRO_region, fill = endemicity)) +
+  geom_bar(stat = "identity") +
+  theme_bw() +
+  scale_fill_manual(values = taxdat:::colors_endemicity()) +
+  labs(x = "proportion of locations (ADM2 or lower)", y = "") +
+  guides(fill = "none") +
+  facet_grid(occurrence ~ ., switch = "y") +
+  theme(strip.placement = "outer")
+
+
+p_frac_overall_95 <- ob_count_dat_95 %>% 
+  mutate(occurrence = str_remove_all(occurrence, "  ")) %>% 
+  filter(AFRO_region == "overall")  %>% 
+  ggplot(aes(x = occurrence, y = frac, fill = endemicity)) +
+  geom_bar(stat = "identity") +
+  theme_bw() +
+  scale_fill_manual(values = taxdat:::colors_endemicity()) +
+  labs(y = "proportion of locations", x = "") +
+  guides(fill = "none") +
+  coord_flip()
+
+p_ob_frac_comb_95 <- cowplot::plot_grid(
+  p_frac_overall_95 +
+    theme(plot.margin = unit(c(1, .3, 0, 1), units = "lines")) +
+    theme(axis.text = element_text(size = 8, hjust = .5),
+          axis.title = element_text(size = 10)),
+  p_frac_regions_95 +
+    theme(plot.margin = unit(c(1, 1, 0, 1), units = "lines"),
+          strip.switch.pad.grid = unit(.7, units = "line")) +
+    theme(axis.text = element_text(size = 8),
+          axis.title = element_text(size = 10),
+          strip.text = element_text(size = 8)), 
+  nrow = 1,
+  labels = c("b", "c"),
+  rel_widths = c(.6, 1),
+  align = "h",
+  axis = "tb"
+)
+
+p_fig5_95 <- plot_grid(
+  plot_grid(
+    p_ob_map2_95, 
+    plot_grid(
+      p_frac_overall_95  +
+        theme(plot.margin = unit(c(2, 3, 0, 1), units = "lines"),
+              axis.text.x = element_blank(),
+              axis.title.x = element_blank(),
+              axis.ticks.x = element_blank()),
+      p_frac_regions_95 +
+        theme(plot.margin = unit(c(.5, 3, 1, 1), units = "lines")), 
+      labels = c("b", "c"),
+      align = "v",
+      axis = "lr",
+      rel_heights = c(.4, 1),
+      ncol = 1
+    ),
+    nrow = 1,
+    rel_widths = c(1.2, 1),
+    align = "h",
+    axis = "tb",
+    labels = c("a", NA_character_)
+  ),
+  plot_grid(
+    p_ob_1 +
+      guides(color = guide_legend("region")) +
+      theme(legend.position = "right") +
+      theme(plot.margin = unit(c(1, 3, 1, 1), units = "lines")), 
+    p_ob_2 +
+      guides(color = "none"),
+    nrow = 1,
+    rel_widths = c(.7, 1),
+    align = "h",
+    axis = "tb",
+    labels = c("d", "e")
+  ) +
+    theme(plot.margin = unit(c(1, 3, 1, 3), units = "lines")),
+  ncol = 1,
+  rel_heights = c(1.5, 1),
+  # labels = c(NA_character_, "e"),
+  align = "h",
+  axis = "lr"
+) +
+  theme(plot.background = element_rect(fill = "white", color = "white"))
+
+ggsave(plot = p_fig5_95,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_5_95.png"),
+       width = 13,
+       height = 12,
+       dpi = 300)
 
 # Scraps ------------------------------------------------------------------
 
