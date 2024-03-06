@@ -496,10 +496,20 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
                                       output_dir = opt$output_dir)
   ## Population at risk ---------------------------------------
   
-  # Number of people living in different risk categories
-  risk_pop_adm2 <- combine_period_output(prefix_list = prefix_list,
-                                         output_name = "risk_categories",
-                                         output_dir = opt$output_dir) %>% 
+  # Risk categories for 50% cufoff
+  risk_pop_50_adm2 <- combine_period_output(prefix_list = prefix_list,
+                                            output_name = "risk_categories_50",
+                                            output_dir = opt$output_dir) %>% 
+    filter(admin_level == "ADM2"|(admin_level == "ADM1" & country == "LSO")) %>% 
+    get_AFRO_region(ctry_col = "country")  %>% 
+    mutate(AFRO_region = factor(AFRO_region, 
+                                levels = get_AFRO_region_levels())) %>% 
+    st_drop_geometry()
+  
+  # Risk categories for 95% cutoff
+  risk_pop_95_adm2 <- combine_period_output(prefix_list = prefix_list,
+                                            output_name = "risk_categories_95",
+                                            output_dir = opt$output_dir) %>% 
     filter(admin_level == "ADM2"|(admin_level == "ADM1" & country == "LSO")) %>% 
     get_AFRO_region(ctry_col = "country")  %>% 
     mutate(AFRO_region = factor(AFRO_region, 
@@ -736,7 +746,7 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
       admin_level = case_when(
         str_detect(location_period_id, "country") ~ "region",
         location_period_id == "tot" ~ "continent",
-        TRUE ~ "ADM2"),
+        TRUE ~ "ADM0"),
       admin_level = factor(admin_level, levels = c("continent", "region", "ADM2")),
       region = factor(region, levels = c("SSA", get_AFRO_region_levels()))
     )
@@ -800,37 +810,37 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   mai_adm_all <- mai_adm_all  %>% 
     inner_join(population %>% select(location_period_id, pop = mean, period)) 
   
-  ## Incidence ratios around rivers and lakes -----
-  
-  dist_sf <- list("rivers" = rivers_sf,
-                  "lakes" = lakes_sf,
-                  "coasts" = coasts_sf,
-                  "freshwater" = bind_rows(
-                    rivers_sf,
-                    lakes_sf
-                  ),
-                  "water" = bind_rows(
-                    rivers_sf,
-                    lakes_sf,
-                    coasts_sf
-                  ))
-  
-  
-  irr_dat <- map_df(seq_along(dist_sf), function(x) {
-    map_df(c("within", "category"), function(y) {
-      cat("---- ", names(dist_sf)[x], y, "\n")
-      
-      irr_dist(dist_sf[[x]],
-               dist_vec = seq(5e3, 100e3, by = 10e3),
-               mai_adm = mai_adm,
-               mai_adm_all = mai_adm_all,
-               grid_cases = grid_cases,
-               afr_sf = afr_sf,
-               dist_definition = y,
-               by_region = T) %>% 
-        mutate(what = names(dist_sf)[x])
-    })
-  })
+  # ## Incidence ratios around rivers and lakes -----
+  # 
+  # dist_sf <- list("rivers" = rivers_sf,
+  #                 "lakes" = lakes_sf,
+  #                 "coasts" = coasts_sf,
+  #                 "freshwater" = bind_rows(
+  #                   rivers_sf,
+  #                   lakes_sf
+  #                 ),
+  #                 "water" = bind_rows(
+  #                   rivers_sf,
+  #                   lakes_sf,
+  #                   coasts_sf
+  #                 ))
+  # 
+  # 
+  # irr_dat <- map_df(seq_along(dist_sf), function(x) {
+  #   map_df(c("within", "category"), function(y) {
+  #     cat("---- ", names(dist_sf)[x], y, "\n")
+  #     
+  #     irr_dist(dist_sf[[x]],
+  #              dist_vec = seq(5e3, 100e3, by = 10e3),
+  #              mai_adm = mai_adm,
+  #              mai_adm_all = mai_adm_all,
+  #              grid_cases = grid_cases,
+  #              afr_sf = afr_sf,
+  #              dist_definition = y,
+  #              by_region = T) %>% 
+  #       mutate(what = names(dist_sf)[x])
+  #   })
+  # })
   
   
   ## Save data  ---------------------------------------
@@ -934,50 +944,176 @@ ggsave(plot = p_fig1_v2,
 
 # Figure 2: changes between periods ------------------------------------------
 
-## Figure 2A: national-level scatterplot  ---------
-p_fig2A <- combined_mai_changes %>% 
-  ggplot(aes(x = log10(`2011-2015`*1e5), 
-             y =  log10(`2016-2020`*1e5), 
-             col = region)) +
-  geom_abline(lty = 2, lwd = .2) +
-  geom_point(aes(pch = admin_level, alpha = admin_level), size = 2) +
-  ggrepel::geom_label_repel(
-    aes(label = country, size = admin_level, alpha = admin_level),
-    min.segment.length = 0,
-    nudge_x = 0,
-    # nudge_y = .1,
-    max.overlaps = Inf, 
-    xlim = c(-1, 2.2),
-    ylim = c(-1, 2.2)) +
-  scale_size_manual(values = c(6, 4, 2.5)) +
-  scale_shape_manual(values = c(15, 17, 16)) +
-  scale_alpha_manual(values = c(1, 1, .75)) +
-  scale_color_manual(values = c("black", colors_afro_regions())) +
-  theme_bw() +
-  guides(color = guide_legend("WHO regions")) +
-  scale_x_continuous(limits = c(-1.1, 2.3),
-                     breaks = seq(-1, 2),
-                     labels = formatC(10^(seq(-1, 2)),
-                                      digits = 1,
-                                      format = "fg", 
-                                      big.mark = ",")) +
-  scale_y_continuous(limits = c(-1.1, 2.3),
-                     breaks = seq(-1, 2),
-                     labels = formatC(10^(seq(-1, 2)),
-                                      digits = 1,
-                                      format = "fg", 
-                                      big.mark = ",")) +
-  labs(x = "Incidence rate 2011-2015\n[cases per 100,000/year]",
-       y = "Incidence rate 2016-2020\n[cases per 100,000/year]") +
-  guides(color = "none", size = "none", shape = "none", alpha = "none")
+# Combine incidence rate ratio stats across countries and regions
+irr_periods <- bind_rows(
+  mai_change_stats %>% 
+    filter(admin_level == "ADM0") %>% 
+    select(unit = country, q2.5, q97.5),
+  mai_region_change_stats %>% 
+    rename(unit = AFRO_region),
+  mai_afr_change_stats %>% 
+    mutate(unit = "SSA")) %>% 
+  select(unit, irr_low = q2.5, irr_high = q97.5) %>% 
+  mutate(sigificant_irr = ifelse(irr_low > 1 | irr_high < 1, 
+                                 "Bayesian p-value <= 0.05",
+                                 "Bayesian p-value > 0.05") %>% 
+           factor(levels = c("Bayesian p-value <= 0.05", "Bayesian p-value > 0.05")))
 
+# Alternative figure 2A
+dat_for_incid_dotplot <-  combined_mai_changes %>% 
+  mutate(
+    # Incidence rates per 100,000
+    p1 = log10(`2011-2015`*1e5), 
+    p2 = log10(`2016-2020`*1e5),
+    AFRO_region = case_when(admin_level != "ADM2" ~ admin_level,
+                            TRUE ~ region),
+    admin_level = ifelse(admin_level == "ADM2", "country", admin_level),
+    country = factor(country) %>% 
+      forcats::fct_reorder(p2),
+    direction = ifelse(rate_ratio > 1, "increase", "decrease") %>% 
+      factor(levels = c("increase", "decrease"))) %>% 
+  inner_join(irr_periods, by = c("country" = "unit")) %>% 
+  select(admin_level, AFRO_region, country, p1, p2, direction, sigificant_irr) %>% 
+  mutate(country = factor(country) %>% 
+           forcats::fct_reorder(p2))
+
+make_dotlineplot <- function(df) {
+  df %>% 
+    pivot_longer(cols = c("p1", "p2"),
+                 names_to = "period")  %>% 
+    group_by(country) %>% 
+    mutate(p2_value = value[period == "p2"]) %>% 
+    ungroup() %>% 
+    mutate(country = factor(country) %>% 
+             forcats::fct_reorder(p2_value)) %>%
+    mutate(period = ifelse(period == "p1", "2011-2015", "2016-2020")) %>% 
+    ggplot(aes(y = country)) +
+    geom_point(aes(x = value, pch = period), size = 2)  +
+    geom_segment(data = df, 
+                 aes(x = p1, y = country, xend = p2, yend = country,
+                     alpha = sigificant_irr, color = direction),
+                 arrow = arrow(length = unit(0.15, "cm"), 
+                               type="closed"), 
+                 lwd = .3) +
+    # scale_linetype_manual(values = c(4, 1))  +
+    scale_alpha_manual(values = c(1, .3)) +
+    scale_x_continuous(limits = c(-1.1, 2.3),
+                       breaks = seq(-1, 2),
+                       labels = formatC(10^(seq(-1, 2)),
+                                        digits = 1,
+                                        format = "fg", 
+                                        big.mark = ",") %>% 
+                         str_replace("0.1", "<= 0.1")) +
+    scale_color_manual(values = c("red", "blue")) +
+    scale_shape_manual(values = c(18, 4)) +
+    # ggh4x::facet_nested(admin_level + AFRO_region ~ ., scale = "free", 
+    # space = "free", switch = "y") +
+    theme_bw() +
+    theme(strip.placement = "out") +
+    labs(y = NULL, 
+         x = "Cholera incidence rate \n[reported cases per 100,000/year]",
+         alpha = "Statististically-significant\nchange",
+         color = "Change direction",
+         shape = "Time period") +
+    theme(panel.grid.major.y = element_blank())
+}
+
+# Solution for strip colors in https://stackoverflow.com/questions/19440069/ggplot2-facet-wrap-strip-color-based-on-variable-in-data-set
+strip <- ggh4x::strip_themed(
+  background_y = ggh4x::elem_list_rect(fill = colors_afro_regions()[c(2, 3, 4, 1)]),
+  text_y = ggh4x::elem_list_text(color = c("black", "black", "black", "white"))
+)
+
+p_fig2A <- plot_grid(
+  # SSA
+  make_dotlineplot(dat_for_incid_dotplot %>% 
+                     filter(country == "SSA")) +
+    theme(axis.title.x = element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank()) +
+    guides(shape = "none", color = "none", alpha = "none"),
+  # Regions
+  make_dotlineplot(dat_for_incid_dotplot %>% 
+                     filter(str_detect(country, "Africa"))) +
+    theme(axis.title.x = element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank())  +
+    guides(shape = "none", color = "none", alpha = "none"),
+  # Countries
+  make_dotlineplot(dat_for_incid_dotplot %>% 
+                     filter(str_detect(country, "Africa|SSA", negate = T)) %>% 
+                     # Reoder in order of 2016-2020 incidence, this may be done
+                     # automatically based on the data, being lazy here
+                     mutate(AFRO_region = factor(
+                       AFRO_region, 
+                       levels = c("Central Africa", "Eastern Africa",
+                                  "Southern Africa", "Western Africa")))) +
+    ggh4x::facet_grid2(AFRO_region ~ ., switch = "y", scales = "free_y", space = "free_y",
+                       strip = strip),
+  # facet_grid(AFRO_region ~ ., switch = "y", scales = "free_y", space = "free_y"),
+  ncol = 1,
+  rel_heights = c(.15, .25, 1),
+  align = "v",
+  axis = "lr"
+)
+
+p_fig2A
 
 # Save
 ggsave(p_fig2A,
        file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2A.png"),
-       width = 8,
-       height = 7, 
-       dpi = 150)
+       width = 10,
+       height = 10, 
+       dpi = 300)
+
+## Figure 2A: national-level scatterplot  ---------
+# p_fig2A <- combined_mai_changes %>% 
+#   ggplot(aes(x = log10(`2011-2015`*1e5), 
+#              y =  log10(`2016-2020`*1e5), 
+#              col = region)) +
+#   geom_abline(lty = 2, lwd = .2) +
+#   geom_point(aes(pch = admin_level,
+#                  # alpha = admin_level
+#                  size = admin_level)) +
+#   ggrepel::geom_label_repel(
+#     aes(label = country, size = admin_level, alpha = admin_level),
+#     min.segment.length = 0,
+#     nudge_x = 0,
+#     # nudge_y = .1,
+#     max.overlaps = Inf, 
+#     xlim = c(-1, 2.2),
+#     ylim = c(-1, 2.2)) +
+#   scale_size_manual(values = c(6, 4, 2.5)) +
+#   scale_shape_manual(values = c(15, 17, 16)) +
+#   # scale_alpha_manual(values = c(1, 1, .75)) +
+#   scale_color_manual(values = c("black", colors_afro_regions())) +
+#   theme_bw() +
+#   guides(color = guide_legend("WHO regions")) +
+#   scale_x_continuous(limits = c(-1.1, 2.3),
+#                      breaks = seq(-1, 2),
+#                      labels = formatC(10^(seq(-1, 2)),
+#                                       digits = 1,
+#                                       format = "fg", 
+#                                       big.mark = ",")) +
+#   scale_y_continuous(limits = c(-1.1, 2.3),
+#                      breaks = seq(-1, 2),
+#                      labels = formatC(10^(seq(-1, 2)),
+#                                       digits = 1,
+#                                       format = "fg", 
+#                                       big.mark = ",")) +
+#   labs(x = "Incidence rate 2011-2015\n[cases per 100,000/year]",
+#        y = "Incidence rate 2016-2020\n[cases per 100,000/year]") +
+#   guides(color = "none", size = "none", shape = "none", alpha = "none") +
+#   scale_alpha_manual(values = c(1, 1, 0)) #+
+# # scale_size_manual(values = c(3, 2, .7))
+# 
+# 
+# # Save
+# ggsave(p_fig2A,
+#        file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2A.png"),
+#        width = 8,
+#        height = 7, 
+#        dpi = 150)
 
 
 ## Figure 2B: rate ratio maps ---------
@@ -991,6 +1127,18 @@ mai_adm2_change_stats <- mai_change_stats %>%
     T ~ "no change"
   ))#,
 # change_direction = factor(change_direction, levels = c("increase", "no change", "decrease")))
+
+# Get the model runs by country
+# Copy data from https://livejohnshopkins.sharepoint.com/:x:/r/sites/CholeraMappingGrant/Shared%20Documents/Mapping%20Pipeline/Documentation/final_models_by_country.csv?d=w11e3a81fd229423681237bc63bc530ec&csf=1&web=1&e=7DV68a
+# into Analysis/output
+model_runs_by_country <- read_csv("Analysis/output/final_models_by_country.csv") %>% 
+  janitor::clean_names() %>% 
+  rename(reason = reason_for_deviation_from_standard_model_and_data_processing,
+         country = country_code)
+
+# Select countries for which at least one period had a no-w run and non-0 cases
+no_w_case_runs <- model_runs_by_country %>% 
+  filter(model == "no_w", str_detect(reason, "zero", negate = T))
 
 #  Rate change map
 p_fig2B <- mai_change_adm %>% 
@@ -1011,7 +1159,9 @@ p_fig2B <- mai_change_adm %>%
           lwd = .05) +
   geom_sf(data = mai_adm2_change_stats  %>% 
             inner_join(u_space_sf, .) %>% 
-            filter(change_direction != "no change"),
+            filter(change_direction != "no change",
+                   # Remove no_w no-zero runs
+                   !(country %in% no_w_case_runs$country)),
           inherit.aes = F,
           aes(color = change_direction),
           alpha = 0,
@@ -1032,30 +1182,87 @@ ggsave(p_fig2B,
        dpi = 150)
 
 
-## Assemble Figure 2B ------
+## Assemble Figure 2 ------
+
+# p_fig2 <- plot_grid(
+#   p_fig2A +
+#     theme(plot.margin = unit(c(2.5, 1.5, 2.5, 1.5), "lines")),
+#   p_fig2B +
+#     theme(plot.margin = unit(c(1, 1, 1, 1), "lines")),
+#   nrow = 1,
+#   labels = "auto"#,
+# ) +
+#   theme(panel.background = element_rect(fill = "white", color = "white"))
+# 
+# # Save
+# ggsave(plot = p_fig2,
+#        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2.png"),
+#        width = 12,
+#        height = 6,
+#        dpi = 300)
+
 
 p_fig2 <- plot_grid(
   p_fig2A +
-    theme(plot.margin = unit(c(2.5, 1.5, 2.5, 1.5), "lines")),
-  p_fig2B +
-    theme(plot.margin = unit(c(1, 1, 1, 1), "lines")),
+    theme(plot.margin = unit(c(1, -1, 1, 1), "lines")),
+  p_fig2B,
+  ncol = 2,
   nrow = 1,
-  labels = "auto"#,
+  labels = c("a", "b"),
+  rel_widths = c(1, 1.5)
 ) +
   theme(panel.background = element_rect(fill = "white", color = "white"))
 
 # Save
 ggsave(plot = p_fig2,
        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2.png"),
-       width = 12,
-       height = 6,
+       width = 18,
+       height = 9,
        dpi = 300)
 
 
 # Figure 3: population at risk --------------------------------------------
 
-## Fig. 3A: ADM2 level risk category map --------
-p_fig3A <- risk_pop_adm2 %>% 
+## Fig. 3A: People per risk category --------
+
+# Uncertainty bounds for totals
+risk_pop_all <- pop_at_risk_all %>% 
+  filter(period == "2016-2020", 
+         admin_level == "ADM2",
+         risk_cat != "<1") %>% 
+  select(risk_cat, mean, q2.5, q97.5)
+
+# Values by AFRO region
+risk_pop_regions <- pop_at_risk_regions %>% 
+  filter(period == "2016-2020", 
+         admin_level == "ADM2",
+         risk_cat != "<1") %>% 
+  select(AFRO_region, risk_cat, mean, q2.5, q97.5)
+
+p_fig3A <- risk_pop_regions %>%
+  ggplot(aes(y = risk_cat, x = mean)) +
+  geom_bar(aes(fill = AFRO_region), stat = "identity", width = .5) +
+  geom_errorbar(data = risk_pop_all,
+                inherit.aes = F,
+                aes(xmin = q2.5, xmax = q97.5, y = risk_cat), width = 0.2) +
+  geom_point(data = risk_pop_all, aes(x = mean)) +
+  theme_bw() +
+  scale_fill_manual(values = colors_afro_regions()) +
+  scale_x_continuous(labels = function(x) {formatC(x/1e6)}) +
+  labs(y = "Incidence risk category", x = "ADM2 population at risk [millions]") +
+  theme(legend.title=element_blank()) 
+
+# Save
+ggsave(plot = p_fig3A,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_3A.png"),
+       width = 12,
+       height = 7,
+       dpi = 300)
+
+## Fig. 3B: ADM2 level risk category map --------
+
+# Use 50% cutoff for main figure
+p_fig3B <- risk_pop_50_adm2 %>% 
   select(-shp_id) %>% 
   filter(period == "2016-2020") %>% 
   inner_join(u_space_sf, .) %>% 
@@ -1073,56 +1280,19 @@ p_fig3A <- risk_pop_adm2 %>%
 
 
 # Save
-ggsave(p_fig3A,
-       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_3A.png"),
+ggsave(p_fig3B,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_3B.png"),
        width = 7,
        height = 6, 
-       dpi = 300)
-
-
-## Fig. 3B: People per risk category --------
-
-# Uncertainty bounds for totals
-risk_pop_all <- pop_at_risk_all %>% 
-  filter(period == "2016-2020", 
-         admin_level == "ADM2",
-         risk_cat != "<1") %>% 
-  select(risk_cat, mean, q2.5, q97.5)
-
-# Values by AFRO region
-risk_pop_regions <- pop_at_risk_regions %>% 
-  filter(period == "2016-2020", 
-         admin_level == "ADM2",
-         risk_cat != "<1") %>% 
-  select(AFRO_region, risk_cat, mean, q2.5, q97.5)
-
-p_fig3B <- risk_pop_regions %>%
-  ggplot(aes(y = risk_cat, x = mean)) +
-  geom_bar(aes(fill = AFRO_region), stat = "identity", width = .5) +
-  geom_errorbar(data = risk_pop_all,
-                inherit.aes = F,
-                aes(xmin = q2.5, xmax = q97.5, y = risk_cat), width = 0.2) +
-  geom_point(data = risk_pop_all, aes(x = mean)) +
-  theme_bw() +
-  scale_fill_manual(values = colors_afro_regions()) +
-  scale_x_continuous(labels = function(x) {formatC(x/1e6)}) +
-  labs(y = "Incidence risk category", x = "ADM2 population at risk [millions]") +
-  theme(legend.title=element_blank()) 
-
-# Save
-ggsave(plot = p_fig3B,
-       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_3B.png"),
-       width = 12,
-       height = 7,
        dpi = 300)
 
 ## Assemble Figure 3 ----
 
 p_fig3 <- plot_grid(
-  p_fig3B +
+  p_fig3A +
     theme(plot.margin = unit(c(2, 1, 2, 2), units = "lines"),
           legend.position = c(.75, .6)),
-  p_fig3A +
+  p_fig3B +
     theme(strip.background = element_blank(),
           plot.margin = unit(c(1, 1, 1, 1), "lines")),
   # theme(plot.margin = unit(c(-5, -5, -5, -3), units = "lines")),
@@ -1144,8 +1314,8 @@ ggsave(plot = p_fig3,
 
 # Figure 4 ----------------------------------------------------------------
 
-## Fig. 4A: Change in risk categories ----
-endemicity_df_v2 <- risk_pop_adm2 %>% 
+## Fig. 4A: Change in risk categories (50% cutoff) ----
+endemicity_df_50_v2 <- risk_pop_50_adm2 %>% 
   mutate(high_risk = risk_cat %in% get_risk_cat_dict()[3:6],
          low_risk = risk_cat %in% get_risk_cat_dict()[1]) %>% 
   group_by(country, location_period_id) %>% 
@@ -1166,10 +1336,10 @@ endemicity_df_v2 <- risk_pop_adm2 %>%
                                         "history of moderate risk",
                                         "sustained low risk")))  
 
-saveRDS(endemicity_df_v2, file = str_glue("{opt$output_dir}/endemicity.rds"))
+saveRDS(endemicity_df_50_v2, file = str_glue("{opt$output_dir}/endemicity_50.rds"))
 
 # Figure 4A
-p_fig4A <- endemicity_df_v2 %>% 
+p_fig4A <- endemicity_df_50_v2 %>% 
   inner_join(u_space_sf, .) %>% 
   output_plot_map(sf_obj = .,
                   lakes_sf = lakes_sf,
@@ -1188,262 +1358,6 @@ ggsave(p_fig4A,
        width = 12,
        height = 6, 
        dpi = 150)
-
-
-## Fig. 4B: Change in risk categories barplot --------
-
-p_fig4B <- endemicity_df_v2 %>% 
-  ungroup() %>% 
-  get_AFRO_region(ctry_col = "country") %>% 
-  mutate(AFRO_region = factor(AFRO_region, 
-                              levels = get_AFRO_region_levels())) %>% 
-  group_by(AFRO_region, endemicity) %>% 
-  summarise(pop = sum(pop)) %>% 
-  ggplot(aes(y = endemicity, x = pop, fill = AFRO_region)) +
-  geom_bar(stat = "identity", width = .5) +
-  theme_bw() +
-  scale_fill_manual(values = colors_afro_regions()) +
-  scale_x_continuous(labels = function(x) {formatC(x/1e6)}) +
-  scale_y_discrete(limits = rev) +
-  labs(y = "Change in risk category", x = "ADM2 population at risk [millions]")
-
-
-# Save
-ggsave(plot = p_fig4B,
-       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4B.png"),
-       width = 12,
-       height = 7,
-       dpi = 300)
-
-
-## Figure 4B outbreaks --------
-
-# Load outbreak data and results
-load(str_c(opt$output_dir, "/outbreak_analysis_data.rdata"))
-load(str_c(opt$output_dir, "/recent_cholera_outbreaks_res.rdata"))
-
-
-final_joins <- final_joins %>% 
-  mutate(admin_level = str_c("ADM", admin_level))
-
-# p_ob_map <- endemicity_df_v2 %>% 
-#   inner_join(u_space_sf, .) %>% 
-#   select(-admin_level) %>% 
-#   ggplot() +
-#   geom_sf(data = afr_sf %>% 
-#             select(-admin_level),
-#           inherit.aes = FALSE,
-#           lwd = 0.15,
-#           color = "darkgray",
-#           alpha = 0) +
-#   geom_sf(aes(fill = endemicity), alpha = .5, lwd = .005, color = "white") +
-#   geom_sf(inherit.aes = FALSE,
-#           data = final_joins %>% select(-admin_level), 
-#           alpha = 0, col = "purple",
-#           lwd = .075) +
-#   geom_sf(inherit.aes = FALSE,
-#           data = final_joins, 
-#           alpha = 0, col = "purple",
-#           lwd = .35) +
-#   geom_sf(inherit.aes = FALSE,
-#           data = st_centroid(final_joins %>% select(-geom.y)),
-#           alpha = 1, col = "purple",
-#           fill = "white",
-#           pch = 21,
-#           size = .6,
-#           stroke = .2) +
-#   # geom_sf(inherit.aes = FALSE,
-#   #         aes(pch = admin_level),
-#   #         data = st_centroid(final_joins %>% select(-geom.y)), 
-#   #         alpha = 1, col = "purple",
-#   #         size = .8, lwd = .05) +
-#   taxdat::map_theme() +
-#   theme(panel.border = element_blank()) +
-#   theme(legend.position = c(.1, .3)) +
-#   scale_fill_manual(values = taxdat:::colors_endemicity()) +
-#   labs(fill = "10-year risk\ncategory",
-#        pch = "Administrative\nlevel") +
-#   guides(fill = "none") +
-#   scale_shape_manual(values = c(1, 3, 4)) +
-#   facet_wrap(~admin_level)
-
-p_ob_map2 <- endemicity_df_v2 %>% 
-  inner_join(u_space_sf, .) %>% 
-  select(-admin_level) %>% 
-  ggplot() +
-  geom_sf(data = afr_sf %>% 
-            select(-admin_level),
-          inherit.aes = FALSE,
-          lwd = 0.15,
-          color = "darkgray",
-          alpha = 0) +
-  geom_sf(aes(fill = endemicity), alpha = .5, lwd = .005, color = "white") +
-  geom_sf(inherit.aes = FALSE,
-          data = final_joins,
-          alpha = 0, col = "purple",
-          lwd = .35) +
-  geom_sf(inherit.aes = FALSE,
-          data = st_centroid(final_joins %>% select(-geom.y)),
-          alpha = 1, col = "purple",
-          fill = "white",
-          pch = 21,
-          size = .6,
-          stroke = .2) +
-  taxdat::map_theme() +
-  theme(panel.border = element_blank()) +
-  theme(legend.position = c(.1, .3)) +
-  scale_fill_manual(values = taxdat:::colors_endemicity()) +
-  labs(fill = "10-year risk\ncategory",
-       pch = "Administrative\nlevel") +
-  guides(fill = "none") +
-  scale_shape_manual(values = c(1, 3, 4))
-
-ggsave(plot = p_ob_map2,
-       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4B2_map.png"),
-       width = 12,
-       height = 5,
-       dpi = 300)
-
-ob_count_dat <-  obs_outbreaks %>% 
-  mutate(outbreak = "       outbreak\n       observed") %>% 
-  bind_rows(non_obs_outbreaks %>% 
-              mutate(outbreak = "no outbreak       \nobserved       ")) %>% 
-  mutate(outbreak = factor(outbreak, 
-                           levels = c("no outbreak       \nobserved       ",
-                                      "       outbreak\n       observed"))) %>% 
-  mutate(endemicity = factor(endemicity, 
-                             levels = levels(endemicity_df_v2$endemicity)),
-         AFRO_region = factor(AFRO_region %>% 
-                                str_replace(" ", "\n"),
-                              levels = rev(c("overall", get_AFRO_region_levels() %>% 
-                                               str_replace(" ", "\n"))),
-                              labels = rev(c("overall", get_AFRO_region_levels() %>% 
-                                               str_replace(" ", "\n")))))
-
-p_frac_regions <- ob_count_dat %>% 
-  filter(AFRO_region != "overall")  %>%
-  mutate(outbreak = str_remove_all(outbreak, "       ")) %>% 
-  ggplot(aes(x = frac, y = AFRO_region, fill = endemicity)) +
-  geom_bar(stat = "identity") +
-  theme_bw() +
-  scale_fill_manual(values = taxdat:::colors_endemicity()) +
-  labs(x = "proportion of locations", y = "") +
-  guides(fill = "none") +
-  facet_grid(outbreak ~ ., switch = "y") +
-  theme(strip.placement = "outer")
-
-p_frac_overall <- ob_count_dat %>% 
-  filter(AFRO_region == "overall")  %>% 
-  ggplot(aes(x = outbreak, y = frac, fill = endemicity)) +
-  geom_bar(stat = "identity") +
-  theme_bw() +
-  scale_fill_manual(values = taxdat:::colors_endemicity()) +
-  labs(y = "proportion of locations", x = "") +
-  guides(fill = "none")
-
-
-p_ob_frac_comb <- cowplot::plot_grid(
-  p_frac_overall +
-    theme(plot.margin = unit(c(1, .3, 0, 1), units = "lines")) +
-    theme(axis.text = element_text(size = 8, hjust = .5),
-          axis.title = element_text(size = 10)),
-  p_frac_regions +
-    theme(plot.margin = unit(c(1, 1, 0, 1), units = "lines"),
-          strip.switch.pad.grid = unit(.7, units = "line")) +
-    theme(axis.text = element_text(size = 8),
-          axis.title = element_text(size = 10),
-          strip.text = element_text(size = 8)), 
-  nrow = 1,
-  labels = c("c", "d"),
-  rel_widths = c(.6, 1),
-  align = "h",
-  axis = "tb"
-)
-
-p_ob_frac_comb
-
-p_ob_map2_comb <- cowplot::plot_grid(
-  p_ob_map2,
-  p_ob_frac_comb,
-  nrow = 1,
-  labels = c("b", NA),
-  rel_widths = c(.6, 1),
-  align = "h",
-  axis = "tb"
-) +
-  theme(plot.background = element_rect(fill = "white", color = "white"))
-
-ggsave(plot = p_ob_map2_comb,
-       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4B2_comb.png"),
-       width = 12,
-       height = 5,
-       dpi = 300)
-
-
-pd1 <- position_dodge(.4)
-pd2 <- position_dodge(.3)
-
-p_ob_1 <- baseline_prob_stats %>% 
-  ggplot(aes(x = param, y = mean, ymin = q2.5, ymax = q97.5, color = AFRO_region)) +
-  geom_point(position = pd1) +
-  geom_errorbar(width = 0, position = pd1) +
-  theme_bw() +
-  facet_grid(. ~ what, scales = "free", space = "free") +
-  scale_color_manual(values = c("overall" = "black", taxdat::colors_afro_regions())) +
-  labs(x = "", y = "Probability") +
-  guides(color = "none") +
-  coord_cartesian(ylim = c(0, 1))  +
-  theme(axis.text = element_text(size = 8),
-        axis.title = element_text(size = 10))
-
-p_ob_2 <- logOR_stats %>% 
-  ggplot(aes(x = param, y = mean, ymin = q2.5, ymax = q97.5, color = AFRO_region)) +
-  geom_point(position = pd2) +
-  geom_errorbar(width = 0, position = pd2) +
-  geom_hline(aes(yintercept = 0), lty = 3, lwd = .6) +
-  facet_grid(. ~ what, scales = "free", space = "free") +
-  theme_bw() +
-  scale_color_manual(values = c("overall" = "black", taxdat::colors_afro_regions())) +
-  labs(x = "", y = "log-Odds ratio", color = NULL) +
-  theme(legend.position = c(.11, .8),
-        legend.key.height = unit(.75, units = "lines"),
-        axis.text = element_text(size = 8),
-        axis.title = element_text(size = 10),
-        legend.title = element_blank(),
-        legend.text = element_text(size = 6))
-
-p_fig4B2 <- cowplot::plot_grid(
-  # p_ob_map +
-  #   theme(strip.background = element_blank(),
-  #         plot.margin = unit(c(.2, 1.5, 0, 1.5), units = "lines")),
-  p_ob_map2_comb +
-    theme(
-      # strip.background = element_blank(),
-      # plot.margin = unit(c(.2, 1.5, 0, 1.5), units = "lines")
-    ),
-  cowplot::plot_grid(
-    p_ob_1, 
-    p_ob_2,
-    nrow = 1,
-    rel_widths = c(.3, 1),
-    align = "v",
-    axis = "tb"
-  ) +
-    theme(plot.margin = unit(c(.5, .5, .5, .5), units = "lines")),
-  ncol = 1,
-  rel_heights = c(.95, 1),
-  labels = c(NA, "e"),
-  align = "h",
-  axis = "lr"
-) +
-  theme(panel.background = element_rect(fill = "white", color = "white"))
-
-
-# ggsave(plot = p_fig4B2,
-#        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4B2.png"),
-#        width = 10,
-#        height = 8,
-#        dpi = 300)
 
 # Tile for legend
 hrisk_cat <- taxdat::get_risk_cat_dict()[-c(1:2)]
@@ -1477,45 +1391,10 @@ endemicity_legend <- tile_dat %>%
        fill = "10-year risk\ncategory")
 
 
-p_fig4A_legend <- ggdraw(
-  p_fig4A +
-    theme(strip.background = element_blank(),
-          plot.margin = unit(c(1, 1, 1, 1), units = "lines")) +
-    guides(fill = "none")
-) +
-  draw_plot(endemicity_legend, .075, .3, .35, .2)
-
-p_fig4 <- plot_grid(
-  p_fig4A_legend +
-    theme(panel.background = element_rect(fill = "white", color = "white")),
-  p_fig4B2 +
-    theme(panel.background = element_rect(fill = "white", color = "white")),
-  # p_fig4B +
-  #   guides(fill = "none") +
-  #   theme(plot.margin = unit(c(2, 1, 2, 2), units = "lines")),
-  nrow = 1,
-  labels = c("a", NA_character_),
-  rel_widths = c(1, 1.25)
-  # align = "v",
-  # axis = "lr",
-) +
-  theme(panel.background = element_rect(fill = "white", color = "white"))
-
-
-# Save
-ggsave(plot = p_fig4,
-       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4.png"),
-       width = 15,
-       height = 7,
-       dpi = 300)
-
-# Supplementary figures ---------------------------------------------------
-
-
-# Fraction by categories for supplement
-p_endemicity_v2 <- endemicity_df_v2  %>%
+## Fig. 4B: Fraction by categories for supplement ----
+p_fig4B <- endemicity_df_50_v2  %>%
   group_by(country) %>% 
-  complete(endemicity = unique(endemicity_df_v2$endemicity)) %>% 
+  complete(endemicity = unique(endemicity_df_50_v2$endemicity)) %>% 
   get_AFRO_region(ctry_col = "country") %>% 
   group_by(AFRO_region, country, endemicity) %>%
   summarise(n = sum(!is.na(location_period_id)),
@@ -1537,17 +1416,245 @@ p_endemicity_v2 <- endemicity_df_v2  %>%
   facet_grid(AFRO_region ~., scales = "free_y", space = "free_y") +
   scale_fill_manual(values = rev(taxdat:::colors_endemicity())) +
   theme_bw() +
-  labs(x = "Fraction of population")
+  labs(x = "fraction of population\n per 10-year risk category")
 
-ggsave(p_endemicity_v2,
-       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2C_endemicity_risk_cat_10.png"),
+ggsave(p_fig4B,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4B.png"),
        width = 6,
        height = 7, 
        dpi = 150)
 
+p_fig4A_legend <- ggdraw(
+  p_fig4A +
+    theme(strip.background = element_blank(),
+          plot.margin = unit(c(1, 0, 1, 0), units = "lines")) +
+    guides(fill = "none")
+) +
+  draw_plot(endemicity_legend, .075, .24, .35, .25)
+
+p_fig4 <- plot_grid(
+  p_fig4A_legend +
+    theme(panel.background = element_rect(fill = "white", color = "white")),
+  p_fig4B +
+    guides(fill = "none") +
+    theme(panel.background = element_rect(fill = "white", color = "white"),
+          plot.margin = unit(c(2, 1.5, 1.5, 1.5), units = "lines")),
+  nrow = 1,
+  labels = "auto",
+  rel_widths = c(1, .5)
+) +
+  theme(panel.background = element_rect(fill = "white", color = "white"))
+
+
+# Save
+ggsave(plot = p_fig4,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4.png"),
+       width = 12,
+       height = 7,
+       dpi = 300)
+
+# Figure 5: cholera occurrence -----------------------------------------------------
+
+# Load outbreak data and results
+load(str_c(opt$output_dir, "/outbreak_analysis_data.rdata"))
+load(str_c(opt$output_dir, "/recent_cholera_outbreaks_res.rdata"))
+
+# Fix admin level naming
+final_joins <- final_joins %>% 
+  mutate(admin_level = str_c("ADM", admin_level))
+
+# Map of cholera occurrence locations
+p_ob_map2 <- endemicity_df_v2_50 %>% 
+  inner_join(u_space_sf, .) %>% 
+  select(-admin_level) %>% 
+  ggplot() +
+  geom_sf(data = afr_sf %>% 
+            select(-admin_level),
+          inherit.aes = FALSE,
+          lwd = 0.15,
+          color = "darkgray",
+          alpha = 0) +
+  geom_sf(aes(fill = endemicity), alpha = .5, lwd = .005, color = "white") +
+  geom_sf(inherit.aes = FALSE,
+          data = final_joins,
+          aes(color = "locations with\nreported cholera\nin 2022-2023"),
+          alpha = 0,
+          lwd = .35) +
+  geom_sf(inherit.aes = FALSE,
+          data = st_centroid(final_joins %>% select(-geom.y)),
+          alpha = 1, col = "purple",
+          fill = "white",
+          pch = 21,
+          size = .6,
+          stroke = .2) +
+  taxdat::map_theme() +
+  scale_color_manual(values = c("purple")) +
+  theme(panel.border = element_blank()) +
+  theme(legend.position = c(.23, .4)) +
+  scale_fill_manual(values = taxdat:::colors_endemicity()) +
+  labs(color = NULL) +
+  guides(fill = guide_legend("10-year risk\ncategory", override.aes = list(alpha = 1))) +
+  scale_shape_manual(values = c(1, 3, 4))
+
+ggsave(plot = p_ob_map2,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_5_a_map.png"),
+       width = 12,
+       height = 5,
+       dpi = 100)
+
+# Distribution of 10-year risk categories among ADM2 locations
+ob_count_dat <-  obs_outbreaks %>% 
+  mutate(occurrence = "       cholera\n       observed") %>% 
+  bind_rows(non_obs_outbreaks %>% 
+              mutate(occurrence = "no cholera       \nobserved       ")) %>% 
+  mutate(occurrence = factor(occurrence, 
+                             levels = c("no cholera       \nobserved       ",
+                                        "       cholera\n       observed"))) %>% 
+  mutate(endemicity = factor(endemicity, 
+                             levels = levels(endemicity_df_v2_50$endemicity)),
+         AFRO_region = factor(AFRO_region %>% 
+                                str_replace(" ", "\n"),
+                              levels = rev(c("overall", get_AFRO_region_levels() %>% 
+                                               str_replace(" ", "\n"))),
+                              labels = rev(c("overall", get_AFRO_region_levels() %>% 
+                                               str_replace(" ", "\n")))))
+
+p_frac_regions <- ob_count_dat %>% 
+  filter(AFRO_region != "overall")  %>%
+  mutate(occurrence = str_remove_all(occurrence, "       ")) %>% 
+  ggplot(aes(x = frac, y = AFRO_region, fill = endemicity)) +
+  geom_bar(stat = "identity") +
+  theme_bw() +
+  scale_fill_manual(values = taxdat:::colors_endemicity()) +
+  labs(x = "proportion of locations (ADM2 or lower)", y = "") +
+  guides(fill = "none") +
+  facet_grid(occurrence ~ ., switch = "y") +
+  theme(strip.placement = "outer")
+
+
+p_frac_overall <- ob_count_dat %>% 
+  mutate(occurrence = str_remove_all(occurrence, "  ")) %>% 
+  filter(AFRO_region == "overall")  %>% 
+  ggplot(aes(x = occurrence, y = frac, fill = endemicity)) +
+  geom_bar(stat = "identity") +
+  theme_bw() +
+  scale_fill_manual(values = taxdat:::colors_endemicity()) +
+  labs(y = "proportion of locations", x = "") +
+  guides(fill = "none") +
+  coord_flip()
+
+p_ob_frac_comb <- cowplot::plot_grid(
+  p_frac_overall +
+    theme(plot.margin = unit(c(1, .3, 0, 1), units = "lines")) +
+    theme(axis.text = element_text(size = 8, hjust = .5),
+          axis.title = element_text(size = 10)),
+  p_frac_regions +
+    theme(plot.margin = unit(c(1, 1, 0, 1), units = "lines"),
+          strip.switch.pad.grid = unit(.7, units = "line")) +
+    theme(axis.text = element_text(size = 8),
+          axis.title = element_text(size = 10),
+          strip.text = element_text(size = 8)), 
+  nrow = 1,
+  labels = c("b", "c"),
+  rel_widths = c(.6, 1),
+  align = "h",
+  axis = "tb"
+)
+
+# Model estimates
+pd1 <- position_dodge(.4)
+pd2 <- position_dodge(.3)
+
+p_ob_1 <- baseline_prob_stats %>% 
+  mutate(what = "reference",
+         param = case_when(str_detect(param, "baseline") ~ "sustained low risk",
+                           TRUE ~ param)) %>% 
+  ggplot(aes(x = param, y = mean, ymin = q2.5, ymax = q97.5, color = AFRO_region)) +
+  geom_point(position = pd1) +
+  geom_errorbar(width = 0, position = pd1) +
+  theme_bw() +
+  facet_grid(. ~ what, scales = "free", space = "free") +
+  scale_color_manual(values = c("overall" = "black", colors_afro_regions())) +
+  labs(x = "", y = "probability of cholera occurrence") +
+  guides(color = "none") +
+  coord_cartesian(ylim = c(0, 1))  +
+  theme(axis.text = element_text(size = 8),
+        axis.title = element_text(size = 10))
+
+p_ob_2 <- logOR_stats %>% 
+  mutate(what = str_replace(what, "outbreak", "cholera")) %>% 
+  ggplot(aes(x = param, y = mean, ymin = q2.5, ymax = q97.5, color = AFRO_region)) +
+  geom_point(position = pd2) +
+  geom_errorbar(width = 0, position = pd2) +
+  geom_hline(aes(yintercept = 0), lty = 3, lwd = .6) +
+  facet_grid(. ~ what, scales = "free", space = "free") +
+  theme_bw() +
+  scale_color_manual(values = c("overall" = "black", colors_afro_regions())) +
+  labs(x = "10-year cholera risk category", y = "log-Odds ratio", color = NULL) +
+  theme(legend.position = c(.145, .84),
+        legend.key.height = unit(.75, units = "lines"),
+        axis.text = element_text(size = 8),
+        axis.title = element_text(size = 10),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 8))
+
+
+p_fig5 <- plot_grid(
+  plot_grid(
+    p_ob_map2, 
+    plot_grid(
+      p_frac_overall2  +
+        theme(plot.margin = unit(c(2, 3, 0, 1), units = "lines"),
+              axis.text.x = element_blank(),
+              axis.title.x = element_blank(),
+              axis.ticks.x = element_blank()),
+      p_frac_regions +
+        theme(plot.margin = unit(c(.5, 3, 1, 1), units = "lines")), 
+      labels = c("b", "c"),
+      align = "v",
+      axis = "lr",
+      rel_heights = c(.4, 1),
+      ncol = 1
+    ),
+    nrow = 1,
+    rel_widths = c(1.2, 1),
+    align = "h",
+    axis = "tb",
+    labels = c("a", NA_character_)
+  ),
+  plot_grid(
+    p_ob_1 +
+      guides(color = guide_legend("region")) +
+      theme(legend.position = "right") +
+      theme(plot.margin = unit(c(1, 3, 1, 1), units = "lines")), 
+    p_ob_2 +
+      guides(color = "none"),
+    nrow = 1,
+    rel_widths = c(.7, 1),
+    align = "h",
+    axis = "tb",
+    labels = c("d", "e")
+  ) +
+    theme(plot.margin = unit(c(1, 3, 1, 3), units = "lines")),
+  ncol = 1,
+  rel_heights = c(1.5, 1),
+  # labels = c(NA_character_, "e"),
+  align = "h",
+  axis = "lr"
+) +
+  theme(plot.background = element_rect(fill = "white", color = "white"))
+
+ggsave(plot = p_fig5,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_5.png"),
+       width = 13,
+       height = 12,
+       dpi = 300)
+
+
+# Supplementary figures ---------------------------------------------------
+
+
 ## Model fit ----
-
-
 # Scatter plot of ADM0 level units
 # Scatter plot of all admin units for mean of observations
 p_data_scatter <- gen_obs %>%
@@ -1621,162 +1728,16 @@ walk(c("ADM0", "ADM1"), function(x) {
                      output_path =  str_glue("{opt$out_dir}/{opt$out_prefix}_cases_{x}.docx"))
 })
 
-## Incidence rate ratios ----
 
-p_irr <- irr_dat %>%
-  filter(!is.na(dist_definition)) %>%
-  mutate(dist = factor(dist),
-         dist = fct_reorder(dist, mean_dist)) %>%
-  ggplot(aes(x = dist, y = ratio, color = AFRO_region)) +
-  geom_point(alpha = 1) +
-  geom_errorbar(aes(ymin = lo, ymax = hi), width = 0, alpha = .5) +
-  geom_hline(aes(yintercept = 1), lty = 2, lwd = .5) +
-  theme_bw() +
-  facet_grid(what ~ period + dist_definition, scales =  "free_x") +
-  labs(x = "distance to waterbody [km]", y = "IRR [observed/null]") +
-  coord_cartesian(ylim = c(0, 15)) +
-  theme(axis.text.x = element_text(angle = 45, hjust=  1, vjust = 1)) +
-  scale_color_manual(values = colors_afro_regions())
-
-
-ggsave(p_irr,
-       file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_irr_dist.png"),
-       width = 12,
-       height = 8,
-       dpi = 300)
-
-saveRDS(irr_dat, file = str_glue("{opt$output_dir}/irr_dist.rds"))
-
-
-## Scatterplots of MAI against covariates ----
-
-### Distance to water ----
-adm2_sf <- u_space_sf %>% 
-  filter(admin_level == "ADM2") %>% 
-  st_make_valid()
-
-adm2_centroids_sf <- st_centroid(adm2_sf)
-
-dist_to_wb <- map_df(seq_along(dist_sf), function(y) {
-  
-  cat("--", names(dist_sf)[y], "\n")
-  
-  # Get index of nearest object
-  nearest_ind <- adm2_centroids_sf %>% 
-    st_nearest_feature(dist_sf[[y]], check_crs = TRUE)
-  
-  # Compute distances
-  distances <- st_distance(adm2_centroids_sf, dist_sf[[y]][nearest_ind, ], by_element = TRUE) %>% 
-    as.numeric()
-  
-  tibble(
-    location_period_id = adm2_centroids_sf$location_period_id,
-    country = adm2_centroids_sf$country,
-    dist = distances/1e3,    # in km
-    to_what = names(dist_sf)[y]
-  )
-})
-
-p_dist <- mai_adm_all %>% 
-  filter(admin_level == "ADM2") %>% 
-  inner_join(dist_to_wb) %>% 
-  ggplot(aes(x = dist, y = mean, color = period)) +
-  # geom_hex() +
-  geom_point(alpha = .15) +
-  geom_smooth() +
-  facet_grid(.~to_what, scales = "free_x") +
-  scale_y_log10() +
-  theme_bw() +
-  scale_color_manual(values = taxdat:::colors_periods()) +
-  labs(x = "distance [km]", y = "mean annula incidence rate")
-
-
-ggsave(p_dist,
-       file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_scatterplot_mai_dist_water.png"),
-       width = 12,
-       height = 5, 
-       dpi = 300)
-
-saveRDS(dist_to_wb, file = str_glue("{opt$output_dir}/dist_to_wb.rds"))
-
-
-### Populatio Denstity ----
-
-adm2_sf <- sf::st_make_valid(adm2_sf)
-# Compute density
-pop_density <- adm2_sf %>% 
-  mutate(area = st_area(geom) %>% 
-           as.numeric() %>% 
-           {./1e6}    # in sqkm
-  ) %>% 
-  st_drop_geometry() %>% 
-  inner_join(population %>% 
-               select(location_period_id, pop = mean)) %>% 
-  mutate(pop_density = pop/area)    # in pop/sqkm
-
-p_density <- mai_adm %>% 
-  filter(admin_level == "ADM2") %>% 
-  inner_join(pop_density) %>% 
-  ggplot(aes(x = pop_density, y = mean, color = period)) +
-  geom_point(alpha = .15) +
-  geom_smooth() +
-  scale_y_log10() +
-  scale_x_log10() +
-  theme_bw() +
-  scale_color_manual(values = taxdat:::colors_periods()) +
-  labs(x = "population density [peopl/sqkm]", y = "mean annula incidence rate")
-
-ggsave(p_density,
-       file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_scatterplot_mai_pop_density.png"),
-       width = 12,
-       height = 8, 
-       dpi = 300)
-
-saveRDS(pop_density, file = str_glue("{opt$output_dir}/pop_density.rds"))
-
-### WASH ----
-
-# Try reading in th wash data, this should be stored in a better place in the future
-wash_dat <- st_read("Analysis/output/adm2_sf_wash_prop_clean.gpkg")
-
-p_wash <- wash_dat %>% 
-  st_drop_geometry() %>% 
-  as_tibble() %>% 
-  select(location_period_id, contains("prop")) %>% 
-  pivot_longer(cols = contains("prop")) %>% 
-  mutate(period = case_when(str_detect(name, "2012") ~ "2011-2015",
-                            T ~ "2016-2020"),
-         what = str_remove(name, "prop_Y2012_|prop_Y2017_"),
-         category = str_extract(what, "W|S")) %>% 
-  select(-name) %>% 
-  inner_join(mai_adm) %>% 
-  ggplot(aes(x = value, y = mean)) +
-  geom_point(aes(color = period), alpha = .3) +
-  geom_smooth(aes(color = period)) +
-  geom_smooth(color = "black") +
-  facet_wrap(~what) +
-  scale_y_log10() +
-  theme_bw() +
-  scale_color_manual(values = taxdat:::colors_periods()) +
-  labs(x = "Proportion of population", y = "mean annula incidence rate")
-
-
-ggsave(p_wash,
-       file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_scatterplot_mai_WASH.png"),
-       width = 12,
-       height = 8, 
-       dpi = 300)
-
-
-### Recent outbreaks country-level estimates ----
-p_country_coef <- param_by_country %>% 
-  filter(param != "(Intercept)") %>% 
+## Recent outbreaks country-level estimates ----
+p_country_coef <- param_by_country %>%
+  filter(param != "(Intercept)") %>%
   ggplot(aes(x = mean, xmin = q2.5, xmax = q97.5, y = country)) +
-  geom_vline(data = tibble(param = levels(param_by_country$param)[-1] %>% 
+  geom_vline(data = tibble(param = levels(param_by_country$param)[-1] %>%
                              factor(levels = levels(param_by_country$param)),
-                           x = 0), 
+                           x = 0),
              aes(xintercept = x),
-             lty = 2) + 
+             lty = 2) +
   geom_errorbarh(height = 0, alpha = .7, aes(color = AFRO_region)) +
   geom_point(aes(color = AFRO_region), pch = 21, fill = "white") +
   facet_grid(AFRO_region~param, scales = "free_y", space = "free_y") +
@@ -1788,5 +1749,258 @@ p_country_coef <- param_by_country %>%
 ggsave(p_country_coef,
        file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_country_outbreak_coef.png"),
        width = 10,
-       height = 8, 
+       height = 8,
        dpi = 300)
+
+## Risk categories for 95% cutoff ----
+
+p_risk_cat_95 <- risk_pop_95_adm2 %>% 
+  select(-shp_id) %>% 
+  filter(period == "2016-2020") %>% 
+  inner_join(u_space_sf, .) %>% 
+  output_plot_map(sf_obj = ., 
+                  lakes_sf = lakes_sf,
+                  rivers_sf = rivers_sf,
+                  all_countries_sf = afr_sf,
+                  fill_var = "risk_cat",
+                  fill_color_scale_type = "risk category") +
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 15),
+        legend.position = c(.2, .3),
+        panel.background = element_rect(fill = "white", color = "white"))+
+  guides(fill = guide_legend("Risk category"))
+
+
+# Save
+ggsave(p_risk_cat_95,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_risk_categories_95.png"),
+       width = 7,
+       height = 6, 
+       dpi = 300)
+
+
+
+# Scraps ------------------------------------------------------------------
+
+
+# 
+# ## Incidence rate ratios --
+# 
+# p_irr <- irr_dat %>%
+#   filter(!is.na(dist_definition)) %>%
+#   mutate(dist = factor(dist),
+#          dist = fct_reorder(dist, mean_dist)) %>%
+#   ggplot(aes(x = dist, y = ratio, color = AFRO_region)) +
+#   geom_point(alpha = 1) +
+#   geom_errorbar(aes(ymin = lo, ymax = hi), width = 0, alpha = .5) +
+#   geom_hline(aes(yintercept = 1), lty = 2, lwd = .5) +
+#   theme_bw() +
+#   facet_grid(what ~ period + dist_definition, scales =  "free_x") +
+#   labs(x = "distance to waterbody [km]", y = "IRR [observed/null]") +
+#   coord_cartesian(ylim = c(0, 15)) +
+#   theme(axis.text.x = element_text(angle = 45, hjust=  1, vjust = 1)) +
+#   scale_color_manual(values = colors_afro_regions())
+# 
+# 
+# ggsave(p_irr,
+#        file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_irr_dist.png"),
+#        width = 12,
+#        height = 8,
+#        dpi = 300)
+# 
+# saveRDS(irr_dat, file = str_glue("{opt$output_dir}/irr_dist.rds"))
+
+## Fig. 4B: Change in risk categories barplot 
+# 
+# p_fig4B <- endemicity_df_v2 %>% 
+#   ungroup() %>% 
+#   get_AFRO_region(ctry_col = "country") %>% 
+#   mutate(AFRO_region = factor(AFRO_region, 
+#                               levels = get_AFRO_region_levels())) %>% 
+#   group_by(AFRO_region, endemicity) %>% 
+#   summarise(pop = sum(pop)) %>% 
+#   ggplot(aes(y = endemicity, x = pop, fill = AFRO_region)) +
+#   geom_bar(stat = "identity", width = .5) +
+#   theme_bw() +
+#   scale_fill_manual(values = colors_afro_regions()) +
+#   scale_x_continuous(labels = function(x) {formatC(x/1e6)}) +
+#   scale_y_discrete(limits = rev) +
+#   labs(y = "Change in risk category", x = "ADM2 population at risk [millions]")
+# 
+# 
+# # Save
+# ggsave(plot = p_fig4B,
+#        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4B.png"),
+#        width = 12,
+#        height = 7,
+#        dpi = 300)
+#         
+# ## Scatterplots of MAI against covariates 
+# 
+# ### Distance to water --
+# adm2_sf <- u_space_sf %>% 
+#   filter(admin_level == "ADM2") %>% 
+#   st_make_valid()
+# 
+# adm2_centroids_sf <- st_centroid(adm2_sf)
+# 
+# dist_to_wb <- map_df(seq_along(dist_sf), function(y) {
+#   
+#   cat("--", names(dist_sf)[y], "\n")
+#   
+#   # Get index of nearest object
+#   nearest_ind <- adm2_centroids_sf %>% 
+#     st_nearest_feature(dist_sf[[y]], check_crs = TRUE)
+#   
+#   # Compute distances
+#   distances <- st_distance(adm2_centroids_sf, dist_sf[[y]][nearest_ind, ], by_element = TRUE) %>% 
+#     as.numeric()
+#   
+#   tibble(
+#     location_period_id = adm2_centroids_sf$location_period_id,
+#     country = adm2_centroids_sf$country,
+#     dist = distances/1e3,    # in km
+#     to_what = names(dist_sf)[y]
+#   )
+# })
+# 
+# p_dist <- mai_adm_all %>% 
+#   filter(admin_level == "ADM2") %>% 
+#   inner_join(dist_to_wb) %>% 
+#   ggplot(aes(x = dist, y = mean, color = period)) +
+#   # geom_hex() +
+#   geom_point(alpha = .15) +
+#   geom_smooth() +
+#   facet_grid(.~to_what, scales = "free_x") +
+#   scale_y_log10() +
+#   theme_bw() +
+#   scale_color_manual(values = taxdat:::colors_periods()) +
+#   labs(x = "distance [km]", y = "mean annula incidence rate")
+# 
+# 
+# ggsave(p_dist,
+#        file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_scatterplot_mai_dist_water.png"),
+#        width = 12,
+#        height = 5, 
+#        dpi = 300)
+# 
+# saveRDS(dist_to_wb, file = str_glue("{opt$output_dir}/dist_to_wb.rds"))
+# 
+# 
+# ### Populatio Denstity --
+# 
+# adm2_sf <- sf::st_make_valid(adm2_sf)
+# # Compute density
+# pop_density <- adm2_sf %>% 
+#   mutate(area = st_area(geom) %>% 
+#            as.numeric() %>% 
+#            {./1e6}    # in sqkm
+#   ) %>% 
+#   st_drop_geometry() %>% 
+#   inner_join(population %>% 
+#                select(location_period_id, pop = mean)) %>% 
+#   mutate(pop_density = pop/area)    # in pop/sqkm
+# 
+# p_density <- mai_adm %>% 
+#   filter(admin_level == "ADM2") %>% 
+#   inner_join(pop_density) %>% 
+#   ggplot(aes(x = pop_density, y = mean, color = period)) +
+#   geom_point(alpha = .15) +
+#   geom_smooth() +
+#   scale_y_log10() +
+#   scale_x_log10() +
+#   theme_bw() +
+#   scale_color_manual(values = taxdat:::colors_periods()) +
+#   labs(x = "population density [peopl/sqkm]", y = "mean annula incidence rate")
+# 
+# ggsave(p_density,
+#        file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_scatterplot_mai_pop_density.png"),
+#        width = 12,
+#        height = 8, 
+#        dpi = 300)
+# 
+# saveRDS(pop_density, file = str_glue("{opt$output_dir}/pop_density.rds"))
+# 
+# ### WASH --
+# 
+# # Try reading in th wash data, this should be stored in a better place in the future
+# wash_dat <- st_read("Analysis/output/adm2_sf_wash_prop_clean.gpkg")
+# 
+# p_wash <- wash_dat %>% 
+#   st_drop_geometry() %>% 
+#   as_tibble() %>% 
+#   select(location_period_id, contains("prop")) %>% 
+#   pivot_longer(cols = contains("prop")) %>% 
+#   mutate(period = case_when(str_detect(name, "2012") ~ "2011-2015",
+#                             T ~ "2016-2020"),
+#          what = str_remove(name, "prop_Y2012_|prop_Y2017_"),
+#          category = str_extract(what, "W|S")) %>% 
+#   select(-name) %>% 
+#   inner_join(mai_adm) %>% 
+#   ggplot(aes(x = value, y = mean)) +
+#   geom_point(aes(color = period), alpha = .3) +
+#   geom_smooth(aes(color = period)) +
+#   geom_smooth(color = "black") +
+#   facet_wrap(~what) +
+#   scale_y_log10() +
+#   theme_bw() +
+#   scale_color_manual(values = taxdat:::colors_periods()) +
+#   labs(x = "Proportion of population", y = "mean annula incidence rate")
+# 
+# 
+# ggsave(p_wash,
+#        file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_scatterplot_mai_WASH.png"),
+#        width = 12,
+#        height = 8, 
+#        dpi = 300)
+# 
+# 
+
+# p_fig5 <- cowplot::plot_grid(
+#   p_ob_map2 +
+#     theme(plot.margin = unit(c(0, .5, -1, .5), units = "lines")),
+#   p_fig5_bcd,
+#   nrow = 1,
+#   rel_widths = c(1, 1),
+#   align = "h",
+#   axis = "tb",
+#   labels = c("a", NA_character_)
+# ) +
+#   theme(plot.background = element_rect(fill = "white", color = "white"))
+# 
+# 
+# # Save
+# ggsave(plot = p_fig5,
+#        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_5.png"),
+#        width = 13,
+#        height = 7,
+#        dpi = 300)
+
+
+# p_fig5_bcd <- cowplot::plot_grid(
+#   p_ob_frac_comb,
+#   cowplot::plot_grid(
+#     p_ob_1, 
+#     p_ob_2,
+#     nrow = 1,
+#     rel_widths = c(.3, 1),
+#     align = "v",
+#     axis = "tb"
+#   ) +
+#     theme(plot.margin = unit(c(.5, .5, .5, .5), units = "lines")),
+#   ncol = 1,
+#   rel_heights = c(.95, 1),
+#   labels = c(NA, "d"),
+#   align = "h",
+#   axis = "lr"
+# ) +
+#   theme(panel.background = element_rect(fill = "white", color = "white"))
+
+# p_frac_overall <- ob_count_dat %>% 
+#   filter(AFRO_region == "overall")  %>% 
+#   ggplot(aes(x = occurrence, y = frac, fill = endemicity)) +
+#   geom_bar(stat = "identity") +
+#   theme_bw() +
+#   scale_fill_manual(values = taxdat:::colors_endemicity()) +
+#   labs(y = "proportion of locations (ADM2 or lower)", x = "") +
+#   guides(fill = "none")
