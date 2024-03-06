@@ -27,8 +27,12 @@ getADM2Units <- function(adm1_lp, all_lps) {
 if (file.exists("Analysis/notebooks/endemicity_validated.rds")) {
   endemicity <- readRDS("Analysis/notebooks/endemicity_validated.rds")
 } else {
+  load("Analysis/output/data_bundle_for_figures_test.rdata")
   # This is simply the geopackage from the endemicity object from make_final_figures_and_tables.R
-  endemicity <- st_read("Analysis/output/endemicity.gpkg") %>% st_make_valid()
+  endemicity <- inner_join(u_space_sf, 
+                           readRDS("Analysis/output/endemicity_50.rds")) %>%
+    st_make_valid()
+  
   saveRDS(endemicity, "Analysis/notebooks/endemicity_validated.rds")
 }
 
@@ -122,11 +126,6 @@ final_joins <-
   ) %>% 
   arrange(location_period_id)
 
-# Stats by admin level
-final_joins %>% 
-  st_drop_geometry() %>% 
-  distinct(location_period_id, admin_level) %>% 
-  count(admin_level) %>% mutate(frac = n/sum(n))
 
 # Counts for paper
 obs_outbreaks <- final_joins %>% 
@@ -146,17 +145,6 @@ obs_outbreaks <- final_joins %>%
   group_by(AFRO_region) %>% 
   mutate(frac = n/sum(n))
 
-print(obs_outbreaks)
-
-
-# Countries with outbreaks in sustained low regions
-final_joins %>% 
-  st_drop_geometry() %>% 
-  filter(admin_level != "1") %>% 
-  distinct(location_period_id) %>% 
-  inner_join(endemicity %>% st_drop_geometry()) %>% 
-  filter(endemicity == "sustained low risk") %>% 
-  distinct(country)
 
 non_obs_outbreaks <- endemicity %>% 
   st_drop_geometry() %>% 

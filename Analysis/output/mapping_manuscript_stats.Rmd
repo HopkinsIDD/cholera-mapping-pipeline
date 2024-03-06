@@ -56,7 +56,7 @@ who_phantoms <- read.csv(paste0(params$output_directory,'/WHO_annual_report_phan
 output_obs_counts_1115$WHO_phantoms = 0
 for (loc_idx in unique(who_phantoms[who_phantoms$time_period=="2011-2015",]$location_name)) {
   if(nrow(output_obs_counts_1115[output_obs_counts_1115$imputed & output_obs_counts_1115$location_name==loc_idx,])==0 & nrow(output_obs_counts_1115 %>% 
-                                                                                                                             subset(location_name==loc_idx))>0){
+      subset(location_name==loc_idx))>0){
     tmp <- output_obs_counts_1115 %>% 
       subset(location_name==loc_idx) %>% 
       mutate(imputed = TRUE,
@@ -68,9 +68,9 @@ for (loc_idx in unique(who_phantoms[who_phantoms$time_period=="2011-2015",]$loca
     output_obs_counts_1115 <- bind_rows(output_obs_counts_1115,tmp) 
     
     output_obs_counts_1115[output_obs_counts_1115$location_name == loc_idx & output_obs_counts_1115$imputed==FALSE,]$WHO_phantoms = who_phantoms[who_phantoms$time_period == "2011-2015" & who_phantoms$location_name == loc_idx,]$n_who_phantom_0_obs
-    
+  
   }else if(nrow(output_obs_counts_1115[output_obs_counts_1115$imputed & output_obs_counts_1115$location_name==loc_idx,])==0 & nrow(output_obs_counts_1115 %>% 
-                                                                                                                                   subset(location_name==loc_idx))==0){
+      subset(location_name==loc_idx))==0){
     tmp <- output_obs_counts_1115 %>% 
       subset(location_name=="AFR::AGO" & imputed) %>% 
       mutate(locationPeriod_id = as.character(who_phantoms[who_phantoms$time_period == "2011-2015" & who_phantoms$location_name == loc_idx,]$location_period_id),
@@ -87,18 +87,18 @@ for (loc_idx in unique(who_phantoms[who_phantoms$time_period=="2011-2015",]$loca
     output_obs_counts_1115[output_obs_counts_1115$location_name == loc_idx,]$WHO_phantoms = who_phantoms[who_phantoms$time_period == "2011-2015" & who_phantoms$location_name == loc_idx,]$n_who_phantom_0_obs
     
     if(output_obs_counts_1115[output_obs_counts_1115$location_name == loc_idx & output_obs_counts_1115$imputed,]$n_cases>0){
-      tmp <- output_obs_counts_1115 %>% 
-        subset(location_name==loc_idx & imputed) %>% 
-        mutate(
-          n_obs=who_phantoms[who_phantoms$time_period == "2011-2015" & who_phantoms$location_name == loc_idx,]$n_who_phantom_0_obs,
-          n_cases=0,
-          mean_cases=0,
-          WHO_phantoms = who_phantoms[who_phantoms$time_period == "2011-2015" & who_phantoms$location_name == loc_idx,]$n_who_phantom_0_obs)
-      
-      output_obs_counts_1115 <- bind_rows(output_obs_counts_1115,tmp) 
-      
+    tmp <- output_obs_counts_1115 %>% 
+      subset(location_name==loc_idx & imputed) %>% 
+      mutate(
+             n_obs=who_phantoms[who_phantoms$time_period == "2011-2015" & who_phantoms$location_name == loc_idx,]$n_who_phantom_0_obs,
+             n_cases=0,
+             mean_cases=0,
+             WHO_phantoms = who_phantoms[who_phantoms$time_period == "2011-2015" & who_phantoms$location_name == loc_idx,]$n_who_phantom_0_obs)
+    
+    output_obs_counts_1115 <- bind_rows(output_obs_counts_1115,tmp) 
+    
     } else {
-      output_obs_counts_1115[output_obs_counts_1115$location_name == loc_idx & output_obs_counts_1115$imputed,]$n_obs = output_obs_counts_1115[output_obs_counts_1115$location_name == loc_idx & output_obs_counts_1115$imputed,]$n_obs+output_obs_counts_1115[output_obs_counts_1115$location_name == loc_idx & output_obs_counts_1115$imputed,]$WHO_phantoms
+    output_obs_counts_1115[output_obs_counts_1115$location_name == loc_idx & output_obs_counts_1115$imputed,]$n_obs = output_obs_counts_1115[output_obs_counts_1115$location_name == loc_idx & output_obs_counts_1115$imputed,]$n_obs+output_obs_counts_1115[output_obs_counts_1115$location_name == loc_idx & output_obs_counts_1115$imputed,]$WHO_phantoms
     }
   }
 }
@@ -139,7 +139,7 @@ summary_obs_counts_1115 <- output_obs_counts_1115 %>%
 output_obs_counts_1620$WHO_phantoms = 0
 for (loc_idx in unique(who_phantoms[who_phantoms$time_period=="2016-2020",]$location_name)) {
   if(nrow(output_obs_counts_1620[output_obs_counts_1620$imputed & output_obs_counts_1620$location_name==loc_idx,])==0 & nrow(output_obs_counts_1620 %>% 
-                                                                                                                             subset(location_name==loc_idx))>0){
+      subset(location_name==loc_idx))>0){
     tmp <- output_obs_counts_1620 %>% 
       subset(location_name==loc_idx) %>% 
       mutate(imputed = TRUE,
@@ -151,9 +151,9 @@ for (loc_idx in unique(who_phantoms[who_phantoms$time_period=="2016-2020",]$loca
     output_obs_counts_1620 <- bind_rows(output_obs_counts_1620,tmp) 
     
     output_obs_counts_1620[output_obs_counts_1620$location_name == loc_idx & output_obs_counts_1620$imputed==FALSE,]$WHO_phantoms = who_phantoms[who_phantoms$time_period == "2016-2020" & who_phantoms$location_name == loc_idx,]$n_who_phantom_0_obs
-    
+  
   }else if(nrow(output_obs_counts_1620[output_obs_counts_1620$imputed & output_obs_counts_1620$location_name==loc_idx,])==0 & nrow(output_obs_counts_1620 %>% 
-                                                                                                                                   subset(location_name==loc_idx))==0){
+      subset(location_name==loc_idx))==0){
     tmp <- output_obs_counts_1620 %>% 
       subset(location_name=="AFR::AGO" & imputed) %>% 
       mutate(locationPeriod_id = as.character(who_phantoms[who_phantoms$time_period == "2016-2020" & who_phantoms$location_name == loc_idx,]$location_period_id),
@@ -170,18 +170,18 @@ for (loc_idx in unique(who_phantoms[who_phantoms$time_period=="2016-2020",]$loca
     output_obs_counts_1620[output_obs_counts_1620$location_name == loc_idx,]$WHO_phantoms = who_phantoms[who_phantoms$time_period == "2016-2020" & who_phantoms$location_name == loc_idx,]$n_who_phantom_0_obs
     
     if(output_obs_counts_1620[output_obs_counts_1620$location_name == loc_idx & output_obs_counts_1620$imputed,]$n_cases>0){
-      tmp <- output_obs_counts_1620 %>% 
-        subset(location_name==loc_idx & imputed) %>% 
-        mutate(
-          n_obs=who_phantoms[who_phantoms$time_period == "2016-2020" & who_phantoms$location_name == loc_idx,]$n_who_phantom_0_obs,
-          n_cases=0,
-          mean_cases=0,
-          WHO_phantoms = who_phantoms[who_phantoms$time_period == "2016-2020" & who_phantoms$location_name == loc_idx,]$n_who_phantom_0_obs)
-      
-      output_obs_counts_1620 <- bind_rows(output_obs_counts_1620,tmp) 
-      
+    tmp <- output_obs_counts_1620 %>% 
+      subset(location_name==loc_idx & imputed) %>% 
+      mutate(
+             n_obs=who_phantoms[who_phantoms$time_period == "2016-2020" & who_phantoms$location_name == loc_idx,]$n_who_phantom_0_obs,
+             n_cases=0,
+             mean_cases=0,
+             WHO_phantoms = who_phantoms[who_phantoms$time_period == "2016-2020" & who_phantoms$location_name == loc_idx,]$n_who_phantom_0_obs)
+    
+    output_obs_counts_1620 <- bind_rows(output_obs_counts_1620,tmp) 
+    
     } else {
-      output_obs_counts_1620[output_obs_counts_1620$location_name == loc_idx & output_obs_counts_1620$imputed,]$n_obs = output_obs_counts_1620[output_obs_counts_1620$location_name == loc_idx & output_obs_counts_1620$imputed,]$n_obs+output_obs_counts_1620[output_obs_counts_1620$location_name == loc_idx & output_obs_counts_1620$imputed,]$WHO_phantoms
+    output_obs_counts_1620[output_obs_counts_1620$location_name == loc_idx & output_obs_counts_1620$imputed,]$n_obs = output_obs_counts_1620[output_obs_counts_1620$location_name == loc_idx & output_obs_counts_1620$imputed,]$n_obs+output_obs_counts_1620[output_obs_counts_1620$location_name == loc_idx & output_obs_counts_1620$imputed,]$WHO_phantoms
     }
   }
 }
@@ -224,7 +224,7 @@ who_phantoms <- who_phantoms %>% group_by(country,location_name,location_period_
 output_obs_counts_1120$WHO_phantoms = 0
 for (loc_idx in unique(who_phantoms[who_phantoms$time_period=="2011-2020",]$location_name)) {
   if(nrow(output_obs_counts_1120[output_obs_counts_1120$imputed & output_obs_counts_1120$location_name==loc_idx,])==0 & nrow(output_obs_counts_1120 %>% 
-                                                                                                                             subset(location_name==loc_idx))>0){
+      subset(location_name==loc_idx))>0){
     tmp <- output_obs_counts_1120 %>% 
       subset(location_name==loc_idx) %>% 
       mutate(imputed = TRUE,
@@ -236,9 +236,9 @@ for (loc_idx in unique(who_phantoms[who_phantoms$time_period=="2011-2020",]$loca
     output_obs_counts_1120 <- bind_rows(output_obs_counts_1120,tmp) 
     
     output_obs_counts_1120[output_obs_counts_1120$location_name == loc_idx & output_obs_counts_1120$imputed==FALSE,]$WHO_phantoms = who_phantoms[who_phantoms$time_period == "2011-2020" & who_phantoms$location_name == loc_idx,]$n_who_phantom_0_obs
-    
+  
   }else if(nrow(output_obs_counts_1120[output_obs_counts_1120$imputed & output_obs_counts_1120$location_name==loc_idx,])==0 & nrow(output_obs_counts_1120 %>% 
-                                                                                                                                   subset(location_name==loc_idx))==0){
+      subset(location_name==loc_idx))==0){
     tmp <- output_obs_counts_1120 %>% 
       subset(location_name=="AFR::AGO" & imputed) %>% 
       mutate(locationPeriod_id = as.character(who_phantoms[who_phantoms$time_period == "2011-2020" & who_phantoms$location_name == loc_idx,]$location_period_id),
@@ -255,18 +255,18 @@ for (loc_idx in unique(who_phantoms[who_phantoms$time_period=="2011-2020",]$loca
     output_obs_counts_1120[output_obs_counts_1120$location_name == loc_idx,]$WHO_phantoms = who_phantoms[who_phantoms$time_period == "2011-2020" & who_phantoms$location_name == loc_idx,]$n_who_phantom_0_obs
     
     if(output_obs_counts_1120[output_obs_counts_1120$location_name == loc_idx & output_obs_counts_1120$imputed,]$n_cases>0){
-      tmp <- output_obs_counts_1120 %>% 
-        subset(location_name==loc_idx & imputed) %>% 
-        mutate(
-          n_obs=who_phantoms[who_phantoms$time_period == "2011-2020" & who_phantoms$location_name == loc_idx,]$n_who_phantom_0_obs,
-          n_cases=0,
-          mean_cases=0,
-          WHO_phantoms = who_phantoms[who_phantoms$time_period == "2011-2020" & who_phantoms$location_name == loc_idx,]$n_who_phantom_0_obs)
-      
-      output_obs_counts_1120 <- bind_rows(output_obs_counts_1120,tmp) 
-      
+    tmp <- output_obs_counts_1120 %>% 
+      subset(location_name==loc_idx & imputed) %>% 
+      mutate(
+             n_obs=who_phantoms[who_phantoms$time_period == "2011-2020" & who_phantoms$location_name == loc_idx,]$n_who_phantom_0_obs,
+             n_cases=0,
+             mean_cases=0,
+             WHO_phantoms = who_phantoms[who_phantoms$time_period == "2011-2020" & who_phantoms$location_name == loc_idx,]$n_who_phantom_0_obs)
+    
+    output_obs_counts_1120 <- bind_rows(output_obs_counts_1120,tmp) 
+    
     } else {
-      output_obs_counts_1120[output_obs_counts_1120$location_name == loc_idx & output_obs_counts_1120$imputed,]$n_obs = output_obs_counts_1120[output_obs_counts_1120$location_name == loc_idx & output_obs_counts_1120$imputed,]$n_obs+output_obs_counts_1120[output_obs_counts_1120$location_name == loc_idx & output_obs_counts_1120$imputed,]$WHO_phantoms
+    output_obs_counts_1120[output_obs_counts_1120$location_name == loc_idx & output_obs_counts_1120$imputed,]$n_obs = output_obs_counts_1120[output_obs_counts_1120$location_name == loc_idx & output_obs_counts_1120$imputed,]$n_obs+output_obs_counts_1120[output_obs_counts_1120$location_name == loc_idx & output_obs_counts_1120$imputed,]$WHO_phantoms
     }
   }
 }
@@ -331,7 +331,7 @@ print("unique_countries: total number of unique countries in imputed nonzero obs
 print("total_cases: total number of reported cases")
 print("total_national_cases: total number of reported cases at the national levels")
 print("total_subnational_cases: total number of reported cases at the subnational levels")
-
+    
 
 invisible(gc())
 ```
@@ -347,8 +347,8 @@ shp_adm2_1620 <- sf::st_make_valid(readRDS(paste0(params$postprocessed_output_di
 # join shapefiles from two periods (a shapefile will be included if it's in either of the time period)
 shp_adm2 <- rbind(shp_adm2_1115,shp_adm2_1620) %>% 
   dplyr::group_by(locationPeriod_id) %>% 
-  dplyr::slice(1) %>% 
-  dplyr::arrange(admin_level, location_name) 
+    dplyr::slice(1) %>% 
+    dplyr::arrange(admin_level, location_name) 
 
 output_adm0_sf_1620 <- readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_adm0_sf.rds'))
 
@@ -359,20 +359,20 @@ if(file.exists(paste0(params$output_directory,"/subnational_obs_coverage.rds")))
     )
 } else{
   subnational_obs_coverage <- data.frame()
-  for (country_tmp in unique(shp_adm2$country)) {
-    #st_union adm2 shapefiles for a specific country
-    shp_union <- sf::st_make_valid(sf::st_union(shp_adm2[shp_adm2$country==country_tmp,]$geom))
-    
-    #get country shapefiles
-    shp_adm0 <- output_adm0_sf_1620 %>% dplyr::filter(country == country_tmp)
-    #calculate the proportion of area covered by adm2 or lower obs
-    subnational_obs_coverage <- subnational_obs_coverage %>% dplyr::bind_rows(data.frame(country = country_tmp, subnational_cov = 100*round(as.numeric(sf::st_area(shp_union)/sf::st_area(shp_adm0)),4)))
-    
-    saveRDS(shp_union,paste0(params$output_directory,"/",country_tmp,"_adm2_shp_union.rds"))
-  }
+for (country_tmp in unique(shp_adm2$country)) {
+  #st_union adm2 shapefiles for a specific country
+  shp_union <- sf::st_make_valid(sf::st_union(shp_adm2[shp_adm2$country==country_tmp,]$geom))
+
+  #get country shapefiles
+  shp_adm0 <- output_adm0_sf_1620 %>% dplyr::filter(country == country_tmp)
+  #calculate the proportion of area covered by adm2 or lower obs
+  subnational_obs_coverage <- subnational_obs_coverage %>% dplyr::bind_rows(data.frame(country = country_tmp, subnational_cov = 100*round(as.numeric(sf::st_area(shp_union)/sf::st_area(shp_adm0)),4)))
   
-  saveRDS(subnational_obs_coverage,paste0(params$output_directory,"/subnational_obs_coverage.rds"))
-  
+  saveRDS(shp_union,paste0(params$output_directory,"/",country_tmp,"_adm2_shp_union.rds"))
+}
+
+saveRDS(subnational_obs_coverage,paste0(params$output_directory,"/subnational_obs_coverage.rds"))
+
 }
 
 table2 <- subnational_obs_coverage %>% 
@@ -388,7 +388,7 @@ saveRDS(table2,paste0(params$output_directory,"/figure1.rds"))
 print(paste0("The median % of area covered by admin2 or lower observations is ",median(table2$`% of area covered by adm2 or lower obs`),"% (",min(table2$`% of area covered by adm2 or lower obs`),"% - ",max(table2$`% of area covered by adm2 or lower obs`),"%)"))
 
 # Figure 1. figure version of table 2
-table2 %>% 
+  table2 %>% 
   dplyr::arrange(desc(`% of area covered by adm2 or lower obs`)) %>% 
   ggplot(aes(x= `% of area covered by adm2 or lower obs`, y=reorder(country,`% of area covered by adm2 or lower obs`))) +
   geom_bar(stat="identity", position=position_dodge(),fill="gold")+
@@ -400,8 +400,8 @@ table2 %>%
 table3 <- output_obs_1120 %>% 
   dplyr::summarise(
     `% of full observations` = scales::percent(sum(censoring == 'full') / n()),
-    total_full_obs = sum(censoring == 'full'),
-    total_obs = n()
+        total_full_obs = sum(censoring == 'full'),
+        total_obs = n()
   ) %>% 
   dplyr::mutate(time_period = 'all years') %>% 
   dplyr::bind_rows(
@@ -410,8 +410,8 @@ table3 <- output_obs_1120 %>%
         `% of full observations` = scales::percent(sum(censoring == 'full') / n()),
         total_full_obs = sum(censoring == 'full'),
         total_obs = n()
-      ) %>% 
-      dplyr::mutate(time_period = '2011-2015')
+        ) %>% 
+  dplyr::mutate(time_period = '2011-2015')
   ) %>% 
   dplyr::bind_rows(
     output_obs_1620 %>% 
@@ -419,8 +419,8 @@ table3 <- output_obs_1120 %>%
         `% of full observations` = scales::percent(sum(censoring == 'full') / n()),
         total_full_obs = sum(censoring == 'full'),
         total_obs = n()
-      ) %>% 
-      dplyr::mutate(time_period = '2016-2020')
+        ) %>% 
+  dplyr::mutate(time_period = '2016-2020')
   ) %>% 
   dplyr::select(time_period, total_obs, total_full_obs, `% of full observations`) %>% 
   dplyr::arrange(time_period) %>% 
@@ -438,8 +438,8 @@ table4 <- output_obs_1120 %>%
   dplyr::group_by(admin_level) %>% 
   dplyr::summarise(
     `% of full observations` = scales::percent(sum(censoring == 'full') / n()),
-    total_full_obs = sum(censoring == 'full'),
-    total_obs = n()
+        total_full_obs = sum(censoring == 'full'),
+        total_obs = n()
   ) %>% 
   dplyr::mutate(time_period = 'all years') %>% 
   dplyr::bind_rows(
@@ -449,8 +449,8 @@ table4 <- output_obs_1120 %>%
         `% of full observations` = scales::percent(sum(censoring == 'full') / n()),
         total_full_obs = sum(censoring == 'full'),
         total_obs = n()
-      ) %>% 
-      dplyr::mutate(time_period = '2011-2015')
+        ) %>% 
+  dplyr::mutate(time_period = '2011-2015')
   ) %>% 
   dplyr::bind_rows(
     output_obs_1620 %>% 
@@ -459,8 +459,8 @@ table4 <- output_obs_1120 %>%
         `% of full observations` = scales::percent(sum(censoring == 'full') / n()),
         total_full_obs = sum(censoring == 'full'),
         total_obs = n()
-      ) %>% 
-      dplyr::mutate(time_period = '2016-2020')
+        ) %>% 
+  dplyr::mutate(time_period = '2016-2020')
   ) %>% 
   dplyr::select(time_period, admin_level, total_obs, total_full_obs, `% of full observations`) %>% 
   dplyr::arrange(time_period,admin_level) %>% 
@@ -476,11 +476,11 @@ table4 %>%
 summary_full_obs_full_modeling_period_adm0 <- output_obs_1120 %>% 
   subset(lubridate::year(ref_TL)==lubridate::year(ref_TR)) %>% 
   dplyr::mutate(year = lubridate::year(ref_TL)) %>% 
-  subset(admin_level == 0 ) %>% 
-  dplyr::group_by(admin_level, country, year) %>% 
-  dplyr::summarise(
-    total_full_obs = sum(censoring == 'full')
-  ) %>% 
+      subset(admin_level == 0 ) %>% 
+      dplyr::group_by(admin_level, country, year) %>% 
+      dplyr::summarise(
+        total_full_obs = sum(censoring == 'full')
+        ) %>% 
   dplyr::ungroup() %>% 
   dplyr::filter(total_full_obs >0) %>% 
   dplyr::group_by(country) %>%
@@ -508,14 +508,14 @@ output_mai_cases_all_1620 <- readRDS(paste0(params$postprocessed_output_director
 # print out average suspected cases summary
 print(
   paste0(
-    "Annual average cholera cases across Africa in 2011-2015: ", round(output_mai_cases_all_1115$mean,0), 
-    " (95% Credible Intervals, CrI: ", round(output_mai_cases_all_1115$q2.5,0), " - ", round(output_mai_cases_all_1115$q97.5,0), ")"
+  "Annual average cholera cases across Africa in 2011-2015: ", round(output_mai_cases_all_1115$mean,0), 
+  " (95% Credible Intervals, CrI: ", round(output_mai_cases_all_1115$q2.5,0), " - ", round(output_mai_cases_all_1115$q97.5,0), ")"
   )
 )
 print(
   paste0(
-    "Annual average cholera cases across Africa in 2016-2020: ", round(output_mai_cases_all_1620$mean,0), 
-    " (95% Credible Intervals, CrI: ", round(output_mai_cases_all_1620$q2.5,0), " - ", round(output_mai_cases_all_1620$q97.5,0), ")"
+  "Annual average cholera cases across Africa in 2016-2020: ", round(output_mai_cases_all_1620$mean,0), 
+  " (95% Credible Intervals, CrI: ", round(output_mai_cases_all_1620$q2.5,0), " - ", round(output_mai_cases_all_1620$q97.5,0), ")"
   )
 )
 
@@ -535,9 +535,9 @@ output_mai_cases_draw_by_region_1115 <- readRDS(paste0(params$postprocessed_outp
   dplyr::mutate(
     time_period = '2011-2015',
     total = sum(country_cases_central_africa,
-                country_cases_eastern_africa,
-                country_cases_southern_africa,
-                country_cases_western_africa),
+         country_cases_eastern_africa,
+         country_cases_southern_africa,
+         country_cases_western_africa),
     country_cases_central_africa = 100*country_cases_central_africa/total,
     country_cases_eastern_africa = 100*country_cases_eastern_africa/total,
     country_cases_southern_africa = 100*country_cases_southern_africa/total,
@@ -545,9 +545,9 @@ output_mai_cases_draw_by_region_1115 <- readRDS(paste0(params$postprocessed_outp
   )
 mai_case_prop_1115 <- data.frame(
   variable = c('country_cases_central_africa',
-               'country_cases_eastern_africa',
-               'country_cases_southern_africa',
-               'country_cases_western_africa'),
+         'country_cases_eastern_africa',
+         'country_cases_southern_africa',
+         'country_cases_western_africa'),
   mean_prop = c(
     round(mean(output_mai_cases_draw_by_region_1115$country_cases_central_africa),2),
     round(mean(output_mai_cases_draw_by_region_1115$country_cases_eastern_africa),2),
@@ -573,9 +573,9 @@ output_mai_cases_draw_by_region_1620 <- readRDS(paste0(params$postprocessed_outp
   dplyr::mutate(
     time_period = '2016-2020',
     total = sum(country_cases_central_africa,
-                country_cases_eastern_africa,
-                country_cases_southern_africa,
-                country_cases_western_africa),
+         country_cases_eastern_africa,
+         country_cases_southern_africa,
+         country_cases_western_africa),
     country_cases_central_africa = 100*country_cases_central_africa/total,
     country_cases_eastern_africa = 100*country_cases_eastern_africa/total,
     country_cases_southern_africa = 100*country_cases_southern_africa/total,
@@ -584,9 +584,9 @@ output_mai_cases_draw_by_region_1620 <- readRDS(paste0(params$postprocessed_outp
 
 mai_case_prop_1620 <- data.frame(
   variable = c('country_cases_central_africa',
-               'country_cases_eastern_africa',
-               'country_cases_southern_africa',
-               'country_cases_western_africa'),
+         'country_cases_eastern_africa',
+         'country_cases_southern_africa',
+         'country_cases_western_africa'),
   mean_prop = c(
     round(mean(output_mai_cases_draw_by_region_1620$country_cases_central_africa),2),
     round(mean(output_mai_cases_draw_by_region_1620$country_cases_eastern_africa),2),
@@ -650,12 +650,12 @@ output_mai_grid_cases_1620 <- readRDS(paste0(params$postprocessed_output_directo
 data.frame(
   time_period = "2011-2015",
   `% of grid cells with >1 modeled cases/year` = scales::percent(nrow(output_mai_grid_cases_1115[output_mai_grid_cases_1115$mean>1,])/nrow(output_mai_grid_cases_1115))
-) %>% 
+  ) %>% 
   dplyr::bind_rows(
-    data.frame(
-      time_period = "2016-2020",
-      `% of grid cells with >1 modeled cases/year` = scales::percent(nrow(output_mai_grid_cases_1620[output_mai_grid_cases_1620$mean>1,])/nrow(output_mai_grid_cases_1620))
-    ) 
+   data.frame(
+  time_period = "2016-2020",
+  `% of grid cells with >1 modeled cases/year` = scales::percent(nrow(output_mai_grid_cases_1620[output_mai_grid_cases_1620$mean>1,])/nrow(output_mai_grid_cases_1620))
+  ) 
   ) %>% 
   dplyr::rename("% of grid cells with >1 mean modeled cases/year"=X..of.grid.cells.with..1.modeled.cases.year) %>%
   kableExtra::kbl(caption = "Table 7. Grid-level cases summary") %>% 
@@ -669,39 +669,39 @@ if(file.exists(paste0(params$output_directory,"/grid_case_adm0_1115.rds"))){
   grid_case_adm0_1115<-readRDS(paste0(params$output_directory,"/grid_case_adm0_1115.rds"))
 } else{
   grid_case_adm0_1115<-data.frame()
-  for (row_tmp in 1:nrow(output_adm0_sf_1115)) {
-    grid_case_adm0_1115_tmp <- sf::st_intersection(output_mai_grid_cases_1115,output_adm0_sf_1115[row_tmp,])
-    grid_case_adm0_1115<-grid_case_adm0_1115 %>% dplyr::bind_rows(
-      data.frame(
-        time_period = "2011-2015",
-        country = output_adm0_sf_1115$shapeName[row_tmp],
-        `% of grid cells with >1 modeled cases/year` = nrow(grid_case_adm0_1115_tmp[grid_case_adm0_1115_tmp$mean>1,])/nrow(grid_case_adm0_1115_tmp) * 100      
-      )
+for (row_tmp in 1:nrow(output_adm0_sf_1115)) {
+  grid_case_adm0_1115_tmp <- sf::st_intersection(output_mai_grid_cases_1115,output_adm0_sf_1115[row_tmp,])
+  grid_case_adm0_1115<-grid_case_adm0_1115 %>% dplyr::bind_rows(
+    data.frame(
+    time_period = "2011-2015",
+    country = output_adm0_sf_1115$shapeName[row_tmp],
+    `% of grid cells with >1 modeled cases/year` = nrow(grid_case_adm0_1115_tmp[grid_case_adm0_1115_tmp$mean>1,])/nrow(grid_case_adm0_1115_tmp) * 100      
     )
-  }
-  saveRDS(grid_case_adm0_1115,paste0(params$output_directory,"/grid_case_adm0_1115.rds"))
+  )
+}
+saveRDS(grid_case_adm0_1115,paste0(params$output_directory,"/grid_case_adm0_1115.rds"))
 }
 
 rm(output_mai_grid_cases_1115)
 invisible(gc())
 
 if(file.exists(paste0(params$output_directory,"/grid_case_adm0_1620.rds"))){
-  grid_case_adm0_1620<-readRDS(paste0(params$output_directory,"/grid_case_adm0_1620.rds"))
+    grid_case_adm0_1620<-readRDS(paste0(params$output_directory,"/grid_case_adm0_1620.rds"))
 } else {
   grid_case_adm0_1620<-data.frame()
-  for (row_tmp in 1:nrow(output_adm0_sf_1620)) {
-    grid_case_adm0_1620_tmp <- sf::st_intersection(output_mai_grid_cases_1620,output_adm0_sf_1620[row_tmp,])
-    grid_case_adm0_1620<-grid_case_adm0_1620 %>% dplyr::bind_rows(
-      data.frame(
-        time_period = "2016-2020",
-        country = output_adm0_sf_1620$shapeName[row_tmp],
-        `% of grid cells with >1 modeled cases/year` = nrow(grid_case_adm0_1620_tmp[grid_case_adm0_1620_tmp$mean>1,])/nrow(grid_case_adm0_1620_tmp) * 100      
-      )
+for (row_tmp in 1:nrow(output_adm0_sf_1620)) {
+  grid_case_adm0_1620_tmp <- sf::st_intersection(output_mai_grid_cases_1620,output_adm0_sf_1620[row_tmp,])
+  grid_case_adm0_1620<-grid_case_adm0_1620 %>% dplyr::bind_rows(
+    data.frame(
+    time_period = "2016-2020",
+    country = output_adm0_sf_1620$shapeName[row_tmp],
+    `% of grid cells with >1 modeled cases/year` = nrow(grid_case_adm0_1620_tmp[grid_case_adm0_1620_tmp$mean>1,])/nrow(grid_case_adm0_1620_tmp) * 100      
     )
-  }
-  
-  saveRDS(grid_case_adm0_1620,paste0(params$output_directory,"/grid_case_adm0_1620.rds"))
-  
+  )
+}
+
+saveRDS(grid_case_adm0_1620,paste0(params$output_directory,"/grid_case_adm0_1620.rds"))
+
 }
 
 rm(output_mai_grid_cases_1620)
@@ -758,9 +758,47 @@ mai_grid_pop_1620 <- output_mai_grid_cases_1620 %>%
   mutate(pop = mean/mean_rates) %>% 
   ungroup()
 
-print(paste0("Overall, cholera cases were clustered in a relatively small percentage of the continent, affecting in 2016-2020 ", round(sum(mai_grid_pop_1620[mai_grid_pop_1620$mean>1,]$pop)/10^6,0), " million people (",round(sum(mai_grid_pop_1115[mai_grid_pop_1115$mean>1,]$pop)/10^6,0)," in 2011-2015) living in 20 km x 20 km grid cells having more than 1 case/year"))
+print(paste0("Overall, cholera cases were clustered in a relatively small percentage of the continent, affecting in 2016-2020 ", round(sum(mai_grid_pop_1620[mai_grid_pop_1620$mean>1,]$pop)/10^6,0), " million out of ", round(sum(mai_grid_pop_1620$pop)/10^6,0)," million people  (",round(sum(mai_grid_pop_1115[mai_grid_pop_1115$mean>1,]$pop)/10^6,0)," out of ",round(sum(mai_grid_pop_1115$pop)/10^6,0)," in 2011-2015) living in 20 km x 20 km grid cells having more than 1 case/year"))
 
 ```
+
+```{r Results_paragraph_2_adm2_cases, echo=FALSE,warning=FALSE,message=FALSE}
+# Adm2-level cases summary
+output_mai_cases_adm2_1115 <- readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_mai_cases_adm.rds')) 
+output_mai_cases_adm2_1620 <- readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_mai_cases_adm.rds')) 
+
+#make tables
+adm2_mai_cases_1115 <- output_mai_cases_adm2_1115 %>% 
+  filter(admin_level == "ADM2") %>% 
+  group_by(country) %>% 
+  dplyr::summarize(`Adm2 with >1 case/year` = length(shapeName[mean>1]),
+                   `Total number of adm2` = length(shapeName),
+                   `% of adm2 with >1 case/year` = round(length(shapeName[mean>1])/length(shapeName)*100,2)) 
+adm2_mai_cases_1115 %>% 
+  dplyr::arrange(dplyr::desc(`% of adm2 with >1 case/year`)) %>% 
+  kableExtra::kbl(caption = "Table 10. % of adm2 with >1 case/year in 2011-2015") %>% 
+  kableExtra::kable_styling(full_width = FALSE) %>% 
+  kableExtra::scroll_box(width = "100%")
+
+#print out the median and range for table 10
+print(paste0("The median % of adm2 with >1 case/year in 2011-2015 is ",round(median(adm2_mai_cases_1115$`% of adm2 with >1 case/year`),2),"% (",round(min(adm2_mai_cases_1115$`% of adm2 with >1 case/year`),2),"% - ",round(max(adm2_mai_cases_1115$`% of adm2 with >1 case/year`),2),"%)"))
+
+adm2_mai_cases_1620 <- output_mai_cases_adm2_1620 %>% 
+  filter(admin_level == "ADM2") %>% 
+  group_by(country) %>% 
+  dplyr::summarize(`Adm2 with >1 case/year` = length(shapeName[mean>1]),
+                   `Total number of adm2` = length(shapeName),
+                   `% of adm2 with >1 case/year` = round(length(shapeName[mean>1])/length(shapeName)*100,2)) 
+adm2_mai_cases_1620 %>% 
+  dplyr::arrange(dplyr::desc(`% of adm2 with >1 case/year`)) %>% 
+  kableExtra::kbl(caption = "Table 11. % of adm2 with >1 case/year in 2016-2020") %>% 
+  kableExtra::kable_styling(full_width = FALSE) %>% 
+  kableExtra::scroll_box(width = "100%")
+
+#print out the median and range for table 11
+print(paste0("The median % of adm2 with >1 case/year in 2016-2020 is ",round(median(adm2_mai_cases_1620$`% of adm2 with >1 case/year`),2),"% (",round(min(adm2_mai_cases_1620$`% of adm2 with >1 case/year`),2),"% - ",round(max(adm2_mai_cases_1620$`% of adm2 with >1 case/year`),2),"%)"))
+```
+
 ## Paragraph 3
 **2011-2015** 
 ```{r Results_paragraph_3, echo=FALSE}
@@ -810,8 +848,8 @@ data.frame(readRDS(paste0(params$postprocessed_output_directory,'/mai_region_rat
 # Population living in ADM2 units with significantly increasing or decreasing in irr between the two time periods
 # here, using 2016-2020 population to estimate
 merge(data.frame(readRDS(paste0(params$postprocessed_output_directory,'/mai_ratio_stats.rds'))) %>% dplyr::filter(admin_level == "ADM2") %>% dplyr::select(!geom),
-      data.frame(readRDS(paste0(params$postprocessed_output_directory,'/pop_density.rds'))) %>% dplyr::filter(admin_level == "ADM2")  %>% group_by(location_period_id) %>% dplyr::top_n(1),
-      by=c("country",'admin_level','location_period_id',"shp_id")) %>% 
+data.frame(readRDS(paste0(params$postprocessed_output_directory,'/pop_density.rds'))) %>% dplyr::filter(admin_level == "ADM2")  %>% group_by(location_period_id) %>% dplyr::top_n(1),
+by=c("country",'admin_level','location_period_id',"shp_id")) %>% 
   mutate(change_direction = case_when(
     q2.5 > 1 ~ "increase",
     q97.5 < 1 ~ "decrease",
@@ -842,7 +880,7 @@ invisible(gc())
 risk_cat_map <- taxdat:::get_risk_cat_dict()
 names(risk_cat_map) <- janitor::make_clean_names(risk_cat_map) %>% 
   str_remove("x")
-
+    
 readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_pop_at_risk_all.rds')) %>% 
   dplyr:: mutate(
     risk_cat = str_extract(variable, str_c(rev(names(risk_cat_map)), collapse = "|")),
@@ -850,7 +888,7 @@ readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_pop_at_risk_all
     admin_level = str_c("ADM", str_extract(variable, "(?<=adm)[0-9]+")),
     `mean (millions)` = round(mean/10^6,0),
     `95% PI (millions)` = paste0(round(q2.5/10^6,0),"-", round(q97.5/10^6,0))
-  ) %>% 
+      ) %>% 
   subset(
     admin_level == "ADM2"
   ) %>% 
@@ -859,7 +897,7 @@ readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_pop_at_risk_all
   ) %>% 
   knitr::kable() %>% 
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
-  kableExtra::kable_paper(full_width = F)
+    kableExtra::kable_paper(full_width = F)
 
 invisible(gc())
 
@@ -874,7 +912,7 @@ readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_pop_at_risk_all
     admin_level = str_c("ADM", str_extract(variable, "(?<=adm)[0-9]+")),
     `mean (millions)` = round(mean/10^6,0),
     `95% PI (millions)` = paste0(round(q2.5/10^6,0),"-", round(q97.5/10^6,0))
-  ) %>% 
+      ) %>% 
   subset(
     admin_level == "ADM2"
   ) %>% 
@@ -883,7 +921,7 @@ readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_pop_at_risk_all
   ) %>% 
   knitr::kable() %>% 
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
-  kableExtra::kable_paper(full_width = F)
+    kableExtra::kable_paper(full_width = F)
 
 invisible(gc())
 
@@ -899,7 +937,7 @@ readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_pop_at_risk_by_
     admin_level = str_c("ADM", str_extract(variable, "(?<=adm)[0-9]+")),
     `mean (millions)` = round(mean/10^6,0),
     `95% PI (millions)` = paste0(round(q2.5/10^6,0),"-", round(q97.5/10^6,0))
-  ) %>% 
+      ) %>% 
   subset(
     admin_level == "ADM2"
   ) %>% 
@@ -908,7 +946,7 @@ readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_pop_at_risk_by_
   ) %>% 
   knitr::kable() %>% 
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
-  kableExtra::kable_paper(full_width = F)
+    kableExtra::kable_paper(full_width = F)
 
 invisible(gc())
 
@@ -924,7 +962,7 @@ readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_pop_at_risk_by_
     admin_level = str_c("ADM", str_extract(variable, "(?<=adm)[0-9]+")),
     `mean (millions)` = round(mean/10^6,0),
     `95% PI (millions)` = paste0(round(q2.5/10^6,0),"-", round(q97.5/10^6,0))
-  ) %>% 
+      ) %>% 
   subset(
     admin_level == "ADM2"
   ) %>% 
@@ -933,7 +971,7 @@ readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_pop_at_risk_by_
   ) %>% 
   knitr::kable() %>% 
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
-  kableExtra::kable_paper(full_width = F)
+    kableExtra::kable_paper(full_width = F)
 
 invisible(gc())
 
@@ -952,7 +990,7 @@ readRDS(paste0(params$postprocessed_output_directory,'/pop_high_risk_all_stats.r
   ) %>% 
   knitr::kable() %>% 
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
-  kableExtra::kable_paper(full_width = F)
+    kableExtra::kable_paper(full_width = F)
 
 invisible(gc())
 
@@ -972,7 +1010,7 @@ readRDS(paste0(params$postprocessed_output_directory,'/pop_high_risk_region_stat
   ) %>% 
   knitr::kable() %>% 
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
-  kableExtra::kable_paper(full_width = F)
+    kableExtra::kable_paper(full_width = F)
 
 invisible(gc())
 
@@ -985,11 +1023,11 @@ output_endemicity<-readRDS(paste0(params$postprocessed_output_directory,'/endemi
 
 # % adm2 at high risk by country
 output_risk_cat_1115 <- readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_risk_categories.rds')) %>% 
-  st_drop_geometry() %>% 
+      st_drop_geometry() %>% 
   dplyr::filter(admin_level == "ADM2") 
 
 output_risk_cat_1620 <- readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_risk_categories.rds')) %>% 
-  st_drop_geometry() %>% 
+      st_drop_geometry() %>% 
   dplyr::filter(admin_level == "ADM2") 
 
 table21_A<- output_risk_cat_1115 %>% 
@@ -1011,19 +1049,19 @@ table21_B <-   output_risk_cat_1620 %>%
 table21_A %>% 
   dplyr::bind_rows(
     data.frame(
-      country = "All countries",
-      highrisk_adm2_units = round(100 * sum(table21_A$highrisk_adm2_units_num)/sum(table21_A$total_adm2),2),
-      highrisk_adm2_units_num = sum(table21_A$highrisk_adm2_units_num),
-      time_period = "2011-2015"
-    ))  %>% 
+    country = "All countries",
+    highrisk_adm2_units = round(100 * sum(table21_A$highrisk_adm2_units_num)/sum(table21_A$total_adm2),2),
+    highrisk_adm2_units_num = sum(table21_A$highrisk_adm2_units_num),
+    time_period = "2011-2015"
+  ))  %>% 
   dplyr::bind_rows(table21_B) %>% 
-  dplyr::bind_rows(
+    dplyr::bind_rows(
     data.frame(
-      country = "All countries",
-      highrisk_adm2_units = round(100 * sum(table21_B$highrisk_adm2_units_num)/sum(table21_B$total_adm2),2),
-      highrisk_adm2_units_num = sum(table21_B$highrisk_adm2_units_num),
-      time_period = "2011-2015"
-    ))  %>% 
+    country = "All countries",
+    highrisk_adm2_units = round(100 * sum(table21_B$highrisk_adm2_units_num)/sum(table21_B$total_adm2),2),
+    highrisk_adm2_units_num = sum(table21_B$highrisk_adm2_units_num),
+    time_period = "2011-2015"
+  ))  %>% 
   dplyr::rename(`% of high-risk adm2 units` = highrisk_adm2_units,
                 `Number of high-risk adm2 units` = highrisk_adm2_units_num)  %>% 
   dplyr::select(
@@ -1031,11 +1069,11 @@ table21_A %>%
   ) %>% 
   knitr::kable() %>% 
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
-  kableExtra::kable_paper(full_width = F)
+    kableExtra::kable_paper(full_width = F)
 
 # across all country summary:
 summary_pop_risk_adm2_1115 <- readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_risk_categories.rds')) %>% 
-  st_drop_geometry() %>% 
+      st_drop_geometry() %>% 
   dplyr::filter(admin_level == "ADM2") %>% 
   dplyr::mutate(high_risk = ifelse(risk_cat %in% c('1-10','<1'),FALSE, TRUE)) %>% 
   dplyr::summarise(highrisk_adm2_units = 100 * length(high_risk[high_risk==TRUE])/n(),
@@ -1045,7 +1083,7 @@ summary_pop_risk_adm2_1115 <- readRDS(paste0(params$postprocessed_output_directo
 print(paste("Between 2011-2015, there are", round(summary_pop_risk_adm2_1115$highrisk_adm2_units,4),"% of adm2 units in the high risk category (>10 per 100000) among ", round(summary_pop_risk_adm2_1115$country_prop,4),"% countries(",summary_pop_risk_adm2_1115$total_country,"/43)."))
 
 summary_pop_risk_adm2_1620 <- readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_risk_categories.rds')) %>% 
-  st_drop_geometry() %>% 
+      st_drop_geometry() %>% 
   dplyr::filter(admin_level == "ADM2") %>% 
   dplyr::mutate(high_risk = ifelse(risk_cat %in% c('1-10','<1'),FALSE, TRUE)) %>% 
   dplyr::summarise(highrisk_adm2_units = 100 * length(high_risk[high_risk==TRUE])/n(),
@@ -1080,7 +1118,7 @@ output_endemicity %>%
   ) %>% 
   knitr::kable() %>% 
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
-  kableExtra::kable_paper(full_width = F)
+    kableExtra::kable_paper(full_width = F)
 ```
 
 **Table 23. % of adm2 at high risk in both time periods (sustained high cholera risk)**
@@ -1096,9 +1134,9 @@ table23 <- output_endemicity %>% # output endemicity is from endemicity object i
 table23 %>% 
   bind_rows(
     data.frame(
-      country = "All country",
-      highrisk_adm2_units_number = sum(table23$highrisk_adm2_units_number),
-      total_adm_units = sum(table23$total_adm_units)      
+    country = "All country",
+    highrisk_adm2_units_number = sum(table23$highrisk_adm2_units_number),
+    total_adm_units = sum(table23$total_adm_units)      
     ) %>% 
       mutate(
         highrisk_adm2_units = round(100 * highrisk_adm2_units_number/total_adm_units,2),
@@ -1109,7 +1147,7 @@ table23 %>%
                 `Total number of adm2 units` = total_adm_units) %>% 
   knitr::kable() %>% 
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
-  kableExtra::kable_paper(full_width = F)
+    kableExtra::kable_paper(full_width = F)
 
 summary_both_high_risk_adm2_1120 <- output_endemicity %>% 
   dplyr::ungroup() %>% 
@@ -1124,78 +1162,94 @@ invisible(gc())
 ```
 
 
-
 # Paragraph 6
-
-```{r recent-outbreaks}
-
-# Load data and model results
-load(here::here(str_c(params$postprocessed_output_directory, "/outbreak_analysis_data.rdata")))
-load(here::here(str_c(params$postprocessed_output_directory, "/recent_cholera_outbreaks_res.rdata")))
-endemicity <- readRDS(here::here(str_c(params$postprocessed_output_directory, "endemicity_validated.rds")))
+We modeled the association of 10-year risk categories with outbreak locations reported during the 2022-2024 WHO-declared cholera outbreak emergency to evaluate the practical utility of 10-year risk categories for disease control targeting (Figure 4B). A total of 502 locations reported cholera outbreaks in Africa in 2022-2023, among which 65.9% were at ADM2 level or lower (331 locations). After spatially joining ADM2 or lower locations to our ADM2 level 10-year risk categories, we found that 17.3% of outbreak locations were in sustained high ADM2 units (49 distinct ADM2 locations, vs. 1.6% of non-outbreak locations) and 23.0% in history of high risk ADM2 units (65 distinct ADM2 locations, vs. 11.4% of non-outbreak locations) (Figure 4C). Notably, 34.6% of distinct ADM2 outbreak locations (98 locations across 9 countries –  Burundi, Democratic Republic of Congo, Ethiopia, Kenya, Mozambique, Rwanda, Tanzania, South Africa and Zimbabwe, vs. 60.6% of non-outbreak locations) occurred in “sustained low risk” ADM2 units, 80.6% of which occurred in Southern Africa (79 of 98, Figure 4D). After accounting for possible under-reporting of cholera outbreak occurrence, we found that the odds for ADM2 units to experience a 2022-2023 outbreak increased with the severity of their 10-year (2011-2020) risk category relative to sustained low-risk ADM2 units, although the increases were not statistically significant in all regions; the largest odds ratios were observed in the “sustained high risk” category in Central (median OR 133.5, 95% CrI: 1.6-104,109.4) and Eastern Africa (median OR 71.3, 95% CrI: 2,9-16,474.6) (Figure 4E), with variations between country within regions (mean ICC range of sustained high risk category: 0.53-0.61, Supplementary Figure XX).
 
 
-# Numbers
-n_tot <- nrow(final_joins)
-n_adm2 <- nrow(final_joins %>% filter(admin_level > 1))
-pct_adm2 <- n_adm2/n_adm2*100
+```{r cholrea-occurrence-analysis}
 
-format_pct <- function(x) {formatC(x, digits = 1, format = 'f')}
+load(here("/home/cholerapipelinerestmp/postprocess/outbreak_analysis_data.rdata"))
 
-sustained_low_outbreaks <- final_joins %>% 
+cat("Number of locations with occurrence data:\n")
+n_occ_loc <- nrow(final_joins)
+cat(n_occ_loc, "\n")
+
+cat("Number of locations with occurrence data at ADM2 or lower level (%):\n")
+n_occ_loc_adm2 <- nrow(final_joins %>% filter(admin_level >= 2))
+cat(str_glue("{n_occ_loc_adm2}/{n_occ_loc}, {formatC(format = 'f', digits = 1, n_occ_loc_adm2/n_occ_loc*100)}%\n"))
+
+
+occurrence_stats <- bind_rows(
+  obs_outbreaks %>% 
+    mutate(chol_occurrence = "observed outbreak"),
+  non_obs_outbreaks %>% 
+    mutate(chol_occurrence = "no observed outbreak")
+  ) %>% 
+  arrange(chol_occurrence) %>% 
+  group_by(chol_occurrence, AFRO_region) %>% 
+  mutate(tot = sum(n)) %>% 
+  ungroup() %>% 
+  mutate(text = str_glue("{n}/{tot} ({formatC(frac * 100, format = 'f', digits = 1)}%)")) %>% 
+  select(chol_occurrence, AFRO_region, endemicity, text) %>% 
+  pivot_wider(values_from = "text", 
+              names_from = "chol_occurrence") %>% 
+  mutate(AFRO_region = factor(AFRO_region, c("overall", taxdat::get_AFRO_region_levels()))) %>% 
+  arrange(AFRO_region, endemicity)
+
+cat("Distribution of 10-year classes in ADM2 or lower locations by observed outbreaks:\n")
+occurrence_stats %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F) %>% 
+  kableExtra::pack_rows(index = table(occurrence_stats$AFRO_region))
+
+
+cat("ADM units with outbreaks in sustained low regions\n")
+obs_outbreaks %>% 
+  ungroup() %>% 
+  filter(endemicity == "sustained low risk",
+         AFRO_region != "overall") %>% 
+  mutate(frac = n/sum(n),
+         tot = sum(n)) %>% 
+  mutate(text = str_glue("{n}/{tot} ({formatC(frac * 100, format = 'f', digits = 1)}%)")) %>%
+  select(-n, -frac, -tot) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+
+cat("Countries with outbreaks in sustained low regions\n")
+final_joins %>% 
   st_drop_geometry() %>% 
   filter(admin_level != "1") %>% 
   distinct(location_period_id) %>% 
   inner_join(endemicity %>% st_drop_geometry()) %>% 
   filter(endemicity == "sustained low risk") %>% 
-  get_AFRO_region(ctry_col = "country")
-
-sustained_low_outbreaks_regions <- sustained_low_outbreaks %>% 
-  count(AFRO_region) %>% 
-  mutate(frac = n/sum(n))
-
-sustained_low_outbreak_countries <- sustained_low_outbreaks  %>% 
   distinct(country) %>% 
-  pull(country)
+  get_AFRO_region(ctry_col = "country") %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F)
+```
 
-cat(
-  str_glue("
-  - Total number of outbreak locations: {n_tot}
-    - At ADM2 or lower level:  {n_adm2} ({format_pct(pct_adm2)}%)
-    - At ADM1 level:  {n_tot - n_adm2} \n
-  - Occurrence:
-    - sustained high risk: {with(filter(obs_outbreaks, AFRO_region == 'overall'), n[endemicity == 'sustained high risk'])} ({with(filter(obs_outbreaks, AFRO_region == 'overall'), format_pct(100*frac[endemicity == 'sustained high risk']))}% vs. {with(non_obs_outbreaks, format_pct(100*frac[endemicity == 'sustained high risk']))}% in non-outreabk locations)
-    - history of high risk: {with(filter(obs_outbreaks, AFRO_region == 'overall'), n[endemicity == 'history of high risk'])} ({with(filter(obs_outbreaks, AFRO_region == 'overall'), format_pct(100*frac[endemicity == 'history of high risk']))}% vs. {with(filter(non_obs_outbreaks, AFRO_region == 'overall'), format_pct(100*frac[endemicity == 'history of high risk']))}% in non-outreabk locations)
-     - sustained low risk: {with(filter(obs_outbreaks, AFRO_region == 'overall'), n[endemicity == 'sustained low risk'])} ({with(filter(obs_outbreaks, AFRO_region == 'overall'), format_pct(100*frac[endemicity == 'sustained low risk']))}% vs. {with(filter(non_obs_outbreaks, AFRO_region == 'overall'), format_pct(100*frac[endemicity == 'sustained low risk']))}% in non-outreabk locations)
-     - countries with ADM2 outbreaks in sustained low risk: {length(sustained_low_outbreak_countries)} countries: {str_c(sustained_low_outbreak_countries, collapse = ',')}
-     - sustained low risk by region: Southern Africa {with(sustained_low_outbreaks_regions, n[AFRO_region == 'Southern Africa'])} of {sum(sustained_low_outbreaks_regions$n)} ({format_pct(100*with(sustained_low_outbreaks_regions, frac[AFRO_region == 'Southern Africa']))})
-             ")
-)
+```{r occurrence-model}
+load(here("/home/cholerapipelinerestmp/postprocess/recent_cholera_outbreaks_res.rdata"))
 
-
-
-# Estimates
-OR_txt <- OR_stats %>% 
+cat("Odd ratios of cholera occurrence by region:\n")
+OR_text <- OR_stats %>% 
   mutate(
-    txt = str_c(
-      formatC(median, format = "f", digits = 2),
+    text = str_c(
+      formatC(median, format = "f", digits = 1),
       " (",
-      formatC(q2.5, format = "f", digits = 2),
+      formatC(q2.5, format = "f", digits = 1),
       "-",
-      formatC(q97.5, format = "f", digits = 2),
+      formatC(q97.5, format = "f", digits = 1),
       ")"
     )
   ) %>% 
-  select(AFRO_region, param, txt)
+  select(AFRO_region, param, text) %>% 
+  arrange(AFRO_region, param) %>% 
+  pivot_wider(values_from = "text",
+              names_from = "AFRO_region")
 
-cat(
-  str_glue(
-    "
-    - Sustained high risk OR:
-      - Central Africa: {with(OR_txt, txt[param == 'sustained high risk' & AFRO_region == 'Central Africa'])}
-      - Eastern Africa: {with(OR_txt, txt[param == 'sustained high risk' & AFRO_region == 'Eastern Africa'])}
-    - ICC sustained high risk ranges: {str_c(formatC(digits = 2, format = 'f', range(ICC_stats$mean[ICC_stats$param == 'sustained high risk'])), collapse = '-')}
-    ")
-)
+OR_text %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F) 
 ```
 
