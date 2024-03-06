@@ -1508,7 +1508,7 @@ ggsave(plot = p_fig4,
 
 # Figure 5: cholera occurrence -----------------------------------------------------
 
-# Load outbreak data and results
+# Load outbreak data and results (50%)
 load(str_c(opt$output_dir, "/outbreak_analysis_data.rdata"))
 load(str_c(opt$output_dir, "/recent_cholera_outbreaks_res.rdata"))
 
@@ -2004,6 +2004,10 @@ ggsave(plot = p_ob_map2_95,
        height = 5,
        dpi = 100)
 
+# reload outbreak analysis output with 95% cutoff
+load(str_c(opt$output_dir, "/outbreak_analysis_data_95.rdata"))
+load(str_c(opt$output_dir, "/recent_cholera_outbreaks_res_95.rdata"))
+
 # Distribution of 10-year risk categories among ADM2 locations
 ob_count_dat_95 <-  obs_outbreaks %>% 
   mutate(occurrence = "       cholera\n       observed") %>% 
@@ -2063,6 +2067,42 @@ p_ob_frac_comb_95 <- cowplot::plot_grid(
   axis = "tb"
 )
 
+
+p_ob_1_95 <- baseline_prob_stats %>% 
+  mutate(what = "reference",
+         param = case_when(str_detect(param, "baseline") ~ "sustained low risk",
+                           TRUE ~ param)) %>% 
+  ggplot(aes(x = param, y = mean, ymin = q2.5, ymax = q97.5, color = AFRO_region)) +
+  geom_point(position = pd1) +
+  geom_errorbar(width = 0, position = pd1) +
+  theme_bw() +
+  facet_grid(. ~ what, scales = "free", space = "free") +
+  scale_color_manual(values = c("overall" = "black", colors_afro_regions())) +
+  labs(x = "", y = "probability of cholera occurrence") +
+  guides(color = "none") +
+  coord_cartesian(ylim = c(0, 1))  +
+  theme(axis.text = element_text(size = 8),
+        axis.title = element_text(size = 10))
+
+p_ob_2_95 <- logOR_stats %>% 
+  mutate(what = str_replace(what, "outbreak", "cholera")) %>% 
+  ggplot(aes(x = param, y = mean, ymin = q2.5, ymax = q97.5, color = AFRO_region)) +
+  geom_point(position = pd2) +
+  geom_errorbar(width = 0, position = pd2) +
+  geom_hline(aes(yintercept = 0), lty = 3, lwd = .6) +
+  facet_grid(. ~ what, scales = "free", space = "free") +
+  theme_bw() +
+  scale_color_manual(values = c("overall" = "black", colors_afro_regions())) +
+  labs(x = "10-year cholera risk category", y = "log-Odds ratio", color = NULL) +
+  theme(legend.position = c(.145, .84),
+        legend.key.height = unit(.75, units = "lines"),
+        axis.text = element_text(size = 8),
+        axis.title = element_text(size = 10),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 8))
+
+
+
 p_fig5_95 <- plot_grid(
   plot_grid(
     p_ob_map2_95, 
@@ -2087,11 +2127,11 @@ p_fig5_95 <- plot_grid(
     labels = c("a", NA_character_)
   ),
   plot_grid(
-    p_ob_1 +
+    p_ob_1_95 +
       guides(color = guide_legend("region")) +
       theme(legend.position = "right") +
       theme(plot.margin = unit(c(1, 3, 1, 1), units = "lines")), 
-    p_ob_2 +
+    p_ob_2_95 +
       guides(color = "none"),
     nrow = 1,
     rel_widths = c(.7, 1),
