@@ -32,6 +32,11 @@ options(dplyr.summarise.inform = FALSE)
 
 ## Paragraph 1
 ```{r Results_paragraph_1_table1, echo=FALSE,warning=FALSE}
+
+  # params<- list(postprocessed_output_directory= "/home/cholerapipelinerestmp/postprocess/processed_outputs",
+  # interm_directory= "/home/cholerapipelinerestmp/postprocess/interm",
+  # output_directory= "/home/cholerapipelinerestmp/paper_stats/")
+
 output_obs_1115 <- readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_obs.rds'))
 output_obs_1620 <- readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_obs.rds'))
 output_obs_1120 <- dplyr::bind_rows(
@@ -519,6 +524,21 @@ print(
   )
 )
 
+# print out average suspected cases summary excluding ETH and SDN
+output_mai_cases_adm2_1115 <- readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_mai_cases_adm.rds'))
+output_mai_cases_adm2_1620 <- readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_mai_cases_adm.rds')) 
+
+print(
+  paste0(
+  "Annual average cholera cases across Africa (excluding ETH and SDN) in 2011-2015: ", round(output_mai_cases_all_1115$mean-sum(output_mai_cases_adm2_1115[output_mai_cases_adm2_1115$country %in% c("SDN","ETH") & output_mai_cases_adm2_1115$admin_level == "ADM0",]$mean),0)
+  )
+)
+print(
+  paste0(
+  "Annual average cholera cases across Africa (excluding ETH and SDN) in 2016-2020: ", round(output_mai_cases_all_1620$mean-sum(output_mai_cases_adm2_1620[output_mai_cases_adm2_1620$country %in% c("SDN","ETH") & output_mai_cases_adm2_1620$admin_level == "ADM0",]$mean),0)
+  )
+)
+
 #cases by region
 output_mai_cases_by_region_1115 <- readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_mai_cases_by_region.rds')) %>% 
   dplyr::mutate(
@@ -764,8 +784,6 @@ print(paste0("Overall, cholera cases were clustered in a relatively small percen
 
 ```{r Results_paragraph_2_adm2_cases, echo=FALSE,warning=FALSE,message=FALSE}
 # Adm2-level cases summary
-output_mai_cases_adm2_1115 <- readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_mai_cases_adm.rds')) 
-output_mai_cases_adm2_1620 <- readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_mai_cases_adm.rds')) 
 
 #make tables
 adm2_mai_cases_1115 <- output_mai_cases_adm2_1115 %>% 
@@ -831,7 +849,34 @@ data.frame(readRDS(paste0(params$postprocessed_output_directory,'/mai_ratio_stat
   kableExtra::kable_styling(full_width = FALSE) %>% 
   kableExtra::scroll_box(width = "100%")
 
+# adm2 with significant increase/decrease/total number of adm2
+data.frame(readRDS(paste0(params$postprocessed_output_directory,'/mai_ratio_stats.rds'))) %>% 
+  dplyr::select(!geom)%>%
+  dplyr::filter(admin_level =="ADM2") %>% 
+  dplyr::mutate(
+    signf_increase = ifelse(
+      mean>1 & q2.5>1,
+      TRUE, FALSE
+    ),
+    signf_decrease = ifelse(
+      mean<1 & q97.5<1,
+      TRUE, FALSE
+    )
+  ) %>% 
+  dplyr::group_by(country) %>% 
+  dplyr::summarise(
+    "Total number of adm2" = n(),
+    "Num of signf increase adm2" = length(signf_increase[signf_increase]),
+    "Num of signf decrease adm2" = length(signf_decrease[signf_decrease]),
+    "Prop of signf increase adm2 (%)" = round(length(signf_increase[signf_increase])/n()*100,2),
+    "Prop of signf decrease adm2 (%)" = round(length(signf_decrease[signf_decrease])/n()*100,2)
+  ) %>% 
+  dplyr::arrange(desc(`Prop of signf increase adm2 (%)`)) %>% 
+  kableExtra::kbl(caption = "Table 13. Adm2 with significant changes in incidence tate tatio between the two periods by country") %>% 
+  kableExtra::kable_styling(full_width = FALSE) %>% 
+  kableExtra::scroll_box(width = "100%")
 
+# change table Number----
 
 data.frame(readRDS(paste0(params$postprocessed_output_directory,'/mai_region_ratio_stats.rds'))) %>%
   select(AFRO_region,mean,q2.5,q97.5) %>% 
@@ -840,7 +885,7 @@ data.frame(readRDS(paste0(params$postprocessed_output_directory,'/mai_region_rat
     `95% CrI` = paste0(round(q2.5,2),' - ',round(q97.5,2))
   ) %>% 
   select(AFRO_region,`Mean IRR`,`95% CrI`) %>% 
-  kableExtra::kbl(caption = "Table 13. Incidence Rate Ratio between the two periods by region") %>% 
+  kableExtra::kbl(caption = "Table 14. Incidence Rate Ratio between the two periods by region") %>% 
   kableExtra::kable_styling(full_width = FALSE) %>% 
   kableExtra::scroll_box(width = "100%")
 
@@ -860,7 +905,7 @@ by=c("country",'admin_level','location_period_id',"shp_id")) %>%
   dplyr::summarise(
     total_pop_millions = sum(pop)/10^6
   ) %>% 
-  kableExtra::kbl(caption = "Table 14. Population living in ADM2 units with significantly increasing/decreasing incidence rate between the two periods") %>% 
+  kableExtra::kbl(caption = "Table 15. Population living in ADM2 units with significantly increasing/decreasing incidence rate between the two periods") %>% 
   kableExtra::kable_styling(full_width = FALSE) %>% 
   kableExtra::scroll_box(width = "100%")
 
@@ -875,7 +920,7 @@ invisible(gc())
 ```
 
 ## Paragraph 4
-**Table 15. Population at risk, 2011-2015** 
+**Table 16. Population at risk, 2011-2015** 
 ```{r Results_paragraph_4, echo=FALSE}
 risk_cat_map <- taxdat:::get_risk_cat_dict()
 names(risk_cat_map) <- janitor::make_clean_names(risk_cat_map) %>% 
@@ -903,7 +948,7 @@ invisible(gc())
 
 ```
 
-**Table 16. Population at risk, 2016-2020**
+**Table 17. Population at risk, 2016-2020**
 ```{r Results_paragraph_4_2016-2020, echo=FALSE}
 readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_pop_at_risk_all.rds')) %>% 
   dplyr:: mutate(
@@ -927,7 +972,7 @@ invisible(gc())
 
 ```
 
-**Table 17. Population at risk by region. 2011-2015**
+**Table 18. Population at risk by region. 2011-2015**
 ```{r Results_paragraph_4_risk_by_region_1115, echo=FALSE}
 readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_pop_at_risk_by_region.rds')) %>% 
   dplyr:: mutate(
@@ -952,7 +997,7 @@ invisible(gc())
 
 ```
 
-**Table 18. Population at risk by region. 2016-2020**
+**Table 19. Population at risk by region. 2016-2020**
 ```{r Results_paragraph_4_risk_by_region_1620, echo=FALSE}
 readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_pop_at_risk_by_region.rds')) %>% 
   dplyr:: mutate(
@@ -977,7 +1022,7 @@ invisible(gc())
 
 ```
 
-**Table 19. Population at high risk by time period**
+**Table 20. Population at high risk by time period**
 ```{r Results_paragraph_4_high_risk_by_time_period, echo=FALSE}
 readRDS(paste0(params$postprocessed_output_directory,'/pop_high_risk_all_stats.rds')) %>% 
   mutate(
@@ -996,7 +1041,7 @@ invisible(gc())
 
 ```
 
-**Table 20. Population at high risk by region by time period**
+**Table 21. Population at high risk by region by time period**
 ```{r Results_paragraph_4_high_risk_by_time_period_by_region, echo=FALSE}
 readRDS(paste0(params$postprocessed_output_directory,'/pop_high_risk_region_stats.rds')) %>% 
   mutate(
@@ -1016,63 +1061,112 @@ invisible(gc())
 
 ```
 
-**Table 21. % of adm2 at high risk by time periods**
+**Table 22. % of adm2 at high risk by time periods**
 ```{r Results_paragraph_4_high_risk_by_country, echo=FALSE}
+# threshold is 50% ----
 ## The same object/stats as Figure 4B
-output_endemicity<-readRDS(paste0(params$postprocessed_output_directory,'/endemicity.rds')) 
+output_endemicity_50<-readRDS(paste0(params$postprocessed_output_directory,'/endemicity_50.rds')) 
 
 # % adm2 at high risk by country
-output_risk_cat_1115 <- readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_risk_categories.rds')) %>% 
+output_risk_cat_1115_50 <- readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_risk_categories_50.rds')) %>% 
       st_drop_geometry() %>% 
   dplyr::filter(admin_level == "ADM2") 
 
-output_risk_cat_1620 <- readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_risk_categories.rds')) %>% 
+output_risk_cat_1620_50 <- readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_risk_categories_50.rds')) %>% 
       st_drop_geometry() %>% 
   dplyr::filter(admin_level == "ADM2") 
 
-table21_A<- output_risk_cat_1115 %>% 
+table22_A_50<- output_risk_cat_1115_50 %>% 
   dplyr::mutate(high_risk = ifelse(risk_cat %in% c('1-10','<1'),FALSE, TRUE)) %>% 
   dplyr::group_by(country) %>% 
-  dplyr::summarise(highrisk_adm2_units = 100 * length(high_risk[high_risk==TRUE])/n(),
-                   highrisk_adm2_units_num = length(high_risk[high_risk==TRUE]),
+  dplyr::summarise(highrisk_adm2_units_50 = 100 * length(high_risk[high_risk==TRUE])/n(),
+                   highrisk_adm2_units_num_50 = length(high_risk[high_risk==TRUE]),
                    total_adm2 = n()) %>% 
   dplyr::mutate(time_period = '2011-2015')
-table21_B <-   output_risk_cat_1620 %>% 
+table22_B_50 <-   output_risk_cat_1620_50 %>% 
   dplyr::mutate(high_risk = ifelse(risk_cat %in% c('1-10','<1'),FALSE, TRUE)) %>% 
   dplyr::group_by(country) %>% 
-  dplyr::summarise(highrisk_adm2_units = 100 * length(high_risk[high_risk==TRUE])/n(),
-                   highrisk_adm2_units_num = length(high_risk[high_risk==TRUE]),
+  dplyr::summarise(highrisk_adm2_units_50 = 100 * length(high_risk[high_risk==TRUE])/n(),
+                   highrisk_adm2_units_num_50 = length(high_risk[high_risk==TRUE]),
                    total_adm2 = n()) %>% 
   dplyr::mutate(time_period = '2016-2020')
 
 
-table21_A %>% 
+# threshold is 95% ----
+## The same object/stats as Figure 4B
+output_endemicity_95<-readRDS(paste0(params$postprocessed_output_directory,'/endemicity_95.rds')) 
+
+# % adm2 at high risk by country
+output_risk_cat_1115_95 <- readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_risk_categories_95.rds')) %>% 
+      st_drop_geometry() %>% 
+  dplyr::filter(admin_level == "ADM2") 
+
+output_risk_cat_1620_95 <- readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_risk_categories_95.rds')) %>% 
+      st_drop_geometry() %>% 
+  dplyr::filter(admin_level == "ADM2") 
+
+table22_A_95<- output_risk_cat_1115_95 %>% 
+  dplyr::mutate(high_risk = ifelse(risk_cat %in% c('1-10','<1'),FALSE, TRUE)) %>% 
+  dplyr::group_by(country) %>% 
+  dplyr::summarise(highrisk_adm2_units_95 = 100 * length(high_risk[high_risk==TRUE])/n(),
+                   highrisk_adm2_units_num_95 = length(high_risk[high_risk==TRUE]),
+                   total_adm2 = n()) %>% 
+  dplyr::mutate(time_period = '2011-2015')
+table22_B_95 <-   output_risk_cat_1620_95 %>% 
+  dplyr::mutate(high_risk = ifelse(risk_cat %in% c('1-10','<1'),FALSE, TRUE)) %>% 
+  dplyr::group_by(country) %>% 
+  dplyr::summarise(highrisk_adm2_units_95 = 100 * length(high_risk[high_risk==TRUE])/n(),
+                   highrisk_adm2_units_num_95 = length(high_risk[high_risk==TRUE]),
+                   total_adm2 = n()) %>% 
+  dplyr::mutate(time_period = '2016-2020')
+
+#LSO is not in this table because we ran models on adm1 of LSO
+table22_A<-table22_A_50 %>% 
+  dplyr::inner_join(
+    table22_A_95,by=c("country","time_period","total_adm2")
+  )
+
+table22_B<-table22_B_50 %>% 
+  dplyr::inner_join(
+    table22_B_95,by=c("country","time_period","total_adm2")
+  )
+
+#summary table 22
+table22_A %>% 
+  dplyr::select(!total_adm2) %>% 
   dplyr::bind_rows(
     data.frame(
     country = "All countries",
-    highrisk_adm2_units = round(100 * sum(table21_A$highrisk_adm2_units_num)/sum(table21_A$total_adm2),2),
-    highrisk_adm2_units_num = sum(table21_A$highrisk_adm2_units_num),
+    highrisk_adm2_units_50 = round(100 * sum(table22_A$highrisk_adm2_units_num_50)/sum(table22_A$total_adm2),2),
+    highrisk_adm2_units_num_50 = sum(table22_A$highrisk_adm2_units_num_50),
+    highrisk_adm2_units_95 = round(100 * sum(table22_A$highrisk_adm2_units_num_95)/sum(table22_A$total_adm2),2),
+    highrisk_adm2_units_num_95 = sum(table22_A$highrisk_adm2_units_num_95),
     time_period = "2011-2015"
   ))  %>% 
-  dplyr::bind_rows(table21_B) %>% 
+  dplyr::bind_rows(table22_B) %>% 
     dplyr::bind_rows(
     data.frame(
     country = "All countries",
-    highrisk_adm2_units = round(100 * sum(table21_B$highrisk_adm2_units_num)/sum(table21_B$total_adm2),2),
-    highrisk_adm2_units_num = sum(table21_B$highrisk_adm2_units_num),
-    time_period = "2011-2015"
+    highrisk_adm2_units_50 = round(100 * sum(table22_B$highrisk_adm2_units_num_50)/sum(table22_B$total_adm2),2),
+    highrisk_adm2_units_num_50 = sum(table22_B$highrisk_adm2_units_num_50),
+    highrisk_adm2_units_95 = round(100 * sum(table22_B$highrisk_adm2_units_num_95)/sum(table22_B$total_adm2),2),
+    highrisk_adm2_units_num_ = sum(table22_B$highrisk_adm2_units_num_50),
+    time_period = "2016-2020"
   ))  %>% 
-  dplyr::rename(`% of high-risk adm2 units` = highrisk_adm2_units,
-                `Number of high-risk adm2 units` = highrisk_adm2_units_num)  %>% 
+  dplyr::rename(`% of high-risk adm2 units (50%)` = highrisk_adm2_units_50,
+                `Number of high-risk adm2 units (50%)` = highrisk_adm2_units_num_50,
+                `% of high-risk adm2 units (95%)` = highrisk_adm2_units_95,
+                `Number of high-risk adm2 units (95%)` = highrisk_adm2_units_num_95)  %>% 
   dplyr::select(
-    time_period, country, `% of high-risk adm2 units`,`Number of high-risk adm2 units`
+    time_period, country, `% of high-risk adm2 units (50%)`,`Number of high-risk adm2 units (50%)`,`% of high-risk adm2 units (95%)`,`Number of high-risk adm2 units (95%)`
   ) %>% 
   knitr::kable() %>% 
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
     kableExtra::kable_paper(full_width = F)
 
 # across all country summary:
-summary_pop_risk_adm2_1115 <- readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_risk_categories.rds')) %>% 
+# threshold is 50% ----
+summary_pop_risk_adm2_1115_50 <- readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_risk_categories_50.rds')) %>% 
       st_drop_geometry() %>% 
   dplyr::filter(admin_level == "ADM2") %>% 
   dplyr::mutate(high_risk = ifelse(risk_cat %in% c('1-10','<1'),FALSE, TRUE)) %>% 
@@ -1080,9 +1174,9 @@ summary_pop_risk_adm2_1115 <- readRDS(paste0(params$postprocessed_output_directo
                    country_prop = 100 * length(unique(country[high_risk]))/43,
                    total_country = length(unique(country[high_risk])))
 
-print(paste("Between 2011-2015, there are", round(summary_pop_risk_adm2_1115$highrisk_adm2_units,4),"% of adm2 units in the high risk category (>10 per 100000) among ", round(summary_pop_risk_adm2_1115$country_prop,4),"% countries(",summary_pop_risk_adm2_1115$total_country,"/43)."))
+print(paste("Using 50% as the threshold, between 2011-2015, there are", round(summary_pop_risk_adm2_1115_50$highrisk_adm2_units,4),"% of adm2 units in the high risk category (>10 per 100000) among ", round(summary_pop_risk_adm2_1115_50$country_prop,4),"% countries(",summary_pop_risk_adm2_1115_50$total_country,"/43)."))
 
-summary_pop_risk_adm2_1620 <- readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_risk_categories.rds')) %>% 
+summary_pop_risk_adm2_1620_50 <- readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_risk_categories_50.rds')) %>% 
       st_drop_geometry() %>% 
   dplyr::filter(admin_level == "ADM2") %>% 
   dplyr::mutate(high_risk = ifelse(risk_cat %in% c('1-10','<1'),FALSE, TRUE)) %>% 
@@ -1090,94 +1184,171 @@ summary_pop_risk_adm2_1620 <- readRDS(paste0(params$postprocessed_output_directo
                    country_prop = 100 * length(unique(country[high_risk]))/43,
                    total_country = length(unique(country[high_risk])))
 
-print(paste("Between 2016-2020, there are", round(summary_pop_risk_adm2_1620$highrisk_adm2_units,4),"% of adm2 units in the high risk category (>10 per 100000) among ", round(summary_pop_risk_adm2_1620$country_prop,4),"% countries(",summary_pop_risk_adm2_1620$total_country,"/43)."))
+print(paste("Using 50% as the threshold, between 2016-2020, there are", round(summary_pop_risk_adm2_1620_50$highrisk_adm2_units,4),"% of adm2 units in the high risk category (>10 per 100000) among ", round(summary_pop_risk_adm2_1620_50$country_prop,4),"% countries(",summary_pop_risk_adm2_1620_50$total_country,"/43)."))
+
+# threshold is 95% ----
+summary_pop_risk_adm2_1115_95 <- readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_risk_categories_95.rds')) %>% 
+      st_drop_geometry() %>% 
+  dplyr::filter(admin_level == "ADM2") %>% 
+  dplyr::mutate(high_risk = ifelse(risk_cat %in% c('1-10','<1'),FALSE, TRUE)) %>% 
+  dplyr::summarise(highrisk_adm2_units = 100 * length(high_risk[high_risk==TRUE])/n(),
+                   country_prop = 100 * length(unique(country[high_risk]))/43,
+                   total_country = length(unique(country[high_risk])))
+
+print(paste("Using 95% as the threshold, between 2011-2015, there are", round(summary_pop_risk_adm2_1115_95$highrisk_adm2_units,4),"% of adm2 units in the high risk category (>10 per 100000) among ", round(summary_pop_risk_adm2_1115_95$country_prop,4),"% countries(",summary_pop_risk_adm2_1115_95$total_country,"/43)."))
+
+summary_pop_risk_adm2_1620_95 <- readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_risk_categories_95.rds')) %>% 
+      st_drop_geometry() %>% 
+  dplyr::filter(admin_level == "ADM2") %>% 
+  dplyr::mutate(high_risk = ifelse(risk_cat %in% c('1-10','<1'),FALSE, TRUE)) %>% 
+  dplyr::summarise(highrisk_adm2_units = 100 * length(high_risk[high_risk==TRUE])/n(),
+                   country_prop = 100 * length(unique(country[high_risk]))/43,
+                   total_country = length(unique(country[high_risk])))
+
+print(paste("Using 95% as the threshold, between 2016-2020, there are", round(summary_pop_risk_adm2_1620_95$highrisk_adm2_units,4),"% of adm2 units in the high risk category (>10 per 100000) among ", round(summary_pop_risk_adm2_1620_95$country_prop,4),"% countries(",summary_pop_risk_adm2_1620_95$total_country,"/43)."))
 
 invisible(gc())
 
 ```
 
 ## Paragraph 5
-**Table 22. Population living and % of adm2 by 10-year risk category**
-```{r Results_paragraph_4_pop_living_prop_adm2_by_10-year risk_category, echo=FALSE}
-output_endemicity %>% 
+**Table 23. Population living and % of adm2 by 10-year risk category**
+```{r Results_paragraph_5_pop_living_prop_adm2_by_10-year risk_category, echo=FALSE}
+output_endemicity_50 %>% 
   ungroup() %>% 
   group_by(endemicity) %>% 
-  summarise(pop = round(sum(pop)/10^6,1),
-            adm2 = length(unique(location_period_id)),
-            adm2_prop = round(100*length(unique(location_period_id))/nrow(output_endemicity),2),
-            total_adm2 = nrow(output_endemicity),
-            total_country = length(unique(country))) %>% 
+  summarise(pop_50 = round(sum(pop)/10^6,1),
+            adm2_50 = length(unique(location_period_id)),
+            adm2_prop_50 = round(100*length(unique(location_period_id))/nrow(output_endemicity_50),2),
+            total_adm2_50 = nrow(output_endemicity_50),
+            total_country_50 = length(unique(country))) %>% 
+  dplyr::inner_join(
+    output_endemicity_95 %>% 
+  ungroup() %>% 
+  group_by(endemicity) %>% 
+  summarise(pop_95 = round(sum(pop)/10^6,1),
+            adm2_95 = length(unique(location_period_id)),
+            adm2_prop_95 = round(100*length(unique(location_period_id))/nrow(output_endemicity_95),2),
+            total_adm2_95 = nrow(output_endemicity_95),
+            total_country_95 = length(unique(country))),
+  by=c("endemicity")
+  ) %>% 
   dplyr::rename(`10-year risk cat` = endemicity,
-                `Population(million)` = pop,
-                `Number of adm2 units` = adm2,
-                `Total number of adm2 units` = total_adm2,
-                `% of adm2 units (%)` = adm2_prop,
-                `Total number of countries` = total_country)  %>% 
+                `Population(million) (50%)` = pop_50,
+                `Number of adm2 units (50%)` = adm2_50,
+                `Total number of adm2 units (50%)` = total_adm2_50,
+                `% of adm2 units (%) (50%)` = adm2_prop_50,
+                `Total number of countries (50%)` = total_country_50,
+                `Population(million) (95%)` = pop_95,
+                `Number of adm2 units (95%)` = adm2_95,
+                `Total number of adm2 units (95%)` = total_adm2_95,
+                `% of adm2 units (%) (95%)` = adm2_prop_95,
+                `Total number of countries (95%)` = total_country_95)  %>% 
+  
   dplyr::select(
-    `10-year risk cat`,`Population(million)`, `Number of adm2 units`, `Total number of adm2 units`,`% of adm2 units (%)`,`Total number of countries`
+    `10-year risk cat`,`Population(million) (50%)`, `Number of adm2 units (50%)`, `Total number of adm2 units (50%)`,`% of adm2 units (%) (50%)`,`Total number of countries (50%)`,`Population(million) (95%)`, `Number of adm2 units (95%)`, `Total number of adm2 units (95%)`,`% of adm2 units (%) (95%)`,`Total number of countries (95%)`
   ) %>% 
   knitr::kable() %>% 
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
     kableExtra::kable_paper(full_width = F)
 ```
 
-**Table 23. % of adm2 at high risk in both time periods (sustained high cholera risk)**
-```{r Results_paragraph_4_high_risk_both_time_periods_by_country, echo=FALSE}
-# population living in regions with sustained high cholera risk by country
-table23 <- output_endemicity %>% # output endemicity is from endemicity object in 4B
-  dplyr::group_by(country) %>% 
-  dplyr::summarise(highrisk_adm2_units = 100 * length(endemicity[endemicity=="sustained high risk"])/n(),
-                   highrisk_adm2_units_number = length(endemicity[endemicity=="sustained high risk"]),
-                   total_adm_units = n()) %>% 
-  select(country,highrisk_adm2_units,highrisk_adm2_units_number,total_adm_units)
 
-table23 %>% 
+**Table 24. Population living and % of adm2 by 10-year risk category**
+```{r Results_paragraph_5_pop_living_prop_adm2_by_10-year risk_category_by_country, echo=FALSE}
+output_endemicity_50 %>% 
+  ungroup() %>% 
+  dplyr::group_by(country) %>% 
+  dplyr::mutate(total_pop = sum(pop)) %>% 
+  dplyr::filter(endemicity %in% c("history of high risk","sustained high risk")) %>% 
+  dplyr::group_by(country) %>% 
+  dplyr::summarise(
+    `prop of pop living in history of high risk (%)` = round(sum(pop[endemicity == "history of high risk"])/unique(total_pop)*100,0),
+    `prop of pop living in sustained high risk (%)` = round(sum(pop[endemicity == "sustained high risk"])/unique(total_pop)*100,0),
+    `prop of pop living in sustained high risk or history of high risk (%)` = round(sum(pop)/unique(total_pop)*100,0)
+  ) %>% 
+  knitr::kable() %>% 
+  kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+    kableExtra::kable_paper(full_width = F)
+  
+```
+
+
+**Table 25. % of adm2 at high risk in both time periods (sustained high cholera risk)**
+```{r Results_paragraph_5_high_risk_both_time_periods_by_country, echo=FALSE}
+# population living in regions with sustained high cholera risk by country
+table25 <- output_endemicity_50 %>% # output endemicity is from endemicity object in 4B
+  dplyr::group_by(country) %>% 
+  dplyr::summarise(highrisk_adm2_units_50 = 100 * length(endemicity[endemicity=="sustained high risk"])/n(),
+                   highrisk_adm2_units_number_50 = length(endemicity[endemicity=="sustained high risk"]),
+                   total_adm_units_50 = n()) %>% 
+  dplyr::inner_join(
+     output_endemicity_95 %>% # output endemicity is from endemicity object in 4B
+  dplyr::group_by(country) %>% 
+  dplyr::summarise(highrisk_adm2_units_95 = 100 * length(endemicity[endemicity=="sustained high risk"])/n(),
+                   highrisk_adm2_units_number_95 = length(endemicity[endemicity=="sustained high risk"]),
+                   total_adm_units_95 = n()),
+  by=("country")
+  ) %>% 
+  select(country,highrisk_adm2_units_50,highrisk_adm2_units_number_50,total_adm_units_50,highrisk_adm2_units_95,highrisk_adm2_units_number_95,total_adm_units_95)
+
+table25 %>% 
   bind_rows(
     data.frame(
     country = "All country",
-    highrisk_adm2_units_number = sum(table23$highrisk_adm2_units_number),
-    total_adm_units = sum(table23$total_adm_units)      
+    highrisk_adm2_units_number_50 = sum(table25$highrisk_adm2_units_number_50),
+    total_adm_units_50 = sum(table25$total_adm_units_50),
+    highrisk_adm2_units_number_95 = sum(table25$highrisk_adm2_units_number_95),
+    total_adm_units_95 = sum(table25$total_adm_units_95)
+    
     ) %>% 
       mutate(
-        highrisk_adm2_units = round(100 * highrisk_adm2_units_number/total_adm_units,2),
+        highrisk_adm2_units_50 = round(100 * highrisk_adm2_units_number_50/total_adm_units_50,2),
+        highrisk_adm2_units_95 = round(100 * highrisk_adm2_units_number_95/total_adm_units_95,2)
       )
   ) %>% 
-  dplyr::rename(`% of adm2 units at high-risk in both periods` = highrisk_adm2_units,
-                `Number of adm2 units at high-risk in both periods` = highrisk_adm2_units_number,
-                `Total number of adm2 units` = total_adm_units) %>% 
+  dplyr::rename(`% of adm2 units at high-risk in both periods (50%)` = highrisk_adm2_units_50,
+                `Number of adm2 units at high-risk in both periods (50%)` = highrisk_adm2_units_number_50,
+                `Total number of adm2 units (50%)` = total_adm_units_50,
+                `% of adm2 units at high-risk in both periods (95%)` = highrisk_adm2_units_95,
+                `Number of adm2 units at high-risk in both periods (95%)` = highrisk_adm2_units_number_95,
+                `Total number of adm2 units (95%)` = total_adm_units_95) %>% 
   knitr::kable() %>% 
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
     kableExtra::kable_paper(full_width = F)
 
-summary_both_high_risk_adm2_1120 <- output_endemicity %>% 
+summary_both_high_risk_adm2_1120_50 <- output_endemicity_50 %>% 
   dplyr::ungroup() %>% 
   dplyr::summarise(bothhighrisk_adm2_units = 100 * length(endemicity[endemicity=="sustained high risk"])/n(),
                    country_prop = 100 * length(unique(country[endemicity=="sustained high risk"]))/43,
                    total_country = length(unique(country[endemicity=="sustained high risk"])))
 
-print(paste("There are", round(summary_both_high_risk_adm2_1120$bothhighrisk_adm2_units,4),"% of the adm2 units in high risk category (>10 per 100000) for both time periods and they are concentrated in ",round(summary_both_high_risk_adm2_1120$country_prop,4),"% (",summary_both_high_risk_adm2_1120$total_country,"/43)of the countries."))
+print(paste("Using 50% threshold, there are", round(summary_both_high_risk_adm2_1120_50$bothhighrisk_adm2_units,4),"% of the adm2 units in high risk category (>10 per 100000) for both time periods and they are concentrated in ",round(summary_both_high_risk_adm2_1120_50$country_prop,4),"% (",summary_both_high_risk_adm2_1120_50$total_country,"/43)of the countries."))
+
+summary_both_high_risk_adm2_1120_95 <- output_endemicity_95 %>% 
+  dplyr::ungroup() %>% 
+  dplyr::summarise(bothhighrisk_adm2_units = 100 * length(endemicity[endemicity=="sustained high risk"])/n(),
+                   country_prop = 100 * length(unique(country[endemicity=="sustained high risk"]))/43,
+                   total_country = length(unique(country[endemicity=="sustained high risk"])))
+
+print(paste("Using 95% threshold, there are", round(summary_both_high_risk_adm2_1120_95$bothhighrisk_adm2_units,4),"% of the adm2 units in high risk category (>10 per 100000) for both time periods and they are concentrated in ",round(summary_both_high_risk_adm2_1120_95$country_prop,4),"% (",summary_both_high_risk_adm2_1120_95$total_country,"/43)of the countries."))
 
 invisible(gc())
 
 ```
 
+## Paragraph 6
 
-# Paragraph 6
-We modeled the association of 10-year risk categories with outbreak locations reported during the 2022-2024 WHO-declared cholera outbreak emergency to evaluate the practical utility of 10-year risk categories for disease control targeting (Figure 4B). A total of 502 locations reported cholera outbreaks in Africa in 2022-2023, among which 65.9% were at ADM2 level or lower (331 locations). After spatially joining ADM2 or lower locations to our ADM2 level 10-year risk categories, we found that 17.3% of outbreak locations were in sustained high ADM2 units (49 distinct ADM2 locations, vs. 1.6% of non-outbreak locations) and 23.0% in history of high risk ADM2 units (65 distinct ADM2 locations, vs. 11.4% of non-outbreak locations) (Figure 4C). Notably, 34.6% of distinct ADM2 outbreak locations (98 locations across 9 countries –  Burundi, Democratic Republic of Congo, Ethiopia, Kenya, Mozambique, Rwanda, Tanzania, South Africa and Zimbabwe, vs. 60.6% of non-outbreak locations) occurred in “sustained low risk” ADM2 units, 80.6% of which occurred in Southern Africa (79 of 98, Figure 4D). After accounting for possible under-reporting of cholera outbreak occurrence, we found that the odds for ADM2 units to experience a 2022-2023 outbreak increased with the severity of their 10-year (2011-2020) risk category relative to sustained low-risk ADM2 units, although the increases were not statistically significant in all regions; the largest odds ratios were observed in the “sustained high risk” category in Central (median OR 133.5, 95% CrI: 1.6-104,109.4) and Eastern Africa (median OR 71.3, 95% CrI: 2,9-16,474.6) (Figure 4E), with variations between country within regions (mean ICC range of sustained high risk category: 0.53-0.61, Supplementary Figure XX).
+### We modeled the association of 10-year risk categories with outbreak locations reported during the 2022-2024 WHO-declared cholera outbreak emergency to evaluate the practical utility of 10-year risk categories for disease control targeting (Figure 4B). A total of 502 locations reported cholera outbreaks in Africa in 2022-2023, among which 65.9% were at ADM2 level or lower (331 locations). After spatially joining ADM2 or lower locations to our ADM2 level 10-year risk categories, we found that 17.3% of outbreak locations were in sustained high ADM2 units (49 distinct ADM2 locations, vs. 1.6% of non-outbreak locations) and 23.0% in history of high risk ADM2 units (65 distinct ADM2 locations, vs. 11.4% of non-outbreak locations) (Figure 4C). Notably, 34.6% of distinct ADM2 outbreak locations (98 locations across 9 countries –  Burundi, Democratic Republic of Congo, Ethiopia, Kenya, Mozambique, Rwanda, Tanzania, South Africa and Zimbabwe, vs. 60.6% of non-outbreak locations) occurred in "sustained low risk" ADM2 units, 80.6% of which occurred in Southern Africa (79 of 98, Figure 4D). After accounting for possible under-reporting of cholera outbreak occurrence, we found that the odds for ADM2 units to experience a 2022-2023 outbreak increased with the severity of their 10-year (2011-2020) risk category relative to sustained low-risk ADM2 units, although the increases were not statistically significant in all regions; the largest odds ratios were observed in the "sustained high risk" category in Central (median OR 133.5, 95% CrI: 1.6-104,109.4) and Eastern Africa (median OR 71.3, 95% CrI: 2,9-16,474.6) (Figure 4E), with variations between country within regions (mean ICC range of sustained high risk category: 0.53-0.61, Supplementary Figure XX).
 
-
-```{r cholrea-occurrence-analysis}
-
-load(here("/home/cholerapipelinerestmp/postprocess/outbreak_analysis_data.rdata"))
-
+```{r cholrea-occurrence-analysis, echo=FALSE,message=FALSE}
+load("/home/cholerapipelinerestmp/postprocess/processed_outputs/outbreak_analysis_data.rdata")
 cat("Number of locations with occurrence data:\n")
 n_occ_loc <- nrow(final_joins)
 cat(n_occ_loc, "\n")
-
 cat("Number of locations with occurrence data at ADM2 or lower level (%):\n")
 n_occ_loc_adm2 <- nrow(final_joins %>% filter(admin_level >= 2))
 cat(str_glue("{n_occ_loc_adm2}/{n_occ_loc}, {formatC(format = 'f', digits = 1, n_occ_loc_adm2/n_occ_loc*100)}%\n"))
-
 
 occurrence_stats <- bind_rows(
   obs_outbreaks %>% 
@@ -1196,14 +1367,13 @@ occurrence_stats <- bind_rows(
   mutate(AFRO_region = factor(AFRO_region, c("overall", taxdat::get_AFRO_region_levels()))) %>% 
   arrange(AFRO_region, endemicity)
 
-cat("Distribution of 10-year classes in ADM2 or lower locations by observed outbreaks:\n")
+#cat("Distribution of 10-year classes in ADM2 or lower locations by observed outbreaks:\n")
 occurrence_stats %>% 
-  kableExtra::kable() %>% 
+  kableExtra::kbl(caption = "Table 26. Distribution of 10-year classes in ADM2 or lower locations by observed outbreaks:\n") %>% 
   kableExtra::kable_styling(full_width = F) %>% 
   kableExtra::pack_rows(index = table(occurrence_stats$AFRO_region))
 
-
-cat("ADM units with outbreaks in sustained low regions\n")
+#cat("ADM units with outbreaks in sustained low regions\n")
 obs_outbreaks %>% 
   ungroup() %>% 
   filter(endemicity == "sustained low risk",
@@ -1212,26 +1382,27 @@ obs_outbreaks %>%
          tot = sum(n)) %>% 
   mutate(text = str_glue("{n}/{tot} ({formatC(frac * 100, format = 'f', digits = 1)}%)")) %>%
   select(-n, -frac, -tot) %>% 
-  kableExtra::kable() %>% 
+  kableExtra::kbl(caption = "Table 27. ADM units with outbreaks in sustained low regions\n") %>% 
   kableExtra::kable_styling(full_width = F)
 
-cat("Countries with outbreaks in sustained low regions\n")
+
+#cat("Countries with outbreaks in sustained low regions\n")
 final_joins %>% 
   st_drop_geometry() %>% 
   filter(admin_level != "1") %>% 
   distinct(location_period_id) %>% 
-  inner_join(endemicity %>% st_drop_geometry()) %>% 
+  inner_join(output_endemicity_50 %>% st_drop_geometry()) %>% 
   filter(endemicity == "sustained low risk") %>% 
   distinct(country) %>% 
   get_AFRO_region(ctry_col = "country") %>% 
-  kableExtra::kable() %>% 
+  kableExtra::kbl(caption = "Table 28. Countries with outbreaks in sustained low regions\n") %>% 
   kableExtra::kable_styling(full_width = F)
 ```
 
-```{r occurrence-model}
-load(here("/home/cholerapipelinerestmp/postprocess/recent_cholera_outbreaks_res.rdata"))
 
-cat("Odd ratios of cholera occurrence by region:\n")
+```{r occurrence-model, echo=FALSE,message=FALSE}
+load("/home/cholerapipelinerestmp/postprocess/processed_outputs/recent_cholera_outbreaks_res.rdata")
+#cat("Odd ratios of cholera occurrence by region:\n")
 OR_text <- OR_stats %>% 
   mutate(
     text = str_c(
@@ -1247,9 +1418,7 @@ OR_text <- OR_stats %>%
   arrange(AFRO_region, param) %>% 
   pivot_wider(values_from = "text",
               names_from = "AFRO_region")
-
 OR_text %>% 
-  kableExtra::kable() %>% 
+  kableExtra::kbl(caption = "Table 29. Odd ratios of cholera occurrence by region:\n") %>% 
   kableExtra::kable_styling(full_width = F) 
 ```
-
