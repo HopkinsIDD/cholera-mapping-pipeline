@@ -574,14 +574,14 @@ fig6 <- output_plot_map(sf_obj = grid_cases %>%
   ggrepel::geom_label_repel(data = country_adm1, colour='black', fill=NA, alpha=0.75, ggplot2::aes(label = shapeName,geometry=geometry), stat = "sf_coordinates",  min.segment.length = 0,nudge_x = 0.5,nudge_y = 0.5,label.size = NA)
 
 ggsave(fig6,
-       file = "fig6.png",
+       file = paste0(country_full_name,"_fig6.png"),
        width = 10,
        height = 6, 
        dpi = 300)
 ```
 
 ```{r, figure6, echo=FALSE,out.width="30%"}
-knitr::include_graphics( "fig6.png")
+knitr::include_graphics( paste0(country_full_name,"_fig6.png"))
 ```
 
 ::: notes
@@ -641,14 +641,14 @@ fig7 <- mai_change_adm %>%
   ggrepel::geom_label_repel(data = country_adm1, colour='black', fill=NA, alpha=0.75, ggplot2::aes(label = shapeName,geometry=geometry), stat = "sf_coordinates",  min.segment.length = 0,nudge_x = 0.5,nudge_y = 0.5,label.size = NA)
 
 ggsave(fig7,
-       file = "fig7.png",
+       file = paste0(country_full_name,"_fig7.png"),
        width = 10,
        height = 6, 
        dpi = 300)
 ```
 
 ```{r, figure7, echo=FALSE,out.width="30%"}
-knitr::include_graphics( "fig7.png")
+knitr::include_graphics( paste0(country_full_name,"_fig7.png"))
 ```
 
 ::: notes
@@ -764,7 +764,7 @@ p_fig2A_continent <- combined_mai_changes %>%
   guides(color = "none", size = "none", shape = "none", alpha = "none")
 
 ggsave(gridExtra::arrangeGrob(p_fig2A, p_fig2A_continent, ncol=2,widths = c(5,5)),
-       file = "fig8.png",
+       file = paste0(country_full_name,"_fig8.png"),
        width = 12,
        height = 6,
        dpi = 300)
@@ -772,7 +772,7 @@ ggsave(gridExtra::arrangeGrob(p_fig2A, p_fig2A_continent, ncol=2,widths = c(5,5)
 ```
 
 ```{r, figure8, echo=FALSE,out.width="30%"}
-knitr::include_graphics( "fig8.png")
+knitr::include_graphics(paste0(country_full_name,"_fig8.png"))
 ```
 
 ::: notes
@@ -811,7 +811,7 @@ fig9 <- risk_pop_50_adm2 %>%
 
 
 ggsave(fig9,
-       file = "fig9.png",
+       file = paste0(country_full_name,"_fig9.png"),
        width = 10,
        height = 6, 
        dpi = 300)
@@ -820,7 +820,7 @@ ggsave(fig9,
 
 
 ```{r, figure9, echo=FALSE,out.width="30%"}
-knitr::include_graphics( "fig9.png")
+knitr::include_graphics( paste0(country_full_name,"_fig9.png"))
 ```
 
 ::: notes
@@ -831,13 +831,13 @@ Figure 9. Incidence risk category by district in `r country_full_name` from 2011
 ## Figure 10. Population at risk: `r country_full_name`
 ```{r, 3B, echo=FALSE,message=FALSE,warning=FALSE, results='hide'}
 risk_pop_all_1115 <- readRDS(paste0(opt$output_dir,"/2011_2015_pop_at_risk.rds")) %>% 
-  filter(admin_level == "ADM2") %>% 
+  filter(admin_level == "ADM2" | (admin_level == "ADM1" & country == "LSO")) %>% 
   select(country,risk_cat, mean, q2.5, q97.5) %>%
   subset(country==country_iso) %>% 
   mutate(time_period = '2011-2015')
 
 risk_pop_all_1620 <- readRDS(paste0(opt$output_dir,"/2016_2020_pop_at_risk.rds")) %>% 
-  filter(admin_level == "ADM2") %>% 
+  filter(admin_level == "ADM2" | (admin_level == "ADM1" & country == "LSO")) %>% 
   select(country,risk_cat, mean, q2.5, q97.5) %>%
   subset(country==country_iso) %>% 
   mutate(time_period = '2016-2020')
@@ -856,7 +856,7 @@ fig10 <- risk_pop_all %>%
 
 
 ggsave(fig10,
-       file = "fig10.png",
+       file = paste0(country_full_name,"_fig10.png"),
        width = 8,
        height = 6, 
        dpi = 300)
@@ -865,7 +865,7 @@ ggsave(fig10,
 
 
 ```{r, figure10, echo=FALSE,out.width="30%"}
-knitr::include_graphics( "fig10.png")
+knitr::include_graphics( paste0(country_full_name,"_fig10.png"))
 ```
 
 ::: notes
@@ -985,7 +985,7 @@ fig11 <- plot_grid(
 
 
 ggsave(fig11,
-       file = "fig11.png",
+       file = paste0(country_full_name,"_fig11.png"),
        width = 18,
        height = 6, 
        dpi = 300)
@@ -994,7 +994,7 @@ ggsave(fig11,
 
 
 ```{r, figure11, echo=FALSE,out.width="30%"}
-knitr::include_graphics( "fig11.png")
+knitr::include_graphics( paste0(country_full_name,"_fig11.png"))
 ```
 
 ::: notes
@@ -1059,7 +1059,7 @@ p_figCov_1620<- readRDS(paste0(opt$output_dir,"/2016_2020_shapefiles.rds")) %>%
 
 
 
-png("fig12.png",width = 2000,height = 1000, res = 300)
+png(paste0(country_full_name,"_fig12.png"),width = 2000,height = 1000, res = 300)
 lemon::grid_arrange_shared_legend(p_figCov_1620, p_figCov_1115, ncol=2)
 dev.off()
 
@@ -1067,7 +1067,7 @@ dev.off()
 
 
 ```{r, figure12, echo=FALSE,out.width="30%"}
-knitr::include_graphics( "fig12.png")
+knitr::include_graphics( paste0(country_full_name,"_fig12.png"))
 ```
 
 ::: notes
@@ -1078,7 +1078,7 @@ Figure 12. Data coverage for `r country_full_name` in 2011-2020. The maps show t
 ```{r, stan input,echo=FALSE,message=FALSE,warning=FALSE}
 obs<- readRDS(paste0(opt$output_dir,"/2011_2015_obs.rds")) %>% 
   bind_rows(readRDS(paste0(opt$output_dir,"/2016_2020_obs.rds")))
-obs%>%
+table3 <- obs%>%
   subset(country == country_iso) %>% 
   mutate(
          year= lubridate::year(ref_TL)) %>% 
@@ -1086,10 +1086,67 @@ obs%>%
   summarize(total_obs = as.character(n())) %>% 
   pivot_wider(values_from = c("total_obs"),
               names_from = "admin_level",
-              values_fill = "0") %>% 
+              values_fill = "0")
+if(ncol(table3) == 4) {
+  if(all(colnames(table3) %in% c("year","0","1","2"))){
+  table3 %>% 
   select(year,`0`,`1`,`2`) %>% 
   knitr::kable(col.names = c("Year","National level","First-level administrative units","Second-level administrative units"),
                format = "simple")
+  } else  if(all(colnames(table3) %in% c("year","0","2","3"))){
+  table3 %>% 
+  select(year,`0`,`2`,`3`) %>% 
+  knitr::kable(col.names = c("Year","National level","Second-level administrative units","Third-level administrative units"),
+               format = "simple")
+  }
+} else if(ncol(table3) == 3){
+  
+  if(all(colnames(table3) %in% c("year","0","1"))){
+    table3 %>% 
+      select(year,`0`,`1`) %>% 
+      knitr::kable(col.names = c("Year","National level","First-level administrative units"),
+               format = "simple")    
+  } else if(all(colnames(table3) %in% c("year","0","2"))){
+    table3 %>% 
+      select(year,`0`,`2`) %>% 
+      knitr::kable(col.names = c("Year","National level","Second-level administrative units"),
+               format = "simple")    
+  } else if(all(colnames(table3) %in% c("year","1","2"))){
+    table3 %>% 
+      select(year,`1`,`2`) %>% 
+      knitr::kable(col.names = c("Year","First-level administrative units","Second-level administrative units"),
+               format = "simple")    
+  } else if(all(colnames(table3) %in% c("year","2","3"))){
+    table3 %>% 
+      select(year,`2`,`3`) %>% 
+      knitr::kable(col.names = c("Year","Second-level administrative units","Third-level administrative units"),
+               format = "simple")    
+  } 
+
+} else if(ncol(table3) == 2){
+  
+    if(all(colnames(table3) %in% c("year","0"))){
+    table3 %>% 
+      select(year,`0`) %>% 
+      knitr::kable(col.names = c("Year","National level"),
+               format = "simple")    
+  } else if(all(colnames(table3) %in% c("year","1"))){
+    table3 %>% 
+      select(year,`1`) %>% 
+      knitr::kable(col.names = c("Year","First-level administrative units"),
+               format = "simple")    
+  } else if(all(colnames(table3) %in% c("year","2"))){
+    table3 %>% 
+      select(year,`2`) %>% 
+      knitr::kable(col.names = c("Year","Second-level administrative units"),
+               format = "simple")    
+  } else if(all(colnames(table3) %in% c("year","3"))){
+    table3 %>% 
+      select(year,`3`) %>% 
+      knitr::kable(col.names = c("Year","Third-level administrative units"),
+               format = "simple")    
+  } 
+}
 
 ```
 
@@ -1135,7 +1192,7 @@ fig13<- gen_obs %>%
 
 
 ggsave(fig13,
-       file = "fig13.png",
+       file = paste0(country_full_name,"_fig13.png"),
        width = 10,
        height = 6, 
        dpi = 300)
@@ -1143,7 +1200,7 @@ ggsave(fig13,
 
 
 ```{r, figure13, echo=FALSE,out.width="30%"}
-knitr::include_graphics( "fig13.png")
+knitr::include_graphics( paste0(country_full_name,"_fig13.png"))
 ```
 
 
