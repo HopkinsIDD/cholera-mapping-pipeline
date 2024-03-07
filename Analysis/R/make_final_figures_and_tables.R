@@ -1020,12 +1020,16 @@ make_dotlineplot <- function(df) {
     geom_point(aes(x = value, pch = period), size = 2)  +
     geom_segment(data = df, 
                  aes(x = p1, y = country, xend = p2, yend = country,
-                     alpha = sigificant_irr, color = direction),
+                     #alpha = sigificant_irr, 
+                     color = direction#,linewidth = sigificant_irr
+                     ),
                  arrow = arrow(length = unit(0.15, "cm"), 
-                               type="closed"), 
-                 lwd = .3) +
+                               type="closed")#, 
+                 #lwd = .3
+                 ) +
     # scale_linetype_manual(values = c(4, 1))  +
-    scale_alpha_manual(values = c(1, .3)) +
+    #scale_alpha_manual(values = c(1, .3)) +
+    #scale_linewidth_manual(values = c(1,0.3)) +
     scale_x_continuous(limits = c(-1.1, 2.3),
                        breaks = seq(-1, 2),
                        labels = formatC(10^(seq(-1, 2)),
@@ -1585,14 +1589,14 @@ p_frac_regions <- ob_count_dat %>%
   scale_fill_manual(values = taxdat:::colors_endemicity()) +
   labs(x = "proportion of locations (ADM2 or lower)", y = "") +
   guides(fill = "none") +
-  facet_grid(occurrence ~ ., switch = "y") +
+  facet_grid(factor(occurrence, levels = c("cholera\nobserved","no cholera\nobserved")) ~ ., switch = "y") +
   theme(strip.placement = "outer")
 
 
 p_frac_overall <- ob_count_dat %>% 
   mutate(occurrence = str_remove_all(occurrence, "  ")) %>% 
   filter(AFRO_region == "overall")  %>% 
-  ggplot(aes(x = occurrence, y = frac, fill = endemicity)) +
+  ggplot(aes(x = factor(occurrence, levels = c("no cholera \nobserved "," cholera\n observed")), y = frac, fill = endemicity)) +
   geom_bar(stat = "identity") +
   theme_bw() +
   scale_fill_manual(values = taxdat:::colors_endemicity()) +
@@ -2034,14 +2038,14 @@ p_frac_regions_95 <- ob_count_dat_95 %>%
   scale_fill_manual(values = taxdat:::colors_endemicity()) +
   labs(x = "proportion of locations (ADM2 or lower)", y = "") +
   guides(fill = "none") +
-  facet_grid(occurrence ~ ., switch = "y") +
+  facet_grid(factor(occurrence, levels = c("cholera\nobserved","no cholera\nobserved")) ~ ., switch = "y") +
   theme(strip.placement = "outer")
 
 
 p_frac_overall_95 <- ob_count_dat_95 %>% 
   mutate(occurrence = str_remove_all(occurrence, "  ")) %>% 
   filter(AFRO_region == "overall")  %>% 
-  ggplot(aes(x = occurrence, y = frac, fill = endemicity)) +
+  ggplot(aes(x = factor(occurrence, levels = c("no cholera \nobserved "," cholera\n observed")), y = frac, fill = endemicity)) +
   geom_bar(stat = "identity") +
   theme_bw() +
   scale_fill_manual(values = taxdat:::colors_endemicity()) +
