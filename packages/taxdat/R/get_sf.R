@@ -29,7 +29,11 @@ get_disaggregated_cases_sf <- function(cache,cholera_directory,config
   
   colnames(disaggregated_case_sf)[stringr::str_detect( colnames(disaggregated_case_sf),"value")]=colnames(case_raster)[stringr::str_detect(colnames(case_raster),"value")]
   disaggregated_case_sf$id<-rep(1:(nrow(disaggregated_case_sf)/length(unique(disaggregated_case_sf$t))),each=length(unique(disaggregated_case_sf$t)))
-  
+
+  crs_info <- sf::st_crs(disaggregated_case_sf)
+  if (is.na(crs_info)) {
+    disaggregated_case_sf <- sf::st_set_crs(disaggregated_case_sf, 4326)
+  } 
   return(disaggregated_case_sf)
   
 }
@@ -64,6 +68,10 @@ get_disaggregated_rates_sf <- function(cache,cholera_directory,config
   colnames(disaggregated_rate_sf)[stringr::str_detect( colnames(disaggregated_rate_sf),"value")]=colnames(rate_raster)[stringr::str_detect(colnames(rate_raster),"value")]
   disaggregated_rate_sf$id<-rep(1:(nrow(disaggregated_rate_sf)/length(unique(disaggregated_rate_sf$t))),each=length(unique(disaggregated_rate_sf$t)))
   
+  crs_info <- sf::st_crs(disaggregated_rate_sf)
+  if (is.na(crs_info)) {
+    disaggregated_rate_sf <- sf::st_set_crs(disaggregated_rate_sf, 4326)
+  }
   return(disaggregated_rate_sf)
   
 }
