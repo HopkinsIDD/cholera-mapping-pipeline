@@ -11,6 +11,8 @@ params:
 ---
 
 ```{r setup, include=FALSE}
+## This is mini version of mapping_manuscript_stats_mini.Rmd for compiling selected statistics and figures for a subset of country models.
+
 package_list <- c(
   "taxdat",
   "sf",

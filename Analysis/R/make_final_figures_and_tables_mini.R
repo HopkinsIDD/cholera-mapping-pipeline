@@ -1,5 +1,4 @@
-# This script combines postprocessed outputs and makes final figures
-
+## This is mini version of make_final_figures_and_tables.R for processing outputs and making figures for a subset of country models.
 
 # Preamble ----------------------------------------------------------------
 
