@@ -1,0 +1,151 @@
+---
+title: "Manuscript statistics in results section excluding SDN and ETH"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+params:
+  postprocessed_output_directory: "/home/cholerapipelinerestmp/postprocess/processed_outputs"
+  interm_directory: "/home/cholerapipelinerestmp/postprocess/interm"
+  output_directory: "/home/cholerapipelinerestmp/paper_stats/"
+---
+
+```{r setup, include=FALSE}
+## This is mini version of mapping_manuscript_stats_mini.Rmd for compiling selected statistics and figures for a subset of country models.
+
+package_list <- c(
+  "taxdat",
+  "sf",
+  "tidyverse"
+)
+for (package in package_list) {
+  if(!require(package = package, character.only = T)){
+    install.packages(pkgs = package)
+    library(package = package, character.only = T)
+  } else{
+    library(package = package, character.only = T)
+  }
+}
+
+### Debug
+options(error = traceback)
+options(dplyr.summarise.inform = FALSE)
+
+```
+
+## Paragraph 2
+```{r Results_paragraph_2, echo=FALSE,warning=FALSE,message=FALSE}
+# load average cases raster
+output_mai_cases_all_1115 <- readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_mai_cases_all.rds')) %>% 
+  dplyr::mutate(
+    time_period = '2011-2015'
+  )
+output_mai_cases_all_1620 <- readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_mai_cases_all.rds')) %>% 
+  dplyr::mutate(
+    time_period = '2016-2020'
+  )
+
+
+# print out average suspected cases summary
+print(
+  paste0(
+  "Annual average cholera cases across Africa (excluding SDN and ETH) in 2011-2015: ", round(output_mai_cases_all_1115$mean,0), 
+  " (95% Credible Intervals, CrI: ", round(output_mai_cases_all_1115$q2.5,0), " - ", round(output_mai_cases_all_1115$q97.5,0), ")"
+  )
+)
+print(
+  paste0(
+  "Annual average cholera cases across Africa (excluding SDN and ETH) in 2016-2020: ", round(output_mai_cases_all_1620$mean,0), 
+  " (95% Credible Intervals, CrI: ", round(output_mai_cases_all_1620$q2.5,0), " - ", round(output_mai_cases_all_1620$q97.5,0), ")"
+  )
+)
+
+invisible(gc())
+
+```
+
+## Paragraph 3
+**2011-2015** 
+```{r Results_paragraph_3, echo=FALSE}
+
+##Continent-wide mean annual incidence (figure 2A)
+mai_2011_2015 <- readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_mai_rates_all.rds'))
+mai_2016_2020 <- readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_mai_rates_all.rds'))
+
+print(paste0("The continent-wide (excluding SDN and ETH) mean annual incidence rate (2011-2015:", round(mai_2011_2015$mean*10^5,2)," per 100,000 people; 2016-2020: ", round(mai_2016_2020$mean*10^5,2), " per 100,000 people) remained steady across both periods, hovering just above 10 cases per 100,000 population (Fig 2A). "))
+
+invisible(gc())
+
+```
+
+## Paragraph 4
+**Table 16. Population at risk, 2011-2015** 
+```{r Results_paragraph_4, echo=FALSE}
+risk_cat_map <- taxdat:::get_risk_cat_dict()
+names(risk_cat_map) <- janitor::make_clean_names(risk_cat_map) %>% 
+  str_remove("x")
+    
+readRDS(paste0(params$postprocessed_output_directory,'/2011_2015_pop_at_risk_all.rds')) %>% 
+  dplyr:: mutate(
+    risk_cat = str_extract(variable, str_c(rev(names(risk_cat_map)), collapse = "|")),
+    `Risk category (per 100,000 population) ` = risk_cat_map[risk_cat] %>% factor(levels = risk_cat_map),
+    admin_level = str_c("ADM", str_extract(variable, "(?<=adm)[0-9]+")),
+    `mean (millions)` = round(mean/10^6,0),
+    `95% PI (millions)` = paste0(round(q2.5/10^6,0),"-", round(q97.5/10^6,0))
+      ) %>% 
+  subset(
+    admin_level == "ADM2"
+  ) %>% 
+  dplyr::select(
+    `Risk category (per 100,000 population) `, `mean (millions)`, `95% PI (millions)` 
+  ) %>% 
+  knitr::kable() %>% 
+  kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+    kableExtra::kable_paper(full_width = F)
+
+invisible(gc())
+
+```
+
+**Table 17. Population at risk, 2016-2020**
+```{r Results_paragraph_4_2016-2020, echo=FALSE}
+readRDS(paste0(params$postprocessed_output_directory,'/2016_2020_pop_at_risk_all.rds')) %>% 
+  dplyr:: mutate(
+    risk_cat = str_extract(variable, str_c(rev(names(risk_cat_map)), collapse = "|")),
+    `Risk category (per 100,000 population) ` = risk_cat_map[risk_cat] %>% factor(levels = risk_cat_map),
+    admin_level = str_c("ADM", str_extract(variable, "(?<=adm)[0-9]+")),
+    `mean (millions)` = round(mean/10^6,0),
+    `95% PI (millions)` = paste0(round(q2.5/10^6,0),"-", round(q97.5/10^6,0))
+      ) %>% 
+  subset(
+    admin_level == "ADM2"
+  ) %>% 
+  dplyr::select(
+    `Risk category (per 100,000 population) `, `mean (millions)`, `95% PI (millions)` 
+  ) %>% 
+  knitr::kable() %>% 
+  kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+    kableExtra::kable_paper(full_width = F)
+
+invisible(gc())
+
+```
+
+**Table 20. Population at high risk by time period**
+```{r Results_paragraph_4_high_risk_by_time_period, echo=FALSE}
+readRDS(paste0(params$postprocessed_output_directory,'/pop_high_risk_all_stats.rds')) %>% 
+  mutate(
+    `Population at high risk (millions)` = round(mean/10^6,0),
+    `95% PI (millions)` = paste0(round(q025/10^6,0),"-",round(q975/10^6,0)),
+    `Time period` = period
+  ) %>% 
+  select(
+    `Time period`,`Population at high risk (millions)`,`95% PI (millions)`
+  ) %>% 
+  knitr::kable() %>% 
+  kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+    kableExtra::kable_paper(full_width = F)
+
+invisible(gc())
+
+```
