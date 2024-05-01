@@ -331,6 +331,40 @@ run_all <- function(
     export_packages <- c("tidyverse", "magrittr", "foreach", "rstan", "cmdstanr",
                          "lubridate", "sf", "taxdat")
     
+    if(!is.null(postprocess_fun_opts) & all(names(postprocess_fun_opts) == "col")){
+      if(postprocess_fun_opts$col == "pop_high_risk"){
+      
+      new_configs= NULL
+      for (config_idx in 1:length(configs)) {
+        configs_tmp <- read_yaml_for_data(configs[config_idx],data_dir)
+        
+        genquant <- readRDS(configs_tmp$file_names$stan_genquant_filename)
+        
+        # Get dictionnary of risk categories
+        risk_cat_dict <- get_risk_cat_dict()
+        high_risk_ind <- which(risk_cat_dict == ">100")
+        high_risk_var <- stringr::str_glue("tot_pop_risk[{high_risk_ind},3]")                       
+        
+        tot_pop_risk <- genquant$draws("tot_pop_risk") %>% 
+          draws_to_df(var_name = "tot_pop_risk",
+                      to_name = "variable",
+                      to_value = "tot_pop_risk") 
+        
+        if(!any(tot_pop_risk$variable==high_risk_var)){
+          new_configs <- configs[-config_idx]
+          print(paste0("no high risk population for ", configs_tmp$countries_name))
+        }
+        
+      }
+      if(is.null(new_configs)){
+        stop("No countries in this config list have high risk population.")
+      } else {
+        
+        configs <- new_configs
+      }
+    }}
+      
+    
     all_res <- foreach(
       config = configs,
       .combine = dplyr::bind_rows,
