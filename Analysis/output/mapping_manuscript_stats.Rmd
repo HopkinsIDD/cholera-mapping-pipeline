@@ -1337,6 +1337,24 @@ invisible(gc())
 
 ```
 
+```{r Results_paragraph_5_total_high_risk_pop_both_time_periods, echo=FALSE}
+load(paste0(params$output_directory,"/data_bundle_for_figures_test.rdata"))
+
+high_risk_1115<-risk_pop_50_adm2 %>% 
+    filter(location_period_id %in% output_endemicity_50[output_endemicity_50$endemicity== "history of high risk",]$location_period_id) %>% 
+    filter(period == "2011-2015" & !risk_cat %in% c("<1","1-10"))
+
+  print(paste0("Number of people (millions) living in history of high category due to a high incidence classification in 2011-2015: ",round(sum(output_endemicity_50[output_endemicity_50$location_period_id%in%high_risk_1115$location_period_id,]$pop)/10^6,1)))
+  
+  high_risk_1620<-risk_pop_50_adm2 %>% 
+    filter(location_period_id %in% output_endemicity_50[output_endemicity_50$endemicity== "history of high risk",]$location_period_id) %>% 
+    filter(period == "2016-2020" & risk_cat %in% get_risk_cat_dict()[3:6]) 
+  
+  print(paste0("Number of people (millions) living in history of high category due to a high incidence classification in 2016-2020: ",round(sum(output_endemicity_50[output_endemicity_50$location_period_id%in%high_risk_1620$location_period_id,]$pop)/10^6,2)))
+  
+invisible(gc())
+```
+
 ## Paragraph 6
 
 ** We modeled the association of 10-year risk categories with outbreak locations reported during the 2022-2024 WHO-declared cholera outbreak emergency to evaluate the practical utility of 10-year risk categories for disease control targeting (Figure 4B). A total of 502 locations reported cholera outbreaks in Africa in 2022-2023, among which 65.9% were at ADM2 level or lower (331 locations). After spatially joining ADM2 or lower locations to our ADM2 level 10-year risk categories, we found that 17.3% of outbreak locations were in sustained high ADM2 units (49 distinct ADM2 locations, vs. 1.6% of non-outbreak locations) and 23.0% in history of high risk ADM2 units (65 distinct ADM2 locations, vs. 11.4% of non-outbreak locations) (Figure 4C). Notably, 34.6% of distinct ADM2 outbreak locations (98 locations across 9 countries –  Burundi, Democratic Republic of Congo, Ethiopia, Kenya, Mozambique, Rwanda, Tanzania, South Africa and Zimbabwe, vs. 60.6% of non-outbreak locations) occurred in "sustained low risk" ADM2 units, 80.6% of which occurred in Southern Africa (79 of 98, Figure 4D). After accounting for possible under-reporting of cholera outbreak occurrence, we found that the odds for ADM2 units to experience a 2022-2023 outbreak increased with the severity of their 10-year (2011-2020) risk category relative to sustained low-risk ADM2 units, although the increases were not statistically significant in all regions; the largest odds ratios were observed in the "sustained high risk" category in Central (median OR 133.5, 95% CrI: 1.6-104,109.4) and Eastern Africa (median OR 71.3, 95% CrI: 2,9-16,474.6) (Figure 4E), with variations between country within regions (mean ICC range of sustained high risk category: 0.53-0.61, Supplementary Figure XX).**

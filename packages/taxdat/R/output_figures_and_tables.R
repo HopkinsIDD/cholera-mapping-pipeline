@@ -14,7 +14,8 @@ colors_lisa_clusters <- function(){c("lightgray", "#D40A07", "#4543C4", "#F26F6D
 coloramp_cases <- function(){c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404")}
 
 # colors_admin_levels <- function(){c( "#4F802A", "#5449C7", "#BF0B07", "#DBB50B")}
-colors_admin_levels <- function(){c("#FFFF00","#CAE0C9", "#99CCFF", "#FF9999", "#CC9900", "#FF9933",'black')}
+#colors_admin_levels <- function(){c("#FFFF00","#CAE0C9", "#99CCFF", "#FF9999", "#CC9900", "#FF9933",'black')}
+colors_admin_levels <- function(){RColorBrewer::brewer.pal(n=4,name = 'Blues')}
 colors_endemicity_high <- function(){c("red", "gray")}
 colors_endemicity_low <- function(){c("blue", "gray")}
 # colors_endemicity <- function(){c("#FF0000", "#E65F5F", "#F2A8A7", "#837EE6")} #"#0C14ED"
@@ -27,7 +28,7 @@ colors_endemicity <- function(){
 colors_periods <- function(){c("purple", "orange")}
 
 colors_risk_categories <- function() {
-  c( "gray", paletteer::paletteer_d("fishualize::Epinephelus_striatus", direction = -1))
+  c( paletteer::paletteer_d("fishualize::Epinephelus_striatus", direction = 1),"gray")
 }
 
 #' @export

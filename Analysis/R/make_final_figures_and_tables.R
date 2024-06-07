@@ -1282,8 +1282,13 @@ p_fig3A <- risk_pop_regions %>%
   theme_bw() +
   scale_fill_manual(values = colors_afro_regions()) +
   scale_x_continuous(labels = function(x) {formatC(x/1e6)}) +
-  labs(y = "Incidence risk category", x = "ADM2 population at risk [millions]") +
-  theme(legend.title=element_blank()) 
+  labs(y = "ADM2 incidence category per 100,000 population", x = "Population living in ADM2 units (millions)")+
+  theme(legend.title=element_blank()) +
+  geom_segment(x = 125000000, xend = 125000000, y = "10-20", yend = ">100", colour = "black") +
+  geom_segment(x = 115000000, xend = 125000000, y = "10-20", yend = "10-20", colour = "black") +
+  geom_segment(x = 115000000, xend = 125000000, y = ">100", yend = ">100", colour = "black") +
+  annotate("segment", x = 125000000, xend = 135000000, y = 3.5, yend = 3.5, colour = "black") +
+  annotate("text", x = 155000000, y = 3.5, label = '"High\nIncidence"')
 
 # Save
 ggsave(plot = p_fig3A,
@@ -1296,6 +1301,7 @@ ggsave(plot = p_fig3A,
 
 # Use 50% cutoff for main figure
 p_fig3B <- risk_pop_50_adm2 %>% 
+  mutate(risk_cat = factor(risk_cat, levels = rev(levels(risk_cat)))) %>% 
   select(-shp_id) %>% 
   filter(period == "2016-2020") %>% 
   inner_join(u_space_sf, .) %>% 
@@ -1309,7 +1315,7 @@ p_fig3B <- risk_pop_50_adm2 %>%
         strip.text = element_text(size = 15),
         legend.position = c(.2, .3),
         panel.background = element_rect(fill = "white", color = "white"))+
-  guides(fill = guide_legend("Risk category"))
+  guides(fill = guide_legend("Incidence category\nper 100,000 pop"))
 
 
 # Save
@@ -1324,7 +1330,7 @@ ggsave(p_fig3B,
 p_fig3 <- plot_grid(
   p_fig3A +
     theme(plot.margin = unit(c(2, 1, 2, 2), units = "lines"),
-          legend.position = c(.75, .6)),
+          legend.position = c(.85, .8)),
   p_fig3B +
     theme(strip.background = element_blank(),
           plot.margin = unit(c(1, 1, 1, 1), "lines")),
@@ -1364,10 +1370,10 @@ endemicity_df_50_v2 <- risk_pop_50_adm2 %>%
   mutate(endemicity = factor(endemicity, 
                              levels = c("high-both", "high-either",
                                         "mix", "low-both"),
-                             labels = c("sustained high risk", 
-                                        "history of high risk",
-                                        "history of moderate risk",
-                                        "sustained low risk")))  
+                             labels = c("sustained high", 
+                                        "history of high",
+                                        "history of moderate",
+                                        "sustained low")))  
 
 saveRDS(endemicity_df_50_v2, file = str_glue("{opt$output_dir}/endemicity_50.rds"))
 
@@ -1388,10 +1394,10 @@ endemicity_df_95_v2 <- risk_pop_95_adm2 %>%
   mutate(endemicity = factor(endemicity, 
                              levels = c("high-both", "high-either",
                                         "mix", "low-both"),
-                             labels = c("sustained high risk", 
-                                        "history of high risk",
-                                        "history of moderate risk",
-                                        "sustained low risk")))  
+                             labels = c("sustained high", 
+                                        "history of high",
+                                        "history of moderate",
+                                        "sustained low")))  
 
 saveRDS(endemicity_df_95_v2, file = str_glue("{opt$output_dir}/endemicity_95.rds"))
 
@@ -1407,7 +1413,7 @@ p_fig4A <- endemicity_df_50_v2 %>%
                   border_width = .03) +
   theme(legend.position = c(.2, .3),
         panel.background = element_rect(fill = "white", color = "white")) +
-  guides(fill = guide_legend("10-year risk\ncategory"))
+  guides(fill = guide_legend("10-year incidence\ncategory"))
 
 # Save
 ggsave(p_fig4A,
@@ -1421,14 +1427,14 @@ hrisk_cat <- taxdat::get_risk_cat_dict()[-c(1:2)]
 tile_dat <- expand.grid(x = taxdat::get_risk_cat_dict(), 
                         y = taxdat::get_risk_cat_dict()) %>% 
   as_tibble() %>% 
-  mutate(endemicity = case_when(x == "<1" & y == "<1" ~ "sustained low risk",
-                                x %in% hrisk_cat & y %in% hrisk_cat ~ "sustained high risk",
-                                x %in% hrisk_cat | y %in% hrisk_cat~ "history of high risk",
-                                T ~ "history of moderate risk"),
-         endemicity = factor(endemicity, levels = c("sustained high risk", 
-                                                    "history of high risk",
-                                                    "history of moderate risk",
-                                                    "sustained low risk")))
+  mutate(endemicity = case_when(x == "<1" & y == "<1" ~ "sustained low",
+                                x %in% hrisk_cat & y %in% hrisk_cat ~ "sustained high",
+                                x %in% hrisk_cat | y %in% hrisk_cat~ "history of high",
+                                T ~ "history of moderate"),
+         endemicity = factor(endemicity, levels = c("sustained high", 
+                                                    "history of high",
+                                                    "history of moderate",
+                                                    "sustained low")))
 
 endemicity_legend <- tile_dat %>% 
   ggplot(aes(x = x, y = y, fill = endemicity)) +
@@ -1444,9 +1450,14 @@ endemicity_legend <- tile_dat %>%
         legend.title = element_text(size = 7),
         legend.key.size = unit(.5, units = "lines"),
         legend.box.spacing = unit(.1, units = "lines")) +
-  labs(x = "Risk category in 2011-2015", y = "Risk category in 2016-2020",
-       fill = "10-year risk\ncategory")
-
+  labs(x = "Incidence category in 2011-2015", y = "Incidence category in 2016-2020",
+       fill = "10-year incidence\ncategory") + 
+  annotate("segment", y = 5, yend = 6.8, x = 1.5, xend = 1.5, colour = "black", arrow = arrow(angle = 45, length = unit(.2,"cm"))) +
+  annotate("segment", y = 5, yend = 6.8, x = 4.5, xend = 4.5, colour = "black", arrow = arrow(angle = 45, length = unit(.2,"cm"))) +
+  annotate("segment", y = 1.5, yend = 1.5, x = 4.5, xend = 6.8, colour = "black", arrow = arrow(angle = 45, length = unit(.2,"cm"))) +
+  annotate("text", x = Inf, y = -Inf, vjust = -3.5, hjust = 0.1, label = "133.9 M", size = 3) +
+  coord_cartesian(xlim = c(0.5,7), clip = 'off', expand = FALSE) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 
 ## Fig. 4B: Fraction by categories for supplement ----
 p_fig4B <- endemicity_df_50_v2  %>%
@@ -1460,9 +1471,9 @@ p_fig4B <- endemicity_df_50_v2  %>%
   mutate(frac = pop/sum(pop)) %>% 
   group_by(country) %>% 
   mutate(
-    frac_other = frac[endemicity == "history of moderate risk"],
-    frac_high = sum(frac[endemicity %in% c("sustained high risk", "history of high risk")]),
-    frac_low = sum(frac[endemicity %in% c("sustained low risk")])
+    frac_other = frac[endemicity == "history of moderate"],
+    frac_high = sum(frac[endemicity %in% c("sustained high", "history of high")]),
+    frac_low = sum(frac[endemicity %in% c("sustained low")])
   ) %>% 
   ungroup() %>% 
   mutate(endemicity = forcats::fct_rev(endemicity),
@@ -1473,7 +1484,7 @@ p_fig4B <- endemicity_df_50_v2  %>%
   facet_grid(AFRO_region ~., scales = "free_y", space = "free_y") +
   scale_fill_manual(values = rev(taxdat:::colors_endemicity())) +
   theme_bw() +
-  labs(x = "fraction of population\n per 10-year risk category")
+  labs(x = "fraction of population\n per 10-year incidence category")
 
 ggsave(p_fig4B,
        file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4B.png"),
@@ -1485,8 +1496,9 @@ p_fig4A_legend <- ggdraw(
   p_fig4A +
     theme(strip.background = element_blank(),
           plot.margin = unit(c(1, 0, 1, 0), units = "lines")) +
-    guides(fill = "none")
-) +
+    guides(fill = "none") +
+    annotate("text", x = -9.5, y = -4, label = "178.7 M", size = 3) +
+    annotate("text", x = -2.7, y = -4, label = "104.6 M", size = 3)) +
   draw_plot(endemicity_legend, .075, .24, .35, .25)
 
 p_fig4 <- plot_grid(
@@ -1506,8 +1518,8 @@ p_fig4 <- plot_grid(
 # Save
 ggsave(plot = p_fig4,
        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4.png"),
-       width = 12,
-       height = 7,
+       width = 15,
+       height = 10,
        dpi = 300)
 
 # Figure 5: cholera occurrence -----------------------------------------------------
@@ -1516,16 +1528,12 @@ ggsave(plot = p_fig4,
 load(str_c(opt$output_dir, "/outbreak_analysis_data.rdata"))
 load(str_c(opt$output_dir, "/recent_cholera_outbreaks_res.rdata"))
 
-# Load endemicity data for 50% cutoff and 95% cutoff 
-endemicity_df_v2_50 <- readRDS(str_glue("{opt$output_dir}/endemicity_50.rds"))
-endemicity_df_v2_95 <- readRDS(str_glue("{opt$output_dir}/endemicity_95.rds"))
-
 # Fix admin level naming
 final_joins <- final_joins %>% 
   mutate(admin_level = str_c("ADM", admin_level))
 
 # Map of cholera occurrence locations
-p_ob_map2 <- endemicity_df_v2_50 %>% 
+p_ob_map2 <- endemicity_df_50_v2 %>% 
   inner_join(u_space_sf, .) %>% 
   select(-admin_level) %>% 
   ggplot() +
@@ -1535,7 +1543,7 @@ p_ob_map2 <- endemicity_df_v2_50 %>%
           lwd = 0.15,
           color = "darkgray",
           alpha = 0) +
-  geom_sf(aes(fill = endemicity), alpha = .5, lwd = .005, color = "white") +
+  geom_sf(aes(fill = endemicity), lwd = .005, color = "white") +
   geom_sf(inherit.aes = FALSE,
           data = final_joins,
           aes(color = "locations with\nreported cholera\nin 2022-2023"),
@@ -1565,21 +1573,22 @@ ggsave(plot = p_ob_map2,
 
 # Distribution of 10-year risk categories among ADM2 locations
 ob_count_dat <-  obs_outbreaks %>% 
+  mutate(endemicity = stringr::str_remove_all(endemicity, " risk")) %>% 
   mutate(occurrence = "       cholera\n       observed") %>% 
   bind_rows(non_obs_outbreaks %>% 
+              mutate(endemicity = stringr::str_remove_all(endemicity, " risk")) %>% 
               mutate(occurrence = "no cholera       \nobserved       ")) %>% 
   mutate(occurrence = factor(occurrence, 
                              levels = c("no cholera       \nobserved       ",
                                         "       cholera\n       observed"))) %>% 
   mutate(endemicity = factor(endemicity, 
-                             levels = levels(endemicity_df_v2_50$endemicity)),
+                             levels = levels(endemicity_df_50_v2$endemicity)),
          AFRO_region = factor(AFRO_region %>% 
                                 str_replace(" ", "\n"),
                               levels = rev(c("overall", get_AFRO_region_levels() %>% 
                                                str_replace(" ", "\n"))),
                               labels = rev(c("overall", get_AFRO_region_levels() %>% 
                                                str_replace(" ", "\n")))))
-
 p_frac_regions <- ob_count_dat %>% 
   filter(AFRO_region != "overall")  %>%
   mutate(occurrence = str_remove_all(occurrence, "       ")) %>% 
@@ -1628,7 +1637,7 @@ pd2 <- position_dodge(.3)
 
 p_ob_1 <- baseline_prob_stats %>% 
   mutate(what = "reference",
-         param = case_when(str_detect(param, "baseline") ~ "sustained low risk",
+         param = case_when(str_detect(param, "baseline") ~ "sustained low",
                            TRUE ~ param)) %>% 
   ggplot(aes(x = param, y = mean, ymin = q2.5, ymax = q97.5, color = AFRO_region)) +
   geom_point(position = pd1) +
@@ -1643,7 +1652,10 @@ p_ob_1 <- baseline_prob_stats %>%
         axis.title = element_text(size = 10))
 
 p_ob_2 <- logOR_stats %>% 
-  mutate(what = str_replace(what, "outbreak", "cholera")) %>% 
+  mutate(param = stringr::str_remove_all(param, " risk")) %>% 
+  mutate(what = str_replace(what, "outbreak", "cholera"),
+         what = str_replace(what, "risk", "incidence"),
+         param = factor(param, levels = c("history of moderate","history of high","sustained high"))) %>% 
   ggplot(aes(x = param, y = mean, ymin = q2.5, ymax = q97.5, color = AFRO_region)) +
   geom_point(position = pd2) +
   geom_errorbar(width = 0, position = pd2) +
@@ -1867,7 +1879,7 @@ ggsave(p_fig3B_95,
 p_fig3_95 <- plot_grid(
   p_fig3A +
     theme(plot.margin = unit(c(2, 1, 2, 2), units = "lines"),
-          legend.position = c(.75, .6)),
+          legend.position = c(.85, .8)),
   p_fig3B_95 +
     theme(strip.background = element_blank(),
           plot.margin = unit(c(1, 1, 1, 1), "lines")),
@@ -1970,7 +1982,7 @@ ggsave(plot = p_fig4_95,
 
 ### Figure 5 supplement figures (95% cutoff) ----
 # Map of cholera occurrence locations
-p_ob_map2_95 <- endemicity_df_v2_95 %>% 
+p_ob_map2_95 <- endemicity_df_95_v2 %>% 
   inner_join(u_space_sf, .) %>% 
   select(-admin_level) %>% 
   ggplot() +
@@ -2016,12 +2028,13 @@ load(str_c(opt$output_dir, "/recent_cholera_outbreaks_res_95.rdata"))
 ob_count_dat_95 <-  obs_outbreaks %>% 
   mutate(occurrence = "       cholera\n       observed") %>% 
   bind_rows(non_obs_outbreaks %>% 
+              mutate(endemicity = stringr::str_remove_all(endemicity, " risk")) %>% 
               mutate(occurrence = "no cholera       \nobserved       ")) %>% 
   mutate(occurrence = factor(occurrence, 
                              levels = c("no cholera       \nobserved       ",
                                         "       cholera\n       observed"))) %>% 
   mutate(endemicity = factor(endemicity, 
-                             levels = levels(endemicity_df_v2_95$endemicity)),
+                             levels = levels(endemicity_df_95_v2$endemicity)),
          AFRO_region = factor(AFRO_region %>% 
                                 str_replace(" ", "\n"),
                               levels = rev(c("overall", get_AFRO_region_levels() %>% 
