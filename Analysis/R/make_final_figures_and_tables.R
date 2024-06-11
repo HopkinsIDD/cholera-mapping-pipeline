@@ -11,6 +11,8 @@ library(optparse)
 library(rmapshaper)
 library(taxdat)
 library(cowplot)
+library(ggalluvial)
+
 
 # User-supplied options
 opt_list <- list(
@@ -1022,11 +1024,11 @@ make_dotlineplot <- function(df) {
                  aes(x = p1, y = country, xend = p2, yend = country,
                      #alpha = sigificant_irr, 
                      color = direction#,linewidth = sigificant_irr
-                     ),
+                 ),
                  arrow = arrow(length = unit(0.15, "cm"), 
                                type="closed")#, 
                  #lwd = .3
-                 ) +
+    ) +
     # scale_linetype_manual(values = c(4, 1))  +
     #scale_alpha_manual(values = c(1, .3)) +
     #scale_linewidth_manual(values = c(1,0.3)) +
@@ -1459,6 +1461,15 @@ endemicity_legend <- tile_dat %>%
   coord_cartesian(xlim = c(0.5,7), clip = 'off', expand = FALSE) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 
+p_fig4A_legend <- ggdraw(
+  p_fig4A +
+    theme(strip.background = element_blank(),
+          plot.margin = unit(c(1, 0, 1, 0), units = "lines")) +
+    guides(fill = "none") +
+    annotate("text", x = -9.5, y = -4, label = "178.7 M", size = 3) +
+    annotate("text", x = -2.7, y = -4, label = "104.6 M", size = 3)) +
+  draw_plot(endemicity_legend, .075, .24, .35, .25)
+
 ## Fig. 4B: Fraction by categories for supplement ----
 p_fig4B <- endemicity_df_50_v2  %>%
   group_by(country) %>% 
@@ -1492,24 +1503,72 @@ ggsave(p_fig4B,
        height = 7, 
        dpi = 150)
 
-p_fig4A_legend <- ggdraw(
-  p_fig4A +
-    theme(strip.background = element_blank(),
-          plot.margin = unit(c(1, 0, 1, 0), units = "lines")) +
-    guides(fill = "none") +
-    annotate("text", x = -9.5, y = -4, label = "178.7 M", size = 3) +
-    annotate("text", x = -2.7, y = -4, label = "104.6 M", size = 3)) +
-  draw_plot(endemicity_legend, .075, .24, .35, .25)
+
+## Fig. 4C: Alluvial plot ----
+
+for_alluvial <- risk_pop_50_adm2 %>% 
+  as_tibble() %>% 
+  mutate(high_risk = risk_cat %in% get_risk_cat_dict()[3:6],
+         low_risk = risk_cat %in% get_risk_cat_dict()[1],
+         risk_cat_simple = case_when(risk_cat %in% get_risk_cat_dict()[3:6] ~ "high",
+                                     risk_cat %in% get_risk_cat_dict()[1] ~ "low",
+                                     T ~ "mid")) %>% 
+  select(country, location_period_id, risk_cat_simple, period) %>% 
+  inner_join(endemicity_df_50_v2 %>% select(location_period_id, pop, endemicity)) %>% 
+  group_by(location_period_id) %>% 
+  mutate(risk_cat_change = str_c(risk_cat_simple, collapse = "-")) %>% 
+  filter(str_detect(risk_cat_change, "-")) %>% 
+  group_by(period, risk_cat_simple, risk_cat_change, endemicity) %>% 
+  summarise(pop = sum(pop)) %>% 
+  ungroup() %>% 
+  mutate(risk_cat_simple = factor(risk_cat_simple, 
+                                  levels = c("high", "mid","low"),
+                                  labels = c("High incidence\n(>10 /100'000)", 
+                                             "Medium incidence\n(1-10 /100'000)", 
+                                             "Low incidence\n(<1 /100'000)")),
+         endemicity = fct_relevel(endemicity, rev(levels(endemicity))))
+
+
+p_fig4C <- for_alluvial %>% 
+  # filter(!is.na(p2011), !is.na(p2016), !(p2011 == "low" & p2016 == "low")) %>% 
+  ggplot(aes(x = period, y = pop, stratum = risk_cat_simple, 
+             alluvium = risk_cat_change,
+             label = risk_cat_simple)) +
+  scale_x_discrete(expand = c(.1, .1)) +
+  geom_flow(alpha = 1, color = "black", aes(fill = endemicity)) +
+  geom_stratum(alpha = 1, fill = c("#F0F0F0"), width = .3) +
+  geom_text(stat = "stratum", size = 2.3) +
+  scale_fill_manual(values = rev(taxdat:::colors_endemicity())) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        axis.line.y = element_line(),
+        panel.border = element_blank()) +
+  scale_y_continuous(breaks = c(0, 2.5e8, 5e8, 7.5e8, 1e9), 
+                     labels = c("0", "250M", "500M", "750M", "1B")) +
+  labs(x = "time period", 
+       y = "ADM2-level population in 2020",
+       fill = "10-year incidence") +
+  guides(fill = "none")
+
+
 
 p_fig4 <- plot_grid(
   p_fig4A_legend +
     theme(panel.background = element_rect(fill = "white", color = "white")),
-  p_fig4B +
-    guides(fill = "none") +
-    theme(panel.background = element_rect(fill = "white", color = "white"),
-          plot.margin = unit(c(2, 1.5, 1.5, 1.5), units = "lines")),
+  plot_grid(
+    p_fig4B +
+      guides(fill = "none") +
+      theme(panel.background = element_rect(fill = "white", color = "white"),
+            plot.margin = unit(c(2, 1.5, 1.5, 1.5), units = "lines")),
+    p_fig4C,
+    ncol = 1,
+    labels = c("b", "c"),
+    rel_heights = c(1.5, 1),
+    align = "v",
+    axis = "l"
+  ),
   nrow = 1,
-  labels = "auto",
+  labels = c("a", NULL),
   rel_widths = c(1, .5)
 ) +
   theme(panel.background = element_rect(fill = "white", color = "white"))
