@@ -884,7 +884,7 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
 # Gridded maps of cases
 p_fig1A <- output_plot_map(sf_obj = grid_cases %>% 
                              mutate(log10_cases = log10(mean),
-                                    period = factor(period, levels = c("2016-2020", "2011-2015"))),
+                                    period = factor(period, levels = c("2011-2015","2016-2020"))),
                            lakes_sf = lakes_sf,
                            rivers_sf = rivers_sf,
                            all_countries_sf = afr_sf,
@@ -1192,7 +1192,8 @@ p_fig2B <- mai_change_adm %>%
           lwd = .05) +
   geom_sf(data = mai_adm2_change_stats  %>% 
             inner_join(u_space_sf, .) %>% 
-            filter(change_direction != "no change",
+            mutate(change_direction = ifelse(!change_direction == "no change","change",change_direction)) %>% 
+            filter(!change_direction == "no change",
                    # Remove no_w no-zero runs
                    !(country %in% no_w_case_runs$country)),
           inherit.aes = F,
@@ -1200,7 +1201,7 @@ p_fig2B <- mai_change_adm %>%
           alpha = 0,
           lwd = .05) +
   theme(legend.position = "right") +
-  scale_color_manual(values = c("blue", "red", "darkgray")) +
+  scale_color_manual(values = c("black", "darkgrey")) +
   guides(fill = guide_colorbar("Ratio of incidence rates\n[2016-2020/2011-2015]"),
          color = guide_legend("Change significance")) +
   theme(strip.background = element_blank(),
