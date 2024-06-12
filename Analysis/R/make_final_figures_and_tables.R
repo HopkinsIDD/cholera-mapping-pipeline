@@ -11,6 +11,8 @@ library(optparse)
 library(rmapshaper)
 library(taxdat)
 library(cowplot)
+library(ggalluvial)
+
 
 # User-supplied options
 opt_list <- list(
@@ -1022,11 +1024,11 @@ make_dotlineplot <- function(df) {
                  aes(x = p1, y = country, xend = p2, yend = country,
                      #alpha = sigificant_irr, 
                      color = direction#,linewidth = sigificant_irr
-                     ),
+                 ),
                  arrow = arrow(length = unit(0.15, "cm"), 
                                type="closed")#, 
                  #lwd = .3
-                 ) +
+    ) +
     # scale_linetype_manual(values = c(4, 1))  +
     #scale_alpha_manual(values = c(1, .3)) +
     #scale_linewidth_manual(values = c(1,0.3)) +
@@ -1354,7 +1356,7 @@ ggsave(plot = p_fig3,
 
 # Figure 4 ----------------------------------------------------------------
 
-## Fig. 4A: Change in risk categories (50% cutoff) ----
+## Fig. 4C: Map of endemicity categories (50% cutoff) ----
 endemicity_df_50_v2 <- risk_pop_50_adm2 %>% 
   mutate(high_risk = risk_cat %in% get_risk_cat_dict()[3:6],
          low_risk = risk_cat %in% get_risk_cat_dict()[1]) %>% 
@@ -1402,8 +1404,8 @@ endemicity_df_95_v2 <- risk_pop_95_adm2 %>%
 
 saveRDS(endemicity_df_95_v2, file = str_glue("{opt$output_dir}/endemicity_95.rds"))
 
-# Figure 4A
-p_fig4A <- endemicity_df_50_v2 %>% 
+# Figure 4C: Map
+p_fig4C <- endemicity_df_50_v2 %>% 
   inner_join(u_space_sf, .) %>% 
   output_plot_map(sf_obj = .,
                   lakes_sf = lakes_sf,
@@ -1417,11 +1419,13 @@ p_fig4A <- endemicity_df_50_v2 %>%
   guides(fill = guide_legend("10-year incidence\ncategory"))
 
 # Save
-ggsave(p_fig4A,
-       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4A_risk_cat.png"),
+ggsave(p_fig4C,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4C_risk_cat.png"),
        width = 12,
        height = 6, 
        dpi = 150)
+
+## Fig. 4A: Endemicity legend ----
 
 # Tile for legend
 hrisk_cat <- taxdat::get_risk_cat_dict()[-c(1:2)]
@@ -1437,31 +1441,46 @@ tile_dat <- expand.grid(x = taxdat::get_risk_cat_dict(),
                                                     "history of moderate",
                                                     "sustained low")))
 
-endemicity_legend <- tile_dat %>% 
+# Endemicity legend
+p_fig4A <- tile_dat %>% 
   ggplot(aes(x = x, y = y, fill = endemicity)) +
   geom_tile(color = "white") +
   scale_fill_manual(values = taxdat:::colors_endemicity()) +
   theme_bw() +
   theme(panel.border = element_blank(),
         axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
-        axis.text = element_text(size = 4.5),
-        axis.title = element_text(size = 5.5),
-        axis.ticks = element_blank(),
-        legend.text = element_text(size = 5),
-        legend.title = element_text(size = 7),
-        legend.key.size = unit(.5, units = "lines"),
-        legend.box.spacing = unit(.1, units = "lines")) +
-  labs(x = "Incidence category in 2011-2015", y = "Incidence category in 2016-2020",
+        # axis.text = element_text(size = 4.5),
+        # axis.title = element_text(size = 5.5),
+        # axis.ticks = element_blank(),
+        # legend.text = element_text(size = 5),
+        # legend.title = element_text(size = 7),
+        legend.key.size = unit(1, units = "lines"),
+        legend.box.spacing = unit(.2, units = "lines")
+  ) +
+  labs(x = "Incidence category\nin 2011-2015", y = "Incidence category\nin 2016-2020",
        fill = "10-year incidence\ncategory") + 
-  annotate("segment", y = 5, yend = 6.8, x = 1.5, xend = 1.5, colour = "black", arrow = arrow(angle = 45, length = unit(.2,"cm"))) +
-  annotate("segment", y = 5, yend = 6.8, x = 4.5, xend = 4.5, colour = "black", arrow = arrow(angle = 45, length = unit(.2,"cm"))) +
-  annotate("segment", y = 1.5, yend = 1.5, x = 4.5, xend = 6.8, colour = "black", arrow = arrow(angle = 45, length = unit(.2,"cm"))) +
-  annotate("text", x = Inf, y = -Inf, vjust = -3.5, hjust = 0.1, label = "133.9 M", size = 3) +
-  coord_cartesian(xlim = c(0.5,7), clip = 'off', expand = FALSE) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+  # annotate("segment", y = 5, yend = 6.8, x = 1.5, xend = 1.5, colour = "black", arrow = arrow(angle = 45, length = unit(.2,"cm"))) +
+  # annotate("segment", y = 5, yend = 6.8, x = 4.5, xend = 4.5, colour = "black", arrow = arrow(angle = 45, length = unit(.2,"cm"))) +
+  # annotate("segment", y = 1.5, yend = 1.5, x = 4.5, xend = 6.8, colour = "black", arrow = arrow(angle = 45, length = unit(.2,"cm"))) +
+  # annotate("text", x = Inf, y = -Inf, vjust = -3.5, hjust = 0.1, label = "133.9 M", size = 3) +
+  # coord_cartesian(xlim = c(0.5,7), clip = 'off', expand = FALSE) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  coord_equal()
+
+p_fig4C_legend <- ggdraw(
+  p_fig4C +
+    theme(strip.background = element_blank(),
+          plot.margin = unit(c(1, 0, 1, 0), units = "lines")) +
+    guides(fill = "none")) +
+  # annotate("text", x = -9.5, y = -4, label = "178.7 M", size = 3) +
+  # annotate("text", x = -2.7, y = -4, label = "104.6 M", size = 3)) +
+  draw_plot(p_fig4A +
+            theme(legend.position = "top") + 
+              guides(fill = guide_legend(ncol = 1, direction = "vertical")), 
+            .075, .14, .35, .45)
 
 ## Fig. 4B: Fraction by categories for supplement ----
-p_fig4B <- endemicity_df_50_v2  %>%
+p_fig4_supp <- endemicity_df_50_v2  %>%
   group_by(country) %>% 
   complete(endemicity = unique(endemicity_df_50_v2$endemicity)) %>% 
   get_AFRO_region(ctry_col = "country") %>% 
@@ -1487,31 +1506,81 @@ p_fig4B <- endemicity_df_50_v2  %>%
   theme_bw() +
   labs(x = "fraction of population\n per 10-year incidence category")
 
-ggsave(p_fig4B,
-       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4B.png"),
+ggsave(p_fig4_supp,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4_supp.png"),
        width = 6,
        height = 7, 
        dpi = 150)
 
-p_fig4A_legend <- ggdraw(
-  p_fig4A +
-    theme(strip.background = element_blank(),
-          plot.margin = unit(c(1, 0, 1, 0), units = "lines")) +
-    guides(fill = "none") +
-    annotate("text", x = -9.5, y = -4, label = "178.7 M", size = 3) +
-    annotate("text", x = -2.7, y = -4, label = "104.6 M", size = 3)) +
-  draw_plot(endemicity_legend, .075, .24, .35, .25)
+
+## Fig. 4B: Alluvial plot ----
+
+for_alluvial <- risk_pop_50_adm2 %>% 
+  as_tibble() %>% 
+  mutate(high_risk = risk_cat %in% get_risk_cat_dict()[3:6],
+         low_risk = risk_cat %in% get_risk_cat_dict()[1],
+         risk_cat_simple = case_when(risk_cat %in% get_risk_cat_dict()[3:6] ~ "high",
+                                     risk_cat %in% get_risk_cat_dict()[1] ~ "low",
+                                     T ~ "mid")) %>% 
+  select(country, location_period_id, risk_cat_simple, period) %>% 
+  inner_join(endemicity_df_50_v2 %>% select(location_period_id, pop, endemicity)) %>% 
+  group_by(location_period_id) %>% 
+  mutate(risk_cat_change = str_c(risk_cat_simple, collapse = "-")) %>% 
+  filter(str_detect(risk_cat_change, "-")) %>% 
+  group_by(period, risk_cat_simple, risk_cat_change, endemicity) %>% 
+  summarise(pop = sum(pop)) %>% 
+  ungroup() %>% 
+  mutate(risk_cat_simple = factor(risk_cat_simple, 
+                                  levels = c("high", "mid","low"),
+                                  labels = c("High incidence\n(>10 /100'000)", 
+                                             "Medium incidence\n(1-10 /100'000)", 
+                                             "Low incidence\n(<1 /100'000)")),
+         endemicity = fct_relevel(endemicity, rev(levels(endemicity))))
+
+
+p_fig4B <- for_alluvial %>% 
+  # filter(!is.na(p2011), !is.na(p2016), !(p2011 == "low" & p2016 == "low")) %>% 
+  ggplot(aes(x = period, y = pop, stratum = risk_cat_simple, 
+             alluvium = risk_cat_change,
+             label = risk_cat_simple)) +
+  scale_x_discrete(expand = c(.1, .1)) +
+  geom_flow(alpha = 1, color = "black", aes(fill = endemicity)) +
+  geom_stratum(alpha = 1, fill = c("#F0F0F0"), width = .3) +
+  geom_text(stat = "stratum", size = 2.3) +
+  scale_fill_manual(values = rev(taxdat:::colors_endemicity())) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        axis.line.y = element_line(),
+        panel.border = element_blank()) +
+  scale_y_continuous(breaks = c(0, 2.5e8, 5e8, 7.5e8, 1e9), 
+                     labels = c("0", "250M", "500M", "750M", "1B")) +
+  labs(x = "time period", 
+       y = "ADM2-level population in 2020",
+       fill = "10-year incidence") +
+  guides(fill = "none")
+
+
 
 p_fig4 <- plot_grid(
-  p_fig4A_legend +
-    theme(panel.background = element_rect(fill = "white", color = "white")),
-  p_fig4B +
-    guides(fill = "none") +
-    theme(panel.background = element_rect(fill = "white", color = "white"),
-          plot.margin = unit(c(2, 1.5, 1.5, 1.5), units = "lines")),
+  plot_grid(
+    p_fig4A + 
+      theme(plot.margin = unit(c(1, 0, 0, 2), units = "lines")),
+    # guides(fill = "none") +
+    # theme(panel.background = element_rect(fill = "white", color = "white"),
+    # plot.margin = unit(c(2, 1.5, 1.5, 1.5), units = "lines")),
+    p_fig4B + 
+      theme(plot.margin = unit(c(1, 2.5, 1, 1), units = "lines")),
+    ncol = 1,
+    labels = c("a", "b"),
+    rel_heights = c(.6, 1)#,
+    # align = "v",
+    # axis = "lr"
+  ),
+  p_fig4C +
+    guides(fill = "none"),
   nrow = 1,
-  labels = "auto",
-  rel_widths = c(1, .5)
+  labels = c(NA, "c"),
+  rel_widths = c(1, 1.5)
 ) +
   theme(panel.background = element_rect(fill = "white", color = "white"))
 
@@ -1520,8 +1589,29 @@ p_fig4 <- plot_grid(
 ggsave(plot = p_fig4,
        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4.png"),
        width = 15,
-       height = 10,
+       height = 8,
        dpi = 300)
+
+
+p_fig4_v2 <- plot_grid(
+  p_fig4B + 
+    theme(plot.margin = unit(c(1, 2.5, 1, 1), units = "lines")),
+  p_fig4C_legend +
+    guides(fill = "none"),
+  nrow = 1,
+  labels = c("a", "b"),
+  rel_widths = c(1, 1.5)
+) +
+  theme(panel.background = element_rect(fill = "white", color = "white"))
+
+
+# Save
+ggsave(plot = p_fig4_v2,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4_v2.png"),
+       width = 15,
+       height = 8,
+       dpi = 300)
+
 
 # Figure 5: cholera occurrence -----------------------------------------------------
 
