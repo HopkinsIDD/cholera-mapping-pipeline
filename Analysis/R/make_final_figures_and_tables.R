@@ -866,7 +866,10 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     get_AFRO_region(ctry_col = "country")  %>% 
     mutate(AFRO_region = factor(AFRO_region, 
                                 levels = get_AFRO_region_levels())) %>% 
-    st_drop_geometry()
+    st_drop_geometry() %>% 
+    mutate(risk_cat = as.character(risk_cat)) %>% 
+    mutate(risk_cat = ifelse(risk_cat == ">100",">=100",risk_cat)) %>% 
+    mutate(risk_cat = factor(risk_cat,levels = c("<1","1-10","10-20","20-50","50-100",">=100" )))
   
   # threshold is 95%
   risk_pop_95_adm2 <- combine_period_output(prefix_list = prefix_list,
@@ -920,7 +923,7 @@ p_fig1B <- cases_by_region %>%
                  height = .2) +
   scale_x_continuous(
     labels = function(x) {
-      formatC(x, digits = 0, big.mark = "'", format = "f")
+      formatC(x, digits = 0, big.mark = ",", format = "f")
     }) +
   scale_fill_manual(values = colors_afro_regions()) +
   theme_bw() +
@@ -1266,14 +1269,21 @@ risk_pop_all <- pop_at_risk_all %>%
   filter(period == "2016-2020", 
          admin_level == "ADM2",
          risk_cat != "<1") %>% 
-  select(risk_cat, mean, q2.5, q97.5)
+  select(risk_cat, mean, q2.5, q97.5) %>% 
+  mutate(risk_cat = as.character(risk_cat)) %>% 
+  mutate(risk_cat = ifelse(risk_cat == ">100",">=100",risk_cat)) %>% 
+  mutate(risk_cat = factor(risk_cat,levels = c("<1","1-10","10-20","20-50","50-100",">=100" )))
+
 
 # Values by AFRO region
 risk_pop_regions <- pop_at_risk_regions %>% 
   filter(period == "2016-2020", 
          admin_level == "ADM2",
          risk_cat != "<1") %>% 
-  select(AFRO_region, risk_cat, mean, q2.5, q97.5)
+  select(AFRO_region, risk_cat, mean, q2.5, q97.5) %>% 
+  mutate(risk_cat = as.character(risk_cat)) %>% 
+  mutate(risk_cat = ifelse(risk_cat == ">100",">=100",risk_cat)) %>% 
+  mutate(risk_cat = factor(risk_cat,levels = c("<1","1-10","10-20","20-50","50-100",">=100" )))
 
 p_fig3A <- risk_pop_regions %>%
   ggplot(aes(y = risk_cat, x = mean)) +
@@ -1287,9 +1297,9 @@ p_fig3A <- risk_pop_regions %>%
   scale_x_continuous(labels = function(x) {formatC(x/1e6)}) +
   labs(y = "ADM2 incidence category per 100,000 population", x = "Population living in ADM2 units (millions)")+
   theme(legend.title=element_blank()) +
-  geom_segment(x = 125000000, xend = 125000000, y = "10-20", yend = ">100", colour = "black") +
+  geom_segment(x = 125000000, xend = 125000000, y = "10-20", yend = ">=100", colour = "black") +
   geom_segment(x = 115000000, xend = 125000000, y = "10-20", yend = "10-20", colour = "black") +
-  geom_segment(x = 115000000, xend = 125000000, y = ">100", yend = ">100", colour = "black") +
+  geom_segment(x = 115000000, xend = 125000000, y = ">=100", yend = ">=100", colour = "black") +
   annotate("segment", x = 125000000, xend = 135000000, y = 3.5, yend = 3.5, colour = "black") +
   annotate("text", x = 155000000, y = 3.5, label = '"High\nIncidence"')
 
