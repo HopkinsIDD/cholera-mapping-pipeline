@@ -868,8 +868,8 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
                                 levels = get_AFRO_region_levels())) %>% 
     st_drop_geometry() %>% 
     mutate(risk_cat = as.character(risk_cat)) %>% 
-    mutate(risk_cat = ifelse(risk_cat == ">100",">=100",risk_cat)) %>% 
-    mutate(risk_cat = factor(risk_cat,levels = c("<1","1-10","10-20","20-50","50-100",">=100" )))
+    mutate(risk_cat = ifelse(risk_cat == ">100","\u2265100",risk_cat)) %>% 
+    mutate(risk_cat = factor(risk_cat,levels = c("<1","1-10","10-20","20-50","50-100","\u2265100" )))
   
   # threshold is 95%
   risk_pop_95_adm2 <- combine_period_output(prefix_list = prefix_list,
@@ -1204,7 +1204,7 @@ p_fig2B <- mai_change_adm %>%
           inherit.aes = F,
           aes(color = change_direction),
           alpha = 0,
-          lwd = .05) +
+          lwd = .08) +
   theme(legend.position = "right") +
   scale_color_manual(values = c("black", "darkgrey")) +
   guides(fill = guide_colorbar("Ratio of incidence rates\n[2016-2020/2011-2015]"),
@@ -1271,8 +1271,8 @@ risk_pop_all <- pop_at_risk_all %>%
          risk_cat != "<1") %>% 
   select(risk_cat, mean, q2.5, q97.5) %>% 
   mutate(risk_cat = as.character(risk_cat)) %>% 
-  mutate(risk_cat = ifelse(risk_cat == ">100",">=100",risk_cat)) %>% 
-  mutate(risk_cat = factor(risk_cat,levels = c("<1","1-10","10-20","20-50","50-100",">=100" )))
+  mutate(risk_cat = ifelse(risk_cat == ">100","\u2265100",risk_cat)) %>% 
+  mutate(risk_cat = factor(risk_cat,levels = c("<1","1-10","10-20","20-50","50-100","\u2265100" )))
 
 
 # Values by AFRO region
@@ -1281,9 +1281,9 @@ risk_pop_regions <- pop_at_risk_regions %>%
          admin_level == "ADM2",
          risk_cat != "<1") %>% 
   select(AFRO_region, risk_cat, mean, q2.5, q97.5) %>% 
-  mutate(risk_cat = as.character(risk_cat)) %>% 
-  mutate(risk_cat = ifelse(risk_cat == ">100",">=100",risk_cat)) %>% 
-  mutate(risk_cat = factor(risk_cat,levels = c("<1","1-10","10-20","20-50","50-100",">=100" )))
+  mutate(risk_cat = as.character(risk_cat)) %>%
+  mutate(risk_cat = ifelse(risk_cat == ">100","\u2265100",risk_cat)) %>% 
+  mutate(risk_cat = factor(risk_cat,levels = c("<1","1-10","10-20","20-50","50-100","\u2265100" )))
 
 p_fig3A <- risk_pop_regions %>%
   ggplot(aes(y = risk_cat, x = mean)) +
@@ -1297,9 +1297,9 @@ p_fig3A <- risk_pop_regions %>%
   scale_x_continuous(labels = function(x) {formatC(x/1e6)}) +
   labs(y = "ADM2 incidence category per 100,000 population", x = "Population living in ADM2 units (millions)")+
   theme(legend.title=element_blank()) +
-  geom_segment(x = 125000000, xend = 125000000, y = "10-20", yend = ">=100", colour = "black") +
+  geom_segment(x = 125000000, xend = 125000000, y = "10-20", yend = "\u2265100", colour = "black") +
   geom_segment(x = 115000000, xend = 125000000, y = "10-20", yend = "10-20", colour = "black") +
-  geom_segment(x = 115000000, xend = 125000000, y = ">=100", yend = ">=100", colour = "black") +
+  geom_segment(x = 115000000, xend = 125000000, y = "\u2265100", yend = "\u2265100", colour = "black") +
   annotate("segment", x = 125000000, xend = 135000000, y = 3.5, yend = 3.5, colour = "black") +
   annotate("text", x = 155000000, y = 3.5, label = '"High\nIncidence"')
 
