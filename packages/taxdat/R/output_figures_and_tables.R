@@ -64,7 +64,7 @@ output_plot_map <- function(sf_obj,
                             border_width = 0.005,
                             border_color = "white",
                             lake_alpha = 1,
-                            country_border_width = .2,
+                            country_border_width = .3,
                             country_border_color = "black",
                             cholera_dir = 'cholera-mapping-pipeline') {
   
