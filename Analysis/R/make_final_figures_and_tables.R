@@ -506,7 +506,11 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     get_AFRO_region(ctry_col = "country")  %>% 
     mutate(AFRO_region = factor(AFRO_region, 
                                 levels = get_AFRO_region_levels())) %>% 
-    st_drop_geometry()
+    st_drop_geometry() %>% 
+    mutate(risk_cat = as.character(risk_cat)) %>% 
+    mutate(risk_cat = ifelse(risk_cat == ">100","\u2265100",risk_cat)) %>% 
+    mutate(risk_cat = factor(risk_cat,levels = c("<1","1-10","10-20","20-50","50-100","\u2265100" )))
+  
   
   # Risk categories for 95% cutoff
   risk_pop_95_adm2 <- combine_period_output(prefix_list = prefix_list,
@@ -516,7 +520,10 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     get_AFRO_region(ctry_col = "country")  %>% 
     mutate(AFRO_region = factor(AFRO_region, 
                                 levels = get_AFRO_region_levels())) %>% 
-    st_drop_geometry()
+    st_drop_geometry() %>% 
+    mutate(risk_cat = as.character(risk_cat)) %>% 
+    mutate(risk_cat = ifelse(risk_cat == ">100","\u2265100",risk_cat)) %>% 
+    mutate(risk_cat = factor(risk_cat,levels = c("<1","1-10","10-20","20-50","50-100","\u2265100" )))
   
   
   
@@ -879,7 +886,11 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     get_AFRO_region(ctry_col = "country")  %>% 
     mutate(AFRO_region = factor(AFRO_region, 
                                 levels = get_AFRO_region_levels())) %>% 
-    st_drop_geometry()
+    st_drop_geometry()() %>% 
+    mutate(risk_cat = as.character(risk_cat)) %>% 
+    mutate(risk_cat = ifelse(risk_cat == ">100","\u2265100",risk_cat)) %>% 
+    mutate(risk_cat = factor(risk_cat,levels = c("<1","1-10","10-20","20-50","50-100","\u2265100" )))
+  
 }
 
 # Figure 1: cases ---------------------------------------------------------
@@ -1257,7 +1268,7 @@ ggsave(plot = p_fig2,
        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2.png"),
        width = 18,
        height = 9,
-       dpi = 300)
+       dpi = 600)
 
 
 # Figure 3: population at risk --------------------------------------------
@@ -1512,9 +1523,11 @@ p_fig4_supp <- endemicity_df_50_v2  %>%
   ggplot(aes(y = country, x = frac, fill = endemicity)) +
   geom_bar(stat = "identity") +
   facet_grid(AFRO_region ~., scales = "free_y", space = "free_y") +
-  scale_fill_manual(values = rev(taxdat:::colors_endemicity())) +
+  scale_fill_manual(values = taxdat:::colors_endemicity(),
+                    breaks = c("sustained high","history of high","history of moderate","sustained low")) +
   theme_bw() +
-  labs(x = "fraction of population\n per 10-year incidence category")
+  labs(x = "fraction of population\n per 10-year incidence category") +
+  guides(fill=guide_legend(title="10-year incidence category"))
 
 ggsave(p_fig4_supp,
        file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4_supp.png"),
@@ -1858,7 +1871,7 @@ ggsave(p_data_scatter,
 p_data_scatter_censored <- gen_obs %>%
   filter(censoring == "right-censored") %>% 
   ggplot(aes(x = observation+1, y = mean+1)) +
-  geom_abline(lty = 2, lwd = .5, col = "red") +
+  geom_abline(lty = 2, lwd = .5, col = "black",alpha=0.3) +
   geom_point(alpha = .5, aes(color = period)) +
   geom_errorbar(aes(ymin = q2.5+1, ymax = q97.5+1, color = period), alpha = .25) +
   facet_grid(country ~ admin_level) +
@@ -1866,12 +1879,13 @@ p_data_scatter_censored <- gen_obs %>%
   scale_x_log10() +
   scale_y_log10() +
   labs(x = "Observed number of cases", y = "Modeled") +
-  scale_color_manual(values = taxdat:::colors_periods())
+  scale_color_manual(values = taxdat:::colors_periods())+
+  theme(legend.position = "bottom")
 
 ggsave(p_data_scatter_censored,
        file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_validation_censored_scatter.png"),
-       width = 15,
-       height = 15, 
+       width = 10,
+       height = 10, 
        dpi = 300)
 
 
