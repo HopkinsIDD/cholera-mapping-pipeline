@@ -1496,7 +1496,7 @@ p_fig4C_legend <- ggdraw(
   # annotate("text", x = -9.5, y = -4, label = "178.7 M", size = 3) +
   # annotate("text", x = -2.7, y = -4, label = "104.6 M", size = 3)) +
   draw_plot(p_fig4A +
-            theme(legend.position = "top") + 
+              theme(legend.position = "top") + 
               guides(fill = guide_legend(ncol = 1, direction = "vertical")), 
             .075, .14, .35, .45)
 
@@ -1555,21 +1555,25 @@ for_alluvial <- risk_pop_50_adm2 %>%
   ungroup() %>% 
   mutate(risk_cat_simple = factor(risk_cat_simple, 
                                   levels = c("high", "mid","low"),
-                                  labels = c("High incidence\n(>10 /100'000)", 
-                                             "Medium incidence\n(1-10 /100'000)", 
-                                             "Low incidence\n(<1 /100'000)")),
+                                  labels = c("High\nincidence", 
+                                             "Medium\nincidence", 
+                                             "Low\nincidence")),
          endemicity = fct_relevel(endemicity, rev(levels(endemicity))))
 
 
 p_fig4B <- for_alluvial %>% 
+  mutate(pop_label = str_c(round(pop/1e6), "M"),
+         pop_label = case_when(period == "2016-2020" ~ NA_character_,
+                               TRUE ~ pop_label)) %>% 
   # filter(!is.na(p2011), !is.na(p2016), !(p2011 == "low" & p2016 == "low")) %>% 
   ggplot(aes(x = period, y = pop, stratum = risk_cat_simple, 
-             alluvium = risk_cat_change,
-             label = risk_cat_simple)) +
+             alluvium = risk_cat_change)) +
   scale_x_discrete(expand = c(.1, .1)) +
   geom_flow(alpha = 1, color = "black", aes(fill = endemicity)) +
   geom_stratum(alpha = 1, fill = c("#F0F0F0"), width = .3) +
-  geom_text(stat = "stratum", size = 2.3) +
+  geom_text(stat = "stratum", size = 3.5, aes(label = risk_cat_simple)) +
+  geom_label(stat = "flow", nudge_x = .22,
+             aes(label = pop_label, fill = endemicity)) +
   scale_fill_manual(values = rev(taxdat:::colors_endemicity())) +
   theme_bw() +
   theme(panel.grid = element_blank(),
@@ -1584,36 +1588,36 @@ p_fig4B <- for_alluvial %>%
 
 
 
-p_fig4 <- plot_grid(
-  plot_grid(
-    p_fig4A + 
-      theme(plot.margin = unit(c(1, 0, 0, 2), units = "lines")),
-    # guides(fill = "none") +
-    # theme(panel.background = element_rect(fill = "white", color = "white"),
-    # plot.margin = unit(c(2, 1.5, 1.5, 1.5), units = "lines")),
-    p_fig4B + 
-      theme(plot.margin = unit(c(1, 2.5, 1, 1), units = "lines")),
-    ncol = 1,
-    labels = c("a", "b"),
-    rel_heights = c(.6, 1)#,
-    # align = "v",
-    # axis = "lr"
-  ),
-  p_fig4C +
-    guides(fill = "none"),
-  nrow = 1,
-  labels = c(NA, "c"),
-  rel_widths = c(1, 1.5)
-) +
-  theme(panel.background = element_rect(fill = "white", color = "white"))
-
-
-# Save
-ggsave(plot = p_fig4,
-       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4.png"),
-       width = 15,
-       height = 8,
-       dpi = 300)
+# p_fig4 <- plot_grid(
+#   plot_grid(
+#     p_fig4A + 
+#       theme(plot.margin = unit(c(1, 0, 0, 2), units = "lines")),
+#     # guides(fill = "none") +
+#     # theme(panel.background = element_rect(fill = "white", color = "white"),
+#     # plot.margin = unit(c(2, 1.5, 1.5, 1.5), units = "lines")),
+#     p_fig4B + 
+#       theme(plot.margin = unit(c(1, 2.5, 1, 1), units = "lines")),
+#     ncol = 1,
+#     labels = c("a", "b"),
+#     rel_heights = c(.6, 1)#,
+#     # align = "v",
+#     # axis = "lr"
+#   ),
+#   p_fig4C +
+#     guides(fill = "none"),
+#   nrow = 1,
+#   labels = c(NA, "c"),
+#   rel_widths = c(1, 1.5)
+# ) +
+#   theme(panel.background = element_rect(fill = "white", color = "white"))
+# 
+# 
+# # Save
+# ggsave(plot = p_fig4,
+#        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4.png"),
+#        width = 15,
+#        height = 8,
+#        dpi = 300)
 
 
 p_fig4_v2 <- plot_grid(
@@ -1636,7 +1640,7 @@ ggsave(plot = p_fig4_v2,
        dpi = 300)
 
 
-# Figure 5: cholera occurrence -----------------------------------------------------
+s# Figure 5: cholera occurrence -----------------------------------------------------
 
 # Load outbreak data and results (50%)
 load(str_c(opt$output_dir, "/outbreak_analysis_data.rdata"))
@@ -1761,7 +1765,8 @@ p_ob_1 <- baseline_prob_stats %>%
   scale_color_manual(values = c("overall" = "black", colors_afro_regions())) +
   labs(x = "", y = "probability of cholera occurrence") +
   guides(color = "none") +
-  coord_cartesian(ylim = c(0, 1))  +
+  coord_flip(ylim = c(0, 1))+
+  # coord_cartesian(ylim = c(0, 1))  +
   theme(axis.text = element_text(size = 8),
         axis.title = element_text(size = 10))
 
@@ -1777,64 +1782,67 @@ p_ob_2 <- logOR_stats %>%
   facet_grid(. ~ what, scales = "free", space = "free") +
   theme_bw() +
   scale_color_manual(values = c("overall" = "black", colors_afro_regions())) +
-  labs(x = "10-year cholera risk category", y = "log-Odds ratio", color = NULL) +
+  labs(x = "10-year cholera incidence category", y = "log-Odds ratio", color = NULL) +
   theme(legend.position = c(.145, .84),
         legend.key.height = unit(.75, units = "lines"),
         axis.text = element_text(size = 8),
         axis.title = element_text(size = 10),
         legend.title = element_blank(),
-        legend.text = element_text(size = 8))
+        legend.text = element_text(size = 8)) +
+  coord_flip()
 
+
+p_or <- plot_grid(
+  p_ob_1 +
+    guides(color = guide_legend(NULL, ncol = 3)) +
+    theme(legend.position = "top", 
+          legend.direction = "vertical") +
+    theme(plot.margin = unit(c(1, 3, 1, 1), units = "lines"),
+          axis.text.y = element_text(angle = 90, hjust = 0.5)), 
+  p_ob_2 +
+    guides(color = "none") +
+    theme(axis.text.y = element_text(angle = 90, hjust = 0.5)),
+  ncol = 1,
+  rel_heights = c(.6, 1),
+  align = "v",
+  axis = "lr",
+  labels = c("c", "d")
+) +
+  theme(plot.margin = unit(c(1, 3, 1, 3), units = "lines"))
+
+
+p_or
 
 p_fig5 <- plot_grid(
   plot_grid(
-    p_ob_map2, 
-    plot_grid(
-      p_frac_overall  +
-        theme(plot.margin = unit(c(2, 3, 0, 1), units = "lines"),
-              axis.text.x = element_blank(),
-              axis.title.x = element_blank(),
-              axis.ticks.x = element_blank()),
-      p_frac_regions +
-        theme(plot.margin = unit(c(.5, 3, 1, 1), units = "lines")), 
-      labels = c("b", "c"),
-      align = "v",
-      axis = "lr",
-      rel_heights = c(.4, 1),
-      ncol = 1
-    ),
-    nrow = 1,
-    rel_widths = c(1.2, 1),
-    align = "h",
-    axis = "tb",
-    labels = c("a", NA_character_)
+    p_ob_map2,
+    p_frac_overall  +
+      theme(plot.margin = unit(c(1, 2, 1, 1), units = "lines")#,
+            # axis.text.x = element_blank(),
+            # axis.title.x = element_blank(),
+            # axis.ticks.x = element_blank()
+            ),
+    # p_frac_regions +
+    #   theme(plot.margin = unit(c(.5, 3, 1, 1), units = "lines")), 
+    labels = c("a", "b"),
+    # align = "v",
+    # axis = "lr",
+    rel_heights = c(1, .3),
+    ncol = 1
   ),
-  plot_grid(
-    p_ob_1 +
-      guides(color = guide_legend("region")) +
-      theme(legend.position = "right") +
-      theme(plot.margin = unit(c(1, 3, 1, 1), units = "lines")), 
-    p_ob_2 +
-      guides(color = "none"),
-    nrow = 1,
-    rel_widths = c(.7, 1),
-    align = "h",
-    axis = "tb",
-    labels = c("d", "e")
-  ) +
-    theme(plot.margin = unit(c(1, 3, 1, 3), units = "lines")),
-  ncol = 1,
-  rel_heights = c(1.5, 1),
+  p_or,
+  nrow = 1,
+  rel_widths = c(1.35, 1),
   # labels = c(NA_character_, "e"),
-  align = "h",
-  axis = "lr"
+  align = "v",
+  axis = "tb"
 ) +
   theme(plot.background = element_rect(fill = "white", color = "white"))
 
 ggsave(plot = p_fig5,
        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_5.png"),
        width = 13,
-       height = 12,
+       height = 7.5,
        dpi = 300)
 
 
@@ -1918,11 +1926,17 @@ walk(c("ADM0", "ADM1"), function(x) {
 
 
 ## Recent outbreaks country-level estimates ----
-p_country_coef <- param_by_country %>%
+param_by_country_v2 <- param_by_country %>%
   filter(param != "(Intercept)") %>%
+  mutate(param = str_replace(param, "risk", "incidence") %>% 
+           factor(levels = c("history of moderate incidence",
+                             "history of high incidence",
+                             "sustained high incidence")))
+
+p_country_coef <- param_by_country_v2 %>% 
   ggplot(aes(x = mean, xmin = q2.5, xmax = q97.5, y = country)) +
-  geom_vline(data = tibble(param = levels(param_by_country$param)[-1] %>%
-                             factor(levels = levels(param_by_country$param)),
+  geom_vline(data = tibble(param = levels(param_by_country_v2$param) %>%
+                             factor(levels = levels(param_by_country_v2$param)),
                            x = 0),
              aes(xintercept = x),
              lty = 2) +
