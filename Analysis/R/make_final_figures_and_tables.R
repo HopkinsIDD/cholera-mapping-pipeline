@@ -1555,15 +1555,15 @@ for_alluvial <- risk_pop_50_adm2 %>%
   ungroup() %>% 
   mutate(risk_cat_simple = factor(risk_cat_simple, 
                                   levels = c("high", "mid","low"),
-                                  labels = c("High\nincidence", 
-                                             "Medium\nincidence", 
-                                             "Low\nincidence")),
+                                  labels = c("High\nincidence\n(>=10\nper 100,000)", 
+                                             "Medium\nincidence\n(>=1 to 10\nper 100,000)", 
+                                             "Low\nincidence\n(<1\nper 100,000)")),
          endemicity = fct_relevel(endemicity, rev(levels(endemicity))))
 
 
 p_fig4B <- for_alluvial %>% 
   mutate(pop_label = str_c(round(pop/1e6), "M"),
-         pop_label = case_when(period == "2016-2020" ~ NA_character_,
+         pop_label = case_when(period != "2016-2020" ~ NA_character_,
                                TRUE ~ pop_label)) %>% 
   # filter(!is.na(p2011), !is.na(p2016), !(p2011 == "low" & p2016 == "low")) %>% 
   ggplot(aes(x = period, y = pop, stratum = risk_cat_simple, 
@@ -1572,7 +1572,7 @@ p_fig4B <- for_alluvial %>%
   geom_flow(alpha = 1, color = "black", aes(fill = endemicity)) +
   geom_stratum(alpha = 1, fill = c("#F0F0F0"), width = .3) +
   geom_text(stat = "stratum", size = 3.5, aes(label = risk_cat_simple)) +
-  geom_label(stat = "flow", nudge_x = .22,
+  geom_label(stat = "flow", nudge_x = -.24,
              aes(label = pop_label, fill = endemicity)) +
   scale_fill_manual(values = rev(taxdat:::colors_endemicity())) +
   theme_bw() +
@@ -1582,7 +1582,7 @@ p_fig4B <- for_alluvial %>%
   scale_y_continuous(breaks = c(0, 2.5e8, 5e8, 7.5e8, 1e9), 
                      labels = c("0", "250M", "500M", "750M", "1B")) +
   labs(x = "time period", 
-       y = "ADM2-level population in 2020",
+       y = "ADM2-level population (2020 population-adjusted)",
        fill = "10-year incidence") +
   guides(fill = "none")
 
