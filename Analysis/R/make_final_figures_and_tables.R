@@ -1680,7 +1680,7 @@ p_ob_map2 <- endemicity_df_50_v2 %>%
   theme(legend.position = c(.23, .4)) +
   scale_fill_manual(values = taxdat:::colors_endemicity()) +
   labs(color = NULL) +
-  guides(fill = guide_legend("10-year risk\ncategory", override.aes = list(alpha = 1))) +
+  guides(fill = guide_legend("10-year incidence\ncategory", override.aes = list(alpha = 1))) +
   scale_shape_manual(values = c(1, 3, 4))
 
 ggsave(plot = p_ob_map2,
@@ -1727,7 +1727,7 @@ p_frac_overall <- ob_count_dat %>%
   geom_bar(stat = "identity") +
   theme_bw() +
   scale_fill_manual(values = taxdat:::colors_endemicity()) +
-  labs(y = "proportion of locations", x = "") +
+  labs(y = "proportion of locations (ADM2 or lower)", x = "") +
   guides(fill = "none") +
   coord_flip()
 
@@ -1756,19 +1756,21 @@ pd2 <- position_dodge(.3)
 p_ob_1 <- baseline_prob_stats %>% 
   mutate(what = "reference",
          param = case_when(str_detect(param, "baseline") ~ "sustained low",
-                           TRUE ~ param)) %>% 
+                           TRUE ~ param),
+         overall = AFRO_region == "overall") %>% 
   ggplot(aes(x = param, y = mean, ymin = q2.5, ymax = q97.5, color = AFRO_region)) +
-  geom_point(position = pd1) +
-  geom_errorbar(width = 0, position = pd1) +
+  geom_point(position = pd1, aes(size = AFRO_region)) +
+  geom_errorbar(width = 0, position = pd1, aes(lwd = AFRO_region)) +
   theme_bw() +
   facet_grid(. ~ what, scales = "free", space = "free") +
   scale_color_manual(values = c("overall" = "black", colors_afro_regions())) +
+  scale_size_manual(values = c(2.2, rep(.8, 4))) +
+  scale_linewidth_manual(values = c(.5, rep(.35, 4))) +
   labs(x = "", y = "probability of cholera occurrence") +
-  guides(color = "none") +
   coord_flip(ylim = c(0, 1))+
   # coord_cartesian(ylim = c(0, 1))  +
   theme(axis.text = element_text(size = 8),
-        axis.title = element_text(size = 10))
+        axis.title = element_text(size = 10)) 
 
 p_ob_2 <- logOR_stats %>% 
   mutate(param = stringr::str_remove_all(param, " risk")) %>% 
@@ -1776,13 +1778,17 @@ p_ob_2 <- logOR_stats %>%
          what = str_replace(what, "risk", "incidence"),
          param = factor(param, levels = c("history of moderate","history of high","sustained high"))) %>% 
   ggplot(aes(x = param, y = mean, ymin = q2.5, ymax = q97.5, color = AFRO_region)) +
-  geom_point(position = pd2) +
-  geom_errorbar(width = 0, position = pd2) +
+  geom_point(position = pd2, aes(size = AFRO_region)) +
+  geom_errorbar(width = 0, position = pd2, aes(lwd = AFRO_region)) +
   geom_hline(aes(yintercept = 0), lty = 3, lwd = .6) +
   facet_grid(. ~ what, scales = "free", space = "free") +
   theme_bw() +
   scale_color_manual(values = c("overall" = "black", colors_afro_regions())) +
-  labs(x = "10-year cholera incidence category", y = "log-Odds ratio", color = NULL) +
+  scale_size_manual(values = c(2.2, rep(.8, 4))) +
+  scale_linewidth_manual(values = c(.5, rep(.35, 4))) +
+  labs(x = "10-year cholera incidence category", 
+       y = "log-Odds ratio", 
+       color = NULL, size = NULL, lwd = NULL) +
   theme(legend.position = c(.145, .84),
         legend.key.height = unit(.75, units = "lines"),
         axis.text = element_text(size = 8),
@@ -1793,20 +1799,22 @@ p_ob_2 <- logOR_stats %>%
 
 
 p_or <- plot_grid(
+  p_ob_2 +
+    guides(color = "none", lwd = "none", size = "none") +
+    theme(axis.text.y = element_text(angle = 90, hjust = 0.5)),
   p_ob_1 +
-    guides(color = guide_legend(NULL, ncol = 3)) +
-    theme(legend.position = "top", 
+    guides(color = guide_legend(NULL, ncol = 3),
+           size = guide_legend(NULL, ncol = 3),
+           lwd = guide_legend(NULL, ncol = 3)) +
+    theme(legend.position = "bottom", 
           legend.direction = "vertical") +
     theme(plot.margin = unit(c(1, 3, 1, 1), units = "lines"),
           axis.text.y = element_text(angle = 90, hjust = 0.5)), 
-  p_ob_2 +
-    guides(color = "none") +
-    theme(axis.text.y = element_text(angle = 90, hjust = 0.5)),
   ncol = 1,
-  rel_heights = c(.6, 1),
+  rel_heights = c(1, .6),
   align = "v",
   axis = "lr",
-  labels = c("c", "d")
+  labels = c("c", NULL)
 ) +
   theme(plot.margin = unit(c(1, 3, 1, 3), units = "lines"))
 
@@ -1821,7 +1829,7 @@ p_fig5 <- plot_grid(
             # axis.text.x = element_blank(),
             # axis.title.x = element_blank(),
             # axis.ticks.x = element_blank()
-            ),
+      ),
     # p_frac_regions +
     #   theme(plot.margin = unit(c(.5, 3, 1, 1), units = "lines")), 
     labels = c("a", "b"),
