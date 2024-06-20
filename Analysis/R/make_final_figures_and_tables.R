@@ -1640,7 +1640,7 @@ ggsave(plot = p_fig4_v2,
        dpi = 300)
 
 
-s# Figure 5: cholera occurrence -----------------------------------------------------
+# Figure 5: cholera occurrence -----------------------------------------------------
 
 # Load outbreak data and results (50%)
 load(str_c(opt$output_dir, "/outbreak_analysis_data.rdata"))

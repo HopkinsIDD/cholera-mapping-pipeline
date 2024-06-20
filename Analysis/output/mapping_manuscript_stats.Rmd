@@ -1222,6 +1222,8 @@ output_endemicity_50 %>%
             adm2_prop_50 = round(100*length(unique(location_period_id))/nrow(output_endemicity_50),2),
             total_adm2_50 = nrow(output_endemicity_50),
             total_country_50 = length(unique(country))) %>% 
+  ungroup() %>%
+  mutate(pop_prop_50 = round(pop_50/sum(pop_50)*100,1)) %>% 
   dplyr::inner_join(
     output_endemicity_95 %>% 
   ungroup() %>% 
@@ -1233,20 +1235,24 @@ output_endemicity_50 %>%
             total_country_95 = length(unique(country))),
   by=c("endemicity")
   ) %>% 
+  ungroup() %>%
+  mutate(pop_prop_95 = round(pop_95/sum(pop_95)*100,1)) %>%
   dplyr::rename(`10-year risk cat` = endemicity,
                 `Population(million) (50%)` = pop_50,
                 `Number of adm2 units (50%)` = adm2_50,
                 `Total number of adm2 units (50%)` = total_adm2_50,
                 `% of adm2 units (%) (50%)` = adm2_prop_50,
                 `Total number of countries (50%)` = total_country_50,
+                `% of population (50%)`= pop_prop_50,
                 `Population(million) (95%)` = pop_95,
                 `Number of adm2 units (95%)` = adm2_95,
                 `Total number of adm2 units (95%)` = total_adm2_95,
                 `% of adm2 units (%) (95%)` = adm2_prop_95,
-                `Total number of countries (95%)` = total_country_95)  %>% 
+                `Total number of countries (95%)` = total_country_95,
+                `% of population (95%)`= pop_prop_95)  %>% 
   
   dplyr::select(
-    `10-year risk cat`,`Population(million) (50%)`, `Number of adm2 units (50%)`, `Total number of adm2 units (50%)`,`% of adm2 units (%) (50%)`,`Total number of countries (50%)`,`Population(million) (95%)`, `Number of adm2 units (95%)`, `Total number of adm2 units (95%)`,`% of adm2 units (%) (95%)`,`Total number of countries (95%)`
+    `10-year risk cat`,`Population(million) (50%)`,`% of population (50%)`, `Number of adm2 units (50%)`, `Total number of adm2 units (50%)`,`% of adm2 units (%) (50%)`,`Total number of countries (50%)`,`Population(million) (95%)`,`% of population (95%)`, `Number of adm2 units (95%)`, `Total number of adm2 units (95%)`,`% of adm2 units (%) (95%)`,`Total number of countries (95%)`
   ) %>% 
   knitr::kable() %>% 
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
@@ -1439,6 +1445,22 @@ OR_text <- OR_stats %>%
 OR_text %>% 
   kableExtra::kbl(caption = "Table 29. Odd ratios of cholera occurrence by region:\n") %>% 
   kableExtra::kable_styling(full_width = F) 
+```
+
+```{r probability of outbreak occurrency-reference group, echo=FALSE,message=FALSE}
+baseline_prob_stats %>% 
+  mutate(what = "reference",
+         param = case_when(str_detect(param, "baseline") ~ "sustained low",
+                           TRUE ~ param)) %>% 
+  select(AFRO_region,mean,q2.5,q97.5) %>% 
+  rename(
+    `African region` = AFRO_region,
+    `Mean probability` = mean,
+    `q2.5 of probability` = q2.5,
+    `q97.5 of probability` = q97.5
+  ) %>% 
+  kableExtra::kbl(caption = "Table 30. Probability of cholera occurrence for sustained low group by region") %>% 
+  kableExtra::kable_paper(full_width = F)
 ```
 
 ```{r ICC, echo=FALSE,message=FALSE}
