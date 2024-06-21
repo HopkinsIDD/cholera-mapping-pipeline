@@ -1346,6 +1346,20 @@ invisible(gc())
 ```{r Results_paragraph_5_total_high_risk_pop_both_time_periods, echo=FALSE}
 load(paste0(params$output_directory,"/data_bundle_for_figures_test.rdata"))
 
+prefix_list <- list(
+  "2011-2015" = opt$prefix_p1,
+  "2016-2020" = opt$prefix_p2
+)
+
+risk_pop_50_adm2 <- combine_period_output(prefix_list = prefix_list,
+                                          output_name = "risk_categories_50",
+                                          output_dir = params$postprocessed_output_directory) %>% 
+  filter(admin_level == "ADM2"|(admin_level == "ADM1" & country == "LSO")) %>% 
+  get_AFRO_region(ctry_col = "country")  %>% 
+  mutate(AFRO_region = factor(AFRO_region, 
+                              levels = get_AFRO_region_levels())) %>% 
+  st_drop_geometry()
+
 high_risk_1115<-risk_pop_50_adm2 %>% 
     filter(location_period_id %in% output_endemicity_50[output_endemicity_50$endemicity== "history of high risk",]$location_period_id) %>% 
     filter(period == "2011-2015" & !risk_cat %in% c("<1","1-10"))

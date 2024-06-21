@@ -1555,8 +1555,8 @@ for_alluvial <- risk_pop_50_adm2 %>%
   ungroup() %>% 
   mutate(risk_cat_simple = factor(risk_cat_simple, 
                                   levels = c("high", "mid","low"),
-                                  labels = c("High\nincidence\n(>=10\nper 100,000)", 
-                                             "Medium\nincidence\n(>=1 to 10\nper 100,000)", 
+                                  labels = c("High\nincidence\n(\u226510\nper 100,000)", 
+                                             "Medium\nincidence\n(\u22651 to 10\nper 100,000)", 
                                              "Low\nincidence\n(<1\nper 100,000)")),
          endemicity = fct_relevel(endemicity, rev(levels(endemicity))))
 
