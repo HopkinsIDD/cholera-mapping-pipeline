@@ -1444,7 +1444,7 @@ load("/home/cholerapipelinerestmp/postprocess/processed_outputs/recent_cholera_o
 OR_text <- OR_stats %>% 
   mutate(
     text = str_c(
-      formatC(median, format = "f", digits = 1),
+      formatC(mean, format = "f", digits = 1),
       " (",
       formatC(q2.5, format = "f", digits = 1),
       "-",
@@ -1457,7 +1457,7 @@ OR_text <- OR_stats %>%
   pivot_wider(values_from = "text",
               names_from = "AFRO_region")
 OR_text %>% 
-  kableExtra::kbl(caption = "Table 29. Odd ratios (median) of cholera occurrence by region:\n") %>% 
+  kableExtra::kbl(caption = "Table 29. Odd ratios (mean) of cholera occurrence by region:\n") %>% 
   kableExtra::kable_styling(full_width = F) 
 ```
 
