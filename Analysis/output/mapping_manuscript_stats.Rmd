@@ -1457,7 +1457,7 @@ OR_text <- OR_stats %>%
   pivot_wider(values_from = "text",
               names_from = "AFRO_region")
 OR_text %>% 
-  kableExtra::kbl(caption = "Table 29. Odd ratios of cholera occurrence by region:\n") %>% 
+  kableExtra::kbl(caption = "Table 29. Odd ratios (median) of cholera occurrence by region:\n") %>% 
   kableExtra::kable_styling(full_width = F) 
 ```
 
@@ -1473,7 +1473,7 @@ baseline_prob_stats %>%
     `q2.5 of probability` = q2.5,
     `q97.5 of probability` = q97.5
   ) %>% 
-  kableExtra::kbl(caption = "Table 30. Probability of cholera occurrence for sustained low group by region") %>% 
+  kableExtra::kbl(caption = "Table 30. Probability (mean) of cholera occurrence for sustained low group by region") %>% 
   kableExtra::kable_paper(full_width = F)
 ```
 
