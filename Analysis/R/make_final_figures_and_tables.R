@@ -747,10 +747,7 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     mai_adm_all %>% filter(admin_level == "ADM0", run_id %in% get_no_w_runs()),
     mai_adm_all %>% filter(admin_level == "ADM2", !(run_id %in% get_no_w_runs())),
     mai_adm_all %>% filter(admin_level == "ADM1" & country == "LSO", !(run_id %in% get_no_w_runs())),
-    
   ) %>% 
-    st_drop_geometry() %>% 
-    as_tibble() %>% 
     get_AFRO_region("country")
   
   # Compute change map
@@ -1094,13 +1091,37 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   
   # Load draws of predicted occurrence
   pred_prob_draws <- readRDS(str_glue("{opt$output_dir}/recent_occurrence_pred_prob_draws.rds"))
+  # Load outbreak data and results (50%)
+  load(str_c(opt$output_dir, "/outbreak_analysis_data.rdata"))
+  load(str_c(opt$output_dir, "/recent_cholera_outbreaks_res.rdata"))
+  
+  endemicity_df_50_v2 <- risk_pop_50_adm2 %>% 
+    mutate(high_risk = risk_cat %in% get_risk_cat_dict()[3:6],
+           low_risk = risk_cat %in% get_risk_cat_dict()[1]) %>% 
+    group_by(country, location_period_id) %>% 
+    summarise(
+      endemicity = case_when(
+        sum(high_risk) == 2 ~ "high-both",
+        sum(low_risk) == 2 ~ "low-both",
+        sum(high_risk) == 1 ~ "high-either",
+        T ~ "mix"
+      ),
+      pop = max(pop)
+    ) %>% 
+    mutate(endemicity = factor(endemicity, 
+                               levels = c("high-both", "high-either",
+                                          "mix", "low-both"),
+                               labels = c("sustained high", 
+                                          "history of high",
+                                          "history of moderate",
+                                          "sustained low")))  
   
   adm2_results_occurrence <- adm2_results %>% 
     mutate(recent_occurence = location_period_id %in% unlist(final_joins$adm2_lps)) %>% 
-    inner_join(endemicity_df_50_v2 %>% select(location_period_id, endemicity)) %>% 
-    inner_join(pred_prob_draws %>% 
-                 group_by(location_period_id) %>% 
-                 summarise(mean_prob_occurrence = mean(value))) %>% 
+    inner_join(endemicity_df_50_v2 %>% select(location_period_id, endemicity)) %>%
+    inner_join(pred_prob_draws %>%
+                 group_by(location_period_id) %>%
+                 summarise(mean_prob_occurrence = mean(value))) %>%
     mutate(pop_recent_occurence = pop * recent_occurence,
            mean_pop_occurrence = mean_prob_occurrence * pop)
   
@@ -2644,7 +2665,7 @@ ggsave(plot = p_fig5_95,
 
 # Figure 6: targetting ----------------------------------------------------
 
-target_pop_levels <- c(1e7, 5e7, 1e8, 1.5e8)
+target_pop_levels <- c(1e7, seq(5e7, 4e8, by = 5e7))
 
 pop_frac_sel <- map_df(target_pop_levels, function(x) {
   print(x)
@@ -2697,13 +2718,13 @@ p_targets <- bind_rows(pop_frac_sel %>% mutate(what = "population living in ADM2
   facet_grid(. ~ what) +
   scale_fill_manual(values = colors_ranking()) +
   scale_color_manual(values = colors_ranking()) +
-  labs(x = "Population targeted (2020)",
+  labs(x = "Population targeted (out of total of 1.1 billion in 2020)",
        y = "Proportion reached of ...") +
   scale_y_continuous(breaks = c(0, .25, .5, .75), labels = c("0%", "25%", "50%", "75%")) +
   theme(panel.grid.major.x = element_blank(),
         panel.grid.minor.x = element_blank()) +
-  guides(fill = guide_legend("ADM2 ranking strategy"),
-         color = guide_legend("ADM2 ranking strategy"))
+  guides(fill = guide_legend("ADM2 targeting strategy"),
+         color = guide_legend("ADM2 targeting strategy"))
 
 ggsave(p_targets, filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_6.png"),
        width = 10, height = 5, dpi = 300)
