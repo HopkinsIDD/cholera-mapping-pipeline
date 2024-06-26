@@ -1773,6 +1773,7 @@ p_ob_1 <- baseline_prob_stats %>%
         axis.title = element_text(size = 10)) 
 
 p_ob_2 <- logOR_stats %>% 
+  mutate(mean = exp(mean),q2.5 = exp(q2.5),q97.5 = exp(q97.5)) %>% 
   mutate(param = stringr::str_remove_all(param, " risk")) %>% 
   mutate(what = str_replace(what, "outbreak", "cholera"),
          what = str_replace(what, "risk", "incidence"),
@@ -1795,7 +1796,8 @@ p_ob_2 <- logOR_stats %>%
         axis.title = element_text(size = 10),
         legend.title = element_blank(),
         legend.text = element_text(size = 8)) +
-  coord_flip()
+  coord_flip() + 
+  scale_y_continuous(trans = scales::log_trans(),breaks = c(0.1,1,10,100,1000),labels = c(0.1,1,10,100,1000))
 
 
 p_or <- plot_grid(
