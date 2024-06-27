@@ -190,6 +190,7 @@ plot_posterior_coverage <- function(gen_obs,
     dplyr::mutate(admin_level = factor(admin_level, levels = 0:10)) %>% 
     ggplot2::ggplot(aes(x = cri, y = frac_covered, color = admin_level)) +
     ggplot2::geom_line(aes(lty = admin_level), lwd = 1) +
+    geom_abline(intercept = 0, slope = 1, colour = "darkgray",linetype=2) +
     {
       if (!with_period) {
         ggplot2::facet_wrap(~ country)
@@ -201,7 +202,7 @@ plot_posterior_coverage <- function(gen_obs,
     ggplot2::coord_cartesian(ylim = c(0, 1)) +
     ggplot2::labs(x = "CrI width", y = "Fraction of full observations covered",
                   color = "Admin level", lty = "Admin level") +
-    ggplot2::scale_color_manual(values = colors_admin_levels())
+    ggplot2::scale_color_manual(values = RColorBrewer::brewer.pal(n=7,name = 'Blues')[-1])
 }
 
 # Auxiliary functions ----------------------------------------------------
