@@ -755,81 +755,98 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   
   ## ADM2 mai ratio stats ---------------------------------------
   # Random draws
-  random_draws <- sample(1:4000, 4000)
-  
-  mai_draws_p1 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[1]}_mai_draws.rds")) %>%
-    ungroup() %>% 
-    select(.draw, location_period_id, value, country) %>% 
-    filter(.draw %in% random_draws)
-  
-  mai_draws_p2 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[2]}_mai_draws.rds")) %>%
-    ungroup() %>% 
-    select(.draw, location_period_id, value, country) %>% 
-    filter(.draw %in% random_draws)
-  
-  mai_change_stats <- map_df(unique(mai_draws_p1$country), function(x) {
-    cat("--- ", x, "\n")
+  if(file.exists(str_glue("{opt$output_dir}/mai_ratio_stats.rds"))){
     
-    merge_ratio_draws(
-      df1 = filter(mai_draws_p1, country == x),
-      df2 = filter(mai_draws_p2, country == x)
-    ) %>% 
-      mutate(country = x)
-  })
-  
-  mai_change_stats <- mai_change_stats %>%
-    inner_join(u_space_sf %>% 
-                 select(country, location_period_id, shp_id, admin_level), .)
-  
-  saveRDS(mai_change_stats, file = str_glue("{opt$output_dir}/mai_ratio_stats.rds"))
-  
+    mai_change_stats <- readRDS(str_glue("{opt$output_dir}/mai_ratio_stats.rds"))
+    
+  } else {
+    random_draws <- sample(1:4000, 4000)
+    
+    mai_draws_p1 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[1]}_mai_draws.rds")) %>%
+      ungroup() %>% 
+      select(.draw, location_period_id, value, country) %>% 
+      filter(.draw %in% random_draws)
+    
+    mai_draws_p2 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[2]}_mai_draws.rds")) %>%
+      ungroup() %>% 
+      select(.draw, location_period_id, value, country) %>% 
+      filter(.draw %in% random_draws)
+    
+    mai_change_stats <- map_df(unique(mai_draws_p1$country), function(x) {
+      cat("--- ", x, "\n")
+      
+      merge_ratio_draws(
+        df1 = filter(mai_draws_p1, country == x),
+        df2 = filter(mai_draws_p2, country == x)
+      ) %>% 
+        mutate(country = x)
+    })
+    
+    mai_change_stats <- mai_change_stats %>%
+      inner_join(u_space_sf %>% 
+                   select(country, location_period_id, shp_id, admin_level), .)
+    
+    saveRDS(mai_change_stats, file = str_glue("{opt$output_dir}/mai_ratio_stats.rds"))
+  }
   
   mai_change_stats <- mai_change_stats %>% 
     st_drop_geometry() %>% 
     as_tibble()
   
   ## Region ration stats ----
-  
-  mai_region_draws_p1 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[1]}_mai_rates_by_region_draws.rds")) %>%
-    unpack_region_draws() %>% 
-    filter(.draw %in% random_draws)
-  
-  mai_region_draws_p2 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[2]}_mai_rates_by_region_draws.rds")) %>%
-    unpack_region_draws() %>% 
-    filter(.draw %in% random_draws)
-  
-  mai_region_change_stats <- map_df(unique(mai_region_draws_p2$AFRO_region), function(x) {
-    cat("--- ", x, "\n")
+  if(file.exists(str_glue("{opt$output_dir}/mai_region_ratio_stats.rds"))){
     
-    merge_ratio_draws(
-      df1 = filter(mai_region_draws_p1, AFRO_region == x),
-      df2 = filter(mai_region_draws_p2, AFRO_region == x),
-      unit_col = "AFRO_region"
-    )
-  })
-  
-  saveRDS(mai_region_change_stats, file = str_glue("{opt$output_dir}/mai_region_ratio_stats.rds"))
+    mai_region_change_stats<-readRDS(str_glue("{opt$output_dir}/mai_region_ratio_stats.rds"))
+    
+  } else {
+    mai_region_draws_p1 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[1]}_mai_rates_by_region_draws.rds")) %>%
+      unpack_region_draws() %>% 
+      filter(.draw %in% random_draws)
+    
+    mai_region_draws_p2 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[2]}_mai_rates_by_region_draws.rds")) %>%
+      unpack_region_draws() %>% 
+      filter(.draw %in% random_draws)
+    
+    mai_region_change_stats <- map_df(unique(mai_region_draws_p2$AFRO_region), function(x) {
+      cat("--- ", x, "\n")
+      
+      merge_ratio_draws(
+        df1 = filter(mai_region_draws_p1, AFRO_region == x),
+        df2 = filter(mai_region_draws_p2, AFRO_region == x),
+        unit_col = "AFRO_region"
+      )
+    })
+    
+    saveRDS(mai_region_change_stats, file = str_glue("{opt$output_dir}/mai_region_ratio_stats.rds"))    
+  }
+
   
   ## Overall stats ----
-  mai_afr_draws_p1 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[1]}_mai_rates_all_draws.rds")) %>%
-    mutate(value = tot,
-           unit = "AFR") %>% 
-    filter(.draw %in% random_draws)
-  
-  mai_afr_draws_p2 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[2]}_mai_rates_all_draws.rds")) %>%
-    mutate(value = tot,
-           unit = "AFR") %>% 
-    filter(.draw %in% random_draws)
-  
-  mai_afr_change_stats <- merge_ratio_draws(
-    df1 = mai_afr_draws_p1,
-    df2 = mai_afr_draws_p2,
-    unit_col = "unit"
-  ) 
-  
-  saveRDS(mai_afr_change_stats, file = str_glue("{opt$output_dir}/mai_Africa_ratio_stats.rds"))
-  
-  
+  if(file.exists(str_glue("{opt$output_dir}/mai_Africa_ratio_stats.rds"))){
+    
+    mai_afr_change_stats <- readRDS(str_glue("{opt$output_dir}/mai_Africa_ratio_stats.rds"))
+    
+  } else{
+    mai_afr_draws_p1 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[1]}_mai_rates_all_draws.rds")) %>%
+      mutate(value = tot,
+             unit = "AFR") %>% 
+      filter(.draw %in% random_draws)
+    
+    mai_afr_draws_p2 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[2]}_mai_rates_all_draws.rds")) %>%
+      mutate(value = tot,
+             unit = "AFR") %>% 
+      filter(.draw %in% random_draws)
+    
+    mai_afr_change_stats <- merge_ratio_draws(
+      df1 = mai_afr_draws_p1,
+      df2 = mai_afr_draws_p2,
+      unit_col = "unit"
+    ) 
+    
+    saveRDS(mai_afr_change_stats, file = str_glue("{opt$output_dir}/mai_Africa_ratio_stats.rds"))
+    
+  }
+
   ## Changes between periods ---------------------------------------
   # Compute changes at ADM0 level
   mai_adm0_changes <-  mai_adm_all %>% 
@@ -1237,7 +1254,7 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     get_AFRO_region(ctry_col = "country")  %>% 
     mutate(AFRO_region = factor(AFRO_region, 
                                 levels = get_AFRO_region_levels())) %>% 
-    st_drop_geometry()() %>% 
+    st_drop_geometry() %>% 
     mutate(risk_cat = as.character(risk_cat)) %>% 
     mutate(risk_cat = ifelse(risk_cat == ">100","\u2265100",risk_cat)) %>% 
     mutate(risk_cat = factor(risk_cat,levels = c("<1","1-10","10-20","20-50","50-100","\u2265100" )))
@@ -2284,19 +2301,26 @@ ggsave(p_data_scatter_censored,
 
 
 # Coverage plot
-p_coverage <- gen_obs %>%
-  group_by(period, country, loctime_comb) %>% 
-  mutate(observation = mean(observation)) %>% 
-  slice(1) %>% 
-  ungroup() %>% 
+p_coverage_1115 <- gen_obs %>% 
+  filter(period == "2011-2015") %>% 
   mutate(admin_level = str_extract(admin_level, "[0-9]") %>% as.numeric()) %>% 
-  plot_posterior_coverage(with_period = TRUE) +
-  facet_grid(country ~ period)
+  plot_posterior_coverage(with_period = FALSE)
 
-ggsave(p_coverage,
-       file = str_glue("{opt$out_dir}/{opt$out_prefix}_supfig_validation_coverage.png"),
+ggsave(p_coverage_1115,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_2011-2015_supfig_validation_coverage.png"),
        width = 10,
-       height = 15, 
+       height = 8, 
+       dpi = 300)
+
+p_coverage_1620 <- gen_obs %>% 
+  filter(period == "2016-2020") %>% 
+  mutate(admin_level = str_extract(admin_level, "[0-9]") %>% as.numeric()) %>% 
+  plot_posterior_coverage(with_period = FALSE)
+
+ggsave(p_coverage_1620,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_2016-2020_supfig_validation_coverage.png"),
+       width = 10,
+       height = 8, 
        dpi = 300)
 
 ## Mean case tables by amdin level -----
@@ -2343,6 +2367,7 @@ ggsave(p_country_coef,
 ## Risk categories for 95% cutoff ----
 
 p_risk_cat_95 <- risk_pop_95_adm2 %>% 
+  mutate(risk_cat = factor(risk_cat, levels = rev(levels(risk_cat)))) %>% 
   select(-shp_id) %>% 
   filter(period == "2016-2020") %>% 
   inner_join(u_space_sf, .) %>% 
@@ -2369,6 +2394,7 @@ ggsave(p_risk_cat_95,
 ## 95% cutoff related figures ----
 ### Figure 3 supplement figures (95% cutoff) ----
 p_fig3B_95 <- risk_pop_95_adm2 %>% 
+  mutate(risk_cat = factor(risk_cat, levels = rev(levels(risk_cat)))) %>% 
   select(-shp_id) %>% 
   filter(period == "2016-2020") %>% 
   inner_join(u_space_sf, .) %>% 
@@ -2415,7 +2441,7 @@ ggsave(plot = p_fig3_95,
        dpi = 600)
 
 ### Figure 4 supplement figures (95% cutoff) ----
-p_fig4A_95 <- endemicity_df_95_v2 %>% 
+p_fig4C_95 <- endemicity_df_95_v2 %>% 
   inner_join(u_space_sf, .) %>% 
   output_plot_map(sf_obj = .,
                   lakes_sf = lakes_sf,
@@ -2426,24 +2452,27 @@ p_fig4A_95 <- endemicity_df_95_v2 %>%
                   border_width = .03) +
   theme(legend.position = c(.2, .3),
         panel.background = element_rect(fill = "white", color = "white")) +
-  guides(fill = guide_legend("10-year risk\ncategory"))
+  guides(fill = guide_legend("10-year incidence\ncategory"))
 
 # Save
-ggsave(p_fig4A_95,
-       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4A_risk_cat_95.png"),
+ggsave(p_fig4C_95,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4C_risk_cat_95.png"),
        width = 12,
        height = 6, 
        dpi = 150)
 
-p_fig4A_legend_95 <- ggdraw(
-  p_fig4A_95 +
+p_fig4C_legend_95 <- ggdraw(
+  p_fig4C_95 +
     theme(strip.background = element_blank(),
           plot.margin = unit(c(1, 0, 1, 0), units = "lines")) +
     guides(fill = "none")
 ) +
-  draw_plot(endemicity_legend, .075, .24, .35, .25)
+  draw_plot(p_fig4A +
+              theme(legend.position = "top") + 
+              guides(fill = guide_legend(ncol = 1, direction = "vertical")), 
+            .075, .14, .35, .45)
 
-p_fig4B_95 <- endemicity_df_95_v2  %>%
+p_fig4_supp_95 <- endemicity_df_95_v2  %>%
   group_by(country) %>% 
   complete(endemicity = unique(endemicity_df_95_v2$endemicity)) %>% 
   get_AFRO_region(ctry_col = "country") %>% 
@@ -2454,9 +2483,9 @@ p_fig4B_95 <- endemicity_df_95_v2  %>%
   mutate(frac = pop/sum(pop)) %>% 
   group_by(country) %>% 
   mutate(
-    frac_other = frac[endemicity == "history of moderate risk"],
-    frac_high = sum(frac[endemicity %in% c("sustained high risk", "history of high risk")]),
-    frac_low = sum(frac[endemicity %in% c("sustained low risk")])
+    frac_other = frac[endemicity == "history of moderate"],
+    frac_high = sum(frac[endemicity %in% c("sustained high", "history of high")]),
+    frac_low = sum(frac[endemicity %in% c("sustained low")])
   ) %>% 
   ungroup() %>% 
   mutate(endemicity = forcats::fct_rev(endemicity),
@@ -2467,33 +2496,103 @@ p_fig4B_95 <- endemicity_df_95_v2  %>%
   facet_grid(AFRO_region ~., scales = "free_y", space = "free_y") +
   scale_fill_manual(values = rev(taxdat:::colors_endemicity())) +
   theme_bw() +
-  labs(x = "fraction of population\n per 10-year risk category")
+  labs(x = "fraction of population\n per 10-year incidence category")+
+  guides(fill=guide_legend(title="10-year incidence category"))
 
-ggsave(p_fig4B_95,
-       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4B_95.png"),
+ggsave(p_fig4_supp_95,
+       file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4_supp_95.png"),
        width = 6,
        height = 7, 
        dpi = 150)
 
-p_fig4_95 <- plot_grid(
-  p_fig4A_legend_95 +
-    theme(panel.background = element_rect(fill = "white", color = "white")),
-  p_fig4B_95 +
-    guides(fill = "none") +
-    theme(panel.background = element_rect(fill = "white", color = "white"),
-          plot.margin = unit(c(2, 1.5, 1.5, 1.5), units = "lines")),
+## Fig. 4B: Alluvial plot ----
+
+for_alluvial_95 <- risk_pop_95_adm2 %>% 
+  as_tibble() %>% 
+  mutate(high_risk = risk_cat %in% get_risk_cat_dict()[3:6],
+         low_risk = risk_cat %in% get_risk_cat_dict()[1],
+         risk_cat_simple = case_when(risk_cat %in% get_risk_cat_dict()[3:6] ~ "high",
+                                     risk_cat %in% get_risk_cat_dict()[1] ~ "low",
+                                     T ~ "mid")) %>% 
+  select(country, location_period_id, risk_cat_simple, period) %>% 
+  inner_join(endemicity_df_95_v2 %>% select(location_period_id, pop, endemicity)) %>% 
+  group_by(location_period_id) %>% 
+  mutate(risk_cat_change = str_c(risk_cat_simple, collapse = "-")) %>% 
+  filter(str_detect(risk_cat_change, "-")) %>% 
+  group_by(period, risk_cat_simple, risk_cat_change, endemicity) %>% 
+  summarise(pop = sum(pop)) %>% 
+  ungroup() %>% 
+  mutate(risk_cat_simple = factor(risk_cat_simple, 
+                                  levels = c("high", "mid","low"),
+                                  labels = c("High\nincidence\n(\u226510\nper 100,000)", 
+                                             "Medium\nincidence\n(\u22651 to 10\nper 100,000)", 
+                                             "Low\nincidence\n(<1\nper 100,000)")),
+         endemicity = fct_relevel(endemicity, rev(levels(endemicity))))
+
+
+p_fig4B_95 <- for_alluvial_95 %>% 
+  mutate(pop_label = str_c(round(pop/1e6), "M"),
+         pop_label = case_when(period != "2016-2020" ~ NA_character_,
+                               TRUE ~ pop_label)) %>% 
+  # filter(!is.na(p2011), !is.na(p2016), !(p2011 == "low" & p2016 == "low")) %>% 
+  ggplot(aes(x = period, y = pop, stratum = risk_cat_simple, 
+             alluvium = risk_cat_change)) +
+  scale_x_discrete(expand = c(.1, .1)) +
+  geom_flow(alpha = 1, color = "black", aes(fill = endemicity)) +
+  geom_stratum(alpha = 1, fill = c("#F0F0F0"), width = .3) +
+  geom_text(stat = "stratum", size = 3.5, aes(label = risk_cat_simple)) +
+  geom_label(stat = "flow", nudge_x = -.24,
+             aes(label = pop_label, fill = endemicity)) +
+  scale_fill_manual(values = rev(taxdat:::colors_endemicity())) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        axis.line.y = element_line(),
+        panel.border = element_blank()) +
+  scale_y_continuous(breaks = c(0, 2.5e8, 5e8, 7.5e8, 1e9), 
+                     labels = c("0", "250M", "500M", "750M", "1B")) +
+  labs(x = "time period", 
+       y = "ADM2-level population (2020 population-adjusted)",
+       fill = "10-year incidence") +
+  guides(fill = "none")
+
+p_fig4_v2_95 <- plot_grid(
+  p_fig4B_95 + 
+    theme(plot.margin = unit(c(1, 2.5, 1, 1), units = "lines")),
+  p_fig4C_legend_95 +
+    guides(fill = "none"),
   nrow = 1,
-  labels = "auto",
-  rel_widths = c(1, .5)
+  labels = c("a", "b"),
+  rel_widths = c(1, 1.5)
 ) +
   theme(panel.background = element_rect(fill = "white", color = "white"))
 
+
 # Save
-ggsave(plot = p_fig4_95,
-       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4_95.png"),
-       width = 12,
-       height = 7,
+ggsave(plot = p_fig4_v2_95,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4_v2_95.png"),
+       width = 15,
+       height = 8,
        dpi = 300)
+
+# p_fig4_95 <- plot_grid(
+#   p_fig4A_legend_95 +
+#     theme(panel.background = element_rect(fill = "white", color = "white")),
+#   p_fig4B_95 +
+#     guides(fill = "none") +
+#     theme(panel.background = element_rect(fill = "white", color = "white"),
+#           plot.margin = unit(c(2, 1.5, 1.5, 1.5), units = "lines")),
+#   nrow = 1,
+#   labels = "auto",
+#   rel_widths = c(1, .5)
+# ) +
+#   theme(panel.background = element_rect(fill = "white", color = "white"))
+# 
+# # Save
+# ggsave(plot = p_fig4_95,
+#        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4_95.png"),
+#        width = 12,
+#        height = 7,
+#        dpi = 300)
 
 ### Figure 5 supplement figures (95% cutoff) ----
 # Map of cholera occurrence locations
@@ -2507,7 +2606,7 @@ p_ob_map2_95 <- endemicity_df_95_v2 %>%
           lwd = 0.15,
           color = "darkgray",
           alpha = 0) +
-  geom_sf(aes(fill = endemicity), alpha = .5, lwd = .005, color = "white") +
+  geom_sf(aes(fill = endemicity), lwd = .005, color = "white") +
   geom_sf(inherit.aes = FALSE,
           data = final_joins,
           aes(color = "locations with\nreported cholera\nin 2022-2023"),
@@ -2526,7 +2625,7 @@ p_ob_map2_95 <- endemicity_df_95_v2 %>%
   theme(legend.position = c(.23, .4)) +
   scale_fill_manual(values = taxdat:::colors_endemicity()) +
   labs(color = NULL) +
-  guides(fill = guide_legend("10-year risk\ncategory", override.aes = list(alpha = 1))) +
+  guides(fill = guide_legend("10-year incidence\ncategory", override.aes = list(alpha = 1))) +
   scale_shape_manual(values = c(1, 3, 4))
 
 ggsave(plot = p_ob_map2_95,
