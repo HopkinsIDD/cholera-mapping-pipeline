@@ -1344,12 +1344,12 @@ mai_region_change_stats<-readRDS(str_glue("{opt$output_dir}/mai_region_ratio_sta
 irr_periods <- bind_rows(
   mai_change_stats %>% 
     filter(admin_level == "ADM0") %>% 
-    select(unit = country, q2.5, q97.5),
+    select(unit = country, mean, q2.5, q97.5),
   mai_region_change_stats %>% 
     rename(unit = AFRO_region),
   mai_afr_change_stats %>% 
     mutate(unit = "SSA")) %>% 
-  select(unit, irr_low = q2.5, irr_high = q97.5) %>% 
+  select(unit, irr_mean = mean, irr_low = q2.5, irr_high = q97.5) %>% 
   mutate(sigificant_irr = ifelse(irr_low > 1 | irr_high < 1, 
                                  "Bayesian p-value <= 0.05",
                                  "Bayesian p-value > 0.05") %>% 
@@ -1365,13 +1365,38 @@ dat_for_incid_dotplot <-  combined_mai_changes %>%
                             TRUE ~ region),
     admin_level = ifelse(admin_level == "ADM2", "country", admin_level),
     country = factor(country) %>% 
-      forcats::fct_reorder(p2),
-    direction = ifelse(rate_ratio > 1, "increase", "decrease") %>% 
-      factor(levels = c("increase", "decrease"))) %>% 
+      forcats::fct_reorder(p2)) %>% 
   inner_join(irr_periods, by = c("country" = "unit")) %>% 
-  select(admin_level, AFRO_region, country, p1, p2, direction, sigificant_irr) %>% 
+  select(admin_level, AFRO_region, contains("irr"), country, p1, p2, sigificant_irr) %>% 
   mutate(country = factor(country) %>% 
-           forcats::fct_reorder(p2))
+           forcats::fct_reorder(p2)) %>% 
+  mutate(direction = ifelse(irr_mean > 1, "increase", "decrease"),
+         direction = case_when(str_detect(sigificant_irr, ">") ~ "none",
+                               TRUE ~ direction) %>% 
+           factor(levels = c("increase", "none", "decrease")))
+
+
+make_irr_plot <- function(df) {
+  df %>% 
+    ggplot(aes(y = country, color = direction))  +
+    geom_vline(aes(xintercept = 1), color = "black", lwd = .5, lty = 2) +
+    geom_point(aes(x = irr_mean)) +
+    geom_errorbar(aes(xmin = irr_low, xmax = irr_high), width = .6) +
+    scale_color_manual(values = c("red", "gray", "blue")) +
+    # ggh4x::facet_nested(admin_level + AFRO_region ~ ., scale = "free", 
+    # space = "free", switch = "y") +
+    theme_bw() +
+    theme(strip.placement = "out") +
+    labs(y = NULL, 
+         x = "Cholera incidence rate \n[reported cases per 100,000/year]",
+         alpha = "Statististically-significant\nchange",
+         color = "Change direction",
+         shape = "Time period") +
+    theme(panel.grid.major.y = element_blank()) +
+    scale_x_log10() +
+    ggh4x::facet_grid2(AFRO_region ~ ., switch = "y", scales = "free_y", space = "free_y",
+                       strip = strip)
+}
 
 make_dotlineplot <- function(df) {
   df %>% 
@@ -1415,7 +1440,7 @@ make_dotlineplot <- function(df) {
          alpha = "Statististically-significant\nchange",
          color = "Change direction",
          shape = "Time period") +
-    theme(panel.grid.major.y = element_blank())
+    theme(panel.grid.major.y = element_blank()) 
 }
 
 # Solution for strip colors in https://stackoverflow.com/questions/19440069/ggplot2-facet-wrap-strip-color-based-on-variable-in-data-set
@@ -2698,36 +2723,74 @@ colors_ranking <- function() {
     "optimal"= "gray")
 }
 
-pd <- position_dodge(width = .4)
+pd <- position_dodge(width = .8, preserve = "single")
 
-p_targets <- bind_rows(pop_frac_sel %>% mutate(what = "population living in ADM2 units\nwith cholera occurence in 2022-2023"), 
-                       case_frac_sel %>% mutate(what = "annual cholera cases in 2016-2020")) %>% 
+data_for_figure6 <- bind_rows(pop_frac_sel %>% mutate(what = "population living in ADM2 units\nwith cholera occurence in 2022-2023"), 
+                              case_frac_sel %>% mutate(what = "annual cholera cases in 2016-2020")) %>% 
   mutate(
     target_pop_factor = factor(
       str_c(formatC(target_pop/1e6, format = "f", digits = 0), "M"),
       levels = str_c(formatC(target_pop_levels/1e6, format = "f", digits = 0), "M")),
     ranking = factor(ranking, levels = names(colors_ranking()))
   ) %>% 
-  filter(!(ranking == "2016-2020" & str_detect(what, "2016"))) %>% 
+  filter(!(ranking == "2016-2020" & str_detect(what, "2016"))) 
+
+p_targets <- data_for_figure6 %>% 
   ggplot(aes(x = target_pop_factor, y = mean_diff, color = ranking, fill = ranking)) +
-  # geom_point(position = pd) +
-  geom_bar(stat = "identity", position = pd, width = .35, alpha = .45, lwd = .15) +
-  geom_point(position = pd, size = 1) +
-  geom_errorbar(aes(ymin = q025_diff, ymax = q975_diff), position = pd, width = .2, lwd = .6) +
+  geom_bar(stat = "identity", 
+           inherit.aes = F,
+           aes(x = target_pop_factor, y = mean_diff, group = ranking),
+           position = pd, width = .67, alpha = 1, lwd = .1, 
+           fill = "white",
+           color = "black") +
+  geom_bar(stat = "identity", position = pd, width = .67, alpha = .5, lwd = .1) +
+  # geom_point(position = pd, size = 1) +
+  geom_errorbar(aes(ymin = q025_diff, ymax = q975_diff), 
+                position = pd, width = .35, lwd = .3) +
   theme_bw() +
   facet_grid(. ~ what) +
   scale_fill_manual(values = colors_ranking()) +
   scale_color_manual(values = colors_ranking()) +
   labs(x = "Population targeted (out of total of 1.1 billion in 2020)",
        y = "Proportion reached of ...") +
-  scale_y_continuous(breaks = c(0, .25, .5, .75), labels = c("0%", "25%", "50%", "75%")) +
+  scale_y_continuous(breaks = c(0, .25, .5, .75, 1), labels = c("0%", "25%", "50%", "75%", "100%")) +
   theme(panel.grid.major.x = element_blank(),
-        panel.grid.minor.x = element_blank()) +
+        panel.grid.minor.x = element_blank(),
+        legend.position = c(.63, .8)) +
   guides(fill = guide_legend("ADM2 targeting strategy"),
          color = guide_legend("ADM2 targeting strategy"))
 
-ggsave(p_targets, filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_6.png"),
-       width = 10, height = 5, dpi = 300)
+# Add annotations
+data_arrows_figure6 <- data_for_figure6 %>% 
+  filter(str_detect(what, "cases")) %>% 
+  slice(2) %>% 
+  ungroup() %>% 
+  mutate(x = as.numeric(target_pop_factor) + c(-.3, -.1),
+         x2 = as.numeric(target_pop_factor) + c(-.5, .1),
+         y = mean_diff * c(1.06, 1.04),
+         label = c("Realized coverage gap", "Best-case coverage gap"))
+
+p_targets2 <- p_targets +
+  geom_segment(
+    data = data_arrows_figure6,
+    aes(x = x, y = y, yend = .99,
+        group = ranking), 
+    linestart = "butt", lineend = "butt", linejoin = "mitre",
+    size = .4, arrow = arrow(length = unit(0.05, "inches"), type = "closed", ends = "both"),
+    color = c("#575757")
+  )  +
+  geom_text(
+    data = data_arrows_figure6,
+    aes(x = x2, y = (y + .99)/2, label = label), 
+    angle = 90,
+    color = "black",
+    size = 3.5
+  ) +
+  geom_hline(aes(yintercept = 1), color = "darkgray", lty = 2, lwd = .6)
+
+
+ggsave(p_targets2, filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_6.png"),
+       width = 11, height = 6, dpi = 300)
 
 # Scraps ------------------------------------------------------------------
 
