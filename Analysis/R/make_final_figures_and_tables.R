@@ -12,7 +12,7 @@ library(rmapshaper)
 library(taxdat)
 library(cowplot)
 library(ggalluvial)
-
+library(ggpattern)
 
 # User-supplied options
 opt_list <- list(
@@ -995,7 +995,7 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   # })
   
   ## Compute stats for targetting analysis  ---------------------------------------
- 
+  
   make_adm2_results <- function(p) {
     risk_pop_50_adm2 %>% 
       as_tibble() %>% 
@@ -1025,7 +1025,7 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
       ) 
   }
   
-   # Build joint data on ADM2 level risk categories, mean cases and rates
+  # Build joint data on ADM2 level risk categories, mean cases and rates
   adm2_results_2016_2020 <- make_adm2_results("2016-2020")
   adm2_results_2011_2015 <- make_adm2_results("2011-2015")
   
@@ -1560,7 +1560,7 @@ make_irr_plot <- function(df) {
   w <- case_when(nrow(df) > 5 ~ .6,
                  nrow(df) == 1 ~ .1,
                  TRUE ~ .2)
-    
+  
   df %>% 
     mutate(irr_mean = case_when(irr_mean < lo ~ lo,
                                 irr_mean > hi ~ hi,
@@ -1620,7 +1620,7 @@ p_fig2A_irr <- plot_grid(
                     AFRO_region, 
                     levels = c("Central Africa", "Eastern Africa",
                                "Southern Africa", "Western Africa")))) +
-  facet_grid(AFRO_region ~ ., switch = "y", scales = "free_y", space = "free_y"),
+    facet_grid(AFRO_region ~ ., switch = "y", scales = "free_y", space = "free_y"),
   ncol = 1,
   rel_heights = c(.15, .25, 1),
   align = "v",
@@ -2973,13 +2973,21 @@ colors_ranking <- function() {
 
 pd <- position_dodge(width = .8, preserve = "single")
 
-data_for_figure6 <- bind_rows(pop_frac_sel %>% mutate(what = "population living in ADM2 units\nwith cholera occurence in 2022-2023"), 
-                              case_frac_sel_2016_2020 %>% mutate(what = "annual cholera cases in 2016-2020")) %>% 
+data_for_figure6 <- bind_rows(
+  pop_frac_sel %>%
+    mutate(what = "population living in ADM2 units\nwith cholera occurence in 2022-2023"), 
+  case_frac_sel_2016_2020 %>% 
+    mutate(what = "annual cholera cases in 2016-2020")
+) %>% 
   mutate(
     target_pop_factor = factor(
       str_c(formatC(target_pop/1e6, format = "f", digits = 0), "M"),
       levels = str_c(formatC(target_pop_levels/1e6, format = "f", digits = 0), "M")),
-    ranking = factor(ranking, levels = names(colors_ranking()))
+    ranking = factor(ranking, levels = names(colors_ranking())),
+    targeting = case_when(str_detect(what, "pop") & ranking == "optimal" ~ "oracle",
+                          str_detect(what, "case") & ranking == "2016-2020" ~ "oracle",
+                          TRUE ~ "prospective") %>% 
+      factor()
   ) %>% 
   filter(!(ranking == "optimal" & str_detect(what, "2016")))
 
@@ -3008,20 +3016,43 @@ data_for_figure6 <- bind_rows(pop_frac_sel %>% mutate(what = "population living 
 #   guides(fill = guide_legend("ADM2 targeting strategy"),
 #          color = guide_legend("ADM2 targeting strategy"))
 
+leg_title <- "Period used for\ntargeting"
 pd <- position_dodge(width = 2.5e7, preserve = "single")
+
 p_targets_v2 <- data_for_figure6 %>% 
   mutate(ranking = case_when(ranking == "optimal" ~ "2022-2023", 
                              T ~ ranking) %>% 
            factor(levels = names(colors_ranking()))) %>% 
   ggplot(aes(x = target_pop, y = mean_diff, color = ranking, fill = ranking)) +
   geom_abline(aes(intercept = 0, slope = 1/1.1e9), lty = 2, lwd = .2) +
-  geom_bar(stat = "identity", 
-           inherit.aes = F,
-           aes(x = target_pop, y = mean_diff, group = ranking),
-           position = pd, width = 2e7, alpha = 1, lwd = .1, 
-           fill = "white",
-           color = "black") +
-  geom_bar(stat = "identity", position = pd, width = 2e7, alpha = .5, lwd = .1) +
+  geom_bar(
+    stat = "identity", 
+    inherit.aes = F,
+    aes(x = target_pop, y = mean_diff, group = ranking),
+    position = pd, width = 2e7, alpha = 1, lwd = .1, 
+    fill = "white",
+    color = "black") +
+  ggpattern::geom_bar_pattern(
+    aes(pattern = targeting),
+    stat = "identity", 
+    position = pd, 
+    width = 2e7, 
+    alpha = .5, 
+    lwd = .05,
+    color = "black",
+    pattern_color = "white", 
+    pattern_fill = "white",
+    pattern_angle = 45,
+    pattern_density = 0.01,
+    pattern_spacing = 0.025,
+    pattern_key_scale_factor = 0.6) +
+  geom_bar(
+    stat = "identity", 
+    inherit.aes = F,
+    aes(x = target_pop, y = mean_diff, group = ranking),
+    position = pd, width = 2e7, alpha = 0, lwd = .1, 
+    fill = "white",
+    color = "black") +
   # geom_point(position = pd, size = 1) +
   geom_errorbar(aes(ymin = q025_diff, ymax = q975_diff), 
                 position = pd, width = 1.5e7, lwd = .3) +
@@ -3035,12 +3066,16 @@ p_targets_v2 <- data_for_figure6 %>%
   scale_x_continuous(breaks = c(10, seq(50, 400, by = 50))*1e6, 
                      labels = function(x) str_c(formatC(x*1e-6, format = "f", digits = 0), "M")) +
   theme(panel.grid.major.x = element_blank(),
-        panel.grid.minor.x = element_blank(),
-        legend.position = c(.9, .8)) +
-  guides(fill = guide_legend("ADM2 targeting strategy"),
-         color = guide_legend("ADM2 targeting strategy")) 
+        panel.grid.minor.x = element_blank()
+        # legend.position = c(.9, .8)
+        ) +
+  guides(fill = guide_legend(leg_title, override.aes = list(pattern = "none")),
+         color = guide_legend(leg_title),
+         pattern = guide_legend("Targeting type"))  +
+  ggpattern::scale_pattern_manual(values = c(oracle = "stripe", prospective = "none"))
 
-p_targets_v2
+
+# p_targets_v2
 
 # Add annotations
 # data_arrows_figure6 <- data_for_figure6 %>% 
@@ -3070,8 +3105,11 @@ data_arrows_figure6_v2 <- data_for_figure6 %>%
          x2 = as.numeric(target_pop) + c(-.5, .1)*3.5e7,
          y = mean_diff * c(1.06, 1.04),
          what_label = str_extract(what, "cases|population"),
-         label = c(str_glue("unreached using past incidence"),
-                   str_glue("unreached using present incidence")))
+         what_label = case_when(what_label == "cases" ~ "cholera cases",
+                                TRUE ~ "cholera-affected population"),
+         label = c(str_glue("unreached {what_label[1]}"),
+                   str_glue("unreached {what_label[1]}"))) %>% 
+  slice(1)
 
 p_targets2 <- p_targets_v2 +
   theme(legend.background = element_blank()) +
@@ -3090,13 +3128,13 @@ p_targets2 <- p_targets_v2 +
     inherit.aes = F,
     angle = 90,
     color = "black",
-    size = 3.5,
+    size = 2.5,
   ) +
   geom_hline(aes(yintercept = 1), color = "darkgray", lty = 2, lwd = .6)
 
 
 ggsave(p_targets2, filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_6.png"),
-       width = 11, height = 6, dpi = 300)
+       width = 12, height = 5.5, dpi = 300)
 
 # Scraps ------------------------------------------------------------------
 
