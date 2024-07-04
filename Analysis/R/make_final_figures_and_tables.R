@@ -1481,7 +1481,6 @@ make_dotlineplot <- function(df) {
     geom_point(aes(x = value, pch = period), size = 2)  +
     geom_segment(data = df, 
                  aes(x = p1, y = country, xend = p2, yend = country,
-                     #alpha = sigificant_irr, 
                      color = direction#,linewidth = sigificant_irr
                  ),
                  arrow = arrow(length = unit(0.15, "cm"), 
@@ -1497,7 +1496,7 @@ make_dotlineplot <- function(df) {
                                         digits = 1,
                                         format = "fg", 
                                         big.mark = ",") %>% 
-                         str_replace("0.1", "<= 0.1")) +
+                         str_replace("0.1", "\u2264 0.1")) +
     scale_color_manual(values = c("red", "gray", "blue"), drop = FALSE) +
     scale_shape_manual(values = c(1, 16)) +
     # ggh4x::facet_nested(admin_level + AFRO_region ~ ., scale = "free", 
@@ -1506,7 +1505,6 @@ make_dotlineplot <- function(df) {
     theme(strip.placement = "out") +
     labs(y = NULL, 
          x = "Cholera incidence rate \n[reported cases per 100,000/year]",
-         alpha = "Statististically-significant\nchange",
          color = "Change direction",
          shape = "Time period") #+
   # theme(panel.grid.major.y = element_blank()) 
@@ -1525,14 +1523,14 @@ p_fig2A_arrows <- plot_grid(
     theme(axis.title.x = element_blank(),
           axis.text.x = element_blank(),
           axis.ticks.x = element_blank()) +
-    guides(shape = "none", color = "none", alpha = "none"),
+    guides(shape = "none", color = "none"),
   # Regions
   make_dotlineplot(dat_for_incid_dotplot %>% 
                      filter(str_detect(country, "Africa"))) +
     theme(axis.title.x = element_blank(),
           axis.text.x = element_blank(),
           axis.ticks.x = element_blank())  +
-    guides(shape = "none", color = "none", alpha = "none"),
+    guides(shape = "none", color = "none"),
   # Countries
   make_dotlineplot(dat_for_incid_dotplot %>% 
                      filter(str_detect(country, "Africa|SSA", negate = T)) %>% 
@@ -1544,7 +1542,7 @@ p_fig2A_arrows <- plot_grid(
                                   "Southern Africa", "Western Africa")))) +
     ggh4x::facet_grid2(AFRO_region ~ ., switch = "y", scales = "free_y", space = "free_y",
                        strip = strip) +
-    guides(shape = "none", color = "none", alpha = "none"),
+    guides(shape = "none", color = "none"),
   # facet_grid(AFRO_region ~ ., switch = "y", scales = "free_y", space = "free_y"),
   ncol = 1,
   rel_heights = c(.15, .25, 1),
@@ -1552,7 +1550,15 @@ p_fig2A_arrows <- plot_grid(
   axis = "lr"
 )
 
+p_fig2A_arrows
 
+fig2A_legend <- cowplot::get_legend(
+  make_dotlineplot(dat_for_incid_dotplot) +
+    theme(legend.box="horizontal",
+          legend.direction = "horizontal") +
+    guides(color = guide_legend("Change direction", title.position="top", title.hjust = 0.5),
+           shape = guide_legend("Time period", title.position="top", title.hjust = 0.5))
+  )
 
 make_irr_plot <- function(df) {
   hi <- 10
@@ -1581,13 +1587,13 @@ make_irr_plot <- function(df) {
     theme_bw() +
     theme(strip.placement = "out") +
     labs(y = NULL, 
-         x = "Incidence rate\nratio [-]",
+         x = "Incidence rate\nratio",
          alpha = "Statististically-significant\nchange",
          color = "Change direction",
          shape = "Time period") +
     # theme(panel.grid.major.y = element_blank()) +
     scale_x_log10(breaks = c(.1, .3, 1, 3, 10),
-                  labels = c("<=0.1", ".3", "1", "3", " >=10"),
+                  labels = c("\u2264 0.1", ".3", "1", "3", " \u2265 10"),
                   limits = c(.1, 10)) +
     theme(axis.text.y = element_blank(),
           axis.title.y = element_blank(),
@@ -1620,7 +1626,8 @@ p_fig2A_irr <- plot_grid(
                     AFRO_region, 
                     levels = c("Central Africa", "Eastern Africa",
                                "Southern Africa", "Western Africa")))) +
-    facet_grid(AFRO_region ~ ., switch = "y", scales = "free_y", space = "free_y"),
+    facet_grid(AFRO_region ~ ., switch = "y", scales = "free_y", space = "free_y")  +
+    guides(shape = "none", color = "none", alpha = "none"),
   ncol = 1,
   rel_heights = c(.15, .25, 1),
   align = "v",
@@ -1631,13 +1638,18 @@ p_fig2A_irr
 
 
 p_fig2A <- cowplot::plot_grid(
-  p_fig2A_arrows,
-  p_fig2A_irr,
-  nrow = 1,
-  align = "h",
-  axis = "tb",
-  rel_widths = c(1, .65)
-)
+  cowplot::plot_grid(
+    p_fig2A_arrows,
+    p_fig2A_irr,
+    nrow = 1,
+    align = "v",
+    axis = "tb",
+    rel_widths = c(1, .35)
+  ),
+  fig2A_legend,
+  ncol = 1,
+  rel_heights = c(1, .1)) +
+  theme(plot.background = element_rect(fill = "white", color = "white"))
 
 # Save
 ggsave(p_fig2A,
@@ -3068,7 +3080,7 @@ p_targets_v2 <- data_for_figure6 %>%
   theme(panel.grid.major.x = element_blank(),
         panel.grid.minor.x = element_blank()
         # legend.position = c(.9, .8)
-        ) +
+  ) +
   guides(fill = guide_legend(leg_title, override.aes = list(pattern = "none")),
          color = guide_legend(leg_title),
          pattern = guide_legend("Targeting type"))  +
