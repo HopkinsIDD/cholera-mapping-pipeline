@@ -995,41 +995,70 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   # })
   
   ## Compute stats for targetting analysis  ---------------------------------------
-  # Build joint data on ADM2 level risk categories, mean cases and rates
-  adm2_results <- risk_pop_50_adm2 %>% 
-    as_tibble() %>% 
-    # Keep only ADM2 level results
-    filter(admin_level == "ADM2") %>% 
-    select(country, location_period_id, risk_cat, period) %>% 
-    # Add 2016-2020 mean population
-    # !! This should be changed to 2020 population
-    inner_join(
-      risk_pop_50_adm2 %>% 
-        filter(period == "2016-2020") %>% 
-        select(location_period_id, pop)
-    ) %>% 
-    # Add mean annual cases
-    inner_join(
-      mai_adm_cases %>% 
-        filter(period == "2016-2020",
-               admin_level == "ADM2") %>% 
-        select(location_period_id, cases = mean)
-    ) %>% 
-    # Add mean incidence rates
-    inner_join(
-      mai_adm %>% 
-        filter(period == "2016-2020",
-               admin_level == "ADM2") %>% 
-        select(location_period_id, mai = mean)
-    ) 
+ 
+  make_adm2_results <- function(p) {
+    risk_pop_50_adm2 %>% 
+      as_tibble() %>% 
+      # Keep only ADM2 level results
+      filter(admin_level == "ADM2") %>% 
+      select(country, location_period_id, risk_cat, period) %>% 
+      # Add 2016-2020 mean population
+      # !! This should be changed to 2020 population
+      inner_join(
+        risk_pop_50_adm2 %>% 
+          filter(period == p) %>% 
+          select(location_period_id, pop)
+      ) %>% 
+      # Add mean annual cases
+      inner_join(
+        mai_adm_cases %>% 
+          filter(period == p,
+                 admin_level == "ADM2") %>% 
+          select(location_period_id, cases = mean)
+      ) %>% 
+      # Add mean incidence rates
+      inner_join(
+        mai_adm %>% 
+          filter(period == p,
+                 admin_level == "ADM2") %>% 
+          select(location_period_id, mai = mean)
+      ) 
+  }
+  
+   # Build joint data on ADM2 level risk categories, mean cases and rates
+  adm2_results_2016_2020 <- make_adm2_results("2016-2020")
+  adm2_results_2011_2015 <- make_adm2_results("2011-2015")
   
   # Map over periods to compute orderings
-  cumul_cases <- map_df(c("2011-2015", "2016-2020", "optimal"), function(x) {
+  cumul_cases_2016_2020 <- map_df(c("2011-2015", "2016-2020", "optimal"), function(x) {
     
     # If optimal use 2016-2020
     xx <- ifelse(x == "optimal", "2016-2020", x)
     
-    adm2_results %>% 
+    adm2_results_2016_2020 %>% 
+      filter(period == xx) %>% 
+      {
+        df <- .
+        if (x == "optimal") {
+          arrange(df, desc(mai))
+        } else {
+          arrange(df, desc(risk_cat), desc(pop))
+        }
+      } %>% 
+      mutate(ordering = row_number(),
+             cum_pop = cumsum(pop),
+             cum_cases = cumsum(cases),
+             ranking = x)
+  })
+  
+  
+  # Map over periods to compute orderings
+  cumul_cases_2011_2015<- map_df(c("2011-2015", "optimal"), function(x) {
+    
+    # If optimal use 2016-2020
+    xx <- ifelse(x == "optimal", "2011-2015", x)
+    
+    adm2_results_2011_2015 %>% 
       filter(period == xx) %>% 
       {
         df <- .
@@ -1046,35 +1075,37 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   })
   
   # Reload draws
-  mai_draws_p2 <- readRDS(str_glue("{opt$output_dir}/{prefix_list[2]}_mai_draws.rds")) %>%
-    ungroup() %>% 
-    select(.draw, location_period_id, value)
+  make_mai_draws_mat <- function(p) {
+    mai_draws <- readRDS(str_glue("{opt$output_dir}/{p}_mai_draws.rds")) %>%
+      ungroup() %>% 
+      select(.draw, location_period_id, value)
+    
+    # Prepare the data
+    mai_draws_wide <- mai_draws %>% 
+      select(location_period_id, .draw, value) %>% 
+      pivot_wider(names_from = "location_period_id",
+                  values_from = "value")
+    
+    mai_draws_wide_mat <- mai_draws_wide %>% 
+      select(-.draw) %>% 
+      as.matrix()
+  }
   
-  # Prepare the data
-  mai_draws_wide <- mai_draws_p2 %>% 
-    select(location_period_id, .draw, value) %>% 
-    pivot_wider(names_from = "location_period_id",
-                values_from = "value")
-  
-  mai_draws_wide_mat <- mai_draws_wide %>% 
-    select(-.draw) %>% 
-    as.matrix()
-  
-  # Clean for memory
-  rm(mai_draws_p2, mai_draws_wide)
+  mai_draws_wide_mat_2016_2020 <- make_mai_draws_mat("2016_2020")
+  mai_draws_wide_mat_2011_2015 <- make_mai_draws_mat("2011_2015")
   
   # First get draws
   rankings_cases <- c("2011-2015", "2016-2020", "optimal")
   sample_ids <- 1:4000
   
   # Compute draws of cumulative cases
-  cumul_cases_draws <- map(
+  cumul_cases_draws_2016_2020 <- map(
     rankings_cases,
     function(x) {
       
-      compute_cumulative_stats(data = cumul_cases,
+      compute_cumulative_stats(data = cumul_cases_2016_2020,
                                target_ranking = x,
-                               draws_mat = mai_draws_wide_mat,
+                               draws_mat = mai_draws_wide_mat_2016_2020,
                                n_draws = length(sample_ids),
                                sample_ids = sample_ids,
                                return_draws = TRUE)
@@ -1083,28 +1114,70 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     set_names(rankings_cases)
   
   # Compute stats
-  cumul_case_stats <- map_df(
+  cumul_case_stats_2016_2020 <- map_df(
     c("2011-2015", "2016-2020", "optimal"),
     function(x) {
-      compute_cumulative_stats(data = cumul_cases,
+      compute_cumulative_stats(data = cumul_cases_2016_2020,
                                target_ranking = x,
-                               draws_mat = mai_draws_wide_mat,
+                               draws_mat = mai_draws_wide_mat_2016_2020,
                                n_draws = length(sample_ids),
                                sample_ids = sample_ids)
     })
   
   # Compute cumul cases fraction of maximum
-  cumul_case_frac_stats <- map_df(
+  cumul_case_frac_stats_2016_2020 <- map_df(
     c("2011-2015", "2016-2020", "optimal"),
     function(x) {
-      compute_cumul_frac(cumul_draws = cumul_cases_draws,
-                         data = cumul_cases,
+      compute_cumul_frac(cumul_draws = cumul_cases_draws_2016_2020,
+                         data = cumul_cases_2016_2020,
                          target_ranking = x)
       
     })
   
   # Clean for memory
-  rm(mai_draws_wide_mat)
+  rm(mai_draws_wide_mat_2016_2020)
+  
+  # First get draws
+  rankings_cases <- c("2011-2015", "optimal")
+  
+  # Compute draws of cumulative cases
+  cumul_cases_draws_2011_2015 <- map(
+    rankings_cases,
+    function(x) {
+      
+      compute_cumulative_stats(data = cumul_cases_2011_2015,
+                               target_ranking = x,
+                               draws_mat = mai_draws_wide_mat_2011_2015,
+                               n_draws = length(sample_ids),
+                               sample_ids = sample_ids,
+                               return_draws = TRUE)
+      
+    }) %>% 
+    set_names(rankings_cases)
+  
+  # Compute stats
+  cumul_case_stats_2011_2015 <- map_df(
+    c("2011-2015", "optimal"),
+    function(x) {
+      compute_cumulative_stats(data = cumul_cases_2011_2015,
+                               target_ranking = x,
+                               draws_mat = mai_draws_wide_mat_2011_2015,
+                               n_draws = length(sample_ids),
+                               sample_ids = sample_ids)
+    })
+  
+  # Compute cumul cases fraction of maximum
+  cumul_case_frac_stats_2011_2015 <- map_df(
+    c("2011-2015", "optimal"),
+    function(x) {
+      compute_cumul_frac(cumul_draws = cumul_cases_draws_2011_2015,
+                         data = cumul_cases_2011_2015,
+                         target_ranking = x)
+      
+    })
+  
+  rm(mai_draws_wide_mat_2011_2015)
+  
   
   # Load draws of predicted occurrence
   pred_prob_draws <- readRDS(str_glue("{opt$output_dir}/recent_occurrence_pred_prob_draws.rds"))
@@ -1712,7 +1785,7 @@ ggsave(p_fig2B,
 
 p_fig2 <- plot_grid(
   p_fig2A +
-    theme(plot.margin = unit(c(1, -2, 1, 1), "lines")),
+    theme(plot.margin = unit(c(1, 0, 1, 1), "lines")),
   p_fig2B,
   ncol = 2,
   nrow = 1,
@@ -2867,9 +2940,9 @@ pop_frac_sel <- map_df(target_pop_levels, function(x) {
     })
 })
 
-case_frac_sel <- map_df(target_pop_levels, function(x) {
+case_frac_sel_2016_2020 <- map_df(target_pop_levels, function(x) {
   print(x)
-  cumul_case_frac_stats %>% 
+  cumul_case_frac_stats_2016_2020 %>% 
     group_by(ranking) %>% 
     group_modify(function(y, z) {
       rid <- which(y$cumul_pop >= x)[1]
@@ -2878,6 +2951,16 @@ case_frac_sel <- map_df(target_pop_levels, function(x) {
     })
 })
 
+case_frac_sel_2011_2015 <- map_df(target_pop_levels, function(x) {
+  print(x)
+  cumul_case_frac_stats_2011_2015 %>% 
+    group_by(ranking) %>% 
+    group_modify(function(y, z) {
+      rid <- which(y$cumul_pop >= x)[1]
+      slice(y, rid) %>% 
+        mutate(target_pop = x)
+    })
+})
 
 # Plot
 colors_ranking <- function() {
@@ -2891,7 +2974,7 @@ colors_ranking <- function() {
 pd <- position_dodge(width = .8, preserve = "single")
 
 data_for_figure6 <- bind_rows(pop_frac_sel %>% mutate(what = "population living in ADM2 units\nwith cholera occurence in 2022-2023"), 
-                              case_frac_sel %>% mutate(what = "annual cholera cases in 2016-2020")) %>% 
+                              case_frac_sel_2016_2020 %>% mutate(what = "annual cholera cases in 2016-2020")) %>% 
   mutate(
     target_pop_factor = factor(
       str_c(formatC(target_pop/1e6, format = "f", digits = 0), "M"),
@@ -2900,30 +2983,30 @@ data_for_figure6 <- bind_rows(pop_frac_sel %>% mutate(what = "population living 
   ) %>% 
   filter(!(ranking == "optimal" & str_detect(what, "2016")))
 
-p_targets <- data_for_figure6 %>% 
-  ggplot(aes(x = target_pop_factor, y = mean_diff, color = ranking, fill = ranking)) +
-  geom_bar(stat = "identity", 
-           inherit.aes = F,
-           aes(x = target_pop_factor, y = mean_diff, group = ranking),
-           position = pd, width = .67, alpha = 1, lwd = .1, 
-           fill = "white",
-           color = "black") +
-  geom_bar(stat = "identity", position = pd, width = .67, alpha = .5, lwd = .1) +
-  # geom_point(position = pd, size = 1) +
-  geom_errorbar(aes(ymin = q025_diff, ymax = q975_diff), 
-                position = pd, width = .35, lwd = .3) +
-  theme_bw() +
-  facet_grid(. ~ what) +
-  scale_fill_manual(values = colors_ranking()) +
-  scale_color_manual(values = colors_ranking()) +
-  labs(x = "Population targeted (out of total of 1.1 billion in 2020)",
-       y = "Proportion reached of ...") +
-  scale_y_continuous(breaks = c(0, .25, .5, .75, 1), labels = c("0%", "25%", "50%", "75%", "100%")) +
-  theme(panel.grid.major.x = element_blank(),
-        panel.grid.minor.x = element_blank(),
-        legend.position = c(.63, .8)) +
-  guides(fill = guide_legend("ADM2 targeting strategy"),
-         color = guide_legend("ADM2 targeting strategy"))
+# p_targets <- data_for_figure6 %>% 
+#   ggplot(aes(x = target_pop_factor, y = mean_diff, color = ranking, fill = ranking)) +
+#   geom_bar(stat = "identity", 
+#            inherit.aes = F,
+#            aes(x = target_pop_factor, y = mean_diff, group = ranking),
+#            position = pd, width = .67, alpha = 1, lwd = .1, 
+#            fill = "white",
+#            color = "black") +
+#   geom_bar(stat = "identity", position = pd, width = .67, alpha = .5, lwd = .1) +
+#   # geom_point(position = pd, size = 1) +
+#   geom_errorbar(aes(ymin = q025_diff, ymax = q975_diff), 
+#                 position = pd, width = .35, lwd = .3) +
+#   theme_bw() +
+#   facet_grid(. ~ what) +
+#   scale_fill_manual(values = colors_ranking()) +
+#   scale_color_manual(values = colors_ranking()) +
+#   labs(x = "Population targeted (out of total of 1.1 billion in 2020)",
+#        y = "Proportion reached of ...") +
+#   scale_y_continuous(breaks = c(0, .25, .5, .75, 1), labels = c("0%", "25%", "50%", "75%", "100%")) +
+#   theme(panel.grid.major.x = element_blank(),
+#         panel.grid.minor.x = element_blank(),
+#         legend.position = c(.63, .8)) +
+#   guides(fill = guide_legend("ADM2 targeting strategy"),
+#          color = guide_legend("ADM2 targeting strategy"))
 
 pd <- position_dodge(width = 2.5e7, preserve = "single")
 p_targets_v2 <- data_for_figure6 %>% 
@@ -2960,14 +3043,14 @@ p_targets_v2 <- data_for_figure6 %>%
 p_targets_v2
 
 # Add annotations
-data_arrows_figure6 <- data_for_figure6 %>% 
-  filter(str_detect(what, "cases")) %>%
-  slice(2) %>% 
-  ungroup() %>%
-  mutate(x = as.numeric(target_pop_factor) + c(-.3, -.1),
-         x2 = as.numeric(target_pop_factor) + c(-.5, .1),
-         y = mean_diff * c(1.06, 1.04),
-         label = c("Realized coverage gap", "Best-case coverage gap"))
+# data_arrows_figure6 <- data_for_figure6 %>% 
+#   filter(str_detect(what, "cases")) %>%
+#   slice(2) %>% 
+#   ungroup() %>%
+#   mutate(x = as.numeric(target_pop_factor) + c(-.3, -.1),
+#          x2 = as.numeric(target_pop_factor) + c(-.5, .1),
+#          y = mean_diff * c(1.06, 1.04),
+#          label = c("Realized coverage gap", "Best-case coverage gap"))
 
 
 data_arrows_figure6_v2 <- data_for_figure6 %>% 
