@@ -1206,7 +1206,7 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
                                           "history of moderate",
                                           "sustained low")))  
   
-  adm2_results_occurrence <- adm2_results %>% 
+  adm2_results_occurrence_2016_2020 <- adm2_results_2016_2020 %>% 
     mutate(recent_occurence = location_period_id %in% unlist(final_joins$adm2_lps)) %>% 
     inner_join(endemicity_df_50_v2 %>% select(location_period_id, endemicity)) %>%
     inner_join(pred_prob_draws %>%
@@ -1217,14 +1217,14 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   
   
   # Map over periods to compute orderings
-  occurence_cumul <- map_df(c("2011-2015", "2016-2020", "2011-2020", "optimal"), function(x) {
+  occurence_cumul_2016_2020 <- map_df(c("2011-2015", "2016-2020", "2011-2020", "optimal"), function(x) {
     
     # If optimal use 2016-2020
     xx <- case_when(x == "optimal" ~ "2016-2020", 
                     x == "2011-2020" ~ "2016-2020",
                     TRUE ~ x)
     
-    adm2_results_occurrence %>% 
+    adm2_results_occurrence_2016_2020 %>% 
       filter(period == xx) %>% 
       {
         df <- .
@@ -1254,11 +1254,11 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     as.matrix()
   
   rankings_occurrence <- c("2011-2015", "2016-2020", "2011-2020", "optimal")
-  cumul_pop_draws <- map(
+  cumul_pop_draws_2016_2020 <- map(
     rankings_occurrence,
     function(x) {
       
-      compute_cumulative_stats(data = occurence_cumul,
+      compute_cumulative_stats(data = occurence_cumul_2016_2020,
                                target_ranking = x,
                                draws_mat = pred_draws_wide_mat,
                                n_draws = length(sample_ids),
@@ -1270,21 +1270,21 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   
   
   # Statistics on fractions
-  cumul_pop_frac_stats <- map_df(
+  cumul_pop_frac_stats_2016_2020 <- map_df(
     c("2011-2015", "2016-2020", "2011-2020", "optimal"),
     function(x) {
-      compute_cumul_frac(cumul_draws = cumul_pop_draws,
-                         data = occurence_cumul,
+      compute_cumul_frac(cumul_draws = cumul_pop_draws_2016_2020,
+                         data = occurence_cumul_2016_2020,
                          target_ranking = x)
       
     })
   
   # Stats
-  cumul_pop_stats <- map_df(
+  cumul_pop_stats_2016_2020 <- map_df(
     c("2011-2015", "2016-2020", "2011-2020", "optimal"),
     function(x) {
       
-      compute_cumulative_stats(data = occurence_cumul,
+      compute_cumulative_stats(data = occurence_cumul_2016_2020,
                                target_ranking = x,
                                draws_mat = pred_draws_wide_mat,
                                n_draws = length(sample_ids),
@@ -2941,9 +2941,9 @@ ggsave(plot = p_fig5_95,
 
 target_pop_levels <- c(1e7, seq(5e7, 4e8, by = 5e7))
 
-pop_frac_sel <- map_df(target_pop_levels, function(x) {
+pop_frac_sel_2016_2020 <- map_df(target_pop_levels, function(x) {
   print(x)
-  cumul_pop_frac_stats %>% 
+  cumul_pop_frac_stats_2016_2020 %>% 
     group_by(ranking) %>% 
     group_modify(function(y, z) {
       rid <- which(y$cumul_pop >= x)[1]
@@ -2985,8 +2985,8 @@ colors_ranking <- function() {
 
 pd <- position_dodge(width = .8, preserve = "single")
 
-data_for_figure6 <- bind_rows(
-  pop_frac_sel %>%
+data_for_figure6_2016_2020 <- bind_rows(
+  pop_frac_sel_2016_2020 %>%
     mutate(what = "population living in ADM2 units\nwith cholera occurence in 2022-2023"), 
   case_frac_sel_2016_2020 %>% 
     mutate(what = "annual cholera cases in 2016-2020")
@@ -3031,7 +3031,7 @@ data_for_figure6 <- bind_rows(
 leg_title <- "Period used for\ntargeting"
 pd <- position_dodge(width = 2.5e7, preserve = "single")
 
-p_targets_v2 <- data_for_figure6 %>% 
+p_targets_v2_2016_2020 <- data_for_figure6_2016_2020 %>% 
   mutate(ranking = case_when(ranking == "optimal" ~ "2022-2023", 
                              T ~ ranking) %>% 
            factor(levels = names(colors_ranking()))) %>% 
@@ -3100,13 +3100,13 @@ p_targets_v2 <- data_for_figure6 %>%
 #          label = c("Realized coverage gap", "Best-case coverage gap"))
 
 
-data_arrows_figure6_v2 <- data_for_figure6 %>% 
+data_arrows_figure6_v2_2016_2020 <- data_for_figure6_2016_2020 %>% 
   filter(target_pop == 1e8,
          str_detect(what, "cases")) %>% 
   ungroup() %>% 
   slice(1:2) %>%
   bind_rows(
-    data_for_figure6 %>% 
+    data_for_figure6_2016_2020 %>% 
       filter(target_pop == 1e8,
              str_detect(what, "pop")) %>% 
       ungroup() %>% 
@@ -3123,10 +3123,10 @@ data_arrows_figure6_v2 <- data_for_figure6 %>%
                    str_glue("unreached {what_label[1]}"))) %>% 
   slice(1)
 
-p_targets2 <- p_targets_v2 +
+p_targets2_2016_2020 <- p_targets_v2_2016_2020 +
   theme(legend.background = element_blank()) +
   geom_segment(
-    data = data_arrows_figure6_v2,
+    data = data_arrows_figure6_v2_2016_2020,
     aes(x = x, y = y, yend = .99,
         group = ranking),
     inherit.aes = F,
@@ -3135,7 +3135,7 @@ p_targets2 <- p_targets_v2 +
     color = c("#575757")
   )  +
   geom_text(
-    data = data_arrows_figure6_v2,
+    data = data_arrows_figure6_v2_2016_2020,
     aes(x = x2, y = (y + .99)/2, label = label), 
     inherit.aes = F,
     angle = 90,
@@ -3145,7 +3145,7 @@ p_targets2 <- p_targets_v2 +
   geom_hline(aes(yintercept = 1), color = "darkgray", lty = 2, lwd = .6)
 
 
-ggsave(p_targets2, filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_6.png"),
+ggsave(p_targets2_2016_2020, filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_6.png"),
        width = 12, height = 5.5, dpi = 300)
 
 # Scraps ------------------------------------------------------------------
