@@ -849,6 +849,29 @@ data.frame(readRDS(paste0(params$postprocessed_output_directory,'/mai_ratio_stat
   kableExtra::kable_styling(full_width = FALSE) %>% 
   kableExtra::scroll_box(width = "100%")
 
+data.frame(readRDS(paste0(params$postprocessed_output_directory,'/mai_ratio_stats.rds'))) %>%
+  filter(admin_level =="ADM0" & !country %in% c("BWA", "ERI", "GAB", "GNQ", "LSO")) %>% #exclude countries with zero case i both periods.
+  select(country,mean,q2.5,q97.5) %>% 
+  mutate(
+    `Mean IRR` = round(mean,2),
+    IRR_status = ifelse(q2.5>1,"significant_increase",ifelse(q97.5 < 1,"significant_decrease","non_significant"))
+  ) %>%
+  group_by(IRR_status) %>% 
+  summarize(
+    Num_of_countries = n()
+  ) %>% 
+  rbind(
+    data.frame(
+      IRR_status = "both_zero",
+      Num_of_countries = length(c("BWA", "ERI", "GAB", "GNQ", "LSO")))
+  ) %>% 
+  mutate(
+    `Prop (%)` = round(Num_of_countries/43*100,2)
+  ) %>% 
+    kableExtra::kbl(caption = "Table 12-1. Summary for incidence rate ratio") %>% 
+  kableExtra::kable_styling(full_width = FALSE) %>% 
+  kableExtra::scroll_box(width = "100%")
+
 # adm2 with significant increase/decrease/total number of adm2
 data.frame(readRDS(paste0(params$postprocessed_output_directory,'/mai_ratio_stats.rds'))) %>% 
   dplyr::select(!geom)%>%
@@ -1537,5 +1560,16 @@ pop_frac_sel %>%
   mutate(`Population targeted (M)` = target_pop/10^6) %>% 
   select(`Population targeted (M)`,`ratio_1115_to_optimal`,`ratio_1620_to_optimal`,`ratio_1120_to_optimal`) %>% 
   kableExtra::kbl(caption = "Table 33. Ratio of population living in ADM2 units with cholera occurrence in 2022-2023 reached by different strategies compared to optimal strategy") %>% 
+  kableExtra::kable_paper(full_width = F)
+
+case_frac_sel %>% 
+  select(ranking,mean_diff,target_pop) %>% 
+  spread(key= ranking,value = mean_diff) %>% 
+  mutate(
+    `ratio_1115_to_optimal` = round(`2011-2015`/optimal,2)
+  ) %>% 
+  mutate(`Population targeted (M)` = target_pop/10^6) %>% 
+  select(`Population targeted (M)`,`ratio_1115_to_optimal`) %>% 
+  kableExtra::kbl(caption = "Table 34. Ratio of 2016-2020 cases reached by different strategies compared to optimal strategy") %>% 
   kableExtra::kable_paper(full_width = F)
 ```
