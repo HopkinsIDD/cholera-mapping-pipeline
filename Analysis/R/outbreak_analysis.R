@@ -369,6 +369,16 @@ param_by_country <- stan_genquant$summary("c_beta", mean, median, taxdat:::custo
 save(final_joins, logOR_stats, OR_stats, baseline_prob_stats, param_by_country, ICC_stats,
      file = "Analysis/notebooks/recent_cholera_outbreaks_res.rdata")
 
+
+# Save draws of prob of presence for new figure 6
+pred_prob_draws <- stan_genquant$draws("pred_prob_true") %>% 
+  taxdat::draws_to_df("pred_prob_true") %>% 
+  mutate(admin_unit = str_extract(variable, "[0-9]+") %>% as.numeric(),
+         location_period_id = u_adm2[admin_unit]) %>% 
+  select(-variable, -admin_unit)
+
+saveRDS(pred_prob_draws, "Analysis/notebooks/recent_occurrence_pred_prob_draws.rds")
+
 # Plots -------------------------------------------------------------------
 # 
 # 

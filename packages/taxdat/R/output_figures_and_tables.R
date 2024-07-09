@@ -14,7 +14,8 @@ colors_lisa_clusters <- function(){c("lightgray", "#D40A07", "#4543C4", "#F26F6D
 coloramp_cases <- function(){c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404")}
 
 # colors_admin_levels <- function(){c( "#4F802A", "#5449C7", "#BF0B07", "#DBB50B")}
-colors_admin_levels <- function(){c("#FFFF00","#CAE0C9", "#99CCFF", "#FF9999", "#CC9900", "#FF9933",'black')}
+#colors_admin_levels <- function(){c("#FFFF00","#CAE0C9", "#99CCFF", "#FF9999", "#CC9900", "#FF9933",'black')}
+colors_admin_levels <- function(){RColorBrewer::brewer.pal(n=4,name = 'Blues')}
 colors_endemicity_high <- function(){c("red", "gray")}
 colors_endemicity_low <- function(){c("blue", "gray")}
 # colors_endemicity <- function(){c("#FF0000", "#E65F5F", "#F2A8A7", "#837EE6")} #"#0C14ED"
@@ -27,7 +28,7 @@ colors_endemicity <- function(){
 colors_periods <- function(){c("purple", "orange")}
 
 colors_risk_categories <- function() {
-  c( "gray", paletteer::paletteer_d("fishualize::Epinephelus_striatus", direction = -1))
+  c( paletteer::paletteer_d("fishualize::Epinephelus_striatus", direction = 1),"gray")
 }
 
 #' @export
@@ -63,7 +64,7 @@ output_plot_map <- function(sf_obj,
                             border_width = 0.005,
                             border_color = "white",
                             lake_alpha = 1,
-                            country_border_width = .15,
+                            country_border_width = .3,
                             country_border_color = "black",
                             cholera_dir = 'cholera-mapping-pipeline') {
   
@@ -189,6 +190,7 @@ plot_posterior_coverage <- function(gen_obs,
     dplyr::mutate(admin_level = factor(admin_level, levels = 0:10)) %>% 
     ggplot2::ggplot(aes(x = cri, y = frac_covered, color = admin_level)) +
     ggplot2::geom_line(aes(lty = admin_level), lwd = 1) +
+    geom_abline(intercept = 0, slope = 1, colour = "darkgray",linetype=2) +
     {
       if (!with_period) {
         ggplot2::facet_wrap(~ country)
@@ -200,7 +202,7 @@ plot_posterior_coverage <- function(gen_obs,
     ggplot2::coord_cartesian(ylim = c(0, 1)) +
     ggplot2::labs(x = "CrI width", y = "Fraction of full observations covered",
                   color = "Admin level", lty = "Admin level") +
-    ggplot2::scale_color_manual(values = colors_admin_levels())
+    ggplot2::scale_color_manual(values = RColorBrewer::brewer.pal(n=7,name = 'Blues')[-1])
 }
 
 # Auxiliary functions ----------------------------------------------------
@@ -269,7 +271,6 @@ get_rivers <- function(path = "Layers/geodata/rivers_africa_37333.shp",
 #'
 #' @examples
 get_risk_cat_dict <- function() {
-  risk_cat_dict <- c("<1", "1-10", "10-20", "20-50", "50-100", ">100")
+  risk_cat_dict <- c("<1", "1-10", "10-20", "20-50", "50-100", "\u2265100")
   risk_cat_dict
 }
-

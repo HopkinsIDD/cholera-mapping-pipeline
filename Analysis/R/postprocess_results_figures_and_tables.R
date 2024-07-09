@@ -355,7 +355,7 @@ p_fig9 <- all_shapefiles %>%
                   border_color = "gray",
                   lake_alpha = 1,
                   country_border_color = "black",
-                  country_border_width = 1,
+                  country_border_width = 0.6,
                   cholera_dir = opt$cholera_dir)
 
 ggsave(p_fig9,

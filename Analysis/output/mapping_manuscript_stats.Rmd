@@ -849,6 +849,29 @@ data.frame(readRDS(paste0(params$postprocessed_output_directory,'/mai_ratio_stat
   kableExtra::kable_styling(full_width = FALSE) %>% 
   kableExtra::scroll_box(width = "100%")
 
+data.frame(readRDS(paste0(params$postprocessed_output_directory,'/mai_ratio_stats.rds'))) %>%
+  filter(admin_level =="ADM0" & !country %in% c("BWA", "ERI", "GAB", "GNQ", "LSO")) %>% #exclude countries with zero case i both periods.
+  select(country,mean,q2.5,q97.5) %>% 
+  mutate(
+    `Mean IRR` = round(mean,2),
+    IRR_status = ifelse(q2.5>1,"significant_increase",ifelse(q97.5 < 1,"significant_decrease","non_significant"))
+  ) %>%
+  group_by(IRR_status) %>% 
+  summarize(
+    Num_of_countries = n()
+  ) %>% 
+  rbind(
+    data.frame(
+      IRR_status = "both_zero",
+      Num_of_countries = length(c("BWA", "ERI", "GAB", "GNQ", "LSO")))
+  ) %>% 
+  mutate(
+    `Prop (%)` = round(Num_of_countries/43*100,2)
+  ) %>% 
+    kableExtra::kbl(caption = "Table 12-1. Summary for incidence rate ratio") %>% 
+  kableExtra::kable_styling(full_width = FALSE) %>% 
+  kableExtra::scroll_box(width = "100%")
+
 # adm2 with significant increase/decrease/total number of adm2
 data.frame(readRDS(paste0(params$postprocessed_output_directory,'/mai_ratio_stats.rds'))) %>% 
   dplyr::select(!geom)%>%
@@ -1222,6 +1245,8 @@ output_endemicity_50 %>%
             adm2_prop_50 = round(100*length(unique(location_period_id))/nrow(output_endemicity_50),2),
             total_adm2_50 = nrow(output_endemicity_50),
             total_country_50 = length(unique(country))) %>% 
+  ungroup() %>%
+  mutate(pop_prop_50 = round(pop_50/sum(pop_50)*100,1)) %>% 
   dplyr::inner_join(
     output_endemicity_95 %>% 
   ungroup() %>% 
@@ -1233,20 +1258,24 @@ output_endemicity_50 %>%
             total_country_95 = length(unique(country))),
   by=c("endemicity")
   ) %>% 
+  ungroup() %>%
+  mutate(pop_prop_95 = round(pop_95/sum(pop_95)*100,1)) %>%
   dplyr::rename(`10-year risk cat` = endemicity,
                 `Population(million) (50%)` = pop_50,
                 `Number of adm2 units (50%)` = adm2_50,
                 `Total number of adm2 units (50%)` = total_adm2_50,
                 `% of adm2 units (%) (50%)` = adm2_prop_50,
                 `Total number of countries (50%)` = total_country_50,
+                `% of population (50%)`= pop_prop_50,
                 `Population(million) (95%)` = pop_95,
                 `Number of adm2 units (95%)` = adm2_95,
                 `Total number of adm2 units (95%)` = total_adm2_95,
                 `% of adm2 units (%) (95%)` = adm2_prop_95,
-                `Total number of countries (95%)` = total_country_95)  %>% 
+                `Total number of countries (95%)` = total_country_95,
+                `% of population (95%)`= pop_prop_95)  %>% 
   
   dplyr::select(
-    `10-year risk cat`,`Population(million) (50%)`, `Number of adm2 units (50%)`, `Total number of adm2 units (50%)`,`% of adm2 units (%) (50%)`,`Total number of countries (50%)`,`Population(million) (95%)`, `Number of adm2 units (95%)`, `Total number of adm2 units (95%)`,`% of adm2 units (%) (95%)`,`Total number of countries (95%)`
+    `10-year risk cat`,`Population(million) (50%)`,`% of population (50%)`, `Number of adm2 units (50%)`, `Total number of adm2 units (50%)`,`% of adm2 units (%) (50%)`,`Total number of countries (50%)`,`Population(million) (95%)`,`% of population (95%)`, `Number of adm2 units (95%)`, `Total number of adm2 units (95%)`,`% of adm2 units (%) (95%)`,`Total number of countries (95%)`
   ) %>% 
   knitr::kable() %>% 
   kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
@@ -1337,6 +1366,38 @@ invisible(gc())
 
 ```
 
+```{r Results_paragraph_5_total_high_risk_pop_both_time_periods, echo=FALSE}
+load(paste0(params$output_directory,"/data_bundle_for_figures_test.rdata"))
+
+prefix_list <- list(
+  "2011-2015" = opt$prefix_p1,
+  "2016-2020" = opt$prefix_p2
+)
+
+risk_pop_50_adm2 <- combine_period_output(prefix_list = prefix_list,
+                                          output_name = "risk_categories_50",
+                                          output_dir = params$postprocessed_output_directory) %>% 
+  filter(admin_level == "ADM2"|(admin_level == "ADM1" & country == "LSO")) %>% 
+  get_AFRO_region(ctry_col = "country")  %>% 
+  mutate(AFRO_region = factor(AFRO_region, 
+                              levels = get_AFRO_region_levels())) %>% 
+  st_drop_geometry()
+
+high_risk_1115<-risk_pop_50_adm2 %>% 
+    filter(location_period_id %in% output_endemicity_50[output_endemicity_50$endemicity== "history of high risk",]$location_period_id) %>% 
+    filter(period == "2011-2015" & !risk_cat %in% c("<1","1-10"))
+
+  print(paste0("Number of people (millions) living in history of high category due to a high incidence classification in 2011-2015: ",round(sum(output_endemicity_50[output_endemicity_50$location_period_id%in%high_risk_1115$location_period_id,]$pop)/10^6,1)))
+  
+  high_risk_1620<-risk_pop_50_adm2 %>% 
+    filter(location_period_id %in% output_endemicity_50[output_endemicity_50$endemicity== "history of high risk",]$location_period_id) %>% 
+    filter(period == "2016-2020" & risk_cat %in% get_risk_cat_dict()[3:6]) 
+  
+  print(paste0("Number of people (millions) living in history of high category due to a high incidence classification in 2016-2020: ",round(sum(output_endemicity_50[output_endemicity_50$location_period_id%in%high_risk_1620$location_period_id,]$pop)/10^6,2)))
+  
+invisible(gc())
+```
+
 ## Paragraph 6
 
 ** We modeled the association of 10-year risk categories with outbreak locations reported during the 2022-2024 WHO-declared cholera outbreak emergency to evaluate the practical utility of 10-year risk categories for disease control targeting (Figure 4B). A total of 502 locations reported cholera outbreaks in Africa in 2022-2023, among which 65.9% were at ADM2 level or lower (331 locations). After spatially joining ADM2 or lower locations to our ADM2 level 10-year risk categories, we found that 17.3% of outbreak locations were in sustained high ADM2 units (49 distinct ADM2 locations, vs. 1.6% of non-outbreak locations) and 23.0% in history of high risk ADM2 units (65 distinct ADM2 locations, vs. 11.4% of non-outbreak locations) (Figure 4C). Notably, 34.6% of distinct ADM2 outbreak locations (98 locations across 9 countries –  Burundi, Democratic Republic of Congo, Ethiopia, Kenya, Mozambique, Rwanda, Tanzania, South Africa and Zimbabwe, vs. 60.6% of non-outbreak locations) occurred in "sustained low risk" ADM2 units, 80.6% of which occurred in Southern Africa (79 of 98, Figure 4D). After accounting for possible under-reporting of cholera outbreak occurrence, we found that the odds for ADM2 units to experience a 2022-2023 outbreak increased with the severity of their 10-year (2011-2020) risk category relative to sustained low-risk ADM2 units, although the increases were not statistically significant in all regions; the largest odds ratios were observed in the "sustained high risk" category in Central (median OR 133.5, 95% CrI: 1.6-104,109.4) and Eastern Africa (median OR 71.3, 95% CrI: 2,9-16,474.6) (Figure 4E), with variations between country within regions (mean ICC range of sustained high risk category: 0.53-0.61, Supplementary Figure XX).**
@@ -1406,7 +1467,7 @@ load("/home/cholerapipelinerestmp/postprocess/processed_outputs/recent_cholera_o
 OR_text <- OR_stats %>% 
   mutate(
     text = str_c(
-      formatC(median, format = "f", digits = 1),
+      formatC(mean, format = "f", digits = 1),
       " (",
       formatC(q2.5, format = "f", digits = 1),
       "-",
@@ -1419,10 +1480,74 @@ OR_text <- OR_stats %>%
   pivot_wider(values_from = "text",
               names_from = "AFRO_region")
 OR_text %>% 
-  kableExtra::kbl(caption = "Table 29. Odd ratios of cholera occurrence by region:\n") %>% 
+  kableExtra::kbl(caption = "Table 29. Odd ratios (mean) of cholera occurrence by region:\n") %>% 
   kableExtra::kable_styling(full_width = F) 
+```
+
+```{r probability of outbreak occurrency-reference group, echo=FALSE,message=FALSE}
+baseline_prob_stats %>% 
+  mutate(what = "reference",
+         param = case_when(str_detect(param, "baseline") ~ "sustained low",
+                           TRUE ~ param)) %>% 
+  select(AFRO_region,mean,q2.5,q97.5) %>% 
+  rename(
+    `African region` = AFRO_region,
+    `Mean probability` = mean,
+    `q2.5 of probability` = q2.5,
+    `q97.5 of probability` = q97.5
+  ) %>% 
+  kableExtra::kbl(caption = "Table 30. Probability (mean) of cholera occurrence for sustained low group by region") %>% 
+  kableExtra::kable_paper(full_width = F)
 ```
 
 ```{r ICC, echo=FALSE,message=FALSE}
 print(paste0("mean ICC range of sustained high risk category: ",round(min(ICC_stats[ICC_stats$param == 'sustained high risk',]$mean),2),'-',round(max(ICC_stats[ICC_stats$param == 'sustained high risk',]$mean),2)))
+```
+
+```{r fig6 related stats, echo=FALSE,message=FALSE}
+
+target_pop_levels <- c(1e7, seq(5e7, 4e8, by = 5e7))
+
+pop_frac_sel_2016_2020 <- map_df(target_pop_levels, function(x) {
+  cumul_pop_frac_stats_2016_2020 %>% 
+    group_by(ranking) %>% 
+    group_modify(function(y, z) {
+      rid <- which(y$cumul_pop >= x)[1]
+      slice(y, rid) %>% 
+        mutate(target_pop = x)
+    })
+})
+
+case_frac_sel_2016_2020 <- map_df(target_pop_levels, function(x) {
+  cumul_case_frac_stats_2016_2020 %>% 
+    group_by(ranking) %>% 
+    group_modify(function(y, z) {
+      rid <- which(y$cumul_pop >= x)[1]
+      slice(y, rid) %>% 
+        mutate(target_pop = x)
+    })
+})
+
+case_frac_sel_2016_2020 %>% 
+  filter(!(ranking == "optimal")) %>%
+  mutate(`Population targeted (M)` = target_pop/10^6,
+         `Proportion reached (mean, 95% Crls)` = paste0(round(mean_diff*100,2)," (",round(100*q025_diff,2),"-",round(q975_diff*100,2),")")) %>%
+  select(ranking,`Population targeted (M)`,`Proportion reached (mean, 95% Crls)`) %>% 
+  spread(key= ranking,value = `Proportion reached (mean, 95% Crls)`) %>% 
+  arrange(`Population targeted (M)`) %>% 
+  kableExtra::kbl(caption = "Table 31. Proportion of 2016-2020 cases") %>% 
+  kableExtra::kable_paper(full_width = F)
+
+pop_frac_sel_2016_2020 %>% 
+  mutate(ranking = case_when(ranking == "optimal" ~ "2022-2023", 
+                             T ~ ranking)) %>% 
+  mutate(`Population targeted (M)` = target_pop/10^6,
+         `Proportion reached (mean, 95% Crls)` = paste0(round(mean_diff*100,2)," (",round(100*q025_diff,2),"-",round(q975_diff*100,2),")")) %>%
+  select(ranking,`Population targeted (M)`,`Proportion reached (mean, 95% Crls)`) %>% 
+  spread(key= ranking,value = `Proportion reached (mean, 95% Crls)`) %>% 
+  arrange(`Population targeted (M)`) %>% 
+  select(`Population targeted (M)`,`2011-2015`,`2016-2020`,`2011-2020`,`2022-2023`) %>%
+  kableExtra::kbl(caption = "Table 32. Population living in ADM2 units with cholera occurrence in 2022-2023 reached by different strategies") %>% 
+  kableExtra::kable_paper(full_width = F)
+
 ```
