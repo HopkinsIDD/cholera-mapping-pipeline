@@ -3148,6 +3148,81 @@ p_targets2_2016_2020 <- p_targets_v2_2016_2020 +
 ggsave(p_targets2_2016_2020, filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_6.png"),
        width = 12, height = 5.5, dpi = 300)
 
+# Figure 6 supplement ----
+data_for_figure6_2011_2015 <- bind_rows(
+  case_frac_sel_2011_2015 %>% 
+    mutate(what = "annual cholera cases in 2011-2015")
+) %>% 
+  mutate(
+    target_pop_factor = factor(
+      str_c(formatC(target_pop/1e6, format = "f", digits = 0), "M"),
+      levels = str_c(formatC(target_pop_levels/1e6, format = "f", digits = 0), "M")),
+    ranking = factor(ranking, levels = names(colors_ranking())),
+    targeting = case_when(
+      str_detect(what, "case") & ranking == "2011-2015" ~ "oracle",
+      TRUE ~ "prospective") %>% 
+      factor()
+  ) %>% 
+  filter(!(ranking == "optimal" ))
+
+p_targets_v2_2011_2015_supp <- data_for_figure6_2011_2015 %>% 
+  mutate(ranking = case_when(ranking == "optimal" ~ "2022-2023", 
+                             T ~ ranking) %>% 
+           factor(levels = names(colors_ranking()))) %>% 
+  ggplot(aes(x = target_pop, y = mean_diff, color = ranking, fill = ranking)) +
+  geom_abline(aes(intercept = 0, slope = 1/1.1e9), lty = 2, lwd = .2) +
+  geom_bar(
+    stat = "identity", 
+    inherit.aes = F,
+    aes(x = target_pop, y = mean_diff),
+    position = pd, width = 2e7, alpha = 1, lwd = .1, 
+    fill = "white",
+    color = "black") +
+  ggpattern::geom_bar_pattern(
+    aes(pattern = targeting),
+    stat = "identity",
+    position = pd,
+    width = 2e7,
+    alpha = .5,
+    lwd = .05,
+    color = "black",
+    pattern_color = "white",
+    pattern_fill = "white",
+    pattern_angle = 45,
+    pattern_density = 0.01,
+    pattern_spacing = 0.025,
+    pattern_key_scale_factor = 0.6) +
+  geom_bar(
+    stat = "identity", 
+    inherit.aes = F,
+    aes(x = target_pop, y = mean_diff, group = ranking),
+    position = pd, width = 2e7, alpha = 0, lwd = .1, 
+    fill = "white",
+    color = "black") +
+  # geom_point(position = pd, size = 1) +
+  geom_errorbar(aes(ymin = q025_diff, ymax = q975_diff), 
+                position = pd, width = 1.5e7, lwd = .3) +
+  theme_bw() +
+  facet_grid(. ~ what) +
+  scale_fill_manual(values = colors_ranking()) +
+  scale_color_manual(values = colors_ranking()) +
+  labs(x = "Population targeted (out of total of 1.1 billion in 2020)",
+       y = "Proportion reached of ...") +
+  scale_y_continuous(breaks = c(0, .25, .5, .75, 1), labels = c("0%", "25%", "50%", "75%", "100%")) +
+  scale_x_continuous(breaks = c(10, seq(50, 400, by = 50))*1e6, 
+                     labels = function(x) str_c(formatC(x*1e-6, format = "f", digits = 0), "M")) +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()
+        # legend.position = c(.9, .8)
+  ) +
+  guides(fill = guide_legend(leg_title, override.aes = list(pattern = "none")),
+         color = guide_legend(leg_title),
+         pattern = guide_legend("Targeting type"))  +
+  ggpattern::scale_pattern_manual(values = c(oracle = "stripe", prospective = "none"))
+
+ggsave(p_targets_v2_2011_2015_supp, filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_6_supp.png"),
+       width = 7.5, height = 5.5, dpi = 300)
+
 # Scraps ------------------------------------------------------------------
 
 

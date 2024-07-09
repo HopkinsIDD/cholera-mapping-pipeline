@@ -1508,8 +1508,8 @@ print(paste0("mean ICC range of sustained high risk category: ",round(min(ICC_st
 
 target_pop_levels <- c(1e7, seq(5e7, 4e8, by = 5e7))
 
-pop_frac_sel <- map_df(target_pop_levels, function(x) {
-  cumul_pop_frac_stats %>% 
+pop_frac_sel_2016_2020 <- map_df(target_pop_levels, function(x) {
+  cumul_pop_frac_stats_2016_2020 %>% 
     group_by(ranking) %>% 
     group_modify(function(y, z) {
       rid <- which(y$cumul_pop >= x)[1]
@@ -1518,8 +1518,8 @@ pop_frac_sel <- map_df(target_pop_levels, function(x) {
     })
 })
 
-case_frac_sel <- map_df(target_pop_levels, function(x) {
-  cumul_case_frac_stats %>% 
+case_frac_sel_2016_2020 <- map_df(target_pop_levels, function(x) {
+  cumul_case_frac_stats_2016_2020 %>% 
     group_by(ranking) %>% 
     group_modify(function(y, z) {
       rid <- which(y$cumul_pop >= x)[1]
@@ -1528,48 +1528,26 @@ case_frac_sel <- map_df(target_pop_levels, function(x) {
     })
 })
 
-case_frac_sel %>% 
+case_frac_sel_2016_2020 %>% 
+  filter(!(ranking == "optimal")) %>%
   mutate(`Population targeted (M)` = target_pop/10^6,
          `Proportion reached (mean, 95% Crls)` = paste0(round(mean_diff*100,2)," (",round(100*q025_diff,2),"-",round(q975_diff*100,2),")")) %>%
   select(ranking,`Population targeted (M)`,`Proportion reached (mean, 95% Crls)`) %>% 
   spread(key= ranking,value = `Proportion reached (mean, 95% Crls)`) %>% 
   arrange(`Population targeted (M)`) %>% 
-  rename("Realized coverage gap" = `2011-2015` ,
-         "Best case coverage gap" = optimal) %>% 
   kableExtra::kbl(caption = "Table 31. Proportion of 2016-2020 cases") %>% 
   kableExtra::kable_paper(full_width = F)
 
-pop_frac_sel %>% 
+pop_frac_sel_2016_2020 %>% 
+  mutate(ranking = case_when(ranking == "optimal" ~ "2022-2023", 
+                             T ~ ranking)) %>% 
   mutate(`Population targeted (M)` = target_pop/10^6,
          `Proportion reached (mean, 95% Crls)` = paste0(round(mean_diff*100,2)," (",round(100*q025_diff,2),"-",round(q975_diff*100,2),")")) %>%
   select(ranking,`Population targeted (M)`,`Proportion reached (mean, 95% Crls)`) %>% 
   spread(key= ranking,value = `Proportion reached (mean, 95% Crls)`) %>% 
   arrange(`Population targeted (M)`) %>% 
-  select(`Population targeted (M)`,`2011-2015`,`2016-2020`,`2011-2020`,"optimal") %>%
+  select(`Population targeted (M)`,`2011-2015`,`2016-2020`,`2011-2020`,`2022-2023`) %>%
   kableExtra::kbl(caption = "Table 32. Population living in ADM2 units with cholera occurrence in 2022-2023 reached by different strategies") %>% 
   kableExtra::kable_paper(full_width = F)
 
-pop_frac_sel %>% 
-  select(ranking,mean_diff,target_pop) %>% 
-  spread(key= ranking,value = mean_diff) %>% 
-  mutate(
-    `ratio_1115_to_optimal` = round(`2011-2015`/optimal,2),
-    `ratio_1120_to_optimal` = round(`2011-2020`/optimal,2),
-    `ratio_1620_to_optimal` = round(`2016-2020`/optimal,2)
-  ) %>% 
-  mutate(`Population targeted (M)` = target_pop/10^6) %>% 
-  select(`Population targeted (M)`,`ratio_1115_to_optimal`,`ratio_1620_to_optimal`,`ratio_1120_to_optimal`) %>% 
-  kableExtra::kbl(caption = "Table 33. Ratio of population living in ADM2 units with cholera occurrence in 2022-2023 reached by different strategies compared to optimal strategy") %>% 
-  kableExtra::kable_paper(full_width = F)
-
-case_frac_sel %>% 
-  select(ranking,mean_diff,target_pop) %>% 
-  spread(key= ranking,value = mean_diff) %>% 
-  mutate(
-    `ratio_1115_to_optimal` = round(`2011-2015`/optimal,2)
-  ) %>% 
-  mutate(`Population targeted (M)` = target_pop/10^6) %>% 
-  select(`Population targeted (M)`,`ratio_1115_to_optimal`) %>% 
-  kableExtra::kbl(caption = "Table 34. Ratio of 2016-2020 cases reached by different strategies compared to optimal strategy") %>% 
-  kableExtra::kable_paper(full_width = F)
 ```
