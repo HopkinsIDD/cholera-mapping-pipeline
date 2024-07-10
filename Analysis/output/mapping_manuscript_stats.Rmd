@@ -934,7 +934,7 @@ by=c("country",'admin_level','location_period_id',"shp_id")) %>%
 
 
 ##Continent-wide mean annual incidence (figure 2A)
-load(paste0(params$output_directory,"/data_bundle_for_figures_test.rdata"))
+load("/home/cholerapipelinerestmp/postprocess/processed_outputs/data_bundle_for_figures_test.rdata")
 combined_mai_changes <- combined_mai_changes %>% filter(country == "SSA")
 print(paste0("The continent-wide mean annual incidence rate (2011-2015:", round(combined_mai_changes$`2011-2015`*10^5,2)," per 100,000 people; 2016-2020: ", round(combined_mai_changes$`2016-2020`*10^5,2), " per 100,000 people) remained steady across both periods, hovering just above 10 cases per 100,000 population (Fig 2A). "))
 
@@ -1550,4 +1550,10 @@ pop_frac_sel_2016_2020 %>%
   kableExtra::kbl(caption = "Table 32. Population living in ADM2 units with cholera occurrence in 2022-2023 reached by different strategies") %>% 
   kableExtra::kable_paper(full_width = F)
 
+```
+```{r additional text about cholera occurrence in 2022-2023, echo=FALSE,message=FALSE}
+getwd()
+load("C:/Users/zheng/Cholera/dev_postprocess/2024_06_05/outbreak_analysis_data.rdata")
+print(paste0("The distinct countries in which we have cholera occurrence in 2022-2023: ",
+            dat %>% filter(in_outbreak) %>% distinct(country)))
 ```

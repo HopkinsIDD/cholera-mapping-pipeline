@@ -1519,7 +1519,9 @@ strip <- ggh4x::strip_themed(
 p_fig2A_arrows <- plot_grid(
   # SSA
   make_dotlineplot(dat_for_incid_dotplot %>% 
-                     filter(country == "SSA")) +
+                     filter(country == "SSA") %>% 
+  mutate(country = case_when(country == "SSA"~"Africa",
+                             .default = country))) +
     theme(axis.title.x = element_blank(),
           axis.text.x = element_blank(),
           axis.ticks.x = element_blank()) +
@@ -1812,7 +1814,6 @@ ggsave(plot = p_fig2,
        width = 18,
        height = 9,
        dpi = 600)
-
 
 # Figure 3: population at risk --------------------------------------------
 
@@ -3073,7 +3074,7 @@ p_targets_v2_2016_2020 <- data_for_figure6_2016_2020 %>%
   scale_fill_manual(values = colors_ranking()) +
   scale_color_manual(values = colors_ranking()) +
   labs(x = "Population targeted (out of total of 1.1 billion in 2020)",
-       y = "Proportion reached of ...") +
+       y = "Proportion reached") +
   scale_y_continuous(breaks = c(0, .25, .5, .75, 1), labels = c("0%", "25%", "50%", "75%", "100%")) +
   scale_x_continuous(breaks = c(10, seq(50, 400, by = 50))*1e6, 
                      labels = function(x) str_c(formatC(x*1e-6, format = "f", digits = 0), "M")) +
