@@ -849,6 +849,29 @@ data.frame(readRDS(paste0(params$postprocessed_output_directory,'/mai_ratio_stat
   kableExtra::kable_styling(full_width = FALSE) %>% 
   kableExtra::scroll_box(width = "100%")
 
+data.frame(readRDS(paste0(params$postprocessed_output_directory,'/mai_ratio_stats.rds'))) %>%
+  filter(admin_level =="ADM0" & !country %in% c("BWA", "ERI", "GAB", "GNQ", "LSO")) %>% #exclude countries with zero case i both periods.
+  select(country,mean,q2.5,q97.5) %>% 
+  mutate(
+    `Mean IRR` = round(mean,2),
+    IRR_status = ifelse(q2.5>1,"significant_increase",ifelse(q97.5 < 1,"significant_decrease","non_significant"))
+  ) %>%
+  group_by(IRR_status) %>% 
+  summarize(
+    Num_of_countries = n()
+  ) %>% 
+  rbind(
+    data.frame(
+      IRR_status = "both_zero",
+      Num_of_countries = length(c("BWA", "ERI", "GAB", "GNQ", "LSO")))
+  ) %>% 
+  mutate(
+    `Prop (%)` = round(Num_of_countries/43*100,2)
+  ) %>% 
+    kableExtra::kbl(caption = "Table 12-1. Summary for incidence rate ratio") %>% 
+  kableExtra::kable_styling(full_width = FALSE) %>% 
+  kableExtra::scroll_box(width = "100%")
+
 # adm2 with significant increase/decrease/total number of adm2
 data.frame(readRDS(paste0(params$postprocessed_output_directory,'/mai_ratio_stats.rds'))) %>% 
   dplyr::select(!geom)%>%
@@ -911,7 +934,7 @@ by=c("country",'admin_level','location_period_id',"shp_id")) %>%
 
 
 ##Continent-wide mean annual incidence (figure 2A)
-load(paste0(params$output_directory,"/data_bundle_for_figures_test.rdata"))
+load("/home/cholerapipelinerestmp/postprocess/processed_outputs/data_bundle_for_figures_test.rdata")
 combined_mai_changes <- combined_mai_changes %>% filter(country == "SSA")
 print(paste0("The continent-wide mean annual incidence rate (2011-2015:", round(combined_mai_changes$`2011-2015`*10^5,2)," per 100,000 people; 2016-2020: ", round(combined_mai_changes$`2016-2020`*10^5,2), " per 100,000 people) remained steady across both periods, hovering just above 10 cases per 100,000 population (Fig 2A). "))
 
@@ -1485,8 +1508,8 @@ print(paste0("mean ICC range of sustained high risk category: ",round(min(ICC_st
 
 target_pop_levels <- c(1e7, seq(5e7, 4e8, by = 5e7))
 
-pop_frac_sel <- map_df(target_pop_levels, function(x) {
-  cumul_pop_frac_stats %>% 
+pop_frac_sel_2016_2020 <- map_df(target_pop_levels, function(x) {
+  cumul_pop_frac_stats_2016_2020 %>% 
     group_by(ranking) %>% 
     group_modify(function(y, z) {
       rid <- which(y$cumul_pop >= x)[1]
@@ -1495,8 +1518,8 @@ pop_frac_sel <- map_df(target_pop_levels, function(x) {
     })
 })
 
-case_frac_sel <- map_df(target_pop_levels, function(x) {
-  cumul_case_frac_stats %>% 
+case_frac_sel_2016_2020 <- map_df(target_pop_levels, function(x) {
+  cumul_case_frac_stats_2016_2020 %>% 
     group_by(ranking) %>% 
     group_modify(function(y, z) {
       rid <- which(y$cumul_pop >= x)[1]
@@ -1505,37 +1528,32 @@ case_frac_sel <- map_df(target_pop_levels, function(x) {
     })
 })
 
-case_frac_sel %>% 
+case_frac_sel_2016_2020 %>% 
+  filter(!(ranking == "optimal")) %>%
   mutate(`Population targeted (M)` = target_pop/10^6,
          `Proportion reached (mean, 95% Crls)` = paste0(round(mean_diff*100,2)," (",round(100*q025_diff,2),"-",round(q975_diff*100,2),")")) %>%
   select(ranking,`Population targeted (M)`,`Proportion reached (mean, 95% Crls)`) %>% 
   spread(key= ranking,value = `Proportion reached (mean, 95% Crls)`) %>% 
   arrange(`Population targeted (M)`) %>% 
-  rename("Realized coverage gap" = `2011-2015` ,
-         "Best case coverage gap" = optimal) %>% 
   kableExtra::kbl(caption = "Table 31. Proportion of 2016-2020 cases") %>% 
   kableExtra::kable_paper(full_width = F)
 
-pop_frac_sel %>% 
+pop_frac_sel_2016_2020 %>% 
+  mutate(ranking = case_when(ranking == "optimal" ~ "2022-2023", 
+                             T ~ ranking)) %>% 
   mutate(`Population targeted (M)` = target_pop/10^6,
          `Proportion reached (mean, 95% Crls)` = paste0(round(mean_diff*100,2)," (",round(100*q025_diff,2),"-",round(q975_diff*100,2),")")) %>%
   select(ranking,`Population targeted (M)`,`Proportion reached (mean, 95% Crls)`) %>% 
   spread(key= ranking,value = `Proportion reached (mean, 95% Crls)`) %>% 
   arrange(`Population targeted (M)`) %>% 
-  select(`Population targeted (M)`,`2011-2015`,`2016-2020`,`2011-2020`,"optimal") %>%
+  select(`Population targeted (M)`,`2011-2015`,`2016-2020`,`2011-2020`,`2022-2023`) %>%
   kableExtra::kbl(caption = "Table 32. Population living in ADM2 units with cholera occurrence in 2022-2023 reached by different strategies") %>% 
   kableExtra::kable_paper(full_width = F)
 
-pop_frac_sel %>% 
-  select(ranking,mean_diff,target_pop) %>% 
-  spread(key= ranking,value = mean_diff) %>% 
-  mutate(
-    `ratio_1115_to_optimal` = round(`2011-2015`/optimal,2),
-    `ratio_1120_to_optimal` = round(`2011-2020`/optimal,2),
-    `ratio_1620_to_optimal` = round(`2016-2020`/optimal,2)
-  ) %>% 
-  mutate(`Population targeted (M)` = target_pop/10^6) %>% 
-  select(`Population targeted (M)`,`ratio_1115_to_optimal`,`ratio_1620_to_optimal`,`ratio_1120_to_optimal`) %>% 
-  kableExtra::kbl(caption = "Table 33. Ratio of population living in ADM2 units with cholera occurrence in 2022-2023 reached by different strategies compared to optimal strategy") %>% 
-  kableExtra::kable_paper(full_width = F)
+```
+```{r additional text about cholera occurrence in 2022-2023, echo=FALSE,message=FALSE}
+getwd()
+load("C:/Users/zheng/Cholera/dev_postprocess/2024_06_05/outbreak_analysis_data.rdata")
+print(paste0("The distinct countries in which we have cholera occurrence in 2022-2023: ",
+            dat %>% filter(in_outbreak) %>% distinct(country)))
 ```
