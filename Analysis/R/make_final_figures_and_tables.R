@@ -1797,7 +1797,7 @@ ggsave(p_fig2B,
 
 p_fig2 <- plot_grid(
   p_fig2A +
-    theme(plot.margin = unit(c(1, 0, 1, 1), "lines")),
+    theme(plot.margin = unit(c(1, 1, 1, 1), "lines")),
   p_fig2B,
   ncol = 2,
   nrow = 1,
