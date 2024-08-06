@@ -1552,8 +1552,6 @@ pop_frac_sel_2016_2020 %>%
 
 ```
 ```{r additional text about cholera occurrence in 2022-2023, echo=FALSE,message=FALSE}
-getwd()
-load("C:/Users/zheng/Cholera/dev_postprocess/2024_06_05/outbreak_analysis_data.rdata")
 print(paste0("The distinct countries in which we have cholera occurrence in 2022-2023: ",
             dat %>% filter(in_outbreak) %>% distinct(country)))
 ```
