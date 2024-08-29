@@ -963,38 +963,6 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
   mai_adm_all <- mai_adm_all  %>% 
     inner_join(population %>% select(location_period_id, pop = mean, period)) 
   
-  # ## Incidence ratios around rivers and lakes -----
-  # 
-  # dist_sf <- list("rivers" = rivers_sf,
-  #                 "lakes" = lakes_sf,
-  #                 "coasts" = coasts_sf,
-  #                 "freshwater" = bind_rows(
-  #                   rivers_sf,
-  #                   lakes_sf
-  #                 ),
-  #                 "water" = bind_rows(
-  #                   rivers_sf,
-  #                   lakes_sf,
-  #                   coasts_sf
-  #                 ))
-  # 
-  # 
-  # irr_dat <- map_df(seq_along(dist_sf), function(x) {
-  #   map_df(c("within", "category"), function(y) {
-  #     cat("---- ", names(dist_sf)[x], y, "\n")
-  #     
-  #     irr_dist(dist_sf[[x]],
-  #              dist_vec = seq(5e3, 100e3, by = 10e3),
-  #              mai_adm = mai_adm,
-  #              mai_adm_all = mai_adm_all,
-  #              grid_cases = grid_cases,
-  #              afr_sf = afr_sf,
-  #              dist_definition = y,
-  #              by_region = T) %>% 
-  #       mutate(what = names(dist_sf)[x])
-  #   })
-  # })
-  
   ## Compute stats for targetting analysis  ---------------------------------------
   
   make_adm2_results <- function(p) {
@@ -1337,7 +1305,7 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
 
 # Figure 1: cases ---------------------------------------------------------
 
-## Figure 1A: gridded cases by time period --------------------------------
+## Figure 1A: gridded cases by time period ---------
 
 # Gridded maps of cases
 p_fig1A <- output_plot_map(sf_obj = grid_cases %>% 
@@ -1365,7 +1333,7 @@ if (opt$save_panel_figures) {
          dpi = 300)
 }
 
-## Figure 1B: cases by region and time period --------------------------------
+## Figure 1B: cases by region and time period ---------
 # Horizontal barplot of cases by region
 p_fig1B <- cases_by_region %>% 
   mutate(AFRO_region = factor(AFRO_region, levels = get_AFRO_region_levels()),
@@ -1418,12 +1386,13 @@ p_fig1 <- cowplot::plot_grid(
   rel_heights = c(.35, 1)
 )  + theme(panel.background = element_rect(fill = "white", color = "white"))
 
-p_fig1_v2 <- ggdraw() +
+# Add inset of WHO regions
+p_fig1 <- ggdraw() +
   draw_plot(p_fig1) +
   draw_plot(p_fig_BC_regions, x = 0.78, y = .77, width = .23, height = .23)
 
 # Save
-ggsave(plot = p_fig1_v2,
+ggsave(plot = p_fig1,
        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_1.png"),
        width = 10,
        height = 7.5,
@@ -1687,6 +1656,7 @@ risk_pop_regions <- pop_at_risk_regions %>%
   mutate(risk_cat = ifelse(risk_cat == ">100","\u2265100",risk_cat)) %>% 
   mutate(risk_cat = factor(risk_cat,levels = c("<1","1-10","10-20","20-50","50-100","\u2265100" )))
 
+# Figure 3A
 p_fig3A <- risk_pop_regions %>%
   ggplot(aes(y = risk_cat, x = mean)) +
   geom_bar(aes(fill = AFRO_region), stat = "identity", width = .5) +
@@ -1767,8 +1737,9 @@ ggsave(plot = p_fig3,
        dpi = 600)
 
 
-# Figure 4 ----------------------------------------------------------------
+# Figure 4:  10-year risk categories -------------------------------------
 
+# Compute 10-year risk categories
 endemicity_df_50_v2 <- risk_pop_50_adm2 %>% 
   mutate(high_risk = risk_cat %in% get_risk_cat_dict()[3:6],
          low_risk = risk_cat %in% get_risk_cat_dict()[1]) %>% 
@@ -1789,28 +1760,8 @@ endemicity_df_50_v2 <- risk_pop_50_adm2 %>%
 
 saveRDS(endemicity_df_50_v2, file = str_glue("{opt$output_dir}/endemicity_50.rds"))
 
-endemicity_df_95_v2 <- risk_pop_95_adm2 %>% 
-  mutate(high_risk = risk_cat %in% get_risk_cat_dict()[3:6],
-         low_risk = risk_cat %in% get_risk_cat_dict()[1]) %>% 
-  group_by(country, location_period_id) %>% 
-  summarise(
-    endemicity = case_when(
-      sum(high_risk) == 2 ~ "high-both",
-      sum(low_risk) == 2 ~ "low-both",
-      sum(high_risk) == 1 ~ "high-either",
-      T ~ "mix"),
-    pop = max(pop)
-  ) %>% 
-  mutate(
-    endemicity = factor(endemicity, 
-                        levels = c("high-both", "high-either", "mix", "low-both"),
-                        labels = c("sustained high", "history of high", "history of moderate", "sustained low")))  
 
-saveRDS(endemicity_df_95_v2, file = str_glue("{opt$output_dir}/endemicity_95.rds"))
-
-
-## Figure 4A: Alluvial plot ----
-
+## Figure 4A: Alluvial plot ---------
 # Process data for alluvial plot
 for_alluvial <- risk_pop_50_adm2 %>% 
   as_tibble() %>% 
@@ -1862,7 +1813,7 @@ p_fig4A <- for_alluvial %>%
   guides(fill = "none")
 
 
-## Figure 4B: Map of 10-year categories ----
+## Figure 4B: Map of 10-year categories ---------
 
 # Tile for legend
 hrisk_cat <- taxdat::get_risk_cat_dict()[-c(1:2)]
@@ -1908,6 +1859,7 @@ p_fig4B <- endemicity_df_50_v2 %>%
         panel.background = element_rect(fill = "white", color = "white")) +
   guides(fill = guide_legend("10-year incidence\ncategory"))
 
+
 # Add legend to map
 p_fig4B_legend <- ggdraw(
   p_fig4B +
@@ -1929,7 +1881,7 @@ if (opt$save_panel_figures) {
 }
 
 
-## Assemble Figure 4 ----
+## Assemble Figure 4 ---------
 
 p_fig4 <- plot_grid(
   p_fig4A + 
@@ -1961,8 +1913,7 @@ load(str_c(opt$output_dir, "/recent_cholera_outbreaks_res.rdata"))
 final_joins <- final_joins %>% 
   mutate(admin_level = str_c("ADM", admin_level))
 
-
-## Figure 5A: Map of cholera occurrence locations ----
+## Figure 5A: Map of cholera occurrence locations ---------
 p_ob_map <- endemicity_df_50_v2 %>% 
   inner_join(u_space_sf, .) %>% 
   select(-admin_level) %>% 
@@ -2003,7 +1954,7 @@ if (opt$save_panel_figures) {
          dpi = 100)
 }
 
-## Figure 5A: Distribution of 10-year risk categories among ADM2 locations ----
+## Figure 5A: Distribution of 10-year risk categories among ADM2 locations ---------
 ob_count_dat <-  obs_outbreaks %>% 
   mutate(endemicity = stringr::str_remove_all(endemicity, " risk")) %>% 
   mutate(occurrence = "       cholera\n       observed") %>% 
@@ -2033,7 +1984,7 @@ p_frac_overall <- ob_count_dat %>%
   coord_flip()
 
 
-## Figure 5B: Cholera occurrence model estimates ----
+## Figure 5B: Cholera occurrence model estimates ---------
 pd1 <- position_dodge(.4)
 pd2 <- position_dodge(.3)
 
@@ -2105,7 +2056,7 @@ p_or <- plot_grid(
   theme(plot.margin = unit(c(1, 3, 1, 3), units = "lines"))
 
 
-## Assemble Figure 5 ----
+## Assemble Figure 5 ---------
 
 p_fig5 <- plot_grid(
   plot_grid(
@@ -2132,11 +2083,11 @@ ggsave(plot = p_fig5,
        dpi = 300)
 
 
-
 # Figure 6: targetting ----------------------------------------------------
-
+# Compare strategies to target populations
 target_pop_levels <- c(1e7, seq(5e7, 4e8, by = 5e7))
 
+# Compute population covered by interventions
 pop_frac_sel_2016_2020 <- map_df(target_pop_levels, function(x) {
   print(x)
   cumul_pop_frac_stats_2016_2020 %>% 
@@ -2148,6 +2099,7 @@ pop_frac_sel_2016_2020 <- map_df(target_pop_levels, function(x) {
     })
 })
 
+# Compute fraction of population covered by interventions
 case_frac_sel_2016_2020 <- map_df(target_pop_levels, function(x) {
   print(x)
   cumul_case_frac_stats_2016_2020 %>% 
@@ -2159,6 +2111,7 @@ case_frac_sel_2016_2020 <- map_df(target_pop_levels, function(x) {
     })
 })
 
+# Compute fraction of population covered by interventions
 case_frac_sel_2011_2015 <- map_df(target_pop_levels, function(x) {
   print(x)
   cumul_case_frac_stats_2011_2015 %>% 
@@ -2171,14 +2124,6 @@ case_frac_sel_2011_2015 <- map_df(target_pop_levels, function(x) {
 })
 
 # Plot
-colors_ranking <- function() {
-  c("2011-2015" = "purple", 
-    "2016-2020" = "orange", 
-    "2011-2020" = "darkgreen", 
-    "2022-2023"= "darkgray",
-    "optimal"= "gray")
-}
-
 pd <- position_dodge(width = .8, preserve = "single")
 
 data_for_figure6_2016_2020 <- bind_rows(
@@ -2203,6 +2148,7 @@ data_for_figure6_2016_2020 <- bind_rows(
 leg_title <- "Period used for\ntargeting"
 pd <- position_dodge(width = 2.5e7, preserve = "single")
 
+# Bar plots of coverage
 p_targets_v2_2016_2020 <- data_for_figure6_2016_2020 %>% 
   mutate(ranking = case_when(ranking == "optimal" ~ "2022-2023", 
                              T ~ ranking) %>% 
@@ -2257,6 +2203,7 @@ p_targets_v2_2016_2020 <- data_for_figure6_2016_2020 %>%
   ggpattern::scale_pattern_manual(values = c(oracle = "stripe", prospective = "none"))
 
 
+# Arrow labels
 data_arrows_figure6_v2_2016_2020 <- data_for_figure6_2016_2020 %>% 
   filter(target_pop == 1e8,
          str_detect(what, "cases")) %>% 
@@ -2280,6 +2227,7 @@ data_arrows_figure6_v2_2016_2020 <- data_for_figure6_2016_2020 %>%
                    str_glue("unreached {what_label[1]}"))) %>% 
   slice(1)
 
+## Assemble Figure 6 ----------
 p_targets2_2016_2020 <- p_targets_v2_2016_2020 +
   theme(legend.background = element_blank()) +
   geom_segment(
@@ -2302,12 +2250,14 @@ p_targets2_2016_2020 <- p_targets_v2_2016_2020 +
   geom_hline(aes(yintercept = 1), color = "darkgray", lty = 2, lwd = .6)
 
 
+# Save
 ggsave(p_targets2_2016_2020, 
        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_6.png"),
        width = 12, height = 5.5, dpi = 300)
 
-# Supplementary figures ---------------------------------------------------
 
+
+# Supplementary figures ---------------------------------------------------
 
 ## Model fit ----
 # Scatter plot of ADM0 level units
@@ -2498,6 +2448,27 @@ ggsave(plot = p_fig3_95,
        dpi = 600)
 
 ### Figure 4 supplement figures (95% cutoff) ----
+
+endemicity_df_95_v2 <- risk_pop_95_adm2 %>% 
+  mutate(high_risk = risk_cat %in% get_risk_cat_dict()[3:6],
+         low_risk = risk_cat %in% get_risk_cat_dict()[1]) %>% 
+  group_by(country, location_period_id) %>% 
+  summarise(
+    endemicity = case_when(
+      sum(high_risk) == 2 ~ "high-both",
+      sum(low_risk) == 2 ~ "low-both",
+      sum(high_risk) == 1 ~ "high-either",
+      T ~ "mix"),
+    pop = max(pop)
+  ) %>% 
+  mutate(
+    endemicity = factor(endemicity, 
+                        levels = c("high-both", "high-either", "mix", "low-both"),
+                        labels = c("sustained high", "history of high", "history of moderate", "sustained low")))  
+
+saveRDS(endemicity_df_95_v2, file = str_glue("{opt$output_dir}/endemicity_95.rds"))
+
+
 p_fig4C_95 <- endemicity_df_95_v2 %>% 
   inner_join(u_space_sf, .) %>% 
   output_plot_map(sf_obj = .,
@@ -2952,7 +2923,40 @@ p_targets_v2_2011_2015_supp <- data_for_figure6_2011_2015 %>%
 ggsave(p_targets_v2_2011_2015_supp, filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_6_supp.png"),
        width = 7.5, height = 5.5, dpi = 300)
 
+
+
 # Scraps ------------------------------------------------------------------
+# Incidence ratios around rivers and lakes 
+# 
+# dist_sf <- list("rivers" = rivers_sf,
+#                 "lakes" = lakes_sf,
+#                 "coasts" = coasts_sf,
+#                 "freshwater" = bind_rows(
+#                   rivers_sf,
+#                   lakes_sf
+#                 ),
+#                 "water" = bind_rows(
+#                   rivers_sf,
+#                   lakes_sf,
+#                   coasts_sf
+#                 ))
+# 
+# 
+# irr_dat <- map_df(seq_along(dist_sf), function(x) {
+#   map_df(c("within", "category"), function(y) {
+#     cat("---- ", names(dist_sf)[x], y, "\n")
+#     
+#     irr_dist(dist_sf[[x]],
+#              dist_vec = seq(5e3, 100e3, by = 10e3),
+#              mai_adm = mai_adm,
+#              mai_adm_all = mai_adm_all,
+#              grid_cases = grid_cases,
+#              afr_sf = afr_sf,
+#              dist_definition = y,
+#              by_region = T) %>% 
+#       mutate(what = names(dist_sf)[x])
+#   })
+# })
 # compute_irr <- function(target_cells_sf,
 #                         grid_cases,
 #                         grid_rates,
