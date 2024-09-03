@@ -4,6 +4,8 @@
 # Colors ------------------------------------------------------------------
 color_lake_fill <- function(){"#aad3df"}
 color_lake_border <- function(){"#7fb4c4"}
+color_rivers <- function(){"#7fb4c4"}
+
 color_run_intended <- function(){c("#A1A1A1")}
 color_no_run_intended <- function(){c("#E2FFDE")}
 color_afr_continent_fill <- function(){c("#FFFFFF")}
@@ -12,32 +14,41 @@ colors_lisa_clusters <- function(){c("lightgray", "#D40A07", "#4543C4", "#F26F6D
 coloramp_cases <- function(){c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404")}
 
 # colors_admin_levels <- function(){c( "#4F802A", "#5449C7", "#BF0B07", "#DBB50B")}
-colors_admin_levels <- function(){c("#FFFF00","#CAE0C9", "#99CCFF", "#FF9999", "#CC9900", "#FF9933",'black')}
+#colors_admin_levels <- function(){c("#FFFF00","#CAE0C9", "#99CCFF", "#FF9999", "#CC9900", "#FF9933",'black')}
+colors_admin_levels <- function(){RColorBrewer::brewer.pal(n=4,name = 'Blues')}
 colors_endemicity_high <- function(){c("red", "gray")}
 colors_endemicity_low <- function(){c("blue", "gray")}
-colors_endemicity <- function(){c("#FF0000", "#E65F5F", "#F2A8A7", "#837EE6")} #"#0C14ED"
+# colors_endemicity <- function(){c("#FF0000", "#E65F5F", "#F2A8A7", "#837EE6")} #"#0C14ED"
 colors_endemicity <- function(){
-  # result of : paletteer::paletteer_d("calecopal::desert", direction = -1)[1:3]
-  # c("#291611FF", "#632D1FFF", "#B09175FF", "gray")
-  # result of : paletteer::paletteer_d("colRoz::v_acanthurus", direction = -1)[c(1, 2, 4)]
-  # c("#4A2C22FF","#BD6E39FF","#F8BC64FF", "gray")
   # Based on cases
   c("#993404", "#D95F0E", "#FED98E", "gray")
 }
 
+colors_periods <- function(){c("purple", "orange")}
+
 colors_risk_categories <- function() {
-  c( "gray", paletteer::paletteer_d("fishualize::Epinephelus_striatus", direction = -1))
+  c( paletteer::paletteer_d("fishualize::Epinephelus_striatus", direction = 1),"gray")
 }
 
 #' @export
 colors_afro_regions <- function(){
-  colors <- RColorBrewer::brewer.pal("Set2", n = 6)
+  # colors <- RColorBrewer::brewer.pal("Set2", n = 4)
+  colors <- c("#FFA378", "#A8B545", "#8C796D", "#024554")
   names(colors) <- c("Western Africa", "Central Africa",
-                     "Eastern Mediterranean",
+                     # "Eastern Mediterranean",
                      "Eastern Africa", "Southern Africa")
   colors
 }
 
+
+#' @export
+colors_ranking <- function() {
+  c("2011-2015" = "purple", 
+    "2016-2020" = "orange", 
+    "2011-2020" = "darkgreen", 
+    "2022-2023"= "darkgray",
+    "optimal"= "gray")
+}
 # Figure functions --------------------------------------------------------
 
 #' output_plot_map
@@ -54,12 +65,13 @@ colors_afro_regions <- function(){
 #' @examples
 output_plot_map <- function(sf_obj,
                             all_countries_sf,
-                            lakes_sf = get_lakes(),
+                            lakes_sf = NULL,
+                            rivers_sf = NULL,
                             fill_var,
                             fill_color_scale_type,
                             border_width = 0.005,
                             border_color = "white",
-                            lake_alpha = 0.6,
+                            lake_alpha = 1,
                             country_border_width = .3,
                             country_border_color = "black",
                             cholera_dir = 'cholera-mapping-pipeline') {
@@ -84,15 +96,25 @@ output_plot_map <- function(sf_obj,
                      color = "black",
                      lwd = country_border_width,
                      alpha = 0) +
-    ggplot2::geom_sf(data = all_countries_sf,
-                     inherit.aes = FALSE,
-                     lwd = country_border_width,
-                     color = country_border_color,
-                     alpha = 0) +
-    ggplot2::geom_sf(data = lakes_sf, fill = color_lake_fill(),
-                     color = color_lake_border(),
-                     lwd = .06,
-                     alpha = lake_alpha) +
+    {
+      if (!is.null(rivers_sf)) {
+        ggplot2::geom_sf(inherit.aes = FALSE,
+                         data = rivers_sf,
+                         color = color_rivers(),
+                         lwd = .1,
+                         alpha = 1)
+      }
+    } +
+    {
+      if (!is.null(lakes_sf)) {
+        ggplot2::geom_sf(inherit.aes = FALSE,
+                         data = lakes_sf, 
+                         fill = color_lake_fill(),
+                         color = color_lake_border(),
+                         lwd = .06,
+                         alpha = lake_alpha)
+      }
+    } +
     {  
       if(fill_color_scale_type == "rates") {
         scale_fill_viridis_c(breaks = seq(-1, 2), 
@@ -141,11 +163,16 @@ output_plot_map <- function(sf_obj,
       } else if(fill_color_scale_type == "endemicity_low") {
         scale_fill_manual(values = colors_endemicity_low())
       } else if(fill_color_scale_type == "endemicity") {
-        scale_fill_manual(values = colors_endemicity())
+        scale_fill_manual(values = colors_endemicity(),drop=FALSE)
       } else if(fill_color_scale_type == "admin levels") {
-        scale_fill_manual(values = colors_admin_levels())
+        scale_fill_manual(values = colors_admin_levels(),drop=FALSE)
       }
-    } +
+    } + 
+    ggplot2::geom_sf(data = all_countries_sf,
+                     inherit.aes = FALSE,
+                     lwd = country_border_width,
+                     color = country_border_color,
+                     alpha = 0) +
     taxdat::map_theme() +
     # Zoom to bounding box
     # ggplot2::coord_sf(xlim = st_bbox(sf_obj)[c(1, 3)],
@@ -171,6 +198,7 @@ plot_posterior_coverage <- function(gen_obs,
     dplyr::mutate(admin_level = factor(admin_level, levels = 0:10)) %>% 
     ggplot2::ggplot(aes(x = cri, y = frac_covered, color = admin_level)) +
     ggplot2::geom_line(aes(lty = admin_level), lwd = 1) +
+    geom_abline(intercept = 0, slope = 1, colour = "darkgray",linetype=2) +
     {
       if (!with_period) {
         ggplot2::facet_wrap(~ country)
@@ -182,7 +210,7 @@ plot_posterior_coverage <- function(gen_obs,
     ggplot2::coord_cartesian(ylim = c(0, 1)) +
     ggplot2::labs(x = "CrI width", y = "Fraction of full observations covered",
                   color = "Admin level", lty = "Admin level") +
-    ggplot2::scale_color_manual(values = colors_admin_levels())
+    ggplot2::scale_color_manual(values = RColorBrewer::brewer.pal(n=7,name = 'Blues')[-1])
 }
 
 # Auxiliary functions ----------------------------------------------------
@@ -206,11 +234,41 @@ get_lakes <- function(path = "Layers/geodata/Africa_waterbody.shp") {
   }
   
   lakes_sf <- sf::st_read(path) %>% 
-    dplyr::filter(Shape_area>.5) %>% 
+    dplyr::filter(Shape_area>.15) %>% 
+    rmapshaper::ms_simplify(keep = 0.1,
+                            keep_shapes = FALSE) %>% 
+    sf::st_make_valid()
+  
+  lakes_sf
+}
+
+
+#' @title Get rivers
+#'
+#' @description Gets rivers in SSA from
+#' https://data.apps.fao.org/catalog/iso/b891ca64-4cd4-4efd-a7ca-b386e98d52e8
+#'
+#' @param path to data file
+#' @param stream_order maximum A_Strahler order to keep (larger keeps smaller rivers) 
+#'
+#' @return an sf_object
+#' @export
+#' 
+get_rivers <- function(path = "Layers/geodata/rivers_africa_37333.shp",
+                       stream_order = 4) {
+  
+  if (!file.exists(path)) {
+    stop("Coudn't find shapefile for rivers. ",
+         "Please download from https://storage.googleapis.com/fao-maps-catalog-data/geonetwork/aquamaps/rivers_africa_37333.zip and save in folder Layers/geodata/",
+         "or provied path to folder")
+  }
+  
+  rivers_sf <- sf::st_read(path) %>% 
+    dplyr::filter(A_Strahler <= stream_order) %>% 
     rmapshaper::ms_simplify(keep = 0.1,
                             keep_shapes = FALSE)
   
-  lakes_sf
+  rivers_sf
 }
 
 
@@ -221,7 +279,6 @@ get_lakes <- function(path = "Layers/geodata/Africa_waterbody.shp") {
 #'
 #' @examples
 get_risk_cat_dict <- function() {
-  risk_cat_dict <- c("<1", "1-10", "10-20", "20-50", "50-100", ">100")
+  risk_cat_dict <- c("<1", "1-10", "10-20", "20-50", "50-100", "\u2265100")
   risk_cat_dict
 }
-

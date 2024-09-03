@@ -297,7 +297,7 @@ p_fig6 <- adm2_pop_at_risk %>%
 
 ggsave(p_fig6,
        file = str_glue("{opt$output_dir}/figure_risk_categories_prop_ADM2_{suffix}.png"),
-       width = 10,
+       width = 18,
        height = 8, 
        dpi = 300)
 
@@ -355,7 +355,7 @@ p_fig9 <- all_shapefiles %>%
                   border_color = "gray",
                   lake_alpha = 1,
                   country_border_color = "black",
-                  country_border_width = 1,
+                  country_border_width = 0.6,
                   cholera_dir = opt$cholera_dir)
 
 ggsave(p_fig9,

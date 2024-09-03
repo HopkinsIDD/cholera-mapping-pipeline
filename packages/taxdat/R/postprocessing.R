@@ -331,6 +331,40 @@ run_all <- function(
     export_packages <- c("tidyverse", "magrittr", "foreach", "rstan", "cmdstanr",
                          "lubridate", "sf", "taxdat")
     
+    if(!is.null(postprocess_fun_opts) & all(names(postprocess_fun_opts) == "col")){
+      if(postprocess_fun_opts$col == "pop_high_risk"){
+      
+      new_configs= NULL
+      for (config_idx in 1:length(configs)) {
+        configs_tmp <- read_yaml_for_data(configs[config_idx],data_dir)
+        
+        genquant <- readRDS(configs_tmp$file_names$stan_genquant_filename)
+        
+        # Get dictionnary of risk categories
+        risk_cat_dict <- get_risk_cat_dict()
+        high_risk_ind <- which(risk_cat_dict == ">100")
+        high_risk_var <- stringr::str_glue("tot_pop_risk[{high_risk_ind},3]")                       
+        
+        tot_pop_risk <- genquant$draws("tot_pop_risk") %>% 
+          draws_to_df(var_name = "tot_pop_risk",
+                      to_name = "variable",
+                      to_value = "tot_pop_risk") 
+        
+        if(!any(tot_pop_risk$variable==high_risk_var)){
+          new_configs <- configs[-config_idx]
+          print(paste0("no high risk population for ", configs_tmp$countries_name))
+        }
+        
+      }
+      if(is.null(new_configs)){
+        stop("No countries in this config list have high risk population.")
+      } else {
+        
+        configs <- new_configs
+      }
+    }}
+      
+    
     all_res <- foreach(
       config = configs,
       .combine = dplyr::bind_rows,
@@ -419,12 +453,8 @@ postprocess_mean_annual_incidence_draws <- function(config_list,
   
   # Get mean annual incidence summary
   mai_draws <- genquant$draws("location_total_rates_output") %>% 
-    posterior::as_draws() %>% 
-    posterior::as_draws_df() %>% 
-    dplyr::as_tibble() %>% 
-    tidyr::pivot_longer(cols = contains("location_total_rates_output"),
-                        names_to = "variable") %>% 
-    dplyr::select(-.iteration, -.chain)
+    draws_to_df(var_name = "location_total_rates_output")
+  
   
   # # Get the output shapefiles and join
   output_shapefiles <- get_output_sf_reload(config_list = config_list,
@@ -800,13 +830,9 @@ postprocess_pop_at_risk_draws <- function(config_list,
   
   # Get mean annual incidence summary
   pop_at_risk <- genquant$draws("tot_pop_risk") %>% 
-    posterior::as_draws() %>% 
-    posterior::as_draws_df() %>% 
-    dplyr::as_tibble()  %>% 
-    tidyr::pivot_longer(cols = contains("tot_pop_risk"),
-                        names_to = "variable",
-                        values_to = "tot_pop_risk") %>% 
-    dplyr::select(-.iteration, -.chain) %>% 
+    draws_to_df(var_name = "tot_pop_risk",
+                to_name = "variable",
+                to_value = "tot_pop_risk") %>% 
     dplyr::mutate(risk_cat = risk_cat_dict[as.numeric(stringr::str_extract(variable, "(?<=\\[)[0-9]+(?=,)"))],
                   risk_cat = factor(risk_cat, levels = risk_cat_dict),
                   admin_level = str_c("ADM", as.numeric(str_extract(variable, "(?<=,)[0-9]+(?=\\])")) - 1),
@@ -873,6 +899,40 @@ postprocess_grid_mai_rates <- function(config_list,
   res
 }
 
+#' postprocess_grid_mai_rates_draws
+#' 
+#' @param config_list config list
+#' @param redo_aux 
+#'
+#' @return
+#' @export
+#'
+postprocess_grid_mai_rates_draws <- function(config_list,
+                                             redo_aux = FALSE,
+                                             filter_draws = 4000) {
+  
+  cat("---- Extracting", filter_draws, "draws of mean annual rate grid\n")
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # Get mean annual incidence summary
+  rate_draws <- genquant$draws("space_grid_rates") %>% 
+    draws_to_df(var_name = "space_grid_rates",
+                filter_draws = filter_draws) %>% 
+    dplyr::mutate(grid_id = stringr::str_extract(variable, "[0-9]+") %>% as.integer())
+  
+  
+  # Get the output shapefiles and join
+  res <- get_space_grid(config_list = config_list,
+                        redo = redo_aux) %>% 
+    dplyr::mutate(grid_id = dplyr::row_number()) %>% 
+    dplyr::inner_join(rate_draws) %>% 
+    dplyr::select(-variable)
+  
+  res
+}
+
 
 #' postprocess_mean_annual_incidence
 #' 
@@ -900,6 +960,54 @@ postprocess_grid_mai_cases <- function(config_list,
     dplyr::select(-variable) %>% 
     dplyr::mutate(dplyr::across(.cols = c("mean", "q2.5", "q97.5"),
                                 ~ . * pop))
+  
+  res
+}
+
+#' postprocess_grid_mai_cases_draws
+#' 
+#' @param config_list config list
+#' @param redo_aux 
+#'
+#' @return
+#' @export
+#'
+postprocess_grid_mai_cases_draws <- function(config_list,
+                                             redo_aux = FALSE,
+                                             filter_draws = 4000) {
+  
+  
+  cat("---- Extracting", filter_draws, "draws of mean annual case grid\n")
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # Get mean annual incidence summary
+  rate_draws <- genquant$draws("space_grid_rates") %>% 
+    draws_to_df(var_name = "space_grid_rates",
+                filter_draws = filter_draws) %>% 
+    dplyr::mutate(grid_id = stringr::str_extract(variable, "[0-9]+") %>% as.integer())
+  
+  # Get population and average over space grid
+  mean_pop_sf <- get_mean_pop_grid(config_list = config_list,
+                                   redo = redo_aux) %>% 
+    sf::st_drop_geometry() %>% 
+    dplyr::ungroup() %>% 
+    dplyr::mutate(grid_id = dplyr::row_number()) %>% 
+    dplyr::ungroup()
+  
+  # Compute mai cases by grid cll
+  res <- mean_pop_sf %>% 
+    dplyr::inner_join(rate_draws) %>% 
+    dplyr::select(-variable) %>%
+    dplyr::mutate(value = value * pop)
+  
+  # Get the output shapefiles and join
+  res <- get_space_grid(config_list = config_list,
+                        redo = redo_aux) %>% 
+    dplyr::mutate(grid_id = dplyr::row_number()) %>% 
+    dplyr::inner_join(res) %>% 
+    dplyr::select(-pop)
   
   res
 }
@@ -950,6 +1058,40 @@ postprocess_gen_obs <- function(config_list,
   
   mapped_gen_obs
   
+}
+
+
+#' postprocess_mean_population
+#' Mean number of cases for all output locations across time slices
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_mean_population <- function(config_list,
+                                        redo_aux = FALSE) {
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # This assumes that the first output shapefile is always the national-level shapefile
+  population <- genquant$summary("pop_loc_output") %>% 
+    dplyr::mutate(country = get_country_from_string(config_list$file_names$stan_genquant_filename))
+  
+  # Get output shapefiles for admin level informaiton
+  output_shapefiles <- get_output_sf_reload(config_list = config_list,
+                                            redo = redo_aux) %>% 
+    sf::st_drop_geometry() %>% 
+    tibble::as_tibble() %>% 
+    dplyr::select(-country)
+  
+  res <- join_output_shapefiles(output = population, 
+                                output_shapefiles = output_shapefiles,
+                                var_col = "variable") %>% 
+    dplyr::select(-variable)
+  
+  res
 }
 
 # Output shapefiles -------------------------------------------------------
@@ -1073,7 +1215,8 @@ get_space_grid <- function(config_list,
     saveRDS(res, file = space_grid_sf_file)
   }
   
-  res
+  res %>% 
+    dplyr::ungroup()
 }
 
 #' get_smooth_grid
@@ -1139,7 +1282,8 @@ get_mean_pop_grid <- function(config_list,
 #' @export
 #'
 #' @examples
-collapse_grid <- function(df) {
+collapse_grid <- function(df,
+                          by_draw = FALSE) {
   
   u_grid <- df  %>%
     dplyr::group_by(rid, x, y) %>% 
@@ -1147,14 +1291,23 @@ collapse_grid <- function(df) {
     dplyr::select(rid, x, y, geom)
   
   
-  res <- df %>%
-    sf::st_drop_geometry() %>% 
-    dplyr::group_by(rid, x, y) %>% 
-    dplyr::summarise(mean = mean(mean),
-                     q2.5 = min(q2.5),
-                     q97.5 = max(q97.5),
-                     overlap = n() > 1) %>% 
-    dplyr::inner_join(u_grid, .)
+  if (!by_draw) {
+    res <- df %>%
+      sf::st_drop_geometry() %>% 
+      dplyr::group_by(rid, x, y) %>% 
+      dplyr::summarise(mean = mean(mean),
+                       q2.5 = min(q2.5),
+                       q97.5 = max(q97.5),
+                       overlap = n() > 1) %>% 
+      dplyr::inner_join(u_grid, .)
+  } else {
+    res <- df %>%
+      sf::st_drop_geometry() %>% 
+      dplyr::group_by(rid, x, y, .draw) %>% 
+      dplyr::summarise(value = mean(value),
+                       overlap = n() > 1) %>% 
+      dplyr::inner_join(u_grid, .)
+  }
   
   res
 }
@@ -1204,6 +1357,52 @@ compute_cumul_proportion_thresh <- function(v, thresh = .95) {
     "risk_cat" = dplyr::first(rev(names(all_counts))[which(cum_prob >= thresh)]) %>% as.numeric(),
     "cumul_prob" = cum_prob_thresh
   )
+}
+
+
+#' Title
+#'
+#' @param draws 
+#' @param var_name 
+#' @param to_name 
+#' @param to_value 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+draws_to_df <- function(draws,
+                        var_name,
+                        to_name = "variable",
+                        to_value = "value",
+                        filter_draws = 4000) {
+  
+  draws <- draws %>% 
+    posterior::as_draws()
+  
+  # Subsample draws if asked for
+  if (!is.null(filter_draws)) {
+    
+    # Get all draws
+    all_draws <- prod(dim(draws)[1:2])
+    
+    if (filter_draws > all_draws) {
+      stop("Asked for ", filter_draws, " draws but only ", all_draws, " available.")
+    }
+    
+    draws_subset <- sample(seq_len(all_draws), filter_draws, replace = FALSE)
+    
+    draws <- draws %>% 
+      posterior::subset_draws(draw = draws_subset) 
+  } 
+  
+  draws %>% 
+    posterior::as_draws_df() %>% 
+    dplyr::as_tibble() %>% 
+    tidyr::pivot_longer(cols = contains(var_name),
+                        names_to = to_name,
+                        values_to = to_value) %>% 
+    dplyr::select(-.iteration, -.chain)
 }
 
 #' Title
@@ -1315,7 +1514,8 @@ get_coverage <- function(df,
 aggregate_and_summarise_draws <- function(df, 
                                           col = "country_cases",
                                           grouping_variables = NULL,
-                                          weights_col = NULL) {
+                                          weights_col = NULL,
+                                          do_summary = TRUE) {
   
   df %>% 
     dplyr::group_by_at(c(".draw", grouping_variables)) %>% 
@@ -1341,8 +1541,16 @@ aggregate_and_summarise_draws <- function(df,
                                 stringr::str_remove("x"))
       }
     }  %>% 
-    posterior::as_draws() %>% 
-    posterior::summarise_draws(custom_summaries())
+    posterior::as_draws() %>%
+    {
+      x <- .
+      if(do_summary) {
+        posterior::summarise_draws(x, custom_summaries())
+      } else {
+        posterior::as_draws_df(x) %>% 
+          dplyr::as_tibble()
+      }
+    }
 }
 
 #' aggregate_and_summarise_case_draws_by_region
@@ -1359,7 +1567,8 @@ aggregate_and_summarise_draws <- function(df,
 aggregate_and_summarise_draws_by_region <- function(df, 
                                                     col = "country_cases",
                                                     grouping_variables = NULL,
-                                                    weights_col = NULL) {
+                                                    weights_col = NULL,
+                                                    do_summary = TRUE) {
   
   # Define columns from which to extract names
   if (!is.null(grouping_variables)) {
@@ -1386,7 +1595,15 @@ aggregate_and_summarise_draws_by_region <- function(df,
     dplyr::select(-draw) %>% 
     magrittr::set_names(stringr::str_c(col, colnames(.), sep = "_")) %>% 
     posterior::as_draws() %>% 
-    posterior::summarise_draws(custom_summaries())
+    {
+      x <- .
+      if(do_summary) {
+        posterior::summarise_draws(x, custom_summaries())
+      } else {
+        posterior::as_draws_df(x) %>% 
+          dplyr::as_tibble()
+      }
+    }
 }
 
 
