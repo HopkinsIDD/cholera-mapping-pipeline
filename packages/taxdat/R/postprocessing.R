@@ -331,6 +331,40 @@ run_all <- function(
     export_packages <- c("tidyverse", "magrittr", "foreach", "rstan", "cmdstanr",
                          "lubridate", "sf", "taxdat")
     
+    if(!is.null(postprocess_fun_opts) & all(names(postprocess_fun_opts) == "col")){
+      if(postprocess_fun_opts$col == "pop_high_risk"){
+      
+      new_configs= NULL
+      for (config_idx in 1:length(configs)) {
+        configs_tmp <- read_yaml_for_data(configs[config_idx],data_dir)
+        
+        genquant <- readRDS(configs_tmp$file_names$stan_genquant_filename)
+        
+        # Get dictionnary of risk categories
+        risk_cat_dict <- get_risk_cat_dict()
+        high_risk_ind <- which(risk_cat_dict == ">100")
+        high_risk_var <- stringr::str_glue("tot_pop_risk[{high_risk_ind},3]")                       
+        
+        tot_pop_risk <- genquant$draws("tot_pop_risk") %>% 
+          draws_to_df(var_name = "tot_pop_risk",
+                      to_name = "variable",
+                      to_value = "tot_pop_risk") 
+        
+        if(!any(tot_pop_risk$variable==high_risk_var)){
+          new_configs <- configs[-config_idx]
+          print(paste0("no high risk population for ", configs_tmp$countries_name))
+        }
+        
+      }
+      if(is.null(new_configs)){
+        stop("No countries in this config list have high risk population.")
+      } else {
+        
+        configs <- new_configs
+      }
+    }}
+      
+    
     all_res <- foreach(
       config = configs,
       .combine = dplyr::bind_rows,
@@ -404,6 +438,37 @@ postprocess_mean_annual_incidence <- function(config_list,
   res
 }
 
+#' postprocess_mean_annual_incidence_draws
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_mean_annual_incidence_draws <- function(config_list,
+                                                    redo_aux = FALSE) {
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # Get mean annual incidence summary
+  mai_draws <- genquant$draws("location_total_rates_output") %>% 
+    draws_to_df(var_name = "location_total_rates_output")
+  
+  
+  # # Get the output shapefiles and join
+  output_shapefiles <- get_output_sf_reload(config_list = config_list,
+                                            redo = redo_aux)
+  
+  res <- join_output_shapefiles(output = mai_draws,
+                                output_shapefiles = output_shapefiles %>% 
+                                  sf::st_drop_geometry(),
+                                var_col = "variable") %>%
+    dplyr::select(-variable) 
+  
+  res
+}
+
 
 #' postprocess_mai_adm0_cases
 #' 
@@ -431,6 +496,71 @@ postprocess_adm0_cases <- function(config_list,
   
   
   cases_adm0
+}
+
+#' postprocess_mai_adm0_simulated_cases
+#' This differs from postprocess_adm0_cases in that it accounts for eventual 
+#' over-dispersion in the observation in the model
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_mai_adm0_simulated_cases <- function(config_list,
+                                                 redo_aux = FALSE) {
+  
+  # First get the mean of the cases
+  mean_cases_adm0 <- postprocess_adm0_cases(config_list,
+                                            redo_aux = redo_aux)
+  
+  # Get the observation model
+  stan_input <- read_file_of_type(config_list$file_names$stan_input_filename, "stan_input") 
+  obs_model <- stan_input$stan_data$obs_model
+  adm0_od <- stan_input$stan_data$adm0_od
+  
+  # Simulate
+  res <- simulate_observations(mean_cases_adm0$country_cases,
+                               obs_model = obs_model,
+                               od_param = adm0_od)
+  
+  
+  mean_cases_adm0 %>% 
+    mutate(country_cases = res) %>% 
+    rename(sim_country_cases = country_cases)
+}
+
+
+#' postprocess_adm_mean_cases
+#' Mean number of cases for all output locations across time slices
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_mean_annual_cases <- function(config_list,
+                                          redo_aux = FALSE) {
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # This assumes that the first output shapefile is always the national-level shapefile
+  cases <- genquant$summary("location_mean_cases_output", custom_summaries()) %>% 
+    dplyr::mutate(country = get_country_from_string(config_list$file_names$stan_genquant_filename))
+  
+  # Get output shapefiles for admin level informaiton
+  output_shapefiles <- get_output_sf_reload(config_list = config_list,
+                                            redo = redo_aux) %>% 
+    sf::st_drop_geometry() %>% 
+    tibble::as_tibble() %>% 
+    dplyr::select(-country)
+  
+  res <- join_output_shapefiles(output = cases, 
+                                output_shapefiles = output_shapefiles,
+                                var_col = "variable") %>% 
+    dplyr::select(-variable)
+  
+  res
 }
 
 
@@ -561,6 +691,27 @@ postprocess_lp_shapefiles <- function(config_list,
     dplyr::arrange(admin_level, location_name)
 }
 
+
+#' postprocess_observations
+#' Extracts observations
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_observations <- function(config_list,
+                                     redo_aux = FALSE) {
+  
+  stan_input <- taxdat::read_file_of_type(config_list$file_names$stan_input_filename, "stan_input")
+  
+  cases_column <- taxdat::check_case_definition(config_list$case_definition) %>% 
+    taxdat::case_definition_to_column_name(database = T)
+  
+  stan_input$sf_cases_resized %>% 
+    sf::st_drop_geometry()
+}
+
 #' postprocess_lp_obs_counts
 #' Extracts observation counts by location period
 #' 
@@ -652,12 +803,43 @@ postprocess_pop_at_risk <- function(config_list,
   pop_at_risk <- genquant$summary("tot_pop_risk", custom_summaries()) %>% 
     dplyr::mutate(risk_cat = risk_cat_dict[as.numeric(stringr::str_extract(variable, "(?<=\\[)[0-9]+(?=,)"))],
                   risk_cat = factor(risk_cat, levels = risk_cat_dict),
-                  admin_level = as.numeric(str_extract(variable, "(?<=,)[0-9]+(?=\\])")) - 1,
+                  admin_level = str_c("ADM", as.numeric(str_extract(variable, "(?<=,)[0-9]+(?=\\])")) - 1),
                   country = taxdat::get_country_isocode(config_list))
   
   pop_at_risk
 }
 
+
+#' postprocess_pop_at_risk
+#'
+#' @param config_list 
+#' @param redo_aux 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+postprocess_pop_at_risk_draws <- function(config_list,
+                                          redo_aux = FALSE) {
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # Get dictionnary of risk categories
+  risk_cat_dict <- get_risk_cat_dict()
+  
+  # Get mean annual incidence summary
+  pop_at_risk <- genquant$draws("tot_pop_risk") %>% 
+    draws_to_df(var_name = "tot_pop_risk",
+                to_name = "variable",
+                to_value = "tot_pop_risk") %>% 
+    dplyr::mutate(risk_cat = risk_cat_dict[as.numeric(stringr::str_extract(variable, "(?<=\\[)[0-9]+(?=,)"))],
+                  risk_cat = factor(risk_cat, levels = risk_cat_dict),
+                  admin_level = str_c("ADM", as.numeric(str_extract(variable, "(?<=,)[0-9]+(?=\\])")) - 1),
+                  country = taxdat::get_country_isocode(config_list))
+  
+  pop_at_risk
+}
 
 #' postprocess_pop_at_high_risk
 #' This is to match computations in the Lancet paper of > 100 cases/100'000
@@ -717,6 +899,40 @@ postprocess_grid_mai_rates <- function(config_list,
   res
 }
 
+#' postprocess_grid_mai_rates_draws
+#' 
+#' @param config_list config list
+#' @param redo_aux 
+#'
+#' @return
+#' @export
+#'
+postprocess_grid_mai_rates_draws <- function(config_list,
+                                             redo_aux = FALSE,
+                                             filter_draws = 4000) {
+  
+  cat("---- Extracting", filter_draws, "draws of mean annual rate grid\n")
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # Get mean annual incidence summary
+  rate_draws <- genquant$draws("space_grid_rates") %>% 
+    draws_to_df(var_name = "space_grid_rates",
+                filter_draws = filter_draws) %>% 
+    dplyr::mutate(grid_id = stringr::str_extract(variable, "[0-9]+") %>% as.integer())
+  
+  
+  # Get the output shapefiles and join
+  res <- get_space_grid(config_list = config_list,
+                        redo = redo_aux) %>% 
+    dplyr::mutate(grid_id = dplyr::row_number()) %>% 
+    dplyr::inner_join(rate_draws) %>% 
+    dplyr::select(-variable)
+  
+  res
+}
+
 
 #' postprocess_mean_annual_incidence
 #' 
@@ -744,6 +960,54 @@ postprocess_grid_mai_cases <- function(config_list,
     dplyr::select(-variable) %>% 
     dplyr::mutate(dplyr::across(.cols = c("mean", "q2.5", "q97.5"),
                                 ~ . * pop))
+  
+  res
+}
+
+#' postprocess_grid_mai_cases_draws
+#' 
+#' @param config_list config list
+#' @param redo_aux 
+#'
+#' @return
+#' @export
+#'
+postprocess_grid_mai_cases_draws <- function(config_list,
+                                             redo_aux = FALSE,
+                                             filter_draws = 4000) {
+  
+  
+  cat("---- Extracting", filter_draws, "draws of mean annual case grid\n")
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # Get mean annual incidence summary
+  rate_draws <- genquant$draws("space_grid_rates") %>% 
+    draws_to_df(var_name = "space_grid_rates",
+                filter_draws = filter_draws) %>% 
+    dplyr::mutate(grid_id = stringr::str_extract(variable, "[0-9]+") %>% as.integer())
+  
+  # Get population and average over space grid
+  mean_pop_sf <- get_mean_pop_grid(config_list = config_list,
+                                   redo = redo_aux) %>% 
+    sf::st_drop_geometry() %>% 
+    dplyr::ungroup() %>% 
+    dplyr::mutate(grid_id = dplyr::row_number()) %>% 
+    dplyr::ungroup()
+  
+  # Compute mai cases by grid cll
+  res <- mean_pop_sf %>% 
+    dplyr::inner_join(rate_draws) %>% 
+    dplyr::select(-variable) %>%
+    dplyr::mutate(value = value * pop)
+  
+  # Get the output shapefiles and join
+  res <- get_space_grid(config_list = config_list,
+                        redo = redo_aux) %>% 
+    dplyr::mutate(grid_id = dplyr::row_number()) %>% 
+    dplyr::inner_join(res) %>% 
+    dplyr::select(-pop)
   
   res
 }
@@ -776,19 +1040,58 @@ postprocess_gen_obs <- function(config_list,
   # Join with data
   load(config_list$file_names$stan_input_filename)
   
-  mapped_gen_obs <- gen_obs[stan_input$stan_data$map_obs_loctime_combs, ] %>% 
+  mapped_gen_obs <- gen_obs %>% 
+    .[stan_input$stan_data$map_obs_loctime_combs, ] %>% 
     dplyr::bind_cols(stan_input$sf_cases_resized %>% 
                        sf::st_drop_geometry() %>% 
                        dplyr::filter(!is.na(loctime)) %>% 
                        dplyr::select(observation = attributes.fields.suspected_cases,
                                      censoring,
-                                     admin_level)) %>% 
+                                     admin_level,
+                                     locationPeriod_id,
+                                     TL, 
+                                     TR) %>% 
+                       dplyr::mutate(loctime_comb = stan_input$stan_data$map_obs_loctime_combs)) %>% 
     dplyr::mutate(obs_gen_id = stringr::str_extract(variable, "[0-9]+") %>% as.numeric()) %>% 
     dplyr::add_count(obs_gen_id)
   
   
   mapped_gen_obs
   
+}
+
+
+#' postprocess_mean_population
+#' Mean number of cases for all output locations across time slices
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_mean_population <- function(config_list,
+                                        redo_aux = FALSE) {
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # This assumes that the first output shapefile is always the national-level shapefile
+  population <- genquant$summary("pop_loc_output") %>% 
+    dplyr::mutate(country = get_country_from_string(config_list$file_names$stan_genquant_filename))
+  
+  # Get output shapefiles for admin level informaiton
+  output_shapefiles <- get_output_sf_reload(config_list = config_list,
+                                            redo = redo_aux) %>% 
+    sf::st_drop_geometry() %>% 
+    tibble::as_tibble() %>% 
+    dplyr::select(-country)
+  
+  res <- join_output_shapefiles(output = population, 
+                                output_shapefiles = output_shapefiles,
+                                var_col = "variable") %>% 
+    dplyr::select(-variable)
+  
+  res
 }
 
 # Output shapefiles -------------------------------------------------------
@@ -861,11 +1164,10 @@ get_AFRO_region <- function(data, ctry_col) {
   data_with_AFRO_region <- data %>% 
     dplyr::mutate(
       AFRO_region = dplyr::case_when(
-        !!rlang::sym(ctry_col) %in% c("BDI","ETH","KEN","MDG","RWA","SDN","SSD","UGA","TZA") ~ "Eastern Africa",
-        !!rlang::sym(ctry_col) %in% c("BWA","MOZ","MWI","NAM","SWZ","ZMB","ZWE","ZAF") ~ "Southern Africa",
-        !!rlang::sym(ctry_col) %in% c("AGO","CMR","CAF","TCD","COG","COD","GNQ","GAN") ~ "Central Africa",
-        !!rlang::sym(ctry_col) %in% c("BEN","BFA","CIV","GHA","GIN","GNB","LBR","MLI","MRT","NER","NGA","SEN","SLE","TGO") ~ "Western Africa",
-        !!rlang::sym(ctry_col) %in% c("DJI","SOM","SDN") ~ "Eastern Mediterranean"
+        !!rlang::sym(ctry_col) %in% c("BDI","ETH","KEN","MDG","RWA","SDN","SSD","UGA","TZA","ERI","","DJI","SOM","SDN") ~ "Eastern Africa",
+        !!rlang::sym(ctry_col) %in% c("BWA","MOZ","MWI","NAM","SWZ","ZMB","ZWE","ZAF","LSO") ~ "Southern Africa",
+        !!rlang::sym(ctry_col) %in% c("AGO","CMR","CAF","TCD","COG","COD","GNQ","GAN","GAB") ~ "Central Africa",
+        !!rlang::sym(ctry_col) %in% c("BEN","BFA","CIV","GHA","GIN","GNB","LBR","MLI","MRT","NER","NGA","SEN","SLE","TGO","DJI","SOM","SDN") ~ "Western Africa",
       ) 
     )
   
@@ -879,7 +1181,7 @@ get_AFRO_region <- function(data, ctry_col) {
 #'
 #' @examples
 get_AFRO_region_levels <- function() {
-  c("Western Africa", "Central Africa", "Eastern Africa", "Eastern Mediterranean", "Southern Africa")
+  c("Western Africa", "Central Africa", "Eastern Africa", "Southern Africa")
 }
 
 
@@ -913,7 +1215,8 @@ get_space_grid <- function(config_list,
     saveRDS(res, file = space_grid_sf_file)
   }
   
-  res
+  res %>% 
+    dplyr::ungroup()
 }
 
 #' get_smooth_grid
@@ -979,7 +1282,8 @@ get_mean_pop_grid <- function(config_list,
 #' @export
 #'
 #' @examples
-collapse_grid <- function(df) {
+collapse_grid <- function(df,
+                          by_draw = FALSE) {
   
   u_grid <- df  %>%
     dplyr::group_by(rid, x, y) %>% 
@@ -987,14 +1291,23 @@ collapse_grid <- function(df) {
     dplyr::select(rid, x, y, geom)
   
   
-  res <- df %>%
-    sf::st_drop_geometry() %>% 
-    dplyr::group_by(rid, x, y) %>% 
-    dplyr::summarise(mean = mean(mean),
-                     q2.5 = min(q2.5),
-                     q97.5 = max(q97.5),
-                     overlap = n() > 1) %>% 
-    dplyr::inner_join(u_grid, .)
+  if (!by_draw) {
+    res <- df %>%
+      sf::st_drop_geometry() %>% 
+      dplyr::group_by(rid, x, y) %>% 
+      dplyr::summarise(mean = mean(mean),
+                       q2.5 = min(q2.5),
+                       q97.5 = max(q97.5),
+                       overlap = n() > 1) %>% 
+      dplyr::inner_join(u_grid, .)
+  } else {
+    res <- df %>%
+      sf::st_drop_geometry() %>% 
+      dplyr::group_by(rid, x, y, .draw) %>% 
+      dplyr::summarise(value = mean(value),
+                       overlap = n() > 1) %>% 
+      dplyr::inner_join(u_grid, .)
+  }
   
   res
 }
@@ -1044,6 +1357,52 @@ compute_cumul_proportion_thresh <- function(v, thresh = .95) {
     "risk_cat" = dplyr::first(rev(names(all_counts))[which(cum_prob >= thresh)]) %>% as.numeric(),
     "cumul_prob" = cum_prob_thresh
   )
+}
+
+
+#' Title
+#'
+#' @param draws 
+#' @param var_name 
+#' @param to_name 
+#' @param to_value 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+draws_to_df <- function(draws,
+                        var_name,
+                        to_name = "variable",
+                        to_value = "value",
+                        filter_draws = 4000) {
+  
+  draws <- draws %>% 
+    posterior::as_draws()
+  
+  # Subsample draws if asked for
+  if (!is.null(filter_draws)) {
+    
+    # Get all draws
+    all_draws <- prod(dim(draws)[1:2])
+    
+    if (filter_draws > all_draws) {
+      stop("Asked for ", filter_draws, " draws but only ", all_draws, " available.")
+    }
+    
+    draws_subset <- sample(seq_len(all_draws), filter_draws, replace = FALSE)
+    
+    draws <- draws %>% 
+      posterior::subset_draws(draw = draws_subset) 
+  } 
+  
+  draws %>% 
+    posterior::as_draws_df() %>% 
+    dplyr::as_tibble() %>% 
+    tidyr::pivot_longer(cols = contains(var_name),
+                        names_to = to_name,
+                        values_to = to_value) %>% 
+    dplyr::select(-.iteration, -.chain)
 }
 
 #' Title
@@ -1107,25 +1466,46 @@ custom_quantile2 <- function(x, cri = cri_interval()) {
 #'
 #' @examples
 get_coverage <- function(df, 
-                         widths = c(seq(.05, .95, by = .1), .99)){
+                         widths = c(seq(.05, .95, by = .1), .99),
+                         with_period = FALSE){
   
   purrr::map_df(widths, function(w) {
     bounds <- str_c("q", c(.5 - w/2, .5 + w/2)*100)
     
     df %>% 
-      dplyr::select(country, admin_level, observation, censoring, 
-                    dplyr::one_of(bounds)) %>%
+      {
+        x <- .
+        if (!with_period){
+          dplyr::select(x, country, admin_level, observation, censoring, 
+                        dplyr::one_of(bounds))
+        } else {
+          dplyr::select(x, country, admin_level, observation, censoring, 
+                        period,
+                        dplyr::one_of(bounds))
+        }
+      } %>%
       dplyr::mutate(in_cri = observation >= !!rlang::sym(bounds[1]) &
                       observation <= !!rlang::sym(bounds[2])) %>% 
-      dplyr::group_by(country, admin_level) %>% 
+      {
+        x <- .
+        if (!with_period){
+          dplyr::group_by(x, country, admin_level)
+        } else {
+          dplyr::group_by(x, period, country, admin_level)
+        }
+      } %>% 
       dplyr::summarise(frac_covered = sum(in_cri)/n()) %>% 
-      dplyr::mutate(cri = w)
+      dplyr::mutate(cri = w) %>% 
+      dplyr::ungroup()
   })
 }
 
 #' aggregate_and_summarise_case_draws
 #'
 #' @param df 
+#' @param col 
+#' @param grouping_variables 
+#' @param weights_col 
 #'
 #' @return
 #' @export
@@ -1133,9 +1513,12 @@ get_coverage <- function(df,
 #' @examples
 aggregate_and_summarise_draws <- function(df, 
                                           col = "country_cases",
-                                          weights_col = NULL) {
+                                          grouping_variables = NULL,
+                                          weights_col = NULL,
+                                          do_summary = TRUE) {
+  
   df %>% 
-    dplyr::group_by(.draw) %>%
+    dplyr::group_by_at(c(".draw", grouping_variables)) %>% 
     {
       x <- .
       if (is.null(weights_col)) {
@@ -1144,13 +1527,38 @@ aggregate_and_summarise_draws <- function(df,
         dplyr::summarise(x, tot = sum(!!rlang::sym(col) * !!rlang::sym(weights_col))/sum(!!rlang::sym(weights_col))) 
       }
     } %>% 
-    posterior::as_draws() %>% 
-    posterior::summarise_draws(custom_summaries())
+    {
+      x <- .
+      if (is.null(grouping_variables)) {
+        x
+      } else {
+        x %>% dplyr::ungroup() %>% 
+          tidyr::pivot_wider(names_from = grouping_variables,
+                             values_from = "tot") %>% 
+          janitor::clean_names() %>% 
+          dplyr::select(-draw) %>% 
+          magrittr::set_names(stringr::str_c(col, colnames(.), sep = "_") %>% 
+                                stringr::str_remove("x"))
+      }
+    }  %>% 
+    posterior::as_draws() %>%
+    {
+      x <- .
+      if(do_summary) {
+        posterior::summarise_draws(x, custom_summaries())
+      } else {
+        posterior::as_draws_df(x) %>% 
+          dplyr::as_tibble()
+      }
+    }
 }
 
 #' aggregate_and_summarise_case_draws_by_region
 #'
 #' @param df 
+#' @param col 
+#' @param grouping_variables 
+#' @param weights_col 
 #'
 #' @return
 #' @export
@@ -1158,10 +1566,20 @@ aggregate_and_summarise_draws <- function(df,
 #' @examples
 aggregate_and_summarise_draws_by_region <- function(df, 
                                                     col = "country_cases",
-                                                    weights_col = NULL) {
+                                                    grouping_variables = NULL,
+                                                    weights_col = NULL,
+                                                    do_summary = TRUE) {
+  
+  # Define columns from which to extract names
+  if (!is.null(grouping_variables)) {
+    name_cols <-   c("AFRO_region", grouping_variables)
+  } else {
+    name_cols <- "AFRO_region"
+  }
+  
   df %>% 
     get_AFRO_region(ctry_col = "country") %>% 
-    dplyr::group_by(.draw, AFRO_region) %>% 
+    dplyr::group_by_at(c(".draw", "AFRO_region", grouping_variables)) %>% 
     {
       x <- .
       if (is.null(weights_col)) {
@@ -1171,13 +1589,21 @@ aggregate_and_summarise_draws_by_region <- function(df,
       }
     } %>% 
     dplyr::ungroup() %>% 
-    tidyr::pivot_wider(names_from = "AFRO_region",
+    tidyr::pivot_wider(names_from = name_cols,
                        values_from = "tot") %>% 
     janitor::clean_names() %>% 
     dplyr::select(-draw) %>% 
     magrittr::set_names(stringr::str_c(col, colnames(.), sep = "_")) %>% 
     posterior::as_draws() %>% 
-    posterior::summarise_draws(custom_summaries())
+    {
+      x <- .
+      if(do_summary) {
+        posterior::summarise_draws(x, custom_summaries())
+      } else {
+        posterior::as_draws_df(x) %>% 
+          dplyr::as_tibble()
+      }
+    }
 }
 
 
@@ -1253,4 +1679,30 @@ get_intended_runs <- function(csv_path = "Analysis/output/Data Entry Coordinatio
     dplyr::mutate(isocode = dplyr::case_when(
       stringr::str_detect(country, "TZA") ~ "TZA",
       T ~ country))
+}
+
+#' simulate_observations
+#' Simulated observations based on observation model
+#' 
+#' @param mu 
+#' @param obs_model 
+#' @param od_param 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+simulate_observations <- function(mu, 
+                                  obs_model, 
+                                  od_param = NULL) {
+  if (obs_model == 1) {
+    # Poisson
+    rpois(length(mu), mu)
+  } else if (obs_model == 2) {
+    # Quasi-poisson
+    rnbinom(length(mu), mu = mu, size = od_param * mu)
+  } else {
+    # Negative binomial
+    rnbinom(length(mu), mu = mu, size = od_param)
+  }
 }
