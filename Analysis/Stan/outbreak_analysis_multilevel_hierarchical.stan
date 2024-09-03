@@ -126,7 +126,9 @@ model {
   
   // Priors
   // regression coefficients
-  mu_beta ~ normal(0, 2);    
+  mu_beta[1] ~ normal(0, 2);
+  mu_beta[2:M] ~ normal(0, 1);
+  
   sd_beta ~ normal(0, 2.5);
   for (u in 1:U) {
     r_mu_beta_tilde[u, ] ~ std_normal();
@@ -181,6 +183,7 @@ generated quantities {
     
     pred_prob = exp(log_eta);
     pred_obs_prob_adm2 = pred_prob[ind_obs_adm2];
+    pred_prob_true = exp(log_prob);
     
     for (i in 1:N_obs_other_adm) {
       real x = 0;

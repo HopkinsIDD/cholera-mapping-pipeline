@@ -24,7 +24,6 @@ colors_endemicity <- function(){
   c("#993404", "#D95F0E", "#FED98E", "gray")
 }
 
-
 colors_periods <- function(){c("purple", "orange")}
 
 colors_risk_categories <- function() {
@@ -41,6 +40,15 @@ colors_afro_regions <- function(){
   colors
 }
 
+
+#' @export
+colors_ranking <- function() {
+  c("2011-2015" = "purple", 
+    "2016-2020" = "orange", 
+    "2011-2020" = "darkgreen", 
+    "2022-2023"= "darkgray",
+    "optimal"= "gray")
+}
 # Figure functions --------------------------------------------------------
 
 #' output_plot_map
