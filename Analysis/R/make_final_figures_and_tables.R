@@ -1947,7 +1947,7 @@ p_ob_map <- endemicity_df_50_v2 %>%
   scale_shape_manual(values = c(1, 3, 4))
 
 if (opt$save_panel_figures) {
-  ggsave(plot = p_ob_map2,
+  ggsave(plot = p_ob_map,
          filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_5_a_map.png"),
          width = 12,
          height = 5,
@@ -2016,14 +2016,14 @@ p_ob_2 <- logOR_stats %>%
   ggplot(aes(x = param, y = mean, ymin = q2.5, ymax = q97.5, color = AFRO_region)) +
   geom_point(position = pd2, aes(size = AFRO_region)) +
   geom_errorbar(width = 0, position = pd2, aes(lwd = AFRO_region)) +
-  geom_hline(aes(yintercept = 0), lty = 3, lwd = .6) +
+  geom_hline(aes(yintercept = 1), lty = 3, lwd = .6) +
   facet_grid(. ~ what, scales = "free", space = "free") +
   theme_bw() +
   scale_color_manual(values = c("overall" = "black", colors_afro_regions())) +
   scale_size_manual(values = c(2.2, rep(.8, 4))) +
   scale_linewidth_manual(values = c(.5, rep(.35, 4))) +
   labs(x = "10-year cholera incidence category", 
-       y = "log-Odds ratio", 
+       y = "Odds ratio", 
        color = NULL, size = NULL, lwd = NULL) +
   theme(legend.position = c(.145, .84),
         legend.key.height = unit(.75, units = "lines"),
