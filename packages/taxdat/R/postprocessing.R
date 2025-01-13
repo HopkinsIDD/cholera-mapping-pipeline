@@ -563,6 +563,45 @@ postprocess_mean_annual_cases <- function(config_list,
   res
 }
 
+#' postprocess_annual_adm0_cases
+#' Mean number of cases for all output locations
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_annual_adm0_cases <- function(config_list,
+                                          redo_aux = FALSE) {
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  stan_input <- taxdat::read_file_of_type(config_list$file_names$stan_input_filename, "stan_input")
+
+  # This assumes that the first output shapefile is always the national-level shapefile
+  cases <- genquant$summary(variables = "location_cases_output", 
+           c(posterior::default_summary_measures(),
+             posterior::default_convergence_measures()),
+           .cores = 1)  %>% 
+    dplyr::mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
+           location_period_id = stan_input$fake_output_obs$locationPeriod_id[id],
+           TL = stan_input$fake_output_obs$TL[id])
+
+  # Get output shapefiles for admin level informaiton
+  output_shapefiles <- get_output_sf_reload(config_list = config_list,
+                                            redo = redo_aux) %>% 
+    sf::st_drop_geometry() %>% 
+    tibble::as_tibble() %>% 
+    dplyr::select(-country)
+  
+  res <- join_output_shapefiles_by_time(output = cases, 
+                                output_shapefiles = output_shapefiles,
+                                var_col = "variable") %>% 
+    dplyr::select(-variable)
+  
+  res
+}
+
 
 #' postprocess_mai_adm0_cases
 #' 
@@ -653,6 +692,35 @@ postprocess_coef_of_variation <- function(config_list,
   
   res
 }
+
+#' postprocess_od_param
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_od_param <- function(config_list,
+                                          redo_aux = FALSE) {
+  
+  # Get stan_output data
+  load(config_list$file_names$stan_output_filename)
+
+  # Get mean annual incidence summary
+  param_names <- grep("^od_param", model.rand@sim$fnames_oi, value = TRUE)
+  param_summary <- summary(model.rand, pars = param_names)$summary 
+  res <- as.data.frame(param_summary) %>% 
+    dplyr::mutate(
+      admin_level = as.numeric(str_extract(rownames(.), "\\d+"))-1
+    ) %>% 
+    dplyr::select(admin_level,mean,`2.5%`,`97.5%`)
+
+  # Remove row names
+  rownames(res) <- NULL
+  
+  res
+}
+
 
 #' postprocess_adm0_sf
 #' 
@@ -1647,7 +1715,25 @@ join_output_shapefiles <- function(output,
   
 }
 
-
+#' join_output_shapefiles_by_time
+#'
+#' @param output 
+#' @param output_shapefiles 
+#' @param var_col
+#'
+#' @return
+#' @export
+#'
+#' @examples
+join_output_shapefiles_by_time <- function(output,
+                                   output_shapefiles,
+                                   var_col = "variable") {
+  
+  output %>% 
+    dplyr::filter(stringr::str_detect(location_period_id, "ADM0")) %>% 
+    dplyr::left_join(output_shapefiles %>% dplyr::filter(admin_level == "ADM0"), ., by = c("location_period_id")) 
+  
+}
 #' Title
 #'
 #' @return
