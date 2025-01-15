@@ -7,10 +7,24 @@
 #' @return a DBI database connection object
 #' @export
 connect_to_db <- function(dbuser) {
-  #' @title Connect to database
-  #' @description Connects to the postgres/postgis cholera_covariates database
-  #' @return db connection object
-  DBI::dbConnect(RPostgres::Postgres(), dbname = "cholera_covariates", user = dbuser)
+  # Check if the function is running inside a Docker container
+  is_in_container <- Sys.getenv("IN_DOCKER", "FALSE") == "TRUE"
+  
+  # Set the appropriate host
+  db_host <- if (is_in_container) "172.17.0.1" else "localhost"
+
+  # Read password
+  source("Analysis/R/database_api_key.R")
+  cholera_password <- database_api_key
+  
+  # Establish database connection
+  DBI::dbConnect(
+    RPostgres::Postgres(),
+    dbname = "cholera_covariates",
+    user = dbuser,
+    host = db_host,
+    password = cholera_password
+  )
 }
 
 #' @title Make covariate alias

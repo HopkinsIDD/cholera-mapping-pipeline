@@ -1,0 +1,28 @@
+FROM rocker/tidyverse:4.2
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libpq-dev \
+    libssl-dev  \ 
+    libcurl4-openssl-dev \
+    libxml2-dev \
+    iputils-ping \
+    libproj-dev \
+    libgdal-dev \
+    libglpk-dev \
+    libudunits2-dev \
+    libgeos-dev \
+    postgresql-client && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+    
+    
+RUN R -e "install.packages('RPostgreSQL', type='source', dependencies=TRUE)"
+RUN R -e "install.packages(c('ISOcodes', 'sf'), dependencies=TRUE, repos='https://cloud.r-project.org/')"
+RUN R -e "install.packages('geodata', dependencies=TRUE, repos='https://cloud.r-project.org/')"
+RUN R -e "install.packages('igraph', dependencies=TRUE, repos='https://cloud.r-project.org/')"
+RUN R -e "install.packages('optparse', dependencies=TRUE, repos='https://cloud.r-project.org/')"
+
+CMD ["bash"]

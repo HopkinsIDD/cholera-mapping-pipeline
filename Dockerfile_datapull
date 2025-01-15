@@ -1,0 +1,32 @@
+#need to change to pileline-latest  after testing
+FROM pipeline-base:test
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
+ENV CHOLERA_SKIP_STAN=TRUE
+ENV PRODUCTION_RUN=FALSE
+ENV IN_DOCKER=TRUE
+
+
+#For test remove later
+RUN apt install vim
+
+# Create and set permissions
+RUN useradd app && \
+    mkdir -p /home/app/cholera-mapping-pipeline/Analysis && \
+    mkdir /home/app/cholera-mapping-pipeline/Layers && \
+    mkdir /home/app/cholera-mapping-pipeline/packages && \
+    touch /home/app/cholera-mapping-pipeline/.choldir && \
+    chown -R app:app /home/app && \
+    adduser app staff
+
+# Copy files into container
+COPY Analysis /home/app/cholera-mapping-pipeline/Analysis/
+COPY Layers  /home/app/cholera-mapping-pipeline/Layers/
+COPY packages  /home/app/cholera-mapping-pipeline/packages/
+
+RUN R -e  "install.packages('/home/app/cholera-mapping-pipeline/packages/taxdat', type='source', repos=NULL)"
+WORKDIR /home/app/cholera-mapping-pipeline
+USER app
+# when run docker mount folder to container and install taxdat in terminal
+# Set default command
+CMD ["R"]
