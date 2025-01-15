@@ -14,6 +14,9 @@ print("*** STARTING STAN MODEL ***")
 library(cmdstanr)
 library(rstan)
 
+# Specify the cmdstan version
+cmdstanr::set_cmdstan_path(file.path(dirname(cmdstanr::cmdstan_path()), 'cmdstan-2.34.0'))
+Sys.setenv(TBB_CXX_TYPE = "gcc")
 
 # Get runtime parameters --------------------------------------------------
 
