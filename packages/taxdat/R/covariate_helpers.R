@@ -10,7 +10,8 @@ connect_to_db <- function(dbuser) {
   #' @title Connect to database
   #' @description Connects to the postgres/postgis cholera_covariates database
   #' @return db connection object
-  DBI::dbConnect(RPostgres::Postgres(), dbname = "cholera_covariates", user = dbuser)
+  covariate_password <- Sys.getenv("COVARIATE_DATABASE_PASSWORD", "")
+  DBI::dbConnect(RPostgres::Postgres(), host="localhost", dbname = "cholera_covariates", user = dbuser, password = covariate_password)
 }
 
 #' @title Make covariate alias
