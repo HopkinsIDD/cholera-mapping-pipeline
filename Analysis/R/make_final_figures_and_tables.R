@@ -2987,7 +2987,8 @@ p_adm0_cases_exceeding_threshold <-
       dplyr::mutate(period = ifelse(TL <= lubridate::ymd("2015-01-01"), "2011-2015","2016-2020")) %>%
       dplyr::filter(admin_level == "ADM0") %>% 
       dplyr::group_by(location_period_id,period) %>% 
-      dplyr::summarise(num_years_exceeding = length(period[mean>annual_adm0_cases_threshold])) %>%
+      dplyr::summarise(num_years_exceeding = length(period[mean>annual_adm0_cases_threshold])) %>% 
+      dplyr::mutate(num_years_exceeding = factor(num_years_exceeding,levels= c(0,1,2,3,4,5))) %>% 
       dplyr::left_join(afr_sf %>% dplyr::select(location_period_id), by = 'location_period_id') %>%
       sf::st_as_sf(),
     lakes_sf = lakes_sf,
@@ -3001,7 +3002,7 @@ p_adm0_cases_exceeding_threshold <-
   theme(strip.background = element_blank(),
         strip.text = element_text(size = 15),
         panel.background = element_rect(fill = "white", color = "white")) +
-  guides(fill = guide_colorbar(str_glue("Number of years exceeding {annual_adm0_cases_threshold} cases")))
+  labs(fill = str_glue("Number of years exceeding {annual_adm0_cases_threshold} cases"))
   
 # Save the plot to a file
 ggsave(
@@ -3025,11 +3026,16 @@ adm0_cases_by_year <- mai_adm0_cases_by_time %>%
 ## Plot as bar chart
 p_adm0_cases_exceeding_threshold_bar_chart <- ggplot(adm0_cases_by_year, aes(x = factor(year), y = total_cases, fill = exceed_threshold)) +
   geom_bar(stat = "identity") +  # Bar plot with y as total cases
-  facet_wrap(~ country, scales = "free_y") +  # Facet by country, free y-axis
+  facet_wrap(~ country, scales = "fixed") +  # Facet by country, free y-axis
+  scale_y_continuous(
+    trans = "log10",  # Logarithmic scale
+    breaks = c(1, 10, 100, 1000, 10000),  # Specific breaks for y-axis
+    labels = c("1", "10", "100", "1000", "10000")) +  # Custom labels 
   scale_fill_manual(
     values = c("TRUE" = "red", "FALSE" = "grey"),
     name = paste("Exceeds", annual_adm0_cases_threshold, "cases")
   ) +
+  geom_hline(yintercept = annual_adm0_cases_threshold, linetype = "dashed", color = "blue", size = 0.8) +  # Horizontal threshold line
   theme_bw() +
   labs(
     title = "Annual Cholera Cases by Year (Faceted by Country)",
@@ -3151,6 +3157,7 @@ obs_table$Coefficient_of_variation_trans <- obs_table$Coefficient_of_variation +
 p_cv_bar <- ggplot(obs_table, aes(x = factor(year), y = Coefficient_of_variation_trans, fill = period)) +
   geom_bar(stat = "identity", position = "dodge") + 
   facet_wrap(~ country, scales = "fixed") + 
+  geom_hline(yintercept = 2, linetype = "dashed", color = "red", size = 0.8) +  # Horizontal line at 1
   scale_y_continuous(
     trans = "log10",       # Apply log10 transformation
     breaks = scales::log_breaks(n = 5) ,  # Use pretty breaks for readability
@@ -3239,19 +3246,16 @@ od_param_2011_2015 <- readRDS(str_glue("{opt$output_dir}/2011_2015_od_param.rds"
   ) %>%
   dplyr::arrange(country, admin_level)
 
-# Filter out admin_level == 0 and create a summary for facet titles
-od_summary_2011_2015 <- od_param_2011_2015 %>%
-  filter(admin_level == 0) %>%
-  group_by(country, period) %>%
-  summarize(
-    mean_admin0 = mean(mean),
-    ci_low = mean(`2.5%`),
-    ci_high = mean(`97.5%`)
-  )
-
 # Filter dataset to exclude admin_level == 0 for plotting
 od_param_filtered_2011_2015 <- od_param_2011_2015 %>%
   filter(admin_level != 0)
+
+# Calculate global x-axis limits
+x_axis_limits <- od_param_filtered_2011_2015 %>%
+  summarize(
+    x_min = min(`2.5%`, na.rm = TRUE),
+    x_max = max(`97.5%`, na.rm = TRUE)
+  )
 
 # Identify countries that only have admin_level == 0
 countries_with_only_adm0_2011_2015 <- od_param_2011_2015 %>%
@@ -3260,40 +3264,29 @@ countries_with_only_adm0_2011_2015 <- od_param_2011_2015 %>%
   filter(unique_admin_levels == 1) %>%
   pull(country)
 
-# Filter dataset for those countries with only admin_level == 0
-od_param_adm0_only_2011_2015 <- od_param_2011_2015 %>%
-  filter(country %in% countries_with_only_adm0_2011_2015, admin_level == 0) %>% 
-  mutate(
-    country_label = paste0(
-      country, 
-      " (Od at admin0: ", round(mean, 2),")"
-    )
-  )
-
-# Create a new variable for facet titles with admin_level == 0 stats
-od_param_filtered_2011_2015 <- od_param_filtered_2011_2015 %>%
-  left_join(od_summary_2011_2015, by = c("country", "period")) %>%
-  mutate(
-    country_label = paste0(
-      country, 
-      " (Od at admin0: ", round(mean_admin0, 2),")"
-    )
-  ) %>% 
-  dplyr::select(-c(mean_admin0,ci_low,ci_high)) %>% 
-  dplyr::bind_rows(od_param_adm0_only_2011_2015)
-
 # Forest Plot
 forest_plot_2011_2015 <- ggplot(od_param_filtered_2011_2015, aes(x = mean, y = fct_reorder(as.factor(admin_level), admin_level))) +
   geom_point(size = 2, color = "blue") +                     # Mean estimates as points
   geom_errorbarh(aes(xmin = `2.5%`, xmax = `97.5%`), height = 0.2, color = "black") + #
-  geom_vline(xintercept = 0, linetype = "dashed", color = "red") + 
-  facet_wrap(~ country_label, scales = "free") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +  # Reference line at 0
+  facet_wrap(~ country, scales = "free") + 
+  coord_cartesian(xlim = c(x_axis_limits$x_min, x_axis_limits$x_max)) +  # Standardize x-axis
+  scale_x_continuous(
+    trans = scales::pseudo_log_trans(sigma = 1),  # Pseudo-log transformation to handle 0
+    breaks = c(0, 1, 10, 100),  # Custom breaks including 0
+    labels = scales::label_number()  # Plain number formatting for tick labels
+  ) +
   theme_bw() +
   labs(
     title = "Forest Plot of Overdispersion Parameter Across Countries By Admin Levels in 2011-2015",
     subtitle = "Mean Estimates with 95% Credible Intervals (CrI)",
-    x = "Overdispersion parameter",
-    y = "Admin Level"
+    x = "Overdispersion Parameter",
+    y = "Admin Level",
+    caption = paste(
+      "Countries with only country-level data are not shown in this plot:",
+      paste(countries_with_only_adm0_2011_2015, collapse = ", "),
+      "\nLower overdispersion parameter indicates less over-dispersion, tending towards a Poisson distribution."
+    )
   ) +
   theme(
     strip.text = element_text(size = 10, face = "bold"),  
@@ -3302,6 +3295,7 @@ forest_plot_2011_2015 <- ggplot(od_param_filtered_2011_2015, aes(x = mean, y = f
     axis.title = element_text(size = 12), 
     plot.title = element_text(size = 14, face = "bold", hjust = 0.5), 
     plot.subtitle = element_text(size = 12, hjust = 0.5), 
+    plot.caption = element_text(size = 10, hjust = 0.5, vjust = -1),  # Center the caption
     panel.grid.major.y = element_line(color = "grey90"), 
     legend.position = "none" 
   )
@@ -3323,19 +3317,16 @@ od_param_2016_2020 <- readRDS(str_glue("{opt$output_dir}/2016_2020_od_param.rds"
   ) %>%
   dplyr::arrange(country, admin_level)
 
-# Filter out admin_level == 0 and create a summary for facet titles
-od_summary_2016_2020 <- od_param_2016_2020 %>%
-  dplyr::filter(admin_level == 0) %>%
-  dplyr::group_by(country, period) %>%
-  dplyr::summarize(
-    mean_admin0 = mean(mean),
-    ci_low = mean(`2.5%`),
-    ci_high = mean(`97.5%`)
-  )
-
 # Filter dataset to exclude admin_level == 0 for plotting
 od_param_filtered_2016_2020 <- od_param_2016_2020 %>%
   dplyr::filter(admin_level != 0)
+
+# Calculate global x-axis limits
+x_axis_limits <- od_param_filtered_2016_2020 %>%
+  summarize(
+    x_min = min(`2.5%`, na.rm = TRUE),
+    x_max = max(`97.5%`, na.rm = TRUE)
+  )
 
 # Identify countries that only have admin_level == 0
 countries_with_only_adm0_2016_2020 <- od_param_2016_2020 %>%
@@ -3344,40 +3335,29 @@ countries_with_only_adm0_2016_2020 <- od_param_2016_2020 %>%
   filter(unique_admin_levels == 1) %>%
   pull(country)
 
-# Filter dataset for those countries with only admin_level == 0
-od_param_adm0_only_2016_2020 <- od_param_2016_2020 %>%
-  filter(country %in% countries_with_only_adm0_2016_2020, admin_level == 0) %>% 
-  mutate(
-    country_label = paste0(
-      country, 
-      " (Od at admin0: ", round(mean, 2),")"
-    )
-  )
-
-# Create a new variable for facet titles with admin_level == 0 stats
-od_param_filtered_2016_2020 <- od_param_filtered_2016_2020 %>%
-  left_join(od_summary_2016_2020, by = c("country", "period")) %>%
-  mutate(
-    country_label = paste0(
-      country, 
-      " (Od at admin0: ", round(mean_admin0, 2),")"
-    )
-  ) %>% 
-  dplyr::select(-c(mean_admin0,ci_low,ci_high)) %>% 
-  dplyr::bind_rows(od_param_adm0_only_2016_2020)
-
 # Forest Plot
 forest_plot_2016_2020 <- ggplot(od_param_filtered_2016_2020, aes(x = mean, y = fct_reorder(as.factor(admin_level), admin_level))) +
   geom_point(size = 2, color = "blue") +                     # Mean estimates as points
-  geom_errorbarh(aes(xmin = `2.5%`, xmax = `97.5%`), height = 0.2, color = "black") + 
-  geom_vline(xintercept = 0, linetype = "dashed", color = "red") + # Reference line at 0
-  facet_wrap(~ country_label, scales = "free") + 
+  geom_errorbarh(aes(xmin = `2.5%`, xmax = `97.5%`), height = 0.2, color = "black") + #
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +  # Reference line at 0
+  facet_wrap(~ country, scales = "free") +
+  coord_cartesian(xlim = c(x_axis_limits$x_min, x_axis_limits$x_max)) +  # Standardize x-axis
+  scale_x_continuous(
+    trans = scales::pseudo_log_trans(sigma = 1),  # Pseudo-log transformation to handle 0
+    breaks = c(0, 1, 10, 100),  # Custom breaks including 0
+    labels = scales::label_number()  # Plain number formatting for tick labels
+  ) +
   theme_bw() +
   labs(
     title = "Forest Plot of Overdispersion Parameter Across Countries By Admin Levels in 2016-2020",
     subtitle = "Mean Estimates with 95% Credible Intervals (CrI)",
-    x = "Overdispersion parameter",
-    y = "Admin Level"
+    x = "Overdispersion Parameter",
+    y = "Admin Level",
+    caption = paste(
+      "Countries with only country-level data are not shown in this plot:",
+      paste(countries_with_only_adm0_2011_2015, collapse = ", "),
+      "\nLower overdispersion parameter indicates less over-dispersion, tending towards a Poisson distribution."
+    )
   ) +
   theme(
     strip.text = element_text(size = 10, face = "bold"), 
@@ -3386,6 +3366,7 @@ forest_plot_2016_2020 <- ggplot(od_param_filtered_2016_2020, aes(x = mean, y = f
     axis.title = element_text(size = 12), 
     plot.title = element_text(size = 14, face = "bold", hjust = 0.5), 
     plot.subtitle = element_text(size = 12, hjust = 0.5), 
+    plot.caption = element_text(size = 10, hjust = 0.5, vjust = -1),  # Center the caption
     panel.grid.major.y = element_line(color = "grey90"), 
     legend.position = "none" 
   )
