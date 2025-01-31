@@ -579,10 +579,7 @@ postprocess_annual_adm0_cases <- function(config_list,
   stan_input <- taxdat::read_file_of_type(config_list$file_names$stan_input_filename, "stan_input")
 
   # This assumes that the first output shapefile is always the national-level shapefile
-  cases <- genquant$summary(variables = "location_cases_output", 
-           c(posterior::default_summary_measures(),
-             posterior::default_convergence_measures()),
-           .cores = 1)  %>% 
+  cases <- genquant$summary(variables = "location_cases_output", custom_summaries())  %>% 
     dplyr::mutate(id = str_extract(variable, "[0-9]+") %>% as.numeric(),
            location_period_id = stan_input$fake_output_obs$locationPeriod_id[id],
            TL = stan_input$fake_output_obs$TL[id])
