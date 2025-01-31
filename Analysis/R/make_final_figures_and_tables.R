@@ -46,8 +46,8 @@ opt <- parse_args(OptionParser(option_list = opt_list))
 
 
 prefix_list <- list(
-  "2011-2015" = opt$prefix_p1,
-  "2016-2020" = opt$prefix_p2
+  "2011_2015" = opt$prefix_p1,
+  "2016_2020" = opt$prefix_p2
 )
 
 # Functions ---------------------------------------------------------------
@@ -1307,8 +1307,8 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     mutate(risk_cat = factor(risk_cat,levels = c("<1","1-10","10-20","20-50","50-100","\u2265100" )))
   
   # load mean annual cases by year 
-  mai_adm0_cases_by_time <- readRDS(str_glue("{opt$output_dir}/2011-2015_mai_adm0_cases_by_time.rds")) %>% 
-  bind_rows(readRDS(str_glue("{opt$output_dir}/2016-2020_mai_adm0_cases_by_time.rds")))
+  mai_adm0_cases_by_time <- readRDS(str_glue("{opt$output_dir}/2011_2015_mai_adm0_cases_by_time.rds")) %>% 
+  bind_rows(readRDS(str_glue("{opt$output_dir}/2016_2020_mai_adm0_cases_by_time.rds")))
 }
 
 # Figure 1: cases ---------------------------------------------------------
@@ -3017,15 +3017,19 @@ adm0_cases_by_year <- mai_adm0_cases_by_time %>%
   filter(admin_level == "ADM0") %>%       # Filter for ADM0 level
   group_by(country, year = lubridate::year(TL)) %>% # Group by country and year
   summarise(
-    total_cases = sum(mean, na.rm = TRUE)  # Aggregate cases by year
+    total_cases = unique(mean, na.rm = TRUE),  # Aggregate cases by year
+    total_cases_q2.5 = unique(q2.5, na.rm = TRUE),
+    total_cases_q97.5 = unique(q97.5, na.rm = TRUE)
   ) %>%
   mutate(
     exceed_threshold = total_cases > annual_adm0_cases_threshold # Flag threshold exceedance
   )
 
 ## Plot as bar chart
-p_adm0_cases_exceeding_threshold_bar_chart <- ggplot(adm0_cases_by_year, aes(x = factor(year), y = total_cases, fill = exceed_threshold)) +
+p_adm0_cases_exceeding_threshold_bar_chart <- ggplot(adm0_cases_by_year %>% filter(!total_cases <1), aes(x = factor(year), y = total_cases, fill = exceed_threshold)) +
   geom_bar(stat = "identity") +  # Bar plot with y as total cases
+  geom_errorbar(aes(ymin = total_cases_q2.5, ymax = total_cases_q97.5), 
+                width = 0.2, color = "black", size = 0.5) +  # Add 95% confidence intervals
   facet_wrap(~ country, scales = "fixed") +  # Facet by country, free y-axis
   scale_y_continuous(
     trans = "log10",  # Logarithmic scale
@@ -3036,6 +3040,44 @@ p_adm0_cases_exceeding_threshold_bar_chart <- ggplot(adm0_cases_by_year, aes(x =
     name = paste("Exceeds", annual_adm0_cases_threshold, "cases")
   ) +
   geom_hline(yintercept = annual_adm0_cases_threshold, linetype = "dashed", color = "blue", size = 0.8) +  # Horizontal threshold line
+  theme_bw() +
+  labs(
+    title = "Annual Cholera Cases by Year (Faceted by Country)",
+    x = "Year",
+    y = "Number of Cases"
+  ) +
+  theme(
+    strip.text = element_text(size = 10, face = "bold"),  # Facet label styling
+    axis.text.x = element_text(angle = 45, hjust = 1),   # Rotate x-axis labels
+    legend.position = "top"
+  )
+
+# different versions of the bar plot ----
+p_adm0_cases_exceeding_threshold_bar_chart <- ggplot(adm0_cases_by_year %>% filter(total_cases >= 1), 
+                                                     aes(x = factor(year), y = total_cases, fill = exceed_threshold)) +
+  
+  geom_bar(stat = "identity") +  # Bar plot with y as total cases
+  
+  geom_errorbar(aes(ymin = total_cases_q2.5, ymax = total_cases_q97.5), 
+                width = 0.2, color = "black", size = 0.5) +  # Add 95% confidence intervals
+  
+  facet_wrap(~ country, scales = "fixed") +  # Free y-axis
+  
+  scale_y_continuous(labels = scales::comma) +  # Ensure normal scale with comma formatting
+  
+  scale_fill_manual(
+    values = c("TRUE" = "red", "FALSE" = "grey"),
+    name = paste("Exceeds", annual_adm0_cases_threshold, "cases")
+  ) +
+  
+  # Add horizontal line only for countries where at least one year exceeded the threshold
+  geom_hline(data = adm0_cases_by_year %>% 
+               group_by(country) %>% 
+               filter(any(total_cases > annual_adm0_cases_threshold)) %>% 
+               distinct(country) %>% 
+               mutate(yintercept = annual_adm0_cases_threshold), 
+             aes(yintercept = yintercept), linetype = "dashed", color = "blue", size = 0.8) +
+  
   theme_bw() +
   labs(
     title = "Annual Cholera Cases by Year (Faceted by Country)",
@@ -3060,8 +3102,9 @@ num_exceeding_cases_table <- mai_adm0_cases_by_time %>%
   dplyr::filter(mean > annual_adm0_cases_threshold) %>% 
   dplyr::mutate(country = shapeName,
                 year = lubridate::year(TL),
-                cases = mean) %>% 
-  dplyr::select(country,year,cases)
+                cases = round(mean,0),
+                `95% CI` = paste(round(q2.5,0),"-",round(q97.5,0))) %>% 
+  dplyr::select(country,year,cases, `95% CI`)
 
 write.csv(num_exceeding_cases_table, str_glue("{opt$out_dir}/table_mai_exceeding_threshold.csv"),row.names = F)
 
@@ -3378,6 +3421,51 @@ ggsave(
   width = 16, height = 16, dpi = 300
 )
 
+# replicate lancet figure4 (mai versus cv by time period) ----
+mai_adm0 <- mai_adm0_cases_by_time %>% 
+  dplyr::filter(admin_level == "ADM0") %>% 
+  dplyr::mutate(year = lubridate::year(TL),
+                time_period = ifelse(year <= 2015, "2011-2015","2016-2020")) %>% 
+  dplyr::mutate(time_period = factor(time_period)) %>% 
+  dplyr::group_by(time_period,country) %>% 
+  dplyr::summarise(mean_mai = mean(mean),
+                   cv =  sd(mean)/mean(mean)) %>% 
+  dplyr::arrange(country,time_period)
+
+p_lancet_4A<- ggplot2::ggplot(mai_adm0, aes(x = cv, y = mean_mai, color = time_period, label = country)) +
+  #ggplot2::geom_line(aes(group = country), color = "gray70", size = 0.5, alpha = 0.5) + # Faint lines connecting points from the same country
+  ggplot2::geom_segment(
+    data = mai_adm0 %>%
+      pivot_wider(names_from = time_period, values_from = c(cv, mean_mai)),
+    aes(x = `cv_2011-2015`, y = `mean_mai_2011-2015`, xend = `cv_2016-2020`, yend = `mean_mai_2016-2020`),
+    arrow = arrow(type = "closed", length = unit(0.15, "inches")), 
+    color = "gray70", size = 0.5, alpha = 0.8
+  ) + # Add faint arrows
+  ggplot2::geom_point(size = 3, alpha = 0.8) + # Points with color based on time period
+  ggrepel::geom_text_repel(size = 5, max.overlaps = 15) + # Add country labels near points
+  scale_color_discrete(name = "Time Period") + # Legend for time period
+  scale_y_log10(
+    name = "Mean Annual Incidence",
+    breaks = c(1, 10, 100, 1000, 10000,100000), # Specify breaks in natural numbers
+    labels = scales::label_number() # Display natural number labels
+  ) + 
+  labs(
+    title = "Mean Annual Incidence vs. Coefficient of Variation",
+    x = "Coefficient of Variation (CV)",
+    y = "Mean Annual Incidence"
+  ) +
+  theme_bw(base_size = 14) + # Clean theme
+  theme(
+    legend.position = "right", # Place the legend on the right
+    axis.text.x = element_text(angle = 45, hjust = 1) # Rotate x-axis labels if needed
+  )
+
+# Save the plot to a file
+ggsave(
+  filename =str_glue("{opt$out_dir}/figure_rep_lancet_4A.png"),
+  plot = p_lancet_4A,
+  width = 16, height = 16, dpi = 300
+)
 # Scraps ------------------------------------------------------------------
 # Incidence ratios around rivers and lakes 
 # 
