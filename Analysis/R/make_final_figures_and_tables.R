@@ -13,6 +13,8 @@ library(taxdat)
 library(cowplot)
 library(ggalluvial)
 library(ggpattern)
+library(ggplot2)
+library(patchwork)
 
 # User-supplied options
 opt_list <- list(
@@ -3052,48 +3054,57 @@ p_adm0_cases_exceeding_threshold_bar_chart <- ggplot(adm0_cases_by_year %>% filt
     legend.position = "top"
   )
 
-# different versions of the bar plot ----
-p_adm0_cases_exceeding_threshold_bar_chart <- ggplot(adm0_cases_by_year %>% filter(total_cases >= 1), 
-                                                     aes(x = factor(year), y = total_cases, fill = exceed_threshold)) +
-  
-  geom_bar(stat = "identity") +  # Bar plot with y as total cases
-  
-  geom_errorbar(aes(ymin = total_cases_q2.5, ymax = total_cases_q97.5), 
-                width = 0.2, color = "black", size = 0.5) +  # Add 95% confidence intervals
-  
-  facet_wrap(~ country, scales = "fixed") +  # Free y-axis
-  
-  scale_y_continuous(labels = scales::comma) +  # Ensure normal scale with comma formatting
-  
-  scale_fill_manual(
-    values = c("TRUE" = "red", "FALSE" = "grey"),
-    name = paste("Exceeds", annual_adm0_cases_threshold, "cases")
-  ) +
-  
-  # Add horizontal line only for countries where at least one year exceeded the threshold
-  geom_hline(data = adm0_cases_by_year %>% 
-               group_by(country) %>% 
-               filter(any(total_cases > annual_adm0_cases_threshold)) %>% 
-               distinct(country) %>% 
-               mutate(yintercept = annual_adm0_cases_threshold), 
-             aes(yintercept = yintercept), linetype = "dashed", color = "blue", size = 0.8) +
-  
+# bar chart version2: one figure for countries with at least one year >5000, one figure for countries with all years <=5000 ----
+## Define y-axis limits
+high_y_limit <- 100000
+low_y_limit <- annual_adm0_cases_threshold
+
+## Split dataset into two groups
+high_cases_countries <- adm0_cases_by_year %>%
+  group_by(country) %>%
+  filter(any(total_cases > annual_adm0_cases_threshold)) %>%
+  pull(country) %>%
+  unique()
+
+adm0_high_cases <- adm0_cases_by_year %>% filter(country %in% high_cases_countries)
+adm0_low_cases <- adm0_cases_by_year %>% filter(!country %in% high_cases_countries)
+
+## Create first plot (High cases)
+p_high <- ggplot(adm0_high_cases, aes(x = factor(year), y = total_cases, fill = exceed_threshold)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = total_cases_q2.5, ymax = total_cases_q97.5), width = 0.2, color = "black", size = 0.5) +
+  geom_hline(yintercept = annual_adm0_cases_threshold, linetype = "dashed", color = "blue", size = 0.8) +
+  facet_wrap(~ country, scales = "fixed") +
+  scale_y_continuous(limits = c(0, high_y_limit), labels = scales::comma) +
+  scale_fill_manual(values = c("TRUE" = "red", "FALSE" = "grey"),
+                    name = paste("Exceeds", annual_adm0_cases_threshold, "cases")) +
   theme_bw() +
-  labs(
-    title = "Annual Cholera Cases by Year (Faceted by Country)",
-    x = "Year",
-    y = "Number of Cases"
-  ) +
-  theme(
-    strip.text = element_text(size = 10, face = "bold"),  # Facet label styling
-    axis.text.x = element_text(angle = 45, hjust = 1),   # Rotate x-axis labels
-    legend.position = "top"
-  )
+  labs(title = str_glue("Countries with >",{annual_adm0_cases_threshold}," cases in at least one year"), x = "Year", y = "Number of Cases") +
+  theme(strip.text = element_text(size = 10, face = "bold"),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom")
+
+## Create second plot (Low cases)
+p_low <- ggplot(adm0_low_cases, aes(x = factor(year), y = total_cases, fill = exceed_threshold)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = total_cases_q2.5, ymax = total_cases_q97.5), width = 0.2, color = "black", size = 0.5) +
+  facet_wrap(~ country, scales = "fixed") +
+  scale_y_continuous(limits = c(0, low_y_limit), labels = scales::comma) +
+  scale_fill_manual(values = c("TRUE" = "red", "FALSE" = "grey"),
+                    name = paste("Exceeds", annual_adm0_cases_threshold, "cases")) +
+  theme_bw() +
+  labs(title = str_glue("Countries with ≤",{annual_adm0_cases_threshold}," cases in all years"), x = "Year", y = "Number of Cases") +
+  theme(strip.text = element_text(size = 10, face = "bold"),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none") # Remove legend from second plot
+
+## Combine the plots and share the legend
+combined_p_adm0_cases_exceeding_threshold_bar_chart <- (p_low / p_high)
 
 ## Save the plot to a file
 ggsave(
   filename =str_glue("{opt$out_dir}/figure_adm0_cases_exceeding_{annual_adm0_cases_threshold}_cases_bar_chart.png"),
-  plot = p_adm0_cases_exceeding_threshold_bar_chart,
+  plot = combined_p_adm0_cases_exceeding_threshold_bar_chart,
   width = 16, height = 16, dpi = 300
 )
 
