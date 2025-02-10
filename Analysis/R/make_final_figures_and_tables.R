@@ -13,6 +13,8 @@ library(taxdat)
 library(cowplot)
 library(ggalluvial)
 library(ggpattern)
+library(ggplot2)
+library(patchwork)
 
 # User-supplied options
 opt_list <- list(
@@ -46,8 +48,8 @@ opt <- parse_args(OptionParser(option_list = opt_list))
 
 
 prefix_list <- list(
-  "2011-2015" = opt$prefix_p1,
-  "2016-2020" = opt$prefix_p2
+  "2011_2015" = opt$prefix_p1,
+  "2016_2020" = opt$prefix_p2
 )
 
 # Functions ---------------------------------------------------------------
@@ -723,6 +725,11 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
                                          output_name = "mai_cases_adm",
                                          output_dir = opt$output_dir)
   
+  ## ADM0 annual cases (tbd)---------------------------------------
+  mai_adm0_cases_by_time <- combine_period_output(prefix_list = prefix_list,
+                                         output_name = "mai_adm0_cases_by_time",
+                                         output_dir = opt$output_dir)
+  
   ## ADM2 level stats ---------------------------------------
   # Mean annual incidence rates at ADM2 level
   mai_adm_all <- combine_period_output(prefix_list = prefix_list,
@@ -1301,6 +1308,9 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
     mutate(risk_cat = ifelse(risk_cat == ">100","\u2265100",risk_cat)) %>% 
     mutate(risk_cat = factor(risk_cat,levels = c("<1","1-10","10-20","20-50","50-100","\u2265100" )))
   
+  # load mean annual cases by year 
+  mai_adm0_cases_by_time <- readRDS(str_glue("{opt$output_dir}/2011_2015_mai_adm0_cases_by_time.rds")) %>% 
+  bind_rows(readRDS(str_glue("{opt$output_dir}/2016_2020_mai_adm0_cases_by_time.rds")))
 }
 
 # Figure 1: cases ---------------------------------------------------------
@@ -1345,6 +1355,7 @@ p_fig1B <- cases_by_region %>%
                  aes(xmin = q2.5, xmax = q97.5, y = period), 
                  height = .2) +
   scale_x_continuous(
+    breaks = seq(0, 125000, by = 25000),
     labels = function(x) {
       formatC(x, digits = 0, big.mark = ",", format = "f")
     }) +
@@ -2128,9 +2139,9 @@ pd <- position_dodge(width = .8, preserve = "single")
 
 data_for_figure6_2016_2020 <- bind_rows(
   pop_frac_sel_2016_2020 %>%
-    mutate(what = "population living in ADM2 units\nwith cholera occurence in 2022-2023"), 
+    mutate(what = "... population living in ADM2 units\nwith cholera occurence in 2022-2023"), 
   case_frac_sel_2016_2020 %>% 
-    mutate(what = "annual cholera cases in 2016-2020")
+    mutate(what = "... annual cholera cases in 2016-2020")
 ) %>% 
   mutate(
     target_pop_factor = factor(
@@ -2190,7 +2201,7 @@ p_targets_v2_2016_2020 <- data_for_figure6_2016_2020 %>%
   scale_fill_manual(values = colors_ranking()) +
   scale_color_manual(values = colors_ranking()) +
   labs(x = "Population targeted (out of total of 1.1 billion in 2020)",
-       y = "Proportion reached") +
+       y = "Proportion reached among ...") +
   scale_y_continuous(breaks = c(0, .25, .5, .75, 1), labels = c("0%", "25%", "50%", "75%", "100%")) +
   scale_x_continuous(breaks = c(10, seq(50, 400, by = 50))*1e6, 
                      labels = function(x) str_c(formatC(x*1e-6, format = "f", digits = 0), "M")) +
@@ -2249,13 +2260,30 @@ p_targets2_2016_2020 <- p_targets_v2_2016_2020 +
   ) +
   geom_hline(aes(yintercept = 1), color = "darkgray", lty = 2, lwd = .6)
 
+p_targets2_2016_2020_final <- ggdraw(p_targets2_2016_2020) +
+  patchwork::plot_annotation(
+    caption = "   Cholera burden\nmetric               ",
+    theme = theme(
+      plot.caption = element_text(
+        hjust = 0.98,           # Align right
+        vjust = 185,           # Align bottom
+        size = 10
+      ),
+      plot.background = element_rect(fill = "transparent", color = NA)  # Transparent background
+    )
+  ) +
+  draw_line(
+    x = c(0.9, 0.883),  # Start and end X positions (normalized coordinates, 0-1)
+    y = c(0.94, 0.94), # Start and end Y positions (normalized coordinates, 0-1)
+    arrow = arrow(length = unit(0.05, "inches"), type = "closed"),
+    color = "black",
+    size = 0.8
+  )
 
-# Save
-ggsave(p_targets2_2016_2020, 
+
+ggsave(p_targets2_2016_2020_final, 
        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_6.png"),
-       width = 12, height = 5.5, dpi = 300)
-
-
+       width = 12, height = 5.5, dpi = 300,bg = "transparent")
 
 # Supplementary figures ---------------------------------------------------
 
@@ -2923,8 +2951,532 @@ p_targets_v2_2011_2015_supp <- data_for_figure6_2011_2015 %>%
 ggsave(p_targets_v2_2011_2015_supp, filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_6_supp.png"),
        width = 7.5, height = 5.5, dpi = 300)
 
+# maps: country-level mean annual cholera cases for the continent by year ----
+for (yr in unique(lubridate::year(mai_adm0_cases_by_time$TL))) {
+  
+  ## Generate the map plot for this year
+  p_adm0_cases <- output_plot_map(
+    sf_obj = mai_adm0_cases_by_time %>%
+      dplyr::mutate(year = lubridate::year(TL),
+                    `Mean annual cases` = log10(mean)) %>%
+      dplyr::filter(admin_level == "ADM0", year == yr) %>%
+      dplyr::left_join(afr_sf %>% dplyr::select(location_period_id), by = 'location_period_id') %>%
+      sf::st_as_sf(),
+    lakes_sf = lakes_sf,
+    rivers_sf = rivers_sf,
+    all_countries_sf = afr_sf,
+    fill_var = "Mean annual cases",
+    fill_color_scale_type = "adm0_cases",
+    cholera_dir = opt$cholera_dir
+  )
+  
+  ## Save the plot to a file
+  ggsave(
+    filename = str_glue("{opt$out_dir}/{yr}_figure_mai_adm0.png"),
+    plot = p_adm0_cases,
+    width = 8, height = 6, dpi = 300
+  )
+}
 
+# maps: number of years when adm0 cases exceeding a threshold in each period ----
+## Define threshold
+annual_adm0_cases_threshold <- 5000
 
+## Plot as map
+p_adm0_cases_exceeding_threshold <- 
+  p_adm0_cases <- output_plot_map(
+    sf_obj =   mai_adm0_cases_by_time %>% 
+      dplyr::mutate(period = ifelse(TL <= lubridate::ymd("2015-01-01"), "2011-2015","2016-2020")) %>%
+      dplyr::filter(admin_level == "ADM0") %>% 
+      dplyr::group_by(location_period_id,period) %>% 
+      dplyr::summarise(num_years_exceeding = length(period[mean>annual_adm0_cases_threshold])) %>% 
+      dplyr::mutate(num_years_exceeding = factor(num_years_exceeding,levels= c(0,1,2,3,4,5))) %>% 
+      dplyr::left_join(afr_sf %>% dplyr::select(location_period_id), by = 'location_period_id') %>%
+      sf::st_as_sf(),
+    lakes_sf = lakes_sf,
+    rivers_sf = rivers_sf,
+    all_countries_sf = afr_sf,
+    fill_var = "num_years_exceeding",
+    fill_color_scale_type = "mai_exceeding_thresh",
+    cholera_dir = opt$cholera_dir
+  ) +
+  facet_wrap(~ period) +
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 15),
+        panel.background = element_rect(fill = "white", color = "white")) +
+  labs(fill = str_glue("Number of years exceeding {annual_adm0_cases_threshold} cases"))
+  
+# Save the plot to a file
+ggsave(
+  filename =str_glue("{opt$out_dir}/figure_adm0_cases_exceeding_{annual_adm0_cases_threshold}_cases.png"),
+  plot = p_adm0_cases_exceeding_threshold,
+  width = 8, height = 6, dpi = 300
+)
+
+# bar chart: color years when adm0 cases exceeding a threshold in each period ----
+## Data preparation for bar chart
+adm0_cases_by_year <- mai_adm0_cases_by_time %>%
+  filter(admin_level == "ADM0") %>%       # Filter for ADM0 level
+  group_by(country, year = lubridate::year(TL)) %>% # Group by country and year
+  summarise(
+    total_cases = unique(mean, na.rm = TRUE),  # Aggregate cases by year
+    total_cases_q2.5 = unique(q2.5, na.rm = TRUE),
+    total_cases_q97.5 = unique(q97.5, na.rm = TRUE)
+  ) %>%
+  mutate(
+    exceed_threshold = total_cases > annual_adm0_cases_threshold # Flag threshold exceedance
+  )
+
+## Plot as bar chart
+p_adm0_cases_exceeding_threshold_bar_chart <- ggplot(adm0_cases_by_year %>% filter(!total_cases <1), aes(x = factor(year), y = total_cases, fill = exceed_threshold)) +
+  geom_bar(stat = "identity") +  # Bar plot with y as total cases
+  geom_errorbar(aes(ymin = total_cases_q2.5, ymax = total_cases_q97.5), 
+                width = 0.2, color = "black", size = 0.5) +  # Add 95% confidence intervals
+  facet_wrap(~ country, scales = "fixed") +  # Facet by country, free y-axis
+  scale_y_continuous(
+    trans = "log10",  # Logarithmic scale
+    breaks = c(1, 10, 100, 1000, 10000),  # Specific breaks for y-axis
+    labels = c("1", "10", "100", "1000", "10000")) +  # Custom labels 
+  scale_fill_manual(
+    values = c("TRUE" = "red", "FALSE" = "grey"),
+    name = paste("Exceeds", annual_adm0_cases_threshold, "cases")
+  ) +
+  geom_hline(yintercept = annual_adm0_cases_threshold, linetype = "dashed", color = "blue", size = 0.8) +  # Horizontal threshold line
+  theme_bw() +
+  labs(
+    title = "Annual Cholera Cases by Year (Faceted by Country)",
+    x = "Year",
+    y = "Number of Cases"
+  ) +
+  theme(
+    strip.text = element_text(size = 10, face = "bold"),  # Facet label styling
+    axis.text.x = element_text(angle = 45, hjust = 1),   # Rotate x-axis labels
+    legend.position = "top"
+  )
+
+# bar chart version2: one figure for countries with at least one year >5000, one figure for countries with all years <=5000 ----
+## Define y-axis limits
+high_y_limit <- 100000
+low_y_limit <- annual_adm0_cases_threshold
+
+## Split dataset into two groups
+high_cases_countries <- adm0_cases_by_year %>%
+  group_by(country) %>%
+  filter(any(total_cases > annual_adm0_cases_threshold)) %>%
+  pull(country) %>%
+  unique()
+
+adm0_high_cases <- adm0_cases_by_year %>% filter(country %in% high_cases_countries)
+adm0_low_cases <- adm0_cases_by_year %>% filter(!country %in% high_cases_countries)
+
+## Create first plot (High cases)
+p_high <- ggplot(adm0_high_cases, aes(x = factor(year), y = total_cases, fill = exceed_threshold)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = total_cases_q2.5, ymax = total_cases_q97.5), width = 0.2, color = "black", size = 0.5) +
+  geom_hline(yintercept = annual_adm0_cases_threshold, linetype = "dashed", color = "blue", size = 0.8) +
+  facet_wrap(~ country, scales = "fixed") +
+  scale_y_continuous(limits = c(0, high_y_limit), labels = scales::comma) +
+  scale_fill_manual(values = c("TRUE" = "red", "FALSE" = "grey"),
+                    name = paste("Exceeds", annual_adm0_cases_threshold, "cases")) +
+  theme_bw() +
+  labs(title = str_glue("Countries with >",{annual_adm0_cases_threshold}," cases in at least one year"), x = "Year", y = "Number of Cases") +
+  theme(strip.text = element_text(size = 10, face = "bold"),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom")
+
+## Create second plot (Low cases)
+p_low <- ggplot(adm0_low_cases, aes(x = factor(year), y = total_cases, fill = exceed_threshold)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = total_cases_q2.5, ymax = total_cases_q97.5), width = 0.2, color = "black", size = 0.5) +
+  facet_wrap(~ country, scales = "fixed") +
+  scale_y_continuous(limits = c(0, low_y_limit), labels = scales::comma) +
+  scale_fill_manual(values = c("TRUE" = "red", "FALSE" = "grey"),
+                    name = paste("Exceeds", annual_adm0_cases_threshold, "cases")) +
+  theme_bw() +
+  labs(title = str_glue("Countries with ≤",{annual_adm0_cases_threshold}," cases in all years"), x = "Year", y = "Number of Cases") +
+  theme(strip.text = element_text(size = 10, face = "bold"),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none") # Remove legend from second plot
+
+## Combine the plots and share the legend
+combined_p_adm0_cases_exceeding_threshold_bar_chart <- (p_low / p_high)
+
+## Save the plot to a file
+ggsave(
+  filename =str_glue("{opt$out_dir}/figure_adm0_cases_exceeding_{annual_adm0_cases_threshold}_cases_bar_chart.png"),
+  plot = combined_p_adm0_cases_exceeding_threshold_bar_chart,
+  width = 16, height = 16, dpi = 300
+)
+
+# supplement table: country-year-annual cases ----
+num_exceeding_cases_table <- mai_adm0_cases_by_time %>% 
+  dplyr::filter(mean > annual_adm0_cases_threshold) %>% 
+  dplyr::mutate(country = shapeName,
+                year = lubridate::year(TL),
+                cases = round(mean,0),
+                `95% CI` = paste(round(q2.5,0),"-",round(q97.5,0))) %>% 
+  dplyr::select(country,year,cases, `95% CI`)
+
+write.csv(num_exceeding_cases_table, str_glue("{opt$out_dir}/table_mai_exceeding_threshold.csv"),row.names = F)
+
+# maps: adm2 mai ----
+## 2011-2015
+p_adm2_mai_1115 <- 
+  p_adm0_cases <- output_plot_map(
+    sf_obj =   mai_adm_all %>% 
+      dplyr::filter((admin_level == "ADM2" & period == "2011-2015")|(admin_level == "ADM1" & country == "LSO" & period == "2011-2015")) %>% 
+      dplyr::group_by(location_period_id,period) %>% 
+      dplyr::mutate(log10_rate_per_1e5 = log10(mean * 1e5)) %>% 
+      inner_join(u_space_sf %>% dplyr::select(location_period_id,shapeName), .) %>%
+      sf::st_as_sf(),
+    lakes_sf = lakes_sf,
+    rivers_sf = rivers_sf,
+    all_countries_sf = afr_sf,
+    fill_var = "log10_rate_per_1e5",
+    fill_color_scale_type = "rates",
+    cholera_dir = opt$cholera_dir
+  ) +
+  ggtitle("2011-2015") + 
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 15),
+        panel.background = element_rect(fill = "white", color = "white"),
+        plot.title = element_text(hjust = 0.5)) +
+  guides(fill = guide_colorbar("Mean annual cholera incidence rate\n per 100,000"))
+# Save the plot to a file
+ggsave(
+  filename =str_glue("{opt$out_dir}/figure_mai_adm2_2011_2015.png"),
+  plot = p_adm2_mai_1115,
+  width = 8, height = 6, dpi = 300
+)
+
+## 2016-2020
+p_adm2_mai_1620 <- 
+  p_adm0_cases <- output_plot_map(
+    sf_obj =   mai_adm_all %>% 
+      dplyr::filter((admin_level == "ADM2" & period == "2016-2020")|(admin_level == "ADM1" & country == "LSO" & period == "2016-2020")) %>% 
+      dplyr::group_by(location_period_id,period) %>% 
+      dplyr::mutate(log10_rate_per_1e5 = log10(mean * 1e5)) %>% 
+      inner_join(u_space_sf %>% dplyr::select(location_period_id,shapeName), .) %>%
+      sf::st_as_sf(),
+    lakes_sf = lakes_sf,
+    rivers_sf = rivers_sf,
+    all_countries_sf = afr_sf,
+    fill_var = "log10_rate_per_1e5",
+    fill_color_scale_type = "rates",
+    cholera_dir = opt$cholera_dir
+  ) +
+  ggtitle("2016-2020") + 
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 15),
+        panel.background = element_rect(fill = "white", color = "white"),
+        plot.title = element_text(hjust = 0.5)) + 
+  guides(fill = guide_colorbar("Mean annual cholera incidence rate\n per 100,000"))
+
+# Save the plot to a file
+ggsave(
+  filename =str_glue("{opt$out_dir}/figure_mai_adm2_2016_2020.png"),
+  plot = p_adm2_mai_1620,
+  width = 8, height = 6, dpi = 300
+)
+
+# bar chart: coefficient of variation for all national-level observations ----
+obs_1115 <- readRDS(str_glue("{opt$output_dir}/2011_2015_obs.rds")) %>% 
+  dplyr::filter(censoring == "full" & admin_level == 0) %>%
+  dplyr::mutate(year = lubridate::year(TL),
+                attributes.fields.suspected_cases = as.numeric(attributes.fields.suspected_cases)) %>% 
+  dplyr::group_by(country,year) %>% 
+  dplyr::summarise(Coefficient_of_variation = sd(attributes.fields.suspected_cases)/mean(attributes.fields.suspected_cases),
+                   total_obs = n(),
+                   mean = mean(attributes.fields.suspected_cases)) %>% 
+  dplyr::mutate(Coefficient_of_variation = ifelse(total_obs == 1|is.na(Coefficient_of_variation), 0 ,round(Coefficient_of_variation,2)))
+
+obs_1620 <- readRDS(str_glue("{opt$output_dir}/2016_2020_obs.rds")) %>% 
+  dplyr::filter(censoring == "full" & admin_level == 0) %>%
+  dplyr::mutate(year = lubridate::year(TL)) %>% 
+  dplyr::group_by(country,year) %>% 
+  dplyr::summarise(Coefficient_of_variation = sd(attributes.fields.suspected_cases)/mean(attributes.fields.suspected_cases),
+                   total_obs = n(),
+                   mean = mean(attributes.fields.suspected_cases)) %>% 
+  dplyr::mutate(Coefficient_of_variation = ifelse(total_obs == 1|is.na(Coefficient_of_variation), 0 ,round(Coefficient_of_variation,2)))
+
+obs_table <- bind_rows(obs_1115,obs_1620) %>% 
+  mutate(
+    period = ifelse(year <= 2015, "2011-2015", "2016-2020") 
+  )
+
+## Add a small constant (e.g., 1) to handle zero or near-zero values
+obs_table$Coefficient_of_variation_trans <- obs_table$Coefficient_of_variation + 1
+
+# Plotting the Bar Chart
+p_cv_bar <- ggplot(obs_table, aes(x = factor(year), y = Coefficient_of_variation_trans, fill = period)) +
+  geom_bar(stat = "identity", position = "dodge") + 
+  facet_wrap(~ country, scales = "fixed") + 
+  geom_hline(yintercept = 2, linetype = "dashed", color = "red", size = 0.8) +  # Horizontal line at 1
+  scale_y_continuous(
+    trans = "log10",       # Apply log10 transformation
+    breaks = scales::log_breaks(n = 5) ,  # Use pretty breaks for readability
+    labels =  function(x) round(x - 1, 2)   # Show original values with commas
+  ) + 
+  scale_fill_manual(
+    values = c("2011-2015" = "skyblue", "2016-2020" = "orange"),
+    name = "Time Period"
+  ) +
+  theme_bw() +                                  
+  labs(
+    title = "Coefficient of Variation by Year and Time Period",
+    x = "Year",
+    y = "Coefficient of Variation"
+  ) +
+  theme(
+    strip.text = element_text(size = 10, face = "bold"),  
+    axis.text.x = element_text(angle = 45, hjust = 1),  
+    axis.title = element_text(size = 12),               
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5), 
+    plot.subtitle = element_text(size = 12, hjust = 0.5), 
+    legend.position = "top" 
+  )
+
+## Save the plot to a file
+ggsave(
+  filename =str_glue("{opt$out_dir}/figure_mai_cases_cv.png"),
+  plot = p_cv_bar,
+  width = 16, height = 16, dpi = 300
+)
+
+# point plot: mean versus coefficient of variation for all national-level observations ----
+## remove country year with 0 mean case and convert CV into categorical variable
+obs_table <- obs_table %>% 
+  dplyr::filter(mean != 0) %>% 
+  dplyr::mutate(mean_trans = log10(mean), 
+                year = as.numeric(year),
+                cv_cat = ifelse(Coefficient_of_variation<0.5,"<0.5",ifelse(Coefficient_of_variation<1,"0.5-1","1-1.5")))
+
+p_cv_mean <- ggplot() +
+  geom_point(data = obs_table, aes(x = year, y = mean, group = country, size= cv_cat, color=cv_cat)) + # Add points
+  scale_y_continuous(
+    trans = 'log10',
+    breaks = scales::trans_breaks('log10', function(x) 10^x),# Customize breaks for interpretability
+    labels = scales::label_comma()
+  ) + 
+  scale_size_manual(
+    values = c(2,4,8),
+    name = "Coefficient of variation"
+  ) + 
+  scale_color_manual(
+    values = c("#440154", "deepskyblue4", "gold1"),
+    name = "Coefficient of variation"
+  ) +
+  scale_x_continuous(breaks = seq(2011,2020,by = 1)) +
+  ggrepel::geom_text_repel(data = obs_table %>% dplyr::filter(Coefficient_of_variation>=1),
+                           aes( x= year, y = mean, label = country), size = 5, max.overlaps = 15) + # Add country labels
+  theme_bw() +                    # Clean theme
+  labs(
+    title = "Mean vs. Coefficient of Variation by Country/Year",
+    x = "Year",
+    y = "Mean Value"
+  ) +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10)
+  )
+
+# Save the plot to a file
+ggsave(
+  filename =str_glue("{opt$out_dir}/figure_mai_cases_cv_mean.png"),
+  plot = p_cv_mean,
+  width = 16, height = 16, dpi = 300
+)
+
+# forest plot: overdispersion parametrs(od_param) ----
+## 2011-2015
+od_param_2011_2015 <- readRDS(str_glue("{opt$output_dir}/2011_2015_od_param.rds")) %>% 
+  dplyr::mutate(period = "2011-2015") %>% 
+  dplyr::mutate(
+    admin_level = as.numeric(admin_level),  
+    country = as.factor(country), 
+    period = as.factor(period) 
+  ) %>%
+  dplyr::arrange(country, admin_level)
+
+# Filter dataset to exclude admin_level == 0 for plotting
+od_param_filtered_2011_2015 <- od_param_2011_2015 %>%
+  filter(admin_level != 0)
+
+# Calculate global x-axis limits
+x_axis_limits <- od_param_filtered_2011_2015 %>%
+  summarize(
+    x_min = min(`2.5%`, na.rm = TRUE),
+    x_max = max(`97.5%`, na.rm = TRUE)
+  )
+
+# Identify countries that only have admin_level == 0
+countries_with_only_adm0_2011_2015 <- od_param_2011_2015 %>%
+  group_by(country) %>%
+  summarize(unique_admin_levels = n_distinct(admin_level)) %>%
+  filter(unique_admin_levels == 1) %>%
+  pull(country)
+
+# Forest Plot
+forest_plot_2011_2015 <- ggplot(od_param_filtered_2011_2015, aes(x = mean, y = fct_reorder(as.factor(admin_level), admin_level))) +
+  geom_point(size = 2, color = "blue") +                     # Mean estimates as points
+  geom_errorbarh(aes(xmin = `2.5%`, xmax = `97.5%`), height = 0.2, color = "black") + #
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +  # Reference line at 0
+  facet_wrap(~ country, scales = "free") + 
+  coord_cartesian(xlim = c(x_axis_limits$x_min, x_axis_limits$x_max)) +  # Standardize x-axis
+  scale_x_continuous(
+    trans = scales::pseudo_log_trans(sigma = 1),  # Pseudo-log transformation to handle 0
+    breaks = c(0, 1, 10, 100),  # Custom breaks including 0
+    labels = scales::label_number()  # Plain number formatting for tick labels
+  ) +
+  theme_bw() +
+  labs(
+    title = "Forest Plot of Overdispersion Parameter Across Countries By Admin Levels in 2011-2015",
+    subtitle = "Mean Estimates with 95% Credible Intervals (CrI)",
+    x = "Overdispersion Parameter",
+    y = "Admin Level",
+    caption = paste(
+      "Countries with only country-level data are not shown in this plot:",
+      paste(countries_with_only_adm0_2011_2015, collapse = ", "),
+      "\nLower overdispersion parameter indicates less over-dispersion, tending towards a Poisson distribution."
+    )
+  ) +
+  theme(
+    strip.text = element_text(size = 10, face = "bold"),  
+    axis.text.y = element_text(size = 8), 
+    axis.text.x = element_text(size = 10), 
+    axis.title = element_text(size = 12), 
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5), 
+    plot.subtitle = element_text(size = 12, hjust = 0.5), 
+    plot.caption = element_text(size = 10, hjust = 0.5, vjust = -1),  # Center the caption
+    panel.grid.major.y = element_line(color = "grey90"), 
+    legend.position = "none" 
+  )
+
+# Save the plot to a file
+ggsave(
+  filename =str_glue("{opt$out_dir}/figure_od_param_2011_2015.png"),
+  plot = forest_plot_2011_2015,
+  width = 16, height = 16, dpi = 300
+)
+
+## 2016-2020
+od_param_2016_2020 <- readRDS(str_glue("{opt$output_dir}/2016_2020_od_param.rds")) %>% 
+  dplyr::mutate(period = "2016-2020") %>% 
+  dplyr::mutate(
+    admin_level = as.numeric(admin_level), 
+    country = as.factor(country), 
+    period = as.factor(period) 
+  ) %>%
+  dplyr::arrange(country, admin_level)
+
+# Filter dataset to exclude admin_level == 0 for plotting
+od_param_filtered_2016_2020 <- od_param_2016_2020 %>%
+  dplyr::filter(admin_level != 0)
+
+# Calculate global x-axis limits
+x_axis_limits <- od_param_filtered_2016_2020 %>%
+  summarize(
+    x_min = min(`2.5%`, na.rm = TRUE),
+    x_max = max(`97.5%`, na.rm = TRUE)
+  )
+
+# Identify countries that only have admin_level == 0
+countries_with_only_adm0_2016_2020 <- od_param_2016_2020 %>%
+  group_by(country) %>%
+  summarize(unique_admin_levels = n_distinct(admin_level)) %>%
+  filter(unique_admin_levels == 1) %>%
+  pull(country)
+
+# Forest Plot
+forest_plot_2016_2020 <- ggplot(od_param_filtered_2016_2020, aes(x = mean, y = fct_reorder(as.factor(admin_level), admin_level))) +
+  geom_point(size = 2, color = "blue") +                     # Mean estimates as points
+  geom_errorbarh(aes(xmin = `2.5%`, xmax = `97.5%`), height = 0.2, color = "black") + #
+  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +  # Reference line at 0
+  facet_wrap(~ country, scales = "free") +
+  coord_cartesian(xlim = c(x_axis_limits$x_min, x_axis_limits$x_max)) +  # Standardize x-axis
+  scale_x_continuous(
+    trans = scales::pseudo_log_trans(sigma = 1),  # Pseudo-log transformation to handle 0
+    breaks = c(0, 1, 10, 100),  # Custom breaks including 0
+    labels = scales::label_number()  # Plain number formatting for tick labels
+  ) +
+  theme_bw() +
+  labs(
+    title = "Forest Plot of Overdispersion Parameter Across Countries By Admin Levels in 2016-2020",
+    subtitle = "Mean Estimates with 95% Credible Intervals (CrI)",
+    x = "Overdispersion Parameter",
+    y = "Admin Level",
+    caption = paste(
+      "Countries with only country-level data are not shown in this plot:",
+      paste(countries_with_only_adm0_2011_2015, collapse = ", "),
+      "\nLower overdispersion parameter indicates less over-dispersion, tending towards a Poisson distribution."
+    )
+  ) +
+  theme(
+    strip.text = element_text(size = 10, face = "bold"), 
+    axis.text.y = element_text(size = 8), 
+    axis.text.x = element_text(size = 10), 
+    axis.title = element_text(size = 12), 
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5), 
+    plot.subtitle = element_text(size = 12, hjust = 0.5), 
+    plot.caption = element_text(size = 10, hjust = 0.5, vjust = -1),  # Center the caption
+    panel.grid.major.y = element_line(color = "grey90"), 
+    legend.position = "none" 
+  )
+
+# Save the plot to a file
+ggsave(
+  filename =str_glue("{opt$out_dir}/figure_od_param_2016_2020.png"),
+  plot = forest_plot_2016_2020,
+  width = 16, height = 16, dpi = 300
+)
+
+# replicate lancet figure4 (mai versus cv by time period) ----
+mai_adm0 <- mai_adm0_cases_by_time %>% 
+  dplyr::filter(admin_level == "ADM0") %>% 
+  dplyr::mutate(year = lubridate::year(TL),
+                time_period = ifelse(year <= 2015, "2011-2015","2016-2020")) %>% 
+  dplyr::mutate(time_period = factor(time_period)) %>% 
+  dplyr::group_by(time_period,country) %>% 
+  dplyr::summarise(mean_mai = mean(mean),
+                   cv =  sd(mean)/mean(mean)) %>% 
+  dplyr::arrange(country,time_period)
+
+p_lancet_4A<- ggplot2::ggplot(mai_adm0, aes(x = cv, y = mean_mai, color = time_period, label = country)) +
+  #ggplot2::geom_line(aes(group = country), color = "gray70", size = 0.5, alpha = 0.5) + # Faint lines connecting points from the same country
+  ggplot2::geom_segment(
+    data = mai_adm0 %>%
+      pivot_wider(names_from = time_period, values_from = c(cv, mean_mai)),
+    aes(x = `cv_2011-2015`, y = `mean_mai_2011-2015`, xend = `cv_2016-2020`, yend = `mean_mai_2016-2020`),
+    arrow = arrow(type = "closed", length = unit(0.15, "inches")), 
+    color = "gray70", size = 0.5, alpha = 0.8
+  ) + # Add faint arrows
+  ggplot2::geom_point(size = 3, alpha = 0.8) + # Points with color based on time period
+  ggrepel::geom_text_repel(size = 5, max.overlaps = 15) + # Add country labels near points
+  scale_color_discrete(name = "Time Period") + # Legend for time period
+  scale_y_log10(
+    name = "Mean Annual Incidence",
+    breaks = c(1, 10, 100, 1000, 10000,100000), # Specify breaks in natural numbers
+    labels = scales::label_number() # Display natural number labels
+  ) + 
+  labs(
+    title = "Mean Annual Incidence vs. Coefficient of Variation",
+    x = "Coefficient of Variation (CV)",
+    y = "Mean Annual Incidence"
+  ) +
+  theme_bw(base_size = 14) + # Clean theme
+  theme(
+    legend.position = "right", # Place the legend on the right
+    axis.text.x = element_text(angle = 45, hjust = 1) # Rotate x-axis labels if needed
+  )
+
+# Save the plot to a file
+ggsave(
+  filename =str_glue("{opt$out_dir}/figure_rep_lancet_4A.png"),
+  plot = p_lancet_4A,
+  width = 16, height = 16, dpi = 300
+)
 # Scraps ------------------------------------------------------------------
 # Incidence ratios around rivers and lakes 
 # 
