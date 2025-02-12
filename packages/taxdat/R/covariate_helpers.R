@@ -924,8 +924,8 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
     cl <- parallel::makeCluster(n_cpus)
     doParallel::registerDoParallel(cl)
     
-    parallel::clusterExport(cl = cl, list("connect_to_db", "dbuser", "getTimeRes",
-                                          "generateTimeSequence", "writeNCDF"), envir = environment())
+    parallel::clusterExport(cl = cl, list("connect_to_db", "dbuser", "get_time_Res",
+                                          "generate_time_sequence", "write_ncdf"), envir = environment())
     
     parallel::clusterEvalQ(cl, {
       conn <- connect_to_db(dbuser)
@@ -940,9 +940,9 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
   }
   doFun <- ifelse(do_parallel, foreach::`%dopar%`, foreach::`%do%`)
   no_export <- ifelse(do_parallel, "conn", "")
-  export_funs <- c("extractCovariateMetadata", "parse_gdal_res", "parseTimeRes",
-                   "dbExistsTableMulti", "buildGeomsQuery", "showProgress", "getNCDFMetadata",
-                   "timeAggregate", "spaceAggregate", "gdalinfo2", "gdal_cmd_builder2", "gdalwarp2",
+  export_funs <- c("extract_covariate_metadata", "parse_gdal_res", "parse_time_res",
+                   "db_exists_table_multi", "build_geoms_query", "show_progress", "get_ncdf_metadata",
+                   "time_aggregate", "space_aggregate", "gdalinfo2", "gdal_cmd_builder2", "gdalwarp2",
                    "align_rasters2")
   doFun(foreach::foreach(j = seq_along(raster_files),
                          .combine = rbind,
