@@ -14,6 +14,34 @@ connect_to_db <- function(dbuser) {
   DBI::dbConnect(RPostgres::Postgres(), host="localhost", dbname = "cholera_covariates", user = dbuser, password = covariate_password)
 }
 
+#' @title Get Database Connection String
+#' @name get_covariate_conn_string
+#' @description Helper function to generate a PostgreSQL connection string for the cholera_covariates database.
+#'
+#' @param dbuser The database username.
+#'
+#' @return A character string representing the PostgreSQL connection URI.
+#' @export
+get_covariate_conn_string <- function(dbuser) {
+    host <- "localhost"
+    # URL encode the password to handle special characters like @
+    encoded_password <- get_covariate_database_password()
+    conn_string <- glue::glue("postgresql://{dbuser}:{encoded_password}@{host}/cholera_covariates")
+    
+    return(conn_string)
+}
+
+#' @title Get covariate_database password
+#' @name get_covariate_database_password
+#' @description Helper function to get password for the cholera_covariates database.
+#'
+#' @return A character string representing the PostgreSQL connection URI.
+#' @export
+get_covariate_database_password <- function() {
+  covariate_password <- Sys.getenv("COVARIATE_DATABASE_PASSWORD", "")
+  return(URLencode(covariate_password, reserved = TRUE))
+}
+
 #' @title Make covariate alias
 #' @name make_covar_alias
 #' @description Function makes the alias of for a given covariate
@@ -872,7 +900,8 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
   
   ref_schema <- strsplit(ref_grid, "\\.")[[1]][1]
   ref_table <- strsplit(ref_grid, "\\.")[[1]][2]
-  ref_grid_db <- glue::glue("PG:\"dbname=cholera_covariates schema={ref_schema} table={ref_table} user={dbuser} mode=2\"")
+  dbuser_password <- get_covariate_database_password()
+  ref_grid_db <- glue::glue("PG:\"dbname=cholera_covariates schema={ref_schema} table={ref_table} user={dbuser} password={dbuser_password} mode=2\"")
   
   covar_table <- stringr::str_c(covar_schema, covar_alias, sep = ".")
   
@@ -895,7 +924,7 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
     cl <- parallel::makeCluster(n_cpus)
     doParallel::registerDoParallel(cl)
     
-    parallel::clusterExport(cl = cl, list("connectToDB", "dbuser", "getTimeRes",
+    parallel::clusterExport(cl = cl, list("connect_to_db", "dbuser", "getTimeRes",
                                           "generateTimeSequence", "writeNCDF"), envir = environment())
     
     parallel::clusterEvalQ(cl, {
