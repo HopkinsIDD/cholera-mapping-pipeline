@@ -127,8 +127,9 @@ prepare_grid <- function(
     cat("Couldn't find grid at", res_x, "x", res_y, "[km] resolution, computing it.\n")
 
     tmp_rast <- stringr::str_c(raster::tmpDir(), "grid_resampled.tif")
+    cholera_password <- Sys.getenv("COVARIATE_DATABASE_PASSWORD", "")
     ref_grid <- glue::glue(
-      "PG:\"dbname=cholera_covariates schema=grids table=master_grid user={dbuser} mode=2\""
+      "PG:\"host=localhost dbname=cholera_covariates schema=grids table=master_grid user={dbuser} password={cholera_password} mode=2\""
     )
 
     # Aggregate
