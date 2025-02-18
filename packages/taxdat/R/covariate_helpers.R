@@ -420,7 +420,8 @@ sum_nonNA <- function(conn, r_file, ref_grid_db, dbuser) {
   # temporary file to which to write the result
   tmp_file1 <- stringr::str_c(raster::tmpDir(), "resampled_zeros_1.tif")
   tmp_file <- stringr::str_c(raster::tmpDir(), "resampled_zeros.tif")
-  src_file <- glue::glue("PG:\"dbname=cholera_covariates schema=grids table=master_grid user={dbuser} mode=2\"")
+  cholera_password <- Sys.getenv("COVARIATE_DATABASE_PASSWORD", "")
+  src_file <- glue::glue("PG:\"host=localhost dbname=cholera_covariates schema=grids table=master_grid user={dbuser} password={cholera_password} mode=2\"")
   
   gdalwarp2(src_file, tmp_file1, srcnodata = "None", overwrite = T)
   
@@ -900,8 +901,8 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
   
   ref_schema <- strsplit(ref_grid, "\\.")[[1]][1]
   ref_table <- strsplit(ref_grid, "\\.")[[1]][2]
-  dbuser_password <- get_covariate_database_password()
-  ref_grid_db <- glue::glue("PG:\"dbname=cholera_covariates schema={ref_schema} table={ref_table} user={dbuser} password={dbuser_password} mode=2\"")
+  cholera_password <- Sys.getenv("COVARIATE_DATABASE_PASSWORD", "")
+  ref_grid_db <- glue::glue("PG:\"host=localhost dbname=cholera_covariates schema={ref_schema} table={ref_table} user={dbuser} password={cholera_password} mode=2\"")
   
   covar_table <- stringr::str_c(covar_schema, covar_alias, sep = ".")
   
