@@ -924,7 +924,7 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
     cl <- parallel::makeCluster(n_cpus)
     doParallel::registerDoParallel(cl)
     
-    parallel::clusterExport(cl = cl, list("connect_to_db", "dbuser", "get_time_Res",
+    parallel::clusterExport(cl = cl, list("connect_to_db", "dbuser", "get_time_res",
                                           "generate_time_sequence", "write_ncdf"), envir = environment())
     
     parallel::clusterEvalQ(cl, {
