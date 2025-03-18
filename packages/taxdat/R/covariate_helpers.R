@@ -1005,10 +1005,12 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
           t_end <- Sys.time()
           
           if (write_to_db) {
+            dbuser <- Sys.getenv("USER")
+            conn_string <- get_covariate_conn_string(dbuser)
             if (j == 1) {
               # Write to database
               r2psql_cmd <- stringr::str_c("raster2pgsql -s 4326:4326 -I -t auto -d ",
-                                           res_file_space, covar_table, "| psql -d cholera_covariates", sep = " ")
+                                           res_file_space, covar_table, "| psql", conn_string, sep = " ")
               err <- system(r2psql_cmd)
               if (err != 0) {
                 stop(paste("System command", r2psql_cmd, "failed"))
@@ -1016,10 +1018,13 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
             } else {
               # Write to database
               r2psql_cmd <- stringr::str_c("raster2pgsql -s 4326:4326 -I -t auto -d ",
-                                           res_file_space, " tmprast | psql -d cholera_covariates", sep = " ")
+                                           res_file_space, "tmprast | psql", conn_string, sep = " ")
+              cat(paste0("Runing command: ", r2psql_cmd, "\n"))
               err <- system(r2psql_cmd)
               if (err != 0) {
                 stop(paste("System command", r2psql_cmd, "failed"))
+              }else{
+                cat(paste0("Finish command: ", r2psql_cmd, "\n"))
               }
               n_bands <- DBI::dbGetQuery(conn, "SELECT ST_NumBands(rast)
                             FROM tmprast LIMIT 1;") %>%
@@ -1055,6 +1060,7 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
           }
           
         })
+
   
   if (do_parallel) {
     parallel::clusterEvalQ(cl, {
