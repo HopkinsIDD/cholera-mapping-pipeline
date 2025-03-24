@@ -46,6 +46,7 @@ jobs:
           service postgresql start
           bash grant_cholera_database.sh root
           export USER=root
+          export COVARIATE_DATABASE_PASSWORD=dockertest
           Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
           pwd
           Rscript Analysis/R/prepare_grid_cmd.R -d ./ -u root -r 1 -i TRUE -a KEN
