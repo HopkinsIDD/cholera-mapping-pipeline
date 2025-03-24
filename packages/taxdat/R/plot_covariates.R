@@ -29,9 +29,9 @@ plot_population_map_in_scale_20_for_one_year <- function(con, band_number) {
 result <- dbGetQuery(con, query)  
 # process vals
 vals_clean <- gsub("NULL", "-9999", result$vals, ignore.case = TRUE) |>
-  gsub("[{}]", "", x = _) |>                  # 移除大括号
-  gsub(",+", ",", x = _) |>                   # 合并连续逗号
-  gsub("^,|,$", "", x = _)                    # 移除首尾逗号
+  gsub("[{}]", "", x = _) |>                  
+  gsub(",+", ",", x = _) |>                    
+  gsub("^,|,$", "", x = _)                   
 
 # create vals list and check the length
 vals_list <- strsplit(vals_clean, ",") |>
@@ -43,11 +43,11 @@ vals_list <- strsplit(vals_clean, ",") |>
     x[1:(199*199)]                             
   })
 
-# 转换为数值矩阵
+# change to numeric
 vals_numeric <- lapply(vals_list, as.numeric)
 
 
-# raster layout（假设5行8列）
+# raster layout（4 rows 10 cols）
 n_cols <- 10  
 n_rows <- 4  
 
