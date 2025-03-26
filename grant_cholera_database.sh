@@ -5,7 +5,7 @@ run_psql(){
   echo $1
   sudo -u postgres psql cholera_covariates -c "$1"
 }
-run_psql "CREATE USER $USERNAME WITH LOGIN;"
+run_psql "CREATE USER $USERNAME WITH PASSWORD 'dockertest' LOGIN;"
 run_psql "GRANT CONNECT ON DATABASE cholera_covariates TO $USERNAME;"
 
 run_psql "DO \$do$ \
