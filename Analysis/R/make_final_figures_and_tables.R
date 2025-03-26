@@ -15,6 +15,7 @@ library(ggalluvial)
 library(ggpattern)
 library(ggplot2)
 library(patchwork)
+library(ggspatial)
 
 # User-supplied options
 opt_list <- list(
@@ -1334,9 +1335,24 @@ p_fig1A <- output_plot_map(sf_obj = grid_cases %>%
         panel.background = element_rect(fill = "white", color = "white")) +
   guides(fill = guide_colorbar("Mean annual incidence \n[cases/year]"))
 
+p_compass <- ggplot() +
+  geom_sf(data = afr_sf, fill = NA,color=NA) +
+  annotation_north_arrow(
+    location = "tl",
+    which_north = "true",
+    style = north_arrow_fancy_orienteering,
+    height = unit(0.8, "cm"),
+    width = unit(0.6, "cm"),
+    pad_x = unit(0.1, "in"),
+    pad_y = unit(0.1, "in")
+  ) +
+  annotation_scale(location = "tl", width_hint = 0.15, pad_x = unit(0.4, "in"),pad_y = unit(0.2, "in")) +
+  theme_void()
+
+final_p_fig1A <- p_fig1A + inset_element(p_compass, left = -0.65, bottom = -0.5, right = 1, top = 0.15)
 
 if (opt$save_panel_figures) {
-  ggsave(p_fig1A,
+  ggsave(final_p_fig1A,
          file = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_1A.png"),
          width = 10,
          height = 6, 
@@ -1391,7 +1407,7 @@ p_fig_BC_regions <- ggplot(afr_sf, aes(fill = AFRO_region)) +
 p_fig1 <- cowplot::plot_grid(
   p_fig1B +
     theme(plot.margin = unit(c(2, 9, 1, 3), "lines")),
-  p_fig1A,
+  final_p_fig1A,
   nrow = 2,
   labels = "auto",
   rel_heights = c(.35, 1)
@@ -1409,6 +1425,11 @@ ggsave(plot = p_fig1,
        height = 7.5,
        dpi = 300)
 
+ggsave(plot = p_fig1,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_1.pdf"),
+       width = 10,
+       height = 7.5,
+       dpi = 300)
 
 # Figure 2: changes between periods ------------------------------------------
 
@@ -1612,7 +1633,18 @@ p_fig2B <- mai_change_adm %>%
          color = guide_legend("Change significance")) +
   theme(strip.background = element_blank(),
         strip.text = element_text(size = 15),
-        legend.position = c(.2, .3))
+        legend.position = c(.2, .3)) +
+  annotation_north_arrow(
+    location = "bl",
+    which_north = "true",
+    style = north_arrow_fancy_orienteering,
+    height = unit(0.8, "cm"),
+    width = unit(0.6, "cm"),
+    pad_x = unit(1.1, "in"),
+    pad_y = unit(0.8, "in")
+  ) +
+  annotation_scale(location = "bl", width_hint = 0.15, pad_x = unit(1.1, "in"),pad_y = unit(0.6, "in")) 
+  
 
 if (opt$save_panel_figures) {
   ggsave(p_fig2B,
@@ -1642,6 +1674,11 @@ ggsave(plot = p_fig2,
        height = 9,
        dpi = 600)
 
+ggsave(plot = p_fig2,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_2.pdf"),
+       width = 18,
+       height = 9,
+       dpi = 600)
 
 # Figure 3: population at risk --------------------------------------------
 
@@ -1714,7 +1751,18 @@ p_fig3B <- risk_pop_50_adm2 %>%
         strip.text = element_text(size = 15),
         legend.position = c(.2, .3),
         panel.background = element_rect(fill = "white", color = "white"))+
-  guides(fill = guide_legend("Incidence category\nper 100,000 pop"))
+  guides(fill = guide_legend("Incidence category\nper 100,000 pop")) +
+  annotation_north_arrow(
+    location = "bl",
+    which_north = "true",
+    style = north_arrow_fancy_orienteering,
+    height = unit(0.8, "cm"),
+    width = unit(0.6, "cm"),
+    pad_x = unit(0.5, "in"),
+    pad_y = unit(0.16, "in")
+  ) +
+  annotation_scale(location = "bl", width_hint = 0.15, pad_x = unit(0.5, "in"),pad_y = unit(0, "in")) 
+
 
 
 if (opt$save_panel_figures) {
@@ -1747,6 +1795,11 @@ ggsave(plot = p_fig3,
        height = 6,
        dpi = 600)
 
+ggsave(plot = p_fig3,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_3.pdf"),
+       width = 12,
+       height = 6,
+       dpi = 600)
 
 # Figure 4:  10-year risk categories -------------------------------------
 
@@ -1868,7 +1921,17 @@ p_fig4B <- endemicity_df_50_v2 %>%
                   border_width = .03) +
   theme(legend.position = c(.2, .3),
         panel.background = element_rect(fill = "white", color = "white")) +
-  guides(fill = guide_legend("10-year incidence\ncategory"))
+  guides(fill = guide_legend("10-year incidence\ncategory")) +
+  annotation_north_arrow(
+    location = "bl",
+    which_north = "true",
+    style = north_arrow_fancy_orienteering,
+    height = unit(0.8, "cm"),
+    width = unit(0.6, "cm"),
+    pad_x = unit(1, "in"),
+    pad_y = unit(0.5, "in")
+  ) +
+  annotation_scale(location = "bl", width_hint = 0.15, pad_x = unit(1, "in"),pad_y = unit(0.32, "in")) 
 
 
 # Add legend to map
@@ -1909,6 +1972,12 @@ p_fig4 <- plot_grid(
 # Save
 ggsave(plot = p_fig4,
        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4.png"),
+       width = 15,
+       height = 8,
+       dpi = 300)
+
+ggsave(plot = p_fig4,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4.pdf"),
        width = 15,
        height = 8,
        dpi = 300)
@@ -1955,7 +2024,18 @@ p_ob_map <- endemicity_df_50_v2 %>%
   scale_fill_manual(values = taxdat:::colors_endemicity()) +
   labs(color = NULL) +
   guides(fill = guide_legend("10-year incidence\ncategory", override.aes = list(alpha = 1))) +
-  scale_shape_manual(values = c(1, 3, 4))
+  scale_shape_manual(values = c(1, 3, 4)) +
+  annotation_north_arrow(
+    location = "bl",
+    which_north = "true",
+    style = north_arrow_fancy_orienteering,
+    height = unit(0.8, "cm"),
+    width = unit(0.6, "cm"),
+    pad_x = unit(0.6, "in"),
+    pad_y = unit(0.5, "in")
+  ) +
+  annotation_scale(location = "bl", width_hint = 0.15, pad_x = unit(0.6, "in"),pad_y = unit(0.32, "in")) 
+
 
 if (opt$save_panel_figures) {
   ggsave(plot = p_ob_map,
@@ -2093,6 +2173,11 @@ ggsave(plot = p_fig5,
        height = 7.5,
        dpi = 300)
 
+ggsave(plot = p_fig5,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_5.pdf"),
+       width = 13,
+       height = 7.5,
+       dpi = 300)
 
 # Figure 6: targetting ----------------------------------------------------
 # Compare strategies to target populations
@@ -2284,6 +2369,31 @@ p_targets2_2016_2020_final <- ggdraw(p_targets2_2016_2020) +
 ggsave(p_targets2_2016_2020_final, 
        filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_6.png"),
        width = 12, height = 5.5, dpi = 300,bg = "transparent")
+
+p_targets2_2016_2020_final_pdf <- ggdraw(p_targets2_2016_2020) +
+  patchwork::plot_annotation(
+    caption = "   Cholera burden\nmetric               ",
+    theme = theme(
+      plot.caption = element_text(
+        hjust = 0.98,           # Align right
+        vjust = 160,           # Align bottom
+        size = 10
+      ),
+      plot.background = element_rect(fill = "transparent", color = NA)  # Transparent background
+    )
+  ) +
+  draw_line(
+    x = c(0.9, 0.883),  # Start and end X positions (normalized coordinates, 0-1)
+    y = c(0.94, 0.94), # Start and end Y positions (normalized coordinates, 0-1)
+    arrow = arrow(length = unit(0.05, "inches"), type = "closed"),
+    color = "black",
+    size = 0.8
+  )
+
+
+ggsave(p_targets2_2016_2020_final_pdf, 
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_6.pdf"),
+       width = 12, height = 5.5, dpi = 300,bg = "white")
 
 # Supplementary figures ---------------------------------------------------
 
