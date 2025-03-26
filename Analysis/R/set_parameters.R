@@ -485,6 +485,11 @@ for(t_idx in 1:length(all_test_idx)){
     save(covar_cube_output, file = file_names[["covar"]])
   }
 
+  inject_covar <- Sys.getenv("INJECT_COVAR", FALSE)
+  if (as.logical(inject_covar)) {
+    stop("Script set_parameter.R stop due to the setting of environment varialbe INJECT_COVAR")
+  }
+
   ## Step 3: Prepare the stan input ##
   print(file_names[["stan_input"]])
   if(!file.exists(file_names[["stan_input"]])){

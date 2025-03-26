@@ -10,7 +10,36 @@ connect_to_db <- function(dbuser) {
   #' @title Connect to database
   #' @description Connects to the postgres/postgis cholera_covariates database
   #' @return db connection object
-  DBI::dbConnect(RPostgres::Postgres(), dbname = "cholera_covariates", user = dbuser)
+  covariate_password <- Sys.getenv("COVARIATE_DATABASE_PASSWORD", "")
+  DBI::dbConnect(RPostgres::Postgres(), host="localhost", dbname = "cholera_covariates", user = dbuser, password = covariate_password)
+}
+
+#' @title Get Database Connection String
+#' @name get_covariate_conn_string
+#' @description Helper function to generate a PostgreSQL connection string for the cholera_covariates database.
+#'
+#' @param dbuser The database username.
+#'
+#' @return A character string representing the PostgreSQL connection URI.
+#' @export
+get_covariate_conn_string <- function(dbuser) {
+    host <- "localhost"
+    # URL encode the password to handle special characters like @
+    encoded_password <- get_covariate_database_password()
+    conn_string <- glue::glue("postgresql://{dbuser}:{encoded_password}@{host}/cholera_covariates")
+    
+    return(conn_string)
+}
+
+#' @title Get covariate_database password
+#' @name get_covariate_database_password
+#' @description Helper function to get password for the cholera_covariates database.
+#'
+#' @return A character string representing the PostgreSQL connection URI.
+#' @export
+get_covariate_database_password <- function() {
+  covariate_password <- Sys.getenv("COVARIATE_DATABASE_PASSWORD", "")
+  return(URLencode(covariate_password, reserved = TRUE))
 }
 
 #' @title Make covariate alias
@@ -391,7 +420,8 @@ sum_nonNA <- function(conn, r_file, ref_grid_db, dbuser) {
   # temporary file to which to write the result
   tmp_file1 <- stringr::str_c(raster::tmpDir(), "resampled_zeros_1.tif")
   tmp_file <- stringr::str_c(raster::tmpDir(), "resampled_zeros.tif")
-  src_file <- glue::glue("PG:\"dbname=cholera_covariates schema=grids table=master_grid user={dbuser} mode=2\"")
+  cholera_password <- Sys.getenv("COVARIATE_DATABASE_PASSWORD", "")
+  src_file <- glue::glue("PG:\"host=localhost dbname=cholera_covariates schema=grids table=master_grid user={dbuser} password={cholera_password} mode=2\"")
   
   gdalwarp2(src_file, tmp_file1, srcnodata = "None", overwrite = T)
   
@@ -871,7 +901,8 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
   
   ref_schema <- strsplit(ref_grid, "\\.")[[1]][1]
   ref_table <- strsplit(ref_grid, "\\.")[[1]][2]
-  ref_grid_db <- glue::glue("PG:\"dbname=cholera_covariates schema={ref_schema} table={ref_table} user={dbuser} mode=2\"")
+  cholera_password <- Sys.getenv("COVARIATE_DATABASE_PASSWORD", "")
+  ref_grid_db <- glue::glue("PG:\"host=localhost dbname=cholera_covariates schema={ref_schema} table={ref_table} user={dbuser} password={cholera_password} mode=2\"")
   
   covar_table <- stringr::str_c(covar_schema, covar_alias, sep = ".")
   
@@ -894,8 +925,8 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
     cl <- parallel::makeCluster(n_cpus)
     doParallel::registerDoParallel(cl)
     
-    parallel::clusterExport(cl = cl, list("connectToDB", "dbuser", "getTimeRes",
-                                          "generateTimeSequence", "writeNCDF"), envir = environment())
+    parallel::clusterExport(cl = cl, list("connect_to_db", "dbuser", "get_time_res",
+                                          "generate_time_sequence", "write_ncdf"), envir = environment())
     
     parallel::clusterEvalQ(cl, {
       conn <- connect_to_db(dbuser)
@@ -910,9 +941,9 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
   }
   doFun <- ifelse(do_parallel, foreach::`%dopar%`, foreach::`%do%`)
   no_export <- ifelse(do_parallel, "conn", "")
-  export_funs <- c("extractCovariateMetadata", "parse_gdal_res", "parseTimeRes",
-                   "dbExistsTableMulti", "buildGeomsQuery", "showProgress", "getNCDFMetadata",
-                   "timeAggregate", "spaceAggregate", "gdalinfo2", "gdal_cmd_builder2", "gdalwarp2",
+  export_funs <- c("extract_covariate_metadata", "parse_gdal_res", "parse_time_res",
+                   "db_exists_table_multi", "build_geoms_query", "show_progress", "get_ncdf_metadata",
+                   "time_aggregate", "space_aggregate", "gdalinfo2", "gdal_cmd_builder2", "gdalwarp2",
                    "align_rasters2")
   doFun(foreach::foreach(j = seq_along(raster_files),
                          .combine = rbind,
@@ -974,10 +1005,12 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
           t_end <- Sys.time()
           
           if (write_to_db) {
+            dbuser <- Sys.getenv("USER")
+            conn_string <- get_covariate_conn_string(dbuser)
             if (j == 1) {
               # Write to database
               r2psql_cmd <- stringr::str_c("raster2pgsql -s 4326:4326 -I -t auto -d ",
-                                           res_file_space, covar_table, "| psql -d cholera_covariates", sep = " ")
+                                           res_file_space, covar_table, "| psql", conn_string, sep = " ")
               err <- system(r2psql_cmd)
               if (err != 0) {
                 stop(paste("System command", r2psql_cmd, "failed"))
@@ -985,10 +1018,13 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
             } else {
               # Write to database
               r2psql_cmd <- stringr::str_c("raster2pgsql -s 4326:4326 -I -t auto -d ",
-                                           res_file_space, " tmprast | psql -d cholera_covariates", sep = " ")
+                                           res_file_space, "tmprast | psql", conn_string, sep = " ")
+              cat(paste0("Runing command: ", r2psql_cmd, "\n"))
               err <- system(r2psql_cmd)
               if (err != 0) {
                 stop(paste("System command", r2psql_cmd, "failed"))
+              }else{
+                cat(paste0("Finish command: ", r2psql_cmd, "\n"))
               }
               n_bands <- DBI::dbGetQuery(conn, "SELECT ST_NumBands(rast)
                             FROM tmprast LIMIT 1;") %>%
@@ -1024,6 +1060,7 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
           }
           
         })
+
   
   if (do_parallel) {
     parallel::clusterEvalQ(cl, {
