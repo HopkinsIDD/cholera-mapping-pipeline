@@ -18,7 +18,7 @@ opt <- parse_args(OptionParser(option_list = option_list))
 
 # Loop over bands and get values where is non 0
 
-conn_pg <- taxdat::connect_to_db(Sys.getenv("perez"))
+conn_pg <- taxdat::connect_to_db(Sys.getenv("USER"))
 band <- opt$band
 
 cat("-- STARTING band", band, "\n")
@@ -27,13 +27,14 @@ t1 <- Sys.time()
 
 if (opt$extract) {
   # Dump pixels as polygons
-  DBI::dbSendStatement(conn_pg, str_glue("DROP TABLE IF EXISTS tmppop_{band}"));
+  table_name <- DBI::SQL(glue::glue("tmppop_{band}"))
+  DBI::dbSendStatement(conn_pg, str_glue("DROP TABLE IF EXISTS {table_name}"));
   DBI::dbSendStatement(conn_pg,
-                       glue::glue_sql("CREATE TABLE tmppop_{band} AS (
+                       glue::glue_sql("CREATE TABLE {table_name} AS (
                     SELECT rid, (gval).x, (gval).y, (gval).geom as geom, ST_Centroid(
                     (gval).geom) as centroid, (gval).val
                     FROM (
-                    SELECT rid, ST_PixelAsPolygons(rast, {band}) as gval
+                    SELECT rid, ST_PixelAsPolygons(rast, {as.integer(band)}) as gval
                     FROM covariates.pop_1_years_20_20) foo);", .con = conn_pg)
   )
   
@@ -41,11 +42,12 @@ if (opt$extract) {
   cat("--- Done Pix2Poly in ", formatC(difftime(t2, t1, units= "min"), digits = 2), " min \n")
   
   # Compute sum of 1km population
-  DBI::dbSendStatement(conn_pg, str_glue("DROP TABLE IF EXISTS tmppop2_{band}"));
+  table_name <- DBI::SQL(glue::glue("tmppop2_{band}"))
+  DBI::dbSendStatement(conn_pg, str_glue("DROP TABLE IF EXISTS {table_name}"));
   DBI::dbSendStatement(conn_pg, 
                        glue::glue_sql("
-                CREATE TABLE tmppop2_{band} AS (
-                SELECT a.rid, a.x, a.y, a.centroid, (ST_SummaryStats(ST_Union(ST_Clip(rast, {band}, geom, true)))).sum as pop1km
+                CREATE TABLE {table_name} AS (
+                SELECT a.rid, a.x, a.y, a.centroid, (ST_SummaryStats(ST_Union(ST_Clip(rast, {as.integer(band)}, geom, true)))).sum as pop1km
                 FROM covariates.pop_1_years_1_1, tmppop a
                 WHERE ST_Intersects(rast, geom)
                 GROUP BY a.rid, a.x, a.y, a.centroid
