@@ -1436,7 +1436,7 @@ get_country_admin_units <- function(iso_code,
                     shapeType) %>% 
       dplyr::mutate(source = "gadm")
     
-  } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA","BEN")){
+  } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA")){
     
     message("Using the rgeoboundaries shapefiles for this country at admin level ", admin_level)
     
