@@ -42,13 +42,13 @@ if (opt$extract) {
   cat("--- Done Pix2Poly in ", formatC(difftime(t2, t1, units= "min"), digits = 2), " min \n")
   
   # Compute sum of 1km population
-  table_name <- DBI::SQL(glue::glue("tmppop2_{band}"))
-  DBI::dbSendStatement(conn_pg, str_glue("DROP TABLE IF EXISTS {table_name}"));
+  table_name2 <- DBI::SQL(glue::glue("tmppop2_{band}"))
+  DBI::dbSendStatement(conn_pg, str_glue("DROP TABLE IF EXISTS {table_name2}"));
   DBI::dbSendStatement(conn_pg, 
                        glue::glue_sql("
-                CREATE TABLE {table_name} AS (
+                CREATE TABLE {table_name2} AS (
                 SELECT a.rid, a.x, a.y, a.centroid, (ST_SummaryStats(ST_Union(ST_Clip(rast, {as.integer(band)}, geom, true)))).sum as pop1km
-                FROM covariates.pop_1_years_1_1, tmppop a
+                FROM covariates.pop_1_years_1_1, {table_name} a
                 WHERE ST_Intersects(rast, geom)
                 GROUP BY a.rid, a.x, a.y, a.centroid
                 );
@@ -63,11 +63,13 @@ if (opt$extract) {
 
 # Set new values
 if (opt$set) {
+# Set new values
+table_name2 <- DBI::SQL(glue::glue("tmppop2_{band}"))
   DBI::dbSendStatement(conn_pg, glue::glue_sql(
     "UPDATE covariates.pop_1_years_20_20 r
-                     SET rast = ST_SetValues(rast, {band}, (SELECT ARRAY(
+                     SET rast = ST_SetValues(rast, {as.integer(band)}, (SELECT ARRAY(
                      SELECT (a.centroid, a.pop1km)::geomval
-                     FROM tmppop2_{band} a)
+                     FROM {table_name2} a)
                      ))
                      ;", .con = conn_pg))
   t4 <- Sys.time()
