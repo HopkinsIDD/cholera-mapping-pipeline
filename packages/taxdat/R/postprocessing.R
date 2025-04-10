@@ -587,8 +587,7 @@ postprocess_annual_adm0_cases <- function(config_list,
   output_shapefiles <- get_output_sf_reload(config_list = config_list,
                                             redo = redo_aux) %>% 
     sf::st_drop_geometry() %>% 
-    tibble::as_tibble() %>% 
-    dplyr::select(-country)
+    tibble::as_tibble()
   
   res <- join_output_shapefiles_by_time(output = cases, 
                                 output_shapefiles = output_shapefiles,
