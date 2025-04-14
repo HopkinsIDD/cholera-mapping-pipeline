@@ -253,6 +253,24 @@ mean_cases <- run_all(
   output_file_type = "rds",
   verbose = opt$verbose)
 
+# Country-level cases by year
+mean_adm0_cases_by_time <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_annual_adm0_cases,
+  fun_name = "mai_adm0_cases_by_time",
+  fun_opts = NULL,
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  interm_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose
+)
 
 # D. Mean annual incidence rates ---------------------------------------------
 
@@ -667,7 +685,7 @@ gen_obs <- run_all(
 
 
 
-# G. Population -----------------------------------------------------------
+# I. Population -----------------------------------------------------------
 
 
 # Country-level population
@@ -688,3 +706,23 @@ pop <- run_all(
   output_file_type = "rds",
   verbose = opt$verbose)
 
+
+# J. Over dispersion parameter ----
+
+# Get the summary of overdispersion parameters by admin level
+od_stat <- run_all(
+  config_dir = opt$config_dir,
+  fun = postprocess_od_param,
+  fun_name = "od_param",
+  fun_opts = NULL,
+  prefix = opt$prefix,
+  suffix = opt$suffix,
+  error_handling = opt$error_handling,
+  redo = opt$redo,
+  redo_interm = opt$redo_interm,
+  redo_aux = opt$redo_auxilliary,
+  output_dir = opt$output_dir,
+  interm_dir = opt$interm_dir,
+  data_dir = opt$data_dir,
+  output_file_type = "rds",
+  verbose = opt$verbose)

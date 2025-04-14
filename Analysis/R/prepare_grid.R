@@ -97,8 +97,10 @@ prepare_grid <- function(
     master_grid_filename <- gsub('.tif$', paste0('.cropped.',aoi_name, '.tif'), master_grid_filename)
     raster::writeRaster(x = r, filename = master_grid_filename)
 
-    r2psql_cmd <- glue::glue("raster2pgsql -s EPSGS:4326 -I -t auto -d {master_grid_filename}  grids.master_grid |
-                     psql -d cholera_covariates")
+    conn_string <- taxdat::get_covariate_conn_string(dbuser)
+
+    r2psql_cmd <- glue::glue("raster2pgsql -s EPSG:4326 -I -t auto -d {master_grid_filename}  grids.master_grid |
+                     psql {conn_string}")
     err <- system(r2psql_cmd)
     if (err != 0) {
       stop(paste("System command", r2psql_cmd, "failed"))
@@ -125,8 +127,9 @@ prepare_grid <- function(
     cat("Couldn't find grid at", res_x, "x", res_y, "[km] resolution, computing it.\n")
 
     tmp_rast <- stringr::str_c(raster::tmpDir(), "grid_resampled.tif")
+    cholera_password <- Sys.getenv("COVARIATE_DATABASE_PASSWORD", "")
     ref_grid <- glue::glue(
-      "PG:\"dbname=cholera_covariates schema=grids table=master_grid user={dbuser} mode=2\""
+      "PG:\"host=localhost dbname=cholera_covariates schema=grids table=master_grid user={dbuser} password={cholera_password} mode=2\""
     )
 
     # Aggregate
@@ -135,8 +138,10 @@ prepare_grid <- function(
                       t_srs = "EPSG:4326",
                       s_srs = "EPSG:4326")
     # Write to database
+    # set host as localhost, this part can't run in docker right now.
+    conn_string <- taxdat::get_covariate_conn_string(dbuser)
     r2psql_cmd <- glue::glue(
-      "raster2pgsql -s EPSGS:4326 -I -C -t auto -d {tmp_rast} {grid_name} | psql -d cholera_covariates"
+      "raster2pgsql -s EPSGS:4326 -I -C -t auto -d {tmp_rast} {grid_name} | psql {conn_string}"
     )
     err <- system(r2psql_cmd)
     if (err != 0) {

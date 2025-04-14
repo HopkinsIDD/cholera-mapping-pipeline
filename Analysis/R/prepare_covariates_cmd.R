@@ -7,7 +7,7 @@ option_list <- list(
   optparse::make_option(c("-p", "--do_parallel"), action = "store", default = T, type="logical", help = "Flag to do parallel pre-processing, this needs to be done prior to ingestion. Useful for temporal covariates."),
   optparse::make_option(c("-n", "--n_cores"), action = "store", default = parallel::detectCores() - 2, type="integer", help = "Number of cores to use for parallel computation"),
   optparse::make_option(c("-o", "--ovrt_covar"), action = "store", default = T, type="logical", help = "Flag to overwrite covariates when ingesting in database"),
-  optparse::make_option(c("-x", "--ovrt_metadata_table"), action = "store", default = FALSE, type="logical", help = "Flag to overwrite covariates metatdata table in database"),
+  optparse::make_option(c("-x", "--ovrt_metadata_table"), action = "store", default = FALSE, type="logical", help = "Flag to overwrite covariates metadata table in database"),
   optparse::make_option(c("-m", "--redo_metadata"), action = "store", default = FALSE, type="logical", help = "Flag to re-extract metadata information"),
   optparse::make_option(c("-c", "--covar"), action = "store", default = "aw", type="character", help = "List of covariates to use, specified as abbreviations separated by commas"),
   optparse::make_option(c("-g", "--full_grid_name"), action = "store", default ="public.grid_20_20", type="character", help = "Name of full grid"),
