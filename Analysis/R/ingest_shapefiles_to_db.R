@@ -54,14 +54,14 @@ for (country in countries) {
       cat(country, "has no data, skipping\n")
       next
     }
-    
+   shps <- mutate(shps, country = country) 
     # Write to PostgreSQL database
     st_write(
       obj = shps,
       dsn = conn_db,
       layer = "output_shapefiles",
       append = !first_write,  # FALSE for first write, TRUE afterwards
-      quiet = TRUE
+	  quiet = TRUE
     )
     
     # After first successful write, set flag to FALSE
