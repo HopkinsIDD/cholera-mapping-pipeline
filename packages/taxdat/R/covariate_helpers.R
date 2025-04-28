@@ -1409,73 +1409,20 @@ get_country_admin_units <- function(iso_code,
     stop('Error: the current admin level is unnecessarily high or invalid,
             please check and change the parameters for the country data report before running again. ')
   }
+
+  message("Using the rgeoboundaries shapefiles for all countries, for this country a admin level: ", admin_level)
   
-  if (iso_code == "ZNZ" ) {
-    
-    message("Using the aggregated gadm shapefiles for Zanzibar")
-    
-    if(admin_level == 0){
-      boundary_sf <- sf::st_as_sf(geodata::gadm(country="TZA", level=1, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
-      unionized <- sf::st_union(boundary_sf)
-      boundary_sf <- boundary_sf[1, ]
-      sf::st_geometry(boundary_sf) <- unionized
-    } else {
-      boundary_sf <- sf::st_as_sf(geodata::gadm(country="TZA", level=admin_level, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
-    }
-    
-    # Fix colnames for compatibility with rest of code
-    boundary_sf <- boundary_sf %>% 
-      magrittr::set_colnames(.,tolower(colnames(boundary_sf))) %>%
-      dplyr::mutate(country="Tanzania",
-                    gid_0="TZA")%>%
-      dplyr::mutate(name_0 = country,
-                    shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
-                    shapeType = paste0("ADM", admin_level))%>% 
-      dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
-                    shapeID,
-                    shapeType) %>% 
-      dplyr::mutate(source = "gadm")
-    
-  } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA")){
-    
-    message("Using the rgeoboundaries shapefiles for this country at admin level ", admin_level)
-    
-    boundary_sf <- rgeoboundaries::geoboundaries(country = iso_code,
-                                                 adm_lvl = paste0('adm',admin_level)) %>%
-      dplyr::select(shapeName, shapeID, shapeType, geometry) %>% 
-      dplyr::mutate(source = "rgeoboundaries")
-    
-  } else {
-    message("Using the gadm shapefile for this country at admin level ", admin_level)
-    boundary_sf <- geodata::gadm(country = iso_code, 
-                                 level = admin_level, 
-                                 path = tempdir()) 
-    
-    if (admin_level > 1) {
-      warning('The current admin level is set at ', admin_level)
-    }
-    
-    # Fix colnames for compatibility with rest of code
-    boundary_sf <- boundary_sf %>% 
-      sf::st_as_sf() 
-    
-    boundary_sf <- boundary_sf %>%
-      magrittr::set_colnames(.,tolower(colnames(boundary_sf))) %>%
-      dplyr::mutate(name_0 = country,
-                    shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
-                    shapeType = paste0("ADM", admin_level)) %>% 
-      dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
-                    shapeID,
-                    shapeType) %>% 
-      dplyr::mutate(source = "gadm")
-  }
+  # Pull shapefiles from rgeoboundaries package
+  boundary_sf <- rgeoboundaries::geoboundaries(country = iso_code,
+                                                 adm_lvl = paste0('adm',admin_level)) %>% 
+    dplyr::mutate(shapeID = paste0(shapeGroup,"-",shapeType,"-",shapeID)) %>% 
+    dplyr::select(shapeName, shapeID, shapeType, geometry) %>% 
+    dplyr::mutate(source = "rgeoboundaries") %>% 
+    dplyr::rename(location_period_id = shapeID)
   
   # Set reference WGS84 projection
   sf::st_crs(boundary_sf) <- sf::st_crs(4326)
   sf::st_geometry(boundary_sf) <- "geom"
-  
-  boundary_sf <- boundary_sf %>% 
-    dplyr::rename(location_period_id = shapeID)
   
   # Fix geometry collections if any
   boundary_sf <- fix_geomcollections(boundary_sf)
