@@ -141,7 +141,7 @@ mai_grid_cases_stats <- read_output(
 
 # Get the risk category by location at all admin levels 
 risk_categories <- read_output(
-  fun_name = "risk_categories",
+  fun_name = "risk_categories_50",
   prefix = prefix,
   suffix = opt$suffix,
   output_dir = opt$output_dir,
