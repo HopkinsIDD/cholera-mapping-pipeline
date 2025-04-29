@@ -2,6 +2,7 @@
 
 
 # Preamble ----------------------------------------------------------------
+library(optparse)
 library(DBI)
 library(RPostgres)
 library(purrr)
@@ -9,10 +10,27 @@ library(magrittr)
 library(sf)
 library(taxdat)
 
+# Define command-line options
+option_list <- list(
+  make_option(c("-d", "--config_dir"),
+    type = "character", default = NULL,
+    help = "Path to the parent directory containing config YAML files", metavar = "character"
+  )
+)
+
+# Parse options
+opt_parser <- OptionParser(option_list = option_list)
+opt <- parse_args(opt_parser)
+
+# Check if parent_dir is provided
+if (is.null(opt$parent_dir)) {
+  stop("Error: Please provide the path to the config files' directory using the -d or --config_dir option.")
+}
+
+# Use the parent_dir value from the command-line argument
+parent_dir <- opt$parent_dir
 
 # Get country list from config directory for which runs where done
-# Get the path to the parent directory
-parent_dir <- "/home/pfang/Code/cholera-mapping-pipeline/Analysis/configs/Sep_2023_nocovar_production_runs"
 yml_files <- list.files(parent_dir,
   pattern = "\\.yml$",
   recursive = TRUE,
