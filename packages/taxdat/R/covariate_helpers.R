@@ -1485,8 +1485,15 @@ get_multi_country_admin_units <- function(iso_code,
   )
   
   if (clip_to_adm0) {
-    adm0_geom <- adm_sf %>% dplyr::slice(1)
+    
+    adm0_geom <- adm_sf %>% 
+      dplyr::slice(1) %>% 
+      sf::st_make_valid()
+
     adm_sf <- adm_sf %>% 
+      # Filter subnational admin units that intersect the adm0 geometry
+      sf::st_filter(adm0_geom) %>% 
+      # Set geoms to the intersections
       dplyr::mutate(geom = sf::st_make_valid(sf::st_intersection(geom, adm0_geom$geom)))
   }
   
