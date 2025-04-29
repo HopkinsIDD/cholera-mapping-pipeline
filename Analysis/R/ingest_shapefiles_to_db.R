@@ -23,12 +23,12 @@ opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
 
 # Check if parent_dir is provided
-if (is.null(opt$parent_dir)) {
+if (is.null(opt$config_dir)) {
   stop("Error: Please provide the path to the config files' directory using the -d or --config_dir option.")
 }
 
 # Use the parent_dir value from the command-line argument
-parent_dir <- opt$parent_dir
+parent_dir <- opt$config_dir
 
 # Get country list from config directory for which runs where done
 yml_files <- list.files(parent_dir,
