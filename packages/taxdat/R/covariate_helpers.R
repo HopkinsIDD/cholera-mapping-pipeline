@@ -1417,7 +1417,7 @@ get_country_admin_units <- function(iso_code,
                                                  adm_lvl = paste0('adm',admin_level)) %>% 
     dplyr::mutate(shapeID = paste0(shapeGroup,"-",shapeType,"-",shapeID)) %>% 
     dplyr::select(shapeName, shapeID, shapeType, geometry) %>% 
-    dplyr::mutate(source = "rgeoboundaries") %>% 
+    dplyr::mutate(source = "rgeoboundaries", country = iso_code) %>% 
     dplyr::rename(location_period_id = shapeID)
   
   # Set reference WGS84 projection
@@ -1430,7 +1430,7 @@ get_country_admin_units <- function(iso_code,
   # Combine into multipolygons
   boundary_sf <- sf::st_cast(boundary_sf, "MULTIPOLYGON")
   boundary_sf <- boundary_sf %>% 
-    dplyr::group_by(shapeName) %>% 
+    dplyr::group_by(shapeName,country) %>% 
     dplyr::summarise(location_period_id = stringr::str_c(location_period_id, 
                                                          collapse = "_"),
                      shapeType = shapeType[1],
