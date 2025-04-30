@@ -552,7 +552,8 @@ postprocess_mean_annual_cases <- function(config_list,
   output_shapefiles <- get_output_sf_reload(config_list = config_list,
                                             redo = redo_aux) %>% 
     sf::st_drop_geometry() %>% 
-    tibble::as_tibble()
+    tibble::as_tibble() %>% 
+    dplyr::select(-country)
   
   res <- join_output_shapefiles(output = cases, 
                                 output_shapefiles = output_shapefiles,
@@ -587,7 +588,8 @@ postprocess_annual_adm0_cases <- function(config_list,
   output_shapefiles <- get_output_sf_reload(config_list = config_list,
                                             redo = redo_aux) %>% 
     sf::st_drop_geometry() %>% 
-    tibble::as_tibble()
+    tibble::as_tibble() %>% 
+    dplyr::select(-country)
   
   res <- join_output_shapefiles_by_time(output = cases, 
                                 output_shapefiles = output_shapefiles,
@@ -1146,7 +1148,8 @@ postprocess_mean_population <- function(config_list,
   output_shapefiles <- get_output_sf_reload(config_list = config_list,
                                             redo = redo_aux) %>% 
     sf::st_drop_geometry() %>% 
-    tibble::as_tibble()
+    tibble::as_tibble() %>% 
+    dplyr::select(-country)
   
   res <- join_output_shapefiles(output = population, 
                                 output_shapefiles = output_shapefiles,
