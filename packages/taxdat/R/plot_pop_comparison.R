@@ -30,7 +30,7 @@ plot_pop_comparison <- function(config, cache, cholera_directory){
     filter(WHO.region %in% c("Africa","Eastern Mediterranean"))
   
   # Load UN population estimates
-  data("WPP2022", package = "taxdat")
+  data("WPP2024", package = "taxdat")
   
   wpp_pop <- afr_regions %>% 
     dplyr::mutate(
@@ -38,7 +38,7 @@ plot_pop_comparison <- function(config, cache, cholera_directory){
     ) %>% 
     dplyr::select(ISO3_code) %>% 
     dplyr::inner_join(
-      WPP2022 %>% dplyr::filter(Time %in% period) %>% dplyr::select(ISO3_code, Time, PopTotal) %>% dplyr::mutate(PopTotal = 1000*PopTotal)
+      WPP2024 %>% dplyr::filter(Time %in% period) %>% dplyr::select(ISO3_code, Time, PopTotal) %>% dplyr::mutate(PopTotal = 1000*PopTotal)
     ) %>% 
     dplyr::filter(ISO3_code == config_file$countries_name) %>%
     dplyr::arrange(Time)
