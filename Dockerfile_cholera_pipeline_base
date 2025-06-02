@@ -14,15 +14,21 @@ RUN apt-get update && \
     libglpk-dev \
     libudunits2-dev \
     libgeos-dev \
+	build-essential \
+	libv8-dev \
     postgresql-client && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
     
     
 RUN R -e "install.packages('RPostgreSQL', type='source', dependencies=TRUE)"
-RUN R -e "install.packages(c('ISOcodes', 'sf'), dependencies=TRUE, repos='https://cloud.r-project.org/')"
+RUN R -e "install.packages(c('ISOcodes'), dependencies=TRUE, repos='https://cloud.r-project.org/')"
+RUN R -e "install.packages('s2', dependencies=TRUE)"
+RUN R -e "install.packages('sf', dependencies=TRUE)"
 RUN R -e "install.packages('geodata', dependencies=TRUE, repos='https://cloud.r-project.org/')"
-RUN R -e "install.packages('igraph', dependencies=TRUE, repos='https://cloud.r-project.org/')"
-RUN R -e "install.packages('optparse', dependencies=TRUE, repos='https://cloud.r-project.org/')"
-RUN R -e "install.packages(c('spdep', 'foreach', 'doParallel', 'itertools'), repos='https://cloud.r-project.org/')"
+# RUN R -e "install.packages('igraph', dependencies=TRUE, repos='https://cloud.r-project.org/')"
+# RUN R -e "install.packages('optparse', dependencies=TRUE, repos='https://cloud.r-project.org/')"
+# RUN R -e "install.packages(c('spdep', 'foreach', 'doParallel', 'itertools'), repos='https://cloud.r-project.org/')"
+# Install rstan with optimized compilation settings
+# RUN R -e "install.packages('rstan', repos='https://cloud.r-project.org/')"
 CMD ["bash"]
