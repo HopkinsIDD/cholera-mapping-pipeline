@@ -2005,7 +2005,10 @@ ggsave(plot = p_fig4,
        height = 100,
        units = "mm",
        device = cairo_pdf)
-
+ggsave(plot = p_fig4,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_4_new.svg"),
+       width = 180,
+       height = 100,   units = "mm", dpi = 300)
 
 # Figure 5: cholera occurrence -----------------------------------------------------
 
@@ -2213,7 +2216,10 @@ ggsave(plot = p_fig5,
        width = 180,
        height = 120,
        units = "mm")
-
+ggsave(plot = p_fig5,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_5_new.svg"),
+       width = 180,
+       height = 120,   units = "mm",dpi = 300)
 # Figure 6: targetting ----------------------------------------------------
 # Compare strategies to target populations
 target_pop_levels <- c(1e7, seq(5e7, 4e8, by = 5e7))
@@ -2433,6 +2439,33 @@ ggsave(plot = p_targets2_2016_2020_final_pdf,
        units = "mm", 
        dpi = 300,
        bg = "white")
+
+p_targets2_2016_2020_final_svg <- ggdraw(p_targets2_2016_2020) +
+  patchwork::plot_annotation(
+    caption = "   Cholera burden\nmetric               ",
+    theme = theme(
+      plot.caption = element_text(
+        hjust = 0.95,
+        vjust = 155,
+        size = 7
+      ),
+      plot.background = element_rect(fill = "transparent", color = NA)
+    )
+  ) +
+  draw_line(
+    x = c(0.855, 0.84),
+    y = c(0.94, 0.94),
+    arrow = arrow(length = unit(0.015, "inches"), type = "closed"),
+    color = "black",
+    size = 0.4
+  )
+
+ggsave(plot = p_targets2_2016_2020_final_svg,
+       filename = str_glue("{opt$out_dir}/{opt$out_prefix}_fig_6_new.svg"),
+       width = 180,
+       height = 92,   units = "mm",       dpi = 300, bg="white")
+
+
 
 # Supplementary figures ---------------------------------------------------
 
