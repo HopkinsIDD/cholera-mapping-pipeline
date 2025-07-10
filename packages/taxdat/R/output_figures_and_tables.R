@@ -13,6 +13,19 @@ color_afr_continent_fill <- function(){c("#FFFFFF")}
 colors_lisa_clusters <- function(){c("lightgray", "#D40A07", "#4543C4", "#F26F6D", "#7C7AC2", "#424141", "#A059F7")}
 coloramp_cases <- function(){c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404")}
 
+coloramp_num_years_exceeding_threshold <- function(){
+  colors <- c(
+    "#D3D3D3",  
+    "#E0F2E9",  
+    "#A8D5BA",  
+    "#6FBF73",  
+    "#388E3C",  
+    "#1B5E20"   
+  )
+  names(colors) <- c("0", "1", "2", "3", "4", "5")
+  colors
+}
+
 # colors_admin_levels <- function(){c( "#4F802A", "#5449C7", "#BF0B07", "#DBB50B")}
 #colors_admin_levels <- function(){c("#FFFF00","#CAE0C9", "#99CCFF", "#FF9999", "#CC9900", "#FF9933",'black')}
 colors_admin_levels <- function(){RColorBrewer::brewer.pal(n=4,name = 'Blues')}
@@ -154,6 +167,19 @@ output_plot_map <- function(sf_obj,
                                               big.mark = ","),
                              na.value = "lightgray")
         
+      } else if(fill_color_scale_type == "adm0_cases") {
+        scale_fill_gradientn(colours = coloramp_cases(),
+                             oob = scales::censor, 
+                             limits = c(0, NA), 
+                             breaks = seq(0, 3), 
+                             labels = formatC(10^(seq(0, 3)),
+                                              digits = 1,
+                                              format = "fg", 
+                                              big.mark = ","),
+                             na.value = "lightgray")
+        
+      } else if(fill_color_scale_type == "mai_exceeding_thresh") {
+        scale_fill_manual(values = coloramp_num_years_exceeding_threshold())
       } else if(fill_color_scale_type == "risk category") {
         scale_fill_manual(values = colors_risk_categories())
       } else if(fill_color_scale_type == "lisa cluster") {
