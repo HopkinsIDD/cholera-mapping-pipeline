@@ -22,6 +22,7 @@ Analysis/output/test.stan_input.rdata
 .Rhistory
 Analysis/configs/
 Layers/
+Layers_fortest/
 covar_list_*.txt
 Analysis/R/notebooks/gavi_report_html/MAI_preprocess/
 *.DS_Store

@@ -10,7 +10,7 @@ parser <- optparse::OptionParser(option_list=option_list)
 opt <- optparse::parse_args(parser)
 
 source(paste(opt$cholera_directory, "Analysis/R/prepare_grid.R", sep = "/"))
-
+options(timeout = 600)
 prepare_grid(
   dbuser = opt$dbuser,
   cholera_directory = opt$cholera_directory,
