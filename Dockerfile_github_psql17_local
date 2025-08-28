@@ -58,4 +58,10 @@ RUN echo "source /opt/miniconda3/etc/profile.d/conda.sh" >> ~/.bashrc && \
 RUN mkdir -p $HOME/.cache/R/gb_cache
 
 COPY init-postgres.sh /
-CMD ["/bin/bash"]
+RUN chmod +x /init-postgres.sh
+COPY Analysis $HOME/Analysis
+COPY Layers_fortest $HOME/Layers
+COPY packages $HOME/packages
+COPY test $HOME/test
+COPY Docker.Rprofile $HOME/.Rprofile
+CMD ["/init-postgres.sh"]
