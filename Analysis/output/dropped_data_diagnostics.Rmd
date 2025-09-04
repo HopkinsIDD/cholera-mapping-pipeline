@@ -1,0 +1,1149 @@
+---
+title: "dropped_data_diagnostics"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+params: 
+  cholera_directory: "cholera-mapping-pipeline"
+  config: "Analysis/configs/.../*.yml"
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(sf)
+library(dplyr)
+library(gt)
+library(DT)
+library(taxdat)
+library(purrr)
+sf::sf_use_s2(FALSE)
+
+option_list <- list(
+  optparse::make_option(
+    c("-c", "--config"),
+    action = "store",
+    default = Sys.getenv("CHOLERA_CONFIG", "config.yml"),
+    type = "character",
+    help = "Model run configuration file"
+  ),
+  optparse::make_option(c("-d", "--cholera_directory"), action = "store", default = NULL, type="character", help = "Cholera directory"),
+  optparse::make_option(c("-l", "--layers_directory"), action = "store", default = NULL, type="character", help = "Layers directory"),
+  optparse::make_option(c("-v", "--verbose"), action = "store", default = FALSE, type="logical", help = "Print extra messages")
+)
+
+opt <- optparse::OptionParser(option_list = option_list) %>% optparse::parse_args()
+
+source(paste0(params$cholera_directory,"/Analysis/R/database_api_key.R"))
+try(
+  {
+    username <- taxonomy_username
+    password <- taxonomy_password
+  },
+  silent = TRUE
+)
+
+cases_column <-'suspected_cases'
+
+config<-yaml::read_yaml(paste0(params$cholera_directory,"/",params$config))
+
+# summary functions ----
+summarize_dropped_rows_df <- function(df_before, df_after) {
+  library(dplyr)
+  
+  dropped_df <- anti_join(df_before, df_after, by = c("location_name", "OC_UID", "TL", "TR"))
+  
+  if (nrow(dropped_df) == 0) {
+    message("No rows were dropped.")
+    return(tibble(
+      location_name = character(),
+      OC_UID = character(),
+      total_cases = numeric(),
+      minTL = as.Date(character()),
+      maxTR = as.Date(character()),
+      n_obs = integer(),
+      location_ids = character(),
+      location_period_ids = character(),
+      UID = integer()
+    ))
+  }
+  
+  dropped_summary <- dropped_df %>%
+    group_by(location_name, OC_UID) %>%
+    summarise(
+      total_cases = sum(suspected_cases, na.rm = TRUE),
+      minTL = min(TL, na.rm = TRUE),
+      maxTR = max(TR, na.rm = TRUE),
+      n_obs = n(),
+      location_ids = paste(unique(location_id), collapse = ", "),
+      location_period_ids = paste(unique(attributes.location_period_id), collapse = ", "),
+      .groups = "drop"
+    ) %>% 
+    mutate(UID = 1:n())
+  
+  return(dropped_summary)
+}
+
+summarize_dropped_rows_df_short <- function(df_before, df_after) {
+  library(dplyr)
+  
+  dropped_df <- anti_join(df_before, df_after, by = c("location_name", "OC_UID", "TL", "TR"))
+  
+  if (nrow(dropped_df) == 0) {
+    message("No rows were dropped.")
+    return(tibble(
+      location_name = character(),
+      OC_UID = character(),
+      total_cases = numeric(),
+      minTL = as.Date(character()),
+      maxTR = as.Date(character()),
+      n_obs = integer(),
+      location_period_ids = character(),
+      UID = integer()
+    ))
+  }
+  
+  dropped_summary <- dropped_df %>%
+    group_by(location_name, OC_UID) %>%
+    summarise(
+      total_cases = sum(suspected_cases, na.rm = TRUE),
+      minTL = min(TL, na.rm = TRUE),
+      maxTR = max(TR, na.rm = TRUE),
+      n_obs = n(),
+      location_period_ids = paste(unique(attributes.location_period_id), collapse = ", "),
+      .groups = "drop"
+    ) %>% 
+    mutate(UID = 1:n())
+  
+  return(dropped_summary)
+}
+
+identify_input_coverage <- function(sf_cases_resized, dropped_summary_df) {
+  library(dplyr)
+  library(purrr)
+  library(sf)
+
+  purrr::pmap_dfr(
+    dropped_summary_df,
+    function(UID, minTL, maxTR, ...) {
+      sf_cases_resized %>% 
+        st_drop_geometry() %>% 
+        select(OC_UID,locationPeriod_id,location_name,TL,TR,attributes.fields.suspected_cases) %>% 
+        filter(TL <= minTL, TR >= maxTR) %>%
+        mutate(UID = UID)
+    }
+  )
+}
+```
+
+```{r Input data, echo=F}
+# Raw data
+cases <- taxdat::pull_taxonomy_data(
+  username = username,
+  password = password,
+  locations = as.numeric(config$countries),
+  time_left = as.Date(config$start_time),
+  time_right = as.Date(config$end_time),
+  source = 'sql',
+  uids = NULL,
+  website = ""
+) %>%
+  taxdat::rename_database_fields(source = 'sql') %>% 
+  filter(is_primary, !is.na(suspected_cases)) %>% 
+  dplyr::select(OC_UID,TL,TR,suspected_cases,deaths,location_name,location_id,attributes.location_period_id)
+
+# sf_cases_resized
+load(paste0(params$cholera_directory,'/Analysis/data/',config$file_names$stan_input_filename))
+sf_cases_resized_orig <- stan_input$sf_cases_resized
+```
+
+# Processing step 1: Dropping observations with missing shapefiles
+```{r Step 1 dropping missing obs, echo = F, message=F}
+## Composite locations are dropped here
+cases_dropping_missing_shps <- taxdat::drop_missing_shapefiles(cases = cases,
+                                         cases_column = cases_column)
+
+dropped_summary_df <- summarize_dropped_rows_df(cases %>% st_drop_geometry(),
+                          cases_dropping_missing_shps %>% st_drop_geometry())
+
+dropped_summary_df %>% 
+  select(!location_period_ids) %>% 
+  select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs, location_ids) %>%
+  gt() %>%
+  tab_header(
+    title = "Summary of Dropped Observations (missing shapefiles)",
+    subtitle = "Grouped by Location and OC_UID"
+  ) %>%
+  fmt_number(
+    columns = c(total_cases),
+    decimals = 0
+  ) %>%
+  cols_label(
+    OC_UID = "OC UID",
+    location_name = "Location",
+    minTL = "Earliest TL",
+    maxTR = "Latest TR",
+    total_cases = "sCh",
+    n_obs = "N Obs",
+    location_ids = "Location ID(s)"
+  ) %>% 
+  tab_options(
+    container.width = pct(100)
+  )
+```
+
+## Summary of Dropped Data Coverage in Model Input
+```{r Step 1 checking data coverage in sf_cases_resized, echo = F, message=F}
+coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
+
+if (nrow(coverage_df) == 0) {
+  htmltools::tags$h4("No dropped data coverage found.")
+} else {
+  coverage_df %>%
+    select(
+      location_name,
+      OC_UID,
+      attributes.fields.suspected_cases,
+      TL,
+      TR,
+      locationPeriod_id,
+      UID
+    ) %>%
+    datatable(
+      filter = "top",
+      rownames = FALSE,
+      options = list(pageLength = 10),
+      colnames = c(
+        "Location",
+        "OC UID",
+        "Suspected Cases",
+        "TL",
+        "TR",
+        "Period ID(s)",
+        "Dropped Data UID"
+      )
+    )
+}
+```
+
+# Processing step 2: Dropping observations with invalid shapefiles
+```{r Shapefiles, echo =F, message=F}
+cases <- cases_dropping_missing_shps
+
+shapefiles <- taxdat::get_valid_shapefiles(cases)
+iso_code <- taxdat::get_country_isocode(config)
+shapefiles <- taxdat::clip_shapefiles_to_adm0(iso_code = iso_code,
+                                              shapefiles = shapefiles)
+sf::st_crs(cases) <- sf::st_crs(shapefiles)
+sf::st_geometry(cases) <- NULL
+sf_cases <- sf::st_as_sf(
+  dplyr::inner_join(cases,
+                    shapefiles,
+                    by = c("attributes.location_period_id" = "location_period_id",
+                           "location_name" = "location_name")
+  )
+)
+
+if (any(sf::st_is_empty(sf_cases))) {
+  warning(
+    paste(
+      "Missing shapefiles for ",
+      sum(sf::st_is_empty(sf_cases)),
+      "observations. They correspond to the following location period IDs:",
+      paste(sf_cases[sf::st_is_empty(sf_cases), ]$locationPeriod_id, collapse = ", ")
+    )
+  )
+  sf_cases <- sf_cases[!sf::st_is_empty(sf_cases), ]
+}
+
+dropped_summary_df<-summarize_dropped_rows_df(cases %>% st_drop_geometry(),
+                          sf_cases %>% st_drop_geometry())
+dropped_summary_df %>%
+  select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs, location_ids,location_period_ids) %>%
+  gt() %>%
+  tab_header(
+    title = "Summary of Dropped Observations (invalid shapefiles)",
+    subtitle = "Grouped by Location and OC_UID"
+  ) %>%
+  fmt_number(
+    columns = c(total_cases),
+    decimals = 0
+  )  %>%
+  cols_label(
+    OC_UID = "OC UID",
+    location_name = "Location",
+    minTL = "Earliest TL",
+    maxTR = "Latest TR",
+    total_cases = "sCh",
+    n_obs = "N Obs",
+    location_ids = "Location ID(s)",
+    location_period_ids = "Period ID(s)"
+  ) %>% 
+  tab_options(
+    container.width = pct(100)
+  )
+```
+
+## Summary of Dropped Data Coverage in Model Input
+```{r Step 2 checking data coverage in sf_cases_resized, echo = F, message=F}
+coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
+
+if (nrow(coverage_df) == 0) {
+  htmltools::tags$h4("No dropped data coverage found.")
+} else {
+  coverage_df %>%
+    select(
+      location_name,
+      OC_UID,
+      attributes.fields.suspected_cases,
+      TL,
+      TR,
+      locationPeriod_id,
+      UID
+    ) %>%
+    datatable(
+      filter = "top",
+      rownames = FALSE,
+      options = list(pageLength = 10),
+      colnames = c(
+        "Location",
+        "OC UID",
+        "Suspected Cases",
+        "TL",
+        "TR",
+        "Period ID(s)",
+        "Dropped Data UID"
+      )
+    )
+}
+```
+
+# Processing step 3: Dropping multi-year adm0 observations (pre-aggregation)
+```{r Preaggregation multiyear adm0 obs, echo =F, message=F}
+cases <- sf_cases
+
+# snap to time period
+sf_cases <- taxdat::snap_to_time_period_df(df = sf_cases,
+                                           TL_col = "TL",
+                                           TR_col = "TR",
+                                           res_time = config$res_time,
+                                           tol = config$snap_tol)
+# drop multi-year adm0 obs
+sf_cases <- sf_cases %>% 
+  dplyr::mutate(admin_level = purrr::map_dbl(location_name, ~ taxdat::get_admin_level(.)))
+
+# Drop multi-year observations if present
+if (config$drop_multiyear_adm0) {
+  sf_cases <- taxdat::drop_multiyear(df = sf_cases,
+                                     admin_levels = 0)
+}
+
+dropped_summary_df<-summarize_dropped_rows_df(cases %>% st_drop_geometry() ,
+                          sf_cases %>% st_drop_geometry())
+dropped_summary_df %>%
+  select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs, location_ids,location_period_ids) %>%
+  gt() %>%
+  tab_header(
+    title = "Summary of Dropped Observations (multiyear adm0 obs)"
+  ) %>%
+  fmt_number(
+    columns = c(total_cases),
+    decimals = 0
+  ) %>%
+  cols_label(
+    location_name = "Location",
+    OC_UID = "OC UID",
+    total_cases = "sCh",
+    minTL = "Earliest TL",
+    maxTR = "Latest TR",
+    n_obs = "N Obs",
+    location_ids = "Location ID(s)",
+    location_period_ids = "Period ID(s)"
+  ) %>% 
+  tab_options(
+    container.width = pct(100)
+  )
+```
+
+## Summary of Dropped Data Coverage in Model Input
+```{r Step 3 checking data coverage in sf_cases_resized, echo = F, message=F}
+coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
+
+if (nrow(coverage_df) == 0) {
+  htmltools::tags$h4("No dropped data coverage found.")
+} else {
+  coverage_df %>%
+    select(
+      location_name,
+      OC_UID,
+      attributes.fields.suspected_cases,
+      TL,
+      TR,
+      locationPeriod_id,
+      UID
+    ) %>%
+    datatable(
+      filter = "top",
+      rownames = FALSE,
+      options = list(pageLength = 10),
+      colnames = c(
+        "Location",
+        "OC UID",
+        "Suspected Cases",
+        "TL",
+        "TR",
+        "Period ID(s)",
+        "Dropped Data UID"
+      )
+    )
+}
+```
+
+```{r Prepare stan input, echo =F, message=F}
+load(paste0(params$cholera_directory,'/Analysis/data/', config$file_names$covariate_filename))  
+
+covar_cube <- covar_cube_output
+non_na_gridcells <- covar_cube_output$non_na_gridcells
+sf_grid <- covar_cube_output$sf_grid
+location_periods_dict <- covar_cube_output$location_periods_dict
+
+res_time = '1 years'
+  left_bounds <- seq.Date(as.Date(config$start_time), as.Date(config$end_time), by = res_time)
+  time_change_func <- taxdat::time_unit_to_aggregate_function(res_time)
+  aggregate_to_start <- taxdat::time_unit_to_start_function(res_time)
+  aggregate_to_end <- taxdat::time_unit_to_end_function(res_time)
+
+ time_slices <- taxdat::modeling_time_slices(start_time = as.Date(config$start_time),
+                                              end_time = as.Date(config$end_time),
+                                              res_time = res_time,
+                                              time_change_func = time_change_func,
+                                              aggregate_to_start = aggregate_to_start,
+                                              aggregate_to_end = aggregate_to_end)  
+```
+
+# Processing step 4: Dropping duplicated observations (pre-aggregation)
+```{r Preaggregation duplicated obs, echo =F, message=F}
+cases <- sf_cases
+
+sf_cases_dup_obs <- sf_cases %>% 
+    sf::st_drop_geometry() %>%
+    dplyr::select(-dplyr::one_of("id", "deaths")) %>%
+    duplicated()
+  
+sf_cases <- sf_cases[!sf_cases_dup_obs, ]
+
+dropped_summary_df<-summarize_dropped_rows_df(cases %>% st_drop_geometry(),
+                          sf_cases %>% st_drop_geometry())
+dropped_summary_df %>%
+  select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs, location_ids,location_period_ids) %>%
+  gt() %>%
+  tab_header(
+    title = "Summary of Dropped Observations (dups before aggregation)"
+  ) %>%
+  fmt_number(
+    columns = c(total_cases),
+    decimals = 0
+  ) %>%
+  cols_label(
+    location_name = "Location",
+    OC_UID = "OC UID",
+    total_cases = "sCh",
+    minTL = "Earliest TL",
+    maxTR = "Latest TR",
+    n_obs = "N Obs",
+    location_ids = "Location ID(s)",
+    location_period_ids = "Period ID(s)"
+  ) %>% 
+  tab_options(
+    container.width = pct(100)
+  )
+```
+
+## Summary of Dropped Data Coverage in Model Input
+```{r Step 4 checking data coverage in sf_cases_resized, echo = F, message=F}
+coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
+
+if (nrow(coverage_df) == 0) {
+  htmltools::tags$h4("No dropped data coverage found.")
+} else {
+  coverage_df %>%
+    select(
+      location_name,
+      OC_UID,
+      attributes.fields.suspected_cases,
+      TL,
+      TR,
+      locationPeriod_id,
+      UID
+    ) %>%
+    datatable(
+      filter = "top",
+      rownames = FALSE,
+      options = list(pageLength = 10),
+      colnames = c(
+        "Location",
+        "OC UID",
+        "Suspected Cases",
+        "TL",
+        "TR",
+        "Period ID(s)",
+        "Dropped Data UID"
+      )
+    )
+}
+```
+
+# Processing step 5: Dropping NA observations (pre-aggregation)
+```{r Before aggregation NA obs, echo =F, message=F}
+cases <- sf_cases
+
+# aggregation
+ind_mapping <- taxdat::get_space_time_ind_speedup(
+    df = sf_cases %>% mutate(locationPeriod_id = attributes.location_period_id),
+    lp_dict = location_periods_dict,
+    model_time_slices = time_slices,
+    res_time = res_time,
+    n_cpus = config$ncpus_parallel_prep,
+    do_parallel = config$do_parallel_prep)
+  
+non_na_obs <- sort(unique(ind_mapping$map_obs_loctime_obs))
+sf_cases_resized <- sf_cases[non_na_obs, ]
+
+dropped_summary_df<-summarize_dropped_rows_df(cases %>% st_drop_geometry(),
+                          sf_cases_resized %>% st_drop_geometry())
+dropped_summary_df %>%
+  select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs, location_ids,location_period_ids) %>%
+  gt() %>%
+  tab_header(
+    title = "Summary of Dropped Observations (NA obs pre-aggregation)"
+  ) %>%
+  fmt_number(
+    columns = c(total_cases),
+    decimals = 0
+  ) %>%
+  cols_label(
+    location_name = "Location",
+    OC_UID = "OC UID",
+    total_cases = "sCh",
+    minTL = "Earliest TL",
+    maxTR = "Latest TR",
+    n_obs = "N Obs",
+    location_ids = "Location ID(s)",
+    location_period_ids = "Period ID(s)"
+  ) %>% 
+  tab_options(
+    container.width = pct(100)
+  )
+```
+
+## Summary of Dropped Data Coverage in Model Input
+```{r Step 5 checking data coverage in sf_cases_resized, echo = F, message=F}
+coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
+
+if (nrow(coverage_df) == 0) {
+  htmltools::tags$h4("No dropped data coverage found.")
+} else {
+  coverage_df %>%
+    select(
+      location_name,
+      OC_UID,
+      attributes.fields.suspected_cases,
+      TL,
+      TR,
+      locationPeriod_id,
+      UID
+    ) %>%
+    datatable(
+      filter = "top",
+      rownames = FALSE,
+      options = list(pageLength = 10),
+      colnames = c(
+        "Location",
+        "OC UID",
+        "Suspected Cases",
+        "TL",
+        "TR",
+        "Period ID(s)",
+        "Dropped Data UID"
+      )
+    )
+}
+```
+
+```{r Aggregation, echo =F, message=F}
+sf_cases_resized <- taxdat::aggregate_observations(sf_cases_resized = sf_cases_resized %>% mutate(locationPeriod_id = attributes.location_period_id),
+                                                       non_na_obs = non_na_obs,
+                                                       ind_mapping = ind_mapping,
+                                                       cases_column = cases_column,
+                                                       verbose = opt$verbose,
+                                                       n_cpus = config$ncpus_parallel_prep,
+                                                       do_parallel = config$do_parallel_prep)
+    
+# Snap to time period after aggregation
+sf_cases_resized <- taxdat::snap_to_time_period_df(df = sf_cases_resized,
+                                                    TL_col = "TL",
+                                                    TR_col = "TR",
+                                                    res_time = res_time,
+                                                    tol = config$snap_tol)
+    
+# Re-compute space-time indices based on aggretated data
+ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+  df = sf_cases_resized,
+  lp_dict = location_periods_dict,
+  model_time_slices = time_slices,
+  res_time = res_time,
+  n_cpus = config$ncpus_parallel_prep,
+  do_parallel = config$do_parallel_prep)
+```
+
+# Processing step 6: Dropping low tfrac observations (after-aggregation)
+```{r After aggregation low tfrac obs, echo =F, message=F}
+cases <- sf_cases_resized
+
+if (config$tfrac_thresh > 0) {
+    # Which observations to remove
+    obs_remove_thresh <- unique(ind_mapping_resized$obs[ind_mapping_resized$tfrac < as.numeric(config$tfrac_thresh)])
+    
+    if (length(obs_remove_thresh) == 0){
+      cat("---- FOUND none of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", config$tfrac_thresh, "\n")
+    } else {
+      
+      cat("---- REMOVING", length(obs_remove_thresh), "of", nrow(sf_cases_resized), "observations that are under the tfrac threshold of", config$tfrac_thresh, "\n")
+      # Remove observations
+      sf_cases_resized <- sf_cases_resized[-c(obs_remove_thresh), ]
+      
+      # Re-compute space-time indices based on aggretated data
+      ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+        df = sf_cases_resized,
+        lp_dict = location_periods_dict,
+        model_time_slices = time_slices,
+        res_time = res_time,
+        n_cpus = config$ncpus_parallel_prep,
+        do_parallel = config$do_parallel_prep)
+    }
+  }
+
+dropped_summary_df<-summarize_dropped_rows_df(cases %>% st_drop_geometry(),
+                          sf_cases_resized %>% st_drop_geometry())
+
+dropped_summary_df %>%
+  select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs, location_ids,location_period_ids) %>%
+  gt() %>%
+  tab_header(
+    title = "Summary of Dropped Observations (below tfrac obs pre-aggregation)"
+  ) %>%
+  fmt_number(
+    columns = c(total_cases),
+    decimals = 0
+  ) %>%
+  cols_label(
+    location_name = "Location",
+    OC_UID = "OC UID",
+    total_cases = "sCh",
+    minTL = "Earliest TL",
+    maxTR = "Latest TR",
+    n_obs = "N Obs",
+    location_ids = "Location ID(s)",
+    location_period_ids = "Period ID(s)"
+  ) %>% 
+  tab_options(
+    container.width = pct(100)
+  )
+```
+
+## Summary of Dropped Data Coverage in Model Input
+```{r Step 6 checking data coverage in sf_cases_resized, echo = F, message=F}
+coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
+
+if (nrow(coverage_df) == 0) {
+  htmltools::tags$h4("No dropped data coverage found.")
+} else {
+  coverage_df %>%
+    select(
+      location_name,
+      OC_UID,
+      attributes.fields.suspected_cases,
+      TL,
+      TR,
+      locationPeriod_id,
+      UID
+    ) %>%
+    datatable(
+      filter = "top",
+      rownames = FALSE,
+      options = list(pageLength = 10),
+      colnames = c(
+        "Location",
+        "OC UID",
+        "Suspected Cases",
+        "TL",
+        "TR",
+        "Period ID(s)",
+        "Dropped Data UID"
+      )
+    )
+}
+```
+
+# Processing step 7: Dropping multi-year observations (after-aggregation)
+```{r After aggregation multiyear obs, echo =F, message=F}
+cases <- sf_cases_resized
+
+sf_cases_resized <- sf_cases_resized %>% 
+    dplyr::mutate(admin_level = purrr::map_dbl(location_name, ~ taxdat::get_admin_level(.)))
+  
+# Drop multi-year observations if present
+if (config$drop_multiyear_adm0) {
+    sf_cases_resized <- taxdat::drop_multiyear(df = sf_cases_resized,
+                                               admin_levels = 0)
+    
+    # Re-compute space-time indices based on aggretated data
+    ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+      df = sf_cases_resized, 
+      lp_dict = location_periods_dict,
+      model_time_slices = time_slices,
+      res_time = res_time,
+      n_cpus = config$ncpus_parallel_prep,
+      do_parallel = config$do_parallel_prep)
+  }
+
+dropped_summary_df<-summarize_dropped_rows_df(cases %>% st_drop_geometry(),
+                          sf_cases_resized %>% st_drop_geometry())
+
+dropped_summary_df %>%
+  select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs, location_ids,location_period_ids) %>%
+  gt() %>%
+  tab_header(
+    title = "Summary of Dropped Observations (multiyear obs after aggregation)"
+  ) %>%
+  fmt_number(
+    columns = c(total_cases),
+    decimals = 0
+  ) %>%
+  cols_label(
+    location_name = "Location",
+    OC_UID = "OC UID",
+    total_cases = "sCh",
+    minTL = "Earliest TL",
+    maxTR = "Latest TR",
+    n_obs = "N Obs",
+    location_ids = "Location ID(s)",
+    location_period_ids = "Period ID(s)"
+  ) %>% 
+  tab_options(
+    container.width = pct(100)
+  )
+```
+
+## Summary of Dropped Data Coverage in Model Input
+```{r Step 7 checking data coverage in sf_cases_resized, echo = F, message=F}
+coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
+
+if (nrow(coverage_df) == 0) {
+  htmltools::tags$h4("No dropped data coverage found.")
+} else {
+  coverage_df %>%
+    select(
+      location_name,
+      OC_UID,
+      attributes.fields.suspected_cases,
+      TL,
+      TR,
+      locationPeriod_id,
+      UID
+    ) %>%
+    datatable(
+      filter = "top",
+      rownames = FALSE,
+      options = list(pageLength = 10),
+      colnames = c(
+        "Location",
+        "OC UID",
+        "Suspected Cases",
+        "TL",
+        "TR",
+        "Period ID(s)",
+        "Dropped Data UID"
+      )
+    )
+}
+```
+
+# Processing step 8: Dropping censored 0 observations (after-aggregation)
+```{r After aggregation censored 0 obs, echo =F, message=F}
+cases <- sf_cases_resized
+sf_cases_resized$censoring <- taxdat::get_censoring_inds(ind_mapping_resized = ind_mapping_resized,
+                                                           censoring_thresh = config$censoring_thresh)
+  
+sf_cases_resized <- sf_cases_resized %>% 
+    dplyr::mutate(ref_TL = taxdat::get_start_timeslice(TL, res_time),
+                  ref_TR = taxdat::get_end_timeslice(TR, res_time),
+                  obs_id = dplyr::row_number()) 
+
+sf_cases_resized <- sf_cases_resized %>% 
+    dplyr::mutate(admin_level = purrr::map_dbl(location_name, ~ taxdat::get_admin_level(.)))
+if (config$censoring) {
+    
+    cat("-- Checking for 0 censored observations \n")
+    
+    y <- sf_cases_resized[[cases_column]]
+    
+    censored_zero_obs <- which(y == 0 & sf_cases_resized$censoring == "right-censored")
+    
+    if (length(censored_zero_obs) > 0) {
+      
+      cat("-- Dropping", length(censored_zero_obs), "observations that are 0 and censored.\n")
+      
+      sf_cases_resized <- sf_cases_resized[-c(censored_zero_obs), ]
+      
+      
+      # Re-compute indices
+      ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+        df = sf_cases_resized,
+        lp_dict = location_periods_dict,
+        model_time_slices = time_slices,
+        res_time = res_time,
+        n_cpus = config$ncpus_parallel_prep,
+        do_parallel = config$do_parallel_prep)
+      
+    }
+  }
+
+dropped_summary_df<-summarize_dropped_rows_df_short(cases  %>% st_drop_geometry() %>% mutate(attributes.location_period_id = locationPeriod_id),sf_cases_resized %>% st_drop_geometry()%>% mutate(attributes.location_period_id = locationPeriod_id))
+
+dropped_summary_df %>%
+  select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs,location_period_ids) %>%
+  gt() %>%
+  tab_header(
+    title = "Summary of Dropped Observations (censored 0 obs after aggregation)"
+  ) %>%
+  fmt_number(
+    columns = c(total_cases),
+    decimals = 0
+  ) %>%
+  cols_label(
+    location_name = "Location",
+    OC_UID = "OC UID",
+    total_cases = "sCh",
+    minTL = "Earliest TL",
+    maxTR = "Latest TR",
+    n_obs = "N Obs",
+    location_period_ids = "Period ID(s)"
+  ) %>% 
+  tab_options(
+    container.width = pct(100)
+  )
+```
+
+## Summary of Dropped Data Coverage in Model Input
+```{r Step 8 checking data coverage in sf_cases_resized, echo = F, message=F}
+coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
+
+if (nrow(coverage_df) == 0) {
+  htmltools::tags$h4("No dropped data coverage found.")
+} else {
+  coverage_df %>%
+    select(
+      location_name,
+      OC_UID,
+      attributes.fields.suspected_cases,
+      TL,
+      TR,
+      locationPeriod_id,
+      UID
+    ) %>%
+    datatable(
+      filter = "top",
+      rownames = FALSE,
+      options = list(pageLength = 10),
+      colnames = c(
+        "Location",
+        "OC UID",
+        "Suspected Cases",
+        "TL",
+        "TR",
+        "Period ID(s)",
+        "Dropped Data UID"
+      )
+    )
+}
+```
+
+# Processing step 9: Dropping censored adm0 observations (after-aggregation)
+```{r After aggregation censored adm0 obs, echo =F, message=F}
+cases <- sf_cases_resized
+
+if (config$drop_censored_adm0) {
+    
+    sf_cases_resized <- taxdat::drop_censored_adm0(sf_cases_resized = sf_cases_resized,
+                                                   thresh = config$drop_censored_adm0_thresh,
+                                                   res_time = res_time,
+                                                   cases_column = cases_column)
+    
+    # Re-compute indices
+    ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+      df = sf_cases_resized, 
+      lp_dict = location_periods_dict,
+      model_time_slices = time_slices,
+      res_time = res_time,
+      n_cpus = config$ncpus_parallel_prep,
+      do_parallel = config$do_parallel_prep)
+  }
+  
+dropped_summary_df<-summarize_dropped_rows_df_short(cases  %>% st_drop_geometry() %>% mutate(attributes.location_period_id = locationPeriod_id),
+                          sf_cases_resized %>% st_drop_geometry()%>% mutate(attributes.location_period_id = locationPeriod_id))
+
+dropped_summary_df %>%
+  select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs,location_period_ids) %>%
+  gt() %>%
+  tab_header(
+    title = "Summary of Dropped Observations (censored 0 obs after aggregation)"
+  ) %>%
+  fmt_number(
+    columns = c(total_cases),
+    decimals = 0
+  ) %>%
+  cols_label(
+    location_name = "Location",
+    OC_UID = "OC UID",
+    total_cases = "sCh",
+    minTL = "Earliest TL",
+    maxTR = "Latest TR",
+    n_obs = "N Obs",
+    location_period_ids = "Period ID(s)"
+  ) %>% 
+  tab_options(
+    container.width = pct(100)
+  )
+```
+
+## Summary of Dropped Data Coverage in Model Input
+```{r Step 9 checking data coverage in sf_cases_resized, echo = F, message=F}
+coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
+
+if (nrow(coverage_df) == 0) {
+  htmltools::tags$h4("No dropped data coverage found.")
+} else {
+  coverage_df %>%
+    select(
+      location_name,
+      OC_UID,
+      attributes.fields.suspected_cases,
+      TL,
+      TR,
+      locationPeriod_id,
+      UID
+    ) %>%
+    datatable(
+      filter = "top",
+      rownames = FALSE,
+      options = list(pageLength = 10),
+      colnames = c(
+        "Location",
+        "OC UID",
+        "Suspected Cases",
+        "TL",
+        "TR",
+        "Period ID(s)",
+        "Dropped Data UID"
+      )
+    )
+}
+```
+
+# Processing step 10: Dropping adm0 observations < max tfrac within an OC (after-aggregation)
+```{r After aggregation adm0 obs below max tfrac in an OC, echo =F, message=F}
+cases <- sf_cases_resized
+
+if (config$drop_censored_adm0) {
+    
+    sf_cases_resized <- taxdat::drop_censored_adm0(sf_cases_resized = sf_cases_resized,
+                                                   thresh = config$drop_censored_adm0_thresh,
+                                                   res_time = res_time,
+                                                   cases_column = cases_column)
+    
+    # Re-compute indices
+    ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+      df = sf_cases_resized, 
+      lp_dict = location_periods_dict,
+      model_time_slices = time_slices,
+      res_time = res_time,
+      n_cpus = config$ncpus_parallel_prep,
+      do_parallel = config$do_parallel_prep)
+  }
+  
+dropped_summary_df<-summarize_dropped_rows_df_short(cases  %>% st_drop_geometry() %>% mutate(attributes.location_period_id = locationPeriod_id), sf_cases_resized %>% st_drop_geometry()%>% mutate(attributes.location_period_id = locationPeriod_id))
+
+dropped_summary_df %>%
+  select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs,location_period_ids) %>%
+  gt() %>%
+  tab_header(
+    title = "Summary of Dropped Observations (adm0 obs below max tfrac after aggregation)"
+  ) %>%
+  fmt_number(
+    columns = c(total_cases),
+    decimals = 0
+  ) %>%
+  cols_label(
+    location_name = "Location",
+    OC_UID = "OC UID",
+    total_cases = "sCh",
+    minTL = "Earliest TL",
+    maxTR = "Latest TR",
+    n_obs = "N Obs",
+    location_period_ids = "Period ID(s)"
+  ) %>% 
+  tab_options(
+    container.width = pct(100)
+  )
+```
+
+## Summary of Dropped Data Coverage in Model Input
+```{r Step 10 checking data coverage in sf_cases_resized, echo = F, message=F}
+coverage_df <- identify_input_coverage(sf_cases_resized %>% mutate(attributes.fields.suspected_cases=suspected_cases), dropped_summary_df)
+
+if (nrow(coverage_df) == 0) {
+  htmltools::tags$h4("No dropped data coverage found.")
+} else {
+  coverage_df %>%
+    select(
+      location_name,
+      OC_UID,
+      attributes.fields.suspected_cases,
+      TL,
+      TR,
+      locationPeriod_id,
+      UID
+    ) %>%
+    datatable(
+      filter = "top",
+      rownames = FALSE,
+      options = list(pageLength = 10),
+      colnames = c(
+        "Location",
+        "OC UID",
+        "Suspected Cases",
+        "TL",
+        "TR",
+        "Period ID(s)",
+        "Dropped Data UID"
+      )
+    )
+}
+```
+
+# Processing step 11: Dropping observations with low pop (after-aggregation)
+```{r After aggregation obs with low pop, echo =F, message=F}
+cases <- sf_cases_resized
+
+if (config$drop_low_pop_lps) {
+    
+    # Compute lp populations
+    lp_pops <- taxdat::compute_pop_loctimes(stan_data = stan_data)
+    
+    # Which loctimes to drop
+    ind_drop_loctimes <- which(lp_pops < config$drop_low_pop_lps_thresh)
+    
+    # Which obs to drop
+    ind_drop_obs <- stan_data$map_obs_loctime_obs[stan_data$map_obs_loctime_loc %in% ind_drop_loctimes]
+    
+    if (length(ind_drop_obs) > 0) {
+      
+      cat("-- Dropping", length(ind_drop_obs), 
+          "observations due to low location period population.\n")
+      
+      # Drop the observations and reindex
+      sf_cases_resized <- sf_cases_resized[-c(ind_drop_obs),]
+      
+      ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+        df = sf_cases_resized,
+        lp_dict = location_periods_dict,
+        model_time_slices = time_slices,
+        res_time = res_time,
+        n_cpus = config$ncpus_parallel_prep,
+        do_parallel = config$do_parallel_prep)
+    }
+  }
+  
+dropped_summary_df<-summarize_dropped_rows_df_short(cases  %>% st_drop_geometry() %>% mutate(attributes.location_period_id = locationPeriod_id),
+                          sf_cases_resized %>% st_drop_geometry()%>% mutate(attributes.location_period_id = locationPeriod_id))
+
+dropped_summary_df %>%
+  select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs,location_period_ids) %>%
+  gt() %>%
+  tab_header(
+    title = "Summary of Dropped Observations (low pop obs after aggregation)"
+  ) %>%
+  fmt_number(
+    columns = c(total_cases),
+    decimals = 0
+  ) %>%
+  cols_label(
+    location_name = "Location",
+    OC_UID = "OC UID",
+    total_cases = "sCh",
+    minTL = "Earliest TL",
+    maxTR = "Latest TR",
+    n_obs = "N Obs",
+    location_period_ids = "Period ID(s)"
+  ) %>% 
+  tab_options(
+    container.width = pct(100)
+  )
+```
+
+## Summary of Dropped Data Coverage in Model Input
+```{r Step 11 checking data coverage in sf_cases_resized, echo = F, message=F}
+coverage_df <- identify_input_coverage(sf_cases_resized %>% mutate(attributes.fields.suspected_cases=suspected_cases), dropped_summary_df)
+
+if (nrow(coverage_df) == 0) {
+  htmltools::tags$h4("No dropped data coverage found.")
+} else {
+  coverage_df %>%
+    select(
+      location_name,
+      OC_UID,
+      attributes.fields.suspected_cases,
+      TL,
+      TR,
+      locationPeriod_id,
+      UID
+    ) %>%
+    datatable(
+      filter = "top",
+      rownames = FALSE,
+      options = list(pageLength = 10),
+      colnames = c(
+        "Location",
+        "OC UID",
+        "Suspected Cases",
+        "TL",
+        "TR",
+        "Period ID(s)",
+        "Dropped Data UID"
+      )
+    )
+}
+```
+
+# Summary of All Adm0 Observations in Model Input (sf_cases_resized)
+```{r adm0 obs in sf_cases_resized, echo = F, message=F}
+sf_cases_resized_orig %>%
+  sf::st_drop_geometry() %>% 
+  filter(admin_level == 0) %>% 
+  select(location_name, TL, TR,  attributes.fields.suspected_cases) %>%
+  gt() %>%
+  tab_header(
+    title = "Adm0 Observations"
+  ) %>%
+  fmt_number(
+    columns = c(attributes.fields.suspected_cases),
+    decimals = 0
+  ) %>%
+  cols_label(
+    location_name = "Location",
+    attributes.fields.suspected_cases = "sCh"
+  ) %>% 
+  tab_options(
+    container.width = pct(100)
+  )
+```
