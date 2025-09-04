@@ -34,7 +34,8 @@ jobs:
           lfs: true
           token: ${{ secrets.PERSONAL_TOKEN }}
       - name: Activate Conda
-        run: source ~/.bashrc
+        run: |
+		  source ~/.bashrc
 		  conda activate rbase
         shell: bash
       - name: Run taxdat tests
