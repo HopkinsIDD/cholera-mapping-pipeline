@@ -36,7 +36,7 @@ jobs:
       - name: Run taxdat tests
         run: |
           conda activate rbase
-		  setwd("packages/taxdat")
+          setwd("packages/taxdat")
           devtools::test(stop_on_failure=TRUE)
       - name: Ingest Covariates
         run: |
