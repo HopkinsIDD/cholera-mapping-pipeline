@@ -54,7 +54,7 @@ COPY --chown=app:app grant_cholera_database.sh $HOME/grant_cholera_database.sh
     #&& su - app -c "psql -d cholera_covariates -c \"CREATE SCHEMA grids;\"" \
 	#&& /bin/bash -c "/usr/bin/echo 'sudo service postgresql start' >> /home/app/.bashrc"
 RUN echo "source /opt/miniconda3/etc/profile.d/conda.sh" >> ~/.bashrc && \
-    echo "conda activate rbase" >> ~/.bashr 
+    echo "conda activate rbase" >> ~/.bashrc 
 RUN mkdir -p $HOME/.cache/R/gb_cache
 
 COPY init-postgres.sh /
