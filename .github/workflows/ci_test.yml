@@ -35,9 +35,9 @@ jobs:
           token: ${{ secrets.PERSONAL_TOKEN }}
       - name: Run taxdat tests
         run: |
-          setwd("packages/taxdat")
+          conda activate rbase
+		  setwd("packages/taxdat")
           devtools::test(stop_on_failure=TRUE)
-        shell: Rscript {0}
       - name: Ingest Covariates
         run: |
           bash /init-postgres.sh
