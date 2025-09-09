@@ -47,6 +47,7 @@ jobs:
           conda activate rbase
           cd packages/taxdat
           R -e "setwd('.'); devtools::test(stop_on_failure=TRUE)"
+        shell: bash
       - name: Ingest Covariates
         run: |
           bash /init-postgres.sh
