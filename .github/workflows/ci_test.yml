@@ -68,8 +68,6 @@ jobs:
           CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
           CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
         run: |
-          service postgresql start
-          bash grant_cholera_database.sh root
           export USER=root
           export COVARIATE_DATABASE_PASSWORD=dockertest
           pwd
