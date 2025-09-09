@@ -33,20 +33,20 @@ jobs:
           path: Layers/
           lfs: true
           token: ${{ secrets.PERSONAL_TOKEN }}
-      - name: Setup Miniconda
-        uses: conda-incubator/setup-miniconda@v2
-        env:
-          CONDA: /opt/miniconda3
-        with:
-          auto-update-conda: false
-          activate-environment: rbase
-          auto-activate-base: false
+#      - name: Setup Miniconda
+#        uses: conda-incubator/setup-miniconda@v2
+#        env:
+#          CONDA: /opt/miniconda3
+#        with:
+#          auto-update-conda: false
+#          activate-environment: rbase
+#          auto-activate-base: false
       - name: Run taxdat tests
         run: |
-          conda init
+          source /opt/miniconda3/etc/profile.d/conda.sh
           conda activate rbase
-          setwd("packages/taxdat")
-          devtools::test(stop_on_failure=TRUE)
+          cd packages/taxdat
+          R -e "setwd('.'); devtools::test(stop_on_failure=TRUE)"
       - name: Ingest Covariates
         run: |
           bash /init-postgres.sh
