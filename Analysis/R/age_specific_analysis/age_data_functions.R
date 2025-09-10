@@ -83,13 +83,13 @@ manual_fix_age <- function(x, max_age_years = 100) {
 }
 
 # function to clean age columns ----
-clean_age_cols <- function(data, lt1_year = 0.5, max_age_years = 100) {
+clean_age_cols <- function(data, max_age_years = 100) {
   
  dplyr::mutate(
       data,
       dplyr::across(
         .cols = dplyr::any_of(c("age", "age_l", "age_r")),
-        .fns  = ~ manual_fix_age(.x, max_age_years = 100)
+        .fns  = ~ manual_fix_age(.x, max_age_years = max_age_years)
       )
     ) %>% 
     dplyr::filter(dplyr::if_any(dplyr::all_of(c("age", "age_l", "age_r")), ~ !is.na(.x)))
