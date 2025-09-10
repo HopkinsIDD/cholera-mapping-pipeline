@@ -22,7 +22,7 @@ data$location <- str_remove(data$location, regex("^CT-World::"))
 
 ```{r clean data, include =FALSE}
 clean_data <- data %>%
-  clean_age_cols(lt1_year = 0.5) %>%
+  clean_age_cols(max_age_years = 100) %>%
   standardize_age_group(age_splitter = c(5,14,50,70))
 
 clean_data <- clean_data %>%
