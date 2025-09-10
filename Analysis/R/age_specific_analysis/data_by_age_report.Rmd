@@ -1,0 +1,188 @@
+---
+title: "Data by age report"
+output: 
+  bookdown::html_document2:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+source('age_data_functions.R')
+```
+
+```{r input, include =FALSE}
+library(dplyr)
+library(stringr)
+data<-read.csv("age_specific_data.csv") %>% 
+  filter(tl != "" & tr !="" & !is.na(tl) & !is.na(tr)) %>% #3685 rows have this issue
+  filter(location != '') # 4914 rows have this issue
+data$location <- str_remove(data$location, regex("^CT-World::"))
+```
+
+```{r clean data, include =FALSE}
+clean_data <- data %>%
+  clean_age_cols(lt1_year = 0.5) %>%
+  standardize_age_group(age_splitter = c(5,14,50,70))
+
+clean_data <- clean_data %>%
+  mutate(
+    tl = parse_date(tl),
+    tr = parse_date(tr)
+  ) %>%
+  mutate(tl = as.Date(tl),tr = as.Date(tr))
+```
+
+# Summary of observations by age group
+```{r Summary of observations by age group, echo = F, message=F}
+summary_obs_table(clean_data)
+```
+# Summary of observations by country for 0-5
+```{r Summary of observations by country for 0-5 , echo = F, message=F}
+table_list <- tables_by_age_group(clean_data)
+table_list[[1]]
+```
+
+# Summary of observations by country for 6-14
+```{r Summary of observations by country for 6-14 , echo = F, message=F}
+table_list[[2]]
+```
+
+# Summary of observations by country for 15-50
+```{r Summary of observations by country for 15-50 , echo = F, message=F}
+table_list[[3]]
+```
+
+# Summary of observations by country for 51-70
+```{r Summary of observations by country for 51-70 , echo = F, message=F}
+table_list[[4]]
+```
+
+# Summary of observations by country for 71+
+```{r Summary of observations by country for 71+ , echo = F, message=F}
+table_list[[5]]
+```
+
+# Heatmaps for number of cases at different spatial scales for each age group by country over time
+*Note: Case counts in all the Heatmaps were aggregated through the following steps: 1. Initial aggregation: For each combination of location, year (using the year from the TL), and age group, all observations that did not overlap in time were aggregated. 2. Selection of representative observation: Among the aggregated observations for each location-year-age group, the one with the longest temporal coverage was selected to represent the annual case count. 3. National-level aggregation by spatial scale: For each spatial scale, year, and age group combination, case counts were summed across all locations in the country to generate national totals at that spatial scale. As a result of this approach, some overlap may exist due to multi-year observations being included in the aggregation. Also, some observations may be excluded due to shorter temporal coverage.*
+
+## Heatmaps for number of national cases for 0-5
+```{r Heatmaps for number of national cases for 0-5 by country over time, echo = F, message=F}
+data_list_by_sp_age <- summarize_scd(clean_data)
+
+plots<-make_heatmaps_by_age_scale(data_list_by_sp_age %>% filter(spatial_scale == "country"))
+plots[[1]]
+```
+
+## Heatmaps for number of national cases for 6-14
+```{r Heatmaps for number of national cases for 6-14 by country over time, echo = F, message=F}
+plots[[2]]
+```
+
+## Heatmaps for number of national cases for 14-50
+```{r Heatmaps for number of national cases for 14-50 by country over time, echo = F, message=F}
+plots[[3]]
+```
+
+## Heatmaps for number of national cases for 51-70
+```{r Heatmaps for number of national cases for 51-70 by country over time, echo = F, message=F}
+plots[[4]]
+```
+
+## Heatmaps for number of national cases for 71+
+```{r Heatmaps for number of national cases for 71+ by country over time, echo = F, message=F}
+plots[[5]]
+```
+
+## Heatmaps for number of adm1 cases for 0-5
+```{r Heatmaps for number of admin1 cases for 0-5 by country over time, echo = F, message=F}
+plots<-make_heatmaps_by_age_scale(data_list_by_sp_age %>% filter(spatial_scale == "admin1"))
+plots[[1]]
+```
+
+## Heatmaps for number of adm1 cases for 6-14
+```{r Heatmaps for number of admin1 cases for 6-14 by country over time, echo = F, message=F}
+plots[[2]]
+```
+
+## Heatmaps for number of adm1 cases for 14-50
+```{r Heatmaps for number of admin1 cases for 14-50 by country over time, echo = F, message=F}
+plots[[3]]
+```
+
+## Heatmaps for number of adm1 cases for 51-70
+```{r Heatmaps for number of admin1 cases for 51-70 by country over time, echo = F, message=F}
+plots[[4]]
+```
+
+## Heatmaps for number of adm1 cases for 71+
+```{r Heatmaps for number of admin1 cases for 71+ by country over time, echo = F, message=F}
+plots[[5]]
+```
+
+
+## Heatmaps for number of adm2 cases for 0-5
+```{r Heatmaps for number of adm2 cases for 0-5 by country over time, echo = F, message=F}
+plots<-make_heatmaps_by_age_scale(data_list_by_sp_age %>% filter(spatial_scale == "admin2"))
+plots[[1]]
+```
+
+## Heatmaps for number of adm2 cases for 6-14
+```{r Heatmaps for number of adm2 cases for 6-14 by country over time, echo = F, message=F}
+plots[[2]]
+```
+
+## Heatmaps for number of adm2 cases for 14-50
+```{r Heatmaps for number of adm2 cases for 14-50 by country over time, echo = F, message=F}
+plots[[3]]
+```
+
+## Heatmaps for number of adm2 cases for 51-70
+```{r Heatmaps for number of adm2 cases for 51-70 by country over time, echo = F, message=F}
+plots[[4]]
+```
+
+## Heatmaps for number of adm2 cases for 71+
+```{r Heatmaps for number of adm2 cases for 71+ by country over time, echo = F, message=F}
+plots[[5]]
+```
+
+## Heatmaps for number of adm3 cases for 71+
+```{r Heatmaps for number of adm2 cases for 71+ by country over time, echo = F, message=F}
+plots<-make_heatmaps_by_age_scale(data_list_by_sp_age %>% filter(spatial_scale == "admin3"))
+```
+
+# CFR distribution by age groups
+```{r cfr distribution, echo = F, message=F}
+data_list_by_sp_age <- summarize_scd(clean_data) %>% 
+  mutate(cfr = deaths_total/sCh_total *100)
+
+ggplot(data_list_by_sp_age %>% mutate(spatial_scale = factor(spatial_scale, levels = c("country","admin1","admin2","admin3","admin4 or lower"))), aes(x = age_group, y = cfr)) +
+  geom_boxplot(fill = "skyblue", alpha = 0.7) +
+  scale_y_continuous(transform = 'log10') +
+  labs(
+    title = "Case Fatality Ratio by Age Group",
+    x = "Age Group",
+    y = "Case Fatality Ratio (%)"
+  ) +
+  theme_bw(base_size = 14) +
+  facet_wrap(~spatial_scale, ncol = 2, scales = "free")
+```
+
+
+# Confirmed cases ratio by age groups
+```{r Confirmed cases ratio distribution, echo = F, message=F}
+data_list_by_sp_age <- summarize_scd(clean_data) %>% 
+  mutate(confirm_rate = cCh_total/sCh_total *100)
+
+ggplot(data_list_by_sp_age %>% mutate(spatial_scale = factor(spatial_scale, levels = c("country","admin1","admin2","admin3","admin4 or lower"))), aes(x = age_group, y = confirm_rate)) +
+  geom_boxplot(fill = "skyblue", alpha = 0.7) +
+  scale_y_continuous(transform = 'log10') +
+  labs(
+    title = "Confirmation rate by Age Group",
+    x = "Age Group",
+    y = "cCh/sCh (%)"
+  ) +
+  theme_bw(base_size = 14) +
+  facet_wrap(~spatial_scale, ncol = 2, scales = "free")
+```
