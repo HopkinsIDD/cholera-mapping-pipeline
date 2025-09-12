@@ -24,7 +24,7 @@ manual_fix_age <- function(x, max_age_years = 100) {
     raw == "2 1/2," ~ 2.5,
     
     # months (convert to years)
-    str_detect(tolower(gsub(" ", "", raw)), "[0-9]+m") ~ as.numeric(str_extract(raw, "[0-9]+"))/12
+    str_detect(tolower(gsub(" ", "", raw)), "[0-9]+m") ~ as.numeric(str_extract(raw, "[0-9]+"))/12,
     
     raw == "1 year & 8 months" ~ 1 + 8/12,
     
