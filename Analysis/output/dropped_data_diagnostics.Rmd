@@ -128,7 +128,7 @@ identify_input_coverage <- function(sf_cases_resized, dropped_summary_df) {
       sf_cases_resized %>% 
         st_drop_geometry() %>% 
         select(OC_UID,locationPeriod_id,location_name,TL,TR,attributes.fields.suspected_cases) %>% 
-        filter(TL <= minTL, TR >= maxTR) %>%
+        filter(!(TR < minTL | TL > maxTR)) %>%
         mutate(UID = UID)
     }
   )
@@ -191,12 +191,12 @@ dropped_summary_df %>%
   )
 ```
 
-## Summary of Dropped Data Coverage in Model Input
+## Model Input Overlapping Dropped Observations
 ```{r Step 1 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No dropped data coverage found.")
+  htmltools::tags$h4("No overlapping data found.")
 } else {
   coverage_df %>%
     select(
@@ -283,12 +283,12 @@ dropped_summary_df %>%
   )
 ```
 
-## Summary of Dropped Data Coverage in Model Input
+## Model Input Overlapping Dropped Observations
 ```{r Step 2 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No dropped data coverage found.")
+  htmltools::tags$h4("No overlapping data found.")
 } else {
   coverage_df %>%
     select(
@@ -364,12 +364,12 @@ dropped_summary_df %>%
   )
 ```
 
-## Summary of Dropped Data Coverage in Model Input
+## Model Input Overlapping Dropped Observations
 ```{r Step 3 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No dropped data coverage found.")
+  htmltools::tags$h4("No overlapping data found.")
 } else {
   coverage_df %>%
     select(
@@ -458,12 +458,12 @@ dropped_summary_df %>%
   )
 ```
 
-## Summary of Dropped Data Coverage in Model Input
+## Model Input Overlapping Dropped Observations
 ```{r Step 4 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No dropped data coverage found.")
+  htmltools::tags$h4("No overlapping data found.")
 } else {
   coverage_df %>%
     select(
@@ -535,12 +535,12 @@ dropped_summary_df %>%
   )
 ```
 
-## Summary of Dropped Data Coverage in Model Input
+## Model Input Overlapping Dropped Observations
 ```{r Step 5 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No dropped data coverage found.")
+  htmltools::tags$h4("No overlapping data found.")
 } else {
   coverage_df %>%
     select(
@@ -650,12 +650,12 @@ dropped_summary_df %>%
   )
 ```
 
-## Summary of Dropped Data Coverage in Model Input
+## Model Input Overlapping Dropped Observations
 ```{r Step 6 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No dropped data coverage found.")
+  htmltools::tags$h4("No overlapping data found.")
 } else {
   coverage_df %>%
     select(
@@ -734,12 +734,12 @@ dropped_summary_df %>%
   )
 ```
 
-## Summary of Dropped Data Coverage in Model Input
+## Model Input Overlapping Dropped Observations
 ```{r Step 7 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No dropped data coverage found.")
+  htmltools::tags$h4("No overlapping data found.")
 } else {
   coverage_df %>%
     select(
@@ -834,12 +834,12 @@ dropped_summary_df %>%
   )
 ```
 
-## Summary of Dropped Data Coverage in Model Input
+## Model Input Overlapping Dropped Observations
 ```{r Step 8 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No dropped data coverage found.")
+  htmltools::tags$h4("No overlapping data found.")
 } else {
   coverage_df %>%
     select(
@@ -896,7 +896,7 @@ dropped_summary_df %>%
   select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs,location_period_ids) %>%
   gt() %>%
   tab_header(
-    title = "Summary of Dropped Observations (censored 0 obs after aggregation)"
+    title = "Summary of Dropped Observations (censored adm0 obs after aggregation)"
   ) %>%
   fmt_number(
     columns = c(total_cases),
@@ -916,12 +916,12 @@ dropped_summary_df %>%
   )
 ```
 
-## Summary of Dropped Data Coverage in Model Input
+## Model Input Overlapping Dropped Observations
 ```{r Step 9 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No dropped data coverage found.")
+  htmltools::tags$h4("No overlapping data found.")
 } else {
   coverage_df %>%
     select(
@@ -997,12 +997,12 @@ dropped_summary_df %>%
   )
 ```
 
-## Summary of Dropped Data Coverage in Model Input
+## Model Input Overlapping Dropped Observations
 ```{r Step 10 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized %>% mutate(attributes.fields.suspected_cases=suspected_cases), dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No dropped data coverage found.")
+  htmltools::tags$h4("No overlapping data found.")
 } else {
   coverage_df %>%
     select(
@@ -1091,12 +1091,12 @@ dropped_summary_df %>%
   )
 ```
 
-## Summary of Dropped Data Coverage in Model Input
+## Model Input Overlapping Dropped Observations
 ```{r Step 11 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized %>% mutate(attributes.fields.suspected_cases=suspected_cases), dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No dropped data coverage found.")
+  htmltools::tags$h4("No overlapping data found.")
 } else {
   coverage_df %>%
     select(
@@ -1130,7 +1130,7 @@ if (nrow(coverage_df) == 0) {
 sf_cases_resized_orig %>%
   sf::st_drop_geometry() %>% 
   filter(admin_level == 0) %>% 
-  select(location_name, TL, TR,  attributes.fields.suspected_cases) %>%
+  select(location_name, TL, TR,  attributes.fields.suspected_cases, OC_UID) %>%
   gt() %>%
   tab_header(
     title = "Adm0 Observations"
