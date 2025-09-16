@@ -46,7 +46,7 @@ jobs:
           source /opt/miniconda3/etc/profile.d/conda.sh
           conda activate rbase
           cd packages/taxdat
-          R -e "setwd('.'); devtools::test(stop_on_failure=FALSE)"
+          R -e "setwd('.'); devtools::test(stop_on_failure=TRUE)"
         shell: bash
       - name: Ingest Covariates
         run: |
