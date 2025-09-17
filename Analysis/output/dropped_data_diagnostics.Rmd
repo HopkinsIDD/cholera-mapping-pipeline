@@ -53,7 +53,6 @@ summarize_dropped_rows_df <- function(df_before, df_after) {
   dropped_df <- anti_join(df_before, df_after, by = c("location_name", "OC_UID", "TL", "TR"))
   
   if (nrow(dropped_df) == 0) {
-    message("No rows were dropped.")
     return(tibble(
       location_name = character(),
       OC_UID = character(),
@@ -61,7 +60,6 @@ summarize_dropped_rows_df <- function(df_before, df_after) {
       minTL = as.Date(character()),
       maxTR = as.Date(character()),
       n_obs = integer(),
-      location_ids = character(),
       location_period_ids = character(),
       UID = integer()
     ))
@@ -89,7 +87,6 @@ summarize_dropped_rows_df_short <- function(df_before, df_after) {
   dropped_df <- anti_join(df_before, df_after, by = c("location_name", "OC_UID", "TL", "TR"))
   
   if (nrow(dropped_df) == 0) {
-    message("No rows were dropped.")
     return(tibble(
       location_name = character(),
       OC_UID = character(),
@@ -165,6 +162,9 @@ cases_dropping_missing_shps <- taxdat::drop_missing_shapefiles(cases = cases,
 dropped_summary_df <- summarize_dropped_rows_df(cases %>% st_drop_geometry(),
                           cases_dropping_missing_shps %>% st_drop_geometry())
 
+if(nrow(dropped_summary_df) ==0){
+  htmltools::tags$h4("No observations were dropped in this step.")
+} else{
 dropped_summary_df %>% 
   select(!location_period_ids) %>% 
   select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs, location_ids) %>%
@@ -188,7 +188,8 @@ dropped_summary_df %>%
   ) %>% 
   tab_options(
     container.width = pct(100)
-  )
+  )  
+}
 ```
 
 ## Model Input Overlapping Dropped Observations
@@ -196,30 +197,30 @@ dropped_summary_df %>%
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No overlapping data found.")
+  htmltools::tags$h4("No overlapping data were found.")
 } else {
   coverage_df %>%
     select(
+      UID,
       location_name,
-      OC_UID,
-      attributes.fields.suspected_cases,
       TL,
       TR,
-      locationPeriod_id,
-      UID
+      attributes.fields.suspected_cases,
+      OC_UID,
+      locationPeriod_id
     ) %>%
     datatable(
       filter = "top",
       rownames = FALSE,
       options = list(pageLength = 10),
       colnames = c(
+        "Dropped Data UID",
         "Location",
-        "OC UID",
-        "Suspected Cases",
         "TL",
         "TR",
-        "Period ID(s)",
-        "Dropped Data UID"
+        "sCh",
+        "OC UID",
+        "Period ID(s)"
       )
     )
 }
@@ -257,7 +258,9 @@ if (any(sf::st_is_empty(sf_cases))) {
 
 dropped_summary_df<-summarize_dropped_rows_df(cases %>% st_drop_geometry(),
                           sf_cases %>% st_drop_geometry())
-dropped_summary_df %>%
+if(nrow(dropped_summary_df) ==0){
+  htmltools::tags$h4("No observations were dropped in this step.")
+} else{ dropped_summary_df %>%
   select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs, location_ids,location_period_ids) %>%
   gt() %>%
   tab_header(
@@ -281,6 +284,7 @@ dropped_summary_df %>%
   tab_options(
     container.width = pct(100)
   )
+}
 ```
 
 ## Model Input Overlapping Dropped Observations
@@ -288,30 +292,30 @@ dropped_summary_df %>%
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No overlapping data found.")
+  htmltools::tags$h4("No overlapping data were found.")
 } else {
   coverage_df %>%
     select(
+      UID,
       location_name,
-      OC_UID,
-      attributes.fields.suspected_cases,
       TL,
       TR,
-      locationPeriod_id,
-      UID
+      attributes.fields.suspected_cases,
+      OC_UID,
+      locationPeriod_id
     ) %>%
     datatable(
       filter = "top",
       rownames = FALSE,
       options = list(pageLength = 10),
       colnames = c(
+        "Dropped Data UID",
         "Location",
-        "OC UID",
-        "Suspected Cases",
         "TL",
         "TR",
-        "Period ID(s)",
-        "Dropped Data UID"
+        "sCh",
+        "OC UID",
+        "Period ID(s)"
       )
     )
 }
@@ -339,6 +343,9 @@ if (config$drop_multiyear_adm0) {
 
 dropped_summary_df<-summarize_dropped_rows_df(cases %>% st_drop_geometry() ,
                           sf_cases %>% st_drop_geometry())
+if(nrow(dropped_summary_df) ==0){
+  htmltools::tags$h4("No observations were dropped in this step.")
+} else{
 dropped_summary_df %>%
   select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs, location_ids,location_period_ids) %>%
   gt() %>%
@@ -362,6 +369,7 @@ dropped_summary_df %>%
   tab_options(
     container.width = pct(100)
   )
+}
 ```
 
 ## Model Input Overlapping Dropped Observations
@@ -369,30 +377,30 @@ dropped_summary_df %>%
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No overlapping data found.")
+  htmltools::tags$h4("No overlapping data were found.")
 } else {
   coverage_df %>%
     select(
+      UID,
       location_name,
-      OC_UID,
-      attributes.fields.suspected_cases,
       TL,
       TR,
-      locationPeriod_id,
-      UID
+      attributes.fields.suspected_cases,
+      OC_UID,
+      locationPeriod_id
     ) %>%
     datatable(
       filter = "top",
       rownames = FALSE,
       options = list(pageLength = 10),
       colnames = c(
+        "Dropped Data UID",
         "Location",
-        "OC UID",
-        "Suspected Cases",
         "TL",
         "TR",
-        "Period ID(s)",
-        "Dropped Data UID"
+        "sCh",
+        "OC UID",
+        "Period ID(s)"
       )
     )
 }
@@ -433,6 +441,9 @@ sf_cases <- sf_cases[!sf_cases_dup_obs, ]
 
 dropped_summary_df<-summarize_dropped_rows_df(cases %>% st_drop_geometry(),
                           sf_cases %>% st_drop_geometry())
+if(nrow(dropped_summary_df) ==0){
+  htmltools::tags$h4("No observations were dropped in this step.")
+} else{
 dropped_summary_df %>%
   select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs, location_ids,location_period_ids) %>%
   gt() %>%
@@ -456,6 +467,7 @@ dropped_summary_df %>%
   tab_options(
     container.width = pct(100)
   )
+}
 ```
 
 ## Model Input Overlapping Dropped Observations
@@ -463,30 +475,30 @@ dropped_summary_df %>%
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No overlapping data found.")
+  htmltools::tags$h4("No overlapping data were found.")
 } else {
   coverage_df %>%
     select(
+      UID,
       location_name,
-      OC_UID,
-      attributes.fields.suspected_cases,
       TL,
       TR,
-      locationPeriod_id,
-      UID
+      attributes.fields.suspected_cases,
+      OC_UID,
+      locationPeriod_id
     ) %>%
     datatable(
       filter = "top",
       rownames = FALSE,
       options = list(pageLength = 10),
       colnames = c(
+        "Dropped Data UID",
         "Location",
-        "OC UID",
-        "Suspected Cases",
         "TL",
         "TR",
-        "Period ID(s)",
-        "Dropped Data UID"
+        "sCh",
+        "OC UID",
+        "Period ID(s)"
       )
     )
 }
@@ -510,6 +522,9 @@ sf_cases_resized <- sf_cases[non_na_obs, ]
 
 dropped_summary_df<-summarize_dropped_rows_df(cases %>% st_drop_geometry(),
                           sf_cases_resized %>% st_drop_geometry())
+if(nrow(dropped_summary_df) ==0){
+  htmltools::tags$h4("No observations were dropped in this step.")
+} else{
 dropped_summary_df %>%
   select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs, location_ids,location_period_ids) %>%
   gt() %>%
@@ -533,6 +548,7 @@ dropped_summary_df %>%
   tab_options(
     container.width = pct(100)
   )
+}
 ```
 
 ## Model Input Overlapping Dropped Observations
@@ -540,30 +556,30 @@ dropped_summary_df %>%
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No overlapping data found.")
+  htmltools::tags$h4("No overlapping data were found.")
 } else {
   coverage_df %>%
     select(
+      UID,
       location_name,
-      OC_UID,
-      attributes.fields.suspected_cases,
       TL,
       TR,
-      locationPeriod_id,
-      UID
+      attributes.fields.suspected_cases,
+      OC_UID,
+      locationPeriod_id
     ) %>%
     datatable(
       filter = "top",
       rownames = FALSE,
       options = list(pageLength = 10),
       colnames = c(
+        "Dropped Data UID",
         "Location",
-        "OC UID",
-        "Suspected Cases",
         "TL",
         "TR",
-        "Period ID(s)",
-        "Dropped Data UID"
+        "sCh",
+        "OC UID",
+        "Period ID(s)"
       )
     )
 }
@@ -625,6 +641,9 @@ if (config$tfrac_thresh > 0) {
 dropped_summary_df<-summarize_dropped_rows_df(cases %>% st_drop_geometry(),
                           sf_cases_resized %>% st_drop_geometry())
 
+if(nrow(dropped_summary_df) ==0){
+  htmltools::tags$h4("No observations were dropped in this step.")
+} else{
 dropped_summary_df %>%
   select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs, location_ids,location_period_ids) %>%
   gt() %>%
@@ -648,6 +667,7 @@ dropped_summary_df %>%
   tab_options(
     container.width = pct(100)
   )
+}
 ```
 
 ## Model Input Overlapping Dropped Observations
@@ -655,30 +675,30 @@ dropped_summary_df %>%
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No overlapping data found.")
+  htmltools::tags$h4("No overlapping data were found.")
 } else {
   coverage_df %>%
     select(
+      UID,
       location_name,
-      OC_UID,
-      attributes.fields.suspected_cases,
       TL,
       TR,
-      locationPeriod_id,
-      UID
+      attributes.fields.suspected_cases,
+      OC_UID,
+      locationPeriod_id
     ) %>%
     datatable(
       filter = "top",
       rownames = FALSE,
       options = list(pageLength = 10),
       colnames = c(
+        "Dropped Data UID",
         "Location",
-        "OC UID",
-        "Suspected Cases",
         "TL",
         "TR",
-        "Period ID(s)",
-        "Dropped Data UID"
+        "sCh",
+        "OC UID",
+        "Period ID(s)"
       )
     )
 }
@@ -708,7 +728,9 @@ if (config$drop_multiyear_adm0) {
 
 dropped_summary_df<-summarize_dropped_rows_df(cases %>% st_drop_geometry(),
                           sf_cases_resized %>% st_drop_geometry())
-
+if(nrow(dropped_summary_df) ==0){
+  htmltools::tags$h4("No observations were dropped in this step.")
+} else{
 dropped_summary_df %>%
   select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs, location_ids,location_period_ids) %>%
   gt() %>%
@@ -732,6 +754,7 @@ dropped_summary_df %>%
   tab_options(
     container.width = pct(100)
   )
+}
 ```
 
 ## Model Input Overlapping Dropped Observations
@@ -739,30 +762,30 @@ dropped_summary_df %>%
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No overlapping data found.")
+  htmltools::tags$h4("No overlapping data were found.")
 } else {
   coverage_df %>%
     select(
+      UID,
       location_name,
-      OC_UID,
-      attributes.fields.suspected_cases,
       TL,
       TR,
-      locationPeriod_id,
-      UID
+      attributes.fields.suspected_cases,
+      OC_UID,
+      locationPeriod_id
     ) %>%
     datatable(
       filter = "top",
       rownames = FALSE,
       options = list(pageLength = 10),
       colnames = c(
+        "Dropped Data UID",
         "Location",
-        "OC UID",
-        "Suspected Cases",
         "TL",
         "TR",
-        "Period ID(s)",
-        "Dropped Data UID"
+        "sCh",
+        "OC UID",
+        "Period ID(s)"
       )
     )
 }
@@ -810,6 +833,8 @@ if (config$censoring) {
 
 dropped_summary_df<-summarize_dropped_rows_df_short(cases  %>% st_drop_geometry() %>% mutate(attributes.location_period_id = locationPeriod_id),sf_cases_resized %>% st_drop_geometry()%>% mutate(attributes.location_period_id = locationPeriod_id))
 
+  htmltools::tags$h4("No observations were dropped in this step.")
+} else{
 dropped_summary_df %>%
   select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs,location_period_ids) %>%
   gt() %>%
@@ -832,6 +857,7 @@ dropped_summary_df %>%
   tab_options(
     container.width = pct(100)
   )
+}
 ```
 
 ## Model Input Overlapping Dropped Observations
@@ -839,30 +865,30 @@ dropped_summary_df %>%
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No overlapping data found.")
+  htmltools::tags$h4("No overlapping data were found.")
 } else {
   coverage_df %>%
     select(
+      UID,
       location_name,
-      OC_UID,
-      attributes.fields.suspected_cases,
       TL,
       TR,
-      locationPeriod_id,
-      UID
+      attributes.fields.suspected_cases,
+      OC_UID,
+      locationPeriod_id
     ) %>%
     datatable(
       filter = "top",
       rownames = FALSE,
       options = list(pageLength = 10),
       colnames = c(
+        "Dropped Data UID",
         "Location",
-        "OC UID",
-        "Suspected Cases",
         "TL",
         "TR",
-        "Period ID(s)",
-        "Dropped Data UID"
+        "sCh",
+        "OC UID",
+        "Period ID(s)"
       )
     )
 }
@@ -892,6 +918,8 @@ if (config$drop_censored_adm0) {
 dropped_summary_df<-summarize_dropped_rows_df_short(cases  %>% st_drop_geometry() %>% mutate(attributes.location_period_id = locationPeriod_id),
                           sf_cases_resized %>% st_drop_geometry()%>% mutate(attributes.location_period_id = locationPeriod_id))
 
+  htmltools::tags$h4("No observations were dropped in this step.")
+} else{
 dropped_summary_df %>%
   select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs,location_period_ids) %>%
   gt() %>%
@@ -914,6 +942,7 @@ dropped_summary_df %>%
   tab_options(
     container.width = pct(100)
   )
+}
 ```
 
 ## Model Input Overlapping Dropped Observations
@@ -921,30 +950,30 @@ dropped_summary_df %>%
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No overlapping data found.")
+  htmltools::tags$h4("No overlapping data were found.")
 } else {
   coverage_df %>%
     select(
+      UID,
       location_name,
-      OC_UID,
-      attributes.fields.suspected_cases,
       TL,
       TR,
-      locationPeriod_id,
-      UID
+      attributes.fields.suspected_cases,
+      OC_UID,
+      locationPeriod_id
     ) %>%
     datatable(
       filter = "top",
       rownames = FALSE,
       options = list(pageLength = 10),
       colnames = c(
+        "Dropped Data UID",
         "Location",
-        "OC UID",
-        "Suspected Cases",
         "TL",
         "TR",
-        "Period ID(s)",
-        "Dropped Data UID"
+        "sCh",
+        "OC UID",
+        "Period ID(s)"
       )
     )
 }
@@ -973,6 +1002,8 @@ if (config$drop_censored_adm0) {
   
 dropped_summary_df<-summarize_dropped_rows_df_short(cases  %>% st_drop_geometry() %>% mutate(attributes.location_period_id = locationPeriod_id), sf_cases_resized %>% st_drop_geometry()%>% mutate(attributes.location_period_id = locationPeriod_id))
 
+  htmltools::tags$h4("No observations were dropped in this step.")
+} else{
 dropped_summary_df %>%
   select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs,location_period_ids) %>%
   gt() %>%
@@ -995,6 +1026,7 @@ dropped_summary_df %>%
   tab_options(
     container.width = pct(100)
   )
+}
 ```
 
 ## Model Input Overlapping Dropped Observations
@@ -1002,30 +1034,30 @@ dropped_summary_df %>%
 coverage_df <- identify_input_coverage(sf_cases_resized %>% mutate(attributes.fields.suspected_cases=suspected_cases), dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No overlapping data found.")
+  htmltools::tags$h4("No overlapping data were found.")
 } else {
   coverage_df %>%
     select(
+      UID,
       location_name,
-      OC_UID,
-      attributes.fields.suspected_cases,
       TL,
       TR,
-      locationPeriod_id,
-      UID
+      attributes.fields.suspected_cases,
+      OC_UID,
+      locationPeriod_id
     ) %>%
     datatable(
       filter = "top",
       rownames = FALSE,
       options = list(pageLength = 10),
       colnames = c(
+        "Dropped Data UID",
         "Location",
-        "OC UID",
-        "Suspected Cases",
         "TL",
         "TR",
-        "Period ID(s)",
-        "Dropped Data UID"
+        "sCh",
+        "OC UID",
+        "Period ID(s)"
       )
     )
 }
@@ -1067,6 +1099,8 @@ if (config$drop_low_pop_lps) {
 dropped_summary_df<-summarize_dropped_rows_df_short(cases  %>% st_drop_geometry() %>% mutate(attributes.location_period_id = locationPeriod_id),
                           sf_cases_resized %>% st_drop_geometry()%>% mutate(attributes.location_period_id = locationPeriod_id))
 
+  htmltools::tags$h4("No observations were dropped in this step.")
+} else{
 dropped_summary_df %>%
   select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs,location_period_ids) %>%
   gt() %>%
@@ -1089,6 +1123,7 @@ dropped_summary_df %>%
   tab_options(
     container.width = pct(100)
   )
+}
 ```
 
 ## Model Input Overlapping Dropped Observations
@@ -1096,30 +1131,30 @@ dropped_summary_df %>%
 coverage_df <- identify_input_coverage(sf_cases_resized %>% mutate(attributes.fields.suspected_cases=suspected_cases), dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
-  htmltools::tags$h4("No overlapping data found.")
+  htmltools::tags$h4("No overlapping data were found.")
 } else {
   coverage_df %>%
     select(
+      UID,
       location_name,
-      OC_UID,
-      attributes.fields.suspected_cases,
       TL,
       TR,
-      locationPeriod_id,
-      UID
+      attributes.fields.suspected_cases,
+      OC_UID,
+      locationPeriod_id
     ) %>%
     datatable(
       filter = "top",
       rownames = FALSE,
       options = list(pageLength = 10),
       colnames = c(
+        "Dropped Data UID",
         "Location",
-        "OC UID",
-        "Suspected Cases",
         "TL",
         "TR",
-        "Period ID(s)",
-        "Dropped Data UID"
+        "sCh",
+        "OC UID",
+        "Period ID(s)"
       )
     )
 }
