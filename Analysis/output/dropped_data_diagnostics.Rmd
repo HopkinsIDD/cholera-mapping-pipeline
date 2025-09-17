@@ -833,6 +833,7 @@ if (config$censoring) {
 
 dropped_summary_df<-summarize_dropped_rows_df_short(cases  %>% st_drop_geometry() %>% mutate(attributes.location_period_id = locationPeriod_id),sf_cases_resized %>% st_drop_geometry()%>% mutate(attributes.location_period_id = locationPeriod_id))
 
+if(nrow(dropped_summary_df) ==0){
   htmltools::tags$h4("No observations were dropped in this step.")
 } else{
 dropped_summary_df %>%
@@ -918,6 +919,7 @@ if (config$drop_censored_adm0) {
 dropped_summary_df<-summarize_dropped_rows_df_short(cases  %>% st_drop_geometry() %>% mutate(attributes.location_period_id = locationPeriod_id),
                           sf_cases_resized %>% st_drop_geometry()%>% mutate(attributes.location_period_id = locationPeriod_id))
 
+if(nrow(dropped_summary_df) ==0){
   htmltools::tags$h4("No observations were dropped in this step.")
 } else{
 dropped_summary_df %>%
@@ -1002,6 +1004,7 @@ if (config$drop_censored_adm0) {
   
 dropped_summary_df<-summarize_dropped_rows_df_short(cases  %>% st_drop_geometry() %>% mutate(attributes.location_period_id = locationPeriod_id), sf_cases_resized %>% st_drop_geometry()%>% mutate(attributes.location_period_id = locationPeriod_id))
 
+if(nrow(dropped_summary_df) ==0){
   htmltools::tags$h4("No observations were dropped in this step.")
 } else{
 dropped_summary_df %>%
@@ -1099,6 +1102,7 @@ if (config$drop_low_pop_lps) {
 dropped_summary_df<-summarize_dropped_rows_df_short(cases  %>% st_drop_geometry() %>% mutate(attributes.location_period_id = locationPeriod_id),
                           sf_cases_resized %>% st_drop_geometry()%>% mutate(attributes.location_period_id = locationPeriod_id))
 
+if(nrow(dropped_summary_df) ==0){
   htmltools::tags$h4("No observations were dropped in this step.")
 } else{
 dropped_summary_df %>%
