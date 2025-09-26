@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - dev_setup
-      - docker_database
+      - update_docker
       - dev
   pull_request:
     branches:
