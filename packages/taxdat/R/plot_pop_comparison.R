@@ -26,13 +26,10 @@ plot_pop_comparison <- function(config, cache, cholera_directory){
   # load pop data from world pop csv file
   data("WHO_regions", package = "taxdat")
   
-  afr_regions <- WHO_regions %>% 
-    filter(WHO.region %in% c("Africa","Eastern Mediterranean"))
-  
   # Load UN population estimates
   data("WPP2024", package = "taxdat")
   
-  wpp_pop <- afr_regions %>% 
+  wpp_pop <- WHO_regions %>% 
     dplyr::mutate(
       ISO3_code = Country.code
     ) %>% 
