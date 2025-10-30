@@ -1,0 +1,61 @@
+#need to change to pileline-latest  after testing
+FROM conda:nosqlv2
+# For test remove later
+
+# Install PostgreSQL and PostGIS
+RUN apt-get update && apt-get install -y \
+    sudo \
+	postgresql-17 \
+    postgresql-contrib-17\
+    postgis \
+    postgresql-17-postgis-3 \
+	postgresql-client-17 \
+    && rm -rf /var/lib/apt/lists/*
+
+# S
+RUN useradd -m app \
+    && mkdir -p /home/app \
+    && chown app:app /home/app \
+    && mkdir -p /etc/sudoers.d \
+    && chmod 750 /etc/sudoers.d \
+    && echo "app ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/app \
+    && chmod 440 /etc/sudoers.d/app \
+    && usermod -a -G staff app
+
+# Co#py files into container
+
+# Set PostgreSQL environment variables and PATH
+
+ENV CHOLERA_SKIP_STAN=TRUE
+WORKDIR /home/app
+ENV HOME /home/app
+RUN chown -R app:app /home/app
+
+COPY --chown=app:app grant_cholera_database.sh $HOME/grant_cholera_database.sh
+
+# Initialize, configure and start PostgreSQL
+# Initialize PostgreSQL cluster and start service properly
+#RUN su postgres -c "/usr/lib/postgresql/17/bin/initdb -D /var/lib/postgresql/data" \
+    #&& su postgres -c "/usr/lib/postgresql/17/bin/pg_ctl -D /var/lib/postgresql/data -l /var/lib/postgresql/logfile start" \
+    #&& sleep 5 \    
+	#&& su - postgres -c "psql -c \"CREATE DATABASE cholera_covariates;\"" \
+    #&& su - postgres -c "psql -c \"CREATE USER app WITH LOGIN;\"" \
+    #&& su - postgres -c "psql -c \"GRANT ALL ON DATABASE cholera_covariates TO app;\"" \
+    #&& su - postgres -c "psql -d cholera_covariates -c \"CREATE EXTENSION postgis;\"" \
+    #&& su - postgres -c "psql -d cholera_covariates -c \"CREATE EXTENSION postgis_raster;\"" \
+    #&& su - postgres -c "psql -d cholera_covariates -c \"CREATE EXTENSION postgis_topology;\"" \
+    #&& su - postgres -c "psql -d cholera_covariates -c \"CREATE EXTENSION postgis_sfcgal;\"" \
+    #&& su - postgres -c "psql -d cholera_covariates -c \"CREATE EXTENSION fuzzystrmatch;\"" \
+    #&& su - postgres -c "psql -d cholera_covariates -c \"CREATE EXTENSION address_standardizer;\"" \
+    #&& su - postgres -c "psql -d cholera_covariates -c \"CREATE EXTENSION address_standardizer_data_us;\"" \
+    #&& su - postgres -c "psql -d cholera_covariates -c \"CREATE EXTENSION postgis_tiger_geocoder;\"" \
+    #&& su - app -c "psql -d cholera_covariates -c \"CREATE SCHEMA covariates;\"" \
+    #&& su - app -c "psql -d cholera_covariates -c \"CREATE SCHEMA data;\"" \
+    #&& su - app -c "psql -d cholera_covariates -c \"CREATE SCHEMA grids;\"" \
+	#&& /bin/bash -c "/usr/bin/echo 'sudo service postgresql start' >> /home/app/.bashrc"
+RUN echo "source /opt/miniconda3/etc/profile.d/conda.sh" >> ~/.bashrc && \
+    echo "conda activate rbase" >> ~/.bashrc 
+RUN mkdir -p $HOME/.cache/R/gb_cache
+
+COPY init-postgres.sh /
+CMD ["/bin/bash"]
