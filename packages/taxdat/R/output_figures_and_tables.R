@@ -14,8 +14,15 @@ colors_lisa_clusters <- function(){c("lightgray", "#D40A07", "#4543C4", "#F26F6D
 coloramp_cases <- function(){c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404")}
 
 coloramp_num_years_exceeding_threshold <- function(){
-  colors <- c("#e0f7da", "#a8e6cf", "#81c784", "#388e3c", "#4a883d","#1b5e20")
-  names(colors) <- c("0","1","2","3","4","5")
+  colors <- c(
+    "#D3D3D3",  
+    "#E0F2E9",  
+    "#A8D5BA",  
+    "#6FBF73",  
+    "#388E3C",  
+    "#1B5E20"   
+  )
+  names(colors) <- c("0", "1", "2", "3", "4", "5")
   colors
 }
 
