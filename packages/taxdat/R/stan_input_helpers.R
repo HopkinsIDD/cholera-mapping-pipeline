@@ -2305,14 +2305,14 @@ compute_adjustment_UN_population <- function(country,
   
   # Checks
   # Load UN population projections
-  data("WPP2022", package = "taxdat")
+  data("WPP2024", package = "taxdat")
   
-  if (any(!(years %in% WPP2022$Time))) {
+  if (any(!(years %in% WPP2024$Time))) {
     stop("Please provide valid years vector that fall within the UN time range: ",
-         paste0(range(WPP2022$Time), collapse = "-"))
+         paste0(range(WPP2024$Time), collapse = "-"))
   }
   
-  if (!(country %in% WPP2022$ISO3_code)) {
+  if (!(country %in% WPP2024$ISO3_code)) {
     stop("Invalid country ISO3 code.")
   }
   
@@ -2321,7 +2321,7 @@ compute_adjustment_UN_population <- function(country,
   for (y in unique(years)) {
     # Get total population for each year in grid
     tot_grid <- sum(pop[years == y])
-    tot_UN <- WPP2022$PopTotal[WPP2022$Time == y & WPP2022$ISO3_code == country] * 1e3
+    tot_UN <- WPP2024$PopTotal[WPP2024$Time == y & WPP2024$ISO3_code == country] * 1e3
     
     adj_factors[years == y] <- tot_UN/tot_grid
     

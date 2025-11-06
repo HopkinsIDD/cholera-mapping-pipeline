@@ -7,10 +7,43 @@
 #' @return a DBI database connection object
 #' @export
 connect_to_db <- function(dbuser) {
-  #' @title Connect to database
-  #' @description Connects to the postgres/postgis cholera_covariates database
-  #' @return db connection object
-  DBI::dbConnect(RPostgres::Postgres(), dbname = "cholera_covariates", user = dbuser)
+  # Check if the function is running inside a Docker container
+  is_in_container <- Sys.getenv("IN_DOCKER", "FALSE") == "TRUE"
+  
+  # Set the appropriate host
+  db_host <- if (is_in_container) "172.17.0.1" else "localhost"
+
+  
+  covariate_password <- Sys.getenv("COVARIATE_DATABASE_PASSWORD", "")
+  DBI::dbConnect(RPostgres::Postgres(), host=db_host, dbname = "cholera_covariates", user = dbuser, password = covariate_password)
+}
+
+#' @title Get Database Connection String
+#' @name get_covariate_conn_string
+#' @description Helper function to generate a PostgreSQL connection string for the cholera_covariates database.
+#'
+#' @param dbuser The database username.
+#'
+#' @return A character string representing the PostgreSQL connection URI.
+#' @export
+get_covariate_conn_string <- function(dbuser) {
+    host <- "localhost"
+    # URL encode the password to handle special characters like @
+    encoded_password <- get_covariate_database_password()
+    conn_string <- glue::glue("postgresql://{dbuser}:{encoded_password}@{host}/cholera_covariates")
+    
+    return(conn_string)
+}
+
+#' @title Get covariate_database password
+#' @name get_covariate_database_password
+#' @description Helper function to get password for the cholera_covariates database.
+#'
+#' @return A character string representing the PostgreSQL connection URI.
+#' @export
+get_covariate_database_password <- function() {
+  covariate_password <- Sys.getenv("COVARIATE_DATABASE_PASSWORD", "")
+  return(URLencode(covariate_password, reserved = TRUE))
 }
 
 #' @title Make covariate alias
@@ -391,7 +424,8 @@ sum_nonNA <- function(conn, r_file, ref_grid_db, dbuser) {
   # temporary file to which to write the result
   tmp_file1 <- stringr::str_c(raster::tmpDir(), "resampled_zeros_1.tif")
   tmp_file <- stringr::str_c(raster::tmpDir(), "resampled_zeros.tif")
-  src_file <- glue::glue("PG:\"dbname=cholera_covariates schema=grids table=master_grid user={dbuser} mode=2\"")
+  cholera_password <- Sys.getenv("COVARIATE_DATABASE_PASSWORD", "")
+  src_file <- glue::glue("PG:\"host=localhost dbname=cholera_covariates schema=grids table=master_grid user={dbuser} password={cholera_password} mode=2\"")
   
   gdalwarp2(src_file, tmp_file1, srcnodata = "None", overwrite = T)
   
@@ -871,7 +905,8 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
   
   ref_schema <- strsplit(ref_grid, "\\.")[[1]][1]
   ref_table <- strsplit(ref_grid, "\\.")[[1]][2]
-  ref_grid_db <- glue::glue("PG:\"dbname=cholera_covariates schema={ref_schema} table={ref_table} user={dbuser} mode=2\"")
+  cholera_password <- Sys.getenv("COVARIATE_DATABASE_PASSWORD", "")
+  ref_grid_db <- glue::glue("PG:\"host=localhost dbname=cholera_covariates schema={ref_schema} table={ref_table} user={dbuser} password={cholera_password} mode=2\"")
   
   covar_table <- stringr::str_c(covar_schema, covar_alias, sep = ".")
   
@@ -894,8 +929,8 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
     cl <- parallel::makeCluster(n_cpus)
     doParallel::registerDoParallel(cl)
     
-    parallel::clusterExport(cl = cl, list("connectToDB", "dbuser", "getTimeRes",
-                                          "generateTimeSequence", "writeNCDF"), envir = environment())
+    parallel::clusterExport(cl = cl, list("connect_to_db", "dbuser", "get_time_res",
+                                          "generate_time_sequence", "write_ncdf"), envir = environment())
     
     parallel::clusterEvalQ(cl, {
       conn <- connect_to_db(dbuser)
@@ -910,9 +945,9 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
   }
   doFun <- ifelse(do_parallel, foreach::`%dopar%`, foreach::`%do%`)
   no_export <- ifelse(do_parallel, "conn", "")
-  export_funs <- c("extractCovariateMetadata", "parse_gdal_res", "parseTimeRes",
-                   "dbExistsTableMulti", "buildGeomsQuery", "showProgress", "getNCDFMetadata",
-                   "timeAggregate", "spaceAggregate", "gdalinfo2", "gdal_cmd_builder2", "gdalwarp2",
+  export_funs <- c("extract_covariate_metadata", "parse_gdal_res", "parse_time_res",
+                   "db_exists_table_multi", "build_geoms_query", "show_progress", "get_ncdf_metadata",
+                   "time_aggregate", "space_aggregate", "gdalinfo2", "gdal_cmd_builder2", "gdalwarp2",
                    "align_rasters2")
   doFun(foreach::foreach(j = seq_along(raster_files),
                          .combine = rbind,
@@ -974,10 +1009,12 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
           t_end <- Sys.time()
           
           if (write_to_db) {
+            dbuser <- Sys.getenv("USER")
+            conn_string <- get_covariate_conn_string(dbuser)
             if (j == 1) {
               # Write to database
               r2psql_cmd <- stringr::str_c("raster2pgsql -s 4326:4326 -I -t auto -d ",
-                                           res_file_space, covar_table, "| psql -d cholera_covariates", sep = " ")
+                                           res_file_space, covar_table, "| psql", conn_string, sep = " ")
               err <- system(r2psql_cmd)
               if (err != 0) {
                 stop(paste("System command", r2psql_cmd, "failed"))
@@ -985,10 +1022,13 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
             } else {
               # Write to database
               r2psql_cmd <- stringr::str_c("raster2pgsql -s 4326:4326 -I -t auto -d ",
-                                           res_file_space, " tmprast | psql -d cholera_covariates", sep = " ")
+                                           res_file_space, "tmprast | psql", conn_string, sep = " ")
+              cat(paste0("Runing command: ", r2psql_cmd, "\n"))
               err <- system(r2psql_cmd)
               if (err != 0) {
                 stop(paste("System command", r2psql_cmd, "failed"))
+              }else{
+                cat(paste0("Finish command: ", r2psql_cmd, "\n"))
               }
               n_bands <- DBI::dbGetQuery(conn, "SELECT ST_NumBands(rast)
                             FROM tmprast LIMIT 1;") %>%
@@ -1024,6 +1064,7 @@ ingest_covariate <- function(conn, covar_name, covar_alias, covar_dir, covar_uni
           }
           
         })
+
   
   if (do_parallel) {
     parallel::clusterEvalQ(cl, {
@@ -1372,73 +1413,20 @@ get_country_admin_units <- function(iso_code,
     stop('Error: the current admin level is unnecessarily high or invalid,
             please check and change the parameters for the country data report before running again. ')
   }
+
+  message("Using the rgeoboundaries shapefiles for all countries, for this country a admin level: ", admin_level)
   
-  if (iso_code == "ZNZ" ) {
-    
-    message("Using the aggregated gadm shapefiles for Zanzibar")
-    
-    if(admin_level == 0){
-      boundary_sf <- sf::st_as_sf(geodata::gadm(country="TZA", level=1, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
-      unionized <- sf::st_union(boundary_sf)
-      boundary_sf <- boundary_sf[1, ]
-      sf::st_geometry(boundary_sf) <- unionized
-    } else {
-      boundary_sf <- sf::st_as_sf(geodata::gadm(country="TZA", level=admin_level, path=tempdir()))%>%subset(NAME_1%in%c("Kaskazini Pemba","Kaskazini Unguja","Kusini Pemba","Kusini Unguja"))
-    }
-    
-    # Fix colnames for compatibility with rest of code
-    boundary_sf <- boundary_sf %>% 
-      magrittr::set_colnames(.,tolower(colnames(boundary_sf))) %>%
-      dplyr::mutate(country="Tanzania",
-                    gid_0="TZA")%>%
-      dplyr::mutate(name_0 = country,
-                    shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
-                    shapeType = paste0("ADM", admin_level))%>% 
-      dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
-                    shapeID,
-                    shapeType) %>% 
-      dplyr::mutate(source = "gadm")
-    
-  } else if(iso_code %in% c("COD","BDI","ETH","MWI","UGA")){
-    
-    message("Using the rgeoboundaries shapefiles for this country at admin level ", admin_level)
-    
-    boundary_sf <- rgeoboundaries::geoboundaries(country = iso_code,
-                                                 adm_lvl = paste0('adm',admin_level)) %>%
-      dplyr::select(shapeName, shapeID, shapeType, geometry) %>% 
-      dplyr::mutate(source = "rgeoboundaries")
-    
-  } else {
-    message("Using the gadm shapefile for this country at admin level ", admin_level)
-    boundary_sf <- geodata::gadm(country = iso_code, 
-                                 level = admin_level, 
-                                 path = tempdir()) 
-    
-    if (admin_level > 1) {
-      warning('The current admin level is set at ', admin_level)
-    }
-    
-    # Fix colnames for compatibility with rest of code
-    boundary_sf <- boundary_sf %>% 
-      sf::st_as_sf() 
-    
-    boundary_sf <- boundary_sf %>%
-      magrittr::set_colnames(.,tolower(colnames(boundary_sf))) %>%
-      dplyr::mutate(name_0 = country,
-                    shapeID = paste0(gid_0, "-ADM", admin_level, "-", !!rlang::sym(paste0("gid_", admin_level))),
-                    shapeType = paste0("ADM", admin_level)) %>% 
-      dplyr::select(shapeName = !!rlang::sym(paste0("name_", admin_level)),
-                    shapeID,
-                    shapeType) %>% 
-      dplyr::mutate(source = "gadm")
-  }
+  # Pull shapefiles from rgeoboundaries package
+  boundary_sf <- rgeoboundaries::geoboundaries(country = iso_code,
+                                                 adm_lvl = paste0('adm',admin_level)) %>% 
+    dplyr::mutate(shapeID = paste0(shapeGroup,"-",shapeType,"-",shapeID)) %>% 
+    dplyr::select(shapeName, shapeID, shapeType, geometry) %>% 
+    dplyr::mutate(source = "rgeoboundaries", country = iso_code) %>% 
+    dplyr::rename(location_period_id = shapeID)
   
   # Set reference WGS84 projection
   sf::st_crs(boundary_sf) <- sf::st_crs(4326)
   sf::st_geometry(boundary_sf) <- "geom"
-  
-  boundary_sf <- boundary_sf %>% 
-    dplyr::rename(location_period_id = shapeID)
   
   # Fix geometry collections if any
   boundary_sf <- fix_geomcollections(boundary_sf)
@@ -1446,7 +1434,7 @@ get_country_admin_units <- function(iso_code,
   # Combine into multipolygons
   boundary_sf <- sf::st_cast(boundary_sf, "MULTIPOLYGON")
   boundary_sf <- boundary_sf %>% 
-    dplyr::group_by(shapeName) %>% 
+    dplyr::group_by(shapeName,country) %>% 
     dplyr::summarise(location_period_id = stringr::str_c(location_period_id, 
                                                          collapse = "_"),
                      shapeType = shapeType[1],
@@ -1501,8 +1489,15 @@ get_multi_country_admin_units <- function(iso_code,
   )
   
   if (clip_to_adm0) {
-    adm0_geom <- adm_sf %>% dplyr::slice(1)
+    
+    adm0_geom <- adm_sf %>% 
+      dplyr::slice(1) %>% 
+      sf::st_make_valid()
+
     adm_sf <- adm_sf %>% 
+      # Filter subnational admin units that intersect the adm0 geometry
+      sf::st_filter(adm0_geom) %>% 
+      # Set geoms to the intersections
       dplyr::mutate(geom = sf::st_make_valid(sf::st_intersection(geom, adm0_geom$geom)))
   }
   

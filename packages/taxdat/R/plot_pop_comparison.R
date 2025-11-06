@@ -26,19 +26,16 @@ plot_pop_comparison <- function(config, cache, cholera_directory){
   # load pop data from world pop csv file
   data("WHO_regions", package = "taxdat")
   
-  afr_regions <- WHO_regions %>% 
-    filter(WHO.region %in% c("Africa","Eastern Mediterranean"))
-  
   # Load UN population estimates
-  data("WPP2022", package = "taxdat")
+  data("WPP2024", package = "taxdat")
   
-  wpp_pop <- afr_regions %>% 
+  wpp_pop <- WHO_regions %>% 
     dplyr::mutate(
       ISO3_code = Country.code
     ) %>% 
     dplyr::select(ISO3_code) %>% 
     dplyr::inner_join(
-      WPP2022 %>% dplyr::filter(Time %in% period) %>% dplyr::select(ISO3_code, Time, PopTotal) %>% dplyr::mutate(PopTotal = 1000*PopTotal)
+      WPP2024 %>% dplyr::filter(Time %in% period) %>% dplyr::select(ISO3_code, Time, PopTotal) %>% dplyr::mutate(PopTotal = 1000*PopTotal)
     ) %>% 
     dplyr::filter(ISO3_code == config_file$countries_name) %>%
     dplyr::arrange(Time)

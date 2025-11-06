@@ -4,6 +4,7 @@ library(wpp2019)
 library(tidyverse)
 
 # Download data from https://population.un.org/wpp/Download/Files/1_Indicators%20(Standard)/CSV_FILES/WPP2022_TotalPopulationBySex.zip
+# For years after 2021, each country-year has multiple population estimates under different projection scenarios. The dictionary for the scenarios can be obtained here: https://population.un.org/wpp/definition-of-projection-scenarios. 
 # [Accessed Sep 4 2023]
 # Fields to save:
 #   - ISO3_code: ISO3 country code

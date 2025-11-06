@@ -1,0 +1,91 @@
+FROM ubuntu:24.04
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PATH="/opt/miniconda3/bin:$PATH"
+
+# Update package list and install dependencies
+RUN apt-get update && apt-get install -y \
+    wget \
+    curl \
+    gnupg2 \
+    software-properties-common \
+    ca-certificates \
+    lsb-release \
+	git \
+	git-lfs \
+	build-essential \
+	gcc \
+	g++ \
+	make \
+	cmake \
+	gfortran \
+	libv8-dev\
+    && rm -rf /var/lib/apt/lists/*
+
+# Add PostgreSQL official APT repository
+RUN sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list' \
+    && wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+
+
+# Download and install Miniconda
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh \
+    && bash miniconda.sh -b -p /opt/miniconda3 \
+    && rm miniconda.sh \
+    && /opt/miniconda3/bin/conda clean -ay
+
+# Initialize conda for bash
+# Initialize conda for bash
+RUN /opt/miniconda3/bin/conda init bash
+
+# Configure conda to use only conda-forge channel and avoid TOS issues
+# Configure conda to use only conda-forge channel and avoid TOS issues
+RUN /opt/miniconda3/bin/conda config --remove channels defaults && \
+    /opt/miniconda3/bin/conda config --add channels conda-forge
+
+# Create conda environment activation script
+RUN echo '#!/bin/bash\nsource /opt/miniconda3/etc/profile.d/conda.sh\nconda activate base\nexec "$@"' > /usr/local/bin/conda-entrypoint.sh \
+    && chmod +x /usr/local/bin/conda-entrypoint.sh
+
+# Accept TOS for all required channels (including the default ones that might be referenced)
+RUN /opt/miniconda3/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main && \
+    /opt/miniconda3/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r && \
+    /opt/miniconda3/bin/conda tos accept --override-channels --channel conda-forge
+# Create R environment with conda-forge channel only
+RUN /opt/miniconda3/bin/conda create -n rbase --channel conda-forge --yes
+
+# Install R packages in the rbase environment
+RUN /opt/miniconda3/bin/conda install -n rbase --channel conda-forge --yes \
+    r-base \
+    r-essentials \
+    r-rpostgresql \
+    r-isocodes \
+    r-sf \
+    r-geodata \
+    r-igraph \
+    r-optparse \
+    r-rstan \
+    r-rgdal \
+	r-devtools \
+	r-rpostgres \
+	r-ncdf4 \
+	r-geojsonsf \
+	r-lwgeom \
+	r-spdep \
+	r-itertools \
+	r-cmdstanr \
+    r-rjson \
+	r-hoardr
+# Install gdalUtils from GitHub with automatic yes to updates
+RUN /opt/miniconda3/bin/conda run -n rbase \
+    R -e "devtools::install_github('gearslaboratory/gdalUtils', upgrade = 'always')"
+RUN /opt/miniconda3/bin/conda run -n rbase \
+	R -e "install.packages('rts', repos='https://cloud.r-project.org')"
+RUN /opt/miniconda3/bin/conda run -n rbase \
+    R -e "devtools::install_github('wmgeolab/rgeoboundaries', upgrade = 'never')"
+# Make R environment available by default
+RUN echo "conda activate rbase" >> ~/.bashrc
+#RUN git clone https://www.github.com/stan-dev/cmdstan --recurse-submodules \
+  #&& cd cmdstan \
+  #&& make build
+CMD ["conda-entrypoint.sh", "bash"]

@@ -53,6 +53,7 @@ Collate:
     'plot_WHOcomparison_table.R'
     'plot_case_raster_admin1_shp.R'
     'plot_covar_raster.R'
+    'plot_covariates.R'
     'plot_map.R'
     'plot_modeled_cases_by_chain_time.R'
     'plot_polygon_model_output_input.R'
