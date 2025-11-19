@@ -1,0 +1,1158 @@
+---
+title: "Global Cholera Burden"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+params:
+  cholera_directory: "cholera-mapping-pipeline"
+  config: "configs/"
+  data_dir: "data"
+  output_dir: "output"
+  interm_dir: "interm"
+  figures: "figures"
+---
+```{r setup, include=FALSE, dev="CairoPNG",message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(sf) 
+sf::sf_use_s2(FALSE)
+library(lubridate)
+library(rstan)
+library(cmdstanr)
+library(optparse)
+library(foreach)
+library(rmapshaper)
+library(taxdat)
+library(whoville)
+
+# Get all configs ----
+config_dir <- paste0(params$config)
+config_list <- dir(config_dir, pattern = "yml", full.names = T)
+
+# Get intended runs ---------------------------------------
+intended_runs <- get_intended_runs(csv_path = 'Data Entry Coordination - Data Entry Tracking - Feb 2022.csv')
+
+# Spatial data  ---------------------------------------
+## create ADM0 shapefiles for all countries: 
+# boundary_sf <- rgeoboundaries::geoboundaries(country = NULL,adm_lvl = "adm0") %>%
+#     dplyr::mutate(country = shapeGroup) %>%
+#     dplyr::select(country,shapeName, shapeType, geometry) %>%
+#     dplyr::mutate(source = "rgeoboundaries")
+# 
+#   # Set reference WGS84 projection
+#   sf::st_crs(boundary_sf) <- sf::st_crs(4326)
+#   sf::st_geometry(boundary_sf) <- "geom"
+# 
+#   # Fix geometry collections if any
+#   boundary_sf <- fix_geomcollections(boundary_sf)
+# 
+#   # Combine into multipolygons
+#   boundary_sf <- sf::st_cast(boundary_sf, "MULTIPOLYGON")
+#   boundary_sf <- boundary_sf %>%
+#     dplyr::group_by(shapeName,country) %>%
+#     dplyr::summarise(
+#                      shapeType = shapeType[1],
+#                      source = source[1])
+#   
+# boundary_sf <- boundary_sf %>% mutate(
+#   intended_run = country%in%global_sf$country)
+# 
+# country_data <- iso3_to_regions(global_sf$country)
+# global_sf <- global_sf %>% mutate(who_region = iso3_to_regions(country))
+# global_sf <- global_sf%>%mutate(intended_run = country%in%intended_runs$country)
+# global_sf[global_sf$country=="FRA",]$intended_run=T
+#saveRDS(global_sf,"global_sf.rds")
+global_sf <- readRDS("global_sf.rds")
+
+# MAI cases at grid level ---- 
+## Helper functions ---
+postprocess_grid_mai_cases <- function(config_list,
+                                       redo_aux = FALSE) {
+  
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename) 
+  
+  # Get mean annual incidence rates at space grid level
+  mai_summary <- genquant$summary("space_grid_rates", custom_summaries())
+  
+  # Get population and average over space grid
+  mean_pop_sf <- taxdat:::get_mean_pop_grid(config_list = config_list,
+                                   redo = redo_aux)
+  
+  # Get the output shapefiles and join
+  res <- mean_pop_sf %>% 
+    dplyr::bind_cols(mai_summary) %>% 
+    dplyr::select(-variable) %>% 
+    dplyr::mutate(dplyr::across(.cols = c("mean", "q2.5", "q97.5"),
+                                ~ . * pop)) %>% 
+    dplyr::mutate(country = config_list$countries_name)
+  
+  res
+}
+
+
+collapse_grid <- function(df,
+                          by_draw = FALSE) {
+  
+  u_grid <- df  %>%
+    dplyr::group_by(rid, x, y,country) %>% 
+    dplyr::slice(1) %>% 
+    dplyr::select(rid, x, y, country,geom)
+  
+  
+  if (!by_draw) {
+    res <- df %>%
+      sf::st_drop_geometry() %>% 
+      dplyr::group_by(rid, x, y,country) %>% 
+      dplyr::summarise(mean = mean(mean),
+                       q2.5 = min(q2.5),
+                       q97.5 = max(q97.5),
+                       overlap = n() > 1) %>% 
+      dplyr::inner_join(u_grid, .)
+  } else {
+    res <- df %>%
+      sf::st_drop_geometry() %>% 
+      dplyr::group_by(rid, x, y, country, .draw) %>% 
+      dplyr::summarise(value = mean(value),
+                       overlap = n() > 1) %>% 
+      dplyr::inner_join(u_grid, .)
+  }
+  
+  res
+}
+
+mai_grid_cases_stats <- run_all(
+  config_dir = config_dir,
+  fun = postprocess_grid_mai_cases,
+  postprocess_fun = collapse_grid,
+  fun_name = "mai_grid_cases",
+  post_process_fun = collapse_grid,
+  fun_opts = NULL,
+  prefix = "2021_2024",
+  suffix = NULL,
+  error_handling = "stop",
+  redo = F,
+  redo_interm = F,
+  redo_aux = F,
+  output_dir = params$output_dir,
+  interm_dir = params$interm_dir,
+  data_dir = params$data_dir,
+  output_file_type = "rds",
+  verbose = T) %>% 
+  mutate(
+    intended_run = TRUE
+  )
+
+# Cases by region ----
+## update the get AFR region to include all other regions ----
+### Helper functions ----
+get_global_region <- function(data, ctry_col) {
+  
+  data_with_global_region <- data %>% 
+    dplyr::mutate(
+      global_region = dplyr::case_when(
+        !!rlang::sym(ctry_col) %in% c("BDI","COM","ETH","KEN","MDG","RWA","SSD","UGA","TZA","ERI") ~ "Eastern Africa",
+        !!rlang::sym(ctry_col) %in% c("BWA","MOZ","MWI","NAM","SWZ","ZMB","ZWE","ZAF","LSO") ~ "Southern Africa",
+        !!rlang::sym(ctry_col) %in% c("AGO","CMR","CAF","TCD","COG","COD","GNQ","GNA","GAB") ~ "Central Africa",
+        !!rlang::sym(ctry_col) %in% c("BEN","BFA","CIV","GHA","GIN","GMB","GNB","LBR","MLI","MRT","NER","NGA","SEN","SLE","TGO") ~ "Western Africa",
+        !!rlang::sym(ctry_col) %in% c("DOM","HTI") ~ "Americas",
+        !!rlang::sym(ctry_col) %in% c("BGD","MMR","NPL","THA","IND") ~ "South-East Asia",
+        !!rlang::sym(ctry_col) %in% c("AFG","IRQ","LBN","PAK","SAU","SYR","ARE","YEM","SDN","SOM","DJI") ~ "Eastern Mediterranean",
+        !!rlang::sym(ctry_col) %in% c("CHN","PHL") ~ "Western Pacific",
+        !!rlang::sym(ctry_col) %in% c("MYT") ~ "Europe",
+        TRUE ~ !!rlang::sym(ctry_col)
+      ) 
+    )
+  
+  return(data_with_global_region)
+}
+
+aggregate_and_summarise_draws_by_global_region <- function(df, 
+                                                    col = "country_cases",
+                                                    grouping_variables = NULL,
+                                                    weights_col = NULL,
+                                                    do_summary = TRUE) {
+  
+  # Define columns from which to extract names
+  if (!is.null(grouping_variables)) {
+    name_cols <-   c("global_region", grouping_variables)
+  } else {
+    name_cols <- "global_region"
+  }
+  
+  df %>% 
+    get_global_region(ctry_col = "country") %>% 
+    dplyr::group_by_at(c(".draw", "global_region", grouping_variables)) %>% 
+    {
+      x <- .
+      if (is.null(weights_col)) {
+        dplyr::summarise(x, tot = sum(!!rlang::sym(col))) 
+      } else {
+        dplyr::summarise(x, tot = sum(!!rlang::sym(col) * !!rlang::sym(weights_col))/sum(!!rlang::sym(weights_col))) 
+      }
+    } %>% 
+    dplyr::ungroup() %>% 
+    tidyr::pivot_wider(names_from = name_cols,
+                       values_from = "tot") %>% 
+    janitor::clean_names() %>% 
+    dplyr::select(-draw) %>% 
+    magrittr::set_names(stringr::str_c(col, colnames(.), sep = "_")) %>% 
+    posterior::as_draws() %>% 
+    {
+      x <- .
+      if(do_summary) {
+        posterior::summarise_draws(x, custom_summaries())
+      } else {
+        posterior::as_draws_df(x) %>% 
+          dplyr::as_tibble()
+      }
+    }
+}
+
+get_global_region_levels <- function() {
+  c("Eastern Mediterranean","Western Africa", "Central Africa", "Eastern Africa", "Southern Africa","South-East Asia","Western Pacific","Americas","Europe")
+}
+
+parse_global_region <- function(df) {
+  
+  if (!("global_region" %in% colnames(df))) {
+    stop("global_region needs to be defined to be parsed")
+  }
+  
+  df %>% 
+    mutate(global_region = global_region %>% 
+             str_replace("_", " ") %>% 
+             str_to_title() %>% 
+             str_replace("South East_asia",'South-East Asia'),
+           global_region = factor(global_region, 
+                                levels = get_global_region_levels()))
+}
+
+cases_by_region  <- run_all(
+  config_dir = config_dir,
+  fun = postprocess_adm0_cases,
+  fun_name = "mai_cases_by_region",
+  fun_opts = NULL,
+  postprocess_fun = aggregate_and_summarise_draws_by_global_region,
+  postprocess_fun_opts = list(col = "country_cases"),
+  prefix = "2021_2024",
+  suffix = NULL,
+  error_handling = "stop",
+  redo = FALSE,
+  redo_interm = FALSE,
+  redo_aux = FALSE,
+  output_dir = params$output_dir,
+  interm_dir = params$interm_dir,
+  data_dir = params$data_dir,
+  output_file_type = "rds",
+  verbose = T) %>% 
+  mutate(
+    global_region = str_remove(variable,'country_cases_')
+  ) %>% 
+  parse_global_region()
+
+overall_sim_stats <- run_all(
+  config_dir = config_dir,
+  fun = postprocess_mai_adm0_simulated_cases,
+  fun_name = "mai_simulated_cases_all",
+  fun_opts = NULL,
+  postprocess_fun = aggregate_and_summarise_draws,
+  postprocess_fun_opts = list(col = "sim_country_cases"),
+  prefix = "2021_2024",
+  suffix = NULL,
+  error_handling = "stop",
+  redo = FALSE,
+  redo_interm = FALSE,
+  redo_aux = FALSE,
+  output_dir = params$output_dir,
+  interm_dir = params$interm_dir,
+  data_dir = params$data_dir,
+  output_file_type = "rds",
+  verbose = T)
+
+# pop at risk ----
+## Helper functions ----
+aggregate_and_summarise_draws_by_global_region <- function(df, 
+                                                    col = "country_cases",
+                                                    grouping_variables = NULL,
+                                                    weights_col = NULL,
+                                                    do_summary = TRUE) {
+  
+  # Define columns from which to extract names
+  if (!is.null(grouping_variables)) {
+    name_cols <-   c("global_region", grouping_variables)
+  } else {
+    name_cols <- "global_region"
+  }
+  
+  df %>% 
+    get_global_region(ctry_col = "country") %>% 
+    dplyr::group_by_at(c(".draw", "global_region", grouping_variables)) %>% 
+    {
+      x <- .
+      if (is.null(weights_col)) {
+        dplyr::summarise(x, tot = sum(!!rlang::sym(col))) 
+      } else {
+        dplyr::summarise(x, tot = sum(!!rlang::sym(col) * !!rlang::sym(weights_col))/sum(!!rlang::sym(weights_col))) 
+      }
+    } %>% 
+    dplyr::ungroup() %>% 
+    tidyr::pivot_wider(names_from = name_cols,
+                       values_from = "tot") %>% 
+    janitor::clean_names() %>% 
+    dplyr::select(-draw) %>% 
+    magrittr::set_names(stringr::str_c(col, colnames(.), sep = "_")) %>% 
+    posterior::as_draws() %>% 
+    {
+      x <- .
+      if(do_summary) {
+        posterior::summarise_draws(x, custom_summaries())
+      } else {
+        posterior::as_draws_df(x) %>% 
+          dplyr::as_tibble()
+      }
+    }
+}
+pop_at_risk_regions <- run_all(
+  config_dir = config_dir,
+  fun = postprocess_pop_at_risk_draws,
+  fun_name = "pop_at_risk_by_region",
+  fun_opts = NULL,
+  postprocess_fun = aggregate_and_summarise_draws_by_global_region,
+  postprocess_fun_opts = list(col = "tot_pop_risk",
+                              grouping_variables = c("admin_level", "risk_cat")),
+  prefix = "2021_2024",
+  suffix = NULL,
+  error_handling = "stop",
+  redo = FALSE,
+  redo_interm = FALSE,
+  redo_aux = FALSE,
+  output_dir = params$output_dir,
+  interm_dir = params$interm_dir,
+  data_dir = params$data_dir,
+  output_file_type = "rds",
+  verbose = T)
+
+pop_at_risk_all <- run_all(
+  config_dir = config_dir,
+  fun = postprocess_pop_at_risk_draws,
+  fun_name = "pop_at_risk_all",
+  fun_opts = NULL,
+  postprocess_fun = aggregate_and_summarise_draws,
+  postprocess_fun_opts = list(col = "tot_pop_risk",
+                              grouping_variables = c("admin_level", "risk_cat")),
+  prefix = "2021_2024",
+  suffix = NULL,
+  error_handling = "stop",
+  redo = FALSE,
+  redo_interm = FALSE,
+  redo_aux = FALSE,
+  output_dir = params$output_dir,
+  interm_dir = params$interm_dir,
+  data_dir = params$data_dir,
+  output_file_type = "rds",
+  verbose = T)
+
+# Adm0 cases ----
+mean_adm0_cases_by_time <- run_all(
+  config_dir = config_dir,
+  fun = postprocess_annual_adm0_cases,
+  fun_name = "mai_adm0_cases_by_time",
+  fun_opts = NULL,
+  prefix = "2021_2024",
+  suffix = NULL,
+  error_handling = "stop",
+  redo = FALSE,
+  redo_interm = FALSE,
+  redo_aux = FALSE,
+  output_dir = params$output_dir,
+  interm_dir = params$interm_dir,
+  data_dir = params$data_dir,
+  output_file_type = "rds",
+  verbose = T
+)
+
+# WHO ests from preprocess data ----
+## Helper function ----
+postprocess_WHO_est <- function(config_list,
+                                    redo_aux = FALSE) {
+  # Get WHO annual report OCs
+  who_OCs <- read.csv('Analysis/output/global_burden_reports/who_annual_report_OCs(World).csv')
+  
+  # Get preprocess data
+  load(config_list$file_names$observations_filename) 
+  
+  # Get who annual estimates
+  who_ests <- sf_cases %>% dplyr::filter(OC_UID %in% who_OCs$Related.WHO.Annual.Report.OC)
+
+  who_ests
+}
+
+who_ests_by_time <- run_all(
+  config_dir = config_dir,
+  fun = postprocess_WHO_est,
+  fun_name = "who_est",
+  fun_opts = NULL,
+  prefix = "2021_2024",
+  suffix = NULL,
+  error_handling = "stop",
+  redo = FALSE,
+  redo_interm = FALSE,
+  redo_aux = FALSE,
+  output_dir = params$output_dir,
+  interm_dir = params$interm_dir,
+  data_dir = params$data_dir,
+  output_file_type = "rds",
+  verbose = T
+)
+
+# Plotting helper function ---
+colors_global_regions <- function(){
+  # colors <- RColorBrewer::brewer.pal("Set2", n = 4)
+  colors <- c("#FFA378", "#A8B545", "#8C796D", "#024554","#C93E3E","#E1AF00","#6A5ACA","#009999","#7B7B7B")
+  names(colors) <- c("Western Africa", "Central Africa",
+                     "Eastern Africa", "Southern Africa",
+                     "Americas","South-East Asia","Eastern Mediterranean","Western Pacific","Europe")
+  colors
+}
+
+color_run_intended <- function(){c("#A1A1A1")}
+color_no_run_intended <- function(){c("#FFFFFF")}
+color_afr_continent_fill <- function(){c("#FFFFFF")}
+
+colors_lisa_clusters <- function(){c("lightgray", "#D40A07", "#4543C4", "#F26F6D", "#7C7AC2", "#424141", "#A059F7")}
+coloramp_cases <- function(){c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404")}
+
+expand_bbox_ratio <- function(bb, ratio = 0.06) {
+  w <- bb["xmax"] - bb["xmin"] 
+  h <- bb["ymax"] - bb["ymin"]
+  dx <- as.numeric(w) * ratio 
+  dy <- as.numeric(h) * ratio
+  bb["xmin"] <- bb["xmin"] - dx 
+  bb["xmax"] <- bb["xmax"] + dx
+  bb["ymin"] <- bb["ymin"] - dy 
+  bb["ymax"] <- bb["ymax"] + dy
+  bb
+}
+
+crop_polygon <- function(sf_obj, margin_km = NULL, margin_ratio = 0.06, crs_out = sf::st_crs(sf_obj)) {
+  
+  if (length(sf_obj) == 0) {
+    bb <- sf::st_bbox(sf_obj)
+    bb_exp <- expand_bbox_ratio(bb, margin_ratio)
+    return(sf::st_as_sfc(bb_exp, crs = sf::st_crs(sf_obj)))
+  }
+
+  g <- suppressWarnings(sf::st_make_valid(sf::st_union(sf_obj)))
+
+  if (!is.null(margin_km) && is.finite(margin_km) && margin_km > 0) {
+    g_merc <- sf::st_transform(g, 3857)
+    g_buf  <- sf::st_buffer(g_merc, margin_km * 1000)
+    g_crop <- sf::st_transform(g_buf, crs_out)
+  } else {
+    bb     <- sf::st_bbox(g)
+    bb_exp <- expand_bbox_ratio(bb, margin_ratio)
+    g_crop <- sf::st_as_sfc(bb_exp, crs = sf::st_crs(sf_obj))
+  }
+  g_crop
+}
+
+output_plot_map <- function(sf_obj,
+                            all_countries_sf,
+                            lakes_sf = NULL,
+                            rivers_sf = NULL,
+                            fill_var,
+                            fill_color_scale_type,
+                            border_width = 0.005,
+                            border_color = "white",
+                            lake_alpha = 1,
+                            country_border_width = .3,
+                            country_border_color = "black",
+                            cholera_dir = 'cholera-mapping-pipeline',
+                            crop_background = T,
+                            crop_margin_km = NULL,
+                            crop_margin_ratio = 0.06) {
+  
+  fv <- rlang::as_string(rlang::ensym(fill_var))
+  if (!fv %in% names(sf_obj)) {
+    sf_obj[[fv]] <- NA_real_
+  }
+  
+    if (nrow(sf_obj) == 0) {
+    sf_obj <- all_countries_sf %>%
+      dplyr::mutate(!!fv := NA_real_,
+                    intended_run = TRUE)
+    sf::st_crs(sf_obj) <- sf::st_crs(all_countries_sf)
+  }
+
+  if (crop_background) {
+    # whether any of the countries in that region has cases >0
+    has_cases <- sum(is.finite(sf_obj[[fv]]), na.rm = TRUE) > 0
+
+    if (has_cases) {
+      crop_poly <- crop_polygon(
+        sf_obj      = sf_obj,
+        margin_km   = crop_margin_km,
+        margin_ratio= crop_margin_ratio,
+        crs_out     = sf::st_crs(all_countries_sf)
+      )
+    } else {
+      # for com and myt case: 
+      base_bb <- sf::st_bbox(all_countries_sf)
+      bb_exp <- expand_bbox_ratio(base_bb, margin_ratio)
+      crop_poly <- sf::st_as_sfc(bb_exp, crs = sf::st_crs(all_countries_sf))
+    }
+    
+    bg_trim  <- suppressWarnings(sf::st_crop(all_countries_sf, sf::st_bbox(crop_poly)))
+    
+    all_countries_sf_clipped <- suppressWarnings(sf::st_intersection(sf::st_make_valid(bg_trim),sf::st_make_valid(crop_poly)))
+    bb <- sf::st_bbox(crop_poly)
+    
+  } else {
+    all_countries_sf_clipped <- all_countries_sf
+    bb <- sf::st_bbox(sf_obj)
+  }
+  
+  sf_obj %>% 
+    ggplot2::ggplot(aes(fill = !!sym(fill_var))) +
+    ggplot2::geom_sf(data = all_countries_sf_clipped %>%
+                       dplyr::filter(!intended_run),
+                     inherit.aes = FALSE,
+                     lwd = 0,
+                     alpha = 1,
+                     fill = color_no_run_intended()) +
+    ggplot2::geom_sf(data = all_countries_sf_clipped %>% 
+                       dplyr::filter(intended_run),
+                     inherit.aes = FALSE,
+                     lwd = 0,
+                     alpha = 1,
+                     fill = color_run_intended()) +
+    ggplot2::geom_sf(lwd = border_width, color = border_color) + 
+    ggplot2::geom_sf(data = all_countries_sf_clipped,
+                     fill = color_afr_continent_fill(),
+                     color = "black",
+                     lwd = country_border_width,
+                     alpha = 0) +
+    {
+      if (!is.null(rivers_sf)) {
+        ggplot2::geom_sf(inherit.aes = FALSE,
+                         data = rivers_sf,
+                         color = color_rivers(),
+                         lwd = .1,
+                         alpha = 1)
+      }
+    } +
+    {
+      if (!is.null(lakes_sf)) {
+        ggplot2::geom_sf(inherit.aes = FALSE,
+                         data = lakes_sf, 
+                         fill = color_lake_fill(),
+                         color = color_lake_border(),
+                         lwd = .06,
+                         alpha = lake_alpha)
+      }
+    } +
+    {  
+      if(fill_color_scale_type == "rates") {
+        scale_fill_viridis_c(breaks = seq(-1, 2), 
+                             labels = formatC(10^(seq(-1, 2)),
+                                              digits = 1,
+                                              format = "fg", 
+                                              big.mark = ",") %>% 
+                               {
+                                 x <- .
+                                 x[1] <- str_c("<= ", x[1])
+                                 x[length(x)] <- str_c(">= ", x[length(x)])
+                                 x
+                               },
+                             limits = c(-1, 2.5),
+                             option = "plasma",
+                             oob = scales::squish)
+      } else if(fill_color_scale_type == "ratio") {
+        scale_fill_gradient2(breaks = seq(-3, 2), 
+                             labels = formatC(10^(seq(-3, 2)),
+                                              digits = 1,
+                                              format = "fg", 
+                                              big.mark = ","),
+                             limits = c(-3.1, 2.1),
+                             midpoint = 0,
+                             oob = scales::squish, 
+                             na.value = c("#D4BE77"), 
+                             low = "blue",
+                             high = "red")
+      } else if(fill_color_scale_type == "cases") {
+        scale_fill_gradientn(colours = coloramp_cases(),
+                             oob = scales::censor, 
+                             limits = c(0, NA), 
+                             breaks = seq(0, 3), 
+                             labels = formatC(10^(seq(0, 3)),
+                                              digits = 1,
+                                              format = "fg", 
+                                              big.mark = ","),
+                             na.value = "lightgray")
+        
+      } else if(fill_color_scale_type == "adm0_cases") {
+        scale_fill_gradientn(colours = coloramp_cases(),
+                             oob = scales::censor, 
+                             limits = c(0, NA), 
+                             breaks = seq(0, 3), 
+                             labels = formatC(10^(seq(0, 3)),
+                                              digits = 1,
+                                              format = "fg", 
+                                              big.mark = ","),
+                             na.value = "lightgray")
+        
+      } else if(fill_color_scale_type == "mai_exceeding_thresh") {
+        scale_fill_manual(values = coloramp_num_years_exceeding_threshold())
+      } else if(fill_color_scale_type == "risk category") {
+        scale_fill_manual(values = colors_risk_categories())
+      } else if(fill_color_scale_type == "lisa cluster") {
+        scale_fill_manual(values = colors_lisa_clusters())
+      } else if(fill_color_scale_type == "endemicity_high") {
+        scale_fill_manual(values = colors_endemicity_high())
+      } else if(fill_color_scale_type == "endemicity_low") {
+        scale_fill_manual(values = colors_endemicity_low())
+      } else if(fill_color_scale_type == "endemicity") {
+        scale_fill_manual(values = colors_endemicity(),drop=FALSE)
+      } else if(fill_color_scale_type == "admin levels") {
+        scale_fill_manual(values = colors_admin_levels(),drop=FALSE)
+      }
+    } + 
+    ggplot2::geom_sf(data = all_countries_sf,
+                     inherit.aes = FALSE,
+                     lwd = country_border_width,
+                     color = country_border_color,
+                     alpha = 0) +
+    taxdat::map_theme() +
+    {if(crop_background){
+    ggplot2::coord_sf(xlim = c(bb["xmin"], bb["xmax"]),
+                      ylim = c(bb["ymin"], bb["ymax"]),
+                      expand = FALSE)       
+    }
+  } +
+    theme(panel.border = element_blank())
+  
+}
+
+unpack_pop_at_risk <- function(df) {
+  
+  risk_cat_map <- get_risk_cat_dict()
+  names(risk_cat_map) <- janitor::make_clean_names(risk_cat_map) %>% 
+    str_remove("x")
+  
+  
+  df %>% 
+    mutate(
+      risk_cat = str_extract(variable, str_c(rev(names(risk_cat_map)), collapse = "|")),
+      risk_cat = factor(risk_cat_map[risk_cat], levels = risk_cat_map),
+      admin_level = str_c("ADM", str_extract(variable, "(?<=adm)[0-9]+"))
+    )
+}
+```
+
+## Table 1. List of countries selected for model runs
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+table1<-data.frame(country = intended_runs$country) %>% 
+  get_global_region(ctry_col='country')
+
+table1 %>% 
+  arrange(global_region) %>% 
+   knitr::kable() %>% 
+  kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+    kableExtra::kable_paper(full_width = F)
+
+```
+
+## Figure 1. Global Map: MAI cases at grid level
+```{r global map, fig.width=12, fig.height=6, echo=FALSE,warning=FALSE,message=FALSE}
+fig_path <- file.path(params$cholera_dir, "fig1.png")
+
+if (file.exists(fig_path)) {
+  knitr::include_graphics(fig_path)
+
+} else{
+fig_MAI_grid <- output_plot_map(sf_obj = mai_grid_cases_stats %>% 
+                             mutate(log10_cases = log10(mean),
+                                    period = "2021-2024"),
+                           lakes_sf = NULL,
+                           rivers_sf = NULL,
+                           all_countries_sf = global_sf,
+                           fill_var = "log10_cases",
+                           fill_color_scale_type = "cases",
+                           cholera_dir = params$cholera_dir,
+                           crop_background = F) +
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 15),
+        legend.position = c(.1, .3),
+        panel.background = element_rect(fill = "white", color = "white")) +
+  guides(fill = guide_colorbar("Mean annual incidence \n[cases/year]"))
+
+ggsave(fig_MAI_grid,
+         file = "fig1.png",
+         width = 12,
+         height = 6, 
+         dpi = 300)
+  knitr::include_graphics(fig_path)
+}
+
+print("The dark gray area represents countries that have not been modeled yet due to data entry, data audit, location audit, or memory issues. The light gray area represents areas with incidence < 1 case per year. Other white area represents countries which we don't plan to run.")
+```
+
+## Maps by region: MAI cases at grid level
+### Figure 2. Africa
+```{r AFR map,  fig.width=10, fig.height=6, echo=FALSE,warning=FALSE,message=FALSE}
+fig_path <- file.path(params$cholera_dir, "fig1_AFR.png")
+
+if (file.exists(fig_path)) {
+  knitr::include_graphics(fig_path)
+
+} else{ fig_MAI_grid_Africa <- output_plot_map(sf_obj = mai_grid_cases_stats %>% 
+                                  get_global_region(ctry_col = 'country') %>% 
+                                  filter(str_detect(global_region,'Africa')) %>% 
+                             mutate(log10_cases = log10(mean),
+                                    period = "2021-2024"),
+                           lakes_sf = NULL,
+                           rivers_sf = NULL,
+                           all_countries_sf = global_sf %>% filter(who_region == "AFR"),
+                           fill_var = "log10_cases",
+                           fill_color_scale_type = "cases",
+                           cholera_dir = params$cholera_dir,
+                           crop_background = F) +
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 15),
+        legend.position = c(.1, .3),
+        panel.background = element_rect(fill = "white", color = "white")) +
+  guides(fill = guide_colorbar("Mean annual incidence \n[cases/year]"))
+
+ggsave(fig_MAI_grid_Africa,
+         file = "fig1_AFR.png",
+         width = 10,
+         height = 6, 
+         dpi = 300)
+  knitr::include_graphics(fig_path)
+}
+```
+
+### Figure 3. Eastern Mediterranean
+```{r EMR map, fig.width=10, fig.height=6,echo=FALSE,warning=FALSE,message=FALSE}
+fig_path <- file.path(params$cholera_dir, "fig1_EMR.png")
+
+if (file.exists(fig_path)) {
+  knitr::include_graphics(fig_path)
+
+} else {fig_MAI_grid_EMR <- output_plot_map(sf_obj = mai_grid_cases_stats %>% 
+                                  get_global_region(ctry_col = 'country') %>% 
+                                  filter(str_detect(global_region,'Eastern Mediterranean')) %>% 
+                             mutate(log10_cases = log10(mean),
+                                    period = "2021-2024"),
+                           lakes_sf = NULL,
+                           rivers_sf = NULL,
+                           all_countries_sf = global_sf %>% filter(who_region == "EMR"),
+                           fill_var = "log10_cases",
+                           fill_color_scale_type = "cases",
+                           cholera_dir = params$cholera_dir,
+                           crop_background = F) +
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 15),
+        legend.position = c(.1, .3),
+        panel.background = element_rect(fill = "white", color = "white")) +
+  guides(fill = guide_colorbar("Mean annual incidence \n[cases/year]"))
+
+ggsave(fig_MAI_grid_EMR,
+         file = "fig1_EMR.png",
+         width = 10,
+         height = 6, 
+         dpi = 300)
+  knitr::include_graphics(fig_path)
+}
+```
+
+### Figure 4. South-East Asia
+```{r SEAR map, fig.width=10, fig.height=6,echo=FALSE,warning=FALSE,message=FALSE}
+fig_path <- file.path(params$cholera_dir, "fig1_SEAR.png")
+
+if (file.exists(fig_path)) {
+  knitr::include_graphics(fig_path)
+
+} else {
+  fig_MAI_grid_SEAR <- output_plot_map(sf_obj = mai_grid_cases_stats %>% 
+                                  get_global_region(ctry_col = 'country') %>% 
+                                  filter(str_detect(global_region,'South-East Asia')) %>% 
+                             mutate(log10_cases = log10(mean),
+                                    period = "2021-2024"),
+                           lakes_sf = NULL,
+                           rivers_sf = NULL,
+                           all_countries_sf = global_sf %>% filter(who_region == "SEAR"),
+                           fill_var = "log10_cases",
+                           fill_color_scale_type = "cases",
+                           cholera_dir = params$cholera_dir,
+                           crop_background = T,
+                           crop_margin_km = NULL,
+                           crop_margin_ratio = 0.6) +
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 15),
+        legend.position = c(.05, .2),
+        panel.background = element_rect(fill = "white", color = "white")) +
+  guides(fill = guide_colorbar("Mean annual incidence \n[cases/year]"))
+
+ggsave(fig_MAI_grid_SEAR,
+         file = "fig1_SEAR.png",
+         width = 10,
+         height = 6, 
+         dpi = 300)
+  knitr::include_graphics(fig_path)
+}
+```
+
+### Figure 5. Western Pacific
+```{r WPR map, fig.width=10, fig.height=6,echo=FALSE,warning=FALSE,message=FALSE}
+fig_path <- file.path(params$cholera_dir, "fig1_WPR.png")
+
+if (file.exists(fig_path)) {
+  knitr::include_graphics(fig_path)
+
+} else {# fix the projection of the WPR maps
+wpr_sf <- global_sf %>% filter(who_region == "WPR")
+wpr_fix <- wpr_sf %>%
+  st_make_valid() %>%
+  st_wrap_dateline(options = c("WRAPDATELINE=YES","DATELINEOFFSET=180"), quiet = TRUE) %>%
+  st_shift_longitude()
+
+fig_MAI_grid_WPR <- output_plot_map(sf_obj = mai_grid_cases_stats %>% 
+                                  get_global_region(ctry_col = 'country') %>% 
+                                  filter(str_detect(global_region,'Western Pacific')) %>% 
+                             mutate(log10_cases = log10(mean),
+                                    period = "2021-2024"),
+                           lakes_sf = NULL,
+                           rivers_sf = NULL,
+                           all_countries_sf = wpr_fix,
+                           fill_var = "log10_cases",
+                           fill_color_scale_type = "cases",
+                           cholera_dir = params$cholera_dir,
+                           crop_background = T,
+                           crop_margin_km = NULL,
+                           crop_margin_ratio = 0.06) +
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 15),
+        legend.position = c(.1, .3),
+        panel.background = element_rect(fill = "white", color = "white")) +
+  guides(fill = guide_colorbar("Mean annual incidence \n[cases/year]"))
+
+ggsave(fig_MAI_grid_WPR,
+         file = "fig1_WPR.png",
+         width = 10,
+         height = 6, 
+         dpi = 300)
+  knitr::include_graphics(fig_path)
+}
+```
+
+### Figure 6. Americas
+```{r AMR map, fig.width=10, fig.height=6,echo=FALSE,warning=FALSE,message=FALSE}
+fig_path <- file.path(params$cholera_dir, "fig1_AMR.png")
+
+if (file.exists(fig_path)) {
+  knitr::include_graphics(fig_path)
+
+} else {
+  fig_MAI_grid_AMR <- output_plot_map(sf_obj = mai_grid_cases_stats %>% 
+                                  get_global_region(ctry_col = 'country') %>% 
+                                  filter(str_detect(global_region,'Americas')) %>% 
+                             mutate(log10_cases = log10(mean),
+                                    period = "2021-2024"),
+                           lakes_sf = NULL,
+                           rivers_sf = NULL,
+                           all_countries_sf =  global_sf %>% filter(who_region == "AMR"),
+                           fill_var = "log10_cases",
+                           fill_color_scale_type = "cases",
+                           cholera_dir = params$cholera_dir,
+                           crop_background = T,
+                           crop_margin_km = NULL,
+                           crop_margin_ratio = 0.06) +
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 15),
+        legend.position = c(.1, .3),
+        panel.background = element_rect(fill = "white", color = "white")) +
+  guides(fill = guide_colorbar("Mean annual incidence \n[cases/year]"))
+
+ggsave(fig_MAI_grid_AMR,
+         file = "fig1_AMR.png",
+         width = 10,
+         height = 6, 
+         dpi = 300)
+  knitr::include_graphics(fig_path)
+}
+```
+
+## Figure 7. Bar plot: Cases by region 
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+fig_cases_region <- cases_by_region %>% 
+  mutate(global_region = factor(global_region, levels = get_global_region_levels()),
+         period = '2021-2024') %>% 
+  ggplot(aes(x = mean, y = global_region, fill = global_region)) +
+  geom_bar(stat = "identity")  +
+  geom_errorbarh(
+    aes(xmin = q2.5, xmax = q97.5, y = global_region),
+    height = .2
+  )+
+  scale_x_continuous(
+    breaks = seq(0, 200000, by = 50000),
+    labels = function(x) {
+      formatC(x, digits = 0, big.mark = ",", format = "f")
+    }) +
+  scale_fill_manual(values = colors_global_regions()) +
+  theme_bw() +
+  theme(legend.position = 'none')+
+  labs(x = "Mean annual cholera incidence [cases/year]", 
+       y = "Region")
+
+ggsave(fig_cases_region,
+         file = "fig2.png",
+         width = 12,
+         height = 6, 
+         dpi = 300)
+print(fig_cases_region)
+
+```
+
+## Table 2. MAI by region
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+table2 <- cases_by_region %>% 
+  mutate(global_region = factor(global_region, levels = get_global_region_levels())) %>% 
+  bind_rows(
+    overall_sim_stats %>%
+    mutate(global_region ="Total")
+  ) %>% 
+  mutate(
+    `Mean Annual Cases (95% CrI)` = paste0(round(mean,0)," (",round(q2.5,0), " - ",round(q97.5,0),")")
+  ) %>% 
+  rename(
+    `Global region` = global_region,
+  ) %>% 
+  select(
+    `Global region`, `Mean Annual Cases (95% CrI)`
+  ) 
+
+table2 %>% 
+  filter(`Global region` != 'Total') %>%
+  arrange( `Global region`) %>% 
+  bind_rows(
+    table2[nrow(table2),]
+  ) %>% 
+  knitr::kable() %>% 
+  kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+    kableExtra::kable_paper(full_width = F)
+
+```
+
+## Figure 8. Bar plot: Pop at risk by region 
+```{r echo=FALSE,fig.height=6, fig.width=10, warning=FALSE,message=FALSE}
+risk_pop_all <- pop_at_risk_all %>% 
+      unpack_pop_at_risk() %>%
+  filter( 
+         admin_level == "ADM2",
+         risk_cat != "<1") %>% 
+  select(risk_cat, mean, q2.5, q97.5) %>% 
+  mutate(risk_cat = as.character(risk_cat)) %>% 
+  mutate(risk_cat = ifelse(risk_cat == ">100","\u2265100",risk_cat)) %>% 
+  mutate(risk_cat = factor(risk_cat,levels = c("<1","1-10","10-20","20-50","50-100","\u2265100" )))
+
+risk_pop_regions <- pop_at_risk_regions %>% 
+    mutate(global_region = str_extract(variable, "(?<=tot_pop_risk_)(.)*(?=_adm)")) %>%
+    parse_global_region() %>% 
+    unpack_pop_at_risk() %>% 
+  mutate(period = '2021-2024') %>% 
+  filter( 
+         admin_level == "ADM2",
+         risk_cat != "<1") %>% 
+  select(global_region, risk_cat, mean, q2.5, q97.5) %>% 
+  mutate(risk_cat = as.character(risk_cat)) %>%
+  mutate(risk_cat = ifelse(risk_cat == ">100","\u2265100",risk_cat)) %>% 
+  mutate(risk_cat = factor(risk_cat,levels = c("<1","1-10","10-20","20-50","50-100","\u2265100" )))
+
+# Figure 3A
+fig_risk_cat <- risk_pop_regions %>%
+  ggplot(aes(y = risk_cat, x = mean)) +
+  geom_bar(aes(fill = global_region), stat = "identity", width = .5) +
+  geom_errorbarh(data = risk_pop_all,
+                inherit.aes = F,
+                aes(xmin = q2.5, xmax = q97.5, y = risk_cat), height = 0.2) +
+  geom_point(data = risk_pop_all, aes(x = mean)) +
+  theme_bw() +
+  scale_fill_manual(values = colors_global_regions()) +
+  scale_x_continuous(labels = function(x) {formatC(x/1e6)}) +
+  labs(y = "ADM2 incidence category per 100,000 population", x = "Population living in ADM2 units (millions)",fill="Region")+
+  geom_segment(x = 250000000, xend = 250000000, y = "10-20", yend = "\u2265100", colour = "black") +
+  geom_segment(x = 230000000, xend = 250000000, y = "10-20", yend = "10-20", colour = "black") +
+  geom_segment(x = 230000000, xend = 250000000, y = "\u2265100", yend = "\u2265100", colour = "black") +
+  annotate("segment", x = 250000000, xend = 260000000, y = 3.5, yend = 3.5, colour = "black") +
+  annotate("text", x = 300000000, y = 3.5, label = '"High\nIncidence"')
+
+ggsave(plot = fig_risk_cat,
+         filename = 'fig_risk_cat.png',
+         width = 12,
+         height = 7,
+         dpi = 300)
+print(fig_risk_cat)
+
+```
+
+## Table 3. Risk cat by region
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+table3 <- risk_pop_regions %>% 
+  mutate(global_region = factor(global_region, levels = get_global_region_levels())) %>% 
+  bind_rows(
+    risk_pop_all %>%
+    mutate(global_region ="Total")
+  ) %>% 
+  mutate(
+    `Population (95% CrI)` = paste0(round(mean,0)," (",round(q2.5,0), " - ",round(q97.5,0),")")
+  ) %>% 
+  rename(
+    `Global region` = global_region,
+    `Risk category (per 100,000 population)` = risk_cat
+  ) %>% 
+  select(
+    `Global region`, `Risk category (per 100,000 population)`,`Population (95% CrI)`
+  ) 
+
+table3 %>% 
+  filter(`Global region` != 'Total') %>%
+  arrange( `Global region`) %>% 
+  bind_rows(
+    table3%>% filter(`Global region` == 'Total') 
+  ) %>% 
+  knitr::kable() %>% 
+  kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+    kableExtra::kable_paper(full_width = F)
+
+```
+
+
+## Table 4. WHO Annual Report Comparison at the country level
+```{r echo=FALSE, fig.height=10, fig.width=10, warning=FALSE, message=FALSE}
+modeled_cases_by_country_by_time <- mean_adm0_cases_by_time %>% 
+  select(country, TL, mean) %>%
+  rename(mean_modeled_cases = mean)
+
+who_ests_by_region_by_time <- who_ests_by_time %>% 
+  st_drop_geometry() %>% 
+  mutate(
+    country = str_sub(location_name, start=-3),
+    WHO_cases = suspected_cases
+  ) %>% 
+  select(country,TL,WHO_cases)
+  
+modeled_who_cases <- inner_join(modeled_cases_by_country_by_time,who_ests_by_region_by_time) %>% 
+  get_global_region(ctry_col = 'country') %>% 
+    mutate(WHO_cases_log = ifelse(WHO_cases > 0, WHO_cases, NA),
+         mean_modeled_cases_log = ifelse(mean_modeled_cases > 0, mean_modeled_cases, NA))
+
+table4 <- modeled_who_cases %>% 
+  mutate(year = lubridate::year(TL),
+         mean_modeled_cases = round(mean_modeled_cases,0)) %>% 
+  arrange(global_region) %>% 
+  select(global_region,country, year, mean_modeled_cases, WHO_cases)
+
+
+table4 %>% 
+  knitr::kable() %>% 
+  kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+    kableExtra::kable_paper(full_width = F)
+
+```
+
+
+## Figure 9. WHO Annual Report Comparison at the country level
+```{r echo=FALSE, fig.height=10, fig.width=10, warning=FALSE, message=FALSE}
+
+library(scales)
+library(ggrepel)
+
+ggplot(modeled_who_cases %>% mutate(year = lubridate::year(TL)), 
+       aes(x = WHO_cases_log, y = mean_modeled_cases_log, color = global_region)) +
+  geom_point(size = 3, alpha = 0.7, na.rm = TRUE) +
+  geom_text_repel(aes(label = country), size = 3, show.legend = FALSE, max.overlaps = 20) +
+    geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+  scale_x_log10(
+    name = "Reported WHO cases",
+    limits = c(1, 1e5),
+    breaks = c(1, 100, 1e4)
+  ) +
+  scale_y_log10(
+    name = "Modeled mean cases",
+    limits = c(1, 1e5),
+    breaks = c(1, 100, 1e4)
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.position = "bottom",
+    axis.title.x = element_text(margin = margin(t = 10)),
+    axis.title.y = element_text(margin = margin(r = 10)),
+    axis.text.x = element_text(vjust = 0),
+    axis.text.y = element_text(hjust = 1)
+  )+
+  facet_wrap(~ year)
+
+```
+
+
+## Table 5. WHO Annual Report Comparison at the continent and global level
+```{r echo=FALSE, fig.height=10, fig.width=10, warning=FALSE, message=FALSE}
+table5 <- modeled_who_cases %>% 
+  mutate(year = lubridate::year(TL)) %>% 
+  group_by(global_region,year) %>% 
+  summarize(
+    Total_modeled_cases = round(sum(mean_modeled_cases),0),
+    Total_WHO_reported_cases = sum(WHO_cases)
+  ) %>% 
+  ungroup() %>% 
+  arrange(global_region) %>% 
+  bind_rows(
+    modeled_who_cases %>% 
+  mutate(year = lubridate::year(TL)) %>% 
+  group_by(year) %>% 
+  summarize(
+    Total_modeled_cases = round(sum(mean_modeled_cases),0),
+    Total_WHO_reported_cases = sum(WHO_cases),
+    global_region = "Global"
+  )
+  )
+
+
+table5 %>% 
+  knitr::kable() %>% 
+  kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+    kableExtra::kable_paper(full_width = F)
+
+```
+
+
+## Figure 10. WHO Annual Report Comparison at the continent and global level
+```{r echo=FALSE, fig.height=10, fig.width=10, warning=FALSE, message=FALSE}
+ggplot(table5, 
+       aes(x = Total_WHO_reported_cases, y = Total_modeled_cases, color = global_region)) +
+  geom_point(size = 3, alpha = 0.7, na.rm = TRUE) +
+    geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+  scale_x_log10(
+    name = "Reported WHO cases",
+    limits = c(1, 1e6),
+    breaks = c(1, 100, 1e4, 1e6)
+  ) +
+  scale_y_log10(
+    name = "Modeled mean cases",
+    limits = c(1, 1e6),
+    breaks = c(1, 100, 1e4,1e6)
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.position = "bottom",
+    axis.title.x = element_text(margin = margin(t = 10)),
+    axis.title.y = element_text(margin = margin(r = 10)),
+    axis.text.x = element_text(vjust = 0),
+    axis.text.y = element_text(hjust = 1)
+  )+
+  facet_wrap(~ year)
+
+```
