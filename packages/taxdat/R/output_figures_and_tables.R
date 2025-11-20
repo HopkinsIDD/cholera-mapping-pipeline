@@ -53,6 +53,15 @@ colors_afro_regions <- function(){
   colors
 }
 
+#' @export
+colors_global_regions <- function(){
+  # colors <- RColorBrewer::brewer.pal("Set2", n = 4)
+  colors <- c("#FFA378", "#A8B545", "#8C796D", "#024554","#C93E3E","#E1AF00","#6A5ACA","#009999","#7B7B7B")
+  names(colors) <- c("Western Africa", "Central Africa",
+                     "Eastern Africa", "Southern Africa",
+                     "Americas","South-East Asia","Eastern Mediterranean","Western Pacific","Europe")
+  colors
+}
 
 #' @export
 colors_ranking <- function() {
@@ -62,6 +71,56 @@ colors_ranking <- function() {
     "2022-2023"= "darkgray",
     "optimal"= "gray")
 }
+
+# Crop background and expand margins functions --------------------------------------------------------
+#' expand_bbox_ratio
+#'
+#' @param bb 
+#' @param ratio
+#' @return
+#' @export
+expand_bbox_ratio <- function(bb, ratio = 0.06) {
+  w <- bb["xmax"] - bb["xmin"] 
+  h <- bb["ymax"] - bb["ymin"]
+  dx <- as.numeric(w) * ratio 
+  dy <- as.numeric(h) * ratio
+  bb["xmin"] <- bb["xmin"] - dx 
+  bb["xmax"] <- bb["xmax"] + dx
+  bb["ymin"] <- bb["ymin"] - dy 
+  bb["ymax"] <- bb["ymax"] + dy
+  bb
+}
+
+#' crop_polygon
+#'
+#' @param sf_obj 
+#' @param margin_km
+#' @param margin_ratio 
+#' @param crs_out
+#' @return
+#' @export
+crop_polygon <- function(sf_obj, margin_km = NULL, margin_ratio = 0.06, crs_out = sf::st_crs(sf_obj)) {
+  
+  if (length(sf_obj) == 0) {
+    bb <- sf::st_bbox(sf_obj)
+    bb_exp <- expand_bbox_ratio(bb, margin_ratio)
+    return(sf::st_as_sfc(bb_exp, crs = sf::st_crs(sf_obj)))
+  }
+  
+  g <- suppressWarnings(sf::st_make_valid(sf::st_union(sf_obj)))
+  
+  if (!is.null(margin_km) && is.finite(margin_km) && margin_km > 0) {
+    g_merc <- sf::st_transform(g, 3857)
+    g_buf  <- sf::st_buffer(g_merc, margin_km * 1000)
+    g_crop <- sf::st_transform(g_buf, crs_out)
+  } else {
+    bb     <- sf::st_bbox(g)
+    bb_exp <- expand_bbox_ratio(bb, margin_ratio)
+    g_crop <- sf::st_as_sfc(bb_exp, crs = sf::st_crs(sf_obj))
+  }
+  g_crop
+}
+
 # Figure functions --------------------------------------------------------
 
 #' output_plot_map
@@ -87,24 +146,64 @@ output_plot_map <- function(sf_obj,
                             lake_alpha = 1,
                             country_border_width = .3,
                             country_border_color = "black",
-                            cholera_dir = 'cholera-mapping-pipeline') {
+                            cholera_dir = 'cholera-mapping-pipeline',
+                            crop_background = F,
+                            crop_margin_km = NULL,
+                            crop_margin_ratio = 0.06) {
+  
+  # for regions that are intended to run but haven't run
+  fv <- rlang::as_string(rlang::ensym(fill_var))
+  if (nrow(sf_obj) == 0) {
+    sf_obj <- all_countries_sf %>%
+      dplyr::mutate(!!fv := NA_real_,
+                    intended_run = TRUE)
+    sf::st_crs(sf_obj) <- sf::st_crs(all_countries_sf)
+  }
+  
+  if (crop_background) {
+    # whether any of the countries in that region has cases >0
+    has_cases <- sum(is.finite(sf_obj[[fv]]), na.rm = TRUE) > 0
+    
+    if (has_cases) {
+      crop_poly <- crop_polygon(
+        sf_obj      = sf_obj,
+        margin_km   = crop_margin_km,
+        margin_ratio= crop_margin_ratio,
+        crs_out     = sf::st_crs(all_countries_sf)
+      )
+    } else {
+      # for regions that are intended to run but haven't run: 
+      base_bb <- sf::st_bbox(all_countries_sf)
+      bb_exp <- expand_bbox_ratio(base_bb, margin_ratio)
+      crop_poly <- sf::st_as_sfc(bb_exp, crs = sf::st_crs(all_countries_sf))
+    }
+    
+    bg_trim  <- suppressWarnings(sf::st_crop(all_countries_sf, sf::st_bbox(crop_poly)))
+    
+    all_countries_sf_clipped <- suppressWarnings(sf::st_intersection(sf::st_make_valid(bg_trim),sf::st_make_valid(crop_poly)))
+    bb <- sf::st_bbox(crop_poly)
+    
+  } else {
+    all_countries_sf_clipped <- all_countries_sf
+    bb <- sf::st_bbox(sf_obj)
+  }
   
   sf_obj %>% 
     ggplot2::ggplot(aes(fill = !!sym(fill_var))) +
-    ggplot2::geom_sf(data = all_countries_sf %>%
+    ggplot2::geom_sf(data = all_countries_sf_clipped %>%
                        dplyr::filter(!intended_run),
                      inherit.aes = FALSE,
                      lwd = 0,
                      alpha = 1,
                      fill = color_no_run_intended()) +
-    ggplot2::geom_sf(data = all_countries_sf %>% 
+    ggplot2::geom_sf(data = all_countries_sf_clipped %>% 
                        dplyr::filter(intended_run),
                      inherit.aes = FALSE,
                      lwd = 0,
                      alpha = 1,
                      fill = color_run_intended()) +
     ggplot2::geom_sf(lwd = border_width, color = border_color) + 
-    ggplot2::geom_sf(data = all_countries_sf,
+    ggplot2::geom_sf(data = all_countries_sf_clipped,
                      fill = color_afr_continent_fill(),
                      color = "black",
                      lwd = country_border_width,
@@ -201,8 +300,12 @@ output_plot_map <- function(sf_obj,
                      alpha = 0) +
     taxdat::map_theme() +
     # Zoom to bounding box
-    # ggplot2::coord_sf(xlim = st_bbox(sf_obj)[c(1, 3)],
-    #                   ylim = st_bbox(sf_obj)[c(5, 6)]) +
+    {if(crop_background){
+      ggplot2::coord_sf(xlim = c(bb["xmin"], bb["xmax"]),
+                        ylim = c(bb["ymin"], bb["ymax"]),
+                        expand = FALSE)       
+    }
+  } +
     theme(panel.border = element_blank())
   
 }
