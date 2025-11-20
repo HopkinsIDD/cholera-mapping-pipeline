@@ -1236,3 +1236,22 @@ table8 %>%
     kableExtra::kable_paper(full_width = F)
 
 ```
+## Table 9. Private vs. public OCs
+```{r echo=FALSE, fig.height=10, fig.width=10, warning=FALSE, message=FALSE}
+oc_public_private <- read.csv("Analysis/R/OC_public_private.csv")
+
+all_obs %>% 
+  distinct(OC_UID, country) %>% 
+  mutate(OC_UID =as.integer(OC_UID)) %>% 
+  left_join(oc_public_private) %>% 
+  group_by(country) %>% 
+  summarize(
+    `Proportion of public OCs in stan input (%)` = round(length(is_public[is_public==T])/length(is_public)*100,1)
+  ) %>% 
+  arrange(country) %>% 
+    knitr::kable() %>% 
+  kableExtra::kable_styling(bootstrap_options = c("striped")) %>%
+    kableExtra::kable_paper(full_width = F)
+
+```
+
