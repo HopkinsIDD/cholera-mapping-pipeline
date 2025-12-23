@@ -31,7 +31,7 @@ plot_DroppedData_table <- function(config, cache, cholera_directory, aesthetic =
   )
   
   used_obs_stats <- obs_stats[order(obs_stats$year), ] %>% 
-    dplyr::filter(!grepl('imputed',u_OCs))
+    dplyr::filter(!(grepl('imputed',u_OCs) & year != 'all'))
   #get all obs_stats
   get_sf_cases(name="sf_cases",config=config, cache=cache, cholera_directory=cholera_directory)
 
