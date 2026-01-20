@@ -1804,10 +1804,15 @@ get_global_region <- function(data, ctry_col) {
   data_with_global_region <- data %>% 
     dplyr::mutate(
       global_region = dplyr::case_when(
-        !!rlang::sym(ctry_col) %in% c("BDI","COM","ETH","KEN","MDG","RWA","SSD","UGA","TZA","ERI") ~ "Eastern Africa",
-        !!rlang::sym(ctry_col) %in% c("BWA","MOZ","MWI","NAM","SWZ","ZMB","ZWE","ZAF","LSO") ~ "Southern Africa",
-        !!rlang::sym(ctry_col) %in% c("AGO","CMR","CAF","TCD","COG","COD","GNQ","GNA","GAB") ~ "Central Africa",
-        !!rlang::sym(ctry_col) %in% c("BEN","BFA","CIV","GHA","GIN","GMB","GNB","LBR","MLI","MRT","NER","NGA","SEN","SLE","TGO") ~ "Western Africa",
+        
+        # !!rlang::sym(ctry_col) %in% c("BDI","COM","ETH","KEN","MDG","RWA","SSD","UGA","TZA","ERI") ~ "Eastern Africa",
+        # !!rlang::sym(ctry_col) %in% c("BWA","MOZ","MWI","NAM","SWZ","ZMB","ZWE","ZAF","LSO") ~ "Southern Africa",
+        # !!rlang::sym(ctry_col) %in% c("AGO","CMR","CAF","TCD","COG","COD","GNQ","GNA","GAB") ~ "Central Africa",
+        # !!rlang::sym(ctry_col) %in% c("BEN","BFA","CIV","GHA","GIN","GMB","GNB","LBR","MLI","MRT","NER","NGA","SEN","SLE","TGO") ~ "Western Africa",
+        !!rlang::sym(ctry_col) %in% c("BDI","COM","ETH","KEN","MDG","RWA","SSD","UGA","TZA","ERI",
+                                      "BWA","MOZ","MWI","NAM","SWZ","ZMB","ZWE","ZAF","LSO",
+                                      "AGO","CMR","CAF","TCD","COG","COD","GNQ","GNA","GAB",
+                                      "BEN","BFA","CIV","GHA","GIN","GMB","GNB","LBR","MLI","MRT","NER","NGA","SEN","SLE","TGO") ~ "Africa",
         !!rlang::sym(ctry_col) %in% c("DOM","HTI") ~ "Americas",
         !!rlang::sym(ctry_col) %in% c("BGD","MMR","NPL","THA","IND") ~ "South-East Asia",
         !!rlang::sym(ctry_col) %in% c("AFG","IRQ","LBN","PAK","SAU","SYR","ARE","YEM","SDN","SOM","DJI") ~ "Eastern Mediterranean",
@@ -1828,7 +1833,10 @@ get_global_region <- function(data, ctry_col) {
 #'
 #' @examples
 get_global_region_levels <- function() {
-  c("Eastern Mediterranean","Western Africa", "Central Africa", "Eastern Africa", "Southern Africa","South-East Asia","Western Pacific","Americas","Europe")
+  c("Eastern Mediterranean",
+    #"Western Africa", "Central Africa", "Eastern Africa", "Southern Africa",
+    "Africa",
+    "South-East Asia","Western Pacific","Americas","Europe")
 }
 
 
