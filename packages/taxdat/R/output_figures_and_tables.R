@@ -159,8 +159,7 @@ output_plot_map <- function(sf_obj,
   fv <- rlang::as_string(rlang::ensym(fill_var))
   if (nrow(sf_obj) == 0) {
     sf_obj <- all_countries_sf %>%
-      dplyr::mutate(!!fv := NA_real_,
-                    intended_run = TRUE)
+      dplyr::mutate(!!fv := NA_real_,intended_run = TRUE)
     sf::st_crs(sf_obj) <- sf::st_crs(all_countries_sf)
   }
   
