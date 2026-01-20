@@ -1,7 +1,7 @@
 ---
 params:
   cholera_directory: "cholera-mapping-pipeline"
-  config: "configs/config_ID_03_HTI_2021_2024.yml"
+  config: "configs/config.yml"
 output: 
   powerpoint_presentation:
     reference_doc: Presentation1.pptx
@@ -15,7 +15,7 @@ config <- yaml::read_yaml(file = file.path(paste0(params$cholera_directory,"/",p
 
 load(paste0(params$cholera_directory,"/packages/taxdat/data/afr_sf.rda"))
 
-global_sf <- readRDS(file.path(paste0(params$cholera_directory,"Analysis/output/global_sf.rds")))
+global_sf <- readRDS(file.path(paste0(params$cholera_directory,"/Analysis/output/global_sf.rds")))
 
 country_full_name <- global_sf[global_sf$country==config$countries_name,]$shapeName
 
@@ -426,8 +426,9 @@ unpack_pop_at_risk <- function(df) {
     )
 }
 
-country_adm1<-rgeoboundaries::gb_adm1(country = country_iso)%>% dplyr::select(geometry,shapeName)
- 
+country_adm1<-rgeoboundaries::gb_adm1(country = country_iso)%>% 
+dplyr::select(geometry,shapeName)
+
 summary_coverage <- function(
   df = all_obs,
   TL_col = "TL",
@@ -509,8 +510,7 @@ split_row_to_years <- function(row) {
     lapply(seq_len(nrow(df)), function(i) split_row_to_years(df[i, ]))
   ) %>%
     mutate(
-      !!ref_TL_sym := as.Date(!!ref_TL_sym),
-      !!ref_TR_sym := as.Date(!!ref_TR_sym)
+      !!ref_TL_sym := as.Date(!!ref_TL_sym), !!ref_TR_sym := as.Date(!!ref_TR_sym)
     )
   
 nat <- df_year %>%
@@ -520,7 +520,7 @@ nat <- df_year %>%
       national_cases = max(!!sCh_sym, na.rm = TRUE),
       nat_TL  = min(!!TL_sym),
       nat_TR  = max(!!TR_sym),
-      .groups        = "drop"
+      .groups = "drop"
     )
   
  subnat_loc <- df_year %>%
@@ -709,53 +709,14 @@ Table 1. Population at risk in `r country_full_name`, 2021-2024. The table summa
 # Part 3. Data coverage in `r country_full_name`
 This section summarizes the data used for modeling in the country.
 
-```{r, tbl2, echo=FALSE,message=FALSE,warning=FALSE, results='asis'}
+# Figure 5. Spatial distribution of data coverage in `r country_full_name`
+
+```{r, data coverage map, echo=FALSE, message=FALSE, warning=FALSE,fig.width=10,fig.height=5,results='hide'}
 oc_metadata <- read.csv(paste0(params$cholera_directory,"Analysis/R/OC_metadata.csv")) %>% 
 select(observation_collection_id, source) %>% 
 rename(OC_UID = observation_collection_id)
 all_obs <- readRDS(paste0(params$cholera_directory,"Analysis/output/2021_2024_configs_obs.rds")) 
-table2 <- all_obs %>% 
-mutate(year = lubridate::year(TL)) %>% 
-filter(country == country_iso) %>% 
-mutate(OC_UID = as.integer(OC_UID)) %>% 
-filter(!is.na(OC_UID)) %>% 
-select(year,OC_UID,attributes.fields.suspected_cases,admin_level,country) %>% 
-left_join(oc_metadata) %>% 
-group_by(year, OC_UID, source,admin_level) %>% 
-summarize(total_obs = n(), 
-          total_sCh = sum(attributes.fields.suspected_cases)) %>% 
-mutate(source = case_when(source == "WHO" ~ "World Health Organization", TRUE ~ source), 
-        admin_level = case_when( admin_level ==0 ~ "Country level", TRUE~ paste0("Admin level ", admin_level))) %>% 
-rename(Year = year,
-`Observation Collection ID` = OC_UID,
-`Data source` = source, 
-`Spatial scale` = admin_level,
-`Total number of observations` = total_obs,
-`Total number of cases` = total_sCh)
 
-rows_per_slide <- 6
-parts <- split(table2, ceiling(seq_len(nrow(table2)) / rows_per_slide))
-
-for (i in seq_along(parts)) {
-  cat(
-    "# Table 2. Summary of data coverage: ", country_full_name,
-    " (Part ", i, ")\n\n", 
-    sep = ""
-  )
-  
-  print(knitr::kable(parts[[i]]))
-  
-  cat("\n\n")
-}
-```
-
-::: notes
-Table 2. Data coverage summary for `r country_full_name`, 2021-2024. The table summarizes the data coverage by observation collection ID, year, and spatial scale for `r country_full_name`.
-:::
-
-# Figure 5. Spatial distribution of data coverage in `r country_full_name`
-
-```{r, data coverage map, echo=FALSE, message=FALSE, warning=FALSE,fig.width=10,fig.height=5,results='hide'}
 p_figCov_2124<- readRDS(paste0(params$cholera_directory,"Analysis/output/2021_2024_configs_shapefiles.rds")) %>% 
   filter(country ==country_iso) %>% 
   mutate(admin_level = factor(admin_level, levels = 0:3)) %>% 
@@ -787,7 +748,7 @@ knitr::include_graphics( paste0(country_full_name,"_fig5.png"))
 Figure 5. Spatial distribution of data coverage for `r country_full_name` in 2021-2024. The maps show the smallest administrative level (color) where at least one observation was reported in 2021-2024. The zero-level administrative unit is the country-level.
 :::
 
-# Figure 6. Temporal distribution of data coverage by admin level in `r country_full_name`
+# Figure 6. Temporal coverage by subantional data in `r country_full_name`
 
 ```{r, data coverage barplot, echo=FALSE, message=FALSE, warning=FALSE,fig.width=10,fig.height=5,results='hide'}
 
@@ -800,26 +761,55 @@ cases_by_admin <- summary_coverage (
   ref_TR_col = "ref_TR",
   admin_level_col ="admin_level",
   censoring_col = "censoring",
-  location_name_col = "location_name"
-) %>% 
+  location_name_col = "location_name") %>% 
 mutate(year = lubridate::year(ref_TL)) %>% 
-select(admin_level,year,cases_full_total) %>% 
 mutate(admin_level = factor(admin_level, levels = 0:3))
 
+subnat_coverage_year <- cases_by_admin %>%
+  filter(admin_level != 0) %>% 
+  group_by(year) %>%
+  summarise(
+    Proportion_data_covered_by_subnat = ifelse(
+      all(is.na(TL_min_all)),
+      0,round((max(TR_max_all, na.rm = TRUE) -min(TL_min_all, na.rm = TRUE)) / 365 * 100,0)),Proportion_temp_covered_by_subnat = round(cases_full_total/max(cases_by_admin$national_cases[cases_by_admin$year==year],na.rm=T)*100,0),.groups = "drop")
 
-fig6<- ggplot(cases_by_admin, aes(x = year, y = cases_full_total, fill = admin_level)) +
-      geom_bar(stat = "identity", position = "dodge",color='black') +
-      scale_fill_manual(values = colors_admin_levels(),breaks =as.character(0:3))+
-      labs(x = "Year", y = "Number of cases",fill='Admin level') +
-      theme_bw()
+subnat_coverage_year <- cases_by_admin %>%
+  distinct(year) %>%
+  left_join(subnat_coverage_year, by = "year") %>%
+  mutate(
+    Proportion_data_covered_by_subnat =replace_na(Proportion_data_covered_by_subnat, 0),
+    Proportion_temp_covered_by_subnat =replace_na(Proportion_temp_covered_by_subnat, 0)
+  )
 
+cases_by_admin <- cases_by_admin %>%
+  left_join(subnat_coverage_year, by = "year")
+
+plot_data<- cases_by_admin %>% filter(admin_level!=0) %>%  distinct(year,Proportion_temp_covered_by_subnat ,admin_level) %>%   
+complete(
+    year = 2021:2024,
+    admin_level = as.factor(1:3),
+    fill = list(Proportion_temp_covered_by_subnat = 0)
+  )
+
+fig6<-ggplot(plot_data,aes(x = factor(year), y = Proportion_temp_covered_by_subnat, fill = factor(admin_level))) +
+  geom_col(
+    position = position_dodge(width = 0.9),
+    width = 0.8,
+    color = "black"
+  ) +
+  scale_fill_manual(
+    values = colors_admin_levels(),
+    breaks = as.character(0:3)
+  ) +
+  scale_y_continuous(limits = c(0, NA)) +
+  labs(x = "Year", y = "Proportion of the year covered by subnational data (%)",fill='Admin level') +
+  theme_classic()
 
 ggsave(fig6,
        file = paste0(country_full_name,"_fig6.png"),
        width = 8,
        height = 6, 
        dpi = 300)
-
 ```
 
 ```{r, figure6, echo=FALSE,out.width="30%"}
@@ -827,5 +817,97 @@ knitr::include_graphics( paste0(country_full_name,"_fig6.png"))
 ```
 
 ::: notes
-Figure 6.  Temporal distribution of data coverage by admin level for `r country_full_name` in 2021-2024. The barplot shows total cases reported at each administrative level in 2021-2024. The zero-level administrative unit is the country-level.
+Figure 6.  Temporal coverage by subnational data for `r country_full_name` in 2021-2024. The barplot shows proportion of the year covered by subnational data in 2021-2024. The zero-level administrative unit is the country-level.
+:::
+
+# Figure 7. Case coverage by admin level in `r country_full_name`
+
+```{r, case coverage barplot, echo=FALSE, message=FALSE, warning=FALSE,fig.width=10,fig.height=5,results='hide'}
+
+fig7<- ggplot(cases_by_admin, aes(x = year, y = cases_full_total, fill = admin_level)) +
+      geom_bar(stat = "identity", position = "dodge",color='black') + 
+      scale_fill_manual(values = colors_admin_levels(),breaks =as.character(0:3))+
+      labs(x = "Year", y = "Number of cases",fill='Admin level') +
+      theme_classic()
+
+ggsave(fig7,
+       file = paste0(country_full_name,"_fig7.png"),
+       width = 8,
+       height = 6, 
+       dpi = 300)
+
+```
+
+```{r, figure7, echo=FALSE,out.width="30%"}
+knitr::include_graphics( paste0(country_full_name,"_fig7.png"))
+```
+
+::: notes
+Figure 7.  Data coverage by subnational data by admin level for `r country_full_name` in 2021-2024. The barplot shows total cases reported at each administrative level in 2021-2024. The zero-level administrative unit is the country-level.
+:::
+
+```{r, tbl2, echo=FALSE,message=FALSE,warning=FALSE, results='asis'}
+table2<-cases_by_admin %>% 
+group_by(year) %>% 
+slice(min(as.numeric(admin_level))) %>% 
+group_by(year,admin_level) %>% 
+summarize(
+       `Total number of cases at the national level` = max(cases_by_admin$national_cases[cases_by_admin$year==year],na.rm=T),
+      `Proportion of national cases covered by subnational data(%)` = Proportion_data_covered_by_subnat,
+      `Proportion of the year covered by subnational data(%)` = Proportion_temp_covered_by_subnat ) %>% 
+mutate(admin_level = case_when( admin_level ==0 ~ "Country level", TRUE~ paste0("Admin level ", admin_level))) %>%
+rename(Year = year, "Highest spatial resolution"=admin_level)
+
+rows_per_slide <- 6
+parts <- split(table2, ceiling(seq_len(nrow(table2)) / rows_per_slide))
+
+for (i in seq_along(parts)) {
+  cat(
+    "# Table 2. Summary of subnational data coverage: ", country_full_name,
+    "\n\n", sep = "")
+  print(knitr::kable(parts[[i]]))
+  cat("\n\n")
+}
+
+```
+
+::: notes
+Table 2. Subnational data coverage summary for `r country_full_name`, 2021-2024. The table summarizes temporal and case coverage by subnational data for `r country_full_name`.
+:::
+
+```{r, tbl3, echo=FALSE,message=FALSE,warning=FALSE, results='asis'}
+
+table3 <- all_obs %>% 
+mutate(year = lubridate::year(TL)) %>% 
+filter(country == country_iso) %>% 
+mutate(OC_UID = as.integer(OC_UID)) %>% 
+filter(!is.na(OC_UID)) %>% 
+select(year,OC_UID,attributes.fields.suspected_cases,admin_level,country) %>% 
+left_join(oc_metadata) %>% 
+group_by(year, OC_UID, source,admin_level) %>% 
+summarize(total_obs = n(), 
+          total_sCh = sum(attributes.fields.suspected_cases)) %>% 
+mutate(source = case_when(source == "WHO" ~ "World Health Organization", TRUE ~ source), 
+        admin_level = case_when( admin_level ==0 ~ "Country level", TRUE~ paste0("Admin level ", admin_level))) %>% 
+rename(Year = year,
+`Observation Collection ID` = OC_UID,
+`Data source` = source, 
+`Administrative level` = admin_level,
+`Total number of observations` = total_obs,
+`Total number of cases` = total_sCh)
+
+rows_per_slide <- 6
+parts <- split(table3, ceiling(seq_len(nrow(table3)) / rows_per_slide))
+
+for (i in seq_along(parts)) {
+  cat(
+    "# Table 3. Summary of data contribution: ", country_full_name,
+    "\n\n", sep = "")
+  print(knitr::kable(parts[[i]]))
+  cat("\n\n")
+}
+```
+
+::: notes
+Table 3. Data contribution for `r country_full_name`, 2021-2024. The table summarizes the data contributions by observation collection ID, year, and spatial scale for `r country_full_name`.
 :::
