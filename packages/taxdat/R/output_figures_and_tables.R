@@ -42,6 +42,10 @@ colors_periods <- function(){c("purple", "orange")}
 colors_risk_categories <- function() {
   c( paletteer::paletteer_d("fishualize::Epinephelus_striatus", direction = 1),"gray")
 }
+# delete this function below before committing this!!!!!!
+colors_risk_categories_tmp <- function() {
+  c( paletteer::paletteer_d("fishualize::Epinephelus_striatus", direction = 1)[c(2,4)],"gray")
+}
 
 #' @export
 colors_afro_regions <- function(){
@@ -55,11 +59,11 @@ colors_afro_regions <- function(){
 
 #' @export
 colors_global_regions <- function(){
-  # colors <- RColorBrewer::brewer.pal("Set2", n = 4)
-  colors <- c("#FFA378", "#A8B545", "#8C796D", "#024554","#C93E3E","#E1AF00","#6A5ACA","#009999","#7B7B7B")
-  names(colors) <- c("Western Africa", "Central Africa",
-                     "Eastern Africa", "Southern Africa",
-                     "Americas","South-East Asia","Eastern Mediterranean","Western Pacific","Europe")
+  #colors <- RColorBrewer::brewer.pal("Set2", n = 6)
+  colors <- paletteer::paletteer_d("beyonce::X6", direction = 1)
+  # colors <- c("#FFA378", "#A8B545", "#8C796D", "#024554","#C93E3E","#E1AF00","#6A5ACA","#009999","#7B7B7B")
+  names(colors) <- c(#"Western Africa", "Central Africa","Eastern Africa", "Southern Africa",
+                     "Africa","Americas","South-East Asia","Eastern Mediterranean","Western Pacific","Europe")
   colors
 }
 
@@ -281,6 +285,8 @@ output_plot_map <- function(sf_obj,
         scale_fill_manual(values = coloramp_num_years_exceeding_threshold())
       } else if(fill_color_scale_type == "risk category") {
         scale_fill_manual(values = colors_risk_categories())
+      } else if(fill_color_scale_type == "risk category tmp") { # to be DELETED!!!
+        scale_fill_manual(values = colors_risk_categories_tmp())
       } else if(fill_color_scale_type == "lisa cluster") {
         scale_fill_manual(values = colors_lisa_clusters())
       } else if(fill_color_scale_type == "endemicity_high") {
