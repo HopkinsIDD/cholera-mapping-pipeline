@@ -2287,7 +2287,59 @@ drop_obs_by_OC <- function(sf_cases_resized,
     dplyr::select(-tmp_obs_id)
 }
 
-
+#' drop_full_nat_obs_xOC
+#'
+#' @param sf_cases_resized 
+#' @param discrepancy_ratio_thresh
+#' @param res_time 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+#' 
+drop_full_nat_obs_xOC <- function(sf_cases_resized,discrepancy_ratio_thresh,
+                           res_time) {
+  
+  # Add obs id for filtering
+  sf_cases_resized <- sf_cases_resized %>% 
+    dplyr::mutate(tmp_obs_id = dplyr::row_number())
+  
+  # Get single-year data at adm0
+  ts_subset <- sf_cases_resized %>% 
+    get_admin_level_data(res_time = res_time,
+                         admin_levels = 0,
+                         censorings = NULL)
+  
+  # Extract full national data and keep those within ratio of the max (per group)
+  selected_full_obs <- ts_subset %>% 
+    dplyr::filter(censoring == "full") %>% 
+    dplyr::group_by(locationPeriod_id, ref_TL, ref_TR) %>% 
+    mutate(max_full_annual = max(attributes.fields.suspected_cases,na.rm = T)) %>% 
+    dplyr::ungroup() %>%
+    dplyr::filter(
+      # keep if cases are not too far below the max
+      attributes.fields.suspected_cases >= (max_full_annual / discrepancy_ratio_thresh)
+    )
+  
+  # Drop from data everything that is not in subset
+  drop_ids <- sf_cases_resized %>% 
+    dplyr::filter(
+      admin_level == 0,
+      censoring == "full",
+      !(tmp_obs_id %in% selected_full_obs$tmp_obs_id)
+    )
+  
+  if (nrow(drop_ids) > 0) {
+    cat("Dropping", nrow(drop_ids), "full adm0 observations based on discrepancy ratio with the max full adm0\n")
+    
+    sf_cases_resized <- sf_cases_resized %>% 
+      dplyr::filter(!(tmp_obs_id %in% drop_ids$tmp_obs_id))
+  }
+  
+  sf_cases_resized %>% 
+    dplyr::select(-tmp_obs_id)
+}
 
 #' compute_adjustment_UN_population
 #'
