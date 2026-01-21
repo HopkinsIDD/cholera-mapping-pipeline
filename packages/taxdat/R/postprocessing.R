@@ -1,4 +1,4 @@
-# Scripts to postprocess results for continent-level stiching
+# Scripts to postprocess results for continent-level and global-level stiching
 
 
 # File management ---------------------------------------------------------
@@ -1788,4 +1788,130 @@ simulate_observations <- function(mu,
     # Negative binomial
     rnbinom(length(mu), mu = mu, size = od_param)
   }
+}
+
+# Postprocessing functions for global-level stiching ---------------------------------------------------------
+
+#' get global regions
+#' get_global_region
+#' @param data data frame with country name
+#' @param ctry_col colname of country name
+#' @return 
+#' @export
+#' @examples
+get_global_region <- function(data, ctry_col) {
+  
+  data_with_global_region <- data %>% 
+    dplyr::mutate(
+      global_region = dplyr::case_when(
+        
+        # !!rlang::sym(ctry_col) %in% c("BDI","COM","ETH","KEN","MDG","RWA","SSD","UGA","TZA","ERI") ~ "Eastern Africa",
+        # !!rlang::sym(ctry_col) %in% c("BWA","MOZ","MWI","NAM","SWZ","ZMB","ZWE","ZAF","LSO") ~ "Southern Africa",
+        # !!rlang::sym(ctry_col) %in% c("AGO","CMR","CAF","TCD","COG","COD","GNQ","GNA","GAB") ~ "Central Africa",
+        # !!rlang::sym(ctry_col) %in% c("BEN","BFA","CIV","GHA","GIN","GMB","GNB","LBR","MLI","MRT","NER","NGA","SEN","SLE","TGO") ~ "Western Africa",
+        !!rlang::sym(ctry_col) %in% c("BDI","COM","ETH","KEN","MDG","RWA","SSD","UGA","TZA","ERI",
+                                      "BWA","MOZ","MWI","NAM","SWZ","ZMB","ZWE","ZAF","LSO",
+                                      "AGO","CMR","CAF","TCD","COG","COD","GNQ","GNA","GAB",
+                                      "BEN","BFA","CIV","GHA","GIN","GMB","GNB","LBR","MLI","MRT","NER","NGA","SEN","SLE","TGO") ~ "Africa",
+        !!rlang::sym(ctry_col) %in% c("DOM","HTI") ~ "Americas",
+        !!rlang::sym(ctry_col) %in% c("BGD","MMR","NPL","THA","IND") ~ "South-East Asia",
+        !!rlang::sym(ctry_col) %in% c("AFG","IRQ","LBN","PAK","SAU","SYR","ARE","YEM","SDN","SOM","DJI") ~ "Eastern Mediterranean",
+        !!rlang::sym(ctry_col) %in% c("CHN","PHL") ~ "Western Pacific",
+        !!rlang::sym(ctry_col) %in% c("MYT") ~ "Europe",
+        TRUE ~ !!rlang::sym(ctry_col)
+      ) 
+    )
+  
+  return(data_with_global_region)
+}
+
+
+#' get_global_region_levels
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_global_region_levels <- function() {
+  c("Eastern Mediterranean",
+    #"Western Africa", "Central Africa", "Eastern Africa", "Southern Africa",
+    "Africa",
+    "South-East Asia","Western Pacific","Americas","Europe")
+}
+
+
+#' aggregate_and_summarise_case_draws_by_global_region
+#'
+#' @param df 
+#' @param col 
+#' @param grouping_variables 
+#' @param weights_col 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+aggregate_and_summarise_draws_by_global_region <- function(df, 
+                                                           col = "country_cases",
+                                                           grouping_variables = NULL,
+                                                           weights_col = NULL,
+                                                           do_summary = TRUE) {
+  
+  # Define columns from which to extract names
+  if (!is.null(grouping_variables)) {
+    name_cols <-   c("global_region", grouping_variables)
+  } else {
+    name_cols <- "global_region"
+  }
+  
+  df %>% 
+    get_global_region(ctry_col = "country") %>% 
+    dplyr::group_by_at(c(".draw", "global_region", grouping_variables)) %>% 
+    {
+      x <- .
+      if (is.null(weights_col)) {
+        dplyr::summarise(x, tot = sum(!!rlang::sym(col))) 
+      } else {
+        dplyr::summarise(x, tot = sum(!!rlang::sym(col) * !!rlang::sym(weights_col))/sum(!!rlang::sym(weights_col))) 
+      }
+    } %>% 
+    dplyr::ungroup() %>% 
+    tidyr::pivot_wider(names_from = name_cols,
+                       values_from = "tot") %>% 
+    janitor::clean_names() %>% 
+    dplyr::select(-draw) %>% 
+    magrittr::set_names(stringr::str_c(col, colnames(.), sep = "_")) %>% 
+    posterior::as_draws() %>% 
+    {
+      x <- .
+      if(do_summary) {
+        posterior::summarise_draws(x, custom_summaries())
+      } else {
+        posterior::as_draws_df(x) %>% 
+          dplyr::as_tibble()
+      }
+    }
+}
+
+#' postprocess_WHO_est
+#' get the modeled WHO annual cases 
+#' who_annual_report_OCs(World).csv is a file including country and its corresponding OC UID of the WHO annual reports
+#' 
+#' @param config_list config list
+#'
+#' @return
+#' @export
+#'
+postprocess_WHO_est <- function(config_list,
+                                redo_aux = FALSE,who_path = 'Analysis/output/who_annual_report_OCs(World).csv') {
+  # Get WHO annual report OCs
+  who_OCs <- read.csv(who_path)
+  
+  # Get preprocess data
+  load(config_list$file_names$observations_filename) 
+  
+  # Get who annual estimates
+  who_ests <- sf_cases %>% dplyr::filter(OC_UID %in% who_OCs$Related.WHO.Annual.Report.OC)
+  
+  who_ests
 }

@@ -1,0 +1,913 @@
+---
+params:
+  cholera_directory: "cholera-mapping-pipeline"
+  config: "configs/config.yml"
+output: 
+  powerpoint_presentation:
+    reference_doc: Presentation1.pptx
+author: "University of Geneva & Johns Hopkins University"
+date: "`r paste('Last update',format(lubridate::ymd(Sys.Date()),'%d %b %y'))`"
+---
+
+```{r introduction slide, echo = FALSE,message=FALSE, warning=FALSE}
+
+config <- yaml::read_yaml(file = file.path(paste0(params$cholera_directory,"/",params$config)))
+
+load(paste0(params$cholera_directory,"/packages/taxdat/data/afr_sf.rda"))
+
+global_sf <- readRDS(file.path(paste0(params$cholera_directory,"/Analysis/output/global_sf.rds")))
+
+country_full_name <- global_sf[global_sf$country==config$countries_name,]$shapeName
+
+country_iso <- config$countries_name
+```
+
+---
+title: "Global burden of cholera from 2021 to 2024"
+subtitle: "Country focus: `r country_full_name`"
+---
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(sf)
+library(tidyverse)
+library(sf)
+library(lubridate)
+library(cmdstanr)
+library(optparse)
+library(rmapshaper)
+library(taxdat)
+library(cowplot)
+pandoc::pandoc_activate(version="2.7.3")
+options(bitmapType='cairo')
+
+# User-supplied options
+opt_list <- list(
+  make_option(opt_str = c("-o", "--output_dir"), type = "character",
+              default = "output", 
+              help = "Output directory with postprocessed objects"),
+  make_option(opt_str = c("-y", "--prefix_p2"), type = "character",
+              default = "2021_2024", 
+              help = "Prefix of output files for second period"),
+  make_option(opt_str = c("-p", "--out_prefix"), type = "character",
+              default = "postprocessing", 
+              help = "Prefix for output figures and tables"),
+  make_option(opt_str = c("-d", "--out_dir"), type = "character",
+              default = "./Analysis/output/figures",
+              help = "Output directory for figures"),
+  make_option(opt_str = c("-r", "--redo"), type = "logical",
+              default = FALSE, 
+              help = "Redo re-processing"),
+  make_option(opt_str = c("-c", "--global_map_dir"), type = "character",
+              default = "figures", 
+              help = "Continent figure directory")
+)
+
+opt <- parse_args(OptionParser(option_list = opt_list))
+sf::sf_use_s2(FALSE)
+
+```
+
+# Unifying cholera data across countries in a common framework
+
+**Challenge**: Cholera surveillance data are difficult to interpret and vary across countries. No contemporary global or regional maps of incidence using a common framework exist.\
+
+We aimed to synthesize surveillance data and alerts from countries worldwide to produce **unified estimates and maps** of mean annual incidence of suspected cholera from 2021 through 2024.
+
+# How were the maps created?
+
+The maps are based on publicly available data ([cholera-taxonomy.middle-distance.com](https://cholera-taxonomy.middle-distance.com/users/sign_in)) or confidential data that you, your colleagues, regional stakeholders, or other GTFCC partners contributed for research purposes.\
+
+Statistical models were used to “average” spatially and temporally overlapping cholera case reports and “smooth” information across neighboring areas when surveillance data are lacking.
+
+# Limitations of the model
+
+Maps are **subject to reporting biases** in cholera surveillance data and **limited by model assumptions** on how cases may be smoothed to neighboring areas. These figures and estimates reflect only **reported suspected cholera** in the region.
+
+# Who will use these maps?
+
+We anticipate that the maps will be used by country and regional cholera control managers and stakeholders, GTFCC partners, donors, and researchers to understand the magnitude of burden and the spatial distribution of suspected cholera all over the world.\
+
+**These estimates are NOT meant to replace official country data and analyses. They CAN serve as a supplemental data source for countries and allow for regional and global analyses across a unified modeled dataset.**
+
+# How might these maps and maps be used by the country and regional authorities?
+
+## Together with official country data and local knowledge, these estimates can be used:
+
+-   To summarize the ‘average’ epidemiologic situation over a historical period
+-   To provide historical context in the identification of priority areas for multisectoral cholera interventions (PAMIs)
+-   To provide visual aids and statistics to advocate for cholera prevention and control resources
+-   To understand the relationship between mean annual incidence and potential risk factors for cholera
+
+# Presentation Outline
+
+-   **Part 1. Global maps** – These unified global estimates are the primary analysis.
+-   **Part 2. Country-level maps for `r country_full_name`** – These estimates are zoomed into a single country to enable a more detailed review. These estimates will not be used for further analysis without additional engagement with country stakeholders.
+-   **Part 3. Data Coverage in `r country_full_name`** – This summarizes the data used for modeling in the country.
+
+**For more information about the figures and tables in the following slides, please review the Notes attached to each slide.**
+
+# Part 1. Global maps
+
+These unified global estimates are the primary analysis.
+
+# Figure 1. Mean annual incidence of suspected cholera, 2021-2024 (working in progress)
+
+```{r cases maps, out.width="30%",echo=FALSE}
+
+knitr::include_graphics(path = file.path(opt$global_map_dir,'fig1_global_MAI.png'))
+
+```
+
+::: notes
+Figure 1. Mean annual incidence of suspected cholera globally from 2021-2024. These figures show the distributions of 20 km by 20 km gridded estimates of mean annual cholera incidence (cases per year) of suspected cases reported globally between 2021 and 2024. Areas in light gray had a mean of less than 1 case per year, while areas in dark grey were unmodeled. Areas in blue represent large water bodies.
+
+:::
+
+# Part 2. Country-level maps for `r country_full_name`
+
+These estimates are zoomed into a single country to enable a more detailed review. These estimates will not be used for further analysis without additional engagement with country stakeholders.
+
+```{r set up, echo=FALSE,message=FALSE,warning=FALSE,results='hide'}
+# Functions ---------------------------------------------------------------
+make_adm_case_table <- function(mai_adm_cases,
+                                admin_levels = "ADM0") {
+  
+  dat <- mai_adm_cases %>% 
+    filter(admin_level %in% admin_level) %>% 
+    mutate(across(c("mean", "q2.5", "q97.5"), function(x) {
+      om <- pmax(1, round(log10(x)) - 2)
+      formatC(round(x/10^om)*10^om, format = "f", digits = 0, big.mark = ",")
+    })) %>% 
+    mutate(txt = str_c(mean, " (", q5, "-", q95, ")")) %>% 
+    select(admin_level, country, shapeName, period, txt) %>% 
+    pivot_wider(values_from = c("txt"),
+                names_from = "period")
+  
+  if (length(admin_levels) > 1) {
+    dat2 <- dat %>% 
+      filter(admin_level %in% admin_levels) %>% 
+      arrange(admin_level, country, shapeName)
+    
+    dat2 %>% 
+      dplyr::select(-admin_level)
+  } else {
+    dat2 <- dat %>% 
+      filter(admin_level == admin_levels) %>% 
+      arrange(country, shapeName)
+    
+    dat2 %>% 
+      {
+        x <-.
+        if (admin_levels == "ADM0")  {
+          dplyr::select(x, -country, -admin_level) 
+        } else {
+          dplyr::select(x, -admin_level) 
+        }
+      }
+  }
+}
+
+save_table_to_docx <- function(tbl, output_path) {
+  tbl  %>% 
+    flextable::as_flextable( max_row = Inf) %>%
+    flextable::set_table_properties(width = 1, layout = "autofit") %>%
+    flextable::save_as_docx(path = output_path)
+}
+
+
+# Plotting helper function ---
+colors_global_regions <- function(){
+  # colors <- RColorBrewer::brewer.pal("Set2", n = 4)
+  colors <- c("#FFA378", "#A8B545", "#8C796D", "#024554","#C93E3E","#E1AF00","#6A5ACA","#009999","#7B7B7B")
+  names(colors) <- c("Western Africa", "Central Africa",
+                     "Eastern Africa", "Southern Africa",
+                     "Americas","South-East Asia","Eastern Mediterranean","Western Pacific","Europe")
+  colors
+}
+
+color_run_intended <- function(){c("#A1A1A1")}
+color_no_run_intended <- function(){c("#FFFFFF")}
+color_afr_continent_fill <- function(){c("#FFFFFF")}
+
+colors_lisa_clusters <- function(){c("lightgray", "#D40A07", "#4543C4", "#F26F6D", "#7C7AC2", "#424141", "#A059F7")}
+coloramp_cases <- function(){c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404")}
+colors_risk_categories <- function() {
+  cols = c(paletteer::paletteer_d("fishualize::Epinephelus_striatus", direction = 1),'gray')
+  names(cols) <- c( "≥100", "50-100", "20-50", "10-20", "1-10","<1")
+  cols
+}
+
+colors_admin_levels <- function(){RColorBrewer::brewer.pal(n=4,name = 'Blues')}
+
+expand_bbox_ratio <- function(bb, ratio = 0.06) {
+  w <- bb["xmax"] - bb["xmin"] 
+  h <- bb["ymax"] - bb["ymin"]
+  dx <- as.numeric(w) * ratio 
+  dy <- as.numeric(h) * ratio
+  bb["xmin"] <- bb["xmin"] - dx 
+  bb["xmax"] <- bb["xmax"] + dx
+  bb["ymin"] <- bb["ymin"] - dy 
+  bb["ymax"] <- bb["ymax"] + dy
+  bb
+}
+
+crop_polygon <- function(sf_obj, margin_km = NULL, margin_ratio = 0.06, crs_out = sf::st_crs(sf_obj)) {
+  
+  if (length(sf_obj) == 0) {
+    bb <- sf::st_bbox(sf_obj)
+    bb_exp <- expand_bbox_ratio(bb, margin_ratio)
+    return(sf::st_as_sfc(bb_exp, crs = sf::st_crs(sf_obj)))
+  }
+
+  g <- suppressWarnings(sf::st_make_valid(sf::st_union(sf_obj)))
+
+  if (!is.null(margin_km) && is.finite(margin_km) && margin_km > 0) {
+    g_merc <- sf::st_transform(g, 3857)
+    g_buf  <- sf::st_buffer(g_merc, margin_km * 1000)
+    g_crop <- sf::st_transform(g_buf, crs_out)
+  } else {
+    bb     <- sf::st_bbox(g)
+    bb_exp <- expand_bbox_ratio(bb, margin_ratio)
+    g_crop <- sf::st_as_sfc(bb_exp, crs = sf::st_crs(sf_obj))
+  }
+  g_crop
+}
+
+output_plot_map <- function(sf_obj,
+                            all_countries_sf,
+                            lakes_sf = NULL,
+                            rivers_sf = NULL,
+                            fill_var,
+                            fill_color_scale_type,
+                            border_width = 0.005,
+                            border_color = "white",
+                            lake_alpha = 1,
+                            country_border_width = .3,
+                            country_border_color = "black",
+                            cholera_dir = 'cholera-mapping-pipeline',
+                            crop_background = T,
+                            crop_margin_km = NULL,
+                            crop_margin_ratio = 0.06) {
+  
+  fv <- rlang::as_string(rlang::ensym(fill_var))
+  if (!fv %in% names(sf_obj)) {
+    sf_obj[[fv]] <- NA_real_
+  }
+  
+    if (nrow(sf_obj) == 0) {
+    sf_obj <- all_countries_sf %>%
+      dplyr::mutate(!!fv := NA_real_,
+                    intended_run = TRUE)
+    sf::st_crs(sf_obj) <- sf::st_crs(all_countries_sf)
+  }
+
+  if (crop_background) {
+    # whether any of the countries in that region has cases >0
+    has_cases <- sum(is.finite(sf_obj[[fv]]), na.rm = TRUE) > 0
+
+    if (has_cases) {
+      crop_poly <- crop_polygon(
+        sf_obj      = sf_obj,
+        margin_km   = crop_margin_km,
+        margin_ratio= crop_margin_ratio,
+        crs_out     = sf::st_crs(all_countries_sf)
+      )
+    } else {
+      # for com and myt case: 
+      base_bb <- sf::st_bbox(all_countries_sf)
+      bb_exp <- expand_bbox_ratio(base_bb, margin_ratio)
+      crop_poly <- sf::st_as_sfc(bb_exp, crs = sf::st_crs(all_countries_sf))
+    }
+    
+    bg_trim  <- suppressWarnings(sf::st_crop(all_countries_sf, sf::st_bbox(crop_poly)))
+    
+    all_countries_sf_clipped <- suppressWarnings(sf::st_intersection(sf::st_make_valid(bg_trim),sf::st_make_valid(crop_poly)))
+    bb <- sf::st_bbox(crop_poly)
+    
+  } else {
+    all_countries_sf_clipped <- all_countries_sf
+    bb <- sf::st_bbox(sf_obj)
+  }
+  
+  sf_obj %>% 
+    ggplot2::ggplot(aes(fill = !!sym(fill_var))) +
+    ggplot2::geom_sf(data = all_countries_sf_clipped %>%
+                       dplyr::filter(!intended_run),
+                     inherit.aes = FALSE,
+                     lwd = 0,
+                     alpha = 1,
+                     fill = color_no_run_intended()) +
+    ggplot2::geom_sf(data = all_countries_sf_clipped %>% 
+                       dplyr::filter(intended_run),
+                     inherit.aes = FALSE,
+                     lwd = 0,
+                     alpha = 1,
+                     fill = color_run_intended()) +
+    ggplot2::geom_sf(lwd = border_width, color = border_color) + 
+    ggplot2::geom_sf(data = all_countries_sf_clipped,
+                     fill = color_afr_continent_fill(),
+                     color = "black",
+                     lwd = country_border_width,
+                     alpha = 0) +
+    {
+      if (!is.null(rivers_sf)) {
+        ggplot2::geom_sf(inherit.aes = FALSE,
+                         data = rivers_sf,
+                         color = color_rivers(),
+                         lwd = .1,
+                         alpha = 1)
+      }
+    } +
+    {
+      if (!is.null(lakes_sf)) {
+        ggplot2::geom_sf(inherit.aes = FALSE,
+                         data = lakes_sf, 
+                         fill = color_lake_fill(),
+                         color = color_lake_border(),
+                         lwd = .06,
+                         alpha = lake_alpha)
+      }
+    } +
+    {  
+      if(fill_color_scale_type == "rates") {
+        scale_fill_viridis_c(breaks = seq(-1, 2), 
+                             labels = formatC(10^(seq(-1, 2)),
+                                              digits = 1,
+                                              format = "fg", 
+                                              big.mark = ",") %>% 
+                               {
+                                 x <- .
+                                 x[1] <- str_c("<= ", x[1])
+                                 x[length(x)] <- str_c(">= ", x[length(x)])
+                                 x
+                               },
+                             limits = c(-1, 2.5),
+                             option = "plasma",
+                             oob = scales::squish)
+      } else if(fill_color_scale_type == "ratio") {
+        scale_fill_gradient2(breaks = seq(-3, 2), 
+                             labels = formatC(10^(seq(-3, 2)),
+                                              digits = 1,
+                                              format = "fg", 
+                                              big.mark = ","),
+                             limits = c(-3.1, 2.1),
+                             midpoint = 0,
+                             oob = scales::squish, 
+                             na.value = c("#D4BE77"), 
+                             low = "blue",
+                             high = "red")
+      } else if(fill_color_scale_type == "cases") {
+        scale_fill_gradientn(colours = coloramp_cases(),
+                             oob = scales::censor, 
+                             limits = c(0, NA), 
+                             breaks = seq(0, 3), 
+                             labels = formatC(10^(seq(0, 3)),
+                                              digits = 1,
+                                              format = "fg", 
+                                              big.mark = ","),
+                             na.value = "lightgray")
+        
+      } else if(fill_color_scale_type == "adm0_cases") {
+        scale_fill_gradientn(colours = coloramp_cases(),
+                             oob = scales::censor, 
+                             limits = c(0, NA), 
+                             breaks = seq(0, 3), 
+                             labels = formatC(10^(seq(0, 3)),
+                                              digits = 1,
+                                              format = "fg", 
+                                              big.mark = ","),
+                             na.value = "lightgray")
+        
+      } else if(fill_color_scale_type == "mai_exceeding_thresh") {
+        scale_fill_manual(values = coloramp_num_years_exceeding_threshold())
+      } else if(fill_color_scale_type == "risk category") {
+        scale_fill_manual(values = colors_risk_categories())
+      } else if(fill_color_scale_type == "lisa cluster") {
+        scale_fill_manual(values = colors_lisa_clusters())
+      } else if(fill_color_scale_type == "endemicity_high") {
+        scale_fill_manual(values = colors_endemicity_high())
+      } else if(fill_color_scale_type == "endemicity_low") {
+        scale_fill_manual(values = colors_endemicity_low())
+      } else if(fill_color_scale_type == "endemicity") {
+        scale_fill_manual(values = colors_endemicity())
+      } else if(fill_color_scale_type == "admin levels") {
+        scale_fill_manual(values = colors_admin_levels())
+      }
+    } + 
+    ggplot2::geom_sf(data = all_countries_sf,
+                     inherit.aes = FALSE,
+                     lwd = country_border_width,
+                     color = country_border_color,
+                     alpha = 0) +
+    taxdat::map_theme() +
+    {if(crop_background){
+    ggplot2::coord_sf(xlim = c(bb["xmin"], bb["xmax"]),
+                      ylim = c(bb["ymin"], bb["ymax"]),
+                      expand = FALSE)       
+    }
+  } +
+    theme(panel.border = element_blank())
+  
+}
+
+unpack_pop_at_risk <- function(df) {
+  
+  risk_cat_map <- get_risk_cat_dict()
+  names(risk_cat_map) <- janitor::make_clean_names(risk_cat_map) %>% 
+    str_remove("x")
+  
+  
+  df %>% 
+    mutate(
+      risk_cat = str_extract(variable, str_c(rev(names(risk_cat_map)), collapse = "|")),
+      risk_cat = factor(risk_cat_map[risk_cat], levels = risk_cat_map),
+      admin_level = str_c("ADM", str_extract(variable, "(?<=adm)[0-9]+"))
+    )
+}
+
+country_adm1<-rgeoboundaries::gb_adm1(country = country_iso)%>% 
+dplyr::select(geometry,shapeName)
+
+summary_coverage <- function(
+  df = all_obs,
+  TL_col = "TL",
+  TR_col ="TR",
+  sCh_col = "attributes.fields.suspected_cases",
+  ref_TL_col ="ref_TL",
+  ref_TR_col = "ref_TR",
+  admin_level_col ="admin_level",
+  censoring_col = "censoring",
+  location_name_col = "location_name"
+) {
+  library(dplyr)
+  library(lubridate)
+  library(rlang)
+  library(sf)
+  
+  TL_sym  <- sym(TL_col)
+  TR_sym    <- sym(TR_col)
+  sCh_sym  <- sym(sCh_col)
+  ref_TL_sym  <- sym(ref_TL_col)
+  ref_TR_sym  <- sym(ref_TR_col)
+  adm_sym <- sym(admin_level_col)
+  cens_sym<- sym(censoring_col)
+  loc_sym <- sym(location_name_col)
+  
+  df <- df %>%
+    mutate(
+      !!TL_sym     := as.Date(!!TL_sym),
+      !!TR_sym     := as.Date(!!TR_sym)
+    )
+
+  
+split_row_to_years <- function(row) {
+    TL <- row[[TL_col]]
+    TR <- row[[TR_col]]
+    
+    start_year <- year(TL)
+    end_year   <- year(TR)
+    total_days <- as.numeric(TR - TL + 1)
+    
+    # Single-year obs
+    if (start_year == end_year) {
+      year_start <- as.Date(paste0(start_year, "-01-01"))
+      year_end   <- as.Date(paste0(start_year, "-12-31"))
+      
+      row[[ref_TL_col]] <- year_start
+      row[[ref_TR_col]] <- year_end
+      return(row)
+    }
+    
+    # Multi-year: one row per year, time-weighted sChs
+    rows_out <- list()
+    idx <- 1L
+    
+    for (yr in start_year:end_year) {
+      year_start <- as.Date(paste0(yr, "-01-01"))
+      year_end<- as.Date(paste0(yr, "-12-31"))
+      
+      TL_part <- max(TL, year_start)
+      TR_part <- min(TR, year_end)
+      days_part <- as.numeric(TR_part - TL_part + 1)
+      if (is.na(days_part) || days_part <= 0) next
+      
+      row_i <- row
+      row_i[[TL_col]] <- TL_part
+      row_i[[TR_col]]  <- TR_part
+      row_i[[ref_TL_col]]<- year_start
+      row_i[[ref_TR_col]]<- year_end
+      row_i[[sCh_col]]<- row[[sCh_col]] * days_part / total_days
+      
+      rows_out[[idx]] <- row_i
+      idx <- idx + 1L
+    }
+    
+    dplyr::bind_rows(rows_out)
+  }
+  
+  df_year <- dplyr::bind_rows(
+    lapply(seq_len(nrow(df)), function(i) split_row_to_years(df[i, ]))
+  ) %>%
+    mutate(
+      !!ref_TL_sym := as.Date(!!ref_TL_sym), !!ref_TR_sym := as.Date(!!ref_TR_sym)
+    )
+  
+nat <- df_year %>%
+    filter(!!adm_sym == 0, !!cens_sym == "full") %>%
+    group_by(!!ref_TL_sym, !!ref_TR_sym, country) %>%
+    summarise(
+      national_cases = max(!!sCh_sym, na.rm = TRUE),
+      nat_TL  = min(!!TL_sym),
+      nat_TR  = max(!!TR_sym),
+      .groups = "drop"
+    )
+  
+ subnat_loc <- df_year %>%
+  filter(!!adm_sym != 0) %>%
+  group_by(!!adm_sym, country, !!loc_sym, !!ref_TL_sym, !!ref_TR_sym) %>%
+  summarise(
+    cases_total  = {
+      full_mask <- .data[[censoring_col]] == "full"
+      if (any(full_mask, na.rm = TRUE)) {
+        max(.data[[sCh_col]][full_mask], na.rm = TRUE)
+      } else {
+        sum(.data[[sCh_col]], na.rm = TRUE)
+      }
+  },
+   TL_min  = min(.data[[TL_col]], na.rm = TRUE),
+    TR_max  = min(.data[[TR_col]], na.rm = TRUE),
+    .groups = "drop"
+  ) 
+
+  subnat_adm <- subnat_loc %>%
+    group_by(!!adm_sym, country, !!ref_TL_sym, !!ref_TR_sym) %>%
+    summarise(
+      cases_full_total = sum(cases_total, na.rm = TRUE),
+      TL_min_all = min(TL_min, na.rm = TRUE),
+      TR_max_all = max(TR_max, na.rm = TRUE),
+      .groups   = "drop"
+    )
+  
+  coverage <- subnat_adm %>%
+    bind_rows(
+      nat %>% mutate(admin_level = 0) %>% mutate(cases_full_total = national_cases)
+    )
+  
+  coverage
+}
+```
+
+# Figure 2. Mean annual incidence of suspected cholera: `r country_full_name`
+
+```{r, country-specific gridded case maps, echo=FALSE,message=FALSE,warning=FALSE,fig.width=10,fig.height=8,results='hide'}
+
+grid_cases <- readRDS(file.path(paste0(params$cholera_directory,"Analysis/output/2021_2024_configs_mai_grid_cases.rds")))
+
+fig2 <- output_plot_map(sf_obj = grid_cases %>% 
+                          sf::st_intersection(global_sf%>%subset(country == country_iso)) %>% 
+                          mutate(log10_cases = log10(mean)),
+                        lakes_sf = NULL,
+                        all_countries_sf = global_sf%>%subset(country == country_iso),
+                        fill_var = "log10_cases",
+                        fill_color_scale_type = "cases",
+                        cholera_dir = opt$cholera_dir,crop_background=T) + 
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 20),
+        legend.position = "bottom") +
+  guides(fill = guide_colorbar("Mean annual incidence \n[cases/year]")) +
+  geom_sf(data=country_adm1,alpha=0,fill="white") +
+  ggrepel::geom_label_repel(data = country_adm1, colour='black', fill=NA, alpha=0.75, ggplot2::aes(label = shapeName,geometry=geometry), stat = "sf_coordinates",  min.segment.length = 0,nudge_x = 0.5,nudge_y = 0.5,label.size = NA)
+
+ggsave(fig2,
+       file = paste0(country_full_name,"_fig2.png"),
+       width = 10,
+       height = 6, 
+       dpi = 300)
+```
+
+```{r figure2, echo=FALSE,out.width="30%"}
+
+knitr::include_graphics( paste0(country_full_name,"_fig2.png"))
+```
+
+::: notes
+Figure 2. Mean annual incidence of suspected cholera in `r country_full_name` from 2021-2024. This figure show the 20 km by 20 km gridded estimates of mean annual cholera incidence (cases per year) of suspected cases reported across 2021-2024. Areas in light gray had a mean of less than 1 case per year, while areas in dark grey were unmodeled.
+:::
+
+# Figure 3. Incidence risk category by district: `r country_full_name`
+
+```{r fig5, echo = FALSE,message=FALSE,warning=FALSE,fig.width=10,fig.height=8,results='hide'}
+
+#load endemicity 50% cutoff
+risk_pop_50_adm2 <- readRDS(file.path(paste0(params$cholera_directory,"Analysis/output/2021_2024_configs_risk_categories_50.rds"))) %>% 
+filter(admin_level == "ADM2")%>% 
+st_drop_geometry()
+
+# Mean annual incidence rates at ADM2 level
+mai_stats <- readRDS(file.path(paste0(params$cholera_directory,"Analysis/output/2021_2024_configs_mai.rds")))
+
+mai_adm_all <- mai_stats %>% 
+    mutate(log10_rate_per_1e5 = log10(mean * 1e5))
+# Get unique spatial locations
+  u_space_sf <- mai_adm_all %>% 
+    group_by(location_period_id) %>%
+    slice(1) %>% 
+    ungroup() %>% 
+    select(shapeName, admin_level, country, shp_id, location_period_id)
+
+
+fig3 <- risk_pop_50_adm2 %>% 
+  subset(country == country_iso) %>% 
+  inner_join(u_space_sf, .)  %>% 
+  mutate(risk_cat = factor(risk_cat,levels = c( "≥100", "50-100", "20-50", "10-20", "1-10","<1"))) %>% 
+  output_plot_map(sf_obj = ., 
+                  lakes_sf = NULL,
+                  all_countries_sf = st_intersection(global_sf%>%subset(country == country_iso),.),
+                  fill_var = "risk_cat",
+                  fill_color_scale_type = "risk category",crop_background = F) +
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 15),
+        legend.position = "bottom") +
+  guides(fill = guide_legend("Risk category \n(incidence cases per 100,000 population)")) +
+  geom_sf(data=country_adm1,alpha=0,fill="white",colour='black')+
+  ggrepel::geom_label_repel(data = country_adm1, colour='black', fill=NA, alpha=0.75, ggplot2::aes(label = shapeName,geometry=geometry), stat = "sf_coordinates",  min.segment.length = 0,nudge_x = 0.5,nudge_y = 0.5,label.size = NA)
+
+
+ggsave(fig3,
+       file = paste0(country_full_name,"_fig3.png"),
+       width = 10,
+       height = 6, 
+       dpi = 300)
+
+```
+
+```{r figure3, echo=FALSE,out.width="30%"}
+knitr::include_graphics( paste0(country_full_name,"_fig3.png"))
+```
+
+::: notes
+Figure 3. Incidence risk category by district in `r country_full_name` from 2021-2024. This figure shows the assignment of second-level administrative unit (e.g., districts) to incidence rate risk categories in 2021-2024. There are six incidence rate risk categories from low to high risk: \<1 person per 100,000 population, 1-10 people per 100,000 population, 10-20 people per 100,000 population, 20-50 per 100,000 population, 50-100 per 100,000 population, and \>100 per 100,000 population. Darker red colors indicate higher risk categories. Grey represents districts with a risk category of \<1 people per 100,000 population.
+:::
+
+# Figure 4. Population at risk: `r country_full_name`
+
+```{r fig4, echo=FALSE,message=FALSE,warning=FALSE, results='hide'}
+risk_pop_all <- readRDS(paste0(params$cholera_directory,"Analysis/output/2021_2024_configs_pop_at_risk.rds")) %>% 
+  filter(admin_level == "ADM2") %>% 
+  select(country,risk_cat, mean, q2.5, q97.5) %>%
+  subset(country==country_iso) 
+
+fig4 <- risk_pop_all %>% 
+  ggplot(aes(y = risk_cat, x = mean)) +
+  geom_bar( stat = "identity", width = .5,position = "dodge")+
+  guides(fill = guide_legend(reverse = TRUE))+ 
+  geom_errorbar(aes(xmin = q2.5, xmax = q97.5), width = 0.2,position=position_dodge(0.5)) + 
+  theme_bw() +
+  scale_x_continuous(labels = function(x) {formatC(x/1e6)}) +
+  labs(y = "Incidence risk category \n(incidence cases per 100,000 population)", x = "ADM2 population at risk [millions]",fill='Time period')
+
+
+ggsave(fig4,
+       file = paste0(country_full_name,"_fig4.png"),
+       width = 8,
+       height = 6, 
+       dpi = 300)
+
+```
+
+```{r, figure4, echo=FALSE,out.width="30%"}
+
+knitr::include_graphics( paste0(country_full_name,"_fig4.png"))
+```
+
+::: notes
+Figure 4. Population at risk in `r country_full_name`, 2021-2024. The bar chart shows the number of people living in second-level administrative units (e.g., districts) with different incidence rate risk categories for the 2021-2024 period. There are six incidence rate risk categories from low to high risk: \<1 person per 100,000 population, 1-10 people per 100,000 population, 10-20 people per 100,000 population, 20-50 per 100,000 population, 50-100 per 100,000 population, and \>100 per 100,000 population. Error bars display the 95% credible interval.
+:::
+
+# Table 1. Population at risk: `r country_full_name`
+
+```{r, tbl1, echo=FALSE,message=FALSE,warning=FALSE}
+
+risk_pop_all %>% 
+  mutate(country = country_full_name,mean_ci = paste0(round(mean/1000000,2)," (",round(q2.5/1000000,2),"-",round(q97.5/1000000,2),")")) %>% 
+  select( risk_cat,mean_ci) %>% 
+  rename(`2021-2024` = mean_ci) %>% 
+  arrange(factor(risk_cat,levels=c("≥100","50-100","20-50","10-20","1-10","<1"))) %>% 
+  rename(
+    "Risk category (per 100,000 population)" = risk_cat,
+    "Mean Number [millions] (95% credible interval) 2021-2024" = `2021-2024`
+  ) %>% 
+  knitr::kable( format = "simple")
+
+```
+
+::: notes
+Table 1. Population at risk in `r country_full_name`, 2021-2024. The table summarizes the number of people living in second-level administrative units (e.g., districts) with different incidence rate risk categories for the 2021-2024 period. This data matches what is shown in Figure 5.
+:::
+
+# Part 3. Data coverage in `r country_full_name`
+This section summarizes the data used for modeling in the country.
+
+# Figure 5. Spatial distribution of data coverage in `r country_full_name`
+
+```{r, data coverage map, echo=FALSE, message=FALSE, warning=FALSE,fig.width=10,fig.height=5,results='hide'}
+oc_metadata <- read.csv(paste0(params$cholera_directory,"Analysis/R/OC_metadata.csv")) %>% 
+select(observation_collection_id, source) %>% 
+rename(OC_UID = observation_collection_id)
+all_obs <- readRDS(paste0(params$cholera_directory,"Analysis/output/2021_2024_configs_obs.rds")) 
+
+p_figCov_2124<- readRDS(paste0(params$cholera_directory,"Analysis/output/2021_2024_configs_shapefiles.rds")) %>% 
+  filter(country ==country_iso) %>% 
+  mutate(admin_level = factor(admin_level, levels = 0:3)) %>% 
+  output_plot_map(sf_obj = ., 
+                  lakes_sf = NULL,
+                  all_countries_sf = st_intersection(global_sf%>%subset(country == country_iso),.),
+                  fill_var = "admin_level",
+                  fill_color_scale_type = "admin levels",
+                  border_width = .3,
+                  border_color = "gray",
+                  lake_alpha = 1,
+                  country_border_color = "black",
+                  country_border_width = 1,
+                  cholera_dir = opt$cholera_dir,crop_background =F)
+
+ggsave(p_figCov_2124,
+       file = paste0(country_full_name,"_fig5.png"),
+       width = 8,
+       height = 6, 
+       dpi = 300)
+
+```
+
+```{r, figure5, echo=FALSE,out.width="30%"}
+knitr::include_graphics( paste0(country_full_name,"_fig5.png"))
+```
+
+::: notes
+Figure 5. Spatial distribution of data coverage for `r country_full_name` in 2021-2024. The maps show the smallest administrative level (color) where at least one observation was reported in 2021-2024. The zero-level administrative unit is the country-level.
+:::
+
+# Figure 6. Temporal coverage by subantional data in `r country_full_name`
+
+```{r, data coverage barplot, echo=FALSE, message=FALSE, warning=FALSE,fig.width=10,fig.height=5,results='hide'}
+
+cases_by_admin <- summary_coverage (
+  df = all_obs %>% filter(country == country_iso),
+  TL_col = "TL",
+  TR_col ="TR",
+  sCh_col = "attributes.fields.suspected_cases",
+  ref_TL_col ="ref_TL",
+  ref_TR_col = "ref_TR",
+  admin_level_col ="admin_level",
+  censoring_col = "censoring",
+  location_name_col = "location_name") %>% 
+mutate(year = lubridate::year(ref_TL)) %>% 
+mutate(admin_level = factor(admin_level, levels = 0:3))
+
+subnat_coverage_year <- cases_by_admin %>%
+  filter(admin_level != 0) %>% 
+  group_by(year) %>%
+  summarise(
+    Proportion_data_covered_by_subnat = ifelse(
+      all(is.na(TL_min_all)),
+      0,round((max(TR_max_all, na.rm = TRUE) -min(TL_min_all, na.rm = TRUE)) / 365 * 100,0)),Proportion_temp_covered_by_subnat = round(cases_full_total/max(cases_by_admin$national_cases[cases_by_admin$year==year],na.rm=T)*100,0),.groups = "drop")
+
+subnat_coverage_year <- cases_by_admin %>%
+  distinct(year) %>%
+  left_join(subnat_coverage_year, by = "year") %>%
+  mutate(
+    Proportion_data_covered_by_subnat =replace_na(Proportion_data_covered_by_subnat, 0),
+    Proportion_temp_covered_by_subnat =replace_na(Proportion_temp_covered_by_subnat, 0)
+  )
+
+cases_by_admin <- cases_by_admin %>%
+  left_join(subnat_coverage_year, by = "year")
+
+plot_data<- cases_by_admin %>% filter(admin_level!=0) %>%  distinct(year,Proportion_temp_covered_by_subnat ,admin_level) %>%   
+complete(
+    year = 2021:2024,
+    admin_level = as.factor(1:3),
+    fill = list(Proportion_temp_covered_by_subnat = 0)
+  )
+
+fig6<-ggplot(plot_data,aes(x = factor(year), y = Proportion_temp_covered_by_subnat, fill = factor(admin_level))) +
+  geom_col(
+    position = position_dodge(width = 0.9),
+    width = 0.8,
+    color = "black"
+  ) +
+  scale_fill_manual(
+    values = colors_admin_levels(),
+    breaks = as.character(0:3)
+  ) +
+  scale_y_continuous(limits = c(0, NA)) +
+  labs(x = "Year", y = "Proportion of the year covered by subnational data (%)",fill='Admin level') +
+  theme_classic()
+
+ggsave(fig6,
+       file = paste0(country_full_name,"_fig6.png"),
+       width = 8,
+       height = 6, 
+       dpi = 300)
+```
+
+```{r, figure6, echo=FALSE,out.width="30%"}
+knitr::include_graphics( paste0(country_full_name,"_fig6.png"))
+```
+
+::: notes
+Figure 6.  Temporal coverage by subnational data for `r country_full_name` in 2021-2024. The barplot shows proportion of the year covered by subnational data in 2021-2024. The zero-level administrative unit is the country-level.
+:::
+
+# Figure 7. Case coverage by admin level in `r country_full_name`
+
+```{r, case coverage barplot, echo=FALSE, message=FALSE, warning=FALSE,fig.width=10,fig.height=5,results='hide'}
+
+fig7<- ggplot(cases_by_admin, aes(x = year, y = cases_full_total, fill = admin_level)) +
+      geom_bar(stat = "identity", position = "dodge",color='black') + 
+      scale_fill_manual(values = colors_admin_levels(),breaks =as.character(0:3))+
+      labs(x = "Year", y = "Number of cases",fill='Admin level') +
+      theme_classic()
+
+ggsave(fig7,
+       file = paste0(country_full_name,"_fig7.png"),
+       width = 8,
+       height = 6, 
+       dpi = 300)
+
+```
+
+```{r, figure7, echo=FALSE,out.width="30%"}
+knitr::include_graphics( paste0(country_full_name,"_fig7.png"))
+```
+
+::: notes
+Figure 7.  Data coverage by subnational data by admin level for `r country_full_name` in 2021-2024. The barplot shows total cases reported at each administrative level in 2021-2024. The zero-level administrative unit is the country-level.
+:::
+
+```{r, tbl2, echo=FALSE,message=FALSE,warning=FALSE, results='asis'}
+table2<-cases_by_admin %>% 
+group_by(year) %>% 
+slice(min(as.numeric(admin_level))) %>% 
+group_by(year,admin_level) %>% 
+summarize(
+       `Total number of cases at the national level` = max(cases_by_admin$national_cases[cases_by_admin$year==year],na.rm=T),
+      `Proportion of national cases covered by subnational data(%)` = Proportion_data_covered_by_subnat,
+      `Proportion of the year covered by subnational data(%)` = Proportion_temp_covered_by_subnat ) %>% 
+mutate(admin_level = case_when( admin_level ==0 ~ "Country level", TRUE~ paste0("Admin level ", admin_level))) %>%
+rename(Year = year, "Highest spatial resolution"=admin_level)
+
+rows_per_slide <- 6
+parts <- split(table2, ceiling(seq_len(nrow(table2)) / rows_per_slide))
+
+for (i in seq_along(parts)) {
+  cat(
+    "# Table 2. Summary of subnational data coverage: ", country_full_name,
+    "\n\n", sep = "")
+  print(knitr::kable(parts[[i]]))
+  cat("\n\n")
+}
+
+```
+
+::: notes
+Table 2. Subnational data coverage summary for `r country_full_name`, 2021-2024. The table summarizes temporal and case coverage by subnational data for `r country_full_name`.
+:::
+
+```{r, tbl3, echo=FALSE,message=FALSE,warning=FALSE, results='asis'}
+
+table3 <- all_obs %>% 
+mutate(year = lubridate::year(TL)) %>% 
+filter(country == country_iso) %>% 
+mutate(OC_UID = as.integer(OC_UID)) %>% 
+filter(!is.na(OC_UID)) %>% 
+select(year,OC_UID,attributes.fields.suspected_cases,admin_level,country) %>% 
+left_join(oc_metadata) %>% 
+group_by(year, OC_UID, source,admin_level) %>% 
+summarize(total_obs = n(), 
+          total_sCh = sum(attributes.fields.suspected_cases)) %>% 
+mutate(source = case_when(source == "WHO" ~ "World Health Organization", TRUE ~ source), 
+        admin_level = case_when( admin_level ==0 ~ "Country level", TRUE~ paste0("Admin level ", admin_level))) %>% 
+rename(Year = year,
+`Observation Collection ID` = OC_UID,
+`Data source` = source, 
+`Administrative level` = admin_level,
+`Total number of observations` = total_obs,
+`Total number of cases` = total_sCh)
+
+rows_per_slide <- 6
+parts <- split(table3, ceiling(seq_len(nrow(table3)) / rows_per_slide))
+
+for (i in seq_along(parts)) {
+  cat(
+    "# Table 3. Summary of data contribution: ", country_full_name,
+    "\n\n", sep = "")
+  print(knitr::kable(parts[[i]]))
+  cat("\n\n")
+}
+```
+
+::: notes
+Table 3. Data contribution for `r country_full_name`, 2021-2024. The table summarizes the data contributions by observation collection ID, year, and spatial scale for `r country_full_name`.
+:::
