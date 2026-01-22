@@ -2292,14 +2292,17 @@ drop_obs_by_OC <- function(sf_cases_resized,
 #' @param sf_cases_resized 
 #' @param discrepancy_ratio_thresh
 #' @param res_time 
+#' @param 
 #'
 #' @return
 #' @export
 #'
 #' @examples
 #' 
-drop_full_nat_obs_xOC <- function(sf_cases_resized,discrepancy_ratio_thresh,
-                           res_time) {
+drop_full_nat_obs_xOC <- function(sf_cases_resized,
+                                  discrepancy_ratio_thresh,
+                                  res_time,
+                                  cases_column) {
   
   # Add obs id for filtering
   sf_cases_resized <- sf_cases_resized %>% 
@@ -2315,11 +2318,11 @@ drop_full_nat_obs_xOC <- function(sf_cases_resized,discrepancy_ratio_thresh,
   selected_full_obs <- ts_subset %>% 
     dplyr::filter(censoring == "full") %>% 
     dplyr::group_by(locationPeriod_id, ref_TL, ref_TR) %>% 
-    mutate(max_full_annual = max(attributes.fields.suspected_cases,na.rm = T)) %>% 
+    mutate(max_full_annual = max(!!rlang::sym(cases_column),na.rm = T)) %>% 
     dplyr::ungroup() %>%
     dplyr::filter(
       # keep if cases are not too far below the max
-      attributes.fields.suspected_cases >= (max_full_annual / discrepancy_ratio_thresh)
+      !!rlang::sym(cases_column) >= (max_full_annual / discrepancy_ratio_thresh)
     )
   
   # Drop from data everything that is not in subset
