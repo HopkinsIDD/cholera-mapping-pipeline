@@ -498,11 +498,11 @@ prepare_stan_input <- function(
                                                  config = config)
 
   #  ---- K. Drop full national observations across OC ----
-  
+  if (config$drop_full_nat_obs_xOC) {
   sf_cases_resized <- taxdat::drop_full_nat_obs_xOC(sf_cases_resized = sf_cases_resized,
                                                     discrepancy_ratio_thresh = config$drop_full_nat_obs_xOC_thresh,
-                                                    res_time = res_time
-  )
+                                                    res_time = res_time,
+                                                    cases_column = cases_column)
   
   # Re-compute space-time indices based on dropped data
   ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
@@ -512,6 +512,8 @@ prepare_stan_input <- function(
     res_time = res_time,
     n_cpus = config$ncpus_parallel_prep,
     do_parallel = config$do_parallel_prep)
+  }
+
   
   # First define censored observations 
   stan_data <- taxdat::update_stan_data_indexing(stan_data = stan_data,
