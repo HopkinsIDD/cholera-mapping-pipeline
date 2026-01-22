@@ -987,3 +987,48 @@ test_that("check_drop_censored_adm0 works",{
   )
 
 })
+
+
+test_that("check_drop_full_nat_obs_xOC_thresh works", {
+  tmpfile <- tempfile(fileext = ".yml")
+  yaml::write_yaml(data.frame(full_nat_obs_xOC_thresh = 1.5), tmpfile)
+  config_error <- yaml::read_yaml(tmpfile)
+  expect_equal(check_drop_full_nat_obs_xOC_thresh(x = config_error$full_nat_obs_xOC_thresh), 1.5)
+  
+  yaml::write_yaml(data.frame(full_nat_obs_xOC_thresh = -0.5), tmpfile)
+  config_error <- yaml::read_yaml(tmpfile)
+  expect_error(check_drop_full_nat_obs_xOC_thresh(x = config_error$full_nat_obs_xOC_thresh),
+               "---- Full ADM0 ratio threshold must be positive. Value passed: -0.5")
+  
+  yaml::write_yaml(data.frame(full_nat_obs_xOC_thresh = 0), tmpfile)
+  config_equal <- yaml::read_yaml(tmpfile)
+  expect_warning(check_drop_full_nat_obs_xOC_thresh(x = config_equal$full_nat_obs_xOC_thresh),
+                 "Full ADM0 ratio threshold below 1, setting to 1. Value passed: 0")
+  
+  yaml::write_yaml(data.frame(full_nat_obs_xOC_thresh=NULL), tmpfile)
+  config_null <- yaml::read_yaml(tmpfile)
+  expect_equal(check_drop_full_nat_obs_xOC_thresh(x = config_null$full_nat_obs_xOC_thresh), 3)
+})
+
+test_that("check_drop_full_nat_obs_xOC works",{
+  tmpfile <- tempfile(fileext = ".yml")
+  
+  yaml::write_yaml(data.frame(drop_full_nat_obs_xOC = FALSE), tmpfile)
+  config_false <- yaml::read_yaml(tmpfile)
+  expect_false(
+    check_drop_full_nat_obs_xOC(config_false$drop_full_nat_obs_xOC)
+  )
+  
+  yaml::write_yaml(data.frame(drop_full_nat_obs_xOC = TRUE), tmpfile)
+  config_true <- yaml::read_yaml(tmpfile)
+  expect_true(
+    check_drop_full_nat_obs_xOC(config_true$drop_full_nat_obs_xOC)
+  )
+  
+  yaml::write_yaml(data.frame(other_arg = TRUE), tmpfile)
+  config_null <- yaml::read_yaml(tmpfile)
+  expect_false(
+    check_drop_full_nat_obs_xOC(config_null$drop_full_nat_obs_xOC)
+  )
+  
+})
