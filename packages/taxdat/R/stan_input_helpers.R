@@ -2334,7 +2334,7 @@ drop_full_nat_obs_xOC <- function(sf_cases_resized,
     )
   
   if (nrow(drop_ids) > 0) {
-    cat("Dropping", nrow(drop_ids), "full adm0 observations based on discrepancy ratio with the max full adm0\n")
+    cat("Dropping", nrow(drop_ids), "full adm0 observations based on discrepancy ratio with the max full adm0 observation\n")
     
     sf_cases_resized <- sf_cases_resized %>% 
       dplyr::filter(!(tmp_obs_id %in% drop_ids$tmp_obs_id))
