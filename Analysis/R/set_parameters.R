@@ -224,6 +224,9 @@ drop_multiyear_adm0 <- taxdat::check_drop_multiyear_adm0(config$drop_multiyear_a
 drop_censored_adm0 <- taxdat::check_drop_censored_adm0(config$drop_censored_adm0)
 drop_censored_adm0_thresh <- taxdat::check_drop_censored_adm0_thresh(config$drop_censored_adm0_thresh)
 
+# Drop full amd0-level observations across OCs
+drop_full_nat_obs_xOC <- taxdat::check_drop_full_nat_obs_xOC(config$drop_full_nat_obs_xOC)
+drop_full_nat_obs_xOC_thresh <- taxdat::check_drop_full_nat_obs_xOC_thresh(config$drop_full_nat_obs_xOC_thresh)
 
 # Drop location periods with population below a specific threshold
 drop_low_pop_lps <- taxdat::check_drop_low_pop_lps(config$drop_low_pop_lps)
