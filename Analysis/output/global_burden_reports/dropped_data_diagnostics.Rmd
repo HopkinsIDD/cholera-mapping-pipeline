@@ -985,22 +985,17 @@ if (nrow(coverage_df) == 0) {
 ```{r After aggregation adm0 obs below max tfrac in an OC, echo =F, message=F}
 cases <- sf_cases_resized
 
-if (config$drop_censored_adm0) {
-    
-    sf_cases_resized <- taxdat::drop_censored_adm0(sf_cases_resized = sf_cases_resized,
-                                                   thresh = config$drop_censored_adm0_thresh,
-                                                   res_time = res_time,
-                                                   cases_column = cases_column)
-    
-    # Re-compute indices
-    ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
-      df = sf_cases_resized, 
-      lp_dict = location_periods_dict,
-      model_time_slices = time_slices,
-      res_time = res_time,
-      n_cpus = config$ncpus_parallel_prep,
-      do_parallel = config$do_parallel_prep)
-  }
+  sf_cases_resized <- taxdat::drop_obs_by_OC(sf_cases_resized = sf_cases_resized,
+                                             res_time = res_time
+  )
+  # Re-compute space-time indices based on dropped data
+  ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+    df = sf_cases_resized, 
+    lp_dict = location_periods_dict,
+    model_time_slices = time_slices,
+    res_time = res_time,
+    n_cpus = config$ncpus_parallel_prep,
+    do_parallel = config$do_parallel_prep)
   
 dropped_summary_df<-summarize_dropped_rows_df_short(cases  %>% st_drop_geometry() %>% mutate(attributes.location_period_id = locationPeriod_id), sf_cases_resized %>% st_drop_geometry()%>% mutate(attributes.location_period_id = locationPeriod_id))
 
@@ -1066,7 +1061,93 @@ if (nrow(coverage_df) == 0) {
 }
 ```
 
-# Processing step 11: Dropping observations with low pop (after-aggregation)
+# Processing step 11: Dropping adm0 observations with low case counts compared to the max full adm0 observation across OCs (after-aggregation)
+```{r After aggregation adm0 obs with low case counts across OCs, echo =F, message=F}
+cases <- sf_cases_resized
+
+if (config$drop_full_nat_obs_xOC) {
+    
+    sf_cases_resized <- taxdat::drop_full_nat_obs_xOC(sf_cases_resized = sf_cases_resized,
+                                                    discrepancy_ratio_thresh = config$drop_full_nat_obs_xOC_thresh,
+                                                    res_time = res_time,
+                                                    cases_column = cases_column)
+    
+    # Re-compute indices
+    ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+      df = sf_cases_resized, 
+      lp_dict = location_periods_dict,
+      model_time_slices = time_slices,
+      res_time = res_time,
+      n_cpus = config$ncpus_parallel_prep,
+      do_parallel = config$do_parallel_prep)
+  }
+  
+dropped_summary_df<-summarize_dropped_rows_df_short(cases  %>% st_drop_geometry() %>% mutate(attributes.location_period_id = locationPeriod_id),
+                          sf_cases_resized %>% st_drop_geometry()%>% mutate(attributes.location_period_id = locationPeriod_id))
+
+if(nrow(dropped_summary_df) ==0){
+  htmltools::tags$h4("No observations were dropped in this step.")
+} else{
+dropped_summary_df %>%
+  select(UID, location_name, minTL, maxTR, total_cases, OC_UID, n_obs,location_period_ids) %>%
+  gt() %>%
+  tab_header(
+    title = "Summary of Dropped Observations (full adm0 obs after aggregation)"
+  ) %>%
+  fmt_number(
+    columns = c(total_cases),
+    decimals = 0
+  ) %>%
+  cols_label(
+    location_name = "Location",
+    OC_UID = "OC UID",
+    total_cases = "sCh",
+    minTL = "Earliest TL",
+    maxTR = "Latest TR",
+    n_obs = "N Obs",
+    location_period_ids = "Period ID(s)"
+  ) %>% 
+  tab_options(
+    container.width = pct(100)
+  )
+}
+```
+
+## Model Input Overlapping Dropped Observations
+```{r Step 11 checking data coverage in sf_cases_resized, echo = F, message=F}
+coverage_df <- identify_input_coverage(sf_cases_resized %>% mutate(attributes.fields.suspected_cases=suspected_cases), dropped_summary_df)
+
+if (nrow(coverage_df) == 0) {
+  htmltools::tags$h4("No overlapping data were found.")
+} else {
+  coverage_df %>%
+    select(
+      UID,
+      location_name,
+      TL,
+      TR,
+      attributes.fields.suspected_cases,
+      OC_UID,
+      locationPeriod_id
+    ) %>%
+    datatable(
+      filter = "top",
+      rownames = FALSE,
+      options = list(pageLength = 10),
+      colnames = c(
+        "Dropped Data UID",
+        "Location",
+        "TL",
+        "TR",
+        "sCh",
+        "OC UID",
+        "Period ID(s)"
+      )
+    )
+}
+```
+
+# Processing step 12: Dropping observations with low pop (after-aggregation)
 ```{r After aggregation obs with low pop, echo =F, message=F}
 cases <- sf_cases_resized
 
@@ -1131,7 +1212,7 @@ dropped_summary_df %>%
 ```
 
 ## Model Input Overlapping Dropped Observations
-```{r Step 11 checking data coverage in sf_cases_resized, echo = F, message=F}
+```{r Step 12 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized %>% mutate(attributes.fields.suspected_cases=suspected_cases), dropped_summary_df)
 
 if (nrow(coverage_df) == 0) {
