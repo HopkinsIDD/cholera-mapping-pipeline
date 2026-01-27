@@ -192,7 +192,7 @@ dropped_summary_df %>%
 }
 ```
 
-## Model Input Overlapping Dropped Observations
+## Remaining observations that overlap with the dropped observations
 ```{r Step 1 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
@@ -287,7 +287,7 @@ if(nrow(dropped_summary_df) ==0){
 }
 ```
 
-## Model Input Overlapping Dropped Observations
+## Remaining observations that overlap with the dropped observations
 ```{r Step 2 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
@@ -372,7 +372,7 @@ dropped_summary_df %>%
 }
 ```
 
-## Model Input Overlapping Dropped Observations
+## Remaining observations that overlap with the dropped observations
 ```{r Step 3 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
@@ -470,7 +470,7 @@ dropped_summary_df %>%
 }
 ```
 
-## Model Input Overlapping Dropped Observations
+## Remaining observations that overlap with the dropped observations
 ```{r Step 4 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
@@ -551,7 +551,7 @@ dropped_summary_df %>%
 }
 ```
 
-## Model Input Overlapping Dropped Observations
+## Remaining observations that overlap with the dropped observations
 ```{r Step 5 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
@@ -670,7 +670,7 @@ dropped_summary_df %>%
 }
 ```
 
-## Model Input Overlapping Dropped Observations
+## Remaining observations that overlap with the dropped observations
 ```{r Step 6 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
@@ -757,7 +757,7 @@ dropped_summary_df %>%
 }
 ```
 
-## Model Input Overlapping Dropped Observations
+## Remaining observations that overlap with the dropped observations
 ```{r Step 7 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
@@ -861,7 +861,7 @@ dropped_summary_df %>%
 }
 ```
 
-## Model Input Overlapping Dropped Observations
+## Remaining observations that overlap with the dropped observations
 ```{r Step 8 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
@@ -947,7 +947,7 @@ dropped_summary_df %>%
 }
 ```
 
-## Model Input Overlapping Dropped Observations
+## Remaining observations that overlap with the dropped observations
 ```{r Step 9 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized_orig, dropped_summary_df)
 
@@ -1027,7 +1027,7 @@ dropped_summary_df %>%
 }
 ```
 
-## Model Input Overlapping Dropped Observations
+## Remaining observations that overlap with the dropped observations
 ```{r Step 10 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized %>% mutate(attributes.fields.suspected_cases=suspected_cases), dropped_summary_df)
 
@@ -1113,7 +1113,7 @@ dropped_summary_df %>%
 }
 ```
 
-## Model Input Overlapping Dropped Observations
+## Remaining observations that overlap with the dropped observations
 ```{r Step 11 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized %>% mutate(attributes.fields.suspected_cases=suspected_cases), dropped_summary_df)
 
@@ -1211,7 +1211,7 @@ dropped_summary_df %>%
 }
 ```
 
-## Model Input Overlapping Dropped Observations
+## Remaining observations that overlap with the dropped observations
 ```{r Step 12 checking data coverage in sf_cases_resized, echo = F, message=F}
 coverage_df <- identify_input_coverage(sf_cases_resized %>% mutate(attributes.fields.suspected_cases=suspected_cases), dropped_summary_df)
 
@@ -1247,21 +1247,21 @@ if (nrow(coverage_df) == 0) {
 
 # Summary of All Adm0 Observations in Model Input (sf_cases_resized)
 ```{r adm0 obs in sf_cases_resized, echo = F, message=F}
-sf_cases_resized_orig %>%
+sf_cases_resized %>%
   sf::st_drop_geometry() %>% 
   filter(admin_level == 0) %>% 
-  select(location_name, TL, TR,  attributes.fields.suspected_cases, OC_UID) %>%
+  select(location_name, TL, TR,  suspected_cases, OC_UID) %>%
   gt() %>%
   tab_header(
     title = "Adm0 Observations"
   ) %>%
   fmt_number(
-    columns = c(attributes.fields.suspected_cases),
+    columns = c(suspected_cases),
     decimals = 0
   ) %>%
   cols_label(
     location_name = "Location",
-    attributes.fields.suspected_cases = "sCh"
+    suspected_cases = "sCh"
   ) %>% 
   tab_options(
     container.width = pct(100)
