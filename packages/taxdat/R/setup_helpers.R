@@ -671,6 +671,8 @@ get_all_config_options <- function() {
     drop_multiyear_adm0 = as.function(check_drop_multiyear_adm0),
     drop_censored_adm0 = as.function(check_drop_censored_adm0),
     drop_censored_adm0_thresh = as.function(check_drop_censored_adm0_thresh),
+    drop_full_nat_obs_xOC = as.function(check_drop_full_nat_obs_xOC),
+    drop_full_nat_obs_xOC_thresh = as.function(check_drop_full_nat_obs_xOC_thresh),
     time_effect = as.function(check_time_effect),
     time_effect_autocorr = as.function(check_time_effect_autocorr),
     spatial_effect = as.function(check_spatial_effect),
@@ -1130,6 +1132,58 @@ check_drop_censored_adm0_thresh <- function(x,
   
   if (par < 1) {
     warning("Censored ADM0 threshold below 1, setting to 1. Value passed: ", par)
+    par <- 1
+  }
+  
+  par
+}
+
+#' check_drop_full_nat_obs_xOC
+#'
+#' @param x
+#' @param default_value
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_drop_full_nat_obs_xOC <- function(x,
+                                     default_value = FALSE) {
+  
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- as.logical(x)
+  }
+  
+  par
+}
+
+
+#' check_drop_full_nat_obs_xOC_thresh
+#'
+#' @param x
+#' @param default_value
+#'
+#' @return
+#' @export
+#'
+#' @examples
+check_drop_full_nat_obs_xOC_thresh <- function(x,
+                                            default_value = 3) {
+  
+  if (unspecified_parameter_check(x)) {
+    par <- default_value
+  } else {
+    par <- try_conv_numeric(x)
+  }
+  
+  if (par < 0) {
+    stop("---- Full ADM0 ratio threshold must be positive. Value passed: ", par)
+  }
+  
+  if (par < 1) {
+    warning("Full ADM0 ratio threshold below 1, setting to 1. Value passed: ", par)
     par <- 1
   }
   

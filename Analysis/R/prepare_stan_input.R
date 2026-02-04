@@ -496,8 +496,31 @@ prepare_stan_input <- function(
   stan_data <- taxdat::update_stan_data_indexing(stan_data = stan_data,
                                                  ind_mapping_resized = ind_mapping_resized,
                                                  config = config)
+
+  #  ---- K. Drop full national observations across OC ----
+  if (config$drop_full_nat_obs_xOC) {
+  sf_cases_resized <- taxdat::drop_full_nat_obs_xOC(sf_cases_resized = sf_cases_resized,
+                                                    discrepancy_ratio_thresh = config$drop_full_nat_obs_xOC_thresh,
+                                                    res_time = res_time,
+                                                    cases_column = cases_column)
   
-  # ---- K. Spatial fraction ----
+  # Re-compute space-time indices based on dropped data
+  ind_mapping_resized <- taxdat::get_space_time_ind_speedup(
+    df = sf_cases_resized, 
+    lp_dict = location_periods_dict,
+    model_time_slices = time_slices,
+    res_time = res_time,
+    n_cpus = config$ncpus_parallel_prep,
+    do_parallel = config$do_parallel_prep)
+  }
+
+  
+  # First define censored observations 
+  stan_data <- taxdat::update_stan_data_indexing(stan_data = stan_data,
+                                                 ind_mapping_resized = ind_mapping_resized,
+                                                 config = config)
+  
+  # ---- L. Spatial fraction ----
   # Add 1km population fraction (this is deprecated in new stan model)
   stan_data$use_pop_weight <- config$use_pop_weight
   
@@ -542,7 +565,7 @@ prepare_stan_input <- function(
   }
   
   
-  #  ---- L. Drop low population lps ----
+  #  ---- M. Drop low population lps ----
   
   if (config$drop_low_pop_lps) {
     
@@ -581,7 +604,7 @@ prepare_stan_input <- function(
   }
   
   
-  #  ---- M. Observations ----
+  #  ---- N. Observations ----
   stan_data$y <- as.array(sf_cases_resized[[cases_column]])
   
   # Get censoring indexes 
@@ -597,7 +620,7 @@ prepare_stan_input <- function(
   stan_data$censoring_inds <- censoring_inds
   
   
-  # ---- N. Mappings ----
+  # ---- O. Mappings ----
   stan_data$K1 <- length(stan_data$map_obs_loctime_obs)
   stan_data$K2 <- length(stan_data$map_loc_grid_loc)
   
@@ -653,10 +676,10 @@ prepare_stan_input <- function(
   # Unique location-time combinations in observations to produce posterior observations
   stan_data <- taxdat::get_loctime_combs_mappings(stan_data)
   
-  # ---- O. Mean rate ----
+  # ---- P. Mean rate ----
   stan_data$meanrate <- taxdat::compute_mean_rate(stan_data = stan_data,
                                                   res_time = res_time)
-  #  ---- P. Imputation ----
+  #  ---- Q. Imputation ----
   
   sf_cases_resized$admin_level <- admin_levels
   sf_cases_resized$censoring <- censoring_inds
@@ -680,7 +703,7 @@ prepare_stan_input <- function(
   # Update censoring inds in sf_cases_resized
   sf_cases_resized$censoring <- stan_data$censoring_inds
   
-  # ---- Q. Population at risk ----
+  # ---- R. Population at risk ----
   # Data for people at risk
   risk_cat_low <- c(0, 1, 10, 20, 50, 100)*1e-5
   risk_cat_high <- c(risk_cat_low[-1], 1e6)
