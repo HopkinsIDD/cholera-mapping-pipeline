@@ -30,14 +30,14 @@ subtitle: "Country focus: `r country_full_name`"
 ```{r setup, include=FALSE, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(sf)
-library(tidyverse)
-library(sf)
 library(lubridate)
 library(cmdstanr)
 library(optparse)
 library(rmapshaper)
 library(taxdat)
 library(cowplot)
+library(ggplot2)
+library(purrr)
 pandoc::pandoc_activate(version="2.7.3")
 options(bitmapType='cairo')
 
@@ -72,7 +72,7 @@ sf::sf_use_s2(FALSE)
 
 **Challenge**: Cholera surveillance data are difficult to interpret and vary across countries. No contemporary global or regional maps of incidence using a common framework exist.\
 
-We aimed to synthesize surveillance data and alerts from countries worldwide to produce **unified estimates and maps** of mean annual incidence of suspected cholera from 2021 through 2024.
+We aimed to synthesize surveillance data and alerts from countries worldwide to produce **unified and adjusted estimates and maps** of mean annual incidence of suspected cholera from 2021 through 2024.
 
 # How were the maps created?
 
@@ -83,6 +83,10 @@ Statistical models were used to “average” spatially and temporally overlappi
 # Limitations of the model
 
 Maps are **subject to reporting biases** in cholera surveillance data and **limited by model assumptions** on how cases may be smoothed to neighboring areas. These figures and estimates reflect only **reported suspected cholera** in the region.
+
+# Next steps (working in progress)
+
+To further improve burden estimates, we will implement additional data processing and modeling steps to adjust for: **facility reporting completeness**, **population access to health facilities**, **facility participation in surveillance systems**, **laboratory confirmation rate** and **care-seeking behavior**.
 
 # Who will use these maps?
 
@@ -456,8 +460,8 @@ summary_coverage <- function(
   
   df <- df %>%
     mutate(
-      !!TL_sym     := as.Date(!!TL_sym),
-      !!TR_sym     := as.Date(!!TR_sym)
+      !!TL_sym:= as.Date(!!TL_sym),
+      !!TR_sym:= as.Date(!!TR_sym)
     )
 
   
@@ -509,10 +513,9 @@ split_row_to_years <- function(row) {
   df_year <- dplyr::bind_rows(
     lapply(seq_len(nrow(df)), function(i) split_row_to_years(df[i, ]))
   ) %>%
-    mutate(
-      !!ref_TL_sym := as.Date(!!ref_TL_sym), !!ref_TR_sym := as.Date(!!ref_TR_sym)
-    )
+    mutate(!!ref_TL_sym := as.Date(!!ref_TL_sym), !!ref_TR_sym := as.Date(!!ref_TR_sym))
   
+# national data: choose the max full observation
 nat <- df_year %>%
     filter(!!adm_sym == 0, !!cens_sym == "full") %>%
     group_by(!!ref_TL_sym, !!ref_TR_sym, country) %>%
@@ -530,16 +533,12 @@ nat <- df_year %>%
     cases_total  = {
       full_mask <- .data[[censoring_col]] == "full"
       if (any(full_mask, na.rm = TRUE)) {
-        max(.data[[sCh_col]][full_mask], na.rm = TRUE)
-      } else {
-        sum(.data[[sCh_col]], na.rm = TRUE)
-      }
-  },
-   TL_min  = min(.data[[TL_col]], na.rm = TRUE),
-    TR_max  = min(.data[[TR_col]], na.rm = TRUE),
-    .groups = "drop"
-  ) 
+max(.data[[sCh_col]][full_mask], na.rm = TRUE)}else{ 
+sum(.data[[sCh_col]], na.rm = TRUE)}},
+TL_min  = min(.data[[TL_col]], na.rm = TRUE), 
+TR_max  = min(.data[[TR_col]], na.rm = TRUE),.groups = "drop")
 
+# add all subnational data together by country (spatial aggregation)
   subnat_adm <- subnat_loc %>%
     group_by(!!adm_sym, country, !!ref_TL_sym, !!ref_TR_sym) %>%
     summarise(
@@ -685,27 +684,6 @@ knitr::include_graphics( paste0(country_full_name,"_fig4.png"))
 Figure 4. Population at risk in `r country_full_name`, 2021-2024. The bar chart shows the number of people living in second-level administrative units (e.g., districts) with different incidence rate risk categories for the 2021-2024 period. There are six incidence rate risk categories from low to high risk: \<1 person per 100,000 population, 1-10 people per 100,000 population, 10-20 people per 100,000 population, 20-50 per 100,000 population, 50-100 per 100,000 population, and \>100 per 100,000 population. Error bars display the 95% credible interval.
 :::
 
-# Table 1. Population at risk: `r country_full_name`
-
-```{r, tbl1, echo=FALSE,message=FALSE,warning=FALSE}
-
-risk_pop_all %>% 
-  mutate(country = country_full_name,mean_ci = paste0(round(mean/1000000,2)," (",round(q2.5/1000000,2),"-",round(q97.5/1000000,2),")")) %>% 
-  select( risk_cat,mean_ci) %>% 
-  rename(`2021-2024` = mean_ci) %>% 
-  arrange(factor(risk_cat,levels=c("≥100","50-100","20-50","10-20","1-10","<1"))) %>% 
-  rename(
-    "Risk category (per 100,000 population)" = risk_cat,
-    "Mean Number [millions] (95% credible interval) 2021-2024" = `2021-2024`
-  ) %>% 
-  knitr::kable( format = "simple")
-
-```
-
-::: notes
-Table 1. Population at risk in `r country_full_name`, 2021-2024. The table summarizes the number of people living in second-level administrative units (e.g., districts) with different incidence rate risk categories for the 2021-2024 period. This data matches what is shown in Figure 5.
-:::
-
 # Part 3. Data coverage in `r country_full_name`
 This section summarizes the data used for modeling in the country.
 
@@ -748,9 +726,119 @@ knitr::include_graphics( paste0(country_full_name,"_fig5.png"))
 Figure 5. Spatial distribution of data coverage for `r country_full_name` in 2021-2024. The maps show the smallest administrative level (color) where at least one observation was reported in 2021-2024. The zero-level administrative unit is the country-level.
 :::
 
-# Figure 6. Temporal coverage by subantional data in `r country_full_name`
+# Figure 6. Temporal coverage by location in `r country_full_name`
 
-```{r, data coverage barplot, echo=FALSE, message=FALSE, warning=FALSE,fig.width=10,fig.height=5,results='hide'}
+```{r, data coverage barplot, echo=FALSE, message=FALSE, warning=FALSE,fig.width=15,fig.height=5,results='hide'}
+
+gen_obs <- readRDS(paste0(params$cholera_directory,"Analysis/output/2021_2024_configs_gen_obs.rds")) %>% 
+arrange(admin_level) %>% 
+select(admin_level,mean, censoring, locationPeriod_id,TL,TR) %>% 
+left_join(all_obs %>% filter(country == country_iso) %>% 
+distinct(locationPeriod_id,location_name))
+
+df2 <- gen_obs %>%
+  mutate(
+    TL = as.Date(TL),
+    TR = as.Date(TR)
+  ) %>%
+  rowwise() %>%
+  mutate(
+    day = list(seq(floor_date(TL, "day"),
+                    floor_date(TR, "day"),
+                    by = "1 day"))
+  ) %>%
+  ungroup() %>%
+  unnest(day) %>%
+  select(location_name, day, mean) %>%
+  mutate(has_data = !is.na(mean))
+
+all_days <- seq(
+  as.Date("2021-01-01"),
+  as.Date("2024-12-31"),
+  by = "1 day"
+)
+
+df_plot <- expand_grid(
+  location_name = unique(df2$location_name),
+  day = all_days
+) %>%
+  left_join(df2 %>% select(location_name, day, has_data),
+            by = c("location_name", "day")) %>%
+  mutate(has_data = ifelse(is.na(has_data), FALSE, has_data)) %>% 
+ rename("Location" = location_name,"Date (year-month)"= day) %>%
+mutate(
+admin_level = dplyr::case_when(
+                  stringr::str_count(Location, pattern = "::") == 1 ~ "0",
+                  stringr::str_count(Location, pattern = "::") == 2 ~ "1",
+                  stringr::str_count(Location, pattern = "::") == 3 ~ "2",
+                  stringr::str_count(Location, pattern = "::") == 4 ~ "3",
+                  stringr::str_count(Location, pattern = "::") >= 5 ~ "admin4 or lower")
+) %>% 
+mutate(
+admin_level = factor(admin_level, levels = c(0,1,2,"admin4 or lower"))
+) %>% 
+arrange(admin_level)
+
+month_lines <- seq(
+  as.Date("2021-01-01"),
+  as.Date("2024-12-01"),
+  by = "1 month"
+)
+
+df_plot$Location <- factor(df_plot$Location)
+location_lines <- seq_along(levels(df_plot$Location)) + 0.5
+year_lines <- as.Date(c("2021-01-01", "2022-01-01", "2023-01-01", "2024-01-01"))
+
+df_plot <- df_plot %>%
+  arrange(desc(admin_level), Location) %>%
+  mutate(Location = factor(Location, levels = unique(Location)))
+
+fig6 <- ggplot(df_plot, aes(x=`Date (year-month)`, y=Location, fill = has_data)) +
+  geom_tile() +
+  geom_vline(xintercept = month_lines, color = "black", linewidth = 0.2) +
+  geom_hline(yintercept = location_lines, color = "black", linewidth = 0.2) +
+  geom_vline(xintercept = year_lines, color = "black", linewidth = 0.8)+
+  scale_fill_manual(values = c("TRUE" = "steelblue", "FALSE" = "grey95")) +
+  scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%Y-%m",
+    expand = c(0,0)
+  ) +
+  theme_bw() +
+  theme(
+    panel.grid = element_blank(),
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 10)
+  )+
+  labs(
+    x = "Date (year-month)",
+    y = "Location",
+    fill = "Data availability"
+  )
+
+ggsave(fig6,
+       file = paste0(country_full_name,"_fig6.png"),
+       width = 14,
+       height = 6, 
+       dpi = 300)
+```
+
+```{r, figure6, echo=FALSE,out.width="30%"}
+knitr::include_graphics( paste0(country_full_name,"_fig6.png"))
+```
+
+::: notes
+Figure 6.  Temporal coverage by location for `r country_full_name` in 2021-2024. The heatmap shows the temporal data coverage between 2021-2024.
+:::
+
+# Additional information for `r country_full_name`
+This section provides additional data coverage information for the country.
+
+# Figure 7. Case coverage by admin level in `r country_full_name`
+
+```{r, case coverage barplot, echo=FALSE, message=FALSE, warning=FALSE,fig.width=10,fig.height=5,results='hide'}
 
 cases_by_admin <- summary_coverage (
   df = all_obs %>% filter(country == country_iso),
@@ -767,62 +855,22 @@ mutate(admin_level = factor(admin_level, levels = 0:3))
 
 subnat_coverage_year <- cases_by_admin %>%
   filter(admin_level != 0) %>% 
-  group_by(year) %>%
+  group_by(year,admin_level) %>%
   summarise(
-    Proportion_data_covered_by_subnat = ifelse(
+    Proportion_temp_covered_by_subnat = ifelse(
       all(is.na(TL_min_all)),
-      0,round((max(TR_max_all, na.rm = TRUE) -min(TL_min_all, na.rm = TRUE)) / 365 * 100,0)),Proportion_temp_covered_by_subnat = round(cases_full_total/max(cases_by_admin$national_cases[cases_by_admin$year==year],na.rm=T)*100,0),.groups = "drop")
+      0,round((max(TR_max_all, na.rm = TRUE) -min(TL_min_all, na.rm = TRUE)) / 365 * 100,0)),Proportion_data_covered_by_subnat = round(cases_full_total/max(cases_by_admin$national_cases[cases_by_admin$year==year],na.rm=T)*100,0),.groups = "drop")
 
 subnat_coverage_year <- cases_by_admin %>%
   distinct(year) %>%
-  left_join(subnat_coverage_year, by = "year") %>%
+  left_join(subnat_coverage_year, by = c("year")) %>%
   mutate(
     Proportion_data_covered_by_subnat =replace_na(Proportion_data_covered_by_subnat, 0),
     Proportion_temp_covered_by_subnat =replace_na(Proportion_temp_covered_by_subnat, 0)
   )
 
 cases_by_admin <- cases_by_admin %>%
-  left_join(subnat_coverage_year, by = "year")
-
-plot_data<- cases_by_admin %>% filter(admin_level!=0) %>%  distinct(year,Proportion_temp_covered_by_subnat ,admin_level) %>%   
-complete(
-    year = 2021:2024,
-    admin_level = as.factor(1:3),
-    fill = list(Proportion_temp_covered_by_subnat = 0)
-  )
-
-fig6<-ggplot(plot_data,aes(x = factor(year), y = Proportion_temp_covered_by_subnat, fill = factor(admin_level))) +
-  geom_col(
-    position = position_dodge(width = 0.9),
-    width = 0.8,
-    color = "black"
-  ) +
-  scale_fill_manual(
-    values = colors_admin_levels(),
-    breaks = as.character(0:3)
-  ) +
-  scale_y_continuous(limits = c(0, NA)) +
-  labs(x = "Year", y = "Proportion of the year covered by subnational data (%)",fill='Admin level') +
-  theme_classic()
-
-ggsave(fig6,
-       file = paste0(country_full_name,"_fig6.png"),
-       width = 8,
-       height = 6, 
-       dpi = 300)
-```
-
-```{r, figure6, echo=FALSE,out.width="30%"}
-knitr::include_graphics( paste0(country_full_name,"_fig6.png"))
-```
-
-::: notes
-Figure 6.  Temporal coverage by subnational data for `r country_full_name` in 2021-2024. The barplot shows proportion of the year covered by subnational data in 2021-2024. The zero-level administrative unit is the country-level.
-:::
-
-# Figure 7. Case coverage by admin level in `r country_full_name`
-
-```{r, case coverage barplot, echo=FALSE, message=FALSE, warning=FALSE,fig.width=10,fig.height=5,results='hide'}
+  left_join(subnat_coverage_year, by = c("year","admin_level"))
 
 fig7<- ggplot(cases_by_admin, aes(x = year, y = cases_full_total, fill = admin_level)) +
       geom_bar(stat = "identity", position = "dodge",color='black') + 
@@ -846,10 +894,10 @@ knitr::include_graphics( paste0(country_full_name,"_fig7.png"))
 Figure 7.  Data coverage by subnational data by admin level for `r country_full_name` in 2021-2024. The barplot shows total cases reported at each administrative level in 2021-2024. The zero-level administrative unit is the country-level.
 :::
 
-```{r, tbl2, echo=FALSE,message=FALSE,warning=FALSE, results='asis'}
-table2<-cases_by_admin %>% 
+```{r, tbl1, echo=FALSE,message=FALSE,warning=FALSE, results='asis'}
+table1<-cases_by_admin %>% 
 group_by(year) %>% 
-slice(min(as.numeric(admin_level))) %>% 
+slice_max(order_by = admin_level, n = 1) %>%
 group_by(year,admin_level) %>% 
 summarize(
        `Total number of cases at the national level` = max(cases_by_admin$national_cases[cases_by_admin$year==year],na.rm=T),
@@ -859,25 +907,24 @@ mutate(admin_level = case_when( admin_level ==0 ~ "Country level", TRUE~ paste0(
 rename(Year = year, "Highest spatial resolution"=admin_level)
 
 rows_per_slide <- 6
-parts <- split(table2, ceiling(seq_len(nrow(table2)) / rows_per_slide))
+parts <- split(table1, ceiling(seq_len(nrow(table1)) / rows_per_slide))
 
 for (i in seq_along(parts)) {
-  cat(
-    "# Table 2. Summary of subnational data coverage: ", country_full_name,
+  cat("# Table 1. Summary of subnational data coverage: ", country_full_name,
     "\n\n", sep = "")
-  print(knitr::kable(parts[[i]]))
+  print(knitr::kable(parts[[i]], caption = "Notes: Gaps in coverage indicate years where additional subnational data covering the full year would help improve model performance and strengthen the analysis."))
   cat("\n\n")
 }
 
 ```
 
 ::: notes
-Table 2. Subnational data coverage summary for `r country_full_name`, 2021-2024. The table summarizes temporal and case coverage by subnational data for `r country_full_name`.
+Table 1. Subnational data coverage summary for `r country_full_name`, 2021-2024. The table summarizes temporal and case coverage by subnational data for `r country_full_name`. The table highlights years with limited subnational data, indicating where additional data contributions would improve model performance.
 :::
 
-```{r, tbl3, echo=FALSE,message=FALSE,warning=FALSE, results='asis'}
+```{r, tbl2, echo=FALSE,message=FALSE,warning=FALSE, results='asis'}
 
-table3 <- all_obs %>% 
+table2 <- all_obs %>% 
 mutate(year = lubridate::year(TL)) %>% 
 filter(country == country_iso) %>% 
 mutate(OC_UID = as.integer(OC_UID)) %>% 
@@ -890,18 +937,18 @@ summarize(total_obs = n(),
 mutate(source = case_when(source == "WHO" ~ "World Health Organization", TRUE ~ source), 
         admin_level = case_when( admin_level ==0 ~ "Country level", TRUE~ paste0("Admin level ", admin_level))) %>% 
 rename(Year = year,
-`Observation Collection ID` = OC_UID,
+`Observation Collection (OC) ID` = OC_UID,
 `Data source` = source, 
 `Administrative level` = admin_level,
 `Total number of observations` = total_obs,
-`Total number of cases` = total_sCh)
+`Sum of sCh within the OC` = total_sCh)
 
-rows_per_slide <- 6
-parts <- split(table3, ceiling(seq_len(nrow(table3)) / rows_per_slide))
+rows_per_slide <- 3
+parts <- split(table2, ceiling(seq_len(nrow(table2)) / rows_per_slide))
 
 for (i in seq_along(parts)) {
   cat(
-    "# Table 3. Summary of data contribution: ", country_full_name,
+    "# Table 2. Summary of data contribution: ", country_full_name,
     "\n\n", sep = "")
   print(knitr::kable(parts[[i]]))
   cat("\n\n")
@@ -909,5 +956,5 @@ for (i in seq_along(parts)) {
 ```
 
 ::: notes
-Table 3. Data contribution for `r country_full_name`, 2021-2024. The table summarizes the data contributions by observation collection ID, year, and spatial scale for `r country_full_name`.
+Table 2. Data contribution for `r country_full_name`, 2021-2024. The table summarizes the data contributions by observation collection ID, year, and spatial scale for `r country_full_name`.
 :::
