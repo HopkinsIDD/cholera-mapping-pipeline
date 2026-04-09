@@ -25,9 +25,9 @@ jobs:
           sudo rm -rf "/usr/local/share/boost"
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Checkout Layers
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: HopkinsIDD/cholera-covariates
           ref: for_testing
