@@ -213,7 +213,7 @@ flatten_json_result <- function(json_results) {
 #' @title read_taxonomy_data_api
 #' @export read_taxonomy_data_api
 #' @description This function accesses the cholera-taxonomy stored
-#'   at https://api.cholera-taxonomy.middle-distance.com pulls
+#'   at https://cholera-taxonomy.middle-distance.com pulls
 #'   data based on function parameters, links it together, and
 #'   transforms it into a simple features object (sf).
 #' @param username The username for a user of the database
