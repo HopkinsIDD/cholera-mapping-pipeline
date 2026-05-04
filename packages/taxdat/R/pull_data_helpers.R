@@ -213,7 +213,7 @@ flatten_json_result <- function(json_results) {
 #' @title read_taxonomy_data_api
 #' @export read_taxonomy_data_api
 #' @description This function accesses the cholera-taxonomy stored
-#'   at https://api.cholera-taxonomy.middle-distance.com pulls
+#'   at https://cholera-taxonomy.middle-distance.com pulls
 #'   data based on function parameters, links it together, and
 #'   transforms it into a simple features object (sf).
 #' @param username The username for a user of the database
@@ -225,7 +225,7 @@ flatten_json_result <- function(json_results) {
 #' @param website Which website to pull from (default is cholera-taxonomy.middle-distance.com)
 #' @return An sf object containing data pulled from the database
 read_taxonomy_data_api <- function(username, api_key, locations = NULL, time_left = NULL,
-                                   time_right = NULL, uids = NULL, website = "https://api.cholera-taxonomy.middle-distance.com/") {
+                                   time_right = NULL, uids = NULL, website = "https://cholera-taxonomy.middle-distance.com/") {
   
   ## First, we want to set up the https POST request.  We make a list
   ## containing the arguments for the request: If the API changes, we will
@@ -427,7 +427,7 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
   
   if (source == "api") {
     if (website == "") {
-      website <- "https://api.cholera-taxonomy.middle-distance.com/"
+      website <- "https://cholera-taxonomy.middle-distance.com/"
     }
     if (missing(username) | missing(password) | is.null(username) | is.null(password) | (website == "")) {
       stop("Trying to pull data from API, please provide username and api_key.")

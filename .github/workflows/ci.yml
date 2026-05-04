@@ -11,6 +11,9 @@ on:
       - master
       - dev
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   unit-tests:
     runs-on: ubuntu-24.04
@@ -25,9 +28,9 @@ jobs:
           sudo rm -rf "/usr/local/share/boost"
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Checkout Layers
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: HopkinsIDD/cholera-covariates
           ref: for_testing
