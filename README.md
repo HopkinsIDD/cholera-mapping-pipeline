@@ -20,7 +20,7 @@ The last three repos are private: SSH access to GitHub from Baobab must be confi
 ```bash
 mkdir Layers
 ```
-Download the covariate_dictionary.yml in the repo (https://github.com/HopkinsIDD/cholera-covariates.git) and move it to cholera-mapping-pipeline/Layers
+Download the covariate_dictionary.yml in the repo (https://github.com/HopkinsIDD/cholera-covariates.git) and move it to `cholera-mapping-pipeline/Layers`
 
 ## 2. Load the environment
 
