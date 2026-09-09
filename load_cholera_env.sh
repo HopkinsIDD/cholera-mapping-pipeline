@@ -21,3 +21,19 @@ module list
 echo "R_LIBS_USER = $R_LIBS_USER"
 Rscript -e 'cat("R version:", R.version.string, "\n"); library(taxdat); cat("taxdat: OK\n")'
 
+### --- 3. API/DB credentials (session-only, never written to disk) ---
+read -p "Cholera Taxonomy API username: " CHOLERA_API_USERNAME
+export CHOLERA_API_USERNAME
+
+read -s -p "Cholera Taxonomy API key: " CHOLERA_API_KEY
+echo ""
+export CHOLERA_API_KEY
+
+### --- 4. SQL/Postgres credentials (session-only, never written to disk) ---
+
+read -p "Cholera SQL database username: " CHOLERA_SQL_USERNAME
+export CHOLERA_SQL_USERNAME
+
+read -s -p "Cholera SQL database password: " CHOLERA_SQL_PASSWORD
+echo ""
+export CHOLERA_SQL_PASSWORD
