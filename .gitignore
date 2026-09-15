@@ -28,3 +28,4 @@ Analysis/R/notebooks/gavi_report_html/MAI_preprocess/
 *.DS_Store
 .vscode/
 local/*
+Analysis/R/database_api_key.R
