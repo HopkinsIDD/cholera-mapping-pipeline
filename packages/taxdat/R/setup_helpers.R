@@ -704,7 +704,7 @@ get_all_config_options <- function() {
     drop_low_pop_lps = as.function(check_drop_low_pop_lps),
     drop_low_pop_lps_thresh = as.function(check_drop_low_pop_lps_thresh),
     stan = c("ncores", "model", "genquant", "iter_warmup", "iter_sampling", "recompile"),
-    scaling = c("severity_u5", "severity_o5", "age_model_iter_warmup", "age_model_iter_sampling",
+    scaling = c("severity_u5", "severity_o5", "reporting_ratio", "age_model_iter_warmup", "age_model_iter_sampling",
                "age_model_chains", "age_model_parallel_chains", "age_model_adapt_delta", "age_model_seed"),
     file_names = list(
       output_directory = "output_directory",

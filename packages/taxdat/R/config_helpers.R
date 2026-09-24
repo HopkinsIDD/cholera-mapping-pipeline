@@ -10,6 +10,7 @@ get_scaling_parameters <- function(input_list) {
   defaults <- list(
     severity_u5 = NULL,
     severity_o5 = NULL,
+    reporting_ratio = NULL,
     age_model_iter_warmup = 1000,
     age_model_iter_sampling = 1000,
     age_model_chains = 4,
@@ -72,6 +73,7 @@ automate_mapping_config <- function(cholera_directory, p, OC_list = NULL, covari
     "scaling:\n",
     "  severity_u5: ", ifelse(unspecified_parameter_check(p$severity_u5), stop("Parameter severity_u5 should be specified"), p$severity_u5), "\n",
     "  severity_o5: ", ifelse(unspecified_parameter_check(p$severity_o5), stop("Parameter severity_o5 should be specified"), p$severity_o5), "\n",
+    "  reporting_ratio: ", ifelse(unspecified_parameter_check(p$reporting_ratio), stop("Parameter reporting_ratio should be specified"), p$reporting_ratio), "\n",
     "  age_model_iter_warmup: ", ifelse(unspecified_parameter_check(p$age_model_iter_warmup), "", p$age_model_iter_warmup), "\n",
     "  age_model_iter_sampling: ", ifelse(unspecified_parameter_check(p$age_model_iter_sampling), "", p$age_model_iter_sampling), "\n",
     "  age_model_chains: ", ifelse(unspecified_parameter_check(p$age_model_chains), "", p$age_model_chains), "\n",
