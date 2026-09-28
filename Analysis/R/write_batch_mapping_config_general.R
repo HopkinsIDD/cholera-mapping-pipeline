@@ -56,6 +56,7 @@ params_df <- data.frame(
     adjust_pop_UN = TRUE,
     severity_u5 = 0.30, # scenario value:proportion of under-5 cases that are moderate-to-severe 
     severity_o5 = 0.20, # scenario value: proportion of 5-and-over cases that are moderate-to-severe
+    reporting_ratio = 0.10, # scenario value: ratio of reported sCh to all medically-attended sCh (single global scalar)
     age_model_iter_warmup = 1000,
     age_model_iter_sampling = 1000,
     age_model_chains = 4,
