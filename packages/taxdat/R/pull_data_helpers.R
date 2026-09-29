@@ -1292,3 +1292,199 @@ read_taxonomy_sex_data_sql <- function(username, password, locations = NULL, tim
   # observations <- dplyr::filter(observations, !is.na(nchar(geojson)))
   return(observations)
 }
+
+
+#' @title Taxonomy age/sex-stratified SQL data pull
+#'
+#' @description Extracts age- and sex-stratified cholera observation data
+#' from the taxonomy PostgreSQL database. Age is required (a row must have
+#' at least one of age/age_L/age_R populated, checked across all known
+#' key-name variants); sex is extracted when available but never required,
+#' exactly as in every pull built this session.
+#'
+#' @details Interface deliberately mirrors taxdat::read_taxonomy_data_sql.
+#' Departures from it, each validated empirically against the DB this
+#' session (not assumed) on the scoped population this function targets
+#' (EXISTS(custom_fields), age present, unified/status filtered):
+#'
+#' @param username,password Taxonomy DB credentials.
+#' @param locations Numeric vector of location ids (ancestor_id filter).
+#'   Mandatory, exactly as in read_taxonomy_data_sql — NULL raises an
+#'   error rather than silently pulling the whole world.
+#' @param time_left,time_right Optional date bounds (Date objects).
+#' @param uids Optional vector of observation_collection_id to restrict to.
+#' @param discard_incomplete_observation_collections Default TRUE. Same
+#'   semantics as read_taxonomy_data_sql: excludes collections with
+#'   status in (initialized, validated, inprogress).
+#' @param unified_dataset_behaviour "drop" (default), "keep", or any other
+#'   value to disable the filter — same semantics as read_taxonomy_data_sql.
+#' @param require_custom_fields Default TRUE. Requires the collection to
+#'   have at least one entry in custom_fields. Empirically a
+#'   near-perfect proxy for "this collection's jsonb can carry an 'age'
+#'   key" (measured on this DB: 0% of observations without any
+#'   custom_fields entry have a populated 'age' key, vs 8.7% for those
+#'   with one) — largely redundant with the age-presence filter below,
+#'   kept here for consistency with every pull validated this session.
+#'   Set FALSE to disable.
+#' @param drop_unresolved_location Default FALSE. If TRUE, excludes the
+#'   observations that have neither location_id nor location_period_id
+#'   set (see Details) instead of returning them with location_name = NA
+#'   — reproduces taxdat's own silent-exclusion behaviour on request,
+#'   rather than by accident.
+#' @param include_geojson Default FALSE. If TRUE, joins shapes.shape
+#'   directly into the result via location_period_id (the only valid
+#'   join key — shapes has no location_id column at all). This repeats
+#'   the geometry on every observation sharing a location_period_id and
+#'   can produce very large results: measured on this DB, ~250 MB of
+#'   geometry text for ~1,200 distinct locations across ~370,000
+#'   observations. For most uses, prefer pulling shapes separately,
+#'   deduplicated by location_period_id, and joining downstream in R —
+#'   see extract_shape_april.R for that pattern. When TRUE, returns an
+#'   sf object (via sf::st_read); when FALSE, returns a plain data.frame.
+#' @param host Database host.
+#'
+#' @return A data.frame, or an sf object if include_geojson = TRUE.
+#' @export
+read_taxonomy_age_sex_sql <- function(username, password, locations = NULL,
+                                       time_left = NULL, time_right = NULL,
+                                       uids = NULL,
+                                       discard_incomplete_observation_collections = TRUE,
+                                       unified_dataset_behaviour = "drop",
+                                       require_custom_fields = TRUE,
+                                       drop_unresolved_location = FALSE,
+                                       include_geojson = FALSE,
+                                       host = "db.cholera-taxonomy.middle-distance.com") {
+
+  if (missing(username) | missing(password)) {
+    stop("Please provide username and password to connect to the taxonomy database.")
+  }
+  if (is.null(locations)) {
+    stop("Please use a containing location as the location. Locations can't be NULL.")
+  }
+  if (!all(is.numeric(locations))) {
+    stop("SQL access by location name is not yet implemented")
+  }
+
+  conn <- RPostgres::dbConnect(
+    RPostgres::Postgres(),
+    host = host,
+    dbname = "CholeraTaxonomy_production",
+    user = username, password = password,
+    port = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
+  )
+
+  geojson_select <- if (include_geojson) ", shapes.shape AS geojson" else ""
+  geojson_join   <- if (include_geojson) {
+    "LEFT JOIN shapes ON shapes.location_period_id = location_periods.id"
+  } else ""
+
+  # --- Native columns only for TL/TR/case counts/deaths/phantom/primary.
+  # No CASE/COALESCE against the jsonb here — tested column-by-column on
+  # this function's target population (see @details): native coverage
+  # was 100% for TL/TR, and every jsonb-only value found for
+  # suspected_cases/confirmed_cases/deaths was confirmed to be blank
+  # noise, not real data. Kept simple and fast rather than defensively
+  # parsing a jsonb blob that adds no real coverage here.
+  obs_query <- paste(
+    "SELECT",
+    "observations.id::text, observations.observation_collection_id::text,",
+    "observations.time_left,",
+    "observations.time_right,",
+    "observations.suspected_cases,",
+    "observations.confirmed_cases,",
+    "observations.deaths,",
+    "observations.phantom, observations.primary,",
+    # age/sex: no native column exists for either — jsonb is the only
+    # source, hence the multi-key COALESCE across every variant found
+    # in this DB's custom_fields registry.
+    "COALESCE(observations.data->>'age_L', observations.data->>'ageL',",
+    "         observations.data->>'Age_L', observations.data->>'AgeL') AS age_l,",
+    "COALESCE(observations.data->>'age_R', observations.data->>'ageR',",
+    "         observations.data->>'Age_R', observations.data->>'AgeR') AS age_r,",
+    "COALESCE(observations.data->>'age', observations.data->>'Age') AS age,",
+    # 'male'/'female' as separate keys deliberately excluded: semantics
+    # (per-row flag vs. aggregate count) were never confirmed this
+    # session — do not fold them in silently.
+    "COALESCE(observations.data->>'sex', observations.data->>'Sex',",
+    "         observations.data->>'gender', observations.data->>'Gender') AS sex,",
+    "COALESCE(l_via_lp.qualified_name, l_direct.qualified_name) AS location_name,",
+    "(l_via_lp.qualified_name IS NOT NULL OR l_direct.qualified_name IS NOT NULL) AS location_resolved,",
+    "(l_via_lp.qualified_name IS NULL AND l_direct.qualified_name IS NOT NULL) AS location_via_fallback,",
+    "observations.location_id::text AS location_id,",
+    "observations.location_period_id AS location_period_id",
+    geojson_select,
+    "FROM observations",
+    "LEFT JOIN observation_collections ON observations.observation_collection_id = observation_collections.id",
+    "LEFT JOIN location_periods ON observations.location_period_id = location_periods.id",
+    "LEFT JOIN locations l_via_lp ON l_via_lp.id = location_periods.location_id",
+    "LEFT JOIN locations l_direct ON l_direct.id = observations.location_id",
+    "LEFT JOIN location_hierarchies",
+    "  ON location_hierarchies.descendant_id = COALESCE(location_periods.location_id, observations.location_id)",
+    geojson_join,
+    " WHERE"
+  )
+
+  cat("-- Pulling age/sex-stratified data from taxonomy database with SQL \n")
+
+  unified_filter <- if (unified_dataset_behaviour == "drop") {
+    "((observation_collections.unified is NULL) OR (observation_collections.unified!='t'))"
+  } else if (unified_dataset_behaviour == "keep") {
+    "((observation_collections.unified is NOT NULL) AND (observation_collections.unified))"
+  } else NULL
+
+  oc_filter <- if (discard_incomplete_observation_collections) {
+    paste(
+      "(observation_collections.status != 'initialized')",
+      "AND (observation_collections.status != 'validated')",
+      "AND (observation_collections.status != 'inprogress')"
+    )
+  } else NULL
+
+  custom_fields_filter <- if (require_custom_fields) {
+    paste(
+      "EXISTS (SELECT 1 FROM custom_fields",
+      "WHERE custom_fields.observation_collection_id = observations.observation_collection_id)"
+    )
+  } else NULL
+
+  # age required (any variant), sex never required — matches every pull
+  # built this session
+  age_filter <- paste(
+    "(observations.data->>'age' IS NOT NULL OR observations.data->>'Age' IS NOT NULL",
+    "OR observations.data->>'age_L' IS NOT NULL OR observations.data->>'ageL' IS NOT NULL",
+    "OR observations.data->>'Age_L' IS NOT NULL OR observations.data->>'AgeL' IS NOT NULL",
+    "OR observations.data->>'age_R' IS NOT NULL OR observations.data->>'ageR' IS NOT NULL",
+    "OR observations.data->>'Age_R' IS NOT NULL OR observations.data->>'AgeR' IS NOT NULL)"
+  )
+
+  location_resolved_filter <- if (drop_unresolved_location) {
+    "(observations.location_id IS NOT NULL OR observations.location_period_id IS NOT NULL)"
+  } else NULL
+
+  locations_filter <- paste0("location_hierarchies.ancestor_id in ({locations*})")
+
+  time_left_filter  <- if (!is.null(time_left))  paste0("observations.time_left >= '",  format(time_left,  "%Y-%m-%d"), "'") else NULL
+  time_right_filter <- if (!is.null(time_right)) paste0("observations.time_right <= '", format(time_right, "%Y-%m-%d"), "'") else NULL
+  uids_filter       <- if (!is.null(uids))       paste0("observations.observation_collection_id IN ({uids*})") else NULL
+
+  filters <- c(age_filter, custom_fields_filter, location_resolved_filter,
+               time_left_filter, time_right_filter, locations_filter,
+               uids_filter, oc_filter, unified_filter)
+  filters <- paste(filters[!vapply(filters, is.null, logical(1))], collapse = " AND ")
+
+  obs_query <- glue::glue_sql(paste(obs_query, filters, ";"), .con = conn)
+
+  if (include_geojson) {
+    observations <- suppressWarnings(sf::st_as_sf(sf::st_read(conn, query = obs_query)))
+  } else {
+    observations <- DBI::dbGetQuery(conn, obs_query)
+  }
+
+  DBI::dbDisconnect(conn)
+
+  if (nrow(observations) == 0) {
+    stop(paste0("No observations found using query ||", obs_query, "||"))
+  }
+
+  observations
+}
