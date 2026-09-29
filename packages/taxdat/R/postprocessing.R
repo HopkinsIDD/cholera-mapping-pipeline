@@ -331,45 +331,57 @@ run_all <- function(
     export_packages <- c("tidyverse", "magrittr", "foreach", "rstan", "cmdstanr",
                          "lubridate", "sf", "taxdat")
     
-    if(!is.null(postprocess_fun_opts) & all(names(postprocess_fun_opts) == "col")){
-      if(postprocess_fun_opts$col == "pop_high_risk"){
-      ## debugging
-    #   new_configs= NULL
-    #   for (config_idx in 1:length(configs)) {
-    #     configs_tmp <- read_yaml_for_data(configs[config_idx],data_dir)
-    #     
-    #     genquant <- readRDS(configs_tmp$file_names$stan_genquant_filename)
-    #     
-    #     # Get dictionnary of risk categories
-    #     risk_cat_dict <- get_risk_cat_dict()
-    #     high_risk_ind <- which(risk_cat_dict == ">100")
-    #     high_risk_var <- stringr::str_glue("tot_pop_risk[{high_risk_ind},3]")                       
-    #     
-    #     tot_pop_risk <- genquant$draws("tot_pop_risk") %>% 
-    #       draws_to_df(var_name = "tot_pop_risk",
-    #                   to_name = "variable",
-    #                   to_value = "tot_pop_risk") 
-    #     
-    #     if(!any(tot_pop_risk$variable==high_risk_var)){
-    #       new_configs <- configs[-config_idx]
-    #       print(paste0("no high risk population for ", configs_tmp$countries_name))
-    #     }
-    #     
-    #   }
-    #   if(is.null(new_configs)){
-    #     stop("No countries in this config list have high risk population.")
-    #   } else {
-    #     
-    #     configs <- new_configs
-    #   }
-    # }}
-      ## bug fix 29 Oct 2026 CA
+    if (!is.null(postprocess_fun_opts) & all(names(postprocess_fun_opts) == "col")) {
+      if (postprocess_fun_opts$col == "pop_high_risk") {
+        
+        ## bug fix 29 Oct 2026 CA
+        # Old code (commented out for reference) had two compounding bugs:
+        #  1. `new_configs` was overwritten each loop iteration instead of
+        #     accumulating exclusions, so only the LAST flagged config was
+        #     ever dropped.
+        #  2. `which(risk_cat_dict == ">100")` never matched anything --
+        #     get_risk_cat_dict() actually returns "\u2265100" (U+2265) --
+        #     so high_risk_var was malformed and every config spuriously
+        #     "failed" the check, triggering a false
+        #     "No countries ... have high risk population." stop().
+        # Fixed by using a `keep` logical vector (correct accumulation) and
+        # the correct "\u2265100" label.
+        #
+        #   new_configs= NULL
+        #   for (config_idx in 1:length(configs)) {
+        #     configs_tmp <- read_yaml_for_data(configs[config_idx],data_dir)
+        #
+        #     genquant <- readRDS(configs_tmp$file_names$stan_genquant_filename)
+        #
+        #     # Get dictionnary of risk categories
+        #     risk_cat_dict <- get_risk_cat_dict()
+        #     high_risk_ind <- which(risk_cat_dict == ">100")
+        #     high_risk_var <- stringr::str_glue("tot_pop_risk[{high_risk_ind},3]")
+        #
+        #     tot_pop_risk <- genquant$draws("tot_pop_risk") %>%
+        #       draws_to_df(var_name = "tot_pop_risk",
+        #                   to_name = "variable",
+        #                   to_value = "tot_pop_risk")
+        #
+        #     if(!any(tot_pop_risk$variable==high_risk_var)){
+        #       new_configs <- configs[-config_idx]
+        #       print(paste0("no high risk population for ", configs_tmp$countries_name))
+        #     }
+        #
+        #   }
+        #   if(is.null(new_configs)){
+        #     stop("No countries in this config list have high risk population.")
+        #   } else {
+        #
+        #     configs <- new_configs
+        #   }
+        
         keep <- rep(TRUE, length(configs))
         for (config_idx in seq_along(configs)) {
           configs_tmp <- read_yaml_for_data(configs[config_idx], data_dir)
           genquant <- readRDS(configs_tmp$file_names$stan_genquant_filename)
           risk_cat_dict <- get_risk_cat_dict()
-          high_risk_ind <- which(risk_cat_dict == ">100")
+          high_risk_ind <- which(risk_cat_dict == "\u2265100")
           high_risk_var <- stringr::str_glue("tot_pop_risk[{high_risk_ind},3]")
           tot_pop_risk <- genquant$draws("tot_pop_risk") %>%
             draws_to_df(var_name = "tot_pop_risk",
@@ -381,45 +393,94 @@ run_all <- function(
           }
         }
         if (!any(keep)) {
-          stop("No countries in this config list have high risk population.")
+          warning("No countries in this config list have high risk population -- skipping ",
+                  fun_name, " and returning NULL.")
+          configs <- character(0)
         } else {
           configs <- configs[keep]
         }
-      }}
-    ## end bug fix
-    all_res <- foreach(
-      config = configs,
-      .combine = dplyr::bind_rows,
-      .errorhandling = error_handling,
-      .packages = export_packages) %do% { 
-        
-        args <- list(config = config,
-                     redo = redo_interm,
-                     redo_aux = redo_aux,
-                     prefix = prefix,
-                     suffix = suffix,
-                     fun_name = fun_name,
-                     fun = fun,
-                     output_dir = interm_dir,
-                     data_dir = data_dir,
-                     verbose = verbose,
-                     fun_opts = fun_opts)
-        
-        res <- do.call(postprocess_wrapper, args)
-        
-        # Set country name
-        res$country <- get_country_from_string(config)
-        
-        res
+        ## end bug fix
       }
+    }
     
-    if (!is.null(postprocess_fun)) {
-      args <- c(
-        list(df = all_res),
-        postprocess_fun_opts
-      )
+    # BUGFIX 29 Oct 2026 CA: configs can now legitimately come back as
+    # character(0) from the pop_high_risk filtering above, so skip foreach()
+    # entirely rather than let it error on an empty iteration set.
+    #
+    # Old code (commented out for reference) called foreach() unconditionally:
+    #
+    #   all_res <- foreach(
+    #     config = configs,
+    #     .combine = dplyr::bind_rows,
+    #     .errorhandling = error_handling,
+    #     .packages = export_packages) %do% {
+    #
+    #       args <- list(config = config,
+    #                    redo = redo_interm,
+    #                    redo_aux = redo_aux,
+    #                    prefix = prefix,
+    #                    suffix = suffix,
+    #                    fun_name = fun_name,
+    #                    fun = fun,
+    #                    output_dir = interm_dir,
+    #                    data_dir = data_dir,
+    #                    verbose = verbose,
+    #                    fun_opts = fun_opts)
+    #
+    #       res <- do.call(postprocess_wrapper, args)
+    #
+    #       # Set country name
+    #       res$country <- get_country_from_string(config)
+    #
+    #       res
+    #     }
+    #
+    #   if (!is.null(postprocess_fun)) {
+    #     args <- c(
+    #       list(df = all_res),
+    #       postprocess_fun_opts
+    #     )
+    #
+    #     all_res <- do.call(postprocess_fun, args)
+    #   }
+    
+    if (length(configs) == 0) {
+      all_res <- NULL
+    } else {
+      all_res <- foreach(
+        config = configs,
+        .combine = dplyr::bind_rows,
+        .errorhandling = error_handling,
+        .packages = export_packages) %do% {
+          
+          args <- list(config = config,
+                       redo = redo_interm,
+                       redo_aux = redo_aux,
+                       prefix = prefix,
+                       suffix = suffix,
+                       fun_name = fun_name,
+                       fun = fun,
+                       output_dir = interm_dir,
+                       data_dir = data_dir,
+                       verbose = verbose,
+                       fun_opts = fun_opts)
+          
+          res <- do.call(postprocess_wrapper, args)
+          
+          # Set country name
+          res$country <- get_country_from_string(config)
+          
+          res
+        }
       
-      all_res <- do.call(postprocess_fun, args)
+      if (!is.null(postprocess_fun)) {
+        args <- c(
+          list(df = all_res),
+          postprocess_fun_opts
+        )
+        
+        all_res <- do.call(postprocess_fun, args)
+      }
     }
     
     save_file_generic(res = all_res, 
@@ -946,7 +1007,14 @@ postprocess_pop_at_high_risk <- function(config_list,
   
   # Get dictionnary of risk categories
   risk_cat_dict <- get_risk_cat_dict()
-  high_risk_ind <- which(risk_cat_dict == ">100")
+  #high_risk_ind <- which(risk_cat_dict == ">100")
+  # BUGFIX: get_risk_cat_dict() returns "\u2265100" (Unicode "greater-or-equal",
+  # U+2265), not the ASCII ">100". The old ">100" never matched anything, so
+  # `which(...)` silently returned integer(0) and high_risk_var downstream was
+  # malformed -- this is what ultimately produced the
+  # "object 'pop_high_risk' not found" error several steps later.
+  high_risk_ind <- which(risk_cat_dict == "\u2265100")
+  ##end bug fix
   high_risk_var <- stringr::str_glue("tot_pop_risk[{high_risk_ind},3]")                       
   
   # Get mean annual incidence summary
