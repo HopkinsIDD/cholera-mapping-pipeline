@@ -15,7 +15,7 @@ library(taxdat)
 
 # User-supplied options
 opt_list <- list(
-  make_option(c("-d", "--config_dir"), 
+  make_option(c("-d", "--config_dir"),
               default = "./Analysis/cholera-configs/postprocessing_test_2011_2015/",
               action ="store", type = "character", help = "Directory"),
   make_option(opt_str = c("-r", "--redo"), type = "logical",
@@ -65,11 +65,11 @@ if (!dir.exists(opt$data_dir)) {
   stop("Data directory ", opt$data_dir, " does not exist")
 }
 
-suffix <- opt$config_dir %>% 
+suffix <- opt$config_dir %>%
   # Remove tailing / to ensure non-empty string
-  stringr::str_remove("/$") %>% 
-  stringr::str_split("/") %>% 
-  .[[1]] %>% 
+  stringr::str_remove("/$") %>%
+  stringr::str_split("/") %>%
+  .[[1]] %>%
   last()
 
 if (!is.null(opt$suffix)) {
@@ -96,7 +96,7 @@ all_country_sf <- run_all(
   interm_dir = opt$interm_dir,
   data_dir = opt$data_dir,
   output_file_type = "rds",
-  verbose = opt$verbose) 
+  verbose = opt$verbose)
 
 opt$redo_auxilliary <- FALSE
 
@@ -116,7 +116,7 @@ all_shapefiles <- run_all(
   interm_dir = opt$interm_dir,
   data_dir = opt$data_dir,
   output_file_type = "rds",
-  verbose = opt$verbose) 
+  verbose = opt$verbose)
 
 
 # B. Number of observations --------------------------------------------------
@@ -137,7 +137,7 @@ all_obs_counts <- run_all(
   interm_dir = opt$interm_dir,
   data_dir = opt$data_dir,
   output_file_type = "rds",
-  verbose = opt$verbose) 
+  verbose = opt$verbose)
 
 # All the observation counts
 all_obs <- run_all(
@@ -155,7 +155,7 @@ all_obs <- run_all(
   interm_dir = opt$interm_dir,
   data_dir = opt$data_dir,
   output_file_type = "rds",
-  verbose = opt$verbose) 
+  verbose = opt$verbose)
 
 
 # C. Mean annual incidence ---------------------------------------------------
@@ -366,7 +366,7 @@ mai_region_rates_draws <- run_all(
   verbose = opt$verbose)
 
 
-# Get the MAI summary at all admin levels 
+# Get the MAI summary at all admin levels
 mai_stats <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_mean_annual_incidence,
@@ -405,7 +405,7 @@ mai_draws <- run_all(
 
 # E. Coefficient of variation ------------------------------------------------
 
-# Get the coefficient of variation summary at all admin levels 
+# Get the coefficient of variation summary at all admin levels
 cov_stats <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_coef_of_variation,
@@ -426,7 +426,7 @@ cov_stats <- run_all(
 
 # F. Grid-level cases and rates ----------------------------------------------
 
-# Get the MAI rates summary at space grid level 
+# Get the MAI rates summary at space grid level
 mai_grid_rates_stats <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_grid_mai_rates,
@@ -445,7 +445,7 @@ mai_grid_rates_stats <- run_all(
   output_file_type = "rds",
   verbose = opt$verbose)
 
-# Get the MAI rates draws at space grid level 
+# Get the MAI rates draws at space grid level
 mai_grid_rates_draws <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_grid_mai_rates_draws,
@@ -466,7 +466,7 @@ mai_grid_rates_draws <- run_all(
   verbose = opt$verbose)
 
 
-# Get the MAI cases summary at space grid level 
+# Get the MAI cases summary at space grid level
 mai_grid_cases_stats <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_grid_mai_cases,
@@ -487,7 +487,7 @@ mai_grid_cases_stats <- run_all(
   verbose = opt$verbose)
 
 
-# Get the MAI cases draws at space grid level 
+# Get the MAI cases draws at space grid level
 mai_grid_cases_draws <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_grid_mai_cases_draws,
@@ -510,7 +510,7 @@ mai_grid_cases_draws <- run_all(
 
 # G. Risk categories ---------------------------------------------------------
 
-# Get the risk category by location at all admin levels 
+# Get the risk category by location at all admin levels
 risk_categories_95 <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_risk_category,
@@ -529,7 +529,7 @@ risk_categories_95 <- run_all(
   verbose = opt$verbose)
 
 
-# Get the risk category by location at all admin levels 
+# Get the risk category by location at all admin levels
 risk_categories_50 <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_risk_category,
@@ -547,7 +547,7 @@ risk_categories_50 <- run_all(
   output_file_type = "rds",
   verbose = opt$verbose)
 
-# Get the population at risk in each risk category by country 
+# Get the population at risk in each risk category by country
 pop_at_risk <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_pop_at_risk,
@@ -822,12 +822,15 @@ severity_props <- compute_severity_proportions(p_u5_draws, severity_scalars$seve
 cCh_mild <- combine_draws(medically_attended_cCh, "cCh", severity_props, "prop_mild", "cCh_mild")
 cCh_severe <- combine_draws(medically_attended_cCh, "cCh", severity_props, "prop_severe", "cCh_severe")
 
-# Scale by proportion of care-seeking, mild and severe respectively
-fc_cCh_mild <- combine_draws(cCh_mild, "cCh_mild", care_seek_mild, "care_seeking", "fc_cCh_mild")
-fc_cCh_severe <- combine_draws(cCh_severe, "cCh_severe", care_seek_severe, "care_seeking", "fc_cCh_severe")
+# Divide (not multiply): care_seeking is P(a symptomatic person seeks care),
+# so cCh_mild/cCh_severe (cases among those who sought care) / care_seeking
+# = all cases regardless of care-seeking -- same logic as
+# scale_by_reporting_ratio() dividing by reporting_ratio above.
+all_cCh_mild <- combine_draws(cCh_mild, "cCh_mild", care_seek_mild, "care_seeking", "all_cCh_mild", op = `/`)
+all_cCh_severe <- combine_draws(cCh_severe, "cCh_severe", care_seek_severe, "care_seeking", "all_cCh_severe", op = `/`)
 
 # Sum mild + severe to get total confirmed cases per country
-all_cCh <- combine_draws(fc_cCh_mild, "fc_cCh_mild", fc_cCh_severe, "fc_cCh_severe", "all_cCh", op = `+`)
+all_cCh <- combine_draws(all_cCh_mild, "all_cCh_mild", all_cCh_severe, "all_cCh_severe", "all_cCh", op = `+`)
 
 # Save every intermediate and final output: unscaled outputs from earlier
 # sections are untouched, so both scaled and unscaled results are available
@@ -837,8 +840,8 @@ purrr::iwalk(
        medically_attended_cCh = medically_attended_cCh,
        cCh_mild = cCh_mild,
        cCh_severe = cCh_severe,
-       fc_cCh_mild = fc_cCh_mild,
-       fc_cCh_severe = fc_cCh_severe,
+       all_cCh_mild = all_cCh_mild,
+       all_cCh_severe = all_cCh_severe,
        all_cCh = all_cCh),
   ~ save_file_generic(.x, make_std_output_name(opt$output_dir, fun_name = .y,
                                                 prefix = opt$prefix, suffix = opt$suffix,
@@ -849,7 +852,7 @@ purrr::iwalk(
 # L. Case burden adjustment -- scaling-step validation -----------------------
 #
 # Confirms, per step, that the observed ratio between each pair of
-# before/after draws tibbles matches the scaling factor that step was supposed to apply 
+# before/after draws tibbles matches the scaling factor that step was supposed to apply
 # Every check compares by row POSITION rather than by re-joining on
 # (country, .draw) or similar: combine_draws() preserves
 # df1's exact row order and count. Reports PASS/FAIL per step but does not stop()
@@ -862,7 +865,8 @@ check <- function(desc, ok) {
 }
 
 check_scaling_step <- function(before, before_col, after, after_col,
-                                factor_df, factor_col, factor_join_keys, label) {
+                                factor_df, factor_col, factor_join_keys, label,
+                                invert = FALSE) {
   if (nrow(before) != nrow(after)) {
     check(paste0(label, ": before/after row counts differ (", nrow(before), " vs ", nrow(after),
                 ") -- cannot validate by row position"), FALSE)
@@ -875,7 +879,13 @@ check_scaling_step <- function(before, before_col, after, after_col,
     dplyr::inner_join(factor_df %>% dplyr::select(dplyr::all_of(c(factor_join_keys, factor_col))),
                        by = factor_join_keys) %>%
     dplyr::mutate(observed_ratio = value_after / !!rlang::sym(before_col),
-                  diff = observed_ratio - !!rlang::sym(factor_col))
+                  # BUGFIX 30 Sep 2026 CA: when the scaling step DIVIDES by
+                  # factor_col (invert = TRUE, e.g. care-seeking below) the
+                  # expected ratio is 1/factor_col, not factor_col itself --
+                  # comparing directly against factor_col here previously
+                  # made this check FAIL on a correct division step.
+                  expected = if (invert) 1 / !!rlang::sym(factor_col) else !!rlang::sym(factor_col),
+                  diff = observed_ratio - expected)
   max_diff <- max(abs(combined$diff))
   check(sprintf("%-28s ratio range: [%.6f, %.6f]  |  max |diff|: %.2e",
                label, min(combined$observed_ratio), max(combined$observed_ratio), max_diff),
@@ -888,7 +898,7 @@ r1 <- dplyr::bind_cols(
   medically_attended_sCh %>% dplyr::select(value_after = admin_cases)
 ) %>% dplyr::mutate(observed_ratio = value_after / admin_cases)
 check(sprintf("%-28s ratio range: [%.6f, %.6f]  (expect == %.6f, from reporting_ratio = %.6f)",
-             "sCh (\u00f7ratio)", min(r1$observed_ratio), max(r1$observed_ratio),
+             "sCh (÷ratio)", min(r1$observed_ratio), max(r1$observed_ratio),
              1 / reporting_ratio, reporting_ratio),
       max(abs(r1$observed_ratio - 1 / reporting_ratio)) <= 1e-6)
 
@@ -898,19 +908,19 @@ check_scaling_step(medically_attended_cCh, "cCh", cCh_mild, "cCh_mild",
                     severity_props, "prop_mild", c("country", ".draw"), "cCh_mild (x prop_mild)")
 check_scaling_step(medically_attended_cCh, "cCh", cCh_severe, "cCh_severe",
                     severity_props, "prop_severe", c("country", ".draw"), "cCh_severe (x prop_severe)")
-check_scaling_step(cCh_mild, "cCh_mild", fc_cCh_mild, "fc_cCh_mild",
-                    care_seek_mild, "care_seeking", ".draw", "fc_cCh_mild (x care_seek)")
-check_scaling_step(cCh_severe, "cCh_severe", fc_cCh_severe, "fc_cCh_severe",
-                    care_seek_severe, "care_seeking", ".draw", "fc_cCh_severe (x care_seek)")
+check_scaling_step(cCh_mild, "cCh_mild", all_cCh_mild, "all_cCh_mild",
+                    care_seek_mild, "care_seeking", ".draw", "all_cCh_mild (÷care_seek)", invert = TRUE)
+check_scaling_step(cCh_severe, "cCh_severe", all_cCh_severe, "all_cCh_severe",
+                    care_seek_severe, "care_seeking", ".draw", "all_cCh_severe (÷care_seek)", invert = TRUE)
 
-if (nrow(fc_cCh_mild) != nrow(fc_cCh_severe) || nrow(fc_cCh_mild) != nrow(all_cCh)) {
-  check("all_cCh: fc_cCh_mild/fc_cCh_severe/all_cCh row counts disagree -- the final combine_draws() sum did not produce a clean one-to-one result", FALSE)
+if (nrow(all_cCh_mild) != nrow(all_cCh_severe) || nrow(all_cCh_mild) != nrow(all_cCh)) {
+  check("all_cCh: all_cCh_mild/all_cCh_severe/all_cCh row counts disagree -- the final combine_draws() sum did not produce a clean one-to-one result", FALSE)
 } else {
   r_final <- dplyr::bind_cols(
-    fc_cCh_mild %>% dplyr::select(fc_cCh_mild),
-    fc_cCh_severe %>% dplyr::select(fc_cCh_severe),
+    all_cCh_mild %>% dplyr::select(all_cCh_mild),
+    all_cCh_severe %>% dplyr::select(all_cCh_severe),
     all_cCh %>% dplyr::select(all_cCh)
-  ) %>% dplyr::mutate(diff = all_cCh - (fc_cCh_mild + fc_cCh_severe))
+  ) %>% dplyr::mutate(diff = all_cCh - (all_cCh_mild + all_cCh_severe))
   max_sum_diff <- max(abs(r_final$diff))
   check(sprintf("%-28s max |all_cCh - (mild+severe)|: %.2e", "all_cCh (sum)", max_sum_diff),
         max_sum_diff <= 1e-6)
