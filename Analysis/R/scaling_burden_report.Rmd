@@ -35,15 +35,13 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.width =
 ```
 
 ```{r helpers, include=FALSE}
-# All the report-building logic lives here, in the report itself, rather
-# than in a separate sourced file -- this chunk is the only place that
+# All the report-building logic lives here: this chunk is the only place that
 # decides how the tables/figures below are built from the raw pipeline
-# outputs passed in via params. postprocess_results.R and
-# postprocess_scaling_burden.R each have an identical, self-contained loop
-# in their own section L that just calls rmarkdown::render() once per
+# outputs passed in via params. 
+# postprocess_scaling_burden.R has an identical, self-contained loop
+# in their own section L that calls rmarkdown::render() once per
 # country with this template, passing the raw pipeline outputs through as
-# params -- no shared helpers file, so this Rmd is the only place report
-# structure can be defined or drift.
+# params.
 
 # ---- Config settings -------------------------------------------------------
 
@@ -95,11 +93,6 @@ load_all_configs <- function(config_dir) {
 # etc.) -- matched against either countries_name or countries_code so this
 # works whichever convention that column turns out to use.
 get_country_config_tables <- function(config_catalog, cty) {
-  # as.character() on BOTH sides of BOTH comparisons -- cty (from
-  # mai_admin_case_draws$country) may come through as a factor rather than
-  # plain character, and identical() treats a factor and a character with
-  # the same printed label as unequal (different type), which silently
-  # defeats this match even though config_dir has the right file.
   cty_chr <- as.character(cty)
   matches <- purrr::keep(config_catalog, function(x) {
     identical(as.character(x$countries_name), cty_chr) || identical(as.character(x$countries_code), cty_chr)
@@ -217,7 +210,12 @@ run_scaling_checks <- function(cty, reporting_ratio,
 # ---- Figures, filtered to one country --------------------------------------
 
 # Funnel: mean (+95% draw interval) total cases at each step of the chain,
-# summed over admin units, for one country.
+# broken out by admin level and time period -- i.e. summed over admin UNITS
+# within a given (admin_level, period)
+# add_period_label() (same helper the maps/scatter use) derives `period`
+# from period_start/period_end when present. Every step df here already
+# carries location_period_id/admin_level/period_start/period_end -- same
+# columns build_all_steps_sf() relies on for the same 8 steps.
 build_step_summary <- function(cty, mai_admin_case_draws, medically_attended_sCh,
                                 medically_attended_cCh, cCh_mild, cCh_severe,
                                 all_cCh_mild, all_cCh_severe, all_cCh) {
@@ -232,32 +230,48 @@ build_step_summary <- function(cty, mai_admin_case_draws, medically_attended_sCh
     list(df = dplyr::filter(all_cCh, country == cty),                col = "all_cCh",       label = "6. all_cCh (final)")
   )
   purrr::map_dfr(steps, function(s) {
-    if (nrow(s$df) == 0) return(tibble::tibble(step = s$label, mean = NA_real_, q025 = NA_real_, q975 = NA_real_))
-    per_draw_total <- s$df %>% dplyr::group_by(.draw) %>%
-      dplyr::summarise(total = sum(.data[[s$col]], na.rm = TRUE), .groups = "drop") %>% dplyr::pull(total)
-    tibble::tibble(step = s$label, mean = mean(per_draw_total),
-                   q025 = stats::quantile(per_draw_total, 0.025), q975 = stats::quantile(per_draw_total, 0.975))
+    if (nrow(s$df) == 0) {
+      return(tibble::tibble(step = s$label, admin_level = NA_character_, period = NA_character_,
+                            mean = NA_real_, q025 = NA_real_, q975 = NA_real_))
+    }
+    per_draw_total <- s$df %>%
+      add_period_label() %>%
+      dplyr::group_by(admin_level, period, .draw) %>%
+      dplyr::summarise(total = sum(.data[[s$col]], na.rm = TRUE), .groups = "drop")
+    per_draw_total %>%
+      dplyr::group_by(admin_level, period) %>%
+      dplyr::summarise(mean = mean(total), q025 = stats::quantile(total, 0.025),
+                       q975 = stats::quantile(total, 0.975), .groups = "drop") %>%
+      dplyr::mutate(step = s$label, .before = 1)
   })
 }
 
-# Net effect: one point per draw, country-level totals, raw input vs. final
-# output (the same descriptive scatter as before, now scoped to one country).
-build_net_effect_df <- function(cty, mai_admin_case_draws, all_cCh) {
-  mai_admin_case_draws %>% dplyr::filter(country == cty) %>%
-    dplyr::group_by(.draw) %>%
-    dplyr::summarise(admin_cases = sum(admin_cases, na.rm = TRUE), .groups = "drop") %>%
-    dplyr::inner_join(
-      all_cCh %>% dplyr::filter(country == cty) %>% dplyr::group_by(.draw) %>%
-        dplyr::summarise(all_cCh = sum(all_cCh, na.rm = TRUE), .groups = "drop"),
-      by = ".draw"
-    )
+# Net effect: one scatterplot's worth of data per admin level, one point per
+# (location_period_id, .draw) combination. Each admin unit's draws
+# are joined straight from admin_cases (raw input) to all_cCh (final
+# output) on (country, location_period_id, admin_level, .draw).
+build_net_effect_by_admin_level <- function(cty, mai_admin_case_draws, all_cCh) {
+  before_cty <- mai_admin_case_draws %>% dplyr::filter(country == cty)
+  after_cty  <- all_cCh %>% dplyr::filter(country == cty)
+
+  period_cols <- intersect(c("period_start", "period_end"), names(before_cty))
+  before_sel <- before_cty %>%
+    dplyr::select(location_period_id, admin_level, .draw, dplyr::all_of(period_cols), admin_cases)
+  after_sel <- after_cty %>%
+    dplyr::select(location_period_id, admin_level, .draw, all_cCh)
+
+  joined <- dplyr::inner_join(before_sel, after_sel,
+                              by = c("location_period_id", "admin_level", ".draw")) %>%
+    add_period_label()
+
+  admin_levels <- sort(unique(joined$admin_level))
+  purrr::map(admin_levels, ~ dplyr::filter(joined, admin_level == .x)) %>%
+    stats::setNames(admin_levels)
 }
 
 # Density plots of admin_cases (raw input) vs. all_cCh (final output), one
 # plot per (admin_level x time period) combination present for this country
-# -- i.e. NOT aggregated across admin units or periods, unlike the funnel/
-# scatter above, so each plot shows the real spread at that specific level
-# and period. Named list, keyed "<level> -- <period>", in a stable sorted
+# Named list, keyed "<level> -- <period>", in a stable sorted
 # order so the report renders them consistently. admin_level's own values
 # are already "ADM0"/"ADM1"/"ADM2" (confirmed from taxdat::postprocess_adm0_sf(),
 # which filters admin_level == "ADM0") -- NOT bare 0/1/2, so lvl is used
@@ -308,14 +322,12 @@ build_density_plots <- function(cty, mai_admin_case_draws, all_cCh) {
 }
 
 
-# ---- Scale factors used: scalars + density plots of every draw-level input -
+# Scale factors used: scalars + density plots of every draw-level input 
 
-# The two truly scalar factors in the chain (not posterior draws, just single
+# The two scalar factors in the scaling process (single
 # numbers taken straight from the config): reporting_ratio and the two
 # severity_* proportions. severity_scalars is whatever
-# taxdat::get_config_severity_scalars() returns -- confirmed (from its use
-# in postprocess_scaling_burden.R / postprocess_results.R) to carry
-# $severity_u5 and $severity_o5.
+# taxdat::get_config_severity_scalars() returns 
 build_scalar_table <- function(reporting_ratio, severity_scalars) {
   tibble::tibble(
     Setting = c("reporting_ratio", "severity_u5", "severity_o5"),
@@ -390,17 +402,9 @@ build_country_factor_density_plots <- function(cty, p_u5_draws, severity_props) 
 
 # ---- Maps: per-admin-level choropleths, filtered to one country -----------
 #
-# Reimplements the same before/after map pattern worked out earlier this
-# session (postprocess_results_interactive.R's section M, built on top of
-# taxdat::get_output_sf_reload()/postprocess_adm0_sf() confirmed from the
-# installed taxdat source): one choropleth per admin level, country borders
+# one choropleth per admin level, country borders
 # + optional lakes for geographic context, taxdat's own "cases" color scale
-# and map_theme(). Two differences from that section-M version: (1) scoped
-# to a single country (no "ran vs. didn't run" shading -- that distinction
-# doesn't apply to a per-country report), with the view zoomed to this
-# country's own admin units rather than the whole fitted region; (2) two
-# different sets of maps are built from the same two helpers below --
-# before-vs-after (admin_cases vs. all_cCh) and all 8 steps of the chain.
+# and map_theme()
 
 GEO_KEY <- c("country", "location_period_id", "admin_level")
 
@@ -550,25 +554,13 @@ plot_admin_level_map <- function(sf_obj, all_countries_sf, lakes_sf = NULL, fill
   p
 }
 
-# Strips the leading "1." / "5a." numbering and any trailing "(...)" aside
-# off a step label, for use as a map title -- "5a. all_cCh_mild
-# (÷care_seek)" is far too long to fit one of 8 narrow columns, so this
-# keeps just the variable name ("all_cCh_mild"). The numbering/explanation
-# is still shown in full in the funnel plot and the "Scaling pipeline
-# funnel" section above, so nothing is lost, just not repeated here.
 short_label <- function(label) {
   label %>%
     stringr::str_remove("^[0-9]+[a-z]?\\.\\s*") %>%
     stringr::str_remove("\\s*\\([^)]*\\)\\s*$")
 }
 
-# Before/after, side by side (patchwork), one combined figure per admin
-# level -- each stage gets its OWN color scale (two separate
-# plot_admin_level_map() calls, not one shared fill) since admin_cases
-# sits far below all_cCh in level; a shared scale would make admin_cases's
-# real variation vanish into the pale end of a legend ranged by all_cCh.
-# Faceted by period within each stage when this country has more than one
-# time-period config, so two periods' admin units don't overplot each other.
+# Before/after, side by side (patchwork), one combined figure per admin level
 build_before_after_maps <- function(before_after_sf, admin_levels, all_country_sf, lakes_sf) {
   if (nrow(before_after_sf) == 0) return(list())
   n_periods <- dplyr::n_distinct(before_after_sf$period)
@@ -591,30 +583,7 @@ build_before_after_maps <- function(before_after_sf, admin_levels, all_country_s
   purrr::compact(stats::setNames(maps, admin_levels))
 }
 
-# All 8 steps side by side (columns), one row of maps per time period --
-# one combined figure per admin level. All 8 steps (and both periods, when
-# there are two) share ONE color scale per admin level -- every cell below
-# is built from the same shared_limits (and the same legend sizing args,
-# enlarged from plot_admin_level_map()'s own defaults, passed explicitly
-# below), so every cell's legend is identical. Rather than render that same
-# legend 8 (or 16) times, patchwork::plot_layout(guides = "collect") merges
-# the identical legends into a single shared one, applied at both the row
-# level (collects across that period's 8 steps) and the full-grid level
-# (collects across periods too, if there's more than one) -- collection
-# only merges guides that are actually identical, which holds here since
-# every cell is built with the same shared_limits/breaks/labels/palette/
-# legend sizing. NOTE: this used to also apply `combined & ggplot2::theme(...)`
-# to grow the surviving legend after collecting, but the installed
-# patchwork/ggplot2 combination doesn't support dispatching `&` on a
-# <patchwork> object ("Can't find method for generic `&(e1, e2)`") -- so
-# the enlarged sizing is baked into every panel up front via
-# plot_admin_level_map()'s arguments instead, which collect then just
-# carries through unchanged. legend_barwidth/legend_barheight (explicit
-# grid::unit()s, in cm) are what actually make the collected colorbar big
-# enough for its tick labels not to collide -- legend.key.width/height
-# alone (legend_key_width/legend_key_height here) only set the swatch size
-# on a *discrete* legend and do nothing for a continuous colorbar's own
-# on-page size.
+# All 8 steps side by side (columns), one row of maps per time period
 build_all_steps_maps <- function(all_steps_sf, admin_levels, all_country_sf, lakes_sf) {
   if (nrow(all_steps_sf) == 0) return(list())
   maps <- purrr::map(admin_levels, function(lvl) {
@@ -632,10 +601,6 @@ build_all_steps_maps <- function(all_steps_sf, admin_levels, all_country_sf, lak
         plot_admin_level_map(cell_sf, all_country_sf, lakes_sf, fill_var = "mean_cases",
                              title = short_label(st), shared_limits = shared_limits,
                              legend_text_size = 20, legend_key_width = 2, legend_key_height = 4,
-                             # Swapped vs. the vertical default -- for a horizontal bar,
-                             # barwidth is the LENGTH of the bar (along the axis the labels
-                             # run) and barheight is its thickness, the opposite of a
-                             # vertical colorbar's barwidth/barheight meaning.
                              legend_barwidth = grid::unit(12, "cm"), legend_barheight = grid::unit(1.5, "cm"),
                              title_size = 22, legend_direction = "horizontal", legend_position = "bottom")
       })
@@ -678,7 +643,7 @@ step_summary <- build_step_summary(
   params$all_cCh_mild, params$all_cCh_severe, params$all_cCh
 )
 
-net_effect_df <- build_net_effect_df(params$country, params$mai_admin_case_draws, params$all_cCh)
+net_effect_plots_data <- build_net_effect_by_admin_level(params$country, params$mai_admin_case_draws, params$all_cCh)
 
 density_plots <- build_density_plots(params$country, params$mai_admin_case_draws, params$all_cCh)
 
@@ -738,14 +703,15 @@ if (length(config_tables) == 0) {
 
 ## Scaling pipeline funnel
 
-Mean total cases (summed over admin units) at each step of the chain, with
-the 95% interval across posterior draws.
+Mean total cases (summed over admin units within each admin level/period) at each step of the scaling process, with 95% interval across posterior draws. One panel per admin level x time
+period.
 
-```{r funnel}
-ggplot2::ggplot(step_summary, ggplot2::aes(x = factor(step, levels = step), y = mean)) +
+```{r funnel, fig.width=11, fig.height=9}
+ggplot2::ggplot(step_summary, ggplot2::aes(x = factor(step, levels = unique(step)), y = mean)) +
   ggplot2::geom_col(fill = "#4472C4") +
   ggplot2::geom_errorbar(ggplot2::aes(ymin = q025, ymax = q975), width = 0.2, color = "grey30") +
   ggplot2::scale_y_continuous(labels = scales::comma) +
+  ggplot2::facet_grid(admin_level ~ period, scales = "free_y") +
   ggplot2::labs(title = paste("Case burden at each scaling step --", params$country),
                 subtitle = "Bars: mean total across draws. Whiskers: 95% draw interval.",
                 x = NULL, y = "Total cases") +
@@ -753,21 +719,43 @@ ggplot2::ggplot(step_summary, ggplot2::aes(x = factor(step, levels = step), y = 
   ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 30, hjust = 1))
 ```
 
-## Net effect: final vs. raw
+## Net effect: final vs. raw, by admin level
 
-One point per draw, country-level totals. Descriptive only -- points on
+One scatterplot per admin level this country has, faceted into one panel
+per time-period config when this country has more than one. Each point is
+one (admin unit, draw) combination -- i.e. NOT summed to a country-level
+total per draw -- so this shows the net effect of the full chain at the
+resolution the model actually operates at. Descriptive only -- points on
 either side of the dashed y = x line are expected, since the chain mixes
 inflating (÷) and deflating (×) steps that net out in either direction.
 
-```{r scatter}
-ggplot2::ggplot(net_effect_df, ggplot2::aes(x = admin_cases, y = all_cCh)) +
-  ggplot2::geom_point(alpha = 0.4, size = 1, color = "#4472C4") +
-  #ggplot2::geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "#C0504D") +
-  ggplot2::scale_x_log10(labels = scales::comma) +
-  ggplot2::scale_y_log10(labels = scales::comma) +
-  ggplot2::labs(title = paste("Net effect of the full chain --", params$country),
-                x = "admin_cases (raw, log)", y = "all_cCh (final, log)") +
-  ggplot2::theme_minimal()
+```{r scatter, results='asis', fig.height=6}
+if (length(net_effect_plots_data) == 0) {
+  cat("_No net-effect scatterplots could be built (no overlapping admin_level",
+      "between the before and after draws)._\n")
+} else {
+  purrr::iwalk(net_effect_plots_data, function(df, lvl) {
+    cat("\n### ", lvl, "\n\n")
+    n_periods <- dplyr::n_distinct(df$period)
+    p <- ggplot2::ggplot(df, ggplot2::aes(x = admin_cases, y = all_cCh)) +
+      ggplot2::geom_point(alpha = 0.3, size = 0.8, color = "#4472C4") +
+      ggplot2::geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "#C0504D") +
+      # Linear, not log -- at admin-unit resolution (esp. ADM2), a lot of
+      # admin_cases/all_cCh draws are exactly 0, and scale_x_log10()/
+      # scale_y_log10() can't plot 0 (log(0) = -Inf): they'd silently drop
+      # those rows (with just a "removed non-finite values" warning), which
+      # at this resolution could be a large share of the points.
+      ggplot2::scale_x_continuous(labels = scales::comma) +
+      ggplot2::scale_y_continuous(labels = scales::comma) +
+      ggplot2::labs(title = stringr::str_glue("Net effect of the full chain — {params$country} — {lvl}"),
+                    subtitle = "One point per (admin unit, draw)",
+                    x = "admin_cases (raw)", y = "all_cCh (final)") +
+      ggplot2::theme_minimal()
+    if (n_periods > 1) p <- p + ggplot2::facet_wrap(~period)
+    print(p)
+    cat("\n")
+  })
+}
 ```
 
 ## Density comparison, by admin level and time period
