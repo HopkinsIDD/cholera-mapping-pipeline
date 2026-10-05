@@ -53,7 +53,7 @@ opt_list <- list(
                                            "draw count produced across country",
                                            "configs' Stan fits")),
   make_option(opt_str = c("-m", "--rmd_template"), type = "character",
-              default = "./scaling_burden_report.Rmd",
+              default = "./Analysis/R/scaling_burden_report.Rmd",
               help = "Path to the Rmd template used to render each country's HTML report")
 )
 
