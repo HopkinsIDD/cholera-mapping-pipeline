@@ -1,13 +1,4 @@
-# Standalone section K+L (case burden / "scaling" adjustment) of
-# postprocess_results.R, extracted so it can be run on the cluster without
-# also re-running sections A-J. Confirmed self-contained: section K/L reads
-# only from opt$... and disk (via run_all()/postprocess_admin_cases_draws()
-# and the scaling_input_dir CSVs), with no dependency on any object built
-# in sections A-J.
-#
-# RENAMED from postprocess_results_K.R -- this is no longer just "section K",
-# it also builds the country-specific HTML scaling report (formerly inline
-# console-only checks + two plots in section L), so the old name undersold it.
+# Standalone case burden scaling process with country specific report generated
 
 
 # Preamble ----------------------------------------------------------------
@@ -293,7 +284,7 @@ if (!file.exists(opt$rmd_template)) {
     tryCatch({
       message("Rendering scaling burden report for country: ", cty)
 
-      out_file <- stringr::str_glue("scaling_burden_report_{cty}_{suffix}.html")
+      out_file <- stringr::str_glue("scaling_burden_report_{cty}.html")
 
       rmarkdown::render(
         input = opt$rmd_template,
