@@ -34,14 +34,8 @@ params:
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.width = 9, fig.height = 5)
 ```
 
-```{r helpers, include=FALSE}
-# All the report-building logic lives here: this chunk is the only place that
-# decides how the tables/figures below are built from the raw pipeline
-# outputs passed in via params. 
-# postprocess_scaling_burden.R has an identical, self-contained loop
-# in their own section L that calls rmarkdown::render() once per
-# country with this template, passing the raw pipeline outputs through as
-# params.
+```{r helpers, include=TRUE}
+# All the helper functions for the report
 
 # ---- Config settings -------------------------------------------------------
 
@@ -272,10 +266,7 @@ build_net_effect_by_admin_level <- function(cty, mai_admin_case_draws, all_cCh) 
 # Density plots of admin_cases (raw input) vs. all_cCh (final output), one
 # plot per (admin_level x time period) combination present for this country
 # Named list, keyed "<level> -- <period>", in a stable sorted
-# order so the report renders them consistently. admin_level's own values
-# are already "ADM0"/"ADM1"/"ADM2" (confirmed from taxdat::postprocess_adm0_sf(),
-# which filters admin_level == "ADM0") -- NOT bare 0/1/2, so lvl is used
-# directly below rather than re-prefixed with "ADM".
+# order so the report renders them consistently.
 build_density_plots <- function(cty, mai_admin_case_draws, all_cCh) {
   before_cty <- mai_admin_case_draws %>% dplyr::filter(country == cty)
   after_cty  <- all_cCh %>% dplyr::filter(country == cty)
@@ -408,10 +399,7 @@ build_country_factor_density_plots <- function(cty, p_u5_draws, severity_props) 
 
 GEO_KEY <- c("country", "location_period_id", "admin_level")
 
-# Geometry doesn't vary by time-period config (same admin boundary, just a
-# different window) -- collapse any (country, location_period_id,
-# admin_level) duplicates that come from countries with >1 period config,
-# and keep only this country's units, before any join below.
+
 prep_admin_sf <- function(cty, admin_sf) {
   admin_sf %>%
     dplyr::filter(country == cty) %>%
@@ -452,7 +440,7 @@ build_before_after_sf <- function(cty, admin_sf, mai_admin_case_draws, all_cCh) 
   admin_sf_cty %>% dplyr::inner_join(before_after, by = GEO_KEY)
 }
 
-# All 8 steps of the chain, joined to this country's geometry -- the same
+# All 8 steps of the case burden scaling, joined to this country's geometry -- the same
 # steps/columns as build_step_summary() above, but per admin unit instead
 # of summed to one country-level total per draw, so each step can be mapped.
 build_all_steps_sf <- function(cty, admin_sf, mai_admin_case_draws, medically_attended_sCh,
@@ -474,19 +462,9 @@ build_all_steps_sf <- function(cty, admin_sf, mai_admin_case_draws, medically_at
   admin_sf_cty %>% dplyr::inner_join(all_steps, by = GEO_KEY)
 }
 
-# One admin-level, one stage/step choropleth. Zoomed to sf_obj's own
-# bounding box (with a margin) rather than the full fitted region, since
-# this report is scoped to one country -- without that, the neighboring-
-# country background layer (kept for geographic context) would dwarf the
-# actual admin units being colored. taxdat::color_scale(type = "cases")
-# keeps the package's own censoring rule (limits = c(1, NA), oob = censor),
-# same caveat as section M: a mean under 1 case renders as "no data" gray,
-# same as a real missing value.
-# title is deliberately kept short by callers (see short_label() below) --
-# this only wraps/shrinks it as a second line of defense, since a long
-# title here would overflow past this panel's own width into the next
-# panel's space when many of these sit side by side via patchwork (ggplot
-# doesn't clip plot titles to the panel they belong to).
+# One admin-level, one stage/step choropleth. taxdat::color_scale(type = "cases")
+# keeps the package's censoring rule (limits = c(1, NA), oob = censor),
+# a mean under 1 case renders as "no data" gray
 plot_admin_level_map <- function(sf_obj, all_countries_sf, lakes_sf = NULL, fill_var, title = NULL,
                                   shared_limits = NULL, legend_text_size = 6,
                                   legend_key_width = 0.35, legend_key_height = 0.7,
@@ -501,20 +479,6 @@ plot_admin_level_map <- function(sf_obj, all_countries_sf, lakes_sf = NULL, fill
   fill_scale <- if (is.null(shared_limits)) {
     taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)
   } else {
-    # breaks_pretty(n = 3) + comma labels -- the default (unthinned) breaks on
-    # a wide shared range produced so many tick labels that they overlapped
-    # into an unreadable smear (e.g. "40800200"). Capping at ~3 breaks helps,
-    # but the real fix is legend_barwidth/legend_barheight below: a
-    # guide_colorbar's actual on-page size comes from its own barwidth/
-    # barheight args, NOT from the legend.key.width/height theme elements
-    # (those only set the *swatch* size on a discrete legend) -- leaving
-    # barwidth/barheight at their default (derived from legend.key.size,
-    # a few mm) gave a colorbar too short for even 3 tick labels to fit
-    # without colliding, however small the text. legend_barwidth/
-    # legend_barheight (passed in as real grid::unit()s by callers that
-    # need a bigger colorbar, e.g. build_all_steps_maps()'s single
-    # collected legend) are wired straight into the guide so the bar
-    # itself is sized correctly, independent of legend.key sizing.
     ggplot2::scale_fill_gradientn(
       colours = c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404"),
       limits = shared_limits, oob = scales::censor, na.value = "lightgray",
@@ -780,10 +744,8 @@ if (length(density_plots) == 0) {
 
 ## Maps: before vs. after scaling, by admin level
 
-`admin_cases` (raw input) vs. `all_cCh` (final output), mapped at every
-admin level this country has. Each stage has its own color scale (admin_cases
-sits far below all_cCh in level, so a shared scale would make it look nearly
-empty), and the view is zoomed to this country's own admin units. Faceted
+`admin_cases` (raw input) vs. `all_cCh` (final output), at every
+admin level this country has. Each stage has its own color scale. Faceted
 by time period when this country has more than one period config. Admin
 units with a mean under 1 case render as the package's own "no data" gray
 (same censoring rule used everywhere else in this pipeline's maps), not
@@ -803,16 +765,9 @@ if (length(before_after_maps) == 0) {
 
 ## Maps: all scaling steps, by admin level and time period
 
-All 8 steps of the chain side by side, one row of maps per time period, so
-the whole funnel can be scanned geographically rather than only as the
-country-level bar chart above. Unlike the before/after maps, all 8 steps
-here share one color scale per admin level (ranged over every step and
-period at that level), so the overall magnitude progression across the
-chain is visible at a glance -- the trade-off is that an early step such
-as `admin_cases` will look pale next to a later step such as `all_cCh`,
-and a step's own internal spread is harder to read than it would be under
-an independently-fit scale. Since every panel shares the same scale, there
-is a single legend for the whole figure rather than one per panel.
+All 8 steps of the case burden scaling process side by side, one row of maps per time period, all 8 steps
+here share one color scale per admin level (ranged over every scaling step and
+period at that level).
 
 ```{r all-steps-maps, results='asis', fig.width=36, fig.height=16}
 if (length(all_steps_maps) == 0) {
