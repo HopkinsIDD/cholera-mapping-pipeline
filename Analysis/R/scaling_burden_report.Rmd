@@ -203,6 +203,24 @@ run_scaling_checks <- function(cty, reporting_ratio,
 
 # ---- Figures, filtered to one country --------------------------------------
 
+# Human-readable names for the 8 steps of the scaling chain, matching the
+# pipeline flowchart's own terminology (sCh = suspected cholera, cCh =
+# confirmed cholera) rather than the raw variable names. Used only to build
+# plot/facet labels below (funnel x-axis via build_step_summary(), the
+# all-steps map titles via build_all_steps_sf()/short_label(), and the
+# density facets via build_density_plots()) -- the underlying data columns
+# (admin_cases, cCh, etc.) are untouched.
+SCALING_STEP_NAMES <- c(
+  admin_cases    = "reported sCh",
+  sCh            = "med attended sCh",
+  cCh            = "med attended cCh",
+  cCh_mild       = "med attended mild cCh",
+  cCh_severe     = "med attended severe cCh",
+  all_cCh_mild   = "all mild cCh",
+  all_cCh_severe = "all severe cCh",
+  all_cCh        = "all cCh"
+)
+
 # Funnel: mean (+95% draw interval) total cases at each step of the chain,
 # broken out by admin level and time period -- i.e. summed over admin UNITS
 # within a given (admin_level, period)
@@ -214,14 +232,14 @@ build_step_summary <- function(cty, mai_admin_case_draws, medically_attended_sCh
                                 medically_attended_cCh, cCh_mild, cCh_severe,
                                 all_cCh_mild, all_cCh_severe, all_cCh) {
   steps <- list(
-    list(df = dplyr::filter(mai_admin_case_draws, country == cty),   col = "admin_cases",   label = "1. admin_cases"),
-    list(df = dplyr::filter(medically_attended_sCh, country == cty), col = "admin_cases",   label = "2. sCh (÷reporting_ratio)"),
-    list(df = dplyr::filter(medically_attended_cCh, country == cty), col = "cCh",           label = "3. cCh (x positivity)"),
-    list(df = dplyr::filter(cCh_mild, country == cty),               col = "cCh_mild",      label = "4a. cCh_mild"),
-    list(df = dplyr::filter(cCh_severe, country == cty),             col = "cCh_severe",    label = "4b. cCh_severe"),
-    list(df = dplyr::filter(all_cCh_mild, country == cty),           col = "all_cCh_mild",  label = "5a. all_cCh_mild (÷care_seek)"),
-    list(df = dplyr::filter(all_cCh_severe, country == cty),         col = "all_cCh_severe",label = "5b. all_cCh_severe (÷care_seek)"),
-    list(df = dplyr::filter(all_cCh, country == cty),                col = "all_cCh",       label = "6. all_cCh (final)")
+    list(df = dplyr::filter(mai_admin_case_draws, country == cty),   col = "admin_cases",   label = stringr::str_glue("1. {SCALING_STEP_NAMES[['admin_cases']]}")),
+    list(df = dplyr::filter(medically_attended_sCh, country == cty), col = "admin_cases",   label = stringr::str_glue("2. {SCALING_STEP_NAMES[['sCh']]} (÷reporting_ratio)")),
+    list(df = dplyr::filter(medically_attended_cCh, country == cty), col = "cCh",           label = stringr::str_glue("3. {SCALING_STEP_NAMES[['cCh']]} (x positivity)")),
+    list(df = dplyr::filter(cCh_mild, country == cty),               col = "cCh_mild",      label = stringr::str_glue("4a. {SCALING_STEP_NAMES[['cCh_mild']]}")),
+    list(df = dplyr::filter(cCh_severe, country == cty),             col = "cCh_severe",    label = stringr::str_glue("4b. {SCALING_STEP_NAMES[['cCh_severe']]}")),
+    list(df = dplyr::filter(all_cCh_mild, country == cty),           col = "all_cCh_mild",  label = stringr::str_glue("5a. {SCALING_STEP_NAMES[['all_cCh_mild']]} (÷care_seek)")),
+    list(df = dplyr::filter(all_cCh_severe, country == cty),         col = "all_cCh_severe",label = stringr::str_glue("5b. {SCALING_STEP_NAMES[['all_cCh_severe']]} (÷care_seek)")),
+    list(df = dplyr::filter(all_cCh, country == cty),                col = "all_cCh",       label = stringr::str_glue("6. {SCALING_STEP_NAMES[['all_cCh']]} (final)"))
   )
   purrr::map_dfr(steps, function(s) {
     if (nrow(s$df) == 0) {
@@ -296,8 +314,8 @@ build_density_plots <- function(cty, mai_admin_case_draws, all_cCh) {
       if (nrow(b) == 0 || nrow(a) == 0) next
 
       density_df <- dplyr::bind_rows(
-        b %>% dplyr::transmute(value = admin_cases, stage = "1. admin_cases (raw input)"),
-        a %>% dplyr::transmute(value = all_cCh,     stage = "2. all_cCh (final output)")
+        b %>% dplyr::transmute(value = admin_cases, stage = stringr::str_glue("1. {SCALING_STEP_NAMES[['admin_cases']]} (raw input)")),
+        a %>% dplyr::transmute(value = all_cCh,     stage = stringr::str_glue("2. {SCALING_STEP_NAMES[['all_cCh']]} (final output)"))
       )
 
       key <- stringr::str_glue("{lvl} — {p_label}")
@@ -448,14 +466,14 @@ build_all_steps_sf <- function(cty, admin_sf, mai_admin_case_draws, medically_at
                                all_cCh_mild, all_cCh_severe, all_cCh) {
   admin_sf_cty <- prep_admin_sf(cty, admin_sf)
   steps <- list(
-    list(df = mai_admin_case_draws,   col = "admin_cases",   label = "1. admin_cases"),
-    list(df = medically_attended_sCh, col = "admin_cases",   label = "2. sCh (÷reporting_ratio)"),
-    list(df = medically_attended_cCh, col = "cCh",           label = "3. cCh (x positivity)"),
-    list(df = cCh_mild,               col = "cCh_mild",      label = "4a. cCh_mild"),
-    list(df = cCh_severe,             col = "cCh_severe",    label = "4b. cCh_severe"),
-    list(df = all_cCh_mild,           col = "all_cCh_mild",  label = "5a. all_cCh_mild (÷care_seek)"),
-    list(df = all_cCh_severe,         col = "all_cCh_severe",label = "5b. all_cCh_severe (÷care_seek)"),
-    list(df = all_cCh,                col = "all_cCh",       label = "6. all_cCh (final)")
+    list(df = mai_admin_case_draws,   col = "admin_cases",   label = stringr::str_glue("1. {SCALING_STEP_NAMES[['admin_cases']]}")),
+    list(df = medically_attended_sCh, col = "admin_cases",   label = stringr::str_glue("2. {SCALING_STEP_NAMES[['sCh']]} (÷reporting_ratio)")),
+    list(df = medically_attended_cCh, col = "cCh",           label = stringr::str_glue("3. {SCALING_STEP_NAMES[['cCh']]} (x positivity)")),
+    list(df = cCh_mild,               col = "cCh_mild",      label = stringr::str_glue("4a. {SCALING_STEP_NAMES[['cCh_mild']]}")),
+    list(df = cCh_severe,             col = "cCh_severe",    label = stringr::str_glue("4b. {SCALING_STEP_NAMES[['cCh_severe']]}")),
+    list(df = all_cCh_mild,           col = "all_cCh_mild",  label = stringr::str_glue("5a. {SCALING_STEP_NAMES[['all_cCh_mild']]} (÷care_seek)")),
+    list(df = all_cCh_severe,         col = "all_cCh_severe",label = stringr::str_glue("5b. {SCALING_STEP_NAMES[['all_cCh_severe']]} (÷care_seek)")),
+    list(df = all_cCh,                col = "all_cCh",       label = stringr::str_glue("6. {SCALING_STEP_NAMES[['all_cCh']]} (final)"))
   )
   all_steps <- purrr::map_dfr(steps, ~ summarise_admin_draws(.x$df, cty, .x$col, .x$label)) %>%
     add_period_label()
