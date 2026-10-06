@@ -331,73 +331,156 @@ run_all <- function(
     export_packages <- c("tidyverse", "magrittr", "foreach", "rstan", "cmdstanr",
                          "lubridate", "sf", "taxdat")
     
-    if(!is.null(postprocess_fun_opts) & all(names(postprocess_fun_opts) == "col")){
-      if(postprocess_fun_opts$col == "pop_high_risk"){
-      
-      new_configs= NULL
-      for (config_idx in 1:length(configs)) {
-        configs_tmp <- read_yaml_for_data(configs[config_idx],data_dir)
+    if (!is.null(postprocess_fun_opts) & all(names(postprocess_fun_opts) == "col")) {
+      if (postprocess_fun_opts$col == "pop_high_risk") {
         
-        genquant <- readRDS(configs_tmp$file_names$stan_genquant_filename)
+        ## bug fix 29 Oct 2026 CA
+        # Old code (commented out for reference) had two compounding bugs:
+        #  1. `new_configs` was overwritten each loop iteration instead of
+        #     accumulating exclusions, so only the LAST flagged config was
+        #     ever dropped.
+        #  2. `which(risk_cat_dict == ">100")` never matched anything --
+        #     get_risk_cat_dict() actually returns "\u2265100" (U+2265) --
+        #     so high_risk_var was malformed and every config spuriously
+        #     "failed" the check, triggering a false
+        #     "No countries ... have high risk population." stop().
+        # Fixed by using a `keep` logical vector (correct accumulation) and
+        # the correct "\u2265100" label.
+        #
+        #   new_configs= NULL
+        #   for (config_idx in 1:length(configs)) {
+        #     configs_tmp <- read_yaml_for_data(configs[config_idx],data_dir)
+        #
+        #     genquant <- readRDS(configs_tmp$file_names$stan_genquant_filename)
+        #
+        #     # Get dictionnary of risk categories
+        #     risk_cat_dict <- get_risk_cat_dict()
+        #     high_risk_ind <- which(risk_cat_dict == ">100")
+        #     high_risk_var <- stringr::str_glue("tot_pop_risk[{high_risk_ind},3]")
+        #
+        #     tot_pop_risk <- genquant$draws("tot_pop_risk") %>%
+        #       draws_to_df(var_name = "tot_pop_risk",
+        #                   to_name = "variable",
+        #                   to_value = "tot_pop_risk")
+        #
+        #     if(!any(tot_pop_risk$variable==high_risk_var)){
+        #       new_configs <- configs[-config_idx]
+        #       print(paste0("no high risk population for ", configs_tmp$countries_name))
+        #     }
+        #
+        #   }
+        #   if(is.null(new_configs)){
+        #     stop("No countries in this config list have high risk population.")
+        #   } else {
+        #
+        #     configs <- new_configs
+        #   }
         
-        # Get dictionnary of risk categories
-        risk_cat_dict <- get_risk_cat_dict()
-        high_risk_ind <- which(risk_cat_dict == ">100")
-        high_risk_var <- stringr::str_glue("tot_pop_risk[{high_risk_ind},3]")                       
-        
-        tot_pop_risk <- genquant$draws("tot_pop_risk") %>% 
-          draws_to_df(var_name = "tot_pop_risk",
-                      to_name = "variable",
-                      to_value = "tot_pop_risk") 
-        
-        if(!any(tot_pop_risk$variable==high_risk_var)){
-          new_configs <- configs[-config_idx]
-          print(paste0("no high risk population for ", configs_tmp$countries_name))
+        keep <- rep(TRUE, length(configs))
+        for (config_idx in seq_along(configs)) {
+          configs_tmp <- read_yaml_for_data(configs[config_idx], data_dir)
+          genquant <- readRDS(configs_tmp$file_names$stan_genquant_filename)
+          risk_cat_dict <- get_risk_cat_dict()
+          high_risk_ind <- which(risk_cat_dict == "\u2265100")
+          high_risk_var <- stringr::str_glue("tot_pop_risk[{high_risk_ind},3]")
+          tot_pop_risk <- genquant$draws("tot_pop_risk") %>%
+            draws_to_df(var_name = "tot_pop_risk",
+                        to_name = "variable",
+                        to_value = "tot_pop_risk")
+          if (!any(tot_pop_risk$variable == high_risk_var)) {
+            keep[config_idx] <- FALSE
+            print(paste0("no high risk population for ", configs_tmp$countries_name))
+          }
         }
-        
+        if (!any(keep)) {
+          warning("No countries in this config list have high risk population -- skipping ",
+                  fun_name, " and returning NULL.")
+          configs <- character(0)
+        } else {
+          configs <- configs[keep]
+        }
+        ## end bug fix
       }
-      if(is.null(new_configs)){
-        stop("No countries in this config list have high risk population.")
-      } else {
-        
-        configs <- new_configs
-      }
-    }}
-      
+    }
     
-    all_res <- foreach(
-      config = configs,
-      .combine = dplyr::bind_rows,
-      .errorhandling = error_handling,
-      .packages = export_packages) %do% { 
-        
-        args <- list(config = config,
-                     redo = redo_interm,
-                     redo_aux = redo_aux,
-                     prefix = prefix,
-                     suffix = suffix,
-                     fun_name = fun_name,
-                     fun = fun,
-                     output_dir = interm_dir,
-                     data_dir = data_dir,
-                     verbose = verbose,
-                     fun_opts = fun_opts)
-        
-        res <- do.call(postprocess_wrapper, args)
-        
-        # Set country name
-        res$country <- get_country_from_string(config)
-        
-        res
-      }
+    # BUGFIX 29 Oct 2026 CA: configs can now legitimately come back as
+    # character(0) from the pop_high_risk filtering above, so skip foreach()
+    # entirely rather than let it error on an empty iteration set.
+    #
+    # Old code (commented out for reference) called foreach() unconditionally:
+    #
+    #   all_res <- foreach(
+    #     config = configs,
+    #     .combine = dplyr::bind_rows,
+    #     .errorhandling = error_handling,
+    #     .packages = export_packages) %do% {
+    #
+    #       args <- list(config = config,
+    #                    redo = redo_interm,
+    #                    redo_aux = redo_aux,
+    #                    prefix = prefix,
+    #                    suffix = suffix,
+    #                    fun_name = fun_name,
+    #                    fun = fun,
+    #                    output_dir = interm_dir,
+    #                    data_dir = data_dir,
+    #                    verbose = verbose,
+    #                    fun_opts = fun_opts)
+    #
+    #       res <- do.call(postprocess_wrapper, args)
+    #
+    #       # Set country name
+    #       res$country <- get_country_from_string(config)
+    #
+    #       res
+    #     }
+    #
+    #   if (!is.null(postprocess_fun)) {
+    #     args <- c(
+    #       list(df = all_res),
+    #       postprocess_fun_opts
+    #     )
+    #
+    #     all_res <- do.call(postprocess_fun, args)
+    #   }
     
-    if (!is.null(postprocess_fun)) {
-      args <- c(
-        list(df = all_res),
-        postprocess_fun_opts
-      )
+    if (length(configs) == 0) {
+      all_res <- NULL
+    } else {
+      all_res <- foreach(
+        config = configs,
+        .combine = dplyr::bind_rows,
+        .errorhandling = error_handling,
+        .packages = export_packages) %do% {
+          
+          args <- list(config = config,
+                       redo = redo_interm,
+                       redo_aux = redo_aux,
+                       prefix = prefix,
+                       suffix = suffix,
+                       fun_name = fun_name,
+                       fun = fun,
+                       output_dir = interm_dir,
+                       data_dir = data_dir,
+                       verbose = verbose,
+                       fun_opts = fun_opts)
+          
+          res <- do.call(postprocess_wrapper, args)
+          
+          # Set country name
+          res$country <- get_country_from_string(config)
+          
+          res
+        }
       
-      all_res <- do.call(postprocess_fun, args)
+      if (!is.null(postprocess_fun)) {
+        args <- c(
+          list(df = all_res),
+          postprocess_fun_opts
+        )
+        
+        all_res <- do.call(postprocess_fun, args)
+      }
     }
     
     save_file_generic(res = all_res, 
@@ -924,7 +1007,14 @@ postprocess_pop_at_high_risk <- function(config_list,
   
   # Get dictionnary of risk categories
   risk_cat_dict <- get_risk_cat_dict()
-  high_risk_ind <- which(risk_cat_dict == ">100")
+  #high_risk_ind <- which(risk_cat_dict == ">100")
+  # BUGFIX: get_risk_cat_dict() returns "\u2265100" (Unicode "greater-or-equal",
+  # U+2265), not the ASCII ">100". The old ">100" never matched anything, so
+  # `which(...)` silently returned integer(0) and high_risk_var downstream was
+  # malformed -- this is what ultimately produced the
+  # "object 'pop_high_risk' not found" error several steps later.
+  high_risk_ind <- which(risk_cat_dict == "\u2265100")
+  ##end bug fix
   high_risk_var <- stringr::str_glue("tot_pop_risk[{high_risk_ind},3]")                       
   
   # Get mean annual incidence summary
@@ -1914,4 +2004,417 @@ postprocess_WHO_est <- function(config_list,
   who_ests <- sf_cases %>% dplyr::filter(OC_UID %in% who_OCs$Related.WHO.Annual.Report.OC)
   
   who_ests
+}
+
+# Case burden adjustment (cCh) scaling functions ---------------------------
+# Added to support scaling country-level case draws from the main
+# pipeline by (1) a fixed reporting-completeness ratio, (2) a
+# global test-positivity posterior, (3) country-level under-5 proportion
+# posteriors from the case age-distribution model
+# (cad_model4_country_random_endemicity_random.stan, fit in
+# fit_cholera_age_model.R, not part of this pipeline's per-country loop),
+# and (4) global care-seeking posteriors -- all from a systematic review.
+# See postprocess_results.R section K ("Case burden adjustment") for how
+# these are chained together.
+
+#' align_draws_to_reference
+#'
+#' Resample a posterior to exactly n_draws draws, re-indexed .draw = 1:n_draws,
+#' so it can be paired via inner_join() with draws from an independently-fit
+#' model or an externally-sourced posterior. Works for both country-level
+#' draws (grouped by country, e.g. p_u5 from the age-distribution model) and
+#' global/scalar-source draws with no country column (e.g. positivity,
+#' care-seeking, sourced from a systematic review and shared across every
+#' country). Sampling is with replacement only when the source has fewer
+#' draws than n_draws (genuine upsampling, e.g. stretching p_u5 to match a
+#' larger n_draws) -- when the source has more draws than n_draws (e.g. the
+#' systematic-review posteriors, typically ~8000 draws, being thinned down
+#' to match the geospatial model's smaller case-draw count), sampling is
+#' without replacement, so no artificial duplicate draws are introduced
+#' where the real posterior has plenty of distinct draws to spare.
+#'
+#' @param draws_df a tibble with a .draw column (and, optionally, a country column)
+#' @param n_draws number of draws to resample to
+#'
+#' @return draws_df resampled to n_draws rows (per country, if a country
+#' column is present), with .draw re-indexed 1:n_draws
+#' @export
+#'
+#' @examples
+align_draws_to_reference <- function(draws_df, n_draws) {
+
+  if ("country" %in% names(draws_df)) {
+    draws_df %>%
+      dplyr::group_by(country) %>%
+      dplyr::group_modify(~ dplyr::slice_sample(.x, n = n_draws, replace = nrow(.x) < n_draws)) %>%
+      dplyr::mutate(.draw = dplyr::row_number()) %>%
+      dplyr::ungroup()
+  } else {
+    draws_df %>%
+      dplyr::slice_sample(n = n_draws, replace = nrow(draws_df) < n_draws) %>%
+      dplyr::mutate(.draw = dplyr::row_number())
+  }
+}
+
+#' combine_draws
+#'
+#' Join two draws tibbles and combine two columns with a binary operator.
+#' Covers positivity scaling, severity-split multiplication, care-seeking
+#' scaling, and the final mild + severe summation -- call it with different
+#' inputs/op rather than writing a separate function for each step.
+#'
+#' df1 may be at any granularity that includes a "country" and ".draw"
+#' column -- in particular, per-admin-unit draws (one row per
+#' location_period_id/admin_level/draw, several rows per country), not just
+#' one row per country/draw. df2 supplies a country-level (or fully global)
+#' scaling factor, joined on "country" (when df2 has one) and ".draw"; every
+#' row of df1 sharing that (country, .draw) -- e.g. every admin unit of that
+#' country -- receives the same scaling value. If df2 has no "country"
+#' column at all (a global posterior, e.g. from a systematic review), the
+#' join is on .draw only, so that draw's value is broadcast to every row of
+#' df1 sharing that .draw index, country or admin unit alike.
+#'
+#' All of df1's columns (country, .draw, and anything else identifying the
+#' row -- location_period_id, admin_level, shp_id, etc.) are kept as-is;
+#' only the two input value columns are consumed, so admin-unit identity
+#' survives the whole scaling chain unless the caller explicitly drops it.
+#'
+#' @param df1 draws tibble with at least country and .draw columns -- may
+#' have one row per country/draw or one row per admin-unit/draw
+#' @param col1 name of the column in df1 to combine
+#' @param df2 country x .draw (or global x .draw) tibble supplying the
+#' scaling factor
+#' @param col2 name of the column in df2 to combine
+#' @param out_col name of the output column
+#' @param op binary operator to apply (default `*`)
+#'
+#' @return df1 with col1/col2 replaced by out_col, all other df1 columns kept
+#' @export
+#'
+#' @examples
+combine_draws <- function(df1, col1, df2, col2, out_col, op = `*`) {
+
+  join_cols <- setdiff(intersect(names(df1), names(df2)), c(col1, col2))
+
+  # Only pull the join keys + the one value column from df2, so df1's own
+  # columns (admin_level, location_period_id, shp_id, ...) are never
+  # touched or dropped by the join.
+  df2_slim <- df2 %>% dplyr::select(dplyr::all_of(join_cols), dplyr::all_of(col2))
+
+  result <- dplyr::inner_join(df1, df2_slim, by = join_cols) %>%
+    dplyr::mutate(!!out_col := op(!!rlang::sym(col1), !!rlang::sym(col2))) %>%
+    dplyr::select(-dplyr::any_of(setdiff(c(col1, col2), out_col)))
+
+  # ADDED: fail loudly if join_cols does not uniquely identify rows in df2 
+  if (nrow(result) != nrow(df1)) {
+    stop("combine_draws(): row count changed from ", nrow(df1), " to ", nrow(result),
+        " after joining on (", paste(join_cols, collapse = ", "), ") -- df2 is not unique on ",
+        "those columns, so this join was many-to-many rather than many-to-one. Check whether ",
+        "df1/df2 have overlapping keys across separate configs (e.g. multiple time-period ",
+        "configs for the same country sharing .draw indices).")
+  }
+
+  result
+}
+
+#' scale_by_reporting_ratio
+#'
+#' Inflate reported case draws to an estimate of all medically-attended
+#' cases, by dividing by the reporting-completeness ratio (reported / all
+#' medically-attended sCh) -- a single GLOBAL scalar (see
+#' get_config_reporting_ratio()), applied identically to every country and
+#' every admin unit. Unlike severity_u5/severity_o5, this is not a
+#' per-country value, so there is no join here at all -- just a division
+#' applied to every row. Divides, rather than multiplies, since the ratio
+#' is defined as reported/all (<= 1 under underreporting), so
+#' all = reported / ratio.
+#'
+#' @param cases_draws country x .draw (or admin-unit x .draw) tibble of case draws
+#' @param value_col name of the column in cases_draws to scale
+#' @param reporting_ratio single numeric scalar (see get_config_reporting_ratio())
+#'
+#' @return cases_draws with value_col divided by reporting_ratio
+#' @export
+#'
+#' @examples
+scale_by_reporting_ratio <- function(cases_draws, value_col, reporting_ratio) {
+
+  cases_draws %>%
+    dplyr::mutate(!!value_col := !!rlang::sym(value_col) / reporting_ratio)
+}
+
+#' get_config_reporting_ratio
+#'
+#' The reporting-completeness ratio (reported / all medically-attended
+#' sCh) -- a single scalar shared by every country, unlike severity_u5/
+#' severity_o5 (see get_config_severity_scalars(), a deliberately separate
+#' function: this one returns one global number, not a country-keyed
+#' tibble, and scale_by_reporting_ratio() uses it without any join). Still
+#' read from each config's scaling: section (reporting_ratio is broadcast
+#' identically to every config by write_batch_mapping_config_general.R's
+#' single shared params_df row), but every config in config_dir is checked
+#' to actually agree -- it errors loudly, listing the distinct values
+#' found, rather than silently using whichever config happened to be read
+#' first, if any config disagrees (e.g. one was hand-edited and the others
+#' weren't).
+#'
+#' @param config_dir directory of per-country config ymls (same as run_all()'s config_dir)
+#'
+#' @return single numeric scalar: the reporting_ratio value common to every config in config_dir
+#' @export
+#'
+#' @examples
+get_config_reporting_ratio <- function(config_dir) {
+
+  config_files <- list.files(config_dir, pattern = "\\.yml$", full.names = TRUE)
+
+  ratios <- purrr::map_dbl(config_files, function(f) {
+    cfg <- yaml::read_yaml(f)
+    cfg$scaling$reporting_ratio
+  })
+
+  if (dplyr::n_distinct(ratios) > 1) {
+    stop("reporting_ratio disagrees across configs in ", config_dir,
+        " -- it is meant to be a single global scalar, but found: ",
+        paste(unique(ratios), collapse = ", "))
+  }
+
+  ratios[1]
+}
+
+#' get_config_severity_scalars
+#'
+#' The severity-by-age-class scalars (proportion of cCh cases that are
+#' moderate-to-severe, among under-5s and among 5-and-overs) -- two GLOBAL
+#' scalars shared by every country, the same pattern as
+#' get_config_reporting_ratio(): read from every config's scaling: section
+#' (severity_u5/severity_o5 are broadcast identically to every config by
+#' write_batch_mapping_config_general.R's single shared params_df row),
+#' checked for agreement across every config file, and returned as two
+#' plain numbers rather than a country-keyed tibble. Errors loudly, listing
+#' the distinct values found, if any config disagrees with the others (e.g.
+#' one time window was hand-edited).
+#'
+#' Deliberately a separate function from get_config_reporting_ratio(), not
+#' a shared/reused one, even though both now follow the same
+#' read-and-verify-a-global-scalar pattern.
+#'
+#' @param config_dir directory of per-country config ymls (same as run_all()'s config_dir)
+#'
+#' @return named list: severity_u5, severity_o5 -- each a single numeric
+#' scalar common to every config in config_dir
+#' @export
+#'
+#' @examples
+get_config_severity_scalars <- function(config_dir) {
+
+  config_files <- list.files(config_dir, pattern = "\\.yml$", full.names = TRUE)
+
+  per_config <- purrr::map_dfr(config_files, function(f) {
+    cfg <- yaml::read_yaml(f)
+    tibble::tibble(severity_u5 = cfg$scaling$severity_u5,
+                   severity_o5 = cfg$scaling$severity_o5)
+  })
+
+  if (dplyr::n_distinct(per_config$severity_u5) > 1 | dplyr::n_distinct(per_config$severity_o5) > 1) {
+    stop("severity_u5/severity_o5 disagree across configs in ", config_dir,
+        " -- they are meant to be single global scalars, but found severity_u5: ",
+        paste(unique(per_config$severity_u5), collapse = ", "),
+        "; severity_o5: ", paste(unique(per_config$severity_o5), collapse = ", "))
+  }
+
+  list(severity_u5 = per_config$severity_u5[1], severity_o5 = per_config$severity_o5[1])
+}
+
+#' compute_severity_proportions
+#'
+#' Country-level, per-draw proportion of medically-attended cCh that are
+#' mild vs. moderate-to-severe: a weighted average of the two global
+#' severity-by-age-class scalars (see get_config_severity_scalars()),
+#' weighted by that country's (and that draw's) posterior proportion of
+#' cases under 5 -- so the result varies by country and draw even though
+#' severity_u5/severity_o5 themselves do not. No join against a severity
+#' table is needed here (severity_u5/severity_o5 are plain scalars, not a
+#' per-country tibble), so this is a straight mutate() on p_u5_draws.
+#'
+#' @param p_u5_draws country x .draw tibble with column p_u5 (proportion of cases under 5)
+#' @param severity_u5 single numeric scalar: proportion of under-5 cases that are moderate-to-severe
+#' @param severity_o5 single numeric scalar: proportion of 5-and-over cases that are moderate-to-severe
+#' (both from get_config_severity_scalars())
+#'
+#' @return tibble with country, .draw, prop_severe, prop_mild
+#' @export
+#'
+#' @examples
+compute_severity_proportions <- function(p_u5_draws, severity_u5, severity_o5) {
+
+  p_u5_draws %>%
+    dplyr::mutate(
+      prop_severe = p_u5 * severity_u5 + (1 - p_u5) * severity_o5,
+      prop_mild = 1 - prop_severe
+    ) %>%
+    dplyr::select(country, .draw, prop_severe, prop_mild)
+}
+
+#' postprocess_country_p_u5
+#'
+#' Per-country, per-draw posterior of the proportion of cases under 5, from
+#' the fitted case age-distribution model (model 4:
+#' cad_model4_country_random_endemicity_random.stan, fit by
+#' fit_cholera_age_model.R, saved to scaling_input_dir). Draw-level
+#' counterpart of compute_country_pbar_summary() in
+#' cholera_age_model_fits.qmd -- averages a country's own per-observation
+#' pbar draws across whatever years/endemic-statuses it had, rather than
+#' collapsing to quantiles.
+#'
+#' @param scaling_input_dir directory containing the saved model4 fit,
+#' country_lookup.csv, and country_id_vec.csv
+#' @param country_lookup tibble with columns country, country_id (defaults to
+#' reading country_lookup.csv from scaling_input_dir)
+#' @param country_id_vec integer vector, length = number of age-model rows,
+#' giving each row's country_id (defaults to reading country_id_vec.csv from
+#' scaling_input_dir)
+#'
+#' @return tibble with country, .draw, p_u5 -- one row per country present in
+#' country_lookup, per draw
+#' @export
+#'
+#' @examples
+postprocess_country_p_u5 <- function(scaling_input_dir,
+                                     country_lookup = readr::read_csv(
+                                       file.path(scaling_input_dir, "country_lookup.csv")),
+                                     country_id_vec = readr::read_csv(
+                                       file.path(scaling_input_dir, "country_id_vec.csv"))$country_id) {
+
+  fit <- readRDS(file.path(scaling_input_dir, "fit_cad_model4_country_random_endemicity_random.rds"))
+  pbar_mat <- unclass(fit$draws("pbar", format = "matrix"))
+  storage.mode(pbar_mat) <- "double"
+
+  country_ids_present <- sort(unique(country_id_vec))
+
+  purrr::map_dfr(country_ids_present, function(cid) {
+    cols <- which(country_id_vec == cid)
+    draws <- if (length(cols) == 1) pbar_mat[, cols] else rowMeans(pbar_mat[, cols, drop = FALSE])
+    tibble::tibble(
+      country = country_lookup$country[match(cid, country_lookup$country_id)],
+      .draw = seq_along(draws),
+      p_u5 = draws
+    )
+  })
+}
+
+#' postprocess_country_p_u5_fallback
+#'
+#' Fallback per-draw proportion of cases under 5, for countries with no
+#' age-split data at all (absent from country_lookup, so
+#' postprocess_country_p_u5() has nothing to compute for them). Uses model
+#' 4's p_epidemic_posterior -- a single scalar per draw, identical for every
+#' no-data country, computed in the model's generated quantities block from
+#' gamma0 + w[epidemic] with the country term dropped (see
+#' cholera_age_distribution.qmd, "Predicting for countries with no data").
+#'
+#' @param scaling_input_dir directory containing the saved model4 fit
+#' @param missing_countries character vector of country codes with no
+#' age-split data (i.e. absent from country_lookup)
+#'
+#' @return tibble with country, .draw, p_u5 -- one row per missing country, per draw
+#' @export
+#'
+#' @examples
+postprocess_country_p_u5_fallback <- function(scaling_input_dir, missing_countries) {
+
+  if (length(missing_countries) == 0) {
+    return(tibble::tibble(country = character(0), .draw = integer(0), p_u5 = numeric(0)))
+  }
+
+  fit <- readRDS(file.path(scaling_input_dir, "fit_cad_model4_country_random_endemicity_random.rds"))
+  p_fallback <- as.numeric(unclass(fit$draws("p_epidemic_posterior", format = "matrix")))
+
+  tidyr::expand_grid(country = missing_countries, .draw = seq_along(p_fallback)) %>%
+    dplyr::mutate(p_u5 = rep(p_fallback, times = length(missing_countries)))
+}
+
+#' postprocess_admin_cases_draws
+#'
+#' Case draws for every output admin unit (ADM0 and all subnational levels),
+#' for one country's config -- the draw-level counterpart of
+#' postprocess_mean_annual_cases() (which reads the same
+#' "location_mean_cases_output" generated quantity but collapses it to a
+#' posterior summary via genquant$summary(), discarding draws), built the
+#' same way postprocess_mean_annual_incidence_draws() already does for
+#' rates rather than cases -- that function is the existing template this
+#' one mirrors. Used as the base input to the case burden adjustment
+#' (postprocess_results.R section K) so that country-level scaling factors
+#' (reporting ratio, positivity, age-distribution, care-seeking) can be
+#' broadcast, via combine_draws(), to every admin unit of that country at
+#' once.
+#'
+#' filter_draws is NOT left NULL here (unlike an earlier version of this
+#' function): postprocess_adm0_cases()/postprocess_adm0_rates() keep every
+#' raw draw a country's fit produced, with no cap, and different countries'
+#' fits can have different total draw counts (e.g. different chains/
+#' iter_sampling settings). Left uncapped, run_all()'s bind_rows() across
+#' countries would let n_draws (computed downstream in section K as the
+#' number of distinct .draw values present anywhere) be set by whichever
+#' country's fit produced the MOST draws -- every other country would then
+#' silently lose admin units in every combine_draws() inner_join() for any
+#' .draw index beyond its own real draw count, with no warning. Capping
+#' here instead makes every country contribute the same, deliberately
+#' chosen number of real draws.
+#'
+#' @param config_list config list
+#' @param redo_aux whether to rebuild the output shapefile join
+#' @param filter_draws number of draws to keep per country (default 1000 --
+#' set this to the smallest raw draw count actually produced across your
+#' country configs' Stan fits, not left to an arbitrary default, since a
+#' value larger than some country's real draw count will error via
+#' draws_to_df()'s own "Asked for X draws but only Y available" check)
+#'
+#' @return tibble with one row per admin unit per draw: .draw, admin_cases,
+#' location_period_id, admin_level, country, and any other columns carried
+#' by output_shapefiles
+#' @export
+#'
+#' @examples
+postprocess_admin_cases_draws <- function(config_list,
+                                          redo_aux = FALSE,
+                                          filter_draws = 1000) {
+
+  # Get genquant data
+  genquant <- readRDS(config_list$file_names$stan_genquant_filename)
+
+  # location_mean_cases_output is indexed over every output location for
+  # this country's config (ADM0 and subnational alike) -- not filtered to
+  # a single adm0_ind the way postprocess_adm0_cases() is.
+  cases_draws <- genquant$draws("location_mean_cases_output") %>%
+    draws_to_df(var_name = "location_mean_cases_output", filter_draws = filter_draws)
+
+  # Get the output shapefiles (admin_level, location_period_id, country,
+  # shp_id, ...) for every admin unit and join
+  output_shapefiles <- get_output_sf_reload(config_list = config_list,
+                                            redo = redo_aux)
+
+  res <- join_output_shapefiles(output = cases_draws,
+                                output_shapefiles = output_shapefiles %>%
+                                  sf::st_drop_geometry(),
+                                var_col = "variable") %>%
+    dplyr::select(-variable) %>%
+    dplyr::rename(admin_cases = value)
+
+  # ADDED: tag every row with which config (time window) produced it.
+  # location_period_id alone does NOT disambiguate two time-period configs
+  # for the same country when the underlying admin boundaries are stable
+  # across both windows (e.g. BDI 2011-2015 vs. 2016-2020 sharing the same
+  # location_period_id for a given admin unit) -- without this, downstream
+  # combine_draws() calls that join two admin-level tables together (e.g.
+  # the final mild + severe sum) have no column left to distinguish the
+  # two configs' draws, and silently fan out many-to-many. .draw indices
+  # are independent per config (separate Stan fits), so this is not
+  # optional metadata -- it is the only thing that makes (country, .draw)
+  # actually unique per admin unit once a country has multiple configs.
+  res <- res %>%
+    dplyr::mutate(period_start = config_list$start_time,
+                  period_end = config_list$end_time)
+
+  res
 }

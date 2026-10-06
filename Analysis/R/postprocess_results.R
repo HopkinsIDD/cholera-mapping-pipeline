@@ -15,7 +15,7 @@ library(taxdat)
 
 # User-supplied options
 opt_list <- list(
-  make_option(c("-d", "--config_dir"), 
+  make_option(c("-d", "--config_dir"),
               default = "./Analysis/cholera-configs/postprocessing_test_2011_2015/",
               action ="store", type = "character", help = "Directory"),
   make_option(opt_str = c("-r", "--redo"), type = "logical",
@@ -41,7 +41,14 @@ opt_list <- list(
   make_option(opt_str = c("-c", "--cholera_dir"), type = "character",
               default = "cholera-mapping-pipeline", help = "Cholera mapping pipeline directory"),
   make_option(opt_str = c("-n", "--n_draws"), type = "numeric",
-              default = 10, help = "Number of draws to save from rate/cases grids")
+              default = 10, help = "Number of draws to save from rate/cases grids"),
+  make_option(opt_str = c("-w", "--scaling_input_dir"), type = "character",
+              default = "./Analysis/scaling_input/", help = "Directory with case burden scaling inputs"),
+  make_option(opt_str = c("-k", "--case_filter_draws"), type = "numeric",
+              default = 1000, help = paste("Number of draws to keep per country in",
+                                           "postprocess_admin_cases_draws(), set to the smallest",
+                                           "draw count produced across country",
+                                           "configs' Stan fits"))
 )
 
 opt <- parse_args(OptionParser(option_list = opt_list))
@@ -58,11 +65,11 @@ if (!dir.exists(opt$data_dir)) {
   stop("Data directory ", opt$data_dir, " does not exist")
 }
 
-suffix <- opt$config_dir %>% 
+suffix <- opt$config_dir %>%
   # Remove tailing / to ensure non-empty string
-  stringr::str_remove("/$") %>% 
-  stringr::str_split("/") %>% 
-  .[[1]] %>% 
+  stringr::str_remove("/$") %>%
+  stringr::str_split("/") %>%
+  .[[1]] %>%
   last()
 
 if (!is.null(opt$suffix)) {
@@ -89,7 +96,7 @@ all_country_sf <- run_all(
   interm_dir = opt$interm_dir,
   data_dir = opt$data_dir,
   output_file_type = "rds",
-  verbose = opt$verbose) 
+  verbose = opt$verbose)
 
 opt$redo_auxilliary <- FALSE
 
@@ -109,7 +116,7 @@ all_shapefiles <- run_all(
   interm_dir = opt$interm_dir,
   data_dir = opt$data_dir,
   output_file_type = "rds",
-  verbose = opt$verbose) 
+  verbose = opt$verbose)
 
 
 # B. Number of observations --------------------------------------------------
@@ -130,7 +137,7 @@ all_obs_counts <- run_all(
   interm_dir = opt$interm_dir,
   data_dir = opt$data_dir,
   output_file_type = "rds",
-  verbose = opt$verbose) 
+  verbose = opt$verbose)
 
 # All the observation counts
 all_obs <- run_all(
@@ -148,7 +155,7 @@ all_obs <- run_all(
   interm_dir = opt$interm_dir,
   data_dir = opt$data_dir,
   output_file_type = "rds",
-  verbose = opt$verbose) 
+  verbose = opt$verbose)
 
 
 # C. Mean annual incidence ---------------------------------------------------
@@ -359,7 +366,7 @@ mai_region_rates_draws <- run_all(
   verbose = opt$verbose)
 
 
-# Get the MAI summary at all admin levels 
+# Get the MAI summary at all admin levels
 mai_stats <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_mean_annual_incidence,
@@ -398,7 +405,7 @@ mai_draws <- run_all(
 
 # E. Coefficient of variation ------------------------------------------------
 
-# Get the coefficient of variation summary at all admin levels 
+# Get the coefficient of variation summary at all admin levels
 cov_stats <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_coef_of_variation,
@@ -419,7 +426,7 @@ cov_stats <- run_all(
 
 # F. Grid-level cases and rates ----------------------------------------------
 
-# Get the MAI rates summary at space grid level 
+# Get the MAI rates summary at space grid level
 mai_grid_rates_stats <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_grid_mai_rates,
@@ -438,7 +445,7 @@ mai_grid_rates_stats <- run_all(
   output_file_type = "rds",
   verbose = opt$verbose)
 
-# Get the MAI rates draws at space grid level 
+# Get the MAI rates draws at space grid level
 mai_grid_rates_draws <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_grid_mai_rates_draws,
@@ -459,7 +466,7 @@ mai_grid_rates_draws <- run_all(
   verbose = opt$verbose)
 
 
-# Get the MAI cases summary at space grid level 
+# Get the MAI cases summary at space grid level
 mai_grid_cases_stats <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_grid_mai_cases,
@@ -480,7 +487,7 @@ mai_grid_cases_stats <- run_all(
   verbose = opt$verbose)
 
 
-# Get the MAI cases draws at space grid level 
+# Get the MAI cases draws at space grid level
 mai_grid_cases_draws <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_grid_mai_cases_draws,
@@ -503,7 +510,7 @@ mai_grid_cases_draws <- run_all(
 
 # G. Risk categories ---------------------------------------------------------
 
-# Get the risk category by location at all admin levels 
+# Get the risk category by location at all admin levels
 risk_categories_95 <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_risk_category,
@@ -522,7 +529,7 @@ risk_categories_95 <- run_all(
   verbose = opt$verbose)
 
 
-# Get the risk category by location at all admin levels 
+# Get the risk category by location at all admin levels
 risk_categories_50 <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_risk_category,
@@ -540,7 +547,7 @@ risk_categories_50 <- run_all(
   output_file_type = "rds",
   verbose = opt$verbose)
 
-# Get the population at risk in each risk category by country 
+# Get the population at risk in each risk category by country
 pop_at_risk <- run_all(
   config_dir = opt$config_dir,
   fun = postprocess_pop_at_risk,

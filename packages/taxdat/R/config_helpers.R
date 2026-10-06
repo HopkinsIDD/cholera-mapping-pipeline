@@ -1,4 +1,26 @@
 
+#' @title Get scaling (case burden adjustment) parameters
+#' @description Merge user-specified scaling parameters with defaults, the
+#' same way get_stan_parameters() does for stan:. severity_u5/severity_o5
+#' have no default (NULL) and need to be user-specified.
+#' @param input_list a list (typically config appended with config$scaling)
+#' @return list of scaling parameters with defaults filled in
+#' @export
+get_scaling_parameters <- function(input_list) {
+  defaults <- list(
+    severity_u5 = NULL,
+    severity_o5 = NULL,
+    reporting_ratio = NULL,
+    age_model_iter_warmup = 1000,
+    age_model_iter_sampling = 1000,
+    age_model_chains = 4,
+    age_model_parallel_chains = 4,
+    age_model_adapt_delta = 0.95,
+    age_model_seed = 123
+  )
+  utils::modifyList(defaults, input_list[names(input_list) %in% names(defaults)])
+}
+
 #' @title Automate generation of config files
 #' @name automate_mapping_config
 #' @description Automate generation of model configuration files from a dataframe of parameters. Generates one config per row in the p dataframe.
@@ -48,6 +70,16 @@ automate_mapping_config <- function(cholera_directory, p, OC_list = NULL, covari
     "  iter_warmup: ", ifelse(unspecified_parameter_check(p$iter_warmup), "", p$iter_warmup), "\n",
     "  iter_sampling: ", ifelse(unspecified_parameter_check(p$iter_sampling), "", p$iter_sampling), "\n",
     "  recompile: ", ifelse(unspecified_parameter_check(p$recompile), "", p$recompile), "\n",
+    "scaling:\n",
+    "  severity_u5: ", ifelse(unspecified_parameter_check(p$severity_u5), stop("Parameter severity_u5 should be specified"), p$severity_u5), "\n",
+    "  severity_o5: ", ifelse(unspecified_parameter_check(p$severity_o5), stop("Parameter severity_o5 should be specified"), p$severity_o5), "\n",
+    "  reporting_ratio: ", ifelse(unspecified_parameter_check(p$reporting_ratio), stop("Parameter reporting_ratio should be specified"), p$reporting_ratio), "\n",
+    "  age_model_iter_warmup: ", ifelse(unspecified_parameter_check(p$age_model_iter_warmup), "", p$age_model_iter_warmup), "\n",
+    "  age_model_iter_sampling: ", ifelse(unspecified_parameter_check(p$age_model_iter_sampling), "", p$age_model_iter_sampling), "\n",
+    "  age_model_chains: ", ifelse(unspecified_parameter_check(p$age_model_chains), "", p$age_model_chains), "\n",
+    "  age_model_parallel_chains: ", ifelse(unspecified_parameter_check(p$age_model_parallel_chains), "", p$age_model_parallel_chains), "\n",
+    "  age_model_adapt_delta: ", ifelse(unspecified_parameter_check(p$age_model_adapt_delta), "", p$age_model_adapt_delta), "\n",
+    "  age_model_seed: ", ifelse(unspecified_parameter_check(p$age_model_seed), "", p$age_model_seed), "\n",
     "file_names:\n",
     { if(unspecified_parameter_check(p$output_directory)) ""
       else paste0("  output_directory: ", p$output_directory, "\n") },
