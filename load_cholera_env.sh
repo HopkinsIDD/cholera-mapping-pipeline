@@ -14,6 +14,7 @@ module load CMake/3.24.3
 module load libwebp/1.2.4
 module load PostgreSQL/14.4
 
+export PATH="$HOME/quarto-1.5.57/bin:$PATH"
 
 export R_LIBS_USER="$HOME/R_libs/4.2.1-foss-2022a"
 mkdir -p "$R_LIBS_USER"
