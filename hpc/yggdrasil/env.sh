@@ -4,7 +4,7 @@
 # Override any variable by exporting it before sourcing.
 
 [[ -n "${CMP_ENV_LOADED:-}" ]] && return 0
-export CMP_ENV_LOADED=1
+CMP_ENV_LOADED=1   # not exported: every job (sbatch inherits the environment) must load fully
 
 # --- Locations -------------------------------------------------------------
 # Repository checkout on the cluster (code arrives with git pull)
