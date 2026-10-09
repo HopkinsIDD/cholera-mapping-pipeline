@@ -29,4 +29,6 @@ apptainer pull "$CHOLERA_SIF" "$CMP_SIF_SOURCE"
 sha256sum "$CHOLERA_SIF" > "$CHOLERA_SIF.sha256"
 chmod g+r "$CHOLERA_SIF" "$CHOLERA_SIF.sha256"
 apptainer exec "$CHOLERA_SIF" postgres --version
-apptainer exec "$CHOLERA_SIF" raster2pgsql -G | head -3
+# The image has the PostGIS extensions but not the raster2pgsql client;
+# rasters are loaded from R (taxdat::load_raster_to_db, dbi loader).
+apptainer exec "$CHOLERA_SIF" ls /usr/share/postgresql/17/extension/postgis_raster.control

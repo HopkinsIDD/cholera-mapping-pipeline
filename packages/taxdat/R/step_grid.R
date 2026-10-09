@@ -99,7 +99,8 @@ build_master_grid <- function(conn, source_file, aoi, layers_dir) {
   terra::writeRaster(mask, out, datatype = "INT1U", NAflag = 255, overwrite = TRUE,
                      gdal = c("COMPRESS=DEFLATE", "TILED=YES"))
 
-  raster2pgsql_pipe(out, "grids.master_grid", mode = "create", index = TRUE, constraints = TRUE)
+  load_raster_to_db(out, "grids.master_grid", mode = "create", index = TRUE, constraints = TRUE,
+                    conn = conn)
   write_grid_metadata(conn, "master_grid", aoi, res_km = 1, bbox = as.vector(terra::ext(mask))[c(1, 3, 2, 4)])
   out
 }
@@ -172,7 +173,7 @@ prepare_grid <- function(res_space, aoi = NULL, layers_dir, ingest = TRUE,
   }
 
   if (!any(in_db)) {
-    raster2pgsql_pipe(grid_file, paste0("grids.", grid_name), mode = "create",
+    load_raster_to_db(grid_file, paste0("grids.", grid_name), mode = "create", conn = conn,
                       index = TRUE, constraints = TRUE)
     build_geoms_query(conn, schema = "grids", table_name = grid_name, type = "centroids")
     build_geoms_query(conn, schema = "grids", table_name = grid_name, type = "polygons")

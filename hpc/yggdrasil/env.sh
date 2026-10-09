@@ -53,8 +53,15 @@ if command -v module >/dev/null 2>&1; then
               OpenMPI/4.1.5 R/4.3.2 GDAL/3.7.1 PostgreSQL/16.1 >/dev/null 2>&1 \
     || echo "env.sh: module load failed; check 'module spider R/4.3.2'" >&2
 fi
-export R_LIBS_USER="${R_LIBS_USER:-$HOME/R_libs/cmp-4.3.2}"
-mkdir -p "$R_LIBS_USER"
+# Our library first (taxdat from this branch), then R's default user library,
+# where earlier projects (e.g. OutbreakExtractR) already compiled sf, terra,
+# igraph, Matrix 1.6-5 for this module stack. Installs go to the first entry.
+if [[ -z "${R_LIBS_USER:-}" ]]; then
+  R_LIBS_USER="$HOME/R_libs/cmp-4.3.2"
+  [[ -d "$HOME/R/x86_64-pc-linux-gnu-library/4.3" ]] && R_LIBS_USER="$R_LIBS_USER:$HOME/R/x86_64-pc-linux-gnu-library/4.3"
+fi
+export R_LIBS_USER
+mkdir -p "${R_LIBS_USER%%:*}"
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
 # Temporary rasters on the node-local SSD (purged at job end) when in a job.
 # The container must see TMPDIR: raster2pgsql reads VRTs written there.

@@ -218,7 +218,7 @@ load_covariate_table <- function(conn, processed, covar, covar_alias, src_files,
   write_band_stack_vrt(files, vrt)
 
   staging <- paste0(covar_alias, "__staging")
-  raster2pgsql_pipe(vrt, paste0("covariates.", staging), mode = "create", index = TRUE)
+  load_raster_to_db(vrt, paste0("covariates.", staging), mode = "create", index = TRUE, conn = conn)
   n_bands <- DBI::dbGetQuery(conn, glue::glue_sql(
     "SELECT max(ST_NumBands(rast)) AS n, min(ST_NumBands(rast)) AS m FROM covariates.{`staging`};",
     .con = conn))
