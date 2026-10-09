@@ -46,26 +46,25 @@ jobs:
         shell: bash
       - name: Ingest Covariates
         run: |
-          bash /init-postgres.sh
-          bash grant_cholera_database.sh root
-          export USER=root
-          export COVARIATE_DATABASE_PASSWORD=dockertest
+          export CHOLERA_APP_PASSWORD=dockertest
+          export PGHOST=localhost PGPORT=5432 PGDATABASE=cholera_covariates
+          export PGUSER=cholera_app PGPASSWORD=dockertest
+          bash ./init-postgres.sh
           source /opt/miniconda3/etc/profile.d/conda.sh
           conda activate rbase
           Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
-          pwd
-          Rscript Analysis/R/prepare_grid_cmd.R -d ./ -u root -r 1 -i TRUE -a KEN
-          Rscript Analysis/R/prepare_grid_cmd.R -d ./ -u root -r 20 -i TRUE -a KEN
-          Rscript Analysis/R/prepare_covariates_cmd.R -d ./Layers -u root -r 1 -t '1 years' -i TRUE -p FALSE -n 1 -o FALSE -x TRUE -m TRUE -c p -g 'public.grid_1_1' -a KEN
-          Rscript Analysis/R/prepare_covariates_cmd.R -d ./Layers -u root -r 20 -t '1 years' -i TRUE -p FALSE -n 1 -o FALSE -x FALSE -m TRUE -c p,dw -g 'public.grid_20_20' -a KEN
+          Rscript Analysis/R/prepare_grid_cmd.R -l ./Layers -r 1 -a KEN -b 50
+          Rscript Analysis/R/prepare_grid_cmd.R -l ./Layers -r 20 -a KEN -b 50
+          Rscript Analysis/R/prepare_covariates_cmd.R -l ./Layers -r 1 -t '1 years' -a KEN -b 50 -c p
+          Rscript Analysis/R/prepare_covariates_cmd.R -l ./Layers -r 20 -t '1 years' -a KEN -b 50 -c p,dw
         shell: bash
       - name: Run integration tests
         env:
           CHOLERA_API_USERNAME: ${{ secrets.CHOLERA_API_USERNAME }}
           CHOLERA_API_KEY: ${{ secrets.CHOLERA_API_KEY }}
         run: |
-          export USER=root
-          export COVARIATE_DATABASE_PASSWORD=dockertest
+          export PGHOST=localhost PGPORT=5432 PGDATABASE=cholera_covariates
+          export PGUSER=cholera_app PGPASSWORD=dockertest
           pwd
           cd test
           export PRODUCTION_RUN=FALSE
