@@ -47,7 +47,9 @@ need <- c("Matrix", "DBI", "RPostgres", "blob", "units", "s2", "sf", "terra", "n
           "withr", "testthat", "remotes", "hashids", "tibble",
           # mapping steps after the database (stan input, GAM warm start, Stan)
           "spdep", "lwgeom", "posterior", "foreach", "doParallel", "iterators",
-          "itertools", "mgcv", "rlang", "cmdstanr")
+          "itertools", "mgcv", "rlang", "cmdstanr",
+          # diagnostic figures
+          "ggplot2", "scales")
 missing <- need[!vapply(need, requireNamespace, logical(1), quietly = TRUE)]
 cat("Missing, to install:", if (length(missing)) missing else "none", "\n")
 if (length(missing)) inst(missing)
