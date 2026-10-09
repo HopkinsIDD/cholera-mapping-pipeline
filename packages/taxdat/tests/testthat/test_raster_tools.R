@@ -124,3 +124,17 @@ test_that("generate_time_sequence fails loudly on gaps", {
   expect_error(generate_time_sequence(as.Date(c("2000-01-01", "2002-01-01")), res_src, "1 months"),
                "Could not map")
 })
+
+test_that("concurrent writers of the same NetCDF file do not collide", {
+  skip_on_os("windows")
+  d <- withr::local_tempdir()
+  r <- terra::rast(nrows = 200, ncols = 200, xmin = 29, xmax = 31, ymin = -4, ymax = -2,
+                   crs = "EPSG:4326", vals = 1)
+  target <- file.path(d, "same.nc")
+  res <- parallel::mclapply(1:8, function(i) {
+    try(write_covariate_ncdf(r, target, var_name = "v", dates = as.Date("2000-01-01")), silent = TRUE)
+  }, mc.cores = 8, mc.preschedule = FALSE)
+  expect_false(any(vapply(res, inherits, logical(1), "try-error")))
+  expect_equal(terra::global(terra::rast(target), "max")$max, 1)
+  expect_length(list.files(d, "\\.part"), 0)
+})

@@ -137,8 +137,11 @@ write_covariate_ncdf <- function(r, file, var_name, long_name = var_name, unit =
   }
   dir.create(dirname(file), recursive = TRUE, showWarnings = FALSE)
   # Write next to the target and rename when complete: an interrupted job never
-  # leaves a truncated file that a later run would take as cached.
-  part <- paste0(file, ".part")
+  # leaves a truncated file that a later run would take as cached. The
+  # temporary name is per process, so jobs producing the same file at the same
+  # time (e.g. the time-aggregated file shared by two resolutions) do not
+  # collide; the content is identical, so the last rename wins harmlessly.
+  part <- paste0(file, ".part", Sys.getpid())
   on.exit(unlink(part), add = TRUE)
   terra::writeCDF(r, part, varname = var_name, longname = long_name,
                   unit = unit %||% "", zname = "time", missval = -9999,
