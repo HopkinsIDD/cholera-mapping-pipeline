@@ -1,0 +1,7 @@
+# pg_hba.conf for the cholera covariates server. Rendered by slurm/db_init.sh.
+# TYPE  DATABASE  USER        ADDRESS           METHOD
+local   all       ${PG_SUPERUSER}               peer
+local   all       all                           scram-sha-256
+host    all       all         127.0.0.1/32      scram-sha-256
+# Cluster nodes. Narrow CMP_CLUSTER_CIDR once the HPC team confirms the range.
+host    all       all         ${CMP_CLUSTER_CIDR}   scram-sha-256

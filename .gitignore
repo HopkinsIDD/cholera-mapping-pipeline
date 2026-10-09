@@ -28,3 +28,5 @@ Analysis/R/notebooks/gavi_report_html/MAI_preprocess/
 *.DS_Store
 .vscode/
 local/*
+logs/
+stage_yggdrasil/

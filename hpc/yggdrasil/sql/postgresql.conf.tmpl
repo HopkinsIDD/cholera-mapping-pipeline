@@ -1,0 +1,22 @@
+# postgresql.conf for the cholera covariates server on Yggdrasil.
+# Rendered by slurm/db_init.sh (envsubst); edit the template, not the copy.
+listen_addresses = '*'            # clients connect from other compute nodes
+port = ${PGPORT}
+unix_socket_directories = '/tmp'  # node-local; clients use TCP
+max_connections = 50
+shared_buffers = ${PG_SHARED_BUFFERS}
+work_mem = ${PG_WORK_MEM}         # spatial joins in the covariate cube
+maintenance_work_mem = ${PG_MAINT_MEM}   # index builds on raster tiles
+effective_cache_size = ${PG_EFFECTIVE_CACHE}
+max_wal_size = 8GB                # fewer checkpoints during raster loads
+checkpoint_timeout = 30min
+wal_level = minimal               # no replication; bulk loads write less WAL
+max_wal_senders = 0
+synchronous_commit = off          # at most ~1 s of commits lost on a crash; data is rebuildable
+fsync = on                        # keep on: off risks a corrupt data directory if a node dies
+logging_collector = on
+log_directory = '${PG_LOG}'
+log_filename = 'postgresql-%Y-%m-%d.log'
+log_min_duration_statement = 60000
+log_checkpoints = on
+timezone = 'UTC'

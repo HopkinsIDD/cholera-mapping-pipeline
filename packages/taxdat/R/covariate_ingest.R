@@ -366,6 +366,7 @@ covariate_mode <- function(ingest_covariates, ingest_new_covariates) {
 #' the model's resolution and returns their table names, population first.
 #'
 #' @param covar_abbr covariate abbreviations; population ("p") is added first
+#'   unless `precompute_only`
 #' @param covar_dict covariate dictionary (list read from covariate_dictionary.yml)
 #' @param layers_dir Layers directory
 #' @param res_space,res_time model resolutions
@@ -382,7 +383,10 @@ prepare_covariates <- function(covar_abbr, covar_dict, layers_dir, res_space, re
                                mode = c("ingest_missing", "use_existing", "reingest"),
                                n_cpus = 1, precompute_only = FALSE, conn = NULL) {
   mode <- match.arg(mode)
-  covar_abbr <- unique(c("p", setdiff(covar_abbr, "p")))
+  # Population is always part of a model run (and must come first). A
+  # pre-compute run only does what it is asked, so parallel array tasks never
+  # process the same covariate at the same time.
+  covar_abbr <- if (precompute_only) unique(covar_abbr) else unique(c("p", setdiff(covar_abbr, "p")))
   abbrs <- vapply(covar_dict, `[[`, "", "abbr")
   missing <- setdiff(covar_abbr, abbrs)
   if (length(missing) > 0) {
@@ -420,7 +424,7 @@ prepare_covariates <- function(covar_abbr, covar_dict, layers_dir, res_space, re
     }
     out <- c(out, paste0("covariates.", alias))
   }
-  if (!startsWith(sub("^covariates\\.", "", out[1]), covars[[1]]$alias) || covars[[1]]$abbr != "p") {
+  if (!precompute_only && covars[[1]]$abbr != "p") {
     stop("The first covariate must be population")
   }
   cat("**** DONE COVARIATES:", paste(out, collapse = ", "), "\n")

@@ -136,9 +136,16 @@ write_covariate_ncdf <- function(r, file, var_name, long_name = var_name, unit =
     stop("write_covariate_ncdf: static covariates must have one layer")
   }
   dir.create(dirname(file), recursive = TRUE, showWarnings = FALSE)
-  terra::writeCDF(r, file, varname = var_name, longname = long_name,
+  # Write next to the target and rename when complete: an interrupted job never
+  # leaves a truncated file that a later run would take as cached.
+  part <- paste0(file, ".part")
+  on.exit(unlink(part), add = TRUE)
+  terra::writeCDF(r, part, varname = var_name, longname = long_name,
                   unit = unit %||% "", zname = "time", missval = -9999,
                   compression = 4, overwrite = TRUE)
+  if (!file.rename(part, file)) {
+    stop("Could not move ", part, " to ", file)
+  }
   invisible(file)
 }
 
