@@ -9,7 +9,7 @@ Description: This package is designed to load and work with taxonomy files in a 
 Encoding: UTF-8
 License: GPL (>= 2)
 Depends: R (>= 3.4),ISOcodes,magrittr, dplyr, tidyr, igraph, geodata
-Imports: DBI, RPostgres, sf (>= 1.0), terra (>= 1.7), ncdf4, jsonlite, lubridate,
+Imports: DBI, RPostgres, blob, sf (>= 1.0), terra (>= 1.7), ncdf4, jsonlite, lubridate,
     glue, digest, purrr, stringr, yaml
 Suggests: readxl, raster, rgeoboundaries, testthat, withr, knitr, rmarkdown, pkgload
 Remotes: wmgeolab/rgeoboundaries

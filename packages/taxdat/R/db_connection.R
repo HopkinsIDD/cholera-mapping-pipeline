@@ -257,3 +257,92 @@ raster2pgsql_pipe <- function(file, table, mode = c("create", "append", "prepare
   message("-- raster2pgsql ", basename(file), " -> ", table, " (", mode, ")")
   run_cmd(c("bash", "-c", pipeline), label = paste("raster2pgsql", basename(file)))
 }
+
+# Raster loading ---------------------------------------------------------------
+
+#' @title Which raster loader to use
+#' @name raster_loader
+#' @description `CHOLERA_RASTER_LOADER`: "raster2pgsql", "dbi", or "auto"
+#' (default: raster2pgsql when it is on the PATH and no container image is set,
+#' otherwise dbi). The postgis/postgis image used on the cluster does not ship
+#' raster2pgsql, so jobs there use the dbi loader.
+#' @return "raster2pgsql" or "dbi"
+#' @export
+raster_loader <- function() {
+  m <- Sys.getenv("CHOLERA_RASTER_LOADER", "auto")
+  if (m == "auto") {
+    m <- if (Sys.getenv("CHOLERA_SIF") == "" && nzchar(Sys.which("raster2pgsql"))) "raster2pgsql" else "dbi"
+  }
+  match.arg(m, c("raster2pgsql", "dbi"))
+}
+
+#' @title Load a raster file into PostGIS
+#' @name load_raster_to_db
+#' @description Loads a raster (GeoTIFF, NetCDF or VRT, any number of bands)
+#' into a table `(rid serial, rast raster)` tiled `tile` x `tile`, with a GiST
+#' index on the tiles' convex hulls and optionally the raster constraints.
+#'
+#' The "dbi" loader needs no PostGIS client tools: it cuts the raster into
+#' chunks with gdal_translate and sends each chunk to the server, which decodes
+#' it with ST_FromGDALRaster and splits it with ST_Tile (the database must
+#' allow the GTiff driver, see hpc/yggdrasil/sql/02_schemas_grants.sql).
+#'
+#' @param file raster file
+#' @param table schema-qualified target table
+#' @param mode "create" (drop and recreate) or "append"
+#' @param srid SRID to assign
+#' @param tile tile size in pixels
+#' @param index create the GiST index
+#' @param constraints add raster constraints
+#' @param conn optional DBI connection (dbi loader)
+#' @param chunk chunk size in pixels (multiple of `tile`)
+#' @return NULL, invisibly
+#' @export
+load_raster_to_db <- function(file, table, mode = c("create", "append"), srid = 4326,
+                              tile = 128, index = TRUE, constraints = FALSE,
+                              conn = NULL, chunk = 1024) {
+  mode <- match.arg(mode)
+  if (raster_loader() == "raster2pgsql") {
+    return(raster2pgsql_pipe(file, table, mode = mode, srid = srid,
+                             index = index, constraints = constraints))
+  }
+  if (!file.exists(file)) stop("load_raster_to_db: file not found: ", file)
+  if (is.null(conn)) {
+    conn <- connect_to_db()
+    on.exit(DBI::dbDisconnect(conn), add = TRUE)
+  }
+  tbl <- sql_table(conn, table)
+  idx <- DBI::dbQuoteIdentifier(conn, paste0(table_part(table), "_st_convexhull_idx"))
+  spec <- gdal_grid_spec(file)
+  message("-- loading ", basename(file), " -> ", table, " (", mode, ", ",
+          spec$ncol, " x ", spec$nrow, " px)")
+
+  if (mode == "create") {
+    db_exec(conn, glue::glue_sql("DROP TABLE IF EXISTS {tbl};", .con = conn))
+    db_exec(conn, glue::glue_sql("CREATE TABLE {tbl} (rid serial PRIMARY KEY, rast raster);", .con = conn))
+  }
+  part <- tempfile(fileext = ".tif")
+  on.exit(unlink(part), add = TRUE)
+  for (y in seq(0, spec$nrow - 1, by = chunk)) {
+    for (x in seq(0, spec$ncol - 1, by = chunk)) {
+      w <- min(chunk, spec$ncol - x)
+      h <- min(chunk, spec$nrow - y)
+      run_cmd(c("gdal_translate", "-q", "-of", "GTiff", "-co", "COMPRESS=DEFLATE",
+                "-srcwin", x, y, w, h, file, part), label = "gdal_translate")
+      bytes <- readBin(part, "raw", file.size(part))
+      DBI::dbExecute(conn, glue::glue_sql(
+        "INSERT INTO {tbl} (rast) SELECT ST_Tile(ST_FromGDALRaster($1, $2), $3, $3);", .con = conn),
+        params = list(blob::blob(bytes), as.integer(srid), as.integer(tile)))
+    }
+  }
+  if (index && mode == "create") {
+    db_exec(conn, glue::glue_sql("CREATE INDEX {idx} ON {tbl} USING gist (ST_ConvexHull(rast));", .con = conn))
+  }
+  if (constraints) {
+    parts <- strsplit(table, ".", fixed = TRUE)[[1]]
+    db_exec(conn, glue::glue_sql("SELECT AddRasterConstraints({parts[1]}::name, {parts[2]}::name, 'rast'::name);",
+                                 .con = conn))
+  }
+  db_exec(conn, glue::glue_sql("ANALYZE {tbl};", .con = conn))
+  invisible(NULL)
+}

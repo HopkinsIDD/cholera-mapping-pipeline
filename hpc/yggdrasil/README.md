@@ -38,8 +38,14 @@ hpc/yggdrasil/
   so the data directory is never served twice. On TERM (Slurm sends it 120 s
   before walltime) or `db_service.sh stop`, the server shuts down cleanly and
   removes the endpoint file.
-- **Clients.** R and GDAL come from the modules; `psql` and `raster2pgsql`
-  run from the image (`CHOLERA_SIF`), so client and server PostGIS match.
+- **Clients.** R and GDAL come from the modules (the same combination as
+  OutbreakExtractR). Rasters are loaded from R (`taxdat::load_raster_to_db`):
+  `gdal_translate` cuts them into chunks that the server decodes with
+  `ST_FromGDALRaster`, because the postgis/postgis image has no
+  `raster2pgsql`. R packages: `R_LIBS_USER` puts `~/R_libs/cmp-4.3.2` first
+  (taxdat from this branch, anything newly installed) and R's default user
+  library second, so packages already compiled there are reused; missing ones
+  come from a CRAN snapshot matching R 4.3 (April 2024).
   Connection settings are the libpq variables `PGHOST PGPORT PGDATABASE PGUSER
   PGPASSWORD`; `PGUSER`/`PGPASSWORD` come from `$SHARE/secrets/db.env`.
 - **Area of interest.** Rasters are cropped and masked to the country's
