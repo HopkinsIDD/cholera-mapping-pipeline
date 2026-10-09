@@ -931,9 +931,10 @@ aggregate_observations <- function(sf_cases_resized,
     
     sf_cases_resized <- foreach::foreach(
       rs = itertools::ichunk(df_split, nchunk),
-      .combine = "bind_rows",
+      .combine = dplyr::bind_rows,
       .inorder = F,
-      .packages = c("tidyverse", "taxdat")
+      # only what the workers use (the full tidyverse is not installed on the cluster)
+      .packages = c("dplyr", "magrittr", "sf", "taxdat")
     ) %dopar% {
       rs %>% 
         dplyr::bind_rows() %>% 
