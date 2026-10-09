@@ -272,7 +272,8 @@ stan_params <- taxdat::get_stan_parameters(append(config, config$stan))
 ncores <- stan_params$ncores
 nchain <- ncores
 if(ncores == 1) {nchain = 2}
-rstan::rstan_options(auto_write = FALSE)
+# rstan is optional: sampling uses cmdstanr; this option only affects rstan models
+if (requireNamespace("rstan", quietly = TRUE)) rstan::rstan_options(auto_write = FALSE)
 options(mc.cores = ncores)
 # set stan model
 stan_dir <- paste0(cholera_directory, '/Analysis/Stan/')
