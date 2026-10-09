@@ -426,3 +426,32 @@ prepare_covariates <- function(covar_abbr, covar_dict, layers_dir, res_space, re
   cat("**** DONE COVARIATES:", paste(out, collapse = ", "), "\n")
   out
 }
+
+#' @title Make sure the 1 km population exists
+#' @name prepare_population_1km
+#' @description Population weights (`get_pop_weights`) need yearly population
+#' on the 1 km grid. Builds the 1 km grid and ingests population on it when
+#' missing, following the same ingestion mode as the other covariates.
+#'
+#' @param covar_dict covariate dictionary
+#' @param layers_dir Layers directory
+#' @param aoi area of interest, or NULL
+#' @param mode see `covariate_mode`
+#' @param conn DBI connection
+#' @param res_time temporal resolution of the 1 km population (yearly)
+#' @return the 1 km population table name
+#' @export
+prepare_population_1km <- function(covar_dict, layers_dir, aoi = NULL,
+                                   mode = c("ingest_missing", "use_existing", "reingest"),
+                                   conn, res_time = "1 years") {
+  mode <- match.arg(mode)
+  if (mode == "reingest") {
+    # Re-ingesting population at 1 km is expensive and rarely intended
+    mode <- "ingest_missing"
+  }
+  grid_1km <- prepare_grid(res_space = 1, aoi = aoi, layers_dir = layers_dir,
+                           ingest = mode != "use_existing", conn = conn)
+  prepare_covariates(covar_abbr = character(), covar_dict = covar_dict, layers_dir = layers_dir,
+                     res_space = 1, res_time = res_time, grid = grid_1km, aoi = aoi,
+                     mode = mode, conn = conn)[1]
+}
