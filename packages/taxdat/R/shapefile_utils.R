@@ -1,44 +1,4 @@
 
-#' clip_shapefiles_to_adm0
-#'
-#' @param iso_code 
-#' @param shapefiles 
-#'
-#' @return
-#' @export
-#'
-#' @examples
-clip_shapefiles_to_adm0 <- function(iso_code, 
-                                    shapefiles) {
-  # Clip shapefiles to the national level output shapefile
-  adm0_geom <- get_multi_country_admin_units(
-    iso_code = iso_code,
-    admin_levels = c(0),
-    lps = shapefiles
-  ) 
-  
-  sf::st_crs(adm0_geom) <- sf::st_crs(shapefiles) ## same crs needed for st_intersection
-  
-  # Drop data with no intersections
-  shapefiles <- shapefiles %>% 
-    dplyr::mutate(adm0_intersect = sf::st_intersects(shapefiles$geom, adm0_geom$geom, sparse = FALSE) %>% 
-                    as.vector())
-  
-  drop_shapefiles <- shapefiles %>% 
-    dplyr::filter(!adm0_intersect)
-  
-  if (nrow(drop_shapefiles) > 0) {
-    cat("-- Dropping", nrow(drop_shapefiles), "that do not intersect the national level output shapefile\n")
-    shapefiles <- shapefiles %>% 
-      dplyr::filter(!(location_period_id %in% drop_shapefiles$location_period_id))
-  }
-  
-  shapefiles <- shapefiles %>% 
-    dplyr::mutate(geom = sf::st_intersection(geom, adm0_geom$geom)) %>% 
-    fix_geomcollections()
-  
-  shapefiles
-}
 
 #' drop_missing_shapefiles
 #'
@@ -84,7 +44,6 @@ drop_missing_shapefiles <- function(cases,
     cases
   }
 }
-
 
 #' make_shapefiles
 #'
@@ -137,7 +96,6 @@ get_valid_shapefiles <- function(cases) {
   shapefiles
 }
 
-
 #' Fix geometry collections
 #'
 #' @param shapefiles shapefiles to modify (sfc object)
@@ -168,7 +126,6 @@ fix_geomcollections <- function(shapefiles,
   
   shapefiles
 }
-
 
 #' fix_projection
 #'
@@ -278,8 +235,6 @@ fix_projection <- function(shapefiles) {
       dplyr::filter(reprojection_epsg != "failed")
   ) 
 }
-
-
 
 #' move_up_location_hierarchy
 #'

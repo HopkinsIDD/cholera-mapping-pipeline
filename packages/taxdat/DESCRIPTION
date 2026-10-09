@@ -10,8 +10,8 @@ Encoding: UTF-8
 License: GPL (>= 2)
 Depends: R (>= 3.4),ISOcodes,magrittr, dplyr, tidyr, igraph, geodata
 Suggests: readxl, sf, sp, raster, rgdal, testthat, knitr, rmarkdown
-RoxygenNote: 7.3.2
 Collate:
+    'admin_units.R'
     'plot_cache_function.R'
     'get_genquant.R'
     'get_stan_output.R'
@@ -19,6 +19,7 @@ Collate:
     'aggregate_raster.R'
     'aggregate_stan_input.R'
     'aggregate_stan_output.R'
+    'aoi_helpers.R'
     'color_scale.R'
     'compare_country_data_reports.R'
     'run_stan_helpers.R'
@@ -26,6 +27,7 @@ Collate:
     'setup_helpers.R'
     'config_helpers.R'
     'covariate_helpers.R'
+    'db_connection.R'
     'db_table_creation_functions.R'
     'geo_lookup_helpers.R'
     'get_country_shp_from_stan_input.R'
@@ -65,6 +67,8 @@ Collate:
     'plot_unique_db_shp.R'
     'population_helpers.R'
     'postprocessing.R'
+    'raster_tools.R'
+    'run_tables.R'
     'shapefile_manipulation.R'
     'shapefile_utils.R'
     'simulation_framework_helpers.R'
@@ -75,3 +79,4 @@ Collate:
     'transform_covariates.R'
 VignetteBuilder: knitr
 LazyData: true
+Config/roxygen2/version: 8.1.0
