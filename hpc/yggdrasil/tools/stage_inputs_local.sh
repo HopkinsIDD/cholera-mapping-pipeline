@@ -40,8 +40,9 @@ echo "== 1. Observations and admin boundaries ($AOI)"
 Rscript -e 'taxdat::cache_admin_units(commandArgs(TRUE)[1], 0:2)' "$AOI"
 
 echo "== 2. WorldPop 1 km grid cropped to $AOI + ${MARGIN} km"
-TE=$(Rscript -e 'sf::sf_use_s2(FALSE); a <- taxdat::get_aoi(commandArgs(TRUE)[1], as.numeric(commandArgs(TRUE)[2]), snap_to = commandArgs(TRUE)[3]); cat(a$bbox[c("xmin","ymin","xmax","ymax")])' \
-     "$AOI" "$MARGIN" "$WORLDPOP" 2>/dev/null | tail -1)
+TE=$(Rscript -e 'sf::sf_use_s2(FALSE); a <- suppressMessages(taxdat::get_aoi(commandArgs(TRUE)[1], as.numeric(commandArgs(TRUE)[2]), snap_to = commandArgs(TRUE)[3])); cat("TE", a$bbox[c("xmin","ymin","xmax","ymax")], "\n")' \
+     "$AOI" "$MARGIN" "$WORLDPOP" | sed -n 's/^TE //p')
+[[ $(wc -w <<< "$TE") == 4 ]] || { echo "Could not compute the crop extent for $AOI (see the R error above)" >&2; exit 1; }
 gdalwarp -overwrite -q -te $TE -co COMPRESS=DEFLATE -co TILED=YES "$WORLDPOP" \
   "$STAGE/Layers/pop_old/ppp_2020_1km_Aggregated.tif"
 

@@ -84,6 +84,7 @@ Collate:
     'step_map_data.R'
     'stitch_caches.R'
     'suggest_crs.R'
+    'taxdat-package.R'
     'transform_covariates.R'
 VignetteBuilder: knitr
 LazyData: true
