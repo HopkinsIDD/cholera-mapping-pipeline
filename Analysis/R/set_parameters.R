@@ -509,6 +509,17 @@ for(t_idx in 1:length(all_test_idx)){
   ## Step 3: Prepare the stan input ##
   print(file_names[["stan_input"]])
   if(!file.exists(file_names[["stan_input"]])){
+    if (!testing) {
+      # Step 3 reads the output location-period tables; rebuild them if an
+      # earlier run already dropped them
+      db_used <- TRUE
+      conn_pg <- taxdat::connect_to_db()
+      taxdat::ensure_run_tables(conn_pg, config,
+                                shapefiles = if (exists("shapefiles")) shapefiles else NULL,
+                                output_shapefiles = output_shapefiles,
+                                full_grid_name = full_grid_name)
+      DBI::dbDisconnect(conn_pg)
+    }
     source(paste(cholera_directory, "Analysis/R/prepare_stan_input.R", sep = "/"))
 
     stan_input <-  prepare_stan_input(
