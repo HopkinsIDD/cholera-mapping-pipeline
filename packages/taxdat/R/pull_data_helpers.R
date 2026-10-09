@@ -1013,282 +1013,524 @@ read_taxonomy_locationperiods_sql <- function(username, password, location_perio
   return(location_periods)
 }
 
+#' @title Validate a date argument (strict ISO)
+#' @description Accepts a single Date or a "YYYY-MM-DD" string and returns it
+#'   as an ISO string. Rejects ambiguous inputs such as "04/03/2017", which a
+#'   server with DateStyle = MDY would silently read as 3 April 2017.
+#' @param x A Date, a character string, or NULL.
+#' @param arg_name Argument name, used in error messages.
+#' @return NULL, or a "YYYY-MM-DD" string.
+#' @noRd
+.validate_iso_date <- function(x, arg_name) {
+  if (is.null(x)) return(NULL)
+  if (length(x) != 1) stop(arg_name, " must be a single date.")
+  if (inherits(x, "Date")) {
+    if (is.na(x)) stop(arg_name, " is NA.")
+    return(format(x, "%Y-%m-%d"))
+  }
+  if (is.character(x) && grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", x)) {
+    d <- as.Date(x, format = "%Y-%m-%d")  # explicit format: 2017-02-30 -> NA
+    if (is.na(d)) stop(arg_name, " is not a valid calendar date: ", x)
+    return(format(d, "%Y-%m-%d"))
+  }
+  stop(arg_name, " must be a Date or a 'YYYY-MM-DD' string.")
+}
+
 #' @title Taxonomy SQL age-specific data pull
-#' @description Extracts age-specific data for a given set of country using SQL from the taxonomy
-#' postgresql database stored on idmodeling2
+#'
+#' @description Extracts observations carrying at least one usable age value
+#' from the taxonomy PostgreSQL database. Interface, filters and defaults
+#' mirror \code{read_taxonomy_data_sql}.
+#'
+#' @details Design decisions (validated against the database before release):
+#' \itemize{
+#'   \item Governance filters (\code{unified_dataset_behaviour},
+#'     \code{discard_incomplete_observation_collections}) are identical to
+#'     \code{read_taxonomy_data_sql}.
+#'   \item Age has no native column. All key variants found in the database
+#'     are merged, in this priority order: age_L/ageL/Age_L/AgeL,
+#'     age_R/ageR/Age_R/AgeR, age/Age. No conflicting values were found
+#'     between variants. Rows carrying age only through a variant key were
+#'     checked not to duplicate rows carrying the canonical keys.
+#'   \item Empty strings are treated as missing: collections with an age
+#'     column store '' for observations without an age. Values are returned
+#'     raw, as text: no trimming and no conversion. Non-integer formats
+#'     (units, fractions, typos) are left to downstream preprocessing.
+#'   \item Location name: taken from the location period first (consistent
+#'     with geometries, which join on location_period_id only), falling back
+#'     to observations.location_id; \code{location_via_fallback} flags the
+#'     fallback rows.
+#'   \item Geography: filtered on observations.location_id, as in
+#'     \code{read_taxonomy_data_sql}, but with EXISTS instead of a JOIN on
+#'     location_hierarchies, so nested ancestors never duplicate rows.
+#'     Observations without any location can never match an ancestor and are
+#'     always excluded, as in \code{read_taxonomy_data_sql}.
+#'   \item Dates: only observations fully inside [time_left, time_right] are
+#'     returned (same semantics as \code{read_taxonomy_data_sql});
+#'     observations straddling a bound are dropped. Bounds must be Date
+#'     objects or strict "YYYY-MM-DD" strings.
+#'   \item No geometry is returned: pull shapes separately, deduplicated by
+#'     location_period_id.
+#' }
 #'
 #' @param username taxonomy username
 #' @param password taxonomy password
-#' @param locations list of locations to pull. For now this only supports country ISO codes.
-#' @param time_left  left bound for observation times (in date format)
-#' @param time_right right bound for observation times (in date format)
+#' @param locations numeric vector of location ids (ancestor ids). Mandatory.
+#' @param time_left left bound for observation times (Date or "YYYY-MM-DD")
+#' @param time_right right bound for observation times (Date or "YYYY-MM-DD")
 #' @param uids list of unique observation collection ids to pull
-#' @param discard_incomplete_observation_collections whether to include OCs that are not in Initial Data Entry Complete status
-#' @param unified_dataset_behaviour whether to include unified OCs
-#' @param include_geojson whether to pull shapefiles together
-#'
-#' @details Code follows taxdat::read_taxonomy_data_api template.
-#' @return An sf or non sf object containing data extracted from the database
+#' @param discard_incomplete_observation_collections whether to exclude OCs
+#'   with status initialized, validated or inprogress
+#' @param unified_dataset_behaviour "drop" (default), "keep", or any other
+#'   value to disable the filter
+#' @param host database host
+#' @return A data.frame, one row per observation; identifiers as text.
+#' @seealso \code{\link{read_taxonomy_data_sql}}
 #' @export
-read_taxonomy_age_data_sql <- function(username, password, locations = NULL, time_left = NULL,
-                                       time_right = NULL, uids = NULL, discard_incomplete_observation_collections = TRUE, unified_dataset_behaviour = "drop", host = "db.cholera-taxonomy.middle-distance.com", include_geojson = TRUE) {
-  library(dplyr)
-  if (missing(username) | missing(password)) {
+read_taxonomy_age_sql <- function(username, password, locations = NULL,
+                                  time_left = NULL, time_right = NULL,
+                                  uids = NULL,
+                                  discard_incomplete_observation_collections = TRUE,
+                                  unified_dataset_behaviour = "drop",
+                                  host = "db.cholera-taxonomy.middle-distance.com") {
+
+  # ---- Argument checks (before any connection) ------------------------------
+  if (missing(username) || missing(password) ||
+      !nzchar(username) || !nzchar(password)) {
     stop("Please provide username and password to connect to the taxonomy database.")
   }
-  
-  # Connect to database
-  if ((password == "") && (website == "localhost")) {
-    print("HERE")
-    conn <- RPostgres::dbConnect(RPostgres::Postgres(),
-                                 dbname = "CholeraTaxonomy_production", user = username,
-                                 port = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
-    )
-  } else {
-    conn <- RPostgres::dbConnect(RPostgres::Postgres(),
-                                 host = host,
-                                 dbname = "CholeraTaxonomy_production", user = username, password = password,
-                                 port = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
-    )
-  }
-  
-  # Build query for observations
-  obs_query <- paste(
-    "SELECT",
-    "observation_collections.is_public,",
-    "observation_collections.unified,",
-    "observation_collections.status,",
-    "observations.observation_collection_id::text,",
-    "observations.time_left AS TL,",
-    "observations.time_right AS TR,",
-    "observations.confirmed_cases AS cCh,",
-    "observations.suspected_cases AS sCh,",
-    "observations.data->>'age_L' AS age_l,",
-    "observations.data->>'age_R' AS age_r,",
-    "observations.data->>'age'  AS age,",
-    "observations.deaths  AS deaths,",
-    "observations.phantom AS phantom,",
-    "observations.primary AS data_primary,",
-    "locations.qualified_name AS location_name,",
-    "locations.id::text AS location_id,",
-    "location_periods.id::text AS location_period_id",
-    if (include_geojson) ", shapes.shape AS geojson" else "",
-    "FROM observations",
-    "JOIN observation_collections ON observation_collections.id = observations.observation_collection_id",
-    "LEFT JOIN location_hierarchies ON observations.location_id = location_hierarchies.descendant_id",
-    "LEFT JOIN locations ON observations.location_id = locations.id",
-    "LEFT JOIN location_periods ON observations.location_period_id = location_periods.id",
-    if (include_geojson) "LEFT JOIN shapes ON shapes.location_period_id = location_periods.id" else "",
-    "WHERE EXISTS (",
-    "  SELECT 1 FROM custom_fields",
-    "  WHERE custom_fields.observation_collection_id = observations.observation_collection_id",
-    ")",
-    "AND (observations.data->>'age' IS NOT NULL",
-    "  OR observations.data->>'age_L' IS NOT NULL",
-    "  OR observations.data->>'age_R' IS NOT NULL)"
-  )
-  
-  cat("-- Pulling data from taxonomy database with SQL \n")
-  
-  if (unified_dataset_behaviour == "drop") {
-    unified_filter <- c("((observation_collections.unified is NULL) OR (observation_collections.unified!='t'))") # QZ: updated the operator
-  } else if (unified_dataset_behaviour == "keep") {
-    unified_filter <- c("((observation_collections.unified is NOT NULL) AND (observation_collections.unified))")
-  } else {
-    unified_filter <- NULL
-  }
-  if (discard_incomplete_observation_collections) {
-    oc_filter <- c("(observation_collections.status != 'initialized') AND (observation_collections.status != 'validated') AND (observation_collections.status != 'inprogress')")
-  } else {
-    oc_filter <- NULL
-  }
-  # Add filters
-  if (!is.null(time_left)) {
-    time_left_filter <- paste0("observations.time_left >= DATE '", format(time_left, "%Y-%m-%d"), "'")
-  } else {
-    time_left_filter <- NULL
-    warning("No time filters.")
-  }
-  
-  if (!is.null(time_right)) {
-    time_right_filter <- paste0("observations.time_right <= DATE '", format(time_right, "%Y-%m-%d"), "'")
-  } else {
-    time_right_filter <- NULL
-    warning("No time filters.")
-  }
-  
-  if (!is.null(locations)) {
-    if (all(is.numeric(locations))) {
-      locations_filter <- paste0("location_hierarchies.ancestor_id in ({locations*})")
-    } else {
-      stop("SQL access by location name is not yet implemented")
-    }
-  } else {
-    locations_filter <- paste0("location_hierarchies.ancestor_id = location_hierarchies.descendant_id")
+  if (is.null(locations)) {
     stop("Please use a containing location as the location. Locations can't be NULL.")
   }
-  
-  if (!is.null(uids)) {
-    uids_filter <- paste0("observations.observation_collection_id IN ({uids*})")
-  } else {
-    uids_filter <- NULL
-    warning("No uid filters.")
+  if (!is.numeric(locations)) {
+    stop("SQL access by location name is not yet implemented")
   }
-  
-  # Combine filters
-  filters <- c(time_left_filter, time_right_filter, locations_filter, uids_filter, oc_filter, unified_filter)
-  filters <- paste(filters[!is.null(filters)], collapse = " AND ")
-  
-  # Run query for observations
-  obs_query <- glue::glue_sql(paste(obs_query, "AND", filters), .con = conn)
-  
-  if(include_geojson){
-    observations <- suppressWarnings(sf::st_as_sf(sf::st_read(conn, query = obs_query)))
-  } else {
-    observations <- DBI::dbGetQuery(conn, obs_query)
+  time_left  <- .validate_iso_date(time_left,  "time_left")
+  time_right <- .validate_iso_date(time_right, "time_right")
+  if (is.null(time_left) && is.null(time_right)) warning("No time filters.")
+  if (is.null(uids)) warning("No uid filters.")
+
+  # ---- Connection, always closed (also on error) ----------------------------
+  conn <- DBI::dbConnect(
+    RPostgres::Postgres(),
+    host     = host,
+    dbname   = "CholeraTaxonomy_production",
+    user     = username,
+    password = password,
+    port     = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
+  )
+  on.exit(DBI::dbDisconnect(conn), add = TRUE)
+
+  # ---- Age merge: '' -> NULL, then first non-NULL key variant ---------------
+  # Key names are hard-coded constants (no user input): sprintf is safe here.
+  merge_keys <- function(keys) {
+    parts <- vapply(keys, function(k) sprintf("NULLIF(o.data->>'%s', '')", k), character(1))
+    paste0("COALESCE(", paste(parts, collapse = ", "), ")")
   }
+
+  # ---- Filters (user values are bound by glue_sql, never pasted) ------------
+  filters <- c(
+    # geography: EXISTS never duplicates rows (a JOIN does with nested ancestors)
+    paste("EXISTS (SELECT 1 FROM location_hierarchies h",
+          "WHERE h.descendant_id = o.location_id",
+          "AND h.ancestor_id IN ({locations*}))"),
+    if (!is.null(time_left))  "o.time_left >= {time_left}::date",
+    if (!is.null(time_right)) "o.time_right <= {time_right}::date",
+    if (!is.null(uids))       "o.observation_collection_id IN ({uids*})",
+    if (isTRUE(discard_incomplete_observation_collections)) {
+      paste("(oc.status != 'initialized') AND (oc.status != 'validated')",
+            "AND (oc.status != 'inprogress')")
+    },
+    if (identical(unified_dataset_behaviour, "drop")) {
+      "((oc.unified IS NULL) OR (oc.unified != 't'))"
+    } else if (identical(unified_dataset_behaviour, "keep")) {
+      "((oc.unified IS NOT NULL) AND (oc.unified))"
+    }
+  )
+
+  # ---- Query --------------------------------------------------------------------
+  query <- paste(
+    "SELECT * FROM (",
+    "  SELECT",
+    "    o.id::text                        AS id,",
+    "    o.observation_collection_id::text AS observation_collection_id,",
+    "    oc.is_public, oc.unified, oc.status::text AS status,",
+    "    o.time_left, o.time_right,",
+    "    o.suspected_cases, o.confirmed_cases, o.deaths,",
+    "    o.phantom, o.\"primary\" AS \"primary\",",
+    "   ", merge_keys(c("age_L", "ageL", "Age_L", "AgeL")), "AS age_l,",
+    "   ", merge_keys(c("age_R", "ageR", "Age_R", "AgeR")), "AS age_r,",
+    "   ", merge_keys(c("age", "Age")),                     "AS age,",
+    "    COALESCE(l_via_lp.qualified_name, l_direct.qualified_name) AS location_name,",
+    "    (l_via_lp.qualified_name IS NULL",
+    "     AND l_direct.qualified_name IS NOT NULL)                  AS location_via_fallback,",
+    "    o.location_id::text        AS location_id,",
+    "    o.location_period_id::text AS location_period_id",
+    "  FROM observations o",
+    "  JOIN observation_collections oc ON oc.id = o.observation_collection_id",
+    "  LEFT JOIN location_periods lp   ON lp.id = o.location_period_id",
+    "  LEFT JOIN locations l_via_lp    ON l_via_lp.id = lp.location_id",
+    "  LEFT JOIN locations l_direct    ON l_direct.id = o.location_id",
+    "  WHERE", paste(filters, collapse = " AND "),
+    ") s",
+    "WHERE s.age_l IS NOT NULL OR s.age_r IS NOT NULL OR s.age IS NOT NULL",
+    "ORDER BY s.observation_collection_id::bigint, s.id::bigint"
+  )
+  query <- glue::glue_sql(query, .con = conn,
+                          locations = locations, uids = uids,
+                          time_left = time_left, time_right = time_right)
+
+  cat("-- Pulling age data from taxonomy database with SQL \n")
+  observations <- DBI::dbGetQuery(conn, query)
+
   if (nrow(observations) == 0) {
-    stop(paste0("No observations found using query ||", obs_query, "||"))
+    stop("No observations found for the given filters.")
   }
-  
-  # observations <- dplyr::filter(observations, !is.na(nchar(geojson)))
-  return(observations)
+  observations
 }
 
 #' @title Taxonomy SQL sex-specific data pull
-#' @description Extracts sex-specific data for a given set of country using SQL from the taxonomy
-#' postgresql database stored on idmodeling2
+#'
+#' @description Extracts observations carrying a sex value from the taxonomy
+#' PostgreSQL database. Interface, filters and defaults mirror
+#' \code{read_taxonomy_data_sql}.
+#'
+#' @details Design decisions (validated against the database before release):
+#' \itemize{
+#'   \item Governance filters identical to \code{read_taxonomy_data_sql}.
+#'   \item Sex has no native column. Key variants are merged in this priority
+#'     order: sex, Sex, gender, Gender (no row carries two variants). Empty
+#'     strings are treated as missing.
+#'   \item \code{sex_raw} returns the original value. \code{sex} recodes it
+#'     following the data-entry convention (male = 1, female = 0): 1/m/male
+#'     -> 1 and 0/f/female -> 0, case-insensitive. Any other value gives NA,
+#'     and the row is kept so that unmapped values remain visible. For
+#'     numerically coded collections the convention cannot be verified from
+#'     the values themselves.
+#'   \item The keys male/female are not read: they hold sex-stratified
+#'     aggregate counts, not the sex of a case.
+#'   \item Many rows are aggregated strata (primary = FALSE, suspected_cases
+#'     > 1) of a primary total row: analyses must weight by suspected_cases
+#'     rather than count rows.
+#'   \item Location, geography and dates: same rules as
+#'     \code{read_taxonomy_age_sql} (location period first, EXISTS on
+#'     observations.location_id, observations fully inside the date window).
+#'   \item No geometry is returned.
+#' }
 #'
 #' @param username taxonomy username
 #' @param password taxonomy password
-#' @param locations list of locations to pull. For now this only supports country ISO codes.
-#' @param time_left  left bound for observation times (in date format)
-#' @param time_right right bound for observation times (in date format)
+#' @param locations numeric vector of location ids (ancestor ids). Mandatory.
+#' @param time_left left bound for observation times (Date or "YYYY-MM-DD")
+#' @param time_right right bound for observation times (Date or "YYYY-MM-DD")
 #' @param uids list of unique observation collection ids to pull
-#' @param discard_incomplete_observation_collections whether to include OCs that are not in Initial Data Entry Complete status
-#' @param unified_dataset_behaviour whether to include unified OCs
-#' @param include_geojson whether to pull shapefiles together
-#'
-#' @details Code follows taxdat::read_taxonomy_data_api template.
-#' @return An sf or non sf object containing data extracted from the database
+#' @param discard_incomplete_observation_collections whether to exclude OCs
+#'   with status initialized, validated or inprogress
+#' @param unified_dataset_behaviour "drop" (default), "keep", or any other
+#'   value to disable the filter
+#' @param host database host
+#' @return A data.frame, one row per observation; identifiers as text.
+#' @seealso \code{\link{read_taxonomy_data_sql}}, \code{\link{read_taxonomy_age_sql}}
 #' @export
-read_taxonomy_sex_data_sql <- function(username, password, locations = NULL, time_left = NULL,
-                                       time_right = NULL, uids = NULL, discard_incomplete_observation_collections = TRUE, unified_dataset_behaviour = "drop", host = "db.cholera-taxonomy.middle-distance.com", include_geojson = TRUE) {
-  library(dplyr)
+read_taxonomy_sex_sql <- function(username, password, locations = NULL,
+                                  time_left = NULL, time_right = NULL,
+                                  uids = NULL,
+                                  discard_incomplete_observation_collections = TRUE,
+                                  unified_dataset_behaviour = "drop",
+                                  host = "db.cholera-taxonomy.middle-distance.com") {
+
+  # ---- Argument checks (before any connection) ------------------------------
+  if (missing(username) || missing(password) ||
+      !nzchar(username) || !nzchar(password)) {
+    stop("Please provide username and password to connect to the taxonomy database.")
+  }
+  if (is.null(locations)) {
+    stop("Please use a containing location as the location. Locations can't be NULL.")
+  }
+  if (!is.numeric(locations)) {
+    stop("SQL access by location name is not yet implemented")
+  }
+  time_left  <- .validate_iso_date(time_left,  "time_left")
+  time_right <- .validate_iso_date(time_right, "time_right")
+  if (is.null(time_left) && is.null(time_right)) warning("No time filters.")
+  if (is.null(uids)) warning("No uid filters.")
+
+  # ---- Connection, always closed (also on error) ----------------------------
+  conn <- DBI::dbConnect(
+    RPostgres::Postgres(),
+    host     = host,
+    dbname   = "CholeraTaxonomy_production",
+    user     = username,
+    password = password,
+    port     = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
+  )
+  on.exit(DBI::dbDisconnect(conn), add = TRUE)
+
+  # ---- Filters (user values are bound by glue_sql, never pasted) ------------
+  filters <- c(
+    # geography: EXISTS never duplicates rows (a JOIN does with nested ancestors)
+    paste("EXISTS (SELECT 1 FROM location_hierarchies h",
+          "WHERE h.descendant_id = o.location_id",
+          "AND h.ancestor_id IN ({locations*}))"),
+    if (!is.null(time_left))  "o.time_left >= {time_left}::date",
+    if (!is.null(time_right)) "o.time_right <= {time_right}::date",
+    if (!is.null(uids))       "o.observation_collection_id IN ({uids*})",
+    if (isTRUE(discard_incomplete_observation_collections)) {
+      paste("(oc.status != 'initialized') AND (oc.status != 'validated')",
+            "AND (oc.status != 'inprogress')")
+    },
+    if (identical(unified_dataset_behaviour, "drop")) {
+      "((oc.unified IS NULL) OR (oc.unified != 't'))"
+    } else if (identical(unified_dataset_behaviour, "keep")) {
+      "((oc.unified IS NOT NULL) AND (oc.unified))"
+    }
+  )
+
+  # ---- Query --------------------------------------------------------------------
+  # Inner query merges the raw sex value; outer query recodes it and keeps only
+  # rows with a non-empty raw value (unmapped values kept, sex = NA).
+  query <- paste(
+    "SELECT",
+    "  s.id, s.observation_collection_id, s.is_public, s.unified, s.status,",
+    "  s.time_left, s.time_right, s.suspected_cases, s.confirmed_cases, s.deaths,",
+    "  s.phantom, s.\"primary\",",
+    "  CASE",
+    "    WHEN lower(s.sex_raw) IN ('1', 'm', 'male')   THEN 1",
+    "    WHEN lower(s.sex_raw) IN ('0', 'f', 'female') THEN 0",
+    "    ELSE NULL",
+    "  END AS sex,",
+    "  s.sex_raw,",
+    "  s.location_name, s.location_via_fallback, s.location_id, s.location_period_id",
+    "FROM (",
+    "  SELECT",
+    "    o.id::text                        AS id,",
+    "    o.observation_collection_id::text AS observation_collection_id,",
+    "    oc.is_public, oc.unified, oc.status::text AS status,",
+    "    o.time_left, o.time_right,",
+    "    o.suspected_cases, o.confirmed_cases, o.deaths,",
+    "    o.phantom, o.\"primary\" AS \"primary\",",
+    "    COALESCE(NULLIF(o.data->>'sex', ''), NULLIF(o.data->>'Sex', ''),",
+    "             NULLIF(o.data->>'gender', ''), NULLIF(o.data->>'Gender', '')) AS sex_raw,",
+    "    COALESCE(l_via_lp.qualified_name, l_direct.qualified_name) AS location_name,",
+    "    (l_via_lp.qualified_name IS NULL",
+    "     AND l_direct.qualified_name IS NOT NULL)                  AS location_via_fallback,",
+    "    o.location_id::text        AS location_id,",
+    "    o.location_period_id::text AS location_period_id",
+    "  FROM observations o",
+    "  JOIN observation_collections oc ON oc.id = o.observation_collection_id",
+    "  LEFT JOIN location_periods lp   ON lp.id = o.location_period_id",
+    "  LEFT JOIN locations l_via_lp    ON l_via_lp.id = lp.location_id",
+    "  LEFT JOIN locations l_direct    ON l_direct.id = o.location_id",
+    "  WHERE", paste(filters, collapse = " AND "),
+    ") s",
+    "WHERE s.sex_raw IS NOT NULL",
+    "ORDER BY s.observation_collection_id::bigint, s.id::bigint"
+  )
+  query <- glue::glue_sql(query, .con = conn,
+                          locations = locations, uids = uids,
+                          time_left = time_left, time_right = time_right)
+
+  cat("-- Pulling sex data from taxonomy database with SQL \n")
+  observations <- DBI::dbGetQuery(conn, query)
+
+  if (nrow(observations) == 0) {
+    stop("No observations found for the given filters.")
+  }
+  observations
+}
+
+
+#' @title Taxonomy age/sex-stratified SQL data pull
+#'
+#' @description Extracts age- and sex-stratified cholera observation data
+#' from the taxonomy PostgreSQL database. Age is required (a row must have
+#' at least one of age/age_L/age_R populated, checked across all known
+#' key-name variants); sex is extracted when available but never required,
+#' exactly as in every pull built this session.
+#'
+#' @details Interface deliberately mirrors taxdat::read_taxonomy_data_sql.
+#' Departures from it, each validated empirically against the DB this
+#' session (not assumed) on the scoped population this function targets
+#' (EXISTS(custom_fields), age present, unified/status filtered):
+#'
+#' @param username,password Taxonomy DB credentials.
+#' @param locations Numeric vector of location ids (ancestor_id filter).
+#'   Mandatory, exactly as in read_taxonomy_data_sql — NULL raises an
+#'   error rather than silently pulling the whole world.
+#' @param time_left,time_right Optional date bounds (Date objects).
+#' @param uids Optional vector of observation_collection_id to restrict to.
+#' @param discard_incomplete_observation_collections Default TRUE. Same
+#'   semantics as read_taxonomy_data_sql: excludes collections with
+#'   status in (initialized, validated, inprogress).
+#' @param unified_dataset_behaviour "drop" (default), "keep", or any other
+#'   value to disable the filter — same semantics as read_taxonomy_data_sql.
+#' @param require_custom_fields Default TRUE. Requires the collection to
+#'   have at least one entry in custom_fields. Empirically a
+#'   near-perfect proxy for "this collection's jsonb can carry an 'age'
+#'   key" (measured on this DB: 0% of observations without any
+#'   custom_fields entry have a populated 'age' key, vs 8.7% for those
+#'   with one) — largely redundant with the age-presence filter below,
+#'   kept here for consistency with every pull validated this session.
+#'   Set FALSE to disable.
+#' @param drop_unresolved_location Default FALSE. If TRUE, excludes the
+#'   observations that have neither location_id nor location_period_id
+#'   set (see Details) instead of returning them with location_name = NA
+#'   — reproduces taxdat's own silent-exclusion behaviour on request,
+#'   rather than by accident.
+#' @param include_geojson Default FALSE. If TRUE, joins shapes.shape
+#'   directly into the result via location_period_id (the only valid
+#'   join key — shapes has no location_id column at all). This repeats
+#'   the geometry on every observation sharing a location_period_id and
+#'   can produce very large results: measured on this DB, ~250 MB of
+#'   geometry text for ~1,200 distinct locations across ~370,000
+#'   observations. For most uses, prefer pulling shapes separately,
+#'   deduplicated by location_period_id, and joining downstream in R —
+#'   see extract_shape_april.R for that pattern. When TRUE, returns an
+#'   sf object (via sf::st_read); when FALSE, returns a plain data.frame.
+#' @param host Database host.
+#'
+#' @return A data.frame, or an sf object if include_geojson = TRUE.
+#' @export
+read_taxonomy_age_sex_sql <- function(username, password, locations = NULL,
+                                       time_left = NULL, time_right = NULL,
+                                       uids = NULL,
+                                       discard_incomplete_observation_collections = TRUE,
+                                       unified_dataset_behaviour = "drop",
+                                       require_custom_fields = TRUE,
+                                       drop_unresolved_location = FALSE,
+                                       include_geojson = FALSE,
+                                       host = "db.cholera-taxonomy.middle-distance.com") {
+
   if (missing(username) | missing(password)) {
     stop("Please provide username and password to connect to the taxonomy database.")
   }
-  
-  # Connect to database
-  if ((password == "") && (website == "localhost")) {
-    print("HERE")
-    conn <- RPostgres::dbConnect(RPostgres::Postgres(),
-                                 dbname = "CholeraTaxonomy_production", user = username,
-                                 port = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
-    )
-  } else {
-    conn <- RPostgres::dbConnect(RPostgres::Postgres(),
-                                 host = host,
-                                 dbname = "CholeraTaxonomy_production", user = username, password = password,
-                                 port = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
-    )
-  }
-  
-  # Build query for observations
-  obs_query <- paste(
-    "SELECT",
-    "observation_collections.is_public,",
-    "observation_collections.unified,",
-    "observation_collections.status,",
-    "observations.observation_collection_id::text,",
-    "observations.time_left AS TL,",
-    "observations.time_right AS TR,",
-    "observations.confirmed_cases AS cCh,",
-    "observations.suspected_cases AS sCh,",
-    "observations.data->>'sex' AS sex,",
-    "observations.deaths  AS deaths,",
-    "observations.phantom AS phantom,",
-    "observations.primary AS data_primary,",
-    "locations.qualified_name AS location_name,",
-    "locations.id::text AS location_id,",
-    "location_periods.id::text AS location_period_id",
-    if (include_geojson) ", shapes.shape AS geojson" else "",
-    "FROM observations",
-    "JOIN observation_collections ON observation_collections.id = observations.observation_collection_id",
-    "LEFT JOIN location_hierarchies ON observations.location_id = location_hierarchies.descendant_id",
-    "LEFT JOIN locations ON observations.location_id = locations.id",
-    "LEFT JOIN location_periods ON observations.location_period_id = location_periods.id",
-    if (include_geojson) "LEFT JOIN shapes ON shapes.location_period_id = location_periods.id" else "",
-    "WHERE EXISTS (",
-    "  SELECT 1 FROM custom_fields",
-    "  WHERE custom_fields.observation_collection_id = observations.observation_collection_id",
-    ")",
-    "AND (observations.data->>'sex' IS NOT NULL)"
-  )
-  
-  cat("-- Pulling data from taxonomy database with SQL \n")
-  
-  if (unified_dataset_behaviour == "drop") {
-    unified_filter <- c("((observation_collections.unified is NULL) OR (observation_collections.unified!='t'))") # QZ: updated the operator
-  } else if (unified_dataset_behaviour == "keep") {
-    unified_filter <- c("((observation_collections.unified is NOT NULL) AND (observation_collections.unified))")
-  } else {
-    unified_filter <- NULL
-  }
-  if (discard_incomplete_observation_collections) {
-    oc_filter <- c("(observation_collections.status != 'initialized') AND (observation_collections.status != 'validated') AND (observation_collections.status != 'inprogress')")
-  } else {
-    oc_filter <- NULL
-  }
-  # Add filters
-  if (!is.null(time_left)) {
-    time_left_filter <- paste0("observations.time_left >= DATE '", format(time_left, "%Y-%m-%d"), "'")
-  } else {
-    time_left_filter <- NULL
-    warning("No time filters.")
-  }
-  
-  if (!is.null(time_right)) {
-    time_right_filter <- paste0("observations.time_right <= DATE '", format(time_right, "%Y-%m-%d"), "'")
-  } else {
-    time_right_filter <- NULL
-    warning("No time filters.")
-  }
-  
-  if (!is.null(locations)) {
-    if (all(is.numeric(locations))) {
-      locations_filter <- paste0("location_hierarchies.ancestor_id in ({locations*})")
-    } else {
-      stop("SQL access by location name is not yet implemented")
-    }
-  } else {
-    locations_filter <- paste0("location_hierarchies.ancestor_id = location_hierarchies.descendant_id")
+  if (is.null(locations)) {
     stop("Please use a containing location as the location. Locations can't be NULL.")
   }
-  
-  if (!is.null(uids)) {
-    uids_filter <- paste0("observations.observation_collection_id IN ({uids*})")
-  } else {
-    uids_filter <- NULL
-    warning("No uid filters.")
+  if (!all(is.numeric(locations))) {
+    stop("SQL access by location name is not yet implemented")
   }
-  
-  # Combine filters
-  filters <- c(time_left_filter, time_right_filter, locations_filter, uids_filter, oc_filter, unified_filter)
-  filters <- paste(filters[!is.null(filters)], collapse = " AND ")
-  
-  # Run query for observations
-  obs_query <- glue::glue_sql(paste(obs_query, "AND", filters), .con = conn)
-  
-  if(include_geojson){
+
+  conn <- RPostgres::dbConnect(
+    RPostgres::Postgres(),
+    host = host,
+    dbname = "CholeraTaxonomy_production",
+    user = username, password = password,
+    port = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
+  )
+
+  geojson_select <- if (include_geojson) ", shapes.shape AS geojson" else ""
+  geojson_join   <- if (include_geojson) {
+    "LEFT JOIN shapes ON shapes.location_period_id = location_periods.id"
+  } else ""
+
+  # --- Native columns only for TL/TR/case counts/deaths/phantom/primary.
+  # No CASE/COALESCE against the jsonb here — tested column-by-column on
+  # this function's target population (see @details): native coverage
+  # was 100% for TL/TR, and every jsonb-only value found for
+  # suspected_cases/confirmed_cases/deaths was confirmed to be blank
+  # noise, not real data. Kept simple and fast rather than defensively
+  # parsing a jsonb blob that adds no real coverage here.
+  obs_query <- paste(
+    "SELECT",
+    "observations.id::text, observations.observation_collection_id::text,",
+    "observations.time_left,",
+    "observations.time_right,",
+    "observations.suspected_cases,",
+    "observations.confirmed_cases,",
+    "observations.deaths,",
+    "observations.phantom, observations.primary,",
+    # age/sex: no native column exists for either — jsonb is the only
+    # source, hence the multi-key COALESCE across every variant found
+    # in this DB's custom_fields registry.
+    "COALESCE(observations.data->>'age_L', observations.data->>'ageL',",
+    "         observations.data->>'Age_L', observations.data->>'AgeL') AS age_l,",
+    "COALESCE(observations.data->>'age_R', observations.data->>'ageR',",
+    "         observations.data->>'Age_R', observations.data->>'AgeR') AS age_r,",
+    "COALESCE(observations.data->>'age', observations.data->>'Age') AS age,",
+    # 'male'/'female' as separate keys deliberately excluded: semantics
+    # (per-row flag vs. aggregate count) were never confirmed this
+    # session — do not fold them in silently.
+    "COALESCE(observations.data->>'sex', observations.data->>'Sex',",
+    "         observations.data->>'gender', observations.data->>'Gender') AS sex,",
+    "COALESCE(l_via_lp.qualified_name, l_direct.qualified_name) AS location_name,",
+    "(l_via_lp.qualified_name IS NOT NULL OR l_direct.qualified_name IS NOT NULL) AS location_resolved,",
+    "(l_via_lp.qualified_name IS NULL AND l_direct.qualified_name IS NOT NULL) AS location_via_fallback,",
+    "observations.location_id::text AS location_id,",
+    "observations.location_period_id AS location_period_id",
+    geojson_select,
+    "FROM observations",
+    "LEFT JOIN observation_collections ON observations.observation_collection_id = observation_collections.id",
+    "LEFT JOIN location_periods ON observations.location_period_id = location_periods.id",
+    "LEFT JOIN locations l_via_lp ON l_via_lp.id = location_periods.location_id",
+    "LEFT JOIN locations l_direct ON l_direct.id = observations.location_id",
+    "LEFT JOIN location_hierarchies",
+    "  ON location_hierarchies.descendant_id = COALESCE(location_periods.location_id, observations.location_id)",
+    geojson_join,
+    " WHERE"
+  )
+
+  cat("-- Pulling age/sex-stratified data from taxonomy database with SQL \n")
+
+  unified_filter <- if (unified_dataset_behaviour == "drop") {
+    "((observation_collections.unified is NULL) OR (observation_collections.unified!='t'))"
+  } else if (unified_dataset_behaviour == "keep") {
+    "((observation_collections.unified is NOT NULL) AND (observation_collections.unified))"
+  } else NULL
+
+  oc_filter <- if (discard_incomplete_observation_collections) {
+    paste(
+      "(observation_collections.status != 'initialized')",
+      "AND (observation_collections.status != 'validated')",
+      "AND (observation_collections.status != 'inprogress')"
+    )
+  } else NULL
+
+  custom_fields_filter <- if (require_custom_fields) {
+    paste(
+      "EXISTS (SELECT 1 FROM custom_fields",
+      "WHERE custom_fields.observation_collection_id = observations.observation_collection_id)"
+    )
+  } else NULL
+
+  # age required (any variant), sex never required — matches every pull
+  # built this session
+  age_filter <- paste(
+    "(observations.data->>'age' IS NOT NULL OR observations.data->>'Age' IS NOT NULL",
+    "OR observations.data->>'age_L' IS NOT NULL OR observations.data->>'ageL' IS NOT NULL",
+    "OR observations.data->>'Age_L' IS NOT NULL OR observations.data->>'AgeL' IS NOT NULL",
+    "OR observations.data->>'age_R' IS NOT NULL OR observations.data->>'ageR' IS NOT NULL",
+    "OR observations.data->>'Age_R' IS NOT NULL OR observations.data->>'AgeR' IS NOT NULL)"
+  )
+
+  location_resolved_filter <- if (drop_unresolved_location) {
+    "(observations.location_id IS NOT NULL OR observations.location_period_id IS NOT NULL)"
+  } else NULL
+
+  locations_filter <- paste0("location_hierarchies.ancestor_id in ({locations*})")
+
+  time_left_filter  <- if (!is.null(time_left))  paste0("observations.time_left >= '",  format(time_left,  "%Y-%m-%d"), "'") else NULL
+  time_right_filter <- if (!is.null(time_right)) paste0("observations.time_right <= '", format(time_right, "%Y-%m-%d"), "'") else NULL
+  uids_filter       <- if (!is.null(uids))       paste0("observations.observation_collection_id IN ({uids*})") else NULL
+
+  filters <- c(age_filter, custom_fields_filter, location_resolved_filter,
+               time_left_filter, time_right_filter, locations_filter,
+               uids_filter, oc_filter, unified_filter)
+  filters <- paste(filters[!vapply(filters, is.null, logical(1))], collapse = " AND ")
+
+  obs_query <- glue::glue_sql(paste(obs_query, filters, ";"), .con = conn)
+
+  if (include_geojson) {
     observations <- suppressWarnings(sf::st_as_sf(sf::st_read(conn, query = obs_query)))
   } else {
     observations <- DBI::dbGetQuery(conn, obs_query)
   }
+
+  DBI::dbDisconnect(conn)
+
   if (nrow(observations) == 0) {
     stop(paste0("No observations found using query ||", obs_query, "||"))
   }
-  
-  # observations <- dplyr::filter(observations, !is.na(nchar(geojson)))
-  return(observations)
+
+  observations
 }
