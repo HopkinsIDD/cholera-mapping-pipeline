@@ -2,7 +2,7 @@
 # Build the covariates database for one area of interest and test it with a
 # mapping run (login node). Submits a dependency chain:
 #   db_serve -> prepare_grid -> covariates_precompute[array] -> covariates_ingest
-#            -> mapping_run (smoke, Stan skipped) -> db_backup
+#            -> mapping_run (smoke, Stan skipped) -> db_diagnostics + db_backup
 #
 # Usage:
 #   bash hpc/yggdrasil/stages/db_build.sh --config CONFIG.yml --observations OBS.rds \
@@ -75,12 +75,14 @@ GRID=$(sbatch --parsable --dependency=after:"$SERVE" "$S/prepare_grid.sh" "$RES"
 PRE=$(sbatch --parsable --dependency=afterok:"$GRID" --array=0-$((N - 1)) "$S/covariates_precompute.sh" "$PAIRS")
 ING=$(sbatch --parsable --dependency=afterok:"$PRE" "$S/covariates_ingest.sh" "$PAIRS" "$MODE")
 RUN=$(sbatch --parsable --dependency=afterok:"$ING" "$S/mapping_run.sh" "$CONFIG" ${OBS:+"$OBS"})
+DIAG=$(sbatch --parsable --dependency=afterok:"$RUN" "$S/db_diagnostics.sh" "$CONFIG")
 BKP=$(sbatch --parsable --dependency=afterok:"$RUN" "$S/db_backup.sh")
 cat <<MSG
 prepare_grid:          $GRID
 covariates_precompute: $PRE (array 0-$((N - 1)))
 covariates_ingest:     $ING
 mapping_run (smoke):   $RUN
+db_diagnostics:        $DIAG  (figures in $SHARE/diagnostics/$PGDATABASE/)
 db_backup:             $BKP
 Logs in $CMP_REPO/logs/. Stop the server when done:
   bash hpc/yggdrasil/stages/db_service.sh stop

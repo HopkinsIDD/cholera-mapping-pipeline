@@ -19,6 +19,7 @@ hpc/yggdrasil/
     covariates_ingest.sh   load pre-computed covariates (serial)
     mapping_run.sh         set_parameters.R for one config (Stan skipped by default)
     db_backup.sh           pg_dump of the database to $SHARE/backups (keeps 3)
+    db_diagnostics.sh      figures: build, covariates by year, test-run extraction
   stages/                login-node drivers
     db_service.sh          start | stop | status of the server job
     db_build.sh            submits the whole build chain for one config
