@@ -15,17 +15,43 @@ check_countries_name <- function(countries_name) {
 
 #' @include file_name_functions.R
 #' @title check_aoi
-#' @description Checks whether the aoi is valid
+#' @description Checks the area of interest: "raw" (no crop, the default) or
+#' the ISO3 code of the country whose boundary (plus `aoi_buffer_km`) crops and
+#' masks every raster. With CHOLERA_TESTING=TRUE any string is accepted.
 #' @param aoi the aoi parameter in the config
-#' @return aoi if valid
+#' @return "raw" or an upper-case ISO3 code
 #' @export
 check_aoi <- function(aoi) {
-  cholera_testing <- as.logical(Sys.getenv("CHOLERA_TESTING", "FALSE"))
-  if (cholera_testing) {
-    return(aoi)
-  } else {
+  if (is.null(aoi) || identical(tolower(aoi), "raw")) {
     return("raw")
   }
+  if (as.logical(Sys.getenv("CHOLERA_TESTING", "FALSE"))) {
+    return(aoi)
+  }
+  if (length(aoi) != 1 || !(toupper(aoi) %in% geodata::country_codes()$ISO3)) {
+    stop("aoi must be 'raw' or one ISO3 country code, found: ", paste(aoi, collapse = ", "))
+  }
+  toupper(aoi)
+}
+
+#' @title check_aoi_buffer_km
+#' @description Buffer around the area of interest, in km. Only set when an
+#' area of interest is used, so configs without one keep their hash.
+#' @param aoi_buffer_km the aoi_buffer_km parameter in the config
+#' @param aoi the validated aoi
+#' @return NULL for aoi "raw", else the buffer (default 50)
+#' @export
+check_aoi_buffer_km <- function(aoi_buffer_km, aoi = "raw") {
+  if (identical(aoi, "raw")) {
+    return(NULL)
+  }
+  if (is.null(aoi_buffer_km)) {
+    return(50)
+  }
+  if (!is.numeric(aoi_buffer_km) || length(aoi_buffer_km) != 1 || aoi_buffer_km < 0) {
+    stop("aoi_buffer_km must be a single non-negative number")
+  }
+  aoi_buffer_km
 }
 
 #' @include file_name_functions.R
@@ -648,6 +674,7 @@ get_all_config_options <- function() {
     countries = "no-check",
     countries_name = as.function(check_countries_name),
     aoi = as.function(check_aoi),
+    aoi_buffer_km = as.function(check_aoi_buffer_km),
     res_space = as.function(check_res_space),
     res_time = as.function(check_res_time),
     grid_rand_effects_N = as.function(check_grid_rand_effects_N),
@@ -700,7 +727,7 @@ get_all_config_options <- function() {
     sfrac_thresh_border = as.function(check_sfrac_thresh_border),
     sfrac_thresh_conn = as.function(check_sfrac_thresh_conn),
     ingest_covariates = as.function(check_ingest_covariates),
-    ingest_new_covariates = as.function(check_ingest_covariates),
+    ingest_new_covariates = as.function(check_ingest_new_covariates),
     drop_low_pop_lps = as.function(check_drop_low_pop_lps),
     drop_low_pop_lps_thresh = as.function(check_drop_low_pop_lps_thresh),
     stan = c("ncores", "model", "genquant", "iter_warmup", "iter_sampling", "recompile"),

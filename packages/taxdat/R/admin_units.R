@@ -33,6 +33,11 @@ get_country_admin_units <- function(iso_code, admin_level = 1) {
   if (admin_level > 3) {
     stop("Admin level ", admin_level, " is invalid; use 0 to 3.")
   }
+  if (!requireNamespace("rgeoboundaries", quietly = TRUE)) {
+    stop("rgeoboundaries is needed to download admin units (install with ",
+         "remotes::install_github('wmgeolab/rgeoboundaries')), or fill the cache in ",
+         admin_units_cache_dir(), " with cache_admin_units() on another machine.")
+  }
   message("Using the rgeoboundaries shapefiles for all countries, for this country a admin level: ", admin_level)
 
   boundary_sf <- rgeoboundaries::geoboundaries(country = iso_code,

@@ -44,11 +44,9 @@ cholera_directory <- ifelse(is.null(opt$cholera_directory),
                             opt$cholera_directory)
 
 
-if (!as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
-  if (as.logical(Sys.getenv("PRODUCTION_RUN", TRUE)) && (nrow(gert::git_status(repo=cholera_directory)) != 0)) {
-    print(gert::git_status(repo=cholera_directory))
-    stop("There are local changes to the repository.  This is not allowed for a production run. Please revert or commit local changes")
-  }
+if (as.logical(Sys.getenv("PRODUCTION_RUN", TRUE)) && (nrow(gert::git_status(repo=cholera_directory)) != 0)) {
+  print(gert::git_status(repo=cholera_directory))
+  stop("There are local changes to the repository.  This is not allowed for a production run. Please revert or commit local changes")
 }
 
 
@@ -58,8 +56,11 @@ laydir <- ifelse(is.null(opt$layers_directory),
                  opt$layers_directory)
 
 # s2 has different ideas about geometry validity than postgis does
-if (!as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
-  sf::sf_use_s2(FALSE)
+sf::sf_use_s2(FALSE)
+
+# Admin boundaries are read from a GeoPackage cache (compute nodes are offline)
+if (Sys.getenv("CHOLERA_AOI_CACHE_DIR") == "") {
+  Sys.setenv(CHOLERA_AOI_CACHE_DIR = file.path(laydir, "admin_units"))
 }
 
 ## Inputs --------------------------------------------------------------------------------------------------------------
@@ -73,7 +74,10 @@ print("---- Reading Parameters ----\n")
 #### For api, use scoped string names
 countries <- config$countries
 countries_name <- taxdat::check_countries_name(config$countries_name)
+# Area of interest: "raw" (no crop) or an ISO3 code; rasters are cropped and
+# masked to that country's boundary plus aoi_buffer_km
 aoi <- taxdat::check_aoi(config$aoi)
+aoi_buffer_km <- taxdat::check_aoi_buffer_km(config$aoi_buffer_km, aoi = aoi)
 
 # - - - -
 ### Grid Size
@@ -173,7 +177,7 @@ sd_alpha <- taxdat::check_sd_alpha(config$sd_alpha)
 
 # Priors for spatial sd
 mu_sd_w <- taxdat::check_mu_sd_w(config$mu_sd_w)
-sd_sd_w <- taxdat::check_mu_sd_w(config$sd_sd_w)
+sd_sd_w <- taxdat::check_sd_sd_w(config$sd_sd_w)
 do_sd_w_mixture <- taxdat::check_do_sd_w_mixture(config$do_sd_w_mixture)
 use_rho_prior <- taxdat::check_use_rho_prior(config$use_rho_prior)
 
@@ -196,7 +200,7 @@ use_weights <- taxdat::check_use_weights(config$use_weights)
 ## GAM WARMUP
 # - - - - - - - - - - - - - -
 warmup <- taxdat::check_warmup(config$warmup)
-covar_warmup <- taxdat::check_covar_warmup(config$check_covar_warmup)
+covar_warmup <- taxdat::check_covar_warmup(config$covar_warmup)
 
 # - - - - - - - - - - - - - -
 ## OBSERVATION DATA PROCESSING
@@ -324,9 +328,12 @@ if (is.null(config$summary_admin_levels)) {
 }
 
 # - - - -
-# cholera_covariates database connection settings
-# Get username of user (docker doesn't provide username so default to app)
-dbuser <- Sys.getenv("USER", "app")
+# cholera_covariates database: connection settings come from the libpq
+# environment variables PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD (see
+# taxdat::get_db_config). Pre-pulled observations can be supplied with
+# CHOLERA_OBSERVATIONS_RDS (see Analysis/R/pull_observations_local.R).
+observations_rds <- Sys.getenv("CHOLERA_OBSERVATIONS_RDS", "")
+db_used <- FALSE
 
 
 
@@ -371,7 +378,7 @@ for(t_idx in 1:length(all_test_idx)){
     map_name <- paste("testing", test_idx, sep = '.')
   } else {
     if(is.null(config$countries_name)){
-      if(length(countries) == 1){
+      if(length(config$countries) == 1){
         config$countries_name <- config$countries
       }
     }
@@ -388,10 +395,8 @@ for(t_idx in 1:length(all_test_idx)){
   setwd(cholera_directory)
   dir.create("Analysis/output", showWarnings = FALSE)
 
-  # Load dictionary of configuration options
-  config_dict <- yaml::read_yaml(paste0(cholera_directory, "/Analysis/configs/config_dictionary.yml"))
-
-  file_names <- taxdat::get_filenames(config=config, cholera_directory = cholera_directory)
+  file_names <- taxdat::get_filenames(config=config, cholera_directory = cholera_directory,
+                                      layers_dir = laydir)
 
   # Check if the file names are valid
   new_file_names<-file_names[!sapply(file_names,file.exists)]
@@ -400,9 +405,6 @@ for(t_idx in 1:length(all_test_idx)){
   }
   sapply(new_file_names,file.remove)
 
-  # Preparation: Load auxillary functions
-  # source(stringr::str_c(cholera_directory, "/Analysis/R/covariate_helpers.R"))
-
   ## Step 1: process observation shapefiles and prepare data ##
   print(file_names[["data"]])
   if(file.exists(file_names[["data"]])){
@@ -410,24 +412,28 @@ for(t_idx in 1:length(all_test_idx)){
     warning("Data already preprocessed, skipping")
     load(file_names[["data"]])
   } else if(!testing){
-    if (as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
-      print(normalizePath(file_names[["data"]]))
-      stop("This shouldn't run on marcc")
+    db_used <- TRUE
+    aoi_obj <- taxdat::get_aoi(config$aoi, buffer_km = config$aoi_buffer_km)
+
+    # First prepare the computation grid
+    grid <- taxdat::prepare_grid(res_space = config$res_space, aoi = aoi_obj,
+                                 layers_dir = laydir, ingest = config$ingest_covariates)
+    full_grid_name <- grid$full_grid_name
+
+    # Observations: pre-pulled file if given, else the taxonomy database
+    cases <- if (nzchar(observations_rds)) {
+      taxdat::load_observations_rds(observations_rds, config)
+    } else {
+      taxdat::pull_observations(config)
     }
-
-    source(paste(cholera_directory, 'Analysis', 'R', 'prepare_grid.R', sep='/'))
-
-    # First prepare the computation grid and get the grid name
-    full_grid_name <- prepare_grid(
-      dbuser = dbuser,
-      cholera_directory = cholera_directory,
-      res_space = config$res_space,
-      ingest = config$ingest_covariates
-    )
-
-    # Pull data from taxonomy database (either using the API or SQL)
-    source(paste(cholera_directory,'Analysis','R','prepare_map_data_revised.R',sep='/'))
-
+    map_data <- taxdat::prepare_map_data(cases = cases, config = config,
+                                         cases_column = cases_column,
+                                         full_grid_name = full_grid_name)
+    sf_cases <- map_data$sf_cases
+    shapefiles <- map_data$shapefiles
+    output_shapefiles <- map_data$output_shapefiles
+    rm(cases, map_data)
+    save(sf_cases, full_grid_name, shapefiles, output_shapefiles, file = file_names[["data"]])
   } else {
     source(paste(cholera_directory,"Analysis", "R", "create_standardized_testing_data.R",sep='/'))
   }
@@ -439,50 +445,56 @@ for(t_idx in 1:length(all_test_idx)){
     warning("Covariate cube already preprocessed, skipping")
     load(file_names[["covar"]])
   } else if(!testing){
-    if (as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
-      stop("This shouldn't run on marcc")
+    db_used <- TRUE
+    conn_pg <- taxdat::connect_to_db()
+    aoi_obj <- taxdat::get_aoi(config$aoi, buffer_km = config$aoi_buffer_km)
+    grid <- taxdat::prepare_grid(res_space = config$res_space, aoi = aoi_obj,
+                                 layers_dir = laydir, ingest = config$ingest_covariates,
+                                 conn = conn_pg)
+    if (grid$full_grid_name != full_grid_name) {
+      stop("The cached data file was built on ", full_grid_name, " but the database now has ",
+           grid$full_grid_name, ". Delete the data file to rebuild it.")
     }
+    # The per-run tables are dropped at the end of each run; rebuild them if
+    # only the covariate file is being regenerated
+    taxdat::ensure_run_tables(conn_pg, config,
+                              shapefiles = if (exists("shapefiles")) shapefiles else NULL,
+                              output_shapefiles = output_shapefiles,
+                              full_grid_name = full_grid_name)
 
-    # Note: the first covariate is always the population raster
-    ## Step 2a: ingest the required covariates ##
-    # Load the function
-    source(paste(cholera_directory, 'Analysis', 'R', 'prepare_covariates.R', sep='/'))
-
-    # Run covariate preparation. The function return the list of covariate names
-    # included in the model
-    covar_list <- prepare_covariates(
-      dbuser = dbuser,
-      cholera_covariates_directory = laydir,
+    ## Step 2a: ingest the required covariates (population first)
+    covar_list <- taxdat::prepare_covariates(
+      covar_abbr = short_covariates,
+      covar_dict = covariate_dict,
+      layers_dir = laydir,
       res_space = config$res_space,
       res_time = config$res_time,
-      ingest = config$ingest_covariates,
-      do_parallel = F,
-      ovrt_covar = config$ingest_new_covariates,
-      ovrt_metadata_table = config$ovrt_metadata_table,
-      redo_metadata = config$ingest_new_covariates,
-      covar = paste(c('p', short_covariates), collapse = ','),  # add population as first covariate
-      full_grid_name = full_grid_name,
-      aoi_name = config$aoi
+      grid = grid,
+      aoi = aoi_obj,
+      mode = taxdat::covariate_mode(config$ingest_covariates, config$ingest_new_covariates),
+      conn = conn_pg
     )
+
+    # Population weights use yearly population on the 1 km grid
+    taxdat::prepare_population_1km(
+      covar_dict = covariate_dict, layers_dir = laydir, aoi = aoi_obj,
+      mode = taxdat::covariate_mode(config$ingest_covariates, config$ingest_new_covariates),
+      conn = conn_pg)
 
     ## Step 2b: create the covar cube
-    source(paste(cholera_directory, "Analysis/R/prepare_covar_cube.R", sep = "/"))
-
-    covar_cube_output <- prepare_covar_cube(
+    covar_cube_output <- taxdat::prepare_covar_cube(
       covar_list = covar_list,
-      dbuser = dbuser,
-      map_name = map_name,
-      cholera_directory = cholera_directory,
+      config = config,
       full_grid_name = full_grid_name,
-      start_time = config$start_time,
-      end_time = config$end_time,
+      time_slices = time_slices,
       res_space = config$res_space,
       res_time = config$res_time,
-      username = dbuser,
       covariate_transformations = config[["covariate_transformations"]],
       sfrac_thresh_border = config$sfrac_thresh_border,
-      sfrac_thresh_conn = config$sfrac_thresh_conn
+      sfrac_thresh_conn = config$sfrac_thresh_conn,
+      conn = conn_pg
     )
+    DBI::dbDisconnect(conn_pg)
 
     # Save results to file
     save(covar_cube_output, file = file_names[["covar"]])
@@ -496,13 +508,9 @@ for(t_idx in 1:length(all_test_idx)){
   ## Step 3: Prepare the stan input ##
   print(file_names[["stan_input"]])
   if(!file.exists(file_names[["stan_input"]])){
-    if (as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
-      stop("This shouldn't run on marcc")
-    }
     source(paste(cholera_directory, "Analysis/R/prepare_stan_input.R", sep = "/"))
 
     stan_input <-  prepare_stan_input(
-      dbuser = dbuser,
       cholera_directory = cholera_directory,
       ncore = ncores,
       res_time = config$res_time,
@@ -545,9 +553,6 @@ for(t_idx in 1:length(all_test_idx)){
     warning("Initial_values already found, skipping")
     load(file_names[["initial_values"]])
   } else {
-    if (as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
-      stop("This shouldn't run on marcc")
-    }
     source(paste(cholera_directory,'Analysis','R','prepare_initial_values.R',sep='/'))
     recompile <- FALSE
   }
@@ -585,8 +590,10 @@ for(t_idx in 1:length(all_test_idx)){
     recompile <- FALSE
   }
 
-  if (!as.logical(Sys.getenv("CHOLERA_ON_MARCC",FALSE))) {
-    taxdat::clean_all_tmp(dbuser = dbuser, config = config)
+  # Drop this run's per-run tables (they are rebuilt from the data file if a
+  # later stage is re-run)
+  if (db_used) {
+    taxdat::clean_all_tmp(config = config)
   }
 
 }

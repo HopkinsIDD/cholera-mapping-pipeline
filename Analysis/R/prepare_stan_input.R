@@ -1,7 +1,6 @@
 #' @title Prepare stan input
 #' @description Prepares the data for the Stan code
 #'
-#' @param dbuser
 #' @param cholera_directory
 #' @param grid_rand_effects_N
 #' @param ncore
@@ -23,7 +22,6 @@
 #' @return A list with the data
 #'
 prepare_stan_input <- function(
-    dbuser,
     cholera_directory,
     grid_rand_effects_N,
     ncore,
@@ -140,7 +138,8 @@ prepare_stan_input <- function(
   )
   
   # Connect to database
-  conn_pg <- taxdat::connect_to_db(dbuser)
+  conn_pg <- taxdat::connect_to_db()
+  on.exit(DBI::dbDisconnect(conn_pg), add = TRUE)
   
   output_location_periods_table <- taxdat::make_location_periods_dict(
     conn_pg = conn_pg,
@@ -150,7 +149,8 @@ prepare_stan_input <- function(
     res_space = res_space,
     sf_grid = sf_grid,
     grid_changer = grid_changer,
-    res_time = res_time)
+    res_time = res_time,
+    time_slices = time_slices)
   
   # Get pixels with low sfrac
   output_low_sfrac <- output_location_periods_table %>% 
