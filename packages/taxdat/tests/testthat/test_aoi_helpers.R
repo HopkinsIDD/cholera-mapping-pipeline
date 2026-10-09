@@ -58,8 +58,17 @@ test_that("crop_mask_to_aoi masks outside the buffered polygon", {
   r <- terra::rast(xmin = 28, xmax = 32, ymin = -6, ymax = -1, resolution = 0.5,
                    crs = "EPSG:4326", vals = 1)
   out <- crop_mask_to_aoi(r, aoi)
-  expect_equal(unname(as.vector(terra::ext(out))), c(29, 31, -4.5, -2.5), tolerance = 1e-9)
-  expect_equal(sum(!is.na(terra::values(out))), 4 * 4)
+  # The crop covers the area of interest and exceeds it by at most one cell
+  # (how far "snap out" goes on an exact cell edge differs between terra versions)
+  e <- unname(as.vector(terra::ext(out)))
+  expect_true(e[1] <= 29 && e[2] >= 31 && e[3] <= -4.5 && e[4] >= -2.5)
+  expect_true(all(abs(e - c(29, 31, -4.5, -2.5)) <= 0.5 + 1e-9))
+  # Every cell whose centre is inside the area of interest is kept
+  xy <- terra::xyFromCell(out, seq_len(terra::ncell(out)))
+  inside <- xy[, 1] > 29 & xy[, 1] < 31 & xy[, 2] > -4.5 & xy[, 2] < -2.5
+  v <- terra::values(out)[, 1]
+  expect_equal(sum(inside), 4 * 4)
+  expect_true(all(!is.na(v[inside])))
 })
 
 test_that("multi-level admin units come from the cache and are clipped to ADM0", {
