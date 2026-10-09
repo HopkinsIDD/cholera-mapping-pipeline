@@ -11,7 +11,6 @@
 # Stan modeling section
 print("*** STARTING STAN MODEL ***")
 
-library(rstan)
 
 # GAM for warm start of spatial random effects ----------------------------
 

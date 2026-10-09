@@ -37,13 +37,17 @@ echo "CRAN snapshot: $CMP_CRAN_REPO"
 
 Rscript -e '
 lib <- strsplit(Sys.getenv("R_LIBS_USER"), ":", fixed = TRUE)[[1]][1]
-options(repos = c(CRAN = Sys.getenv("CMP_CRAN_REPO")), Ncpus = 4)
+# cmdstanr is not on CRAN; it comes from the Stan r-universe
+options(repos = c(CRAN = Sys.getenv("CMP_CRAN_REPO"), stan = "https://stan-dev.r-universe.dev"), Ncpus = 4)
 cat("Library search path:\n"); print(.libPaths())
 inst <- function(p) install.packages(p, lib = lib)
 need <- c("Matrix", "DBI", "RPostgres", "blob", "units", "s2", "sf", "terra", "ncdf4", "jsonlite",
           "lubridate", "glue", "digest", "purrr", "stringr", "yaml", "dplyr", "tidyr",
           "magrittr", "ISOcodes", "igraph", "geodata", "optparse", "rprojroot", "rstudioapi",
-          "withr", "testthat", "remotes", "hashids", "tibble")
+          "withr", "testthat", "remotes", "hashids", "tibble",
+          # mapping steps after the database (stan input, GAM warm start, Stan)
+          "spdep", "lwgeom", "posterior", "foreach", "doParallel", "iterators",
+          "itertools", "mgcv", "rlang", "cmdstanr")
 missing <- need[!vapply(need, requireNamespace, logical(1), quietly = TRUE)]
 cat("Missing, to install:", if (length(missing)) missing else "none", "\n")
 if (length(missing)) inst(missing)
