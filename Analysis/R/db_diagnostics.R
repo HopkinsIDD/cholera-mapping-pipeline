@@ -30,6 +30,11 @@ suppressPackageStartupMessages({
   library(ggplot2)
 })
 sf::sf_use_s2(FALSE)
+# Compute nodes have no X11 display: render PNG and PDF with Cairo
+if (!isTRUE(capabilities("cairo"))) {
+  stop("This R has no Cairo support, which the figures need on a headless node.")
+}
+options(bitmapType = "cairo")
 `%||%` <- function(a, b) if (is.null(a)) b else a   # base R only has it from 4.4
 
 config <- yaml::read_yaml(opt$config, eval.expr = TRUE)
@@ -77,7 +82,7 @@ figures <- list()
 add_fig <- function(id, plot, width = 8, height = 6) {
   figures[[id]] <<- list(plot = plot, width = width, height = height)
   ggsave(file.path(out_dir, paste0(id, ".png")), plot, width = width, height = height,
-         dpi = 150, bg = col$surface)
+         dpi = 150, bg = col$surface, device = "png", type = "cairo")
   message("-- figure ", id)
 }
 write_csv <- function(df, name) utils::write.csv(df, file.path(out_dir, name), row.names = FALSE)
@@ -329,7 +334,7 @@ if (is.null(pre_file) || is.null(cov_file)) {
 
 # All figures in one PDF --------------------------------------------------------------
 pdf_file <- file.path(out_dir, sprintf("db_diagnostics_%s.pdf", db_name))
-grDevices::pdf(pdf_file, width = 10, height = 8, bg = col$surface)
+grDevices::cairo_pdf(pdf_file, width = 10, height = 8, bg = col$surface, onefile = TRUE)
 for (f in figures) print(f$plot)
-grDevices::dev.off()
+invisible(grDevices::dev.off())
 cat("Wrote", length(figures), "figures to", normalizePath(out_dir), "\n")
