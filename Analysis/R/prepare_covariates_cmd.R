@@ -1,35 +1,64 @@
+# Pre-compute and/or ingest covariates into the covariates database.
+#
+# Database connection: PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD.
+# Covariates are given as dictionary abbreviations; population ("p") is always
+# included first.
+#
+# Pre-compute only (no database; e.g. one Slurm array task per covariate):
+#   Rscript Analysis/R/prepare_covariates_cmd.R -l Layers -r 20 -a BDI -c aw --precompute_only TRUE -n 8
+# Load into the database (re-uses the pre-computed files):
+#   Rscript Analysis/R/prepare_covariates_cmd.R -l Layers -r 20 -a BDI -c aw,dw
+
 option_list <- list(
-  optparse::make_option(c("-u", "--dbuser"), action = "store", default =  Sys.getenv("USER"), type="character", help = "Database user"),
-  optparse::make_option(c("-d", "--cholera_covariates_directory"), action = "store", default = "./", type="character", help = "Cholera directory"),
-  optparse::make_option(c("-r", "--res_space"), action = "store", default = 20, type="integer", help = "Spatial resolution"),
-  optparse::make_option(c("-t", "--res_time"), action = "store", default = "1 year", type="character", help = "Temporal resolution"),
-  optparse::make_option(c("-i", "--ingest"), action = "store", default = T, type="logical", help = "Flag to do ingestion, if false stops if covariates has not already been ingested"),
-  optparse::make_option(c("-p", "--do_parallel"), action = "store", default = T, type="logical", help = "Flag to do parallel pre-processing, this needs to be done prior to ingestion. Useful for temporal covariates."),
-  optparse::make_option(c("-n", "--n_cores"), action = "store", default = parallel::detectCores() - 2, type="integer", help = "Number of cores to use for parallel computation"),
-  optparse::make_option(c("-o", "--ovrt_covar"), action = "store", default = T, type="logical", help = "Flag to overwrite covariates when ingesting in database"),
-  optparse::make_option(c("-x", "--ovrt_metadata_table"), action = "store", default = FALSE, type="logical", help = "Flag to overwrite covariates metadata table in database"),
-  optparse::make_option(c("-m", "--redo_metadata"), action = "store", default = FALSE, type="logical", help = "Flag to re-extract metadata information"),
-  optparse::make_option(c("-c", "--covar"), action = "store", default = "aw", type="character", help = "List of covariates to use, specified as abbreviations separated by commas"),
-  optparse::make_option(c("-g", "--full_grid_name"), action = "store", default ="public.grid_20_20", type="character", help = "Name of full grid"),
-  optparse::make_option(c("-a", "--aoi_name"), action = "store", default ="raw", type="character", help = "Are of interest")
+  optparse::make_option(c("-l", "--layers_directory"), default = "Layers", type = "character",
+                        help = "Layers directory (holds covariate_dictionary.yml)"),
+  optparse::make_option(c("-r", "--res_space"), default = 20, type = "numeric",
+                        help = "Spatial resolution in km"),
+  optparse::make_option(c("-t", "--res_time"), default = "1 years", type = "character",
+                        help = "Temporal resolution"),
+  optparse::make_option(c("-a", "--aoi"), default = "raw", type = "character",
+                        help = "Area of interest: 'raw' or an ISO3 code"),
+  optparse::make_option(c("-b", "--aoi_buffer_km"), default = 50, type = "numeric",
+                        help = "Buffer around the area of interest, km"),
+  optparse::make_option(c("-c", "--covar"), default = "", type = "character",
+                        help = "Covariate abbreviations, comma separated (population is always added)"),
+  optparse::make_option(c("-m", "--mode"), default = "ingest_missing", type = "character",
+                        help = "ingest_missing | use_existing | reingest"),
+  optparse::make_option(c("-n", "--n_cores"), default = 1, type = "integer",
+                        help = "Processes for pre-computing files in parallel"),
+  optparse::make_option(c("--precompute_only"), default = FALSE, type = "logical",
+                        help = "Only fill the processed-file cache (no database access)")
 )
+opt <- optparse::parse_args(optparse::OptionParser(option_list = option_list))
 
-parser <- optparse::OptionParser(option_list=option_list)
-opt <- optparse::parse_args(parser)
+library(magrittr)
+sf::sf_use_s2(FALSE)
+layers_dir <- normalizePath(opt$layers_directory, mustWork = TRUE)
+if (Sys.getenv("CHOLERA_AOI_CACHE_DIR") == "") {
+  Sys.setenv(CHOLERA_AOI_CACHE_DIR = file.path(layers_dir, "admin_units"))
+}
+covar_dict <- yaml::read_yaml(file.path(layers_dir, "covariate_dictionary.yml"))
+covar_abbr <- strsplit(opt$covar, ",")[[1]]
+master <- taxdat::default_master_grid_source(layers_dir)
+aoi <- taxdat::get_aoi(taxdat::check_aoi(opt$aoi), buffer_km = opt$aoi_buffer_km,
+                       snap_to = if (file.exists(master)) master else NULL)
 
-source(paste(stringr::str_replace(opt$cholera_covariates_directory, "/Layers", ""), "Analysis/R/prepare_covariates.R", sep = "/"))
-prepare_covariates(
-  dbuser =  opt$dbuser,
-  cholera_covariates_directory = opt$cholera_covariates_directory,
-  res_space = opt$res_space,
-  res_time = opt$res_time,
-  ingest = opt$ingest,
-  do_parallel = opt$do_parallel,
-  n_cores = opt$n_cores,
-  ovrt_covar = opt$ovrt_covar,
-  ovrt_metadata_table = opt$ovrt_metadata_table,
-  redo_metadata = opt$redo_metadata,
-  covar = opt$covar,
-  full_grid_name = opt$full_grid_name,
-  aoi_name = opt$aoi_name
-)
+if (opt$precompute_only) {
+  # The grid file is enough; it was written by prepare_grid_cmd.R
+  grid_file <- taxdat::grid_file_path(layers_dir, opt$res_space, taxdat::aoi_metadata(aoi)$aoi_name)
+  if (!file.exists(grid_file)) {
+    stop("Grid file ", grid_file, " not found; run prepare_grid_cmd.R first.")
+  }
+  grid <- list(full_grid_name = sprintf("grids.grid_%s_%s", opt$res_space, opt$res_space),
+               grid_file = grid_file)
+} else {
+  # The 1 km grid has no centroid/polygon tables (see prepare_grid_cmd.R)
+  grid <- taxdat::prepare_grid(res_space = opt$res_space, aoi = aoi, layers_dir = layers_dir,
+                               ingest = FALSE, geoms = opt$res_space > 1)
+}
+
+covar_list <- taxdat::prepare_covariates(
+  covar_abbr = covar_abbr, covar_dict = covar_dict, layers_dir = layers_dir,
+  res_space = opt$res_space, res_time = opt$res_time, grid = grid, aoi = aoi,
+  mode = opt$mode, n_cpus = opt$n_cores, precompute_only = opt$precompute_only)
+cat("Covariates:", covar_list, "\n")

@@ -35,12 +35,13 @@ test_that("check_countries_name works", {
 test_that("check_aoi works", {
   tmpfile <- tempfile(fileext = ".yml")
 
+  expect_equal(check_aoi(NULL), "raw")
+  expect_equal(check_aoi("raw"), "raw")
+  expect_equal(check_aoi("bdi"), "BDI")
+
   yaml::write_yaml(data.frame(aoi = "invalid string"), tmpfile)
   config <- yaml::read_yaml(tmpfile)
-  expect_equal(
-    check_aoi(config$aoi),
-    "raw"
-  )
+  expect_error(check_aoi(config$aoi), "ISO3")
 
   yaml::write_yaml(data.frame(aoi = "any string"), tmpfile)
   config <- yaml::read_yaml(tmpfile)
@@ -51,6 +52,27 @@ test_that("check_aoi works", {
   )
   Sys.unsetenv("CHOLERA_TESTING")
 
+})
+
+test_that("check_aoi_buffer_km works", {
+  expect_null(check_aoi_buffer_km(25, aoi = "raw"))
+  expect_equal(check_aoi_buffer_km(NULL, aoi = "BDI"), 50)
+  expect_equal(check_aoi_buffer_km(25, aoi = "BDI"), 25)
+  expect_error(check_aoi_buffer_km(-1, aoi = "BDI"), "non-negative")
+})
+
+test_that("set_parameters validates each option with its own checker", {
+  # Guards against copy-paste errors such as sd_sd_w checked with check_mu_sd_w
+  sp <- readLines(test_path("../../../../Analysis/R/set_parameters.R"))
+  calls <- regmatches(sp, regexpr("check_[a-zA-Z0-9_]+\\(config\\$[a-zA-Z0-9_]+", sp))
+  checker <- sub("^check_([a-zA-Z0-9_]+)\\(.*$", "\\1", calls)
+  key <- sub("^.*config\\$", "", calls)
+  allowed <- c(od_param_sd_prior_adm0 = "inv_od_sd_adm0",
+               od_param_sd_prior_nopooling = "inv_od_sd_nopool",
+               time = "start_time", time = "end_time", stan_debug = "debug",
+               stan_iter_warmup = "stan", stan_iter_sampling = "stan")
+  ok <- checker == key | mapply(function(c, k) k %in% allowed[names(allowed) == c], checker, key)
+  expect_true(all(ok), info = paste(calls[!ok], collapse = "; "))
 })
 
 test_that("check_res_space works", {
@@ -784,7 +806,7 @@ test_that("get_all_config_options works",{
   expect_equal(config_options$sfrac_thresh_border, as.function(check_sfrac_thresh_border))
   expect_equal(config_options$sfrac_thresh_conn, as.function(check_sfrac_thresh_conn))
   expect_equal(config_options$ingest_covariates, as.function(check_ingest_covariates))
-  expect_equal(config_options$ingest_new_covariates, as.function(check_ingest_covariates))
+  expect_equal(config_options$ingest_new_covariates, as.function(check_ingest_new_covariates))
   expect_equal(config_options$stan, c("ncores", "model", "genquant", "iter_warmup", "iter_sampling", "recompile"))
   expect_equal(config_options$file_names, file_name_list)
 })
