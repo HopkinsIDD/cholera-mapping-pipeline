@@ -15,6 +15,8 @@ option_list <- list(
                         help = "Area of interest: 'raw' or an ISO3 code"),
   optparse::make_option(c("-b", "--aoi_buffer_km"), default = 50, type = "numeric",
                         help = "Buffer around the area of interest, km"),
+  optparse::make_option(c("-g", "--geoms"), default = NULL, type = "logical",
+                        help = "Build the centroid and polygon tables (default: TRUE, FALSE for the 1 km grid, which does not need them)"),
   optparse::make_option(c("-m", "--master_grid_source"), default = NULL, type = "character",
                         help = "WorldPop 1 km GeoTIFF (default: CHOLERA_MASTER_GRID_FILE or <layers>/pop_old/ppp_2020_1km_Aggregated.tif)")
 )
@@ -31,5 +33,6 @@ master <- if (is.null(opt$master_grid_source)) taxdat::default_master_grid_sourc
 aoi <- taxdat::get_aoi(taxdat::check_aoi(opt$aoi), buffer_km = opt$aoi_buffer_km,
                        snap_to = if (file.exists(master)) master else NULL)
 grid <- taxdat::prepare_grid(res_space = opt$res_space, aoi = aoi, layers_dir = layers_dir,
-                             ingest = opt$ingest, master_grid_source = master)
+                             ingest = opt$ingest, master_grid_source = master,
+                             geoms = if (is.null(opt$geoms)) opt$res_space > 1 else opt$geoms)
 cat("full_grid_name:", grid$full_grid_name, "\ngrid_file:", grid$grid_file, "\n")

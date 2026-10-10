@@ -67,7 +67,12 @@ export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
 export HDF5_USE_FILE_LOCKING=FALSE
 # Temporary rasters on the node-local SSD (purged at job end) when in a job.
 # The container must see TMPDIR: raster2pgsql reads VRTs written there.
-if [[ -n "${SLURM_JOB_ID:-}" && -d /scratch ]] && mkdir -p "/scratch/${USER}_${SLURM_JOB_ID}" 2>/dev/null; then
+# CMP_TMPDIR overrides it (e.g. $SCRATCH_SHARE/tmp/$USER when the node-local
+# disk is too small for global rasters).
+if [[ -n "${CMP_TMPDIR:-}" ]] && mkdir -p "$CMP_TMPDIR"; then
+  export TMPDIR="$CMP_TMPDIR"
+  export CHOLERA_SIF_BINDS="$CHOLERA_SIF_BINDS,$TMPDIR"
+elif [[ -n "${SLURM_JOB_ID:-}" && -d /scratch ]] && mkdir -p "/scratch/${USER}_${SLURM_JOB_ID}" 2>/dev/null; then
   export TMPDIR="/scratch/${USER}_${SLURM_JOB_ID}"
   export CHOLERA_SIF_BINDS="$CHOLERA_SIF_BINDS,$TMPDIR"
 fi

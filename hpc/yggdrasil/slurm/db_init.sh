@@ -25,6 +25,15 @@ source "$CMP_REPO/hpc/yggdrasil/env.sh"
 SQL_DIR="$CMP_REPO/hpc/yggdrasil/sql"
 
 if [[ -e "$PGDATA/PG_VERSION" ]]; then
+  # This job starts its own server on PGDATA: never while db_serve uses it
+  # (two servers on one data directory corrupt it).
+  if [[ -s "$DB_ENDPOINT_FILE" || -f "$PGDATA/postmaster.pid" ]]; then
+    echo "The server is running (or did not shut down cleanly): stop it with" >&2
+    echo "  bash hpc/yggdrasil/stages/db_service.sh stop" >&2
+    echo "and resubmit once no db_serve job is left. If no server runs anywhere, remove" >&2
+    echo "$PGDATA/postmaster.pid and $DB_ENDPOINT_FILE first." >&2
+    exit 1
+  fi
   echo "PGDATA already initialised: $PGDATA (adding database $PGDATABASE only)"
   NEW_CLUSTER=0
 else
@@ -48,9 +57,12 @@ if [[ $NEW_CLUSTER == 1 ]]; then
   envsubst < "$SQL_DIR/pg_hba.conf.tmpl" > "$PGDATA/pg_hba.conf"
 fi
 
-# Socket only while initialising: nobody else can connect
+# Socket only while initialising: nobody else can connect. The marker makes
+# a db_serve job that starts meanwhile refuse to touch the data directory.
 SOCK=$(mktemp -d /tmp/cmpinit.XXXX)
-trap 'cmp_pg_stop; rm -rf "$SOCK"' EXIT
+INIT_MARKER="${PGDATA%/}.init_job"
+echo "${SLURM_JOB_ID:-local-$$}" > "$INIT_MARKER"
+trap 'cmp_pg_stop; rm -rf "$SOCK" "$INIT_MARKER"' EXIT
 cmp_pg_start "$SOCK" "$PG_LOG/init_${SLURM_JOB_ID:-local}.log" \
   -c listen_addresses='' -k "$SOCK" -p "$PGPORT"
 

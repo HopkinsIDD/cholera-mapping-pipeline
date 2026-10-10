@@ -52,8 +52,9 @@ if (opt$precompute_only) {
   grid <- list(full_grid_name = sprintf("grids.grid_%s_%s", opt$res_space, opt$res_space),
                grid_file = grid_file)
 } else {
+  # The 1 km grid has no centroid/polygon tables (see prepare_grid_cmd.R)
   grid <- taxdat::prepare_grid(res_space = opt$res_space, aoi = aoi, layers_dir = layers_dir,
-                               ingest = FALSE)
+                               ingest = FALSE, geoms = opt$res_space > 1)
 }
 
 covar_list <- taxdat::prepare_covariates(

@@ -93,12 +93,15 @@ covariate_band_index <- function(conn_pg, covar_name, time_slices, res_time) {
 get_covariate_values <- function(covar_name, cntrd_table, time_slices, res_time, conn_pg) {
   bands <- covariate_band_index(conn_pg, covar_name, time_slices, res_time)
   cat("---- Extracting ", covar_name, "\n")
-  cols <- DBI::SQL(paste(sprintf("ST_Value(rast, %d, geom) AS values_%d", bands$ind, bands$ind),
+  cols <- DBI::SQL(paste(sprintf("ST_Value(r.rast, %d, g.geom) AS values_%d", bands$ind, bands$ind),
                          collapse = ", "))
+  # Left join: every centroid gets a row. Tiles that are NoData in every band
+  # are not stored (load_raster_to_db(skip_empty = TRUE)), so a centroid there
+  # reads NA, exactly as it would from a stored all-NoData tile.
   DBI::dbGetQuery(conn_pg, glue::glue_sql("
     SELECT g.rid, g.x, g.y, {cols}
-    FROM {sql_table(conn_pg, covar_name)} r, {sql_table(conn_pg, cntrd_table)} g
-    WHERE ST_Intersects(rast, geom);", .con = conn_pg))
+    FROM {sql_table(conn_pg, cntrd_table)} g
+    LEFT JOIN {sql_table(conn_pg, covar_name)} r ON ST_Intersects(r.rast, g.geom);", .con = conn_pg))
 }
 
 #' Get population fractions

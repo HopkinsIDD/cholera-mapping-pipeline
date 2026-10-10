@@ -58,6 +58,8 @@ TE=$(Rscript -e 'sf::sf_use_s2(FALSE); a <- suppressMessages(taxdat::get_aoi(com
 [[ $(wc -w <<< "$TE") == 4 ]] || { echo "Could not compute the crop extent for $AOI (see the R error above)" >&2; exit 1; }
 gdalwarp -overwrite -q -te $TE -co COMPRESS=DEFLATE -co TILED=YES "$WORLDPOP" \
   "$STAGE/Layers/pop_old/ppp_2020_1km_Aggregated.tif"
+echo "Cropped to $AOI + ${MARGIN} km (extent $TE) from $WORLDPOP on $(date +%F). Not valid for other areas." \
+  > "$STAGE/Layers/pop_old/CROPPED_TO_${AOI}_${MARGIN}KM.txt"
 
 echo "== 3. Covariate dictionary and raw covariates"
 cp "$COVREPO/covariate_dictionary.yml" "$STAGE/Layers/"

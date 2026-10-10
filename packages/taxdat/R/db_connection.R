@@ -296,11 +296,14 @@ raster_loader <- function() {
 #' @param constraints add raster constraints
 #' @param conn optional DBI connection (dbi loader)
 #' @param chunk chunk size in pixels (multiple of `tile`)
+#' @param skip_empty drop tiles where every band is NoData (ocean, outside the
+#'   area of interest's mask). Extraction is by geometry, so missing tiles read
+#'   as NoData; a global 1 km population table shrinks to about a third.
 #' @return NULL, invisibly
 #' @export
 load_raster_to_db <- function(file, table, mode = c("create", "append"), srid = 4326,
                               tile = 128, index = TRUE, constraints = FALSE,
-                              conn = NULL, chunk = 1024) {
+                              conn = NULL, chunk = 1024, skip_empty = TRUE) {
   mode <- match.arg(mode)
   if (raster_loader() == "raster2pgsql") {
     return(raster2pgsql_pipe(file, table, mode = mode, srid = srid,
@@ -331,8 +334,11 @@ load_raster_to_db <- function(file, table, mode = c("create", "append"), srid = 
                 "-srcwin", x, y, w, h, file, part), label = "gdal_translate")
       bytes <- readBin(part, "raw", file.size(part))
       DBI::dbExecute(conn, glue::glue_sql(
-        "INSERT INTO {tbl} (rast) SELECT ST_Tile(ST_FromGDALRaster($1, $2), $3, $3);", .con = conn),
-        params = list(blob::blob(bytes), as.integer(srid), as.integer(tile)))
+        "INSERT INTO {tbl} (rast)
+         SELECT t FROM (SELECT ST_Tile(ST_FromGDALRaster($1, $2), $3, $3) AS t) s
+         WHERE NOT $4 OR EXISTS (SELECT 1 FROM generate_series(1, ST_NumBands(t)) b
+                                 WHERE NOT ST_BandIsNoData(t, b, true));", .con = conn),
+        params = list(blob::blob(bytes), as.integer(srid), as.integer(tile), isTRUE(skip_empty)))
     }
   }
   if (index && mode == "create") {
