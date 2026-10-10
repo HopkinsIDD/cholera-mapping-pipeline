@@ -137,12 +137,16 @@ get_pop_weights <- function(res_space, cntrd_table, intersections_table, conn_pg
   # ST_Band first, then clip band 1: ST_Clip(rast, n, ...) with n > 1 crashes
   # the server (segfault) in PostGIS 3.6.4 on multi-band rasters.
   cols <- DBI::SQL(paste(sprintf(
-    "sum((ST_SummaryStats(ST_Clip(ST_Band(rast, %d), 1, geom, true), 1, true)).sum) AS values_%d",
+    "sum((ST_SummaryStats(ST_Clip(ST_Band(r.rast, %d), 1, g.geom, true), 1, true)).sum) AS values_%d",
     km_bands$ind, km_bands$ind), collapse = ", "))
+  # Left join: an intersection over tiles that were not stored (NoData in
+  # every band, see load_raster_to_db) keeps its row with 0 population. An
+  # inner join would drop it, and make_location_periods_dict reads a missing
+  # weight as 1 (cell fully inside the location period).
   pop_1km <- DBI::dbGetQuery(conn_pg, glue::glue_sql("
     SELECT g.location_period_id, g.rid, g.x, g.y, g.lp_covered, g.area_ratio, {cols}
-    FROM {sql_table(conn_pg, pop_1km_covar)} r, {sql_table(conn_pg, intersections_table)} g
-    WHERE ST_Intersects(rast, geom)
+    FROM {sql_table(conn_pg, intersections_table)} g
+    LEFT JOIN {sql_table(conn_pg, pop_1km_covar)} r ON ST_Intersects(r.rast, g.geom)
     GROUP BY g.location_period_id, g.rid, g.x, g.y, g.lp_covered, g.area_ratio;", .con = conn_pg)) %>%
     tidyr::pivot_longer(dplyr::starts_with("values_"), names_to = "band", values_to = "pop_1km") %>%
     dplyr::mutate(t = match(as.integer(sub("values_", "", band)), km_bands$ind),
