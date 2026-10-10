@@ -31,6 +31,15 @@ if [[ -s "$DB_ENDPOINT_FILE" ]]; then
   fi
   echo "Removing stale endpoint from job $old_job"; rm -f "$DB_ENDPOINT_FILE"
 fi
+# db_init.sh runs its own server on PGDATA; never start next to it
+INIT_MARKER="${PGDATA%/}.init_job"
+if [[ -s "$INIT_MARKER" ]]; then
+  init_job=$(cat "$INIT_MARKER")
+  if [[ -n "$(squeue -h -j "$init_job" 2>/dev/null)" ]]; then
+    echo "db_init job $init_job is using $PGDATA; resubmit once it finishes" >&2; exit 1
+  fi
+  echo "Removing stale db_init marker from job $init_job"; rm -f "$INIT_MARKER"
+fi
 # A node crash can leave a pid file behind; postgres refuses to start then
 if [[ -f "$PGDATA/postmaster.pid" ]]; then
   echo "Stale postmaster.pid found (previous server did not stop cleanly); removing"

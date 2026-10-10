@@ -42,6 +42,30 @@ db_exists_table_multi <- function(conn, schemas, table_name) {
   check
 }
 
+#' @title Refuse inputs cropped for another area of interest
+#' @name check_input_crop
+#' @description `tools/stage_inputs_local.sh` leaves a `CROPPED_TO_<ISO>_<margin>KM.txt`
+#' marker next to cropped rasters. Such files only cover that area, so using
+#' them for a global (`raw`) build or another country would silently produce
+#' a database that is NoData almost everywhere.
+#' @param dir directory holding the raster(s)
+#' @param aoi output of `get_aoi`, or NULL for the full extent
+#' @return invisibly TRUE; stops on a mismatch
+#' @export
+check_input_crop <- function(dir, aoi = NULL) {
+  marker <- list.files(dir, pattern = "^CROPPED_TO_[A-Za-z]{3}_.*\\.txt$")
+  if (length(marker) == 0) {
+    return(invisible(TRUE))
+  }
+  iso <- toupper(sub("^CROPPED_TO_([A-Za-z]{3})_.*$", "\\1", marker[1]))
+  if (is.null(aoi) || !identical(toupper(aoi$iso_code), iso)) {
+    stop(dir, " holds rasters cropped to ", iso, " (", marker[1], "), but this build is for '",
+         if (is.null(aoi)) "raw" else aoi$iso_code, "'. Point the Layers directory at full ",
+         "(uncropped) inputs, e.g. CMP_LAYERS=$SHARE/Layers_global.")
+  }
+  invisible(TRUE)
+}
+
 #' @title List covariate source files
 #' @name list_covariate_files
 #' @description Raw files of a covariate, in chronological order. Temporal
@@ -307,6 +331,7 @@ ingest_covariate <- function(conn, covar, covar_alias, layers_dir, res_time, res
                              grid, aoi = NULL, write_to_db = TRUE, n_cpus = 1) {
   t0 <- Sys.time()
   covar_path <- file.path(layers_dir, covar$dir)
+  check_input_crop(if (covar$type == "static") dirname(covar_path) else covar_path, aoi)
   src <- list_covariate_files(covar_path, covar$type)
   grid_spec <- gdal_grid_spec(grid$grid_file)
   proc_dir <- covariate_proc_dir(layers_dir, covar$name, aoi)
@@ -454,7 +479,7 @@ prepare_population_1km <- function(covar_dict, layers_dir, aoi = NULL,
     mode <- "ingest_missing"
   }
   grid_1km <- prepare_grid(res_space = 1, aoi = aoi, layers_dir = layers_dir,
-                           ingest = mode != "use_existing", conn = conn)
+                           ingest = mode != "use_existing", geoms = FALSE, conn = conn)
   prepare_covariates(covar_abbr = character(), covar_dict = covar_dict, layers_dir = layers_dir,
                      res_space = 1, res_time = res_time, grid = grid_1km, aoi = aoi,
                      mode = mode, conn = conn)[1]

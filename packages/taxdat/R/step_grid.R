@@ -89,6 +89,7 @@ build_master_grid <- function(conn, source_file, aoi, layers_dir) {
     stop("Master grid source not found: ", source_file, ". Stage the WorldPop 2020 1 km ",
          "mosaic there or set CHOLERA_MASTER_GRID_FILE (compute nodes cannot download it).")
   }
+  check_input_crop(dirname(source_file), aoi)
   aoi_name <- aoi_metadata(aoi)$aoi_name
   out <- master_grid_file_path(layers_dir, aoi_name)
   dir.create(dirname(out), recursive = TRUE, showWarnings = FALSE)
@@ -120,12 +121,16 @@ build_master_grid <- function(conn, source_file, aoi, layers_dir) {
 #' @param layers_dir Layers directory
 #' @param ingest build missing grids (FALSE stops instead)
 #' @param master_grid_source WorldPop 1 km GeoTIFF used to build the master grid
+#' @param geoms also build the `_centroids` and `_polys` tables. The 1 km grid
+#'   does not need them (population weights read the 1 km population raster,
+#'   and covariates are warped onto the grid file); for a global build they
+#'   would hold hundreds of millions of rows.
 #' @param conn optional DBI connection
 #' @return list(full_grid_name, grid_file)
 #' @export
 prepare_grid <- function(res_space, aoi = NULL, layers_dir, ingest = TRUE,
                          master_grid_source = default_master_grid_source(layers_dir),
-                         conn = NULL) {
+                         geoms = TRUE, conn = NULL) {
   if (is.null(conn)) {
     conn <- connect_to_db()
     on.exit(DBI::dbDisconnect(conn), add = TRUE)
@@ -175,8 +180,10 @@ prepare_grid <- function(res_space, aoi = NULL, layers_dir, ingest = TRUE,
   if (!any(in_db)) {
     load_raster_to_db(grid_file, paste0("grids.", grid_name), mode = "create", conn = conn,
                       index = TRUE, constraints = TRUE)
-    build_geoms_query(conn, schema = "grids", table_name = grid_name, type = "centroids")
-    build_geoms_query(conn, schema = "grids", table_name = grid_name, type = "polygons")
+    if (geoms) {
+      build_geoms_query(conn, schema = "grids", table_name = grid_name, type = "centroids")
+      build_geoms_query(conn, schema = "grids", table_name = grid_name, type = "polygons")
+    }
     spec <- gdal_grid_spec(grid_file)
     write_grid_metadata(conn, grid_name, aoi, res_km = res_space, bbox = spec$te)
     schema <- "grids"
@@ -185,13 +192,22 @@ prepare_grid <- function(res_space, aoi = NULL, layers_dir, ingest = TRUE,
     cat("---- Found ", res_space, " km grid in schema '", schema, "'\n", sep = "")
   }
 
-  # The file and the table must describe the same cells.
-  n_db <- DBI::dbGetQuery(conn, glue::glue_sql(
-    "SELECT count(*) AS n FROM {`schema`}.{`paste0(grid_name, '_centroids')`};", .con = conn))$n
+  # The file and the table(s) must describe the same cells.
   n_file <- terra::global(!is.na(terra::rast(grid_file)), "sum")$sum
-  if (as.numeric(n_db) != n_file) {
-    stop("Grid file ", grid_file, " has ", n_file, " valid cells but ", schema, ".",
-         grid_name, "_centroids has ", n_db, ". Rebuild one from the other.")
+  n_rast <- DBI::dbGetQuery(conn, glue::glue_sql(
+    "SELECT coalesce(sum(ST_Count(rast, 1, true)), 0) AS n FROM {`schema`}.{`grid_name`};",
+    .con = conn))$n
+  n_db <- c(raster = as.numeric(n_rast))
+  centroids <- paste0(grid_name, "_centroids")
+  if (DBI::dbExistsTable(conn, DBI::Id(schema = schema, table = centroids))) {
+    n_db["centroids"] <- as.numeric(DBI::dbGetQuery(conn, glue::glue_sql(
+      "SELECT count(*) AS n FROM {`schema`}.{`centroids`};", .con = conn))$n)
+  } else if (geoms) {
+    stop(schema, ".", centroids, " is missing; drop ", schema, ".", grid_name, " to rebuild the grid.")
+  }
+  if (any(n_db != n_file)) {
+    stop("Grid file ", grid_file, " has ", n_file, " valid cells but the database has ",
+         paste(names(n_db), n_db, sep = " ", collapse = ", "), ". Rebuild one from the other.")
   }
 
   cat("**** DONE GRID: ", schema, ".", grid_name, " (", n_file, " cells) ****\n", sep = "")

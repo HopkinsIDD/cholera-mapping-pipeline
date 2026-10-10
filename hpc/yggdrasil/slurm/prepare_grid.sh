@@ -6,7 +6,8 @@
 #SBATCH --mem=16G
 #SBATCH -c 2
 # Build the master grid, the modelling grid and the 1 km grid (used for
-# population weights) for the area of interest.
+# population weights) for the area of interest. The 1 km grid gets no
+# centroid/polygon tables (prepare_grid_cmd.R default), only the raster.
 # Usage: sbatch slurm/prepare_grid.sh [RES_SPACE_KM ...]   (default: 20 1)
 set -euo pipefail
 # sbatch runs a copy of this script from /var/spool/slurmd, so find the

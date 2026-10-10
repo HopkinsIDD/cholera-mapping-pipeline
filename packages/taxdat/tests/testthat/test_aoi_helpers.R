@@ -90,3 +90,12 @@ test_that("clip_shapefiles_to_adm0 drops outside shapes and clips the rest", {
   expect_equal(out$location_period_id, 1)
   expect_equal(unname(sf::st_bbox(out)[["xmax"]]), 31)
 })
+
+test_that("check_input_crop refuses rasters cropped for another area", {
+  d <- withr::local_tempdir()
+  expect_true(check_input_crop(d, NULL))
+  writeLines("cropped", file.path(d, "CROPPED_TO_BDI_150KM.txt"))
+  expect_error(check_input_crop(d, NULL), "cropped to BDI")
+  expect_error(check_input_crop(d, list(iso_code = "KEN")), "cropped to BDI")
+  expect_true(check_input_crop(d, list(iso_code = "BDI")))
+})
