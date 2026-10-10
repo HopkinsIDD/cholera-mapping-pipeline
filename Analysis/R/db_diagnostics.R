@@ -103,7 +103,8 @@ grids_meta$n_cells <- vapply(grids_meta$grid, function(g) {
   if (g == "master_grid") {
     return(NA_real_)
   }
-  as.numeric(q(sprintf('SELECT count(*) AS n FROM grids."%s_centroids"', g))$n)
+  # Valid cells of the grid raster (the 1 km grid has no _centroids table)
+  as.numeric(q(sprintf('SELECT coalesce(sum(ST_Count(rast, 1, true)), 0) AS n FROM grids."%s"', g))$n)
 }, numeric(1))
 write_csv(grids_meta, "grids_metadata.csv")
 

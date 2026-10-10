@@ -203,7 +203,15 @@ prepare_grid <- function(res_space, aoi = NULL, layers_dir, ingest = TRUE,
     n_db["centroids"] <- as.numeric(DBI::dbGetQuery(conn, glue::glue_sql(
       "SELECT count(*) AS n FROM {`schema`}.{`centroids`};", .con = conn))$n)
   } else if (geoms) {
-    stop(schema, ".", centroids, " is missing; drop ", schema, ".", grid_name, " to rebuild the grid.")
+    # e.g. a 1 km grid built for population weights, now used as a model grid
+    if (!ingest || schema != "grids") {
+      stop(schema, ".", centroids, " is missing; it needs to be built by authorized users.")
+    }
+    cat("---- Building centroid and polygon tables for ", grid_name, "\n", sep = "")
+    build_geoms_query(conn, schema = "grids", table_name = grid_name, type = "centroids")
+    build_geoms_query(conn, schema = "grids", table_name = grid_name, type = "polygons")
+    n_db["centroids"] <- as.numeric(DBI::dbGetQuery(conn, glue::glue_sql(
+      "SELECT count(*) AS n FROM {`schema`}.{`centroids`};", .con = conn))$n)
   }
   if (any(n_db != n_file)) {
     stop("Grid file ", grid_file, " has ", n_file, " valid cells but the database has ",
