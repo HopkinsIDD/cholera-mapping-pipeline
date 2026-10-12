@@ -120,9 +120,13 @@ never ingests or overwrites covariates.
 
 ### Owner of the server, once
 
-1. **Access.** The teammate needs a Yggdrasil account and membership of the
-   share's group. Check the group with `ls -ld /home/shares/azman/cholera_mapping`,
-   then `getent group <group>`. Ask the share owner or hpc@unige.ch to add them.
+1. **Access.** The teammate needs a Yggdrasil account and membership of
+   `GL_M_gdd_cholera_mapping`, the group in the share's access list
+   (`getfacl /home/shares/azman/cholera_mapping`; `ls -ld` only shows root).
+   Ask the share owner or hpc@unige.ch to add them; `getent group
+   GL_M_gdd_cholera_mapping` lists the members. Files inside the share carry the
+   group `hpc_users` (everyone's primary group), which works because only
+   project members can enter the share.
 2. **Test config and dictionary on the share** (adjust the source path to
    wherever the pilot config is on the cluster):
 
