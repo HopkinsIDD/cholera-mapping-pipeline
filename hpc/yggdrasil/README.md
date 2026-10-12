@@ -63,6 +63,28 @@ hpc/yggdrasil/
   move `PGDATA` to scratch and keep `db_backup.sh` dumps on home: scratch
   files untouched for 3 months are deleted.
 
+## Where the computation and memory go
+
+The server starts once per `db_serve` job and keeps running. Nothing is rebuilt
+when a job connects: opening a connection takes milliseconds and a few MB on
+the server, and queries read only the tiles they need through the spatial
+index. The heavy spatial steps of a run (location-period intersections,
+population sums) run inside the server, on its 2 cores, so several heavy runs
+at once wait on each other there.
+
+| Job | What uses its RAM | Set by |
+|---|---|---|
+| Database server (`db_serve`) | A fixed 4 GB cache of recently read tables. Up to 256 MB per sort or join step in each running query. Up to 2 GB for index builds during loading. A few MB per connected job. | `--mem=20G` in the server job; cache and per-query limits written by `db_init` (`PG_SHARED_BUFFERS`, `PG_WORK_MEM`, `PG_MAINT_MEM`) |
+| Pre-compute (`covariates_precompute`) | Terra and GDAL cropping, aggregating and warping rasters. No database involved. | the job's `--mem` (32 GB; 64 GB in the global runbook) |
+| Loading (`covariates_ingest`) | R handles one chunk at a time (about 88 MB for 21 bands); the server decodes and tiles it, so most of the memory is on the server side. | the job's `--mem` (8 GB) and the server's 20 GB |
+| Mapping run (`mapping_run`) | Observations, grid polygons, location periods, covariate cube, population weights and Stan input, held in R. Parallel workers each hold a copy. | the job's `--mem` (16 GB) |
+
+The server's memory barely grows with the size of the database: the cache is
+fixed and data stays on disk. What adds up is concurrent queries, each sort or
+join taking its own 256 MB; 20 GB leaves room for a few runs at a time. If the
+server exceeded its 20 GB, Slurm would kill it and every connected job would
+fail; raise the server's `--mem` if many runs share it.
+
 ## First-time setup (pilot: Burundi)
 
 On a laptop with taxonomy-database access and a git-lfs checkout of
