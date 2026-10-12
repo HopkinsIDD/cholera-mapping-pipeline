@@ -111,6 +111,120 @@ Add a teammate (from a job on the server's node, or any node with the
 superuser password in `PGPASSWORD`):
 `NEW_USER_PASSWORD=... PSQL_SUPER="cmp_pg psql -h $PGHOST -U <superuser>" bash hpc/yggdrasil/tools/create_db_user.sh alamc`
 
+## Test run by a second team member (Burundi)
+
+A teammate runs the Burundi data preparation (steps 1 to 3, Stan skipped)
+against the running server, from their own checkout and R library. The test
+config sets `ingest_covariates: no`, so the run only reads the database; it
+never ingests or overwrites covariates.
+
+### Owner of the server, once
+
+1. **Access.** The teammate needs a Yggdrasil account and membership of the
+   share's group. Check the group with `ls -ld /home/shares/azman/cholera_mapping`,
+   then `getent group <group>`. Ask the share owner or hpc@unige.ch to add them.
+2. **Test config and dictionary on the share** (adjust the source path to
+   wherever the pilot config is on the cluster):
+
+   ```bash
+   source hpc/yggdrasil/env.sh
+   mkdir -p $SHARE/configs
+   sed 's/^ingest_covariates: yes/ingest_covariates: no/' Analysis/configs/BDI_pilot_api.yml \
+     > $SHARE/configs/BDI_pilot_test.yml
+   cp Analysis/configs/config_dictionary.yml $SHARE/configs/
+   grep -n '^ingest_covariates' $SHARE/configs/BDI_pilot_test.yml   # ingest_covariates: no
+   chmod -R g+rX $SHARE/configs
+   ```
+
+3. **Group read access** on what the teammate's jobs use. Every line should
+   show `r` in the group column; fix with `chmod g+r` (files) or `chmod g+rx`
+   (directories):
+
+   ```bash
+   ls -l $SHARE/db_endpoint $SHARE/secrets/db.env $CHOLERA_SIF $CMP_DATA/observations_BDI.rds
+   ls -ld $SHARE/secrets $CMP_LAYERS $CMP_LAYERS/grids
+   ```
+
+4. **Server up** for longer than the test: `bash hpc/yggdrasil/stages/db_service.sh status`
+   shows the endpoint and the time left. Start it if needed.
+5. **Don't run the same config yourself at the same time.** Per-run tables are
+   named after the config, so two simultaneous runs of one config overwrite
+   each other's tables.
+
+### Teammate
+
+1. **Get the code** (on the login node):
+
+   ```bash
+   ssh USER@login1.yggdrasil.hpc.unige.ch
+   mkdir -p ~/projects && cd ~/projects
+   git clone https://github.com/HopkinsIDD/cholera-mapping-pipeline.git
+   cd cholera-mapping-pipeline
+   git checkout dev_hpc_db_rebuild
+   mkdir -p logs Analysis/configs
+   cp /home/shares/azman/cholera_mapping/configs/config_dictionary.yml Analysis/configs/
+   ```
+
+   Every later command runs from `~/projects/cholera-mapping-pipeline`.
+
+2. **Check access:**
+
+   ```bash
+   source hpc/yggdrasil/env.sh
+   echo "$PGDATABASE $PGUSER"          # cholera_covariates_bdi cholera_app
+   bash hpc/yggdrasil/stages/db_service.sh status   # Endpoint: <node>:5433
+   ls /home/shares/azman/cholera_mapping/configs/BDI_pilot_test.yml \
+      /home/shares/azman/cholera_mapping/data/observations_BDI.rds
+   ```
+
+   An empty `PGUSER` or "Permission denied" means the group access is missing.
+
+3. **Install R packages** into `~/R_libs/cmp-4.3.2` (one job, about 1 to 3 h:
+   most packages compile from source):
+
+   ```bash
+   sbatch hpc/yggdrasil/slurm/install_r_packages.sh
+   squeue -u $USER                            # wait until the job is gone
+   tail -n 15 logs/install_r_pkgs_*.log       # versions, then "terra GDAL: ..."
+   ```
+
+   A line with `MISSING` means the install failed; send the log.
+
+4. **Test the database connection** (debug partition, a few seconds):
+
+   ```bash
+   srun -p debug-cpu -t 00:10:00 --mem=2G bash -c 'source hpc/yggdrasil/env.sh && cmp_wait_db 1 &&
+     cmp_pg psql -h "$PGHOST" -p "$PGPORT" -c "SELECT covariate, aoi_name FROM covariates.metadata ORDER BY 1"'
+   ```
+
+   Expect `pop_1_years_1_1` and `pop_1_years_20_20`, both for `bdi_b50km`.
+
+5. **Run the data preparation:**
+
+   ```bash
+   sbatch hpc/yggdrasil/slurm/mapping_run.sh \
+     /home/shares/azman/cholera_mapping/configs/BDI_pilot_test.yml \
+     /home/shares/azman/cholera_mapping/data/observations_BDI.rds
+   squeue -u $USER
+   tail -f logs/mapping_run_<JOBID>.log      # Ctrl-C stops following, not the job
+   ```
+
+   What to expect in the log: step 1 keeps about 24,360 of 40,068 observations;
+   step 2 builds a covariate cube of 87 cells × 5 years × 1 covariate; step 3
+   writes the Stan input. The outputs go to `Analysis/data/` in the teammate's
+   checkout (`ls -lt Analysis/data | head`).
+
+6. **Report back:** the job ID, the log file, the outputs listed in
+   `Analysis/data/`, and `git rev-parse --short HEAD`.
+
+| Message | Meaning |
+|---|---|
+| `No database endpoint` / `Database not ready` | the server is not running: ask its owner |
+| `Permission denied` under `/home/shares/...` | group membership or permissions (owner, step 3) |
+| `there is no package called ...` | the R install has not finished or failed (step 3) |
+| `Couldn't find ... It needs to be ingested` | a database table is missing: send the log to the owner |
+
+
 ## Global population (full extent, all years)
 
 This builds yearly population for 2000 to 2020 at the full WorldPop extent,
