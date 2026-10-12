@@ -608,16 +608,18 @@ make_map_name <- function(config, .f = NULL) {
 #' @description add
 #' @param config object representing the imported YAML config file for the model
 #' @param cholera_directory path to cholera directory
+#' @param layers_dir Layers directory holding covariate_dictionary.yml
 #' @return
 #' @export
 
-get_filenames <- function (config, cholera_directory, ...) {
+get_filenames <- function (config, cholera_directory,
+                           layers_dir = file.path(cholera_directory, "Layers"), ...) {
   
   if (is.null(config$covariate_choices)) {
     covariate_name_part <- "nocovar"
   } else {
     # Covariate names
-    covariate_dict <- yaml::read_yaml(paste0(cholera_directory, "/Layers/covariate_dictionary.yml"))
+    covariate_dict <- yaml::read_yaml(file.path(layers_dir, "covariate_dictionary.yml"))
     all_covariate_choices <- names(covariate_dict)
     short_covariate_choices <- purrr::map_chr(covariate_dict, "abbr")
     covariate_choices <- check_covariate_choices(covar_choices = config$covariate_choices,

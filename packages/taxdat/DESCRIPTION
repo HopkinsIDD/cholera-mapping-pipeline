@@ -9,9 +9,12 @@ Description: This package is designed to load and work with taxonomy files in a 
 Encoding: UTF-8
 License: GPL (>= 2)
 Depends: R (>= 3.4),ISOcodes,magrittr, dplyr, tidyr, igraph, geodata
-Suggests: readxl, sf, sp, raster, rgdal, testthat, knitr, rmarkdown
-RoxygenNote: 7.3.2
+Imports: DBI, RPostgres, blob, sf (>= 1.0), terra (>= 1.7), ncdf4, jsonlite, lubridate,
+    glue, digest, purrr, stringr, yaml
+Suggests: readxl, raster, rgeoboundaries, testthat, withr, knitr, rmarkdown, pkgload
+Remotes: wmgeolab/rgeoboundaries
 Collate:
+    'admin_units.R'
     'plot_cache_function.R'
     'get_genquant.R'
     'get_stan_output.R'
@@ -19,13 +22,16 @@ Collate:
     'aggregate_raster.R'
     'aggregate_stan_input.R'
     'aggregate_stan_output.R'
+    'aoi_helpers.R'
     'color_scale.R'
     'compare_country_data_reports.R'
     'run_stan_helpers.R'
     'file_name_functions.R'
     'setup_helpers.R'
     'config_helpers.R'
-    'covariate_helpers.R'
+    'covariate_extract.R'
+    'covariate_ingest.R'
+    'db_connection.R'
     'db_table_creation_functions.R'
     'geo_lookup_helpers.R'
     'get_country_shp_from_stan_input.R'
@@ -44,6 +50,7 @@ Collate:
     'mapping_progress_functions.R'
     'pull_data_helpers.R'
     'model_evaluation_helpers.R'
+    'observations_io.R'
     'output_figures_and_tables.R'
     'output_processing_helper.R'
     'plot_DroppedData_table.R'
@@ -65,13 +72,20 @@ Collate:
     'plot_unique_db_shp.R'
     'population_helpers.R'
     'postprocessing.R'
+    'raster_tools.R'
+    'run_tables.R'
     'shapefile_manipulation.R'
     'shapefile_utils.R'
     'simulation_framework_helpers.R'
     'snap_to_time_period.R'
     'stan_input_helpers.R'
+    'step_covar_cube.R'
+    'step_grid.R'
+    'step_map_data.R'
     'stitch_caches.R'
     'suggest_crs.R'
+    'taxdat-package.R'
     'transform_covariates.R'
 VignetteBuilder: knitr
 LazyData: true
+Config/roxygen2/version: 8.1.0
