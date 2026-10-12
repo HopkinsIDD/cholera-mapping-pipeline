@@ -37,6 +37,13 @@ jobs:
           path: Layers/
           lfs: true
           token: ${{ secrets.PERSONAL_TOKEN }}
+      # Country boundaries come from www.geoboundaries.org, which times out at
+      # times; keep them between runs so CI does not depend on the site.
+      - name: Cache admin boundaries
+        uses: actions/cache@v4
+        with:
+          path: Layers/admin_units
+          key: admin-units-KEN-adm0-v1
       - name: Run taxdat tests
         run: |
           source /opt/miniconda3/etc/profile.d/conda.sh
@@ -53,6 +60,12 @@ jobs:
           source /opt/miniconda3/etc/profile.d/conda.sh
           conda activate rbase
           Rscript -e "install.packages('packages/taxdat',type='source',repos=NULL)"
+          # Kenya's boundary for the area of interest (cached; retried when not)
+          for i in 1 2 3 4 5; do
+            Rscript -e 'taxdat::cache_admin_units("KEN", 0, cache_dir = "Layers/admin_units")' && break
+            echo "geoBoundaries download failed (attempt $i); retrying in 30 s"; sleep 30
+          done
+          test -s Layers/admin_units/KEN_adm0.gpkg
           Rscript Analysis/R/prepare_grid_cmd.R -l ./Layers -r 1 -a KEN -b 50
           Rscript Analysis/R/prepare_grid_cmd.R -l ./Layers -r 20 -a KEN -b 50
           Rscript Analysis/R/prepare_covariates_cmd.R -l ./Layers -r 1 -t '1 years' -a KEN -b 50 -c p
