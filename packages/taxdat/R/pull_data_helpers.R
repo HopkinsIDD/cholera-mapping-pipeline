@@ -1052,6 +1052,11 @@ read_taxonomy_locationperiods_sql <- function(username, password, location_perio
 #'     age_R/ageR/Age_R/AgeR, age/Age. No conflicting values were found
 #'     between variants. Rows carrying age only through a variant key were
 #'     checked not to duplicate rows carrying the canonical keys.
+#'   \item Sex: also returned when present (NA otherwise), merged and recoded
+#'     exactly as in \code{read_taxonomy_sex_sql}: \code{sex} (1 = male,
+#'     0 = female, NA if unmapped) and \code{sex_raw} (original value).
+#'     The age and sex wrappers return the same columns; only the row
+#'     selection differs.
 #'   \item Empty strings are treated as missing: collections with an age
 #'     column store '' for observations without an age. Values are returned
 #'     raw, as text: no trimming and no conversion. Non-integer formats
@@ -1161,8 +1166,12 @@ read_taxonomy_age_sql <- function(username, password, locations = NULL,
     "   ", merge_keys(c("age_L", "ageL", "Age_L", "AgeL")), "AS age_l,",
     "   ", merge_keys(c("age_R", "ageR", "Age_R", "AgeR")), "AS age_r,",
     "   ", merge_keys(c("age", "Age")),                     "AS age,",
-    "    COALESCE(l_via_lp.qualified_name, l_direct.qualified_name) AS location_name,",
-    "    (l_via_lp.qualified_name IS NULL",
+    # sex columns (NA when absent): same merge and recoding as read_taxonomy_sex_sql
+    "    CASE WHEN lower(", merge_keys(c("sex", "Sex", "gender", "Gender")), ") IN ('1', 'm', 'male') THEN 1",
+    "         WHEN lower(", merge_keys(c("sex", "Sex", "gender", "Gender")), ") IN ('0', 'f', 'female') THEN 0",
+    "         ELSE NULL END AS sex,",
+    "   ", merge_keys(c("sex", "Sex", "gender", "Gender")), "AS sex_raw,",
+    "    COALESCE(l_via_lp.qualified_name, l_direct.qualified_name) AS location_name,",    "    (l_via_lp.qualified_name IS NULL",
     "     AND l_direct.qualified_name IS NOT NULL)                  AS location_via_fallback,",
     "    o.location_id::text        AS location_id,",
     "    o.location_period_id::text AS location_period_id",
@@ -1201,6 +1210,9 @@ read_taxonomy_age_sql <- function(username, password, locations = NULL,
 #'   \item Sex has no native column. Key variants are merged in this priority
 #'     order: sex, Sex, gender, Gender (no row carries two variants). Empty
 #'     strings are treated as missing.
+#'   \item Age: also returned when present (NA otherwise), merged exactly as
+#'     in \code{read_taxonomy_age_sql} (raw text). The age and sex wrappers
+#'     return the same columns; only the row selection differs.
 #'   \item \code{sex_raw} returns the original value. \code{sex} recodes it
 #'     following the data-entry convention (male = 1, female = 0): 1/m/male
 #'     -> 1 and 0/f/female -> 0, case-insensitive. Any other value gives NA,
@@ -1294,6 +1306,7 @@ read_taxonomy_sex_sql <- function(username, password, locations = NULL,
     "  s.id, s.observation_collection_id, s.is_public, s.unified, s.status,",
     "  s.time_left, s.time_right, s.suspected_cases, s.confirmed_cases, s.deaths,",
     "  s.phantom, s.\"primary\",",
+    "  s.age_l, s.age_r, s.age,",
     "  CASE",
     "    WHEN lower(s.sex_raw) IN ('1', 'm', 'male')   THEN 1",
     "    WHEN lower(s.sex_raw) IN ('0', 'f', 'female') THEN 0",
@@ -1309,6 +1322,12 @@ read_taxonomy_sex_sql <- function(username, password, locations = NULL,
     "    o.time_left, o.time_right,",
     "    o.suspected_cases, o.confirmed_cases, o.deaths,",
     "    o.phantom, o.\"primary\" AS \"primary\",",
+    # age columns (NA when absent): same merge as read_taxonomy_age_sql
+    "    COALESCE(NULLIF(o.data->>'age_L', ''), NULLIF(o.data->>'ageL', ''),",
+    "             NULLIF(o.data->>'Age_L', ''), NULLIF(o.data->>'AgeL', '')) AS age_l,",
+    "    COALESCE(NULLIF(o.data->>'age_R', ''), NULLIF(o.data->>'ageR', ''),",
+    "             NULLIF(o.data->>'Age_R', ''), NULLIF(o.data->>'AgeR', '')) AS age_r,",
+    "    COALESCE(NULLIF(o.data->>'age', ''), NULLIF(o.data->>'Age', '')) AS age,",
     "    COALESCE(NULLIF(o.data->>'sex', ''), NULLIF(o.data->>'Sex', ''),",
     "             NULLIF(o.data->>'gender', ''), NULLIF(o.data->>'Gender', '')) AS sex_raw,",
     "    COALESCE(l_via_lp.qualified_name, l_direct.qualified_name) AS location_name,",
