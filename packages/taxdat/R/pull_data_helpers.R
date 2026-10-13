@@ -1285,6 +1285,171 @@ read_taxonomy_sex_sql <- function(username, password, locations = NULL,
   )
 }
 
+#' @title Marginalize age/sex strata
+#'
+#' @description Sums the observations of a stratified pull over one variable:
+#' \code{over = "sex"} turns the output of \code{read_taxonomy_age_sql} into
+#' an age table (all sexes merged); \code{over = "age"} turns the output of
+#' \code{read_taxonomy_sex_sql} into a sex table (all ages merged).
+#'
+#' @details Rules (validated against an independent SQL implementation):
+#' \itemize{
+#'   \item Observations are merged only if they share the collection,
+#'     governance fields, dates, location, \code{primary}, \code{phantom}
+#'     and the kept variable (age columns, or recoded sex).
+#'   \item An observation whose kept variable is missing is never merged
+#'     (it is returned alone). A missing value of the summed variable does
+#'     not prevent merging (e.g. a case of unknown sex counts in its age).
+#'   \item Count columns are summed separately. \code{na_counts = "as_zero"}
+#'     (default): in a group where some observations have a count and others
+#'     NA, the NAs count as 0 (blank cells at import); a group where all
+#'     values are NA stays NA. \code{na_counts = "strict"}: any NA in the
+#'     group gives NA.
+#'   \item With \code{drop_exact_duplicates = TRUE}, only the lowest id of
+#'     each set of potential duplicates (identical aggregated strata) is
+#'     summed.
+#'   \item A message always reports the number of groups where NAs were
+#'     counted as 0 and the number of groups containing potential
+#'     duplicates, whatever the value of \code{metadata}.
+#' }
+#'
+#' @param df output of \code{read_taxonomy_age_sql} (over = "sex") or
+#'   \code{read_taxonomy_sex_sql} (over = "age").
+#' @param over variable to sum over: "sex" or "age".
+#' @param na_counts "as_zero" (default) or "strict", see Details.
+#' @param drop_exact_duplicates keep one copy of each set of potential
+#'   duplicates before summing (default FALSE).
+#' @param metadata if TRUE, adds traceability columns: \code{n_source_rows},
+#'   \code{sex_values} / \code{age_values}, \code{sex_raw_values} (sex
+#'   table), \code{na_as_zero} (count columns where NAs were counted as 0,
+#'   with the number of NA observations), \code{potential_duplicate},
+#'   \code{n_duplicate_sources}, \code{n_duplicates_dropped} and
+#'   \code{source_ids} (every observation of the group). Default FALSE:
+#'   group key, kept variable and summed counts only.
+#' @return A data.frame, one row per group.
+#' @seealso \code{\link{read_taxonomy_age_sql}}, \code{\link{read_taxonomy_sex_sql}}
+#' @export
+marginalize_strata <- function(df, over = c("sex", "age"),
+                               na_counts = c("as_zero", "strict"),
+                               drop_exact_duplicates = FALSE,
+                               metadata = FALSE) {
+  over      <- match.arg(over)
+  na_counts <- match.arg(na_counts)
+
+  # ---- Input checks -----------------------------------------------------------
+  required <- c("id", "observation_collection_id", "is_public", "unified", "status",
+                "time_left", "time_right", "suspected_cases", "confirmed_cases", "deaths",
+                "phantom", "primary", "age_l", "age_r", "age", "sex", "sex_raw",
+                "location_name", "location_via_fallback", "location_id",
+                "location_period_id", "n_identical_obs", "potential_duplicate")
+  missing_cols <- setdiff(required, names(df))
+  if (length(missing_cols) > 0) {
+    stop("df is not a stratified pull (missing columns: ", paste(missing_cols, collapse = ", "),
+         "). Use read_taxonomy_age_sql() or read_taxonomy_sex_sql().")
+  }
+  if (anyDuplicated(df$id) > 0) stop("df contains duplicated ids.")
+
+  count_cols <- c("suspected_cases", "confirmed_cases", "deaths")
+  common_key <- c("observation_collection_id", "is_public", "unified", "status",
+                  "time_left", "time_right", "phantom", "primary",
+                  "location_id", "location_period_id", "location_name", "location_via_fallback")
+  kept <- if (over == "sex") c("age_l", "age_r", "age") else "sex"
+
+  # ---- Rows whose kept variable is missing are never merged (id joins the key)
+  kept_missing <- if (over == "sex") {
+    is.na(df$age_l) & is.na(df$age_r) & is.na(df$age)
+  } else {
+    is.na(df$sex)
+  }
+  df$.solo <- ifelse(kept_missing, df$id, NA_character_)
+
+  # ---- Optional: keep one copy (lowest id) of each set of potential duplicates
+  df$.dropped <- FALSE
+  if (isTRUE(drop_exact_duplicates)) {
+    dup_cols <- c("observation_collection_id", "is_public", "unified", "status",
+                  "time_left", "time_right", count_cols, "phantom", "primary",
+                  "age_l", "age_r", "age", "sex_raw", "location_id", "location_period_id")
+    ord <- order(as.numeric(df$id))
+    is_extra <- logical(nrow(df))
+    is_extra[ord] <- duplicated(df[ord, dup_cols]) & df$potential_duplicate[ord]
+    df$.dropped <- is_extra
+  }
+
+  # ---- Label of the summed variable, per observation (traceability only)
+  if (over == "sex") {
+    df$.value <- ifelse(is.na(df$sex), "NA", as.character(df$sex))
+  } else {
+    age_parts <- as.matrix(df[, c("age_l", "age_r", "age")])
+    df$.value <- apply(age_parts, 1, function(r) {
+      if (all(is.na(r))) "NA" else paste(r[!is.na(r)], collapse = "-")
+    })
+  }
+
+  # ---- Per-group helpers -------------------------------------------------------
+  sum_count <- function(x, keep) {
+    x <- x[keep]
+    if (all(is.na(x))) return(NA_integer_)                  # all NA: no information
+    if (na_counts == "strict" && anyNA(x)) return(NA_integer_)
+    as.integer(sum(x, na.rm = TRUE))                         # "as_zero": NAs count as 0
+  }
+  na_detail <- function(sch, cch, dth, keep) {
+    if (na_counts == "strict") return(NA_character_)         # nothing imputed in strict mode
+    vals  <- list(suspected_cases = sch, confirmed_cases = cch, deaths = dth)
+    parts <- character(0)
+    for (nm in count_cols) {
+      x <- vals[[nm]][keep]
+      n_na <- sum(is.na(x))
+      if (n_na > 0 && n_na < length(x)) parts <- c(parts, paste0(nm, ":", n_na))
+    }
+    if (length(parts) == 0) NA_character_ else paste(parts, collapse = " | ")
+  }
+
+  # ---- Grouping and summaries ---------------------------------------------------
+  # Output columns get temporary names (prefixed with ".") so that no summary
+  # column masks an input column: in summarise(), a column created earlier is
+  # visible to later expressions, including through .data$.
+  grouped <- dplyr::group_by(df, dplyr::across(dplyr::all_of(c(common_key, kept, ".solo"))))
+  out <- dplyr::summarise(
+    grouped,
+    .sex_raw_values       = paste(sort(unique(.data$sex_raw)), collapse = ","),
+    .suspected_cases      = sum_count(.data$suspected_cases, !.data$.dropped),
+    .confirmed_cases      = sum_count(.data$confirmed_cases, !.data$.dropped),
+    .deaths               = sum_count(.data$deaths,          !.data$.dropped),
+    .n_source_rows        = dplyr::n(),
+    .values               = paste(sort(unique(.data$.value)), collapse = ","),
+    .na_as_zero           = na_detail(.data$suspected_cases, .data$confirmed_cases,
+                                      .data$deaths, !.data$.dropped),
+    .potential_duplicate  = any(.data$potential_duplicate),
+    .n_duplicate_sources  = sum(.data$potential_duplicate),
+    .n_duplicates_dropped = sum(.data$.dropped),
+    .source_ids           = paste(.data$id[order(as.numeric(.data$id))], collapse = ","),
+    .groups = "drop"
+  )
+  out <- as.data.frame(out)
+  out$.solo <- NULL
+  # Final names: drop the temporary "." prefix (group columns never start with ".")
+  names(out) <- sub("^\\.", "", names(out))
+  names(out)[names(out) == "values"] <- if (over == "sex") "sex_values" else "age_values"
+  if (over == "sex") out$sex_raw_values <- NULL   # sex_values is enough in the age table
+  
+  out <- out[order(as.numeric(out$observation_collection_id), out$time_left, out$location_name), ]
+  rownames(out) <- NULL
+
+  # ---- Message: always shown, whatever `metadata` ----------------------------
+  message(sprintf(paste0(
+    "marginalize_strata(over = '%s'): %d groups from %d observations; ",
+    "%d groups with NA counted as 0; %d groups containing potential duplicates%s.%s"),
+    over, nrow(out), nrow(df), sum(!is.na(out$na_as_zero)), sum(out$potential_duplicate),
+    if (isTRUE(drop_exact_duplicates)) paste0(" (", sum(out$n_duplicates_dropped), " copies dropped)") else "",
+    if (!isTRUE(metadata)) " Use metadata = TRUE to see which groups." else ""))
+
+  # ---- Default output: group key, kept variable and summed counts only --------
+  if (!isTRUE(metadata)) {
+    out <- out[, c(common_key, kept, count_cols)]
+  }
+  out
+}
+
 
 #' @title Taxonomy age/sex-stratified SQL data pull
 #'
