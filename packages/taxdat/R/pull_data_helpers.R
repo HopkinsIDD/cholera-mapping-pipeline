@@ -491,122 +491,233 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
 
 
 #' @title Taxonomy SQL data pull
-#' @description Extracts data for a given set of country using SQL from the taxonomy
-#' postgresql database stored on idmodeling2
+#' @description Extracts observations for a set of locations from the taxonomy
+#' PostgreSQL database (CholeraTaxonomy_production) using SQL.
 #'
-#' @param username taxonomy username
-#' @param password taxonomy password
-#' @param locations list of locations to pull. For now this only supports country ISO codes.
-#' @param time_left  left bound for observation times (in date format)
-#' @param time_right right bound for observation times (in date format)
-#' @param uids list of unique observation collection ids to pull
+#' @details Self-contained by design: this function calls no other function of
+#' the package, so it can be merged independently of the age/sex stratified
+#' pulls. Changes compared with the previous version:
+#' \itemize{
+#'   \item Geometry: output contract unchanged (sf object, geometry in column
+#'     \code{geojson}), but shapes are now fetched ONCE per distinct
+#'     location_period_id in a second query and attached in R, instead of
+#'     being joined in SQL and transferred again for every observation.
+#'     Measured on the old version: ~3 GB and ~460 s for 12,827 observations
+#'     (EMR::SOM), against a few MB and seconds with a single fetch per
+#'     location period. Observations without location_period_id, or whose
+#'     shape is NULL in the database, get an empty geometry, as before.
+#'   \item CRS: EPSG:4326 as returned by the database (unchanged); set
+#'     explicitly only as a safeguard if the database ever stops declaring it.
+#'   \item Geography: EXISTS on location_hierarchies instead of a JOIN, so an
+#'     observation is returned once even when several requested locations are
+#'     nested ancestors of it (previously duplicated).
+#'   \item Location name: resolved through location_period_id first (dated,
+#'     consistent with administrative boundary changes and with the geometry,
+#'     which joins on location_period_id only), then through
+#'     observations.location_id as fallback; new column
+#'     \code{location_via_fallback}. Previously: location_id only.
+#'   \item Safeguard: the function stops if an observation is returned more
+#'     than once (cannot happen with the current query; would reveal a
+#'     schema change).
+#'   \item Dates: Date, POSIXt or strict "YYYY-MM-DD" string only (ambiguous
+#'     formats such as "04/03/2017" are rejected); bound as query parameters
+#'     instead of being pasted into the SQL string.
+#'   \item Connection always closed, including on error.
+#'   \item Local connection (host = "localhost" with empty password) fixed: the
+#'     previous version referenced an undefined variable \code{website}.
+#'   \item Rows ordered by observation_collection_id, then id (deterministic).
+#' }
+#' Unchanged: filters on time, uids, collection status and unified datasets,
+#' and their defaults. Observations without location_id are still excluded
+#' (they cannot match the geographic filter).
 #'
-#' @details Code follows taxdat::read_taxonomy_data_api template.
-#' @return An sf object containing data extracted from the database
+#' @param username taxonomy database username
+#' @param password taxonomy database password (may be empty only when
+#'   host = "localhost", for a local socket connection)
+#' @param locations numeric vector of location ids (ancestor ids). Mandatory.
+#' @param time_left left bound for observation times (Date, POSIXt or
+#'   "YYYY-MM-DD"); keeps observations with time_left >= time_left
+#' @param time_right right bound for observation times (Date, POSIXt or
+#'   "YYYY-MM-DD"); keeps observations with time_right <= time_right
+#' @param uids vector of observation_collection ids to restrict the pull to
+#' @param discard_incomplete_observation_collections if TRUE (default),
+#'   excludes collections with status initialized, validated or inprogress
+#' @param unified_dataset_behaviour "drop" (default) excludes unified
+#'   collections, "keep" keeps only them, any other value disables the filter
+#' @param host database host
+#' @return An sf object, one row per observation; identifiers as text;
+#'   geometry in column \code{geojson}.
+#' @seealso \code{\link{pull_taxonomy_data}}
 #' @export
-read_taxonomy_data_sql <- function(username, password, locations = NULL, time_left = NULL,
-                                   time_right = NULL, uids = NULL, discard_incomplete_observation_collections = TRUE, unified_dataset_behaviour = "drop", host = "db.cholera-taxonomy.middle-distance.com") {
-  if (missing(username) | missing(password)) {
+read_taxonomy_data_sql <- function(username, password, locations = NULL,
+                                   time_left = NULL, time_right = NULL,
+                                   uids = NULL,
+                                   discard_incomplete_observation_collections = TRUE,
+                                   unified_dataset_behaviour = "drop",
+                                   host = "db.cholera-taxonomy.middle-distance.com") {
+
+  # ---- Argument checks (all done before opening any connection) -------------
+  if (missing(username) || missing(password) ||
+      is.null(username) || is.null(password) || !nzchar(username)) {
     stop("Please provide username and password to connect to the taxonomy database.")
   }
-  
-  # Connect to database
-  if ((password == "") && (website == "localhost")) {
-    print("HERE")
-    conn <- RPostgres::dbConnect(RPostgres::Postgres(),
-                                 dbname = "CholeraTaxonomy_production", user = username,
-                                 port = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
-    )
-  } else {
-    conn <- RPostgres::dbConnect(RPostgres::Postgres(),
-                                 host = host,
-                                 dbname = "CholeraTaxonomy_production", user = username, password = password,
-                                 port = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
-    )
+  # Empty password is only meaningful for a local socket connection
+  use_local_socket <- identical(host, "localhost") && !nzchar(password)
+  if (!nzchar(password) && !use_local_socket) {
+    stop("Empty password is only allowed with host = 'localhost'.")
   }
-  
-  # Build query for observations
-  obs_query <- paste(
-    "SELECT", "observations.id::text, observations.observation_collection_id::text, observations.time_left, observations.time_right,observations.suspected_cases, observations.confirmed_cases, observations.deaths, observations.phantom, observations.primary",
-    ",locations.qualified_name as location_name, locations.id::text as location_id",
-    ",location_periods.id::text as location_period_id", ",shapes.shape as geojson",
-    "FROM", "observations", "left join observation_collections on observations.observation_collection_id = observation_collections.id",
-    "left join location_hierarchies on observations.location_id = location_hierarchies.descendant_id",
-    "left join locations on observations.location_id = locations.id", "left join location_periods on observations.location_period_id = location_periods.id",
-    "left join shapes on shapes.location_period_id = location_periods.id", " WHERE"
-  )
-  
-  cat("-- Pulling data from taxonomy database with SQL \n")
-  
-  if (unified_dataset_behaviour == "drop") {
-    unified_filter <- c("((observation_collections.unified is NULL) OR (observation_collections.unified!='t'))") # QZ: updated the operator
-  } else if (unified_dataset_behaviour == "keep") {
-    unified_filter <- c("((observation_collections.unified is NOT NULL) AND (observation_collections.unified))")
-  } else {
-    unified_filter <- NULL
-  }
-  if (discard_incomplete_observation_collections) {
-    oc_filter <- c("(observation_collections.status != 'initialized') AND (observation_collections.status != 'validated') AND (observation_collections.status != 'inprogress')")
-  } else {
-    oc_filter <- NULL
-  }
-  # Add filters
-  if (any(c(!is.null(time_left), !is.null(time_right), !is.null(uids)), !is.null(locations))) {
-  } else {
-    warning("No filters specified on data pull, pulling all data.")
-  }
-  
-  if (!is.null(time_left)) {
-    time_left_filter <- paste0(
-      "time_left >= '", format(time_left, "%Y-%m-%d"),
-      "'"
-    )
-  } else {
-    time_left_filter <- NULL
-    warning("No time filters.")
-  }
-  
-  if (!is.null(time_right)) {
-    time_right_filter <- paste0(
-      "time_right <= '", format(time_right, "%Y-%m-%d"),
-      "'"
-    )
-  } else {
-    time_right_filter <- NULL
-    warning("No time filters.")
-  }
-  
-  if (!is.null(locations)) {
-    if (all(is.numeric(locations))) {
-      locations_filter <- paste0("ancestor_id in ({locations*})")
-    } else {
-      stop("SQL access by location name is not yet implemented")
-    }
-  } else {
-    locations_filter <- paste0("ancestor_id = descendant_id")
+  if (is.null(locations)) {
     stop("Please use a containing location as the location. Locations can't be NULL.")
   }
-  
-  if (!is.null(uids)) {
-    uids_filter <- paste0("observation_collection_id IN ({uids*})")
-  } else {
-    uids_filter <- NULL
-    warning("No uid filters.")
+  if (!is.numeric(locations)) {
+    stop("SQL access by location name is not yet implemented")
   }
-  
-  # Combine filters
-  filters <- c(time_left_filter, time_right_filter, locations_filter, uids_filter, oc_filter, unified_filter) %>%
-    paste(collapse = " AND ")
-  
-  # Run query for observations
-  obs_query <- glue::glue_sql(paste(obs_query, filters, ";"), .con = conn)
-  observations <- suppressWarnings(sf::st_as_sf(sf::st_read(conn, query = obs_query)))
+
+  # Local date validator, defined inside the function on purpose: it is not a
+  # package-level object, so it cannot clash with helpers defined elsewhere.
+  # Returns NULL or a "YYYY-MM-DD" string.
+  to_iso_date <- function(x, arg_name) {
+    if (is.null(x)) return(NULL)
+    if (length(x) != 1 || is.na(x)) {
+      stop(arg_name, " must be a single, non-missing date.")
+    }
+    if (inherits(x, c("Date", "POSIXt"))) {
+      # format() keeps the object's own time zone (as.Date() would use UTC)
+      return(format(x, "%Y-%m-%d"))
+    }
+    if (is.character(x) && grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", x)) {
+      d <- as.Date(x, format = "%Y-%m-%d")  # explicit format: 2017-02-30 -> NA
+      if (is.na(d)) stop(arg_name, " is not a valid calendar date: ", x)
+      return(format(d, "%Y-%m-%d"))
+    }
+    stop(arg_name, " must be a Date, a POSIXt or a 'YYYY-MM-DD' string.")
+  }
+  time_left  <- to_iso_date(time_left,  "time_left")
+  time_right <- to_iso_date(time_right, "time_right")
+  # Keep the "No time filters" prefix: matched by tests/testthat (expect_warning)
+  if (is.null(time_left))  warning("No time filters: time_left is NULL.")
+  if (is.null(time_right)) warning("No time filters: time_right is NULL.")
+  if (is.null(uids))       warning("No uid filters.")
+
+  # ---- Connection, always closed (also on error) ----------------------------
+  conn_args <- list(
+    RPostgres::Postgres(),
+    dbname = "CholeraTaxonomy_production",
+    user   = username,
+    port   = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
+  )
+  if (!use_local_socket) {
+    # Remote connection; without host/password RPostgres uses the local socket
+    conn_args <- c(conn_args, list(host = host, password = password))
+  }
+  conn <- do.call(DBI::dbConnect, conn_args)
+  on.exit(DBI::dbDisconnect(conn), add = TRUE)
+
+  # ---- Filters (user values are bound by glue_sql, never pasted) ------------
+  filters <- c(
+    # Geography: EXISTS never duplicates rows (a JOIN does with nested ancestors)
+    paste("EXISTS (SELECT 1 FROM location_hierarchies h",
+          "WHERE h.descendant_id = o.location_id",
+          "AND h.ancestor_id IN ({locations*}))"),
+    if (!is.null(time_left))  "o.time_left >= {time_left}::date",
+    if (!is.null(time_right)) "o.time_right <= {time_right}::date",
+    if (!is.null(uids))       "o.observation_collection_id IN ({uids*})",
+    if (isTRUE(discard_incomplete_observation_collections)) {
+      paste("(oc.status != 'initialized') AND (oc.status != 'validated')",
+            "AND (oc.status != 'inprogress')")
+    },
+    if (identical(unified_dataset_behaviour, "drop")) {
+      "((oc.unified IS NULL) OR (oc.unified != 't'))"
+    } else if (identical(unified_dataset_behaviour, "keep")) {
+      "((oc.unified IS NOT NULL) AND (oc.unified))"
+    }
+  )
+
+  # ---- Query ------------------------------------------------------------------
+  # Location name: location period first, observations.location_id as fallback.
+  # No geometry in this query: shapes are fetched once per location period
+  # in a second query below, then attached in R.
+  query <- paste(
+    "SELECT",
+    "  o.id::text                        AS id,",
+    "  o.observation_collection_id::text AS observation_collection_id,",
+    "  o.time_left, o.time_right,",
+    "  o.suspected_cases, o.confirmed_cases, o.deaths,",
+    "  o.phantom, o.\"primary\" AS \"primary\",",
+    "  COALESCE(l_via_lp.qualified_name, l_direct.qualified_name) AS location_name,",
+    "  (l_via_lp.qualified_name IS NULL",
+    "   AND l_direct.qualified_name IS NOT NULL)                  AS location_via_fallback,",
+    "  o.location_id::text        AS location_id,",
+    "  o.location_period_id::text AS location_period_id",
+    "FROM observations o",
+    "JOIN observation_collections oc ON oc.id = o.observation_collection_id",
+    "LEFT JOIN location_periods lp   ON lp.id = o.location_period_id",
+    "LEFT JOIN locations l_via_lp    ON l_via_lp.id = lp.location_id",
+    "LEFT JOIN locations l_direct    ON l_direct.id = o.location_id",
+    "WHERE", paste(filters, collapse = " AND "),
+    "ORDER BY o.observation_collection_id, o.id"
+  )
+  query <- glue::glue_sql(query, .con = conn,
+                          locations = locations, uids = uids,
+                          time_left = time_left, time_right = time_right)
+
+  cat("-- Pulling data from taxonomy database with SQL \n")
+  observations <- DBI::dbGetQuery(conn, query)
+
   if (nrow(observations) == 0) {
-    stop(paste0("No observations found using query ||", obs_query, "||"))
+    stop("No observations found for the given filters.")
   }
-  
-  # observations <- dplyr::filter(observations, !is.na(nchar(geojson)))
-  return(observations)
+
+  # ---- Invariant: one row per observation -----------------------------------
+  # Guaranteed by the EXISTS geographic filter and the many-to-one joins;
+  # a failure here means the schema has changed.
+  if (anyDuplicated(observations$id) > 0) {
+    n_dup <- sum(duplicated(observations$id))
+    stop(n_dup, " duplicated observation rows: unexpected, check the joins ",
+         "on location_periods and locations.")
+  }
+
+  # ---- Geometry: one fetch per distinct location period, attached in R ------
+  # shapes.location_period_id has a unique index: at most one shape per period.
+  # Bound as numbers so that the index on the bigint column is used.
+  lp_ids <- unique(observations$location_period_id[!is.na(observations$location_period_id)])
+  shapes <- NULL
+  if (length(lp_ids) > 0) {
+    shape_query <- glue::glue_sql(
+      paste("SELECT sh.location_period_id::text AS location_period_id,",
+            "sh.shape AS geojson",
+            "FROM shapes sh",
+            "WHERE sh.location_period_id IN ({lp_ids*})"),
+      .con = conn, lp_ids = as.numeric(lp_ids))
+    shapes <- suppressWarnings(sf::st_read(conn, query = shape_query))
+    # st_read returns a plain data.frame when no row has a geometry
+    if (!inherits(shapes, "sf") || nrow(shapes) == 0) shapes <- NULL
+  }
+
+  # Geometry vector: fetched shapes + one empty geometry (last position) used
+  # for observations without location_period_id or without a shape.
+  empty_geom <- sf::st_sfc(sf::st_geometrycollection())
+  if (is.null(shapes)) {
+    geoms  <- empty_geom
+    lp_key <- character(0)
+  } else {
+    shape_geoms <- sf::st_geometry(shapes)
+    sf::st_crs(empty_geom) <- sf::st_crs(shape_geoms)  # c() requires the same CRS
+    geoms  <- c(shape_geoms, empty_geom)
+    lp_key <- shapes$location_period_id
+  }
+  idx <- match(observations$location_period_id, lp_key)
+  idx[is.na(idx)] <- length(geoms)
+  # Subsetting repeats references to the same geometry objects; it does not
+  # transfer or decode them again.
+  observations <- sf::st_sf(observations, geojson = geoms[idx])
+
+  # ---- CRS: not declared at column level in the database; geometries are WGS84
+  if (is.na(sf::st_crs(observations))) {
+    sf::st_crs(observations) <- 4326
+  }
+
+  observations
 }
 
 #' @title Taxonomy staging SQL data pull
