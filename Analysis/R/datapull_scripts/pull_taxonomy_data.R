@@ -6,7 +6,7 @@ library(taxdat)
 
 # --- Credentials ---
 # Defines: database_username, database_api_key, taxonomy_username, taxonomy_password
-source("Analysis/R/database_api_key.R")
+source("../database_api_key.R")
 
 username <- taxonomy_username
 password <- taxonomy_password
@@ -35,7 +35,7 @@ observations <- read_taxonomy_data_sql(
 cat("Pulled", nrow(observations), "observations.\n")
 
 # --- Save output ---
-out_dir <- "Analysis/data"
+out_dir <- "../../data"
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 out_path <- file.path(out_dir, paste0("taxonomy_pull_", format(Sys.Date(), "%Y%m%d"), ".rds"))
 saveRDS(observations, out_path)
