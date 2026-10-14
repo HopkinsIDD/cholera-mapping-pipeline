@@ -10,7 +10,6 @@ Encoding: UTF-8
 License: GPL (>= 2)
 Depends: R (>= 3.4),ISOcodes,magrittr, dplyr, tidyr, igraph, geodata
 Suggests: readxl, sf, sp, raster, rgdal, testthat, knitr, rmarkdown
-RoxygenNote: 7.3.2
 Collate:
     'plot_cache_function.R'
     'get_genquant.R'
@@ -75,3 +74,4 @@ Collate:
     'transform_covariates.R'
 VignetteBuilder: knitr
 LazyData: true
+Config/roxygen2/version: 8.1.0
