@@ -1,0 +1,863 @@
+---
+title: "Case burden / scaling report"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    df_print: paged
+params:
+  country: NA
+  config_dir: NA
+  mai_admin_case_draws: NA
+  medically_attended_sCh: NA
+  medically_attended_cCh: NA
+  cCh_mild: NA
+  cCh_severe: NA
+  all_cCh_mild: NA
+  all_cCh_severe: NA
+  all_cCh: NA
+  positivity_draws: NA
+  severity_props: NA
+  care_seek_mild: NA
+  care_seek_severe: NA
+  reporting_ratio: NA
+  severity_scalars: NA
+  p_u5_draws: NA
+  all_admin_sf: NA
+  all_country_sf: NA
+  lakes_sf: NA
+  generated_at: NA
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.width = 9, fig.height = 5)
+```
+
+```{r helpers, include=TRUE}
+# All the helper functions for the report
+
+# ---- Config settings -------------------------------------------------------
+
+# Recursively flattens a parsed YAML list (nested blocks like stan:, scaling:,
+# file_names: included) into a two-column Setting/Value tibble, so "every
+# config setting" ends up visible in the report, not just top-level scalars.
+# A vector value (e.g. summary_admin_levels: [0, 1, 2]) is collapsed to a
+# single comma-separated string rather than one row per element.
+flatten_config <- function(x, prefix = "") {
+  if (length(x) == 0) return(tibble::tibble(Setting = character(), Value = character()))
+  purrr::imap_dfr(x, function(val, name) {
+    key <- if (nzchar(prefix)) paste0(prefix, ".", name) else name
+    if (is.list(val)) {
+      if (length(val) == 0) return(tibble::tibble(Setting = key, Value = ""))
+      flatten_config(val, key)
+    } else {
+      tibble::tibble(Setting = key, Value = paste(as.character(val), collapse = ", "))
+    }
+  })
+}
+
+# Reads every *.yml/*.yaml in config_dir once and flattens each into a
+# Setting/Value table, keeping both the human-readable countries_name (e.g.
+# "BDI") and the raw countries code (e.g. "2") from each file, since it is
+# not certain from these scripts alone which one the draws' own "country"
+# column holds -- get_country_config_tables() below matches against either.
+load_all_configs <- function(config_dir) {
+  config_files <- list.files(config_dir, pattern = "\\.ya?ml$", full.names = TRUE)
+  if (length(config_files) == 0) {
+    warning("No .yml/.yaml files found in ", config_dir, " -- config settings section will be empty")
+    return(list())
+  }
+  purrr::map(config_files, function(f) {
+    cfg <- yaml::read_yaml(f)
+    start_lab <- if (is.null(cfg$start_time)) "?" else cfg$start_time
+    end_lab <- if (is.null(cfg$end_time)) "?" else cfg$end_time
+    list(
+      file = basename(f),
+      countries_name = cfg$countries_name,
+      countries_code = cfg$countries,
+      period_label = stringr::str_glue("{start_lab} to {end_lab}"),
+      table = flatten_config(cfg)
+    )
+  })
+}
+
+# Named list of config tables (one per matching config file/period) for a
+# single country value as it appears in the draws data (mai_admin_case_draws$country
+# etc.) -- matched against either countries_name or countries_code so this
+# works whichever convention that column turns out to use.
+get_country_config_tables <- function(config_catalog, cty) {
+  cty_chr <- as.character(cty)
+  matches <- purrr::keep(config_catalog, function(x) {
+    identical(as.character(x$countries_name), cty_chr) || identical(as.character(x$countries_code), cty_chr)
+  })
+  if (length(matches) == 0) return(list())
+  stats::setNames(
+    purrr::map(matches, "table"),
+    purrr::map_chr(matches, ~ stringr::str_glue("{.x$file} ({.x$period_label})"))
+  )
+}
+
+
+# ---- Scaling-step validation checks, filtered to one country --------------
+
+# Re-runs the section-L validation checks (ratio-matches-expected-factor,
+# row-count agreement, mild+severe == total) restricted to one country, so
+# each country's report shows its own pass/fail table rather than a
+# pipeline-wide one. Global (non-country) scaling inputs -- positivity_draws,
+# care_seek_mild/severe -- are NOT filtered, since they have no "country"
+# column and are broadcast to every country via combine_draws() by design
+# (see comments in postprocess_scaling_burden.R).
+run_scaling_checks <- function(cty, reporting_ratio,
+                                mai_admin_case_draws, medically_attended_sCh,
+                                medically_attended_cCh, cCh_mild, cCh_severe,
+                                all_cCh_mild, all_cCh_severe, all_cCh,
+                                positivity_draws, severity_props,
+                                care_seek_mild, care_seek_severe) {
+
+  filt <- function(df) if ("country" %in% names(df)) dplyr::filter(df, country == cty) else df
+
+  before  <- filt(mai_admin_case_draws)
+  sCh     <- filt(medically_attended_sCh)
+  cCh     <- filt(medically_attended_cCh)
+  mild    <- filt(cCh_mild)
+  sev     <- filt(cCh_severe)
+  a_mild  <- filt(all_cCh_mild)
+  a_sev   <- filt(all_cCh_severe)
+  final   <- filt(all_cCh)
+  pos     <- positivity_draws
+  sevp    <- filt(severity_props)
+  csm     <- care_seek_mild
+  css     <- care_seek_severe
+
+  log <- list()
+  check <- function(desc, ok) {
+    message(if (ok) "PASS -- " else "FAIL -- ", "[", cty, "] ", desc)
+    log[[length(log) + 1]] <<- tibble::tibble(check = desc, pass = ok)
+    invisible(ok)
+  }
+
+  if (nrow(before) == 0) {
+    check("no rows for this country in mai_admin_case_draws -- skipping remaining checks", FALSE)
+    return(dplyr::bind_rows(log))
+  }
+
+  check_scaling_step <- function(bef, before_col, aft, after_col, factor_df, factor_col,
+                                  factor_join_keys, label, invert = FALSE) {
+    if (nrow(bef) != nrow(aft)) {
+      check(paste0(label, ": before/after row counts differ (", nrow(bef), " vs ", nrow(aft),
+                  ") -- cannot validate by row position"), FALSE)
+      return(invisible(NULL))
+    }
+    combined <- dplyr::bind_cols(
+      bef %>% dplyr::select(country, .draw, dplyr::all_of(before_col)),
+      aft %>% dplyr::select(value_after = dplyr::all_of(after_col))
+    ) %>%
+      dplyr::inner_join(factor_df %>% dplyr::select(dplyr::all_of(c(factor_join_keys, factor_col))),
+                         by = factor_join_keys) %>%
+      dplyr::mutate(observed_ratio = value_after / !!rlang::sym(before_col),
+                    # When the step DIVIDES by factor_col (invert = TRUE,
+                    # e.g. care-seeking) the expected ratio is 1/factor_col.
+                    expected = if (invert) 1 / !!rlang::sym(factor_col) else !!rlang::sym(factor_col),
+                    diff = observed_ratio - expected)
+    max_diff <- max(abs(combined$diff))
+    check(sprintf("%-28s ratio range: [%.6f, %.6f]  |  max |diff|: %.2e",
+                 label, min(combined$observed_ratio), max(combined$observed_ratio), max_diff),
+          max_diff <= 1e-6)
+    invisible(combined)
+  }
+
+  r1 <- dplyr::bind_cols(
+    before %>% dplyr::select(admin_cases),
+    sCh %>% dplyr::select(value_after = admin_cases)
+  ) %>% dplyr::mutate(observed_ratio = value_after / admin_cases)
+  check(sprintf("%-28s ratio range: [%.6f, %.6f]  (expect == %.6f, from reporting_ratio = %.6f)",
+               "sCh (÷ratio)", min(r1$observed_ratio), max(r1$observed_ratio),
+               1 / reporting_ratio, reporting_ratio),
+        max(abs(r1$observed_ratio - 1 / reporting_ratio)) <= 1e-6)
+
+  check_scaling_step(sCh, "admin_cases", cCh, "cCh", pos, "positivity", ".draw", "cCh (x positivity)")
+  check_scaling_step(cCh, "cCh", mild, "cCh_mild", sevp, "prop_mild", c("country", ".draw"), "cCh_mild (x prop_mild)")
+  check_scaling_step(cCh, "cCh", sev, "cCh_severe", sevp, "prop_severe", c("country", ".draw"), "cCh_severe (x prop_severe)")
+  check_scaling_step(mild, "cCh_mild", a_mild, "all_cCh_mild", csm, "care_seeking", ".draw",
+                      "all_cCh_mild (÷care_seek)", invert = TRUE)
+  check_scaling_step(sev, "cCh_severe", a_sev, "all_cCh_severe", css, "care_seeking", ".draw",
+                      "all_cCh_severe (÷care_seek)", invert = TRUE)
+
+  if (nrow(a_mild) != nrow(a_sev) || nrow(a_mild) != nrow(final)) {
+    check("all_cCh: all_cCh_mild/all_cCh_severe/all_cCh row counts disagree", FALSE)
+  } else {
+    r_final <- dplyr::bind_cols(
+      a_mild %>% dplyr::select(all_cCh_mild),
+      a_sev %>% dplyr::select(all_cCh_severe),
+      final %>% dplyr::select(all_cCh)
+    ) %>% dplyr::mutate(diff = all_cCh - (all_cCh_mild + all_cCh_severe))
+    max_sum_diff <- max(abs(r_final$diff))
+    check(sprintf("%-28s max |all_cCh - (mild+severe)|: %.2e", "all_cCh (sum)", max_sum_diff),
+          max_sum_diff <= 1e-6)
+  }
+
+  dplyr::bind_rows(log)
+}
+
+
+# ---- Figures, filtered to one country --------------------------------------
+
+# Human-readable names for the 8 steps of the scaling chain, matching the
+# pipeline flowchart's own terminology (sCh = suspected cholera, cCh =
+# confirmed cholera) rather than the raw variable names. Used only to build
+# plot/facet labels below (funnel x-axis via build_step_summary(), the
+# all-steps map titles via build_all_steps_sf()/short_label(), and the
+# density facets via build_density_plots()) -- the underlying data columns
+# (admin_cases, cCh, etc.) are untouched.
+SCALING_STEP_NAMES <- c(
+  admin_cases    = "reported sCh",
+  sCh            = "med attended sCh",
+  cCh            = "med attended cCh",
+  cCh_mild       = "med attended mild cCh",
+  cCh_severe     = "med attended severe cCh",
+  all_cCh_mild   = "all mild cCh",
+  all_cCh_severe = "all severe cCh",
+  all_cCh        = "all cCh"
+)
+
+# Funnel: mean (+95% draw interval) total cases at each step of the chain,
+# broken out by admin level and time period -- i.e. summed over admin UNITS
+# within a given (admin_level, period)
+# add_period_label() (same helper the maps/scatter use) derives `period`
+# from period_start/period_end when present. Every step df here already
+# carries location_period_id/admin_level/period_start/period_end -- same
+# columns build_all_steps_sf() relies on for the same 8 steps.
+build_step_summary <- function(cty, mai_admin_case_draws, medically_attended_sCh,
+                                medically_attended_cCh, cCh_mild, cCh_severe,
+                                all_cCh_mild, all_cCh_severe, all_cCh) {
+  steps <- list(
+    list(df = dplyr::filter(mai_admin_case_draws, country == cty),   col = "admin_cases",   label = stringr::str_glue("1. {SCALING_STEP_NAMES[['admin_cases']]}")),
+    list(df = dplyr::filter(medically_attended_sCh, country == cty), col = "admin_cases",   label = stringr::str_glue("2. {SCALING_STEP_NAMES[['sCh']]} (÷reporting_ratio)")),
+    list(df = dplyr::filter(medically_attended_cCh, country == cty), col = "cCh",           label = stringr::str_glue("3. {SCALING_STEP_NAMES[['cCh']]} (x positivity)")),
+    list(df = dplyr::filter(cCh_mild, country == cty),               col = "cCh_mild",      label = stringr::str_glue("4a. {SCALING_STEP_NAMES[['cCh_mild']]}")),
+    list(df = dplyr::filter(cCh_severe, country == cty),             col = "cCh_severe",    label = stringr::str_glue("4b. {SCALING_STEP_NAMES[['cCh_severe']]}")),
+    list(df = dplyr::filter(all_cCh_mild, country == cty),           col = "all_cCh_mild",  label = stringr::str_glue("5a. {SCALING_STEP_NAMES[['all_cCh_mild']]} (÷care_seek)")),
+    list(df = dplyr::filter(all_cCh_severe, country == cty),         col = "all_cCh_severe",label = stringr::str_glue("5b. {SCALING_STEP_NAMES[['all_cCh_severe']]} (÷care_seek)")),
+    list(df = dplyr::filter(all_cCh, country == cty),                col = "all_cCh",       label = stringr::str_glue("6. {SCALING_STEP_NAMES[['all_cCh']]} (final)"))
+  )
+  purrr::map_dfr(steps, function(s) {
+    if (nrow(s$df) == 0) {
+      return(tibble::tibble(step = s$label, admin_level = NA_character_, period = NA_character_,
+                            mean = NA_real_, q025 = NA_real_, q975 = NA_real_))
+    }
+    per_draw_total <- s$df %>%
+      add_period_label() %>%
+      dplyr::group_by(admin_level, period, .draw) %>%
+      dplyr::summarise(total = sum(.data[[s$col]], na.rm = TRUE), .groups = "drop")
+    per_draw_total %>%
+      dplyr::group_by(admin_level, period) %>%
+      dplyr::summarise(mean = mean(total), q025 = stats::quantile(total, 0.025),
+                       q975 = stats::quantile(total, 0.975), .groups = "drop") %>%
+      dplyr::mutate(step = s$label, .before = 1)
+  })
+}
+
+# Net effect: one scatterplot's worth of data per admin level, one point per
+# (location_period_id, .draw) combination. Each admin unit's draws
+# are joined straight from admin_cases (raw input) to all_cCh (final
+# output) on (country, location_period_id, admin_level, .draw).
+build_net_effect_by_admin_level <- function(cty, mai_admin_case_draws, all_cCh) {
+  before_cty <- mai_admin_case_draws %>% dplyr::filter(country == cty)
+  after_cty  <- all_cCh %>% dplyr::filter(country == cty)
+
+  period_cols <- intersect(c("period_start", "period_end"), names(before_cty))
+  before_sel <- before_cty %>%
+    dplyr::select(location_period_id, admin_level, .draw, dplyr::all_of(period_cols), admin_cases)
+  after_sel <- after_cty %>%
+    dplyr::select(location_period_id, admin_level, .draw, all_cCh)
+
+  joined <- dplyr::inner_join(before_sel, after_sel,
+                              by = c("location_period_id", "admin_level", ".draw")) %>%
+    add_period_label()
+
+  admin_levels <- sort(unique(joined$admin_level))
+  purrr::map(admin_levels, ~ dplyr::filter(joined, admin_level == .x)) %>%
+    stats::setNames(admin_levels)
+}
+
+# Density plots of admin_cases (raw input) vs. all_cCh (final output), one
+# plot per (admin_level x time period) combination present for this country
+# Named list, keyed "<level> -- <period>", in a stable sorted
+# order so the report renders them consistently.
+build_density_plots <- function(cty, mai_admin_case_draws, all_cCh) {
+  before_cty <- mai_admin_case_draws %>% dplyr::filter(country == cty)
+  after_cty  <- all_cCh %>% dplyr::filter(country == cty)
+
+  has_periods <- "period_start" %in% names(before_cty) && "period_end" %in% names(before_cty)
+  periods <- if (has_periods) {
+    before_cty %>% dplyr::distinct(period_start, period_end) %>%
+      dplyr::mutate(period = stringr::str_glue("{period_start}–{period_end}")) %>%
+      dplyr::arrange(period_start)
+  } else {
+    tibble::tibble(period_start = NA, period_end = NA, period = "all")
+  }
+
+  admin_levels <- sort(unique(before_cty$admin_level))
+
+  plots <- list()
+  for (lvl in admin_levels) {
+    for (i in seq_len(nrow(periods))) {
+      p_start <- periods$period_start[i]; p_end <- periods$period_end[i]; p_label <- periods$period[i]
+
+      b <- before_cty %>% dplyr::filter(admin_level == lvl)
+      a <- after_cty  %>% dplyr::filter(admin_level == lvl)
+      if (has_periods) {
+        b <- b %>% dplyr::filter(period_start == p_start, period_end == p_end)
+        a <- a %>% dplyr::filter(period_start == p_start, period_end == p_end)
+      }
+      if (nrow(b) == 0 || nrow(a) == 0) next
+
+      density_df <- dplyr::bind_rows(
+        b %>% dplyr::transmute(value = admin_cases, stage = stringr::str_glue("1. {SCALING_STEP_NAMES[['admin_cases']]} (raw input)")),
+        a %>% dplyr::transmute(value = all_cCh,     stage = stringr::str_glue("2. {SCALING_STEP_NAMES[['all_cCh']]} (final output)"))
+      )
+
+      key <- stringr::str_glue("{lvl} — {p_label}")
+      plots[[key]] <- ggplot2::ggplot(density_df, ggplot2::aes(x = value, fill = stage)) +
+        ggplot2::geom_density(alpha = 0.6, color = NA) +
+        ggplot2::facet_wrap(~stage, ncol = 1, scales = "free_y") +
+        ggplot2::labs(title = stringr::str_glue("{cty} — {lvl} — {p_label}"),
+                      x = "Mean cases per admin-unit draw", y = "Density") +
+        ggplot2::theme_minimal() + ggplot2::theme(legend.position = "none")
+    }
+  }
+  plots
+}
+
+
+# Scale factors used: scalars + density plots of every draw-level input 
+
+# The two scalar factors in the scaling process (single
+# numbers taken straight from the config): reporting_ratio and the two
+# severity_* proportions. severity_scalars is whatever
+# taxdat::get_config_severity_scalars() returns 
+build_scalar_table <- function(reporting_ratio, severity_scalars) {
+  tibble::tibble(
+    Setting = c("reporting_ratio", "severity_u5", "severity_o5"),
+    Value = c(reporting_ratio, severity_scalars$severity_u5, severity_scalars$severity_o5)
+  )
+}
+
+# Picks the first column in df that isn't one of the known key/index columns
+# -- used where a draws tibble's value column name isn't confirmed (p_u5_draws'
+# own column, specifically), so we pick defensively rather than hardcode a
+# guess that might not match.
+pick_value_col <- function(df, exclude = c("country", ".draw")) {
+  candidates <- setdiff(names(df), exclude)
+  if (length(candidates) == 0) {
+    stop("pick_value_col(): no candidate value column (all of ",
+         paste(names(df), collapse = ", "), " are in the exclude list)")
+  }
+  candidates[[1]]
+}
+
+# One density plot of a single draw-level column. Returns NULL (rather than
+# erroring) on an empty input, so a missing/empty factor just drops out of
+# the report instead of failing the whole render.
+build_one_density_plot <- function(df, value_col, title, fill = "#4472C4") {
+  if (nrow(df) == 0 || !(value_col %in% names(df))) return(NULL)
+  ggplot2::ggplot(df, ggplot2::aes(x = .data[[value_col]])) +
+    ggplot2::geom_density(fill = fill, alpha = 0.6, color = NA) +
+    ggplot2::labs(title = title, x = value_col, y = "Density") +
+    ggplot2::theme_minimal()
+}
+
+# Density plots for the global (non-country) draw-level scaling inputs --
+# test positivity and the two care-seeking proportions. These are broadcast
+# to every country (no "country" column), so one set of plots covers the
+# whole report, not one per country.
+build_global_factor_density_plots <- function(positivity_draws, care_seek_mild, care_seek_severe) {
+  plots <- list(
+    "Test positivity (positivity_draws)" =
+      build_one_density_plot(positivity_draws, "positivity", "Test positivity"),
+    "Care-seeking, mild (care_seek_mild)" =
+      build_one_density_plot(care_seek_mild, "care_seeking", "Care-seeking proportion — mild"),
+    "Care-seeking, severe (care_seek_severe)" =
+      build_one_density_plot(care_seek_severe, "care_seeking", "Care-seeking proportion — severe")
+  )
+  purrr::compact(plots)
+}
+
+# Density plots for the country-specific draw-level scaling inputs --
+# p_u5_draws (country's posterior proportion of cases under 5) and the
+# derived prop_mild/prop_severe (severity_props), filtered to one country.
+build_country_factor_density_plots <- function(cty, p_u5_draws, severity_props) {
+  plots <- list()
+
+  p_u5_cty <- if ("country" %in% names(p_u5_draws)) dplyr::filter(p_u5_draws, country == cty) else p_u5_draws
+  if (nrow(p_u5_cty) > 0) {
+    p_u5_col <- pick_value_col(p_u5_cty, exclude = c("country", ".draw"))
+    plots[["Proportion of cases under 5 (p_u5_draws)"]] <-
+      build_one_density_plot(p_u5_cty, p_u5_col, stringr::str_glue("{cty} — proportion under 5"))
+  }
+
+  sevp_cty <- if ("country" %in% names(severity_props)) dplyr::filter(severity_props, country == cty) else severity_props
+  if (nrow(sevp_cty) > 0) {
+    plots[["Proportion mild, derived (prop_mild)"]] <-
+      build_one_density_plot(sevp_cty, "prop_mild", stringr::str_glue("{cty} — proportion mild (derived)"))
+    plots[["Proportion severe, derived (prop_severe)"]] <-
+      build_one_density_plot(sevp_cty, "prop_severe", stringr::str_glue("{cty} — proportion severe (derived)"))
+  }
+
+  purrr::compact(plots)
+}
+
+
+# ---- Maps: per-admin-level choropleths, filtered to one country -----------
+#
+# one choropleth per admin level, country borders
+# + optional lakes for geographic context, taxdat's own "cases" color scale
+# and map_theme()
+
+GEO_KEY <- c("country", "location_period_id", "admin_level")
+
+
+prep_admin_sf <- function(cty, admin_sf) {
+  admin_sf %>%
+    dplyr::filter(country == cty) %>%
+    dplyr::distinct(dplyr::across(dplyr::all_of(GEO_KEY)), .keep_all = TRUE) %>%
+    dplyr::select(dplyr::all_of(GEO_KEY))
+}
+
+# Mean per admin unit for ONE stage/step, kept long (not pivoted wide) so
+# multiple stages can be dplyr::bind_rows()'d together before the geometry
+# join -- this is the per-admin-unit analogue of build_step_summary()'s
+# per-country totals above.
+summarise_admin_draws <- function(draws_df, cty, col, stage_label) {
+  id_cols <- intersect(c("country", "location_period_id", "admin_level",
+                         "period_start", "period_end"), names(draws_df))
+  draws_df %>%
+    dplyr::filter(country == cty) %>%
+    dplyr::group_by(dplyr::across(dplyr::all_of(id_cols))) %>%
+    dplyr::summarise(mean_cases = mean(.data[[col]], na.rm = TRUE), .groups = "drop") %>%
+    dplyr::mutate(stage = stage_label)
+}
+
+add_period_label <- function(df) {
+  if (all(c("period_start", "period_end") %in% names(df))) {
+    df %>% dplyr::mutate(period = stringr::str_glue("{period_start}–{period_end}"))
+  } else {
+    df %>% dplyr::mutate(period = "all")
+  }
+}
+
+# admin_cases (before) vs. all_cCh (after), joined to this country's
+# geometry -- one row per (admin unit, period, stage).
+build_before_after_sf <- function(cty, admin_sf, mai_admin_case_draws, all_cCh) {
+  admin_sf_cty <- prep_admin_sf(cty, admin_sf)
+  before_after <- dplyr::bind_rows(
+    summarise_admin_draws(mai_admin_case_draws, cty, "admin_cases", "1. Before scaling (admin_cases)"),
+    summarise_admin_draws(all_cCh,              cty, "all_cCh",    "2. After scaling (all_cCh)")
+  ) %>% add_period_label()
+  admin_sf_cty %>% dplyr::inner_join(before_after, by = GEO_KEY)
+}
+
+# All 8 steps of the case burden scaling, joined to this country's geometry -- the same
+# steps/columns as build_step_summary() above, but per admin unit instead
+# of summed to one country-level total per draw, so each step can be mapped.
+build_all_steps_sf <- function(cty, admin_sf, mai_admin_case_draws, medically_attended_sCh,
+                               medically_attended_cCh, cCh_mild, cCh_severe,
+                               all_cCh_mild, all_cCh_severe, all_cCh) {
+  admin_sf_cty <- prep_admin_sf(cty, admin_sf)
+  steps <- list(
+    list(df = mai_admin_case_draws,   col = "admin_cases",   label = stringr::str_glue("1. {SCALING_STEP_NAMES[['admin_cases']]}")),
+    list(df = medically_attended_sCh, col = "admin_cases",   label = stringr::str_glue("2. {SCALING_STEP_NAMES[['sCh']]} (÷reporting_ratio)")),
+    list(df = medically_attended_cCh, col = "cCh",           label = stringr::str_glue("3. {SCALING_STEP_NAMES[['cCh']]} (x positivity)")),
+    list(df = cCh_mild,               col = "cCh_mild",      label = stringr::str_glue("4a. {SCALING_STEP_NAMES[['cCh_mild']]}")),
+    list(df = cCh_severe,             col = "cCh_severe",    label = stringr::str_glue("4b. {SCALING_STEP_NAMES[['cCh_severe']]}")),
+    list(df = all_cCh_mild,           col = "all_cCh_mild",  label = stringr::str_glue("5a. {SCALING_STEP_NAMES[['all_cCh_mild']]} (÷care_seek)")),
+    list(df = all_cCh_severe,         col = "all_cCh_severe",label = stringr::str_glue("5b. {SCALING_STEP_NAMES[['all_cCh_severe']]} (÷care_seek)")),
+    list(df = all_cCh,                col = "all_cCh",       label = stringr::str_glue("6. {SCALING_STEP_NAMES[['all_cCh']]} (final)"))
+  )
+  all_steps <- purrr::map_dfr(steps, ~ summarise_admin_draws(.x$df, cty, .x$col, .x$label)) %>%
+    add_period_label()
+  admin_sf_cty %>% dplyr::inner_join(all_steps, by = GEO_KEY)
+}
+
+# One admin-level, one stage/step choropleth. taxdat::color_scale(type = "cases")
+# keeps the package's censoring rule (limits = c(1, NA), oob = censor),
+# a mean under 1 case renders as "no data" gray
+plot_admin_level_map <- function(sf_obj, all_countries_sf, lakes_sf = NULL, fill_var, title = NULL,
+                                  shared_limits = NULL, legend_text_size = 6,
+                                  legend_key_width = 0.35, legend_key_height = 0.7,
+                                  legend_barwidth = NULL, legend_barheight = NULL,
+                                  title_size = 9, legend_direction = "vertical",
+                                  legend_position = "right") {
+  if (nrow(sf_obj) == 0) return(NULL)
+  bbox <- sf::st_bbox(sf_obj)
+  pad_x <- max(diff(bbox[c("xmin", "xmax")]) * 0.08, 1e-3)
+  pad_y <- max(diff(bbox[c("ymin", "ymax")]) * 0.08, 1e-3)
+
+  fill_scale <- if (is.null(shared_limits)) {
+    taxdat::color_scale(type = "cases", use_case = "ggplot map", use_log = FALSE)
+  } else {
+    ggplot2::scale_fill_gradientn(
+      colours = c("#FFFFFF", "#FED98E", "#FE9929", "#D95F0E", "#993404"),
+      limits = shared_limits, oob = scales::censor, na.value = "lightgray",
+      breaks = scales::breaks_pretty(n = 3), labels = scales::label_comma(),
+      guide = ggplot2::guide_colorbar(frame.colour = "black", ticks.colour = "black",
+                                      barwidth = legend_barwidth, barheight = legend_barheight,
+                                      direction = legend_direction,
+                                      title.position = if (legend_direction == "horizontal") "top" else "right"))
+  }
+
+  p <- sf_obj %>%
+    ggplot2::ggplot(ggplot2::aes(fill = !!rlang::sym(fill_var))) +
+    ggplot2::geom_sf(data = all_countries_sf, inherit.aes = FALSE,
+                     lwd = 0, alpha = 1, fill = taxdat:::color_run_intended()) +
+    {
+      if (!is.null(lakes_sf)) {
+        ggplot2::geom_sf(inherit.aes = FALSE, data = lakes_sf,
+                         fill = taxdat:::color_lake_fill(), color = taxdat:::color_lake_border(),
+                         lwd = .06, alpha = 1)
+      }
+    } +
+    ggplot2::geom_sf(lwd = 0.03, color = "white") +
+    ggplot2::geom_sf(data = all_countries_sf, inherit.aes = FALSE,
+                     lwd = .3, color = "black", alpha = 0) +
+    fill_scale +
+    ggplot2::coord_sf(xlim = c(bbox["xmin"] - pad_x, bbox["xmax"] + pad_x),
+                      ylim = c(bbox["ymin"] - pad_y, bbox["ymax"] + pad_y)) +
+    taxdat::map_theme() +
+    ggplot2::theme(panel.border = ggplot2::element_blank(),
+                   plot.title = ggplot2::element_text(size = title_size, face = "plain", hjust = 0),
+                   legend.position = legend_position,
+                   legend.title = ggplot2::element_blank(),
+                   legend.text = ggplot2::element_text(size = legend_text_size),
+                   legend.key.width = ggplot2::unit(legend_key_width, "lines"),
+                   legend.key.height = ggplot2::unit(legend_key_height, "lines"))
+  if (!is.null(title)) p <- p + ggplot2::labs(title = stringr::str_wrap(title, width = 18))
+  p
+}
+
+short_label <- function(label) {
+  label %>%
+    stringr::str_remove("^[0-9]+[a-z]?\\.\\s*") %>%
+    stringr::str_remove("\\s*\\([^)]*\\)\\s*$")
+}
+
+# Before/after, side by side (patchwork), one combined figure per admin level
+build_before_after_maps <- function(before_after_sf, admin_levels, all_country_sf, lakes_sf) {
+  if (nrow(before_after_sf) == 0) return(list())
+  n_periods <- dplyr::n_distinct(before_after_sf$period)
+  maps <- purrr::map(admin_levels, function(lvl) {
+    lvl_sf <- before_after_sf %>% dplyr::filter(admin_level == lvl)
+    if (nrow(lvl_sf) == 0) return(NULL)
+    build_one <- function(stage_label) {
+      stage_sf <- lvl_sf %>% dplyr::filter(stage == stage_label)
+      p <- plot_admin_level_map(stage_sf, all_country_sf, lakes_sf,
+                                fill_var = "mean_cases", title = short_label(stage_label))
+      if (!is.null(p) && n_periods > 1) p <- p + ggplot2::facet_wrap(~period)
+      p
+    }
+    p_before <- build_one("1. Before scaling (admin_cases)")
+    p_after  <- build_one("2. After scaling (all_cCh)")
+    if (is.null(p_before) || is.null(p_after)) return(NULL)
+    patchwork::wrap_plots(p_before, p_after, ncol = 2) +
+      patchwork::plot_annotation(title = stringr::str_glue("Case burden before vs. after scaling — {lvl}"))
+  })
+  purrr::compact(stats::setNames(maps, admin_levels))
+}
+
+# All 8 steps side by side (columns), one row of maps per time period
+build_all_steps_maps <- function(all_steps_sf, admin_levels, all_country_sf, lakes_sf) {
+  if (nrow(all_steps_sf) == 0) return(list())
+  maps <- purrr::map(admin_levels, function(lvl) {
+    lvl_sf <- all_steps_sf %>% dplyr::filter(admin_level == lvl)
+    if (nrow(lvl_sf) == 0) return(NULL)
+    steps <- unique(lvl_sf$stage)
+    periods <- sort(unique(lvl_sf$period))
+
+    shared_limits <- c(max(1, min(lvl_sf$mean_cases, na.rm = TRUE)),
+                        max(lvl_sf$mean_cases, na.rm = TRUE))
+
+    row_plots <- purrr::map(periods, function(per) {
+      step_plots <- purrr::map(steps, function(st) {
+        cell_sf <- lvl_sf %>% dplyr::filter(stage == st, period == per)
+        plot_admin_level_map(cell_sf, all_country_sf, lakes_sf, fill_var = "mean_cases",
+                             title = short_label(st), shared_limits = shared_limits,
+                             legend_text_size = 20, legend_key_width = 2, legend_key_height = 4,
+                             legend_barwidth = grid::unit(12, "cm"), legend_barheight = grid::unit(1.5, "cm"),
+                             title_size = 22, legend_direction = "horizontal", legend_position = "bottom")
+      })
+      step_plots <- purrr::compact(step_plots)
+      if (length(step_plots) == 0) return(NULL)
+      patchwork::wrap_plots(step_plots, ncol = length(step_plots)) +
+        patchwork::plot_layout(guides = "collect") +
+        patchwork::plot_annotation(title = stringr::str_glue("Period: {per}"),
+                                   theme = ggplot2::theme(plot.title = ggplot2::element_text(size = 26, face = "bold")))
+    })
+    row_plots <- purrr::compact(row_plots)
+    if (length(row_plots) == 0) return(NULL)
+
+    patchwork::wrap_plots(row_plots, ncol = 1) +
+      patchwork::plot_layout(guides = "collect") +
+      patchwork::plot_annotation(title = stringr::str_glue("All scaling steps, by time period — {lvl}"),
+                                 theme = ggplot2::theme(plot.title = ggplot2::element_text(size = 30, face = "bold")))
+  })
+  purrr::compact(stats::setNames(maps, admin_levels))
+}
+```
+
+```{r build, include=FALSE}
+# Everything below is built from the raw params using the functions defined
+# in the helpers chunk above.
+
+config_catalog <- load_all_configs(params$config_dir)
+config_tables  <- get_country_config_tables(config_catalog, params$country)
+
+check_results <- run_scaling_checks(
+  params$country, params$reporting_ratio,
+  params$mai_admin_case_draws, params$medically_attended_sCh, params$medically_attended_cCh,
+  params$cCh_mild, params$cCh_severe, params$all_cCh_mild, params$all_cCh_severe, params$all_cCh,
+  params$positivity_draws, params$severity_props, params$care_seek_mild, params$care_seek_severe
+)
+
+step_summary <- build_step_summary(
+  params$country, params$mai_admin_case_draws, params$medically_attended_sCh,
+  params$medically_attended_cCh, params$cCh_mild, params$cCh_severe,
+  params$all_cCh_mild, params$all_cCh_severe, params$all_cCh
+)
+
+net_effect_plots_data <- build_net_effect_by_admin_level(params$country, params$mai_admin_case_draws, params$all_cCh)
+
+density_plots <- build_density_plots(params$country, params$mai_admin_case_draws, params$all_cCh)
+
+scalar_table <- build_scalar_table(params$reporting_ratio, params$severity_scalars)
+
+global_factor_plots <- build_global_factor_density_plots(
+  params$positivity_draws, params$care_seek_mild, params$care_seek_severe
+)
+
+country_factor_plots <- build_country_factor_density_plots(
+  params$country, params$p_u5_draws, params$severity_props
+)
+
+admin_levels_present <- sort(unique(
+  dplyr::filter(params$mai_admin_case_draws, country == params$country)$admin_level
+))
+
+before_after_sf <- build_before_after_sf(
+  params$country, params$all_admin_sf, params$mai_admin_case_draws, params$all_cCh
+)
+before_after_maps <- build_before_after_maps(
+  before_after_sf, admin_levels_present, params$all_country_sf, params$lakes_sf
+)
+
+all_steps_sf <- build_all_steps_sf(
+  params$country, params$all_admin_sf, params$mai_admin_case_draws, params$medically_attended_sCh,
+  params$medically_attended_cCh, params$cCh_mild, params$cCh_severe,
+  params$all_cCh_mild, params$all_cCh_severe, params$all_cCh
+)
+all_steps_maps <- build_all_steps_maps(
+  all_steps_sf, admin_levels_present, params$all_country_sf, params$lakes_sf
+)
+```
+
+# `r params$country`
+
+Generated `r params$generated_at`.
+
+## Config settings
+
+Every setting from every config file matched to this country, so the exact
+run that produced the figures below is fully reproducible from this page
+alone.
+
+```{r config-settings, results='asis'}
+if (length(config_tables) == 0) {
+  cat("_No config file could be matched to this country -- check that config_dir",
+      "contains a .yml/.yaml with a matching countries_name or countries code._\n")
+} else {
+  purrr::iwalk(config_tables, function(tbl, config_label) {
+    cat("\n### ", config_label, "\n\n")
+    print(knitr::kable(tbl, col.names = c("Setting", "Value")))
+    cat("\n")
+  })
+}
+```
+
+## Scaling pipeline funnel
+
+Mean total cases (summed over admin units within each admin level/period) at each step of the scaling process, with 95% interval across posterior draws. One panel per admin level x time
+period.
+
+```{r funnel, fig.width=11, fig.height=9}
+ggplot2::ggplot(step_summary, ggplot2::aes(x = factor(step, levels = unique(step)), y = mean)) +
+  ggplot2::geom_col(fill = "#4472C4") +
+  ggplot2::geom_errorbar(ggplot2::aes(ymin = q025, ymax = q975), width = 0.2, color = "grey30") +
+  ggplot2::scale_y_continuous(labels = scales::comma) +
+  ggplot2::facet_grid(admin_level ~ period, scales = "free_y") +
+  ggplot2::labs(title = paste("Case burden at each scaling step --", params$country),
+                subtitle = "Bars: mean total across draws. Whiskers: 95% draw interval.",
+                x = NULL, y = "Total cases") +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 30, hjust = 1))
+```
+
+## Net effect: final vs. raw, by admin level
+
+One scatterplot per admin level this country has, faceted into one panel
+per time-period config when this country has more than one. Each point is
+one (admin unit, draw) combination -- i.e. NOT summed to a country-level
+total per draw -- so this shows the net effect of the full chain at the
+resolution the model actually operates at. Descriptive only -- points on
+either side of the dashed y = x line are expected, since the chain mixes
+inflating (÷) and deflating (×) steps that net out in either direction.
+
+```{r scatter, results='asis', fig.height=6}
+if (length(net_effect_plots_data) == 0) {
+  cat("_No net-effect scatterplots could be built (no overlapping admin_level",
+      "between the before and after draws)._\n")
+} else {
+  purrr::iwalk(net_effect_plots_data, function(df, lvl) {
+    cat("\n### ", lvl, "\n\n")
+    n_periods <- dplyr::n_distinct(df$period)
+    p <- ggplot2::ggplot(df, ggplot2::aes(x = admin_cases, y = all_cCh)) +
+      ggplot2::geom_point(alpha = 0.3, size = 0.8, color = "#4472C4") +
+      ggplot2::geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "#C0504D") +
+      # Linear, not log -- at admin-unit resolution (esp. ADM2), a lot of
+      # admin_cases/all_cCh draws are exactly 0, and scale_x_log10()/
+      # scale_y_log10() can't plot 0 (log(0) = -Inf): they'd silently drop
+      # those rows (with just a "removed non-finite values" warning), which
+      # at this resolution could be a large share of the points.
+      ggplot2::scale_x_continuous(labels = scales::comma) +
+      ggplot2::scale_y_continuous(labels = scales::comma) +
+      ggplot2::labs(title = stringr::str_glue("Net effect of the full chain — {params$country} — {lvl}"),
+                    subtitle = "One point per (admin unit, draw)",
+                    x = "admin_cases (raw)", y = "all_cCh (final)") +
+      ggplot2::theme_minimal()
+    if (n_periods > 1) p <- p + ggplot2::facet_wrap(~period)
+    print(p)
+    cat("\n")
+  })
+}
+```
+
+## Density comparison, by admin level and time period
+
+Raw (unlogged) `admin_cases` vs. `all_cCh` values across all admin units and
+draws, shown separately for every admin level and time-period config this
+country has -- not pooled, so each plot reflects the real spread at that
+specific level and period rather than an average across them.
+
+```{r density, results='asis', fig.height=6}
+if (length(density_plots) == 0) {
+  cat("_No density plots could be built (no overlapping admin_level / period",
+      "combinations between the before and after draws)._\n")
+} else {
+  purrr::iwalk(density_plots, function(p, key) {
+    cat("\n### ", key, "\n\n")
+    print(p)
+    cat("\n")
+  })
+}
+```
+
+## Maps: before vs. after scaling, by admin level
+
+`admin_cases` (raw input) vs. `all_cCh` (final output), at every
+admin level this country has. Each stage has its own color scale. Faceted
+by time period when this country has more than one period config. Admin
+units with a mean under 1 case render as the package's own "no data" gray
+(same censoring rule used everywhere else in this pipeline's maps), not
+necessarily an actual gap in the data.
+
+```{r before-after-maps, results='asis', fig.width=12, fig.height=7}
+if (length(before_after_maps) == 0) {
+  cat("_No before/after maps could be built (no geometry matched this country's admin units)._\n")
+} else {
+  purrr::iwalk(before_after_maps, function(p, lvl) {
+    cat("\n### ", lvl, "\n\n")
+    print(p)
+    cat("\n")
+  })
+}
+```
+
+## Maps: all scaling steps, by admin level and time period
+
+All 8 steps of the case burden scaling process side by side, one row of maps per time period, all 8 steps
+here share one color scale per admin level (ranged over every scaling step and
+period at that level).
+
+```{r all-steps-maps, results='asis', fig.width=36, fig.height=16}
+if (length(all_steps_maps) == 0) {
+  cat("_No all-steps maps could be built (no geometry matched this country's admin units)._\n")
+} else {
+  purrr::iwalk(all_steps_maps, function(p, lvl) {
+    cat("\n### ", lvl, "\n\n")
+    print(p)
+    cat("\n")
+  })
+}
+```
+
+## Scale factors used
+
+Every factor applied anywhere in the chain above, shown on its own terms:
+a plain number for a scalar straight from the config, a density plot for
+anything that is actually a posterior (a spread of draws, not one value).
+
+### Global scalars
+
+`reporting_ratio` and the two `severity_*` proportions are single numbers
+taken directly from the matched config(s) above -- not draws, so they are
+reported as-is rather than as a density.
+
+```{r scalar-table}
+knitr::kable(scalar_table, col.names = c("Setting", "Value"))
+```
+
+### Global draw-level factors
+
+Test positivity and the two care-seeking proportions are posteriors from
+the systematic review, shared across every country (no country-specific
+version), so one set of plots covers the whole report.
+
+```{r global-factor-density, results='asis', fig.height=4}
+if (length(global_factor_plots) == 0) {
+  cat("_No global factor density plots could be built._\n")
+} else {
+  purrr::iwalk(global_factor_plots, function(p, key) {
+    cat("\n#### ", key, "\n\n")
+    print(p)
+    cat("\n")
+  })
+}
+```
+
+### Country-specific draw-level factors
+
+The posterior proportion of cases under 5 (`p_u5_draws`, from the
+age-distribution model) for this country, and the mild/severe split
+(`prop_mild`/`prop_severe`) derived from it together with the global
+severity scalars above.
+
+```{r country-factor-density, results='asis', fig.height=4}
+if (length(country_factor_plots) == 0) {
+  cat("_No country-specific factor density plots could be built for this country._\n")
+} else {
+  purrr::iwalk(country_factor_plots, function(p, key) {
+    cat("\n#### ", key, "\n\n")
+    print(p)
+    cat("\n")
+  })
+}
+```
+
+## Validation checks
+
+Per-step checks confirming the observed before/after ratio matches the
+scaling factor that step was supposed to apply, plus the mild+severe ==
+total identities. Restricted to this country's rows.
+
+```{r checks}
+knitr::kable(check_results, col.names = c("Check", "Pass"))
+```

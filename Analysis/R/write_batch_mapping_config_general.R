@@ -54,6 +54,15 @@ params_df <- data.frame(
     taxonomy = '',
     summary_admin_levels = '[0,1,2]',
     adjust_pop_UN = TRUE,
+    severity_u5 = 0.122, # scenario value:proportion of under-5 cases that are moderate-to-severe 
+    severity_o5 = 0.183, # scenario value: proportion of 5-and-over cases that are moderate-to-severe
+    reporting_ratio = 0.81, # scenario value: ratio of reported sCh to all medically-attended sCh (single global scalar)
+    age_model_iter_warmup = 1000,
+    age_model_iter_sampling = 1000,
+    age_model_chains = 4,
+    age_model_parallel_chains = 4,
+    age_model_adapt_delta = 0.95,
+    age_model_seed = 123,
     obs_model = 3,
     inv_od_sd_adm0 = 0.01,
     inv_od_sd_nopool = 1,
@@ -82,8 +91,6 @@ params_df <- data.frame(
     drop_multiyear_adm0 = 'yes',
     drop_censored_adm0 = 'yes',
     drop_censored_adm0_thresh = 2,
-    drop_full_nat_obs_xOC = 'no',
-    drop_full_nat_obs_xOC_thresh = 3,
     drop_low_pop_lps = FALSE,
     drop_low_pop_lps_thresh = '',
     censoring = 'yes',

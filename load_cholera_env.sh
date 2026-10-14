@@ -12,6 +12,7 @@ module load HarfBuzz/4.2.1
 module load FriBidi/1.0.12
 module load CMake/3.24.3
 module load libwebp/1.2.4
+module load Pandoc/2.13
 
 export R_LIBS_USER="$HOME/R_libs/4.2.1-foss-2022a"
 mkdir -p "$R_LIBS_USER"

@@ -704,6 +704,8 @@ get_all_config_options <- function() {
     drop_low_pop_lps = as.function(check_drop_low_pop_lps),
     drop_low_pop_lps_thresh = as.function(check_drop_low_pop_lps_thresh),
     stan = c("ncores", "model", "genquant", "iter_warmup", "iter_sampling", "recompile"),
+    scaling = c("severity_u5", "severity_o5", "reporting_ratio", "age_model_iter_warmup", "age_model_iter_sampling",
+               "age_model_chains", "age_model_parallel_chains", "age_model_adapt_delta", "age_model_seed"),
     file_names = list(
       output_directory = "output_directory",
       data = "observations_filename",
@@ -750,6 +752,19 @@ check_update_config <- function(cholera_directory, config_fname, covariate_list_
     updated_stan_parameters[[x]]
   })
   names(config_file$stan) <- iteration_params
+  
+  ### The scaling check (same pattern as the stan check above)
+  scaling_params <- check_list[["scaling"]]
+  updated_scaling_parameters <- get_scaling_parameters(append(config_file, config_file$scaling))
+  scaling_unrelated <- updated_scaling_parameters[!names(updated_scaling_parameters) %in%
+                                                    scaling_params]
+  config_file <- append(config_file[!names(config_file) %in% names(scaling_unrelated)],
+                        scaling_unrelated)
+
+  config_file$scaling <- lapply(scaling_params, function(x) {
+    updated_scaling_parameters[[x]]
+  })
+  names(config_file$scaling) <- scaling_params
   
   ### The general check
   for (nm in names(check_list)) {
