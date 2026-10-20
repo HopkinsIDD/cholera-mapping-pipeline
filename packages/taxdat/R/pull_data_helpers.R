@@ -1013,27 +1013,55 @@ read_taxonomy_locationperiods_sql <- function(username, password, location_perio
   return(location_periods)
 }
 
+#' @title Raise an argument error
+#' @description Error of class "taxdat_arg_error", so that callers and tests
+#'   can tell a bad call apart from a connection or query failure. Same class
+#'   as in read_taxonomy_data_sql (which keeps a local copy, self-contained).
+#' @noRd
+.taxdat_arg_error <- function(...) {
+  stop(errorCondition(paste0(...), class = "taxdat_arg_error", call = NULL))
+}
+
+#' @title Positive whole-number ids, as numbers or digit-only strings
+#' @noRd
+.is_valid_ids <- function(x) {
+  if (is.numeric(x)) {
+    length(x) > 0 && all(is.finite(x)) && all(x > 0) && all(x == round(x))
+  } else if (is.character(x)) {
+    length(x) > 0 && !anyNA(x) && all(grepl("^[1-9][0-9]*$", x))
+  } else {
+    FALSE
+  }
+}
+
+#' @title Single non-missing string
+#' @noRd
+.is_single_string <- function(x) is.character(x) && length(x) == 1 && !is.na(x)
+
 #' @title Validate a date argument (strict ISO)
-#' @description Accepts a single Date or a "YYYY-MM-DD" string and returns it
-#'   as an ISO string. Rejects ambiguous inputs such as "04/03/2017", which a
-#'   server with DateStyle = MDY would silently read as 3 April 2017.
-#' @param x A Date, a character string, or NULL.
+#' @description Accepts a single Date, POSIXt or "YYYY-MM-DD" string and
+#'   returns it as an ISO string. Rejects ambiguous inputs such as
+#'   "04/03/2017", which a server with DateStyle = MDY would silently read as
+#'   3 April 2017. Errors have class "taxdat_arg_error".
+#' @param x A Date, a POSIXt, a character string, or NULL.
 #' @param arg_name Argument name, used in error messages.
 #' @return NULL, or a "YYYY-MM-DD" string.
 #' @noRd
 .validate_iso_date <- function(x, arg_name) {
   if (is.null(x)) return(NULL)
-  if (length(x) != 1) stop(arg_name, " must be a single date.")
-  if (inherits(x, "Date")) {
-    if (is.na(x)) stop(arg_name, " is NA.")
+  if (length(x) != 1 || is.na(x)) {
+    .taxdat_arg_error(arg_name, " must be a single, non-missing date.")
+  }
+  if (inherits(x, c("Date", "POSIXt"))) {
+    # format() keeps the object's own time zone (as.Date() would use UTC)
     return(format(x, "%Y-%m-%d"))
   }
   if (is.character(x) && grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", x)) {
     d <- as.Date(x, format = "%Y-%m-%d")  # explicit format: 2017-02-30 -> NA
-    if (is.na(d)) stop(arg_name, " is not a valid calendar date: ", x)
+    if (is.na(d)) .taxdat_arg_error(arg_name, " is not a valid calendar date: ", x)
     return(format(d, "%Y-%m-%d"))
   }
-  stop(arg_name, " must be a Date or a 'YYYY-MM-DD' string.")
+  .taxdat_arg_error(arg_name, " must be a Date, a POSIXt or a 'YYYY-MM-DD' string.")
 }
 
 # ---- Internal helpers shared by the stratified pulls (age, sex) -------------
@@ -1083,6 +1111,54 @@ read_taxonomy_locationperiods_sql <- function(username, password, location_perio
   "location_id", "location_period_id"
 )
 
+#' @title Attach location-period shapes to a pulled data frame
+#' @description Fetches the shape of each distinct location_period_id once and
+#'   attaches it as an sf geometry column \code{geojson}. Observations without
+#'   location_period_id, or whose shape is NULL, get an empty geometry. Same
+#'   logic as in read_taxonomy_data_sql, which keeps its own copy on purpose
+#'   (self-contained function).
+#' @param conn open DBI connection to the taxonomy database
+#' @param df data.frame with a character column location_period_id
+#' @return sf object, geometry column "geojson", CRS EPSG:4326
+#' @noRd
+.attach_location_period_shapes <- function(conn, df) {
+  lp_ids <- unique(df$location_period_id[!is.na(df$location_period_id)])
+  shapes <- NULL
+  if (length(lp_ids) > 0) {
+    # shapes.location_period_id has a unique index: at most one shape per period.
+    # Bound as numbers so that the index on the bigint column is used.
+    shape_query <- glue::glue_sql(
+      paste("SELECT sh.location_period_id::text AS location_period_id,",
+            "sh.shape AS geojson",
+            "FROM shapes sh",
+            "WHERE sh.location_period_id IN ({lp_ids*})"),
+      .con = conn, lp_ids = as.numeric(lp_ids))
+    shapes <- suppressWarnings(sf::st_read(conn, query = shape_query))
+    # st_read returns a plain data.frame when no row has a geometry
+    if (!inherits(shapes, "sf") || nrow(shapes) == 0) shapes <- NULL
+  }
+
+  # Geometry vector: fetched shapes + one empty geometry (last position) used
+  # for observations without location_period_id or without a shape.
+  empty_geom <- sf::st_sfc(sf::st_geometrycollection())
+  if (is.null(shapes)) {
+    geoms  <- empty_geom
+    lp_key <- character(0)
+  } else {
+    shape_geoms <- sf::st_geometry(shapes)
+    sf::st_crs(empty_geom) <- sf::st_crs(shape_geoms)  # c() requires the same CRS
+    geoms  <- c(shape_geoms, empty_geom)
+    lp_key <- shapes$location_period_id
+  }
+  idx <- match(df$location_period_id, lp_key)
+  idx[is.na(idx)] <- length(geoms)
+  out <- sf::st_sf(df, geojson = geoms[idx])
+
+  # CRS: not declared at column level in the database; geometries are WGS84
+  if (is.na(sf::st_crs(out))) sf::st_crs(out) <- 4326
+  out
+}
+
 #' @title Shared engine for the stratified pulls (age, sex)
 #' @description Runs the common query and keeps the rows matching
 #'   \code{row_filter}, an SQL condition on the subquery alias \code{s}.
@@ -1091,34 +1167,87 @@ read_taxonomy_locationperiods_sql <- function(username, password, location_perio
                                       time_left, time_right, uids,
                                       discard_incomplete_observation_collections,
                                       unified_dataset_behaviour, host,
-                                      row_filter, label) {
+                                      row_filter, label,
+                                      include_geojson = FALSE) {
 
   # ---- Argument checks (before any connection) ------------------------------
+  # Same contract as read_taxonomy_data_sql: every argument error has class
+  # "taxdat_arg_error" and is raised before any connection attempt.
   # A missing argument in the calling wrapper is still seen as missing here.
+
+  # Credentials: single non-missing strings, username non-empty
   if (missing(username) || missing(password) ||
-      !nzchar(username) || !nzchar(password)) {
-    stop("Please provide username and password to connect to the taxonomy database.")
+      !.is_single_string(username) || !.is_single_string(password) ||
+      !nzchar(username)) {
+    .taxdat_arg_error("Please provide username and password to connect to the taxonomy database.")
   }
+  # Empty password is only meaningful for a local socket connection
+  use_local_socket <- identical(host, "localhost") && !nzchar(password)
+  if (!nzchar(password) && !use_local_socket) {
+    .taxdat_arg_error("Empty password is only allowed with host = 'localhost'.")
+  }
+
+  # Geography: mandatory numeric location ids
   if (is.null(locations)) {
-    stop("Please use a containing location as the location. Locations can't be NULL.")
+    .taxdat_arg_error("Please use a containing location as the location. Locations can't be NULL.")
   }
   if (!is.numeric(locations)) {
-    stop("SQL access by location name is not yet implemented")
+    .taxdat_arg_error("SQL access by location name is not yet implemented")
   }
+  if (!.is_valid_ids(locations)) {
+    .taxdat_arg_error("locations must be positive whole numbers (location ids), without NA.")
+  }
+
+  # Observation collections: optional ids (numbers or digit strings)
+  if (!is.null(uids) && !.is_valid_ids(uids)) {
+    .taxdat_arg_error("uids must be positive whole ids (numbers or digit strings), without NA.")
+  }
+
+  # Flags
+  if (!is.logical(discard_incomplete_observation_collections) ||
+      length(discard_incomplete_observation_collections) != 1 ||
+      is.na(discard_incomplete_observation_collections)) {
+    .taxdat_arg_error("discard_incomplete_observation_collections must be TRUE or FALSE.")
+  }
+  if (!is.logical(include_geojson) || length(include_geojson) != 1 ||
+      is.na(include_geojson)) {
+    .taxdat_arg_error("include_geojson must be TRUE or FALSE.")
+  }
+  if (!(is.character(unified_dataset_behaviour) &&
+        length(unified_dataset_behaviour) == 1 &&
+        unified_dataset_behaviour %in% c("drop", "keep"))) {
+    # Documented behaviour (any other value disables the filter) is kept, but
+    # made visible: a typo such as "Drop" would otherwise silently include
+    # unified datasets.
+    warning("unified_dataset_behaviour is neither 'drop' nor 'keep': ",
+            "the unified-dataset filter is disabled.")
+  }
+
+  # Dates: strict format, then bound order
   time_left  <- .validate_iso_date(time_left,  "time_left")
   time_right <- .validate_iso_date(time_right, "time_right")
-  if (is.null(time_left) && is.null(time_right)) warning("No time filters.")
-  if (is.null(uids)) warning("No uid filters.")
+  if (!is.null(time_left) && !is.null(time_right) &&
+      as.Date(time_left) > as.Date(time_right)) {
+    .taxdat_arg_error("time_left (", time_left, ") is after time_right (", time_right, ").")
+  }
+
+  # Missing filters: one warning per missing bound, as in read_taxonomy_data_sql
+  if (is.null(time_left))  warning("No time filters: time_left is NULL.")
+  if (is.null(time_right)) warning("No time filters: time_right is NULL.")
+  if (is.null(uids))       warning("No uid filters.")
 
   # ---- Connection, always closed (also on error) ----------------------------
-  conn <- DBI::dbConnect(
+  conn_args <- list(
     RPostgres::Postgres(),
-    host     = host,
-    dbname   = "CholeraTaxonomy_production",
-    user     = username,
-    password = password,
-    port     = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
+    dbname = "CholeraTaxonomy_production",
+    user   = username,
+    port   = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
   )
+  if (!use_local_socket) {
+    # Remote connection; without host/password RPostgres uses the local socket
+    conn_args <- c(conn_args, list(host = host, password = password))
+  }
+  conn <- do.call(DBI::dbConnect, conn_args)
   on.exit(DBI::dbDisconnect(conn), add = TRUE)
 
   # ---- Filters (user values are bound by glue_sql, never pasted) ------------
@@ -1191,6 +1320,10 @@ read_taxonomy_locationperiods_sql <- function(username, password, location_perio
   if (nrow(observations) == 0) {
     stop("No observations found for the given filters.")
   }
+  # Optional geometry: fetched before on.exit() closes the connection
+  if (include_geojson) {
+    observations <- .attach_location_period_shapes(conn, observations)
+  }
   observations
 }
 
@@ -1226,7 +1359,14 @@ read_taxonomy_locationperiods_sql <- function(username, password, location_perio
 #'   \item Geography: EXISTS on observations.location_id (no duplication with
 #'     nested ancestors); observations without any location are excluded.
 #'   \item Dates: only observations fully inside [time_left, time_right];
-#'     bounds must be Date objects or strict "YYYY-MM-DD" strings.
+#'     bounds must be Date, POSIXt or strict "YYYY-MM-DD" strings, with
+#'     time_left <= time_right.
+#'   \item Arguments are validated before any connection, with the same
+#'     contract as \code{read_taxonomy_data_sql}: argument errors have class
+#'     \code{taxdat_arg_error}; an empty password is only allowed with
+#'     host = "localhost" (local socket); a warning is raised for each
+#'     missing time bound, for missing uids, and for an unrecognised
+#'     unified_dataset_behaviour.
 #'   \item Potential duplicates: \code{n_identical_obs} counts the
 #'     observations identical on every returned column except id (1 =
 #'     unique); \code{potential_duplicate} is TRUE when such copies exist and
@@ -1234,22 +1374,31 @@ read_taxonomy_locationperiods_sql <- function(username, password, location_perio
 #'     twice). Identical line-list rows (counts <= 1) are expected and not
 #'     flagged. Nothing is removed: flagged observations need manual
 #'     inspection.
-#'   \item No geometry is returned: pull shapes separately, deduplicated by
-#'     location_period_id.
+#'   \item Geometry: with \code{include_geojson = TRUE}, an sf object is
+#'     returned, built as in \code{read_taxonomy_data_sql}: one shape fetch
+#'     per distinct location_period_id, geometry column \code{geojson},
+#'     EPSG:4326, empty geometry for observations without location period or
+#'     without shape. Default FALSE: plain data.frame, no geometry.
 #' }
 #'
 #' @param username taxonomy username
 #' @param password taxonomy password
 #' @param locations numeric vector of location ids (ancestor ids). Mandatory.
-#' @param time_left left bound for observation times (Date or "YYYY-MM-DD")
-#' @param time_right right bound for observation times (Date or "YYYY-MM-DD")
+#' @param time_left left bound for observation times (Date, POSIXt or
+#'   "YYYY-MM-DD")
+#' @param time_right right bound for observation times (Date, POSIXt or
+#'   "YYYY-MM-DD")
 #' @param uids list of unique observation collection ids to pull
 #' @param discard_incomplete_observation_collections whether to exclude OCs
 #'   with status initialized, validated or inprogress
 #' @param unified_dataset_behaviour "drop" (default), "keep", or any other
 #'   value to disable the filter
 #' @param host database host
-#' @return A data.frame, one row per observation; identifiers as text.
+#' @param include_geojson if TRUE, attach the location-period geometry and
+#'   return an sf object (default FALSE)
+#' @return A data.frame, one row per observation; identifiers as text. With
+#'   \code{include_geojson = TRUE}, an sf object with geometry column
+#'   \code{geojson}.
 #' @seealso \code{\link{read_taxonomy_data_sql}}
 #' @name taxonomy_strata_pulls
 NULL
@@ -1261,12 +1410,14 @@ read_taxonomy_age_sql <- function(username, password, locations = NULL,
                                   uids = NULL,
                                   discard_incomplete_observation_collections = TRUE,
                                   unified_dataset_behaviour = "drop",
-                                  host = "db.cholera-taxonomy.middle-distance.com") {
+                                  host = "db.cholera-taxonomy.middle-distance.com",
+                                  include_geojson = FALSE) {
   .read_taxonomy_strata_sql(
     username, password, locations, time_left, time_right, uids,
     discard_incomplete_observation_collections, unified_dataset_behaviour, host,
     row_filter = "s.age_l IS NOT NULL OR s.age_r IS NOT NULL OR s.age IS NOT NULL",
-    label      = "age"
+    label      = "age",
+    include_geojson = include_geojson
   )
 }
 
@@ -1277,12 +1428,14 @@ read_taxonomy_sex_sql <- function(username, password, locations = NULL,
                                   uids = NULL,
                                   discard_incomplete_observation_collections = TRUE,
                                   unified_dataset_behaviour = "drop",
-                                  host = "db.cholera-taxonomy.middle-distance.com") {
+                                  host = "db.cholera-taxonomy.middle-distance.com",
+                                  include_geojson = FALSE) {
   .read_taxonomy_strata_sql(
     username, password, locations, time_left, time_right, uids,
     discard_incomplete_observation_collections, unified_dataset_behaviour, host,
     row_filter = "s.sex_raw IS NOT NULL",
-    label      = "sex"
+    label      = "sex",
+    include_geojson = include_geojson
   )
 }
 
@@ -1331,7 +1484,9 @@ read_taxonomy_sex_sql <- function(username, password, locations = NULL,
 #'   \code{n_duplicate_sources}, \code{n_duplicates_dropped} and
 #'   \code{source_ids}. Default FALSE: group key, kept variables and summed
 #'   counts only.
-#' @return A data.frame, one row per group.
+#' @return A data.frame, one row per group; an sf object (geometry
+#'   column \code{geojson}, one shape per location period) when \code{df} is
+#'   an sf object (pulls with \code{include_geojson = TRUE}).
 #' @seealso \code{\link{read_taxonomy_age_sql}}, \code{\link{read_taxonomy_sex_sql}},
 #'   \code{\link{read_taxonomy_age_sex_sql}}
 #' @export
@@ -1354,6 +1509,18 @@ marginalize_strata <- function(df, over = c("sex", "age", "none"),
          "). Use read_taxonomy_age_sql(), read_taxonomy_sex_sql() or read_taxonomy_age_sex_sql().")
   }
   if (anyDuplicated(df$id) > 0) stop("df contains duplicated ids.")
+
+  # ---- Geometry (sf input): set aside, re-attached per group at the end ------
+  # location_period_id is part of every grouping key, so all observations of a
+  # group share the same shape: the geometry is restored without loss.
+  geom_map <- NULL
+  if (inherits(df, "sf")) {
+    lp    <- df$location_period_id
+    geoms <- sf::st_geometry(df)
+    first <- !is.na(lp) & !duplicated(lp)          # one shape per location period
+    geom_map <- list(key = lp[first], geoms = geoms[first], crs = sf::st_crs(df))
+    df <- sf::st_drop_geometry(df)                 # summarise() must not union shapes
+  }
 
   count_cols <- c("suspected_cases", "confirmed_cases", "deaths")
   # Same key for the three modes: collection, governance, period, location, flags
@@ -1460,6 +1627,15 @@ marginalize_strata <- function(df, over = c("sex", "age", "none"),
   if (!isTRUE(metadata)) {
     out <- out[, c(common_key, kept, count_cols)]
   }
+
+  # ---- Re-attach geometry (sf input only) -------------------------------------
+  if (!is.null(geom_map)) {
+    empty_geom <- sf::st_sfc(sf::st_geometrycollection(), crs = geom_map$crs)
+    geoms <- c(geom_map$geoms, empty_geom)        # empty geometry in last position
+    idx <- match(out$location_period_id, geom_map$key)
+    idx[is.na(idx)] <- length(geoms)
+    out <- sf::st_sf(out, geojson = geoms[idx])
+  }
   out
 }
 
@@ -1470,13 +1646,15 @@ read_taxonomy_age_sex_sql <- function(username, password, locations = NULL,
                                       uids = NULL,
                                       discard_incomplete_observation_collections = TRUE,
                                       unified_dataset_behaviour = "drop",
-                                      host = "db.cholera-taxonomy.middle-distance.com") {
+                                      host = "db.cholera-taxonomy.middle-distance.com",
+                                      include_geojson = FALSE) {
   .read_taxonomy_strata_sql(
     username, password, locations, time_left, time_right, uids,
     discard_incomplete_observation_collections, unified_dataset_behaviour, host,
     # age AND sex present (intersection of the age and sex pulls)
     row_filter = paste("(s.age_l IS NOT NULL OR s.age_r IS NOT NULL OR s.age IS NOT NULL)",
                        "AND s.sex_raw IS NOT NULL"),
-    label      = "age and sex"
+    label      = "age and sex",
+    include_geojson = include_geojson
   )
 }
