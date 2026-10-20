@@ -526,6 +526,9 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
 #'   \item Local connection (host = "localhost" with empty password) fixed: the
 #'     previous version referenced an undefined variable \code{website}.
 #'   \item Rows ordered by observation_collection_id, then id (deterministic).
+#'   \item Arguments validated before connecting (ids, dates, bound order,
+#'     flags); argument errors have class \code{taxdat_arg_error}. An
+#'     unrecognised unified_dataset_behaviour now raises a warning.
 #' }
 #' Unchanged: filters on time, uids, collection status and unified datasets,
 #' and their defaults. Observations without location_id are still excluded
@@ -557,20 +560,66 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL,
                                    host = "db.cholera-taxonomy.middle-distance.com") {
 
   # ---- Argument checks (all done before opening any connection) -------------
+  # Every argument error carries the class "taxdat_arg_error", so that callers
+  # and tests can tell a bad call apart from a connection or query failure.
+  arg_error <- function(...) {
+    stop(errorCondition(paste0(...), class = "taxdat_arg_error", call = NULL))
+  }
+
+  # Positive whole-number ids, given as numbers or as digit-only strings
+  is_valid_ids <- function(x) {
+    if (is.numeric(x)) {
+      length(x) > 0 && all(is.finite(x)) && all(x > 0) && all(x == round(x))
+    } else if (is.character(x)) {
+      length(x) > 0 && !anyNA(x) && all(grepl("^[1-9][0-9]*$", x))
+    } else {
+      FALSE
+    }
+  }
+  is_single_string <- function(x) is.character(x) && length(x) == 1 && !is.na(x)
+
+  # Credentials: single non-missing strings, username non-empty
   if (missing(username) || missing(password) ||
-      is.null(username) || is.null(password) || !nzchar(username)) {
-    stop("Please provide username and password to connect to the taxonomy database.")
+      !is_single_string(username) || !is_single_string(password) ||
+      !nzchar(username)) {
+    arg_error("Please provide username and password to connect to the taxonomy database.")
   }
   # Empty password is only meaningful for a local socket connection
   use_local_socket <- identical(host, "localhost") && !nzchar(password)
   if (!nzchar(password) && !use_local_socket) {
-    stop("Empty password is only allowed with host = 'localhost'.")
+    arg_error("Empty password is only allowed with host = 'localhost'.")
   }
+
+  # Geography: mandatory numeric location ids
   if (is.null(locations)) {
-    stop("Please use a containing location as the location. Locations can't be NULL.")
+    arg_error("Please use a containing location as the location. Locations can't be NULL.")
   }
   if (!is.numeric(locations)) {
-    stop("SQL access by location name is not yet implemented")
+    arg_error("SQL access by location name is not yet implemented")
+  }
+  if (!is_valid_ids(locations)) {
+    arg_error("locations must be positive whole numbers (location ids), without NA.")
+  }
+
+  # Observation collections: optional ids (numbers or digit strings)
+  if (!is.null(uids) && !is_valid_ids(uids)) {
+    arg_error("uids must be positive whole ids (numbers or digit strings), without NA.")
+  }
+
+  # Governance flags
+  if (!is.logical(discard_incomplete_observation_collections) ||
+      length(discard_incomplete_observation_collections) != 1 ||
+      is.na(discard_incomplete_observation_collections)) {
+    arg_error("discard_incomplete_observation_collections must be TRUE or FALSE.")
+  }
+  if (!(is.character(unified_dataset_behaviour) &&
+        length(unified_dataset_behaviour) == 1 &&
+        unified_dataset_behaviour %in% c("drop", "keep"))) {
+    # Documented behaviour (any other value disables the filter) is kept for
+    # backward compatibility, but made visible: a typo such as "Drop" would
+    # otherwise silently include unified datasets.
+    warning("unified_dataset_behaviour is neither 'drop' nor 'keep': ",
+            "the unified-dataset filter is disabled.")
   }
 
   # Local date validator, defined inside the function on purpose: it is not a
@@ -579,7 +628,7 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL,
   to_iso_date <- function(x, arg_name) {
     if (is.null(x)) return(NULL)
     if (length(x) != 1 || is.na(x)) {
-      stop(arg_name, " must be a single, non-missing date.")
+      arg_error(arg_name, " must be a single, non-missing date.")
     }
     if (inherits(x, c("Date", "POSIXt"))) {
       # format() keeps the object's own time zone (as.Date() would use UTC)
@@ -587,14 +636,18 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL,
     }
     if (is.character(x) && grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", x)) {
       d <- as.Date(x, format = "%Y-%m-%d")  # explicit format: 2017-02-30 -> NA
-      if (is.na(d)) stop(arg_name, " is not a valid calendar date: ", x)
+      if (is.na(d)) arg_error(arg_name, " is not a valid calendar date: ", x)
       return(format(d, "%Y-%m-%d"))
     }
-    stop(arg_name, " must be a Date, a POSIXt or a 'YYYY-MM-DD' string.")
+    arg_error(arg_name, " must be a Date, a POSIXt or a 'YYYY-MM-DD' string.")
   }
   time_left  <- to_iso_date(time_left,  "time_left")
   time_right <- to_iso_date(time_right, "time_right")
-  # Keep the "No time filters" prefix: matched by tests/testthat (expect_warning)
+  if (!is.null(time_left) && !is.null(time_right) &&
+      as.Date(time_left) > as.Date(time_right)) {
+    arg_error("time_left (", time_left, ") is after time_right (", time_right, ").")
+  }
+  # Keep the "No time filters" prefix: matched by tests/testthat
   if (is.null(time_left))  warning("No time filters: time_left is NULL.")
   if (is.null(time_right)) warning("No time filters: time_right is NULL.")
   if (is.null(uids))       warning("No uid filters.")
