@@ -546,8 +546,12 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
 #' @param uids vector of observation_collection ids to restrict the pull to
 #' @param discard_incomplete_observation_collections if TRUE (default),
 #'   excludes collections with status initialized, validated or inprogress
-#' @param unified_dataset_behaviour "drop" (default) excludes unified
-#'   collections, "keep" keeps only them, any other value disables the filter
+#' @param unified_dataset_behaviour how to handle unified observation
+#'   collections (OCs). Unified OCs are cleaner versions of existing OCs: they
+#'   duplicate observations already present in those OCs, so keeping both would
+#'   double count them, which is why the default is to drop them. "drop"
+#'   (default) excludes unified OCs, "keep" keeps only them, any other value
+#'   disables the filter.
 #' @param host database host
 #' @param dbname name of the taxonomy database to query. Either
 #'   "CholeraTaxonomy_production" (default) or "CholeraTaxonomy_staging".
