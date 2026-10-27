@@ -503,9 +503,7 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
 #'     \code{geojson}), but shapes are now fetched ONCE per distinct
 #'     location_period_id in a second query and attached in R, instead of
 #'     being joined in SQL and transferred again for every observation.
-#'     Measured on the old version: ~3 GB and ~460 s for 12,827 observations
-#'     (EMR::SOM), against a few MB and seconds with a single fetch per
-#'     location period. Observations without location_period_id, or whose
+#'     Observations without location_period_id, or whose
 #'     shape is NULL in the database, get an empty geometry, as before.
 #'   \item CRS: EPSG:4326 as returned by the database (unchanged); set
 #'     explicitly only as a safeguard if the database ever stops declaring it.
