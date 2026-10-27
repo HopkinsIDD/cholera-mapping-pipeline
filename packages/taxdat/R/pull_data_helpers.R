@@ -496,8 +496,7 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
 #' "CholeraTaxonomy_production" (default) or "CholeraTaxonomy_staging".
 #'
 #' @details Self-contained by design: this function calls no other function of
-#' the package, so it can be merged independently of the age/sex stratified
-#' pulls. Changes compared with the previous version:
+#' the package. Changes compared with the previous version:
 #' \itemize{
 #'   \item Geometry: output contract unchanged (sf object, geometry in column
 #'     \code{geojson}), but shapes are now fetched ONCE per distinct
