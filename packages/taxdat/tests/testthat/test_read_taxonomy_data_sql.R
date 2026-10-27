@@ -183,3 +183,38 @@ test_that("integration: empty result stops with a query error, not an argument e
   expect_match(conditionMessage(err), "No observations found")
   expect_false(inherits(err, "taxdat_arg_error"))
 })
+
+# ---- dbname argument (no database connection needed) ------------------------
+
+test_that("dbname must be one of the two known taxonomy databases", {
+  # Invalid values must fail before any connection, with the argument error class
+  expect_error(
+    read_taxonomy_data_sql("x", "x", locations = 14, dbname = "typo"),
+    class = "taxdat_arg_error"
+  )
+  expect_error(
+    read_taxonomy_data_sql("x", "x", locations = 14, dbname = NA_character_),
+    class = "taxdat_arg_error"
+  )
+  expect_error(
+    read_taxonomy_data_sql("x", "x", locations = 14,
+                           dbname = c("CholeraTaxonomy_production",
+                                      "CholeraTaxonomy_staging")),
+    class = "taxdat_arg_error"
+  )
+})
+
+test_that("the user is told which database is queried", {
+  # The call is expected to fail right after the message (empty username is
+  # rejected before any connection); the error is caught with try() so that
+  # only the message is tested.
+  expect_message(
+    try(read_taxonomy_data_sql("", "x", locations = 14,
+                               dbname = "CholeraTaxonomy_staging"), silent = TRUE),
+    "staging"
+  )
+  expect_message(
+    try(read_taxonomy_data_sql("", "x", locations = 14), silent = TRUE),
+    "production"
+  )
+})

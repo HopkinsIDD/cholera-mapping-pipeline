@@ -492,7 +492,8 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
 
 #' @title Taxonomy SQL data pull
 #' @description Extracts observations for a set of locations from the taxonomy
-#' PostgreSQL database (CholeraTaxonomy_production) using SQL.
+#' PostgreSQL database using SQL. The database is selected with \code{dbname}:
+#' "CholeraTaxonomy_production" (default) or "CholeraTaxonomy_staging".
 #'
 #' @details Self-contained by design: this function calls no other function of
 #' the package, so it can be merged independently of the age/sex stratified
@@ -548,6 +549,9 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
 #' @param unified_dataset_behaviour "drop" (default) excludes unified
 #'   collections, "keep" keeps only them, any other value disables the filter
 #' @param host database host
+#' @param dbname name of the taxonomy database to query. Either
+#'   "CholeraTaxonomy_production" (default) or "CholeraTaxonomy_staging".
+#'   A message tells the user which database is being queried.
 #' @return An sf object, one row per observation; identifiers as text;
 #'   geometry in column \code{geojson}.
 #' @seealso \code{\link{pull_taxonomy_data}}
@@ -557,7 +561,8 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL,
                                    uids = NULL,
                                    discard_incomplete_observation_collections = TRUE,
                                    unified_dataset_behaviour = "drop",
-                                   host = "db.cholera-taxonomy.middle-distance.com") {
+                                   host = "db.cholera-taxonomy.middle-distance.com",
+                                   dbname = "CholeraTaxonomy_production") {
 
   # ---- Argument checks (all done before opening any connection) -------------
   # Every argument error carries the class "taxdat_arg_error", so that callers
@@ -577,6 +582,17 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL,
     }
   }
   is_single_string <- function(x) is.character(x) && length(x) == 1 && !is.na(x)
+
+  # Database selection: only the two known taxonomy databases are accepted, so
+  # that a typo cannot silently point the pull at an unintended database.
+  allowed_dbnames <- c("CholeraTaxonomy_production", "CholeraTaxonomy_staging")
+  if (!is_single_string(dbname) || !(dbname %in% allowed_dbnames)) {
+    arg_error("dbname must be one of: ",
+              paste0("'", allowed_dbnames, "'", collapse = ", "), ".")
+  }
+  # Tell the user which database is queried: "production" or "staging"
+  message("-- Pulling data from the taxonomy '", sub("^CholeraTaxonomy_", "", dbname),
+          "' database (", dbname, ") with SQL")
 
   # Credentials: single non-missing strings, username non-empty
   if (missing(username) || missing(password) ||
@@ -655,7 +671,7 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL,
   # ---- Connection, always closed (also on error) ----------------------------
   conn_args <- list(
     RPostgres::Postgres(),
-    dbname = "CholeraTaxonomy_production",
+    dbname = dbname,
     user   = username,
     port   = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
   )
@@ -714,7 +730,6 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL,
                           locations = locations, uids = uids,
                           time_left = time_left, time_right = time_right)
 
-  cat("-- Pulling data from taxonomy database with SQL \n")
   observations <- DBI::dbGetQuery(conn, query)
 
   if (nrow(observations) == 0) {
@@ -771,125 +786,6 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL,
   }
 
   observations
-}
-
-#' @title Taxonomy staging SQL data pull
-#' @description Extracts data for a given set of country using SQL from the taxonomy staging
-#' postgresql database stored on idmodeling2
-#'
-#' @param username taxonomy username
-#' @param password taxonomy password
-#' @param locations list of locations to pull. For now this only supports country ISO codes.
-#' @param time_left  left bound for observation times (in date format)
-#' @param time_right right bound for observation times (in date format)
-#' @param uids list of unique observation collection ids to pull
-#'
-#' @details Code follows taxdat::read_taxonomy_data_api template.
-#' @return An sf object containing data extracted from the database
-#' @export
-read_taxonomy_data_sql_staging <- function(username, password, locations = NULL, time_left = NULL,
-                                   time_right = NULL, uids = NULL, discard_incomplete_observation_collections = TRUE, unified_dataset_behaviour = "drop", host = "db.cholera-taxonomy.middle-distance.com") {
-  if (missing(username) | missing(password)) {
-    stop("Please provide username and password to connect to the taxonomy staging database.")
-  }
-  
-  # Connect to database
-  if ((password == "") && (website == "localhost")) {
-    print("HERE")
-    conn <- RPostgres::dbConnect(RPostgres::Postgres(),
-                                 dbname = "CholeraTaxonomy_staging", user = username,
-                                 port = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
-    )
-  } else {
-    conn <- RPostgres::dbConnect(RPostgres::Postgres(),
-                                 host = host,
-                                 dbname = "CholeraTaxonomy_staging", user = username, password = password,
-                                 port = Sys.getenv("CHOLERA_POSTGRES_PORT", "5432")
-    )
-  }
-  
-  # Build query for observations
-  obs_query <- paste(
-    "SELECT", "observations.id::text, observations.observation_collection_id::text, observations.time_left, observations.time_right,observations.suspected_cases, observations.confirmed_cases, observations.deaths, observations.phantom, observations.primary",
-    ",locations.qualified_name as location_name, locations.id::text as location_id",
-    ",location_periods.id::text as location_period_id", ",shapes.shape as geojson",
-    "FROM", "observations", "left join observation_collections on observations.observation_collection_id = observation_collections.id",
-    "left join location_hierarchies on observations.location_id = location_hierarchies.descendant_id",
-    "left join locations on observations.location_id = locations.id", "left join location_periods on observations.location_period_id = location_periods.id",
-    "left join shapes on shapes.location_period_id = location_periods.id", " WHERE"
-  )
-  
-  cat("-- Pulling data from taxonomy staging database with SQL \n")
-  
-  if (unified_dataset_behaviour == "drop") {
-    unified_filter <- c("((observation_collections.unified is NULL) OR (observation_collections.unified!='t'))") # QZ: updated the operator
-  } else if (unified_dataset_behaviour == "keep") {
-    unified_filter <- c("((observation_collections.unified is NOT NULL) AND (observation_collections.unified))")
-  } else {
-    unified_filter <- NULL
-  }
-  if (discard_incomplete_observation_collections) {
-    oc_filter <- c("(observation_collections.status != 'initialized') AND (observation_collections.status != 'validated') AND (observation_collections.status != 'inprogress')")
-  } else {
-    oc_filter <- NULL
-  }
-  # Add filters
-  if (any(c(!is.null(time_left), !is.null(time_right), !is.null(uids)), !is.null(locations))) {
-  } else {
-    warning("No filters specified on data pull, pulling all data.")
-  }
-  
-  if (!is.null(time_left)) {
-    time_left_filter <- paste0(
-      "time_left >= '", format(time_left, "%Y-%m-%d"),
-      "'"
-    )
-  } else {
-    time_left_filter <- NULL
-    warning("No time filters.")
-  }
-  
-  if (!is.null(time_right)) {
-    time_right_filter <- paste0(
-      "time_right <= '", format(time_right, "%Y-%m-%d"),
-      "'"
-    )
-  } else {
-    time_right_filter <- NULL
-    warning("No time filters.")
-  }
-  
-  if (!is.null(locations)) {
-    if (all(is.numeric(locations))) {
-      locations_filter <- paste0("ancestor_id in ({locations*})")
-    } else {
-      stop("SQL access by location name is not yet implemented")
-    }
-  } else {
-    locations_filter <- paste0("ancestor_id = descendant_id")
-    stop("Please use a containing location as the location. Locations can't be NULL.")
-  }
-  
-  if (!is.null(uids)) {
-    uids_filter <- paste0("observation_collection_id IN ({uids*})")
-  } else {
-    uids_filter <- NULL
-    warning("No uid filters.")
-  }
-  
-  # Combine filters
-  filters <- c(time_left_filter, time_right_filter, locations_filter, uids_filter, oc_filter, unified_filter) %>%
-    paste(collapse = " AND ")
-  
-  # Run query for observations
-  obs_query <- glue::glue_sql(paste(obs_query, filters, ";"), .con = conn)
-  observations <- suppressWarnings(sf::st_as_sf(sf::st_read(conn, query = obs_query)))
-  if (nrow(observations) == 0) {
-    stop(paste0("No observations found using query ||", obs_query, "||"))
-  }
-  
-  # observations <- dplyr::filter(observations, !is.na(nchar(geojson)))
-  return(observations)
 }
 
 #' @title Taxonomy SQL data pull
