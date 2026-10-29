@@ -3,7 +3,7 @@
 #SBATCH --output=logs/%x_%j.log
 #SBATCH --partition=shared-cpu
 #SBATCH --time=04:00:00
-#SBATCH --mem=8G
+#SBATCH --mem=16G
 #SBATCH -c 4
 # Install taxdat and the R packages the covariates pipeline needs into
 # R_LIBS_USER (see env.sh). Re-run after pulling taxdat changes.
@@ -41,6 +41,17 @@ lib <- strsplit(Sys.getenv("R_LIBS_USER"), ":", fixed = TRUE)[[1]][1]
 options(repos = c(CRAN = Sys.getenv("CMP_CRAN_REPO"), stan = "https://stan-dev.r-universe.dev"), Ncpus = 4)
 cat("Library search path:\n"); print(.libPaths())
 inst <- function(p) install.packages(p, lib = lib)
+#need <- c("Matrix", "DBI", "RPostgres", "blob", "units", "s2", "sf", "terra", "ncdf4", "jsonlite",
+#          "lubridate", "glue", "digest", "purrr", "stringr", "yaml", "dplyr", "tidyr",
+#          "magrittr", "ISOcodes", "igraph", "geodata", "optparse", "rprojroot", "rstudioapi",
+#          "withr", "testthat", "remotes", "hashids", "tibble",
+#          # mapping steps after the database (stan input, GAM warm start, Stan)
+#          "spdep", "lwgeom", "posterior", "foreach", "doParallel", "iterators",
+#          "itertools", "mgcv", "rlang", "cmdstanr","rstan",
+#          # diagnostic figures
+#          "ggplot2", "scales")
+
+
 need <- c("Matrix", "DBI", "RPostgres", "blob", "units", "s2", "sf", "terra", "ncdf4", "jsonlite",
           "lubridate", "glue", "digest", "purrr", "stringr", "yaml", "dplyr", "tidyr",
           "magrittr", "ISOcodes", "igraph", "geodata", "optparse", "rprojroot", "rstudioapi",
@@ -49,12 +60,17 @@ need <- c("Matrix", "DBI", "RPostgres", "blob", "units", "s2", "sf", "terra", "n
           "spdep", "lwgeom", "posterior", "foreach", "doParallel", "iterators",
           "itertools", "mgcv", "rlang", "cmdstanr",
           # diagnostic figures
-          "ggplot2", "scales")
+          "ggplot2", "scales", "ggrepel", "ggthemes", "viridis", "Cairo", "kableExtra",
+          # added from current library
+          "cachem", "fasterize", "MCMCvis", "readr", "reshape2", "rgeoboundaries", "stars",
+          # likely taxdat dependencies (verify against its DESCRIPTION)
+          "rstan", "loo", "raster", "sp", "countrycode", "data.table", "overlapping")
+
 missing <- need[!vapply(need, requireNamespace, logical(1), quietly = TRUE)]
 cat("Missing, to install:", if (length(missing)) missing else "none", "\n")
 if (length(missing)) inst(missing)
 install.packages("packages/taxdat", repos = NULL, type = "source", lib = lib)
-key <- c("Rcpp", "Matrix", "terra", "sf", "s2", "units", "igraph", "RPostgres", "taxdat")
+key <- c("Rcpp", "Matrix", "terra", "sf", "s2", "units", "igraph", "RPostgres", "taxdat", "cmdstanr", "rstan")
 ok <- vapply(key, function(p) requireNamespace(p, quietly = TRUE), logical(1))
 for (p in key) cat(sprintf("%-10s %s\n", p, if (ok[[p]]) as.character(packageVersion(p)) else "MISSING"))
 if (!all(ok)) quit(status = 1)
