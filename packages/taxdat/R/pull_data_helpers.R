@@ -1393,9 +1393,14 @@ read_taxonomy_locationperiods_sql <- function(username, password, location_perio
 #' @description \code{read_taxonomy_age_sql} extracts observations carrying at
 #' least one usable age value; \code{read_taxonomy_sex_sql} extracts
 #' observations carrying a sex value; \code{read_taxonomy_age_sex_sql}
-#' extracts observations carrying both. The three functions return the same
-#' columns; only the row selection differs. Interface, filters and defaults
-#' mirror \code{read_taxonomy_data_sql}.
+#' extracts observations carrying both. By default (\code{aggregate = TRUE}),
+#' the age and sex pulls are aggregated through \code{marginalize_strata}:
+#' \code{read_taxonomy_age_sql} returns one row per age group (summed over
+#' sex) and \code{read_taxonomy_sex_sql} one row per sex (summed over age).
+#' With \code{aggregate = FALSE}, and always for
+#' \code{read_taxonomy_age_sex_sql}, the raw observations are returned (same
+#' columns for the three functions; only the row selection differs). Interface,
+#' filters and defaults mirror \code{read_taxonomy_data_sql}.
 #'
 #' @details Design decisions (validated against the database before release):
 #' \itemize{
@@ -1440,6 +1445,21 @@ read_taxonomy_locationperiods_sql <- function(username, password, location_perio
 #'     per distinct location_period_id, geometry column \code{geojson},
 #'     EPSG:4326, empty geometry for observations without location period or
 #'     without shape. Default FALSE: plain data.frame, no geometry.
+#'   \item Aggregation (age and sex pulls only): see \code{marginalize_strata}.
+#'     With \code{drop_superseded_strata = TRUE} (default), a stratified
+#'     observation is discarded when a "full" row exists for the same
+#'     collection, dates, location and \code{primary}: for the age table, a row
+#'     without sex supersedes the sex-stratified rows of the same age; for the
+#'     sex table, a row without age supersedes the age-stratified rows of the
+#'     same sex. The full row is kept even when it differs from the sum of the
+#'     discarded strata: such groups are only flagged, never corrected. The
+#'     warning names the observation collections to check, those where the
+#'     strata exceed the full row (impossible for a true total) first; with
+#'     \code{metadata = TRUE}, columns \code{superseded_mismatch} and
+#'     \code{superseded_exceed} locate the groups. Age values are compared as stored: no normalisation of
+#'     notation (clean data assumed). The age and the sex tables are not
+#'     nested: an observation with an age but no sex appears only in the age
+#'     table, and conversely.
 #' }
 #'
 #' @param username taxonomy username
@@ -1457,12 +1477,50 @@ read_taxonomy_locationperiods_sql <- function(username, password, location_perio
 #' @param host database host
 #' @param include_geojson if TRUE, attach the location-period geometry and
 #'   return an sf object (default FALSE)
-#' @return A data.frame, one row per observation; identifiers as text. With
+#' @param aggregate if TRUE (default), the age and sex pulls are aggregated
+#'   with \code{marginalize_strata} (age table: summed over sex; sex table:
+#'   summed over age). If FALSE, raw observations are returned. Ignored by
+#'   \code{read_taxonomy_age_sex_sql}, which always returns raw observations.
+#' @param na_counts passed to \code{marginalize_strata}: "as_zero" (default)
+#'   or "strict". Only used when \code{aggregate = TRUE}.
+#' @param drop_exact_duplicates passed to \code{marginalize_strata} (default
+#'   FALSE). Only used when \code{aggregate = TRUE}.
+#' @param drop_superseded_strata passed to \code{marginalize_strata} (default
+#'   TRUE in these two pulls, FALSE in \code{marginalize_strata} itself). Only
+#'   used when \code{aggregate = TRUE}. With FALSE, a full row and its strata
+#'   are added together (double counting).
+#' @param metadata passed to \code{marginalize_strata} (default FALSE). Only
+#'   used when \code{aggregate = TRUE}.
+#' @return A data.frame (one row per observation if \code{aggregate = FALSE},
+#'   one row per group otherwise); identifiers as text. With
 #'   \code{include_geojson = TRUE}, an sf object with geometry column
 #'   \code{geojson}.
 #' @seealso \code{\link{read_taxonomy_data_sql}}
 #' @name taxonomy_strata_pulls
 NULL
+
+#' @title Validate the aggregation arguments of the age/sex pulls
+#' @description Called before any connection so that a bad call fails fast.
+#'   Argument errors have class "taxdat_arg_error".
+#' @param superseded_supplied TRUE when the caller set drop_superseded_strata
+#'   explicitly (its default is TRUE, so a warning on the default would be noise).
+#' @noRd
+.check_aggregation_args <- function(aggregate, drop_exact_duplicates,
+                                    drop_superseded_strata, metadata,
+                                    superseded_supplied = FALSE) {
+  is_flag <- function(x) is.logical(x) && length(x) == 1 && !is.na(x)
+  if (!is_flag(aggregate))              .taxdat_arg_error("aggregate must be TRUE or FALSE.")
+  if (!is_flag(drop_exact_duplicates))  .taxdat_arg_error("drop_exact_duplicates must be TRUE or FALSE.")
+  if (!is_flag(drop_superseded_strata)) .taxdat_arg_error("drop_superseded_strata must be TRUE or FALSE.")
+  if (!is_flag(metadata))               .taxdat_arg_error("metadata must be TRUE or FALSE.")
+  # Aggregation options are meaningless on a raw pull: make that visible
+  if (!aggregate && (drop_exact_duplicates || metadata ||
+                     (superseded_supplied && drop_superseded_strata))) {
+    warning("drop_exact_duplicates, drop_superseded_strata and metadata are ",
+            "ignored when aggregate = FALSE.")
+  }
+  invisible(TRUE)
+}
 
 #' @rdname taxonomy_strata_pulls
 #' @export
@@ -1472,14 +1530,33 @@ read_taxonomy_age_sql <- function(username, password, locations = NULL,
                                   discard_incomplete_observation_collections = TRUE,
                                   unified_dataset_behaviour = "drop",
                                   host = "db.cholera-taxonomy.middle-distance.com",
-                                  include_geojson = FALSE) {
-  .read_taxonomy_strata_sql(
+                                  include_geojson = FALSE,
+                                  aggregate = TRUE,
+                                  na_counts = c("as_zero", "strict"),
+                                  drop_exact_duplicates = FALSE,
+                                  drop_superseded_strata = TRUE,
+                                  metadata = FALSE) {
+  # Validate aggregation arguments before any connection is opened
+  na_counts <- match.arg(na_counts)
+  .check_aggregation_args(aggregate, drop_exact_duplicates, drop_superseded_strata,
+                          metadata,
+                          superseded_supplied = !missing(drop_superseded_strata))
+
+  # Raw pull: observations carrying at least one usable age value
+  df <- .read_taxonomy_strata_sql(
     username, password, locations, time_left, time_right, uids,
     discard_incomplete_observation_collections, unified_dataset_behaviour, host,
     row_filter = "s.age_l IS NOT NULL OR s.age_r IS NOT NULL OR s.age IS NOT NULL",
     label      = "age",
     include_geojson = include_geojson
   )
+  if (!aggregate) return(df)
+
+  # Age table: sum over sex
+  marginalize_strata(df, over = "sex", na_counts = na_counts,
+                     drop_exact_duplicates = drop_exact_duplicates,
+                     drop_superseded_strata = drop_superseded_strata,
+                     metadata = metadata)
 }
 
 #' @rdname taxonomy_strata_pulls
@@ -1490,14 +1567,33 @@ read_taxonomy_sex_sql <- function(username, password, locations = NULL,
                                   discard_incomplete_observation_collections = TRUE,
                                   unified_dataset_behaviour = "drop",
                                   host = "db.cholera-taxonomy.middle-distance.com",
-                                  include_geojson = FALSE) {
-  .read_taxonomy_strata_sql(
+                                  include_geojson = FALSE,
+                                  aggregate = TRUE,
+                                  na_counts = c("as_zero", "strict"),
+                                  drop_exact_duplicates = FALSE,
+                                  drop_superseded_strata = TRUE,
+                                  metadata = FALSE) {
+  # Validate aggregation arguments before any connection is opened
+  na_counts <- match.arg(na_counts)
+  .check_aggregation_args(aggregate, drop_exact_duplicates, drop_superseded_strata,
+                          metadata,
+                          superseded_supplied = !missing(drop_superseded_strata))
+
+  # Raw pull: observations carrying a sex value
+  df <- .read_taxonomy_strata_sql(
     username, password, locations, time_left, time_right, uids,
     discard_incomplete_observation_collections, unified_dataset_behaviour, host,
     row_filter = "s.sex_raw IS NOT NULL",
     label      = "sex",
     include_geojson = include_geojson
   )
+  if (!aggregate) return(df)
+
+  # Sex table: sum over age
+  marginalize_strata(df, over = "age", na_counts = na_counts,
+                     drop_exact_duplicates = drop_exact_duplicates,
+                     drop_superseded_strata = drop_superseded_strata,
+                     metadata = metadata)
 }
 
 #' @title Marginalize age/sex strata
@@ -1526,6 +1622,20 @@ read_taxonomy_sex_sql <- function(username, password, locations = NULL,
 #'   \item With \code{drop_exact_duplicates = TRUE}, only the lowest id of
 #'     each set of potential duplicates (identical aggregated strata) is
 #'     summed.
+#'   \item With \code{drop_superseded_strata = TRUE}, a "full" row supersedes
+#'     the stratified rows it contains: for \code{over = "sex"} a row without
+#'     sex supersedes the sex-stratified rows of the same age; for
+#'     \code{over = "age"} a row without age supersedes the age-stratified
+#'     rows of the same (recoded) sex. Rows must also be equal on collection,
+#'     governance fields, dates, location and \code{primary} (counts and
+#'     \code{phantom} are not compared). The full row is kept even when it
+#'     differs from the sum of the discarded strata: such groups are flagged,
+#'     never corrected. The warning names the observation collections to check
+#'     (strata above the full row first: impossible for a true total); with
+#'     \code{metadata = TRUE}, columns \code{superseded_mismatch} and
+#'     \code{superseded_exceed} locate the groups. Age values are compared as
+#'     stored (no normalisation of notation: clean data assumed). A sex that
+#'     is present but unrecognised is never matched.
 #'   \item A message always reports the number of groups where NAs were
 #'     counted as 0 and the number of groups containing potential
 #'     duplicates, whatever the value of \code{metadata}.
@@ -1538,12 +1648,21 @@ read_taxonomy_sex_sql <- function(username, password, locations = NULL,
 #' @param na_counts "as_zero" (default) or "strict", see Details.
 #' @param drop_exact_duplicates keep one copy of each set of potential
 #'   duplicates before summing (default FALSE).
+#' @param drop_superseded_strata if TRUE, stratified observations are excluded
+#'   from the sums when a full row exists that is equal on collection,
+#'   governance fields, dates, location and primary. With \code{over = "sex"} a
+#'   full row has no sex value and supersedes the sex-stratified rows of the
+#'   same age; with \code{over = "age"} a full row has no age value and
+#'   supersedes the age-stratified rows of the same sex (an unrecognised sex is
+#'   never matched). Counts and phantom are not compared. Not defined for
+#'   \code{over = "none"}. Default FALSE here (TRUE in the age and sex pulls).
 #' @param metadata if TRUE, adds traceability columns: \code{n_source_rows},
 #'   \code{sex_values} / \code{age_values} (values of the summed variable;
 #'   absent when over = "none"), \code{sex_raw_values} (over = "age" or
 #'   "none"), \code{na_as_zero}, \code{potential_duplicate},
-#'   \code{n_duplicate_sources}, \code{n_duplicates_dropped} and
-#'   \code{source_ids}. Default FALSE: group key, kept variables and summed
+#'   \code{n_duplicate_sources}, \code{n_duplicates_dropped},
+#'   \code{n_superseded_dropped}, \code{superseded_mismatch},
+#'   \code{superseded_exceed} and \code{source_ids}. Default FALSE: group key, kept variables and summed
 #'   counts only.
 #' @return A data.frame, one row per group; an sf object (geometry
 #'   column \code{geojson}, one shape per location period) when \code{df} is
@@ -1554,6 +1673,7 @@ read_taxonomy_sex_sql <- function(username, password, locations = NULL,
 marginalize_strata <- function(df, over = c("sex", "age", "none"),
                                na_counts = c("as_zero", "strict"),
                                drop_exact_duplicates = FALSE,
+                               drop_superseded_strata = FALSE,
                                metadata = FALSE) {
   over      <- match.arg(over)
   na_counts <- match.arg(na_counts)
@@ -1614,6 +1734,75 @@ marginalize_strata <- function(df, over = c("sex", "age", "none"),
     df$.dropped <- is_extra
   }
 
+  # ---- Optional: discard strata superseded by a "full" row ---------------------
+  # over = "sex" (age table): a full row has no sex value at all (sex_raw missing);
+  #   it supersedes the sex-stratified rows equal on the age columns.
+  # over = "age" (sex table): a full row has no age value at all; it supersedes
+  #   the age-stratified rows with the same (recoded) sex.
+  # In both cases the rows must also be equal on collection, governance fields,
+  # dates, location and primary. Counts and phantom are NOT compared.
+  # Superseded rows are excluded from the sums via .dropped, like exact duplicates.
+  # A sex present but unrecognised (sex NA) is never matched in the sex table.
+  # Age values are compared as stored (no normalisation of notation).
+  df$.superseded   <- FALSE
+  df$.sup_mismatch <- FALSE
+  df$.sup_exceed   <- FALSE
+  if (isTRUE(drop_superseded_strata)) {
+    if (over == "none") {
+      warning("drop_superseded_strata is not defined for over = 'none': ignored.")
+    } else {
+      key_cols <- c("observation_collection_id", "is_public", "unified", "status",
+                    "time_left", "time_right", "primary",
+                    "location_id", "location_period_id")
+      has_age <- !(is.na(df$age_l) & is.na(df$age_r) & is.na(df$age))
+      has_sex <- !is.na(df$sex_raw)
+      if (over == "sex") {
+        eligible <- has_age                         # rows without age are never matched
+        is_full  <- !has_sex                        # full row: no sex value at all
+        var_cols <- df[, age_cols, drop = FALSE]    # age must be equal
+      } else {
+        eligible <- !is.na(df$sex)                  # unrecognised sex is never matched
+        is_full  <- !has_age                        # full row: no age value at all
+        var_cols <- data.frame(sex = df$sex)        # recoded sex must be equal
+      }
+      # NA is pasted as "NA", so two NA values compare equal
+      key <- do.call(paste, c(df[, key_cols, drop = FALSE], var_cols, sep = "\r"))
+      df$.superseded <- eligible & !is_full & (key %in% key[eligible & is_full])
+
+      # Discrepancy check: FLAG ONLY, nothing is corrected. For each key, compare
+      # the counts of the kept full row(s) with the sum of the discarded strata.
+      # Exact duplicates dropped above are ignored on both sides.
+      if (any(df$.superseded)) {
+        dup_dropped <- df$.dropped
+        full_rows   <- eligible & is_full & !dup_dropped
+        strata_rows <- df$.superseded & !dup_dropped
+        sup_keys    <- unique(key[df$.superseded])
+        # Sum of a count per key; NA when the key has no non-missing value
+        key_sum <- function(x, rows) {
+          g <- split(x[rows], factor(match(key[rows], sup_keys), levels = seq_along(sup_keys)))
+          vapply(g, function(z) {
+            if (length(z) == 0 || all(is.na(z))) NA_real_ else as.numeric(sum(z, na.rm = TRUE))
+          }, numeric(1))
+        }
+        bad    <- rep(FALSE, length(sup_keys))
+        exceed <- rep(FALSE, length(sup_keys))
+        for (cc in count_cols) {
+          f <- key_sum(df[[cc]], full_rows)
+          s <- key_sum(df[[cc]], strata_rows)
+          # mismatch: strata carry a value and the full row differs or has none
+          bad    <- bad    | (!is.na(s) & (is.na(f) | f != s))
+          # exceed: strata above the full row (or full row without value): impossible
+          # for a true total, hence the most suspicious case (coding error)
+          exceed <- exceed | (!is.na(s) & (is.na(f) | s > f))
+        }
+        in_pair <- full_rows | df$.superseded
+        df$.sup_mismatch <- in_pair & (key %in% sup_keys[bad])
+        df$.sup_exceed   <- in_pair & (key %in% sup_keys[exceed])
+      }
+      df$.dropped <- df$.dropped | df$.superseded   # .dropped = excluded from sums
+    }
+  }
+
   # ---- Label of the summed variable, per observation (traceability only)
   df$.value <- switch(over,
     sex  = ifelse(is.na(df$sex), "NA", as.character(df$sex)),
@@ -1658,7 +1847,10 @@ marginalize_strata <- function(df, over = c("sex", "age", "none"),
                                       .data$deaths, !.data$.dropped),
     .potential_duplicate  = any(.data$potential_duplicate),
     .n_duplicate_sources  = sum(.data$potential_duplicate),
-    .n_duplicates_dropped = sum(.data$.dropped),
+    .n_duplicates_dropped = sum(.data$.dropped & !.data$.superseded),
+    .n_superseded_dropped = sum(.data$.superseded),
+    .superseded_mismatch  = any(.data$.sup_mismatch),
+    .superseded_exceed    = any(.data$.sup_exceed),
     .source_ids           = paste(.data$id[order(as.numeric(.data$id))], collapse = ","),
     .groups = "drop"
   )
@@ -1673,6 +1865,10 @@ marginalize_strata <- function(df, over = c("sex", "age", "none"),
   }
   if (over == "sex") out$sex_raw_values <- NULL   # sex_values is enough in the age table
 
+  # Groups made only of superseded rows disappear: their full row sits in another
+  # group (e.g. when phantom differs, which is not part of the rule key)
+  out <- out[out$n_superseded_dropped < out$n_source_rows, , drop = FALSE]
+
   out <- out[order(as.numeric(out$observation_collection_id), out$time_left, out$location_name), ]
   rownames(out) <- NULL
 
@@ -1683,6 +1879,38 @@ marginalize_strata <- function(df, over = c("sex", "age", "none"),
     over, nrow(out), nrow(df), sum(!is.na(out$na_as_zero)), sum(out$potential_duplicate),
     if (isTRUE(drop_exact_duplicates)) paste0(" (", sum(out$n_duplicates_dropped), " copies dropped)") else "",
     if (!isTRUE(metadata)) " Use metadata = TRUE to see which groups." else ""))
+
+  if (isTRUE(drop_superseded_strata) && over != "none") {
+    n_sup  <- sum(df$.superseded)
+    n_mism <- sum(out$superseded_mismatch)
+    txt <- sprintf(paste0("marginalize_strata: %d stratified observations discarded in favour of a full row; ",
+                          "%d groups where the full row differs from the sum of its discarded strata."),
+                   n_sup, n_mism)
+    if (n_mism > 0) {
+      # Name the observation collections to check, most suspicious first
+      fl       <- out[out$superseded_mismatch, , drop = FALSE]
+      n_by_oc  <- tapply(rep(1L, nrow(fl)), fl$observation_collection_id, sum)
+      n_exc_oc <- tapply(as.integer(fl$superseded_exceed), fl$observation_collection_id, sum)
+      oc_ids   <- names(n_by_oc)
+      oc_ids   <- oc_ids[order(-as.integer(n_exc_oc[oc_ids]), -as.integer(n_by_oc[oc_ids]),
+                               suppressWarnings(as.numeric(oc_ids)))]
+      shown    <- utils::head(oc_ids, 10)
+      oc_lines <- sprintf("  OC %s: %d group(s), %d with strata above the full row",
+                          shown, as.integer(n_by_oc[shown]), as.integer(n_exc_oc[shown]))
+      txt <- paste0(
+        txt,
+        "\nObservation collections to check in the source data (possible coding error, ",
+        "e.g. a sex or an age entered wrongly, or incomplete strata):\n",
+        paste(oc_lines, collapse = "\n"),
+        if (length(oc_ids) > length(shown)) sprintf("\n  ... and %d more", length(oc_ids) - length(shown)) else "",
+        "\nStrata above their full row are impossible for a true total: they are listed first. ",
+        if (!isTRUE(metadata)) "Use metadata = TRUE (columns superseded_mismatch, superseded_exceed, source_ids) to locate the groups."
+        else "See columns superseded_mismatch, superseded_exceed and source_ids.")
+      warning(txt, call. = FALSE)
+    } else {
+      message(txt)
+    }
+  }
 
   # ---- Default output: group key, kept variables and summed counts only -------
   if (!isTRUE(metadata)) {
