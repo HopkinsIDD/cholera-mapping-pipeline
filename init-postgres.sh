@@ -1,7 +1,7 @@
 #!/bin/bash
 # Initialise a PostgreSQL + PostGIS server for the covariates database inside
 # the Docker image (runs as root; the server runs as the postgres OS user).
-# On Yggdrasil use hpc/yggdrasil/slurm/db_init.sh instead.
+# On the UNIGE clusters use hpc/unige/slurm/db_init.sh instead.
 #
 # Environment:
 #   CHOLERA_APP_PASSWORD  password for the cholera_app login role (required)
@@ -14,7 +14,7 @@ PGBIN=${PGBIN:-/usr/lib/postgresql/17/bin}
 PGDATA=${PGDATA:-/var/lib/postgresql/data}
 DBNAME=${PGDATABASE:-cholera_covariates}
 REPO_DIR=$(dirname "$(readlink -f "$0")")
-SQL_DIR=${SQL_DIR:-$REPO_DIR/hpc/yggdrasil/sql}
+SQL_DIR=${SQL_DIR:-$REPO_DIR/hpc/unige/sql}
 
 if [[ ! -f "$PGDATA/PG_VERSION" ]]; then
   mkdir -p "$PGDATA" && chown postgres:postgres "$PGDATA"

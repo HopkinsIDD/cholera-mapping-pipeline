@@ -1,9 +1,9 @@
 #!/bin/bash
 # Push a staging directory (tools/stage_inputs_local.sh) and/or the PostGIS
-# image to the shared project directory on Yggdrasil.
+# image to the shared project directory on a UNIGE cluster.
 #
 # Usage:
-#   bash hpc/yggdrasil/tools/rsync_inputs_yggdrasil.sh --remote USER@login1.yggdrasil.hpc.unige.ch \
+#   bash hpc/unige/tools/rsync_inputs.sh --remote USER@login1.yggdrasil.hpc.unige.ch \
 #        [--stage stage_dir] [--sif postgis_17-3.5.sif] [--share /home/shares/azman/cholera_mapping] [--dry-run]
 set -euo pipefail
 REMOTE="${REMOTE:-}"; STAGE=""; SIF=""; SHARE="/home/shares/azman/cholera_mapping"; DRY=()

@@ -7,7 +7,7 @@
 -- cholera_owner : NOLOGIN group role that owns every schema and table.
 -- cholera_app   : LOGIN role used by Slurm jobs; acts as cholera_owner.
 -- cholera_ro    : NOLOGIN read-only role for notebooks and laptops.
--- Human users are added with hpc/yggdrasil/tools/create_db_user.sh.
+-- Human users are added with hpc/unige/tools/create_db_user.sh.
 
 \set ON_ERROR_STOP on
 

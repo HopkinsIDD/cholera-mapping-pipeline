@@ -17,11 +17,11 @@ set -uo pipefail
 # repository from the submission directory (submit from the repository root);
 # with plain `bash`, from this file's location.
 CMP_REPO="${CMP_REPO:-${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$(readlink -f "$0")")/../../.." && pwd)}}"
-if [[ ! -f "$CMP_REPO/hpc/yggdrasil/env.sh" ]]; then
-  echo "Cannot find hpc/yggdrasil/env.sh under $CMP_REPO: submit from the repository root or export CMP_REPO" >&2
+if [[ ! -f "$CMP_REPO/hpc/unige/env.sh" ]]; then
+  echo "Cannot find hpc/unige/env.sh under $CMP_REPO: submit from the repository root or export CMP_REPO" >&2
   exit 1
 fi
-source "$CMP_REPO/hpc/yggdrasil/env.sh"
+source "$CMP_REPO/hpc/unige/env.sh"
 
 [[ -e "$PGDATA/PG_VERSION" ]] || { echo "PGDATA not initialised; run slurm/db_init.sh" >&2; exit 1; }
 if [[ -s "$DB_ENDPOINT_FILE" ]]; then

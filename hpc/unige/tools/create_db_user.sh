@@ -6,7 +6,7 @@
 #
 # The password is read from NEW_USER_PASSWORD so it never appears in argv.
 # PSQL_SUPER is the command that opens psql as the superuser:
-#   - on Yggdrasil (inside db_serve's node):  PSQL_SUPER="cmp_pg psql -h $PG_RUN"
+#   - on the cluster (inside db_serve's node):  PSQL_SUPER="cmp_pg psql -h $PG_RUN"
 #   - in the Docker image:                    PSQL_SUPER="sudo -u postgres psql"
 # Read-write users join cholera_owner and act as it by default, so the tables
 # they create are shared with the team. --readonly users join cholera_ro.

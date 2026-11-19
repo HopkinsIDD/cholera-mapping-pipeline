@@ -285,7 +285,7 @@ raster_loader <- function() {
 #' The "dbi" loader needs no PostGIS client tools: it cuts the raster into
 #' chunks with gdal_translate and sends each chunk to the server, which decodes
 #' it with ST_FromGDALRaster and splits it with ST_Tile (the database must
-#' allow the GTiff driver, see hpc/yggdrasil/sql/02_schemas_grants.sql).
+#' allow the GTiff driver, see hpc/unige/sql/02_schemas_grants.sql).
 #'
 #' @param file raster file
 #' @param table schema-qualified target table

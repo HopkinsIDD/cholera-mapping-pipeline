@@ -1,4 +1,5 @@
-# hpc/yggdrasil/env.sh — environment for the covariates database on Yggdrasil.
+# hpc/unige/env.sh — environment for the covariates database on the UNIGE
+# clusters (Yggdrasil, Baobab).
 # Source it (never execute it): every slurm/, stages/ and tools/ script does
 #   source "$(dirname "$(readlink -f "$0")")/../env.sh"
 # Override any variable by exporting it before sourcing.
@@ -9,6 +10,18 @@ CMP_ENV_LOADED=1   # not exported: every job (sbatch inherits the environment) m
 # --- Locations -------------------------------------------------------------
 # Repository checkout on the cluster (code arrives with git pull)
 export CMP_REPO="${CMP_REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+# Cluster: from Slurm's configuration, else the host name. Each cluster has its
+# own storage (nothing is shared between them); the paths below are the same
+# on both unless overridden.
+if [[ -z "${CMP_CLUSTER:-}" ]]; then
+  CMP_CLUSTER="${SLURM_CLUSTER_NAME:-}"
+  if [[ -z "$CMP_CLUSTER" ]] && command -v scontrol >/dev/null 2>&1; then
+    CMP_CLUSTER=$(scontrol show config 2>/dev/null | awk '$1 == "ClusterName" {print $3}' || true)
+  fi
+  [[ -n "$CMP_CLUSTER" ]] || CMP_CLUSTER=$(hostname -f 2>/dev/null | grep -oE 'baobab|yggdrasil|bamboo' | head -1 || true)
+fi
+export CMP_CLUSTER="${CMP_CLUSTER:-local}"
+export CMP_LOGIN_HOST="${CMP_LOGIN_HOST:-login1.${CMP_CLUSTER}.hpc.unige.ch}"
 # Shared project directories (group GL_M_gdd_cholera_mapping). Files count
 # against their owner's 1 TB home quota; scratch has no size quota, but files
 # untouched for 3 months are deleted and nothing is backed up.

@@ -3,7 +3,7 @@
 # staging directory (run on a laptop with taxonomy-database access).
 #
 # Usage:
-#   bash hpc/yggdrasil/tools/stage_inputs_local.sh \
+#   bash hpc/unige/tools/stage_inputs_local.sh \
 #     --config CONFIG.yml \
 #     --covariates-repo ~/projects/cholera-covariates   # git-lfs checkout, files pulled
 #     --worldpop /path/to/ppp_2020_1km_Aggregated.tif     # WorldPop 2020 1 km mosaic
@@ -17,7 +17,7 @@
 #
 # Produces <stage>/Layers/{covariate_dictionary.yml, pop_old/, admin_units/,
 # <covariate dirs>} and <stage>/data/observations_<AOI>.rds, then lists sizes.
-# Push with tools/rsync_inputs_yggdrasil.sh --stage <stage>.
+# Push with tools/rsync_inputs.sh --stage <stage>.
 set -euo pipefail
 CONFIG=""; COVREPO=""; WORLDPOP=""; STAGE="stage_yggdrasil"; AOI=""; MARGIN=150; PULL=1; CROP=1
 while [[ $# -gt 0 ]]; do
@@ -100,4 +100,4 @@ for (f in list.files(src, "\\.(nc|tif)$", full.names = TRUE)) {
   echo "  $d (cropped)"
 done
 du -sh "$STAGE"/Layers/* "$STAGE"/data/* 2>/dev/null
-echo "Staged in $STAGE. Next: bash hpc/yggdrasil/tools/rsync_inputs_yggdrasil.sh --stage $STAGE --remote USER@login1.yggdrasil.hpc.unige.ch"
+echo "Staged in $STAGE. Next: bash hpc/unige/tools/rsync_inputs.sh --stage $STAGE --remote USER@login1.yggdrasil.hpc.unige.ch"

@@ -5,7 +5,7 @@
 #            -> mapping_run (smoke, Stan skipped) -> db_diagnostics + db_backup
 #
 # Usage:
-#   bash hpc/yggdrasil/stages/db_build.sh --config CONFIG.yml --observations OBS.rds \
+#   bash hpc/unige/stages/db_build.sh --config CONFIG.yml --observations OBS.rds \
 #        [--covariates "dw,aw"] [--res 20] [--mode ingest_missing] [--dry-run]
 # --covariates defaults to the config's covariate_choices; population is always
 # added, at the model resolution and at 1 km (population weights).
@@ -35,12 +35,12 @@ check "image $CHOLERA_SIF"                "[[ -f '$CHOLERA_SIF' ]]"
 check "data directory $PGDATA"            "[[ -e '$PGDATA/PG_VERSION' ]]"
 check "secrets $CMP_SECRETS/db.env"       "[[ -r '$CMP_SECRETS/db.env' ]]"
 check "covariate dictionary"              "[[ -f '$CMP_LAYERS/covariate_dictionary.yml' ]]"
-check "WorldPop master grid source"       "[[ -f '$CHOLERA_MASTER_GRID_FILE' ]]"
+check "master grid source (land mask)"      "[[ -f '$CHOLERA_MASTER_GRID_FILE' ]]"
 check "admin units for $CMP_AOI"          "[[ -f '$CHOLERA_AOI_CACHE_DIR/${CMP_AOI}_adm0.gpkg' ]]"
 check "observations file"                 "[[ -z '$OBS' || -f '$OBS' ]]"
 check "taxdat installed"                  "Rscript -e 'library(taxdat)' >/dev/null 2>&1"
 check "config dictionary (Analysis/configs)" "[[ -f '$CMP_REPO/Analysis/configs/config_dictionary.yml' ]]"
-[[ $fail == 0 ]] || { echo "Fix the failed checks first (see hpc/yggdrasil/README.md)." >&2; exit 1; }
+[[ $fail == 0 ]] || { echo "Fix the failed checks first (see hpc/unige/README.md)." >&2; exit 1; }
 
 # Covariates and resolution from the config ------------------------------------
 read -r CFG_RES CFG_COVS < <(Rscript -e '
@@ -85,5 +85,5 @@ mapping_run (smoke):   $RUN
 db_diagnostics:        $DIAG  (figures in $SHARE/diagnostics/$PGDATABASE/)
 db_backup:             $BKP
 Logs in $CMP_REPO/logs/. Stop the server when done:
-  bash hpc/yggdrasil/stages/db_service.sh stop
+  bash hpc/unige/stages/db_service.sh stop
 MSG

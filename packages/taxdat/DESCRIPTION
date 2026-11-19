@@ -86,6 +86,7 @@ Collate:
     'suggest_crs.R'
     'taxdat-package.R'
     'transform_covariates.R'
+    'worldpop_g2.R'
 VignetteBuilder: knitr
 LazyData: true
 Config/roxygen2/version: 8.1.0

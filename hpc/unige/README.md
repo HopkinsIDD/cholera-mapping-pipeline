@@ -1,4 +1,4 @@
-# Covariates database on Yggdrasil
+# Covariates database on the UNIGE clusters (Yggdrasil, Baobab)
 
 PostgreSQL 17 + PostGIS run inside an Apptainer image in a Slurm job; the
 mapping pipeline (R from cluster modules) connects to it over TCP from other
@@ -6,7 +6,7 @@ jobs. One database per area of interest (`cholera_covariates_<iso3>`); the
 Burundi pilot uses `cholera_covariates_bdi`.
 
 ```
-hpc/yggdrasil/
+hpc/unige/
   env.sh                 sourced by every script: paths, modules, PG* settings, helpers
   sql/                   roles, database, schemas; postgresql.conf / pg_hba.conf templates
   slurm/                 one job each (submit with sbatch)
@@ -20,14 +20,16 @@ hpc/yggdrasil/
     mapping_run.sh         set_parameters.R for one config (Stan skipped by default)
     db_backup.sh           pg_dump of the database to $SHARE/backups (keeps 3)
     db_diagnostics.sh      figures: build, covariates by year, test-run extraction
+    worldpop_g2_convert.sh WorldPop Global 2 GeoTIFFs -> yearly population NetCDF
   stages/                login-node drivers
     db_service.sh          start | stop | status of the server job
     db_build.sh            submits the whole build chain for one config
   tools/
     stage_inputs_local.sh  laptop: observations, boundaries, cropped WorldPop, raw covariates
-    rsync_inputs_yggdrasil.sh  laptop -> $SHARE
+    rsync_inputs.sh        laptop -> $SHARE
     create_db_user.sh      add a team member's database role
     pg_tunnel.sh           laptop -> database through the login node
+    download_worldpop_g2.sh  login node: WorldPop Global 2 1 km mosaics
 ```
 
 ## How it fits together
@@ -91,9 +93,9 @@ On a laptop with taxonomy-database access and a git-lfs checkout of
 HopkinsIDD/cholera-covariates (with the needed directories pulled):
 
 ```bash
-bash hpc/yggdrasil/tools/stage_inputs_local.sh --config Analysis/configs/BDI_pilot.yml \
+bash hpc/unige/tools/stage_inputs_local.sh --config Analysis/configs/BDI_pilot.yml \
   --covariates-repo ~/projects/cholera-covariates --worldpop ~/data/ppp_2020_1km_Aggregated.tif
-bash hpc/yggdrasil/tools/rsync_inputs_yggdrasil.sh --remote USER@login1.yggdrasil.hpc.unige.ch \
+bash hpc/unige/tools/rsync_inputs.sh --remote USER@login1.yggdrasil.hpc.unige.ch \
   --stage stage_yggdrasil
 ```
 
@@ -110,28 +112,28 @@ nano /home/shares/azman/cholera_mapping/secrets/superuser.pw && chmod 600 $_
 nano /home/shares/azman/cholera_mapping/secrets/db.env && chmod 640 $_
 git clone git@github.com:HopkinsIDD/cholera-configs.git Analysis/configs   # config_dictionary.yml
 
-sbatch hpc/yggdrasil/slurm/pull_sif.sh
-sbatch hpc/yggdrasil/slurm/install_r_packages.sh
-sbatch hpc/yggdrasil/slurm/db_init.sh          # after pull_sif finishes
-bash hpc/yggdrasil/stages/db_build.sh --config Analysis/configs/BDI_pilot.yml \
+sbatch hpc/unige/slurm/pull_sif.sh
+sbatch hpc/unige/slurm/install_r_packages.sh
+sbatch hpc/unige/slurm/db_init.sh          # after pull_sif finishes
+bash hpc/unige/stages/db_build.sh --config Analysis/configs/BDI_pilot.yml \
   --observations /home/shares/azman/cholera_mapping/data/observations_BDI.rds
-bash hpc/yggdrasil/stages/db_service.sh status
+bash hpc/unige/stages/db_service.sh status
 ```
 
 `db_build.sh --dry-run` runs the pre-flight checks only. Stop the server when
-you are done: `bash hpc/yggdrasil/stages/db_service.sh stop`.
+you are done: `bash hpc/unige/stages/db_service.sh stop`.
 
 ## Daily use
 
 ```bash
-bash hpc/yggdrasil/stages/db_service.sh start            # serve (queues if one runs)
-sbatch hpc/yggdrasil/slurm/mapping_run.sh CONFIG.yml OBS.rds
-bash hpc/yggdrasil/stages/db_service.sh stop
+bash hpc/unige/stages/db_service.sh start            # serve (queues if one runs)
+sbatch hpc/unige/slurm/mapping_run.sh CONFIG.yml OBS.rds
+bash hpc/unige/stages/db_service.sh stop
 ```
 
 Add a teammate (from a job on the server's node, or any node with the
 superuser password in `PGPASSWORD`):
-`NEW_USER_PASSWORD=... PSQL_SUPER="cmp_pg psql -h $PGHOST -U <superuser>" bash hpc/yggdrasil/tools/create_db_user.sh alamc`
+`NEW_USER_PASSWORD=... PSQL_SUPER="cmp_pg psql -h $PGHOST -U <superuser>" bash hpc/unige/tools/create_db_user.sh alamc`
 
 ## Test run by a second team member (Burundi)
 
@@ -153,7 +155,7 @@ never ingests or overwrites covariates.
    wherever the pilot config is on the cluster):
 
    ```bash
-   source hpc/yggdrasil/env.sh
+   source hpc/unige/env.sh
    mkdir -p $SHARE/configs
    sed 's/^ingest_covariates: yes/ingest_covariates: no/' Analysis/configs/BDI_pilot_api.yml \
      > $SHARE/configs/BDI_pilot_test.yml
@@ -171,7 +173,7 @@ never ingests or overwrites covariates.
    ls -ld $SHARE/secrets $CMP_LAYERS $CMP_LAYERS/grids
    ```
 
-4. **Server up** for longer than the test: `bash hpc/yggdrasil/stages/db_service.sh status`
+4. **Server up** for longer than the test: `bash hpc/unige/stages/db_service.sh status`
    shows the endpoint and the time left. Start it if needed.
 5. **Don't run the same config yourself at the same time.** Per-run tables are
    named after the config, so two simultaneous runs of one config overwrite
@@ -196,9 +198,9 @@ never ingests or overwrites covariates.
 2. **Check access:**
 
    ```bash
-   source hpc/yggdrasil/env.sh
+   source hpc/unige/env.sh
    echo "$PGDATABASE $PGUSER"          # cholera_covariates_bdi cholera_app
-   bash hpc/yggdrasil/stages/db_service.sh status   # Endpoint: <node>:5433
+   bash hpc/unige/stages/db_service.sh status   # Endpoint: <node>:5433
    ls /home/shares/azman/cholera_mapping/configs/BDI_pilot_test.yml \
       /home/shares/azman/cholera_mapping/data/observations_BDI.rds
    ```
@@ -209,7 +211,7 @@ never ingests or overwrites covariates.
    most packages compile from source):
 
    ```bash
-   sbatch hpc/yggdrasil/slurm/install_r_packages.sh
+   sbatch hpc/unige/slurm/install_r_packages.sh
    squeue -u $USER                            # wait until the job is gone
    tail -n 15 logs/install_r_pkgs_*.log       # versions, then "terra GDAL: ..."
    ```
@@ -219,7 +221,7 @@ never ingests or overwrites covariates.
 4. **Test the database connection** (debug partition, a few seconds):
 
    ```bash
-   srun -p debug-cpu -t 00:10:00 --mem=2G bash -c 'source hpc/yggdrasil/env.sh && cmp_wait_db 1 &&
+   srun -p debug-cpu -t 00:10:00 --mem=2G bash -c 'source hpc/unige/env.sh && cmp_wait_db 1 &&
      cmp_pg psql -h "$PGHOST" -p "$PGPORT" -c "SELECT covariate, aoi_name FROM covariates.metadata ORDER BY 1"'
    ```
 
@@ -228,7 +230,7 @@ never ingests or overwrites covariates.
 5. **Run the data preparation:**
 
    ```bash
-   sbatch hpc/yggdrasil/slurm/mapping_run.sh \
+   sbatch hpc/unige/slurm/mapping_run.sh \
      /home/shares/azman/cholera_mapping/configs/BDI_pilot_test.yml \
      /home/shares/azman/cholera_mapping/data/observations_BDI.rds
    squeue -u $USER
@@ -292,7 +294,7 @@ No WorldPop mosaic is needed: the master grid is built from
 ```bash
 cd ~/projects/cholera-mapping-pipeline
 git pull
-sbatch hpc/yggdrasil/slurm/install_r_packages.sh   # reinstalls taxdat from this checkout
+sbatch hpc/unige/slurm/install_r_packages.sh   # reinstalls taxdat from this checkout
 ```
 
 Wait for the install job to finish: its log ends with the package versions
@@ -309,7 +311,7 @@ cd ~/projects/cholera-mapping-pipeline
 export CMP_AOI=raw
 export CMP_LAYERS=/home/shares/azman/cholera_mapping/Layers_global
 export CHOLERA_MASTER_GRID_FILE=$CMP_LAYERS/pop/population_2020_yearly.nc
-source hpc/yggdrasil/env.sh
+source hpc/unige/env.sh
 echo "$PGDATABASE $CMP_LAYERS"   # cholera_covariates_raw /home/shares/azman/cholera_mapping/Layers_global
 ```
 
@@ -319,12 +321,12 @@ echo "$PGDATABASE $CMP_LAYERS"   # cholera_covariates_raw /home/shares/azman/cho
 run while `db_serve` is up.
 
 ```bash
-bash hpc/yggdrasil/stages/db_service.sh stop
-bash hpc/yggdrasil/stages/db_service.sh status   # repeat until no db_serve job is listed
+bash hpc/unige/stages/db_service.sh stop
+bash hpc/unige/stages/db_service.sh status   # repeat until no db_serve job is listed
                                                  # (scancel any queued one)
-sbatch hpc/yggdrasil/slurm/db_init.sh            # log ends with "db_init OK: ..., database cholera_covariates_raw"
-bash hpc/yggdrasil/stages/db_service.sh start    # once db_init has finished
-bash hpc/yggdrasil/stages/db_service.sh status   # wait for "Endpoint: <node>:5433"
+sbatch hpc/unige/slurm/db_init.sh            # log ends with "db_init OK: ..., database cholera_covariates_raw"
+bash hpc/unige/stages/db_service.sh start    # once db_init has finished
+bash hpc/unige/stages/db_service.sh status   # wait for "Endpoint: <node>:5433"
 ```
 
 The pilot database is untouched and served again by the same job.
@@ -335,7 +337,7 @@ Submit once the server shows an endpoint: client jobs wait at most 10 minutes
 for the database.
 
 ```bash
-JOB_GRID=$(sbatch --parsable --time=06:00:00 --mem=48G hpc/yggdrasil/slurm/prepare_grid.sh)
+JOB_GRID=$(sbatch --parsable --time=06:00:00 --mem=48G hpc/unige/slurm/prepare_grid.sh)
 ```
 
 The log ends with `DONE GRID: grids.grid_20_20 (N cells)` and the same line for
@@ -345,7 +347,7 @@ The log ends with `DONE GRID: grids.grid_20_20 (N cells)` and the same line for
 
 ```bash
 JOB_PRE=$(sbatch --parsable --dependency=afterok:$JOB_GRID --array=0-1%1 -c 4 --mem=64G \
-  hpc/yggdrasil/slurm/covariates_precompute.sh "p:1,p:20")
+  hpc/unige/slurm/covariates_precompute.sh "p:1,p:20")
 ```
 
 `%1` runs the two tasks one after the other, so the 20 km task reuses the
@@ -359,14 +361,14 @@ too small), resubmit with temporary files on scratch:
 
 ```bash
 CMP_TMPDIR=/srv/beegfs/scratch/shares/azman/cholera_mapping/tmp/$USER sbatch --array=0-1%1 -c 4 --mem=64G \
-  hpc/yggdrasil/slurm/covariates_precompute.sh "p:1,p:20"
+  hpc/unige/slurm/covariates_precompute.sh "p:1,p:20"
 ```
 
 ### 7. Load into the database
 
 ```bash
 JOB_ING=$(sbatch --parsable --dependency=afterok:$JOB_PRE --partition=public-cpu --time=1-00:00:00 --mem=16G \
-  hpc/yggdrasil/slurm/covariates_ingest.sh "p:1,p:20")
+  hpc/unige/slurm/covariates_ingest.sh "p:1,p:20")
 ```
 
 The 1 km load is the long part: about 700 chunks of 1024 × 1024 pixels × 21
@@ -378,7 +380,7 @@ skipped and the processed files are reused.
 ### 8. Check the result
 
 ```bash
-srun -p shared-cpu -t 01:00:00 -c 1 --mem=4G bash -c 'source hpc/yggdrasil/env.sh && cmp_wait_db 1 && cmp_pg psql -h "$PGHOST" -p "$PGPORT" -f -' <<'SQL'
+srun -p shared-cpu -t 01:00:00 -c 1 --mem=4G bash -c 'source hpc/unige/env.sh && cmp_wait_db 1 && cmp_pg psql -h "$PGHOST" -p "$PGPORT" -f -' <<'SQL'
 SELECT covariate, aoi_name, ingested_at FROM covariates.metadata ORDER BY 1;
 SELECT covariate, count(*) AS bands, min(tl), max(tl) FROM covariates.bands GROUP BY 1 ORDER BY 1;
 SELECT relname, pg_size_pretty(pg_total_relation_size(oid)) FROM pg_class
@@ -398,7 +400,7 @@ draws maps for one country's test run, so it is not meant for this database.
 ### 9. Back up
 
 ```bash
-sbatch --dependency=afterok:$JOB_ING --time=12:00:00 hpc/yggdrasil/slurm/db_backup.sh
+sbatch --dependency=afterok:$JOB_ING --time=12:00:00 hpc/unige/slurm/db_backup.sh
 ```
 
 The dump goes to `$SHARE/backups/cholera_covariates_raw_<date>`. The job keeps
@@ -424,6 +426,152 @@ Storage on the owner's home quota:
 
 A model run against this database uses `aoi: raw` in its config.
 
+## Full database on Baobab with WorldPop Global 2 (2015 to 2030)
+
+One database, `cholera_covariates_raw`, uncropped: population from WorldPop
+Global 2 at 1 km and 20 km, the other covariates at 20 km. `env.sh` detects
+the cluster; Baobab has its own storage, so nothing built on Yggdrasil is
+visible there.
+
+What changes with Global 2 (release R2025A, constrained, doi:10.5258/SOTON/WP00845):
+
+- Years 2015 to 2030 only, dated 1 January. A run with a time slice before
+  2015 stops with "Covariate not found for modelling time slice".
+- Unsettled land is NoData in the source. `worldpop_g2_convert.sh` writes 0
+  there, so the land mask comes from another file: the unconstrained 2020
+  mosaic of release R2024B, on the same lattice. That file is the master grid
+  source (`CHOLERA_MASTER_GRID_FILE`).
+- The lattice (origin -180, 84; down to 60 S) differs from Global 1 by a
+  fraction of a pixel. Do not mix Global 1 and Global 2 files in one Layers
+  directory; the conversion refuses a `pop/` directory it did not write.
+- National totals already follow UN WPP 2024, so `adjust_pop_UN` becomes a
+  small correction (1 January versus mid-year).
+
+### 0. Check the cluster (login1.baobab.hpc.unige.ch)
+
+```bash
+sinfo -s                                        # public-longrun-cpu, shared-cpu, public-cpu, debug-cpu
+module spider R/4.3.2 GDAL/3.7.1 PostgreSQL/16.1
+ls -d /home/share*/azman/cholera_mapping /srv/beegfs/scratch/shares/azman/cholera_mapping
+getent group GL_M_gdd_cholera_mapping
+```
+
+If the share does not exist, ask hpc@unige.ch for it (home and scratch). If
+its path differs from `/home/shares/azman/cholera_mapping`, export `SHARE` and
+`SCRATCH_SHARE` before step 2. Jobs whose walltime crosses a maintenance
+window do not start before it: check https://status.hpc.unige.ch/ before
+starting the 14-day server.
+
+### 1. Code, image, R packages
+
+```bash
+mkdir -p ~/projects && cd ~/projects
+git clone git@github.com:HopkinsIDD/cholera-mapping-pipeline.git && cd cholera-mapping-pipeline
+git checkout dev_baobab_worldpop_g2
+mkdir -p logs /home/shares/azman/cholera_mapping/secrets && chmod 2770 /home/shares/azman/cholera_mapping/secrets
+nano /home/shares/azman/cholera_mapping/secrets/superuser.pw && chmod 600 $_   # one line
+nano /home/shares/azman/cholera_mapping/secrets/db.env && chmod 640 $_         # export PGUSER=cholera_app / export PGPASSWORD='...'
+sbatch hpc/unige/slurm/pull_sif.sh
+sbatch hpc/unige/slurm/install_r_packages.sh
+```
+
+### 2. Point the shell at the build
+
+In a fresh login shell, before anything else sources `env.sh`:
+
+```bash
+cd ~/projects/cholera-mapping-pipeline
+export CMP_AOI=raw
+export CMP_LAYERS=/home/shares/azman/cholera_mapping/Layers_g2
+export CHOLERA_MASTER_GRID_FILE=$CMP_LAYERS/worldpop_g2_raw/global_pop_2020_UC_1km_R2024B_UA_v1.tif
+source hpc/unige/env.sh
+echo "$CMP_CLUSTER $PGDATABASE $CMP_LAYERS"   # baobab cholera_covariates_raw .../Layers_g2
+```
+
+### 3. Inputs
+
+Population, on the login node (17 files, 5.4 GB, resumable):
+
+```bash
+bash hpc/unige/tools/download_worldpop_g2.sh
+```
+
+It checks every file's size against the server, that all files share one
+lattice (`worldpop_g2_raw/lattice.txt`), and writes `SHA256SUMS`.
+
+Dictionary and the other covariates, from a laptop with a git-lfs checkout of
+HopkinsIDD/cholera-covariates (`git lfs pull` first; do not copy its `pop/`):
+
+```bash
+COVREPO=~/projects/archive/cholera-covariates
+find "$COVREPO" -path "$COVREPO/.git" -prune -o \( -name '*.nc' -o -name '*.tif' \) -size -1k -print   # must print nothing
+rsync -avh --progress --chmod=Dg+rwxs,Fg+rw --exclude pop --exclude .git "$COVREPO"/ \
+  USER@login1.baobab.hpc.unige.ch:/home/shares/azman/cholera_mapping/Layers_g2/
+```
+
+Two dictionary entries cannot be built: `chirps_cum` (its directory is on a
+machine that no longer exists) and `logpop` (its 2000 file is not in the
+repository).
+
+### 4. Convert population (no database)
+
+```bash
+JOB_POP=$(sbatch --parsable hpc/unige/slurm/worldpop_g2_convert.sh)
+```
+
+The log ends with `Done WorldPop Global 2: 16 year(s)`. Per-year totals are in
+`$CMP_LAYERS/pop/worldpop_g2_summary.csv`; `people_off_land` (people on pixels
+the land file does not cover, kept in the population but outside the master
+grid) should be negligible.
+
+### 5. Database and grids
+
+```bash
+sbatch hpc/unige/slurm/db_init.sh                # after pull_sif; ends with "db_init OK"
+bash hpc/unige/stages/db_service.sh start
+bash hpc/unige/stages/db_service.sh status       # wait for "Endpoint: <node>:5433"
+JOB_GRID=$(sbatch --parsable --time=06:00:00 --mem=48G hpc/unige/slurm/prepare_grid.sh)
+```
+
+### 6. Pre-compute and load
+
+Population first (1 km, then 20 km, as in the Global 1 runbook above), then
+the other covariates at 20 km:
+
+```bash
+JOB_PRE=$(sbatch --parsable --dependency=afterok:$JOB_POP:$JOB_GRID --array=0-1%1 -c 4 --mem=64G \
+  hpc/unige/slurm/covariates_precompute.sh "p:1,p:20")
+JOB_ING=$(sbatch --parsable --dependency=afterok:$JOB_PRE --partition=public-cpu --time=1-00:00:00 --mem=16G \
+  hpc/unige/slurm/covariates_ingest.sh "p:1,p:20")
+
+OTHER="dw:20,dl:20,dr:20,dc:20,as:20,aw:20,ao:20,cs:20,cw:20,ac:20,ahm:20,ahw:20"
+JOB_PRE2=$(sbatch --parsable --dependency=afterok:$JOB_GRID --array=0-11 --mem=64G \
+  hpc/unige/slurm/covariates_precompute.sh "$OTHER")
+JOB_ING2=$(sbatch --parsable --dependency=afterok:$JOB_PRE2:$JOB_ING hpc/unige/slurm/covariates_ingest.sh "$OTHER")
+```
+
+The WASH, stunting and wasting series end in 2020: a run that uses them is
+limited to 2015 to 2020.
+
+### 7. Check and back up
+
+```bash
+srun -p shared-cpu -t 01:00:00 -c 1 --mem=4G bash -c 'source hpc/unige/env.sh && cmp_wait_db 1 && cmp_pg psql -h "$PGHOST" -p "$PGPORT" -f -' <<'SQL'
+SELECT covariate, aoi_name, ingested_at FROM covariates.metadata ORDER BY 1;
+SELECT covariate, count(*) AS bands, min(tl), max(tl) FROM covariates.bands GROUP BY 1 ORDER BY 1;
+SELECT b AS band, round(sum((ST_SummaryStats(ST_Band(rast, b), 1, true)).sum)::numeric / 1e9, 3) AS pop_20km
+  FROM covariates.pop_1_years_20_20, generate_series(1, 16) b GROUP BY b ORDER BY b;
+SELECT b AS band, round(sum((ST_SummaryStats(ST_Band(rast, b), 1, true)).sum)::numeric / 1e9, 3) AS pop_1km
+  FROM covariates.pop_1_years_1_1, generate_series(1, 16) b WHERE b IN (1, 6, 16) GROUP BY b ORDER BY b;
+SQL
+sbatch --dependency=afterok:$JOB_ING2 --time=12:00:00 hpc/unige/slurm/db_backup.sh
+```
+
+Expect 16 population bands from 2015-01-01 to 2030-01-01, the same world
+total at both resolutions and in `worldpop_g2_summary.csv` (band 6, 2020:
+7.851 billion). Then run one country with `aoi: raw` in its config
+(`mapping_run.sh`) as the end-to-end test.
+
 ## Cost (billing units: 1 BU = 1 core-hour; memory counts 25 %)
 
 | Job | Resources | Pilot (BDI) |
@@ -445,6 +593,11 @@ Yggdrasil, the Burundi pilot ran image pull, R install, init, serve, grids,
 pre-compute, population ingest at 1 km and 20 km, and the mapping run through
 the covariate cube. The global population steps above were tested locally on
 a synthetic raster with the same code paths, but not yet on Yggdrasil.
+
+The Global 2 path (conversion, master grid from the unconstrained mosaic,
+grids, pre-compute, load with `aoi: raw`) was tested locally on WorldPop's
+Burundi files for 2015, 2020 and 2030: the database totals equal the source
+(12,441,306 for 2020) at 1 km and 20 km. Nothing has run on Baobab yet.
 
 ## Open questions for the HPC team
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Start, stop or inspect the database server job (login node).
-# Usage: bash hpc/yggdrasil/stages/db_service.sh start|stop|status
+# Usage: bash hpc/unige/stages/db_service.sh start|stop|status
 #   start  submit slurm/db_serve.sh (queues behind a running one: singleton)
 #   stop   ask the running server to shut down cleanly
 #   status endpoint, job state and remaining time

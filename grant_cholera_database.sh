@@ -4,4 +4,4 @@
 set -euo pipefail
 REPO_DIR=$(dirname "$(readlink -f "$0")")
 PSQL_SUPER="${PSQL_SUPER:-sudo -u postgres psql}" \
-  bash "$REPO_DIR/hpc/yggdrasil/tools/create_db_user.sh" "$1"
+  bash "$REPO_DIR/hpc/unige/tools/create_db_user.sh" "$1"

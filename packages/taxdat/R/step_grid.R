@@ -29,6 +29,9 @@ master_grid_file_path <- function(layers_dir, aoi_name = "raw") {
 
 #' @title Default WorldPop source for the master grid
 #' @name default_master_grid_source
+#' @description Any 1 km raster with a value >= 0 on land: the WorldPop Global 1
+#' 2020 mosaic, or for WorldPop Global 2 the unconstrained 2020 mosaic of
+#' release R2024B (the constrained files are NoData on unsettled land).
 #' @param layers_dir Layers directory
 #' @return `CHOLERA_MASTER_GRID_FILE` if set, else the WorldPop 2020 1 km mosaic
 #'   under `<layers_dir>/pop_old/`

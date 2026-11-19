@@ -17,19 +17,19 @@ set -euo pipefail
 # repository from the submission directory (submit from the repository root);
 # with plain `bash`, from this file's location.
 CMP_REPO="${CMP_REPO:-${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$(readlink -f "$0")")/../../.." && pwd)}}"
-if [[ ! -f "$CMP_REPO/hpc/yggdrasil/env.sh" ]]; then
-  echo "Cannot find hpc/yggdrasil/env.sh under $CMP_REPO: submit from the repository root or export CMP_REPO" >&2
+if [[ ! -f "$CMP_REPO/hpc/unige/env.sh" ]]; then
+  echo "Cannot find hpc/unige/env.sh under $CMP_REPO: submit from the repository root or export CMP_REPO" >&2
   exit 1
 fi
-source "$CMP_REPO/hpc/yggdrasil/env.sh"
-SQL_DIR="$CMP_REPO/hpc/yggdrasil/sql"
+source "$CMP_REPO/hpc/unige/env.sh"
+SQL_DIR="$CMP_REPO/hpc/unige/sql"
 
 if [[ -e "$PGDATA/PG_VERSION" ]]; then
   # This job starts its own server on PGDATA: never while db_serve uses it
   # (two servers on one data directory corrupt it).
   if [[ -s "$DB_ENDPOINT_FILE" || -f "$PGDATA/postmaster.pid" ]]; then
     echo "The server is running (or did not shut down cleanly): stop it with" >&2
-    echo "  bash hpc/yggdrasil/stages/db_service.sh stop" >&2
+    echo "  bash hpc/unige/stages/db_service.sh stop" >&2
     echo "and resubmit once no db_serve job is left. If no server runs anywhere, remove" >&2
     echo "$PGDATA/postmaster.pid and $DB_ENDPOINT_FILE first." >&2
     exit 1
