@@ -28,6 +28,24 @@ export CMP_LOGIN_HOST="${CMP_LOGIN_HOST:-login1.${CMP_CLUSTER}.hpc.unige.ch}"
 export SHARE="${SHARE:-/home/shares/azman/cholera_mapping}"
 export SCRATCH_SHARE="${SCRATCH_SHARE:-/srv/beegfs/scratch/shares/azman/cholera_mapping}"
 
+# Named build: CMP_PROFILE=<name> loads profiles/<name>.env (or a file path),
+# which sets the paths of one database build (area of interest, Layers, data
+# directory, endpoint, secrets) as defaults. Variables exported before
+# sourcing still win. Jobs inherit CMP_PROFILE from the submitting shell.
+if [[ -n "${CMP_PROFILE:-}" ]]; then
+  _cmp_profile="$CMP_PROFILE"
+  [[ -f "$_cmp_profile" ]] || _cmp_profile="$CMP_REPO/hpc/unige/profiles/$CMP_PROFILE.env"
+  if [[ ! -f "$_cmp_profile" ]]; then
+    echo "env.sh: profile '$CMP_PROFILE' not found (looked for $_cmp_profile); available:" \
+      "$(ls "$CMP_REPO/hpc/unige/profiles" 2>/dev/null | sed 's/\.env$//' | paste -sd' ' -)" >&2
+    unset _cmp_profile CMP_ENV_LOADED
+    return 1
+  fi
+  # shellcheck disable=SC1090
+  source "$_cmp_profile"
+  unset _cmp_profile
+fi
+
 export CMP_AOI="${CMP_AOI:-BDI}"                    # area of interest (ISO3 or raw)
 export CMP_AOI_BUFFER_KM="${CMP_AOI_BUFFER_KM:-50}"
 CMP_AOI_TAG=$(echo "$CMP_AOI" | tr '[:upper:]' '[:lower:]')
@@ -37,6 +55,7 @@ export CHOLERA_AOI_CACHE_DIR="${CHOLERA_AOI_CACHE_DIR:-$CMP_LAYERS/admin_units}"
 export CHOLERA_MASTER_GRID_FILE="${CHOLERA_MASTER_GRID_FILE:-$CMP_LAYERS/pop_old/ppp_2020_1km_Aggregated.tif}"
 export CMP_DATA="${CMP_DATA:-$SHARE/data}"           # pre-pulled observations (.rds)
 export CMP_BACKUPS="${CMP_BACKUPS:-$SHARE/backups}"
+export CMP_DIAGNOSTICS="${CMP_DIAGNOSTICS:-$SHARE/diagnostics}"   # figures and extracts
 export CMP_SECRETS="${CMP_SECRETS:-$SHARE/secrets}"  # db.env, superuser.pw (mode 640/600)
 
 # --- PostgreSQL server (runs in the Apptainer image) ------------------------

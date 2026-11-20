@@ -18,9 +18,12 @@ hpc/unige/
     covariates_precompute.sh  array: one covariate per task, no database access
     covariates_ingest.sh   load pre-computed covariates (serial)
     mapping_run.sh         set_parameters.R for one config (Stan skipped by default)
-    db_backup.sh           pg_dump of the database to $SHARE/backups (keeps 3)
+    db_backup.sh           pg_dump of the database to $CMP_BACKUPS (keeps 3)
     db_diagnostics.sh      figures: build, covariates by year, test-run extraction
     worldpop_g2_convert.sh WorldPop Global 2 GeoTIFFs -> yearly population NetCDF
+    covariates_extract_country.sh  all covariates over one country, checked against sources
+  profiles/              named builds (CMP_PROFILE=<name>): paths of one database
+    baobab_raw_g2.env      global database on Baobab, WorldPop Global 2
   stages/                login-node drivers
     db_service.sh          start | stop | status of the server job
     db_build.sh            submits the whole build chain for one config
@@ -468,25 +471,35 @@ starting the 14-day server.
 mkdir -p ~/projects && cd ~/projects
 git clone git@github.com:HopkinsIDD/cholera-mapping-pipeline.git && cd cholera-mapping-pipeline
 git checkout dev_baobab_worldpop_g2
-mkdir -p logs /home/shares/azman/cholera_mapping/secrets && chmod 2770 /home/shares/azman/cholera_mapping/secrets
-nano /home/shares/azman/cholera_mapping/secrets/superuser.pw && chmod 600 $_   # one line
-nano /home/shares/azman/cholera_mapping/secrets/db.env && chmod 640 $_         # export PGUSER=cholera_app / export PGPASSWORD='...'
+export CMP_PROFILE=baobab_raw_g2       # see step 2
+S=/home/shares/azman/cholera_mapping
+mkdir -p logs $S/secrets_g2 && chmod 2770 $S/secrets_g2
+nano $S/secrets_g2/superuser.pw && chmod 600 $_   # one line
+nano $S/secrets_g2/db.env && chmod 640 $_         # export PGUSER=cholera_app / export PGPASSWORD='...'
 sbatch hpc/unige/slurm/pull_sif.sh
 sbatch hpc/unige/slurm/install_r_packages.sh
 ```
 
 ### 2. Point the shell at the build
 
-In a fresh login shell, before anything else sources `env.sh`:
+The build's paths are in the profile
+[`profiles/baobab_raw_g2.env`](profiles/baobab_raw_g2.env). They carry a
+`_g2` suffix (`Layers_g2`, `sif_g2`, `secrets_g2`, `pgdata_g2`, `logs_g2`,
+`backups_g2`, `diagnostics_g2`, `db_endpoint_g2`) because a Burundi test
+cluster already uses the default paths in the share. In a fresh login shell,
+before anything else sources `env.sh`:
 
 ```bash
 cd ~/projects/cholera-mapping-pipeline
-export CMP_AOI=raw
-export CMP_LAYERS=/home/shares/azman/cholera_mapping/Layers_g2
-export CHOLERA_MASTER_GRID_FILE=$CMP_LAYERS/worldpop_g2_raw/global_pop_2020_UC_1km_R2024B_UA_v1.tif
+export CMP_PROFILE=baobab_raw_g2
 source hpc/unige/env.sh
-echo "$CMP_CLUSTER $PGDATABASE $CMP_LAYERS"   # baobab cholera_covariates_raw .../Layers_g2
+echo "$CMP_CLUSTER $PGDATABASE $CMP_LAYERS $DB_ENDPOINT_FILE"
+# baobab cholera_covariates_raw .../Layers_g2 .../db_endpoint_g2
 ```
+
+Jobs inherit `CMP_PROFILE` from the submitting shell (Slurm exports the
+environment by default). A variable exported before sourcing overrides the
+profile's value.
 
 ### 3. Inputs
 
@@ -571,6 +584,31 @@ Expect 16 population bands from 2015-01-01 to 2030-01-01, the same world
 total at both resolutions and in `worldpop_g2_summary.csv` (band 6, 2020:
 7.851 billion). Then run one country with `aoi: raw` in its config
 (`mapping_run.sh`) as the end-to-end test.
+
+### 8. Mapping runs against this database
+
+Every run uses the profile and a config with `aoi: raw` (the database name
+comes from it), time slices within 2015 to 2030, and `ingest_covariates: no`
+so the run only reads the shared database:
+
+```bash
+cd ~/projects/cholera-mapping-pipeline
+export CMP_PROFILE=baobab_raw_g2
+sbatch hpc/unige/slurm/mapping_run.sh CONFIG.yml OBSERVATIONS.rds
+```
+
+`covariate_choices` takes dictionary names (`dist_to_water`, `water_access`,
+`san_access`, `open_defe`, `access_cities`, ...). Stunting and wasting stop
+in 2017; water, sanitation and open defecation in 2020.
+
+To check the covariates over one country against their source rasters
+(CSVs and a PDF in `$CMP_DIAGNOSTICS/<database>/extract_<ISO>/`), cache its
+boundary on the login node first; compute nodes have no internet:
+
+```bash
+source hpc/unige/env.sh && Rscript -e 'taxdat::cache_admin_units("BDI", 0)'
+sbatch hpc/unige/slurm/covariates_extract_country.sh BDI
+```
 
 ## Cost (billing units: 1 BU = 1 core-hour; memory counts 25 %)
 

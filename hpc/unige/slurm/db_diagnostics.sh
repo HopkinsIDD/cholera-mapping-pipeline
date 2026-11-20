@@ -7,7 +7,7 @@
 #SBATCH -c 2
 # Diagnostic figures for the database build and the test run's extraction
 # (Analysis/R/db_diagnostics.R). Writes a PDF, PNGs and CSVs to
-# $SHARE/diagnostics/<database>/.
+# $CMP_DIAGNOSTICS/<database>/.
 # Usage: sbatch hpc/unige/slurm/db_diagnostics.sh CONFIG.yml
 set -euo pipefail
 # sbatch runs a copy of this script from /var/spool/slurmd, so find the
@@ -22,6 +22,6 @@ source "$CMP_REPO/hpc/unige/env.sh"
 CONFIG=$(readlink -f "${1:?config file}")
 cmp_wait_db
 cd "$CMP_REPO"
-OUT="$SHARE/diagnostics/$PGDATABASE"
+OUT="$CMP_DIAGNOSTICS/$PGDATABASE"
 Rscript Analysis/R/db_diagnostics.R -c "$CONFIG" -l "$CMP_LAYERS" -d Analysis/data -o "$OUT"
 chmod -R g+rX "$OUT"
