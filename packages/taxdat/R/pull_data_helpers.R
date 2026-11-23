@@ -513,7 +513,7 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
 #'     consistent with administrative boundary changes and with the geometry,
 #'     which joins on location_period_id only), then through
 #'     observations.location_id as fallback; new column
-#'     \code{location_via_fallback}. Previously: location_id only.
+#'     \code{location_via_fallback}, returned only with \code{metadata = TRUE}.
 #'   \item Safeguard: the function stops if an observation is returned more
 #'     than once (cannot happen with the current query; would reveal a
 #'     schema change).
@@ -553,6 +553,9 @@ pull_taxonomy_data <- function(username, password, locations = NULL, time_left =
 #' @param dbname name of the taxonomy database to query. Either
 #'   "CholeraTaxonomy_production" (default) or "CholeraTaxonomy_staging".
 #'   A message tells the user which database is being queried.
+#' @param metadata if TRUE, adds the traceability column
+#'   \code{location_via_fallback} (TRUE when the location name could only be
+#'   resolved through observations.location_id). Default FALSE: not returned.
 #' @return An sf object, one row per observation; identifiers as text;
 #'   geometry in column \code{geojson}.
 #' @seealso \code{\link{pull_taxonomy_data}}
@@ -563,7 +566,8 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL,
                                    discard_incomplete_observation_collections = TRUE,
                                    unified_dataset_behaviour = "drop",
                                    host = "db.cholera-taxonomy.middle-distance.com",
-                                   dbname = "CholeraTaxonomy_production") {
+                                   dbname = "CholeraTaxonomy_production",
+                                   metadata = FALSE) {
 
   # ---- Argument checks (all done before opening any connection) -------------
   # Every argument error carries the class "taxdat_arg_error", so that callers
@@ -629,6 +633,10 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL,
       is.na(discard_incomplete_observation_collections)) {
     arg_error("discard_incomplete_observation_collections must be TRUE or FALSE.")
   }
+  if (!is.logical(metadata) || length(metadata) != 1 || is.na(metadata)) {
+    arg_error("metadata must be TRUE or FALSE.")
+  }
+
   if (!(is.character(unified_dataset_behaviour) &&
         length(unified_dataset_behaviour) == 1 &&
         unified_dataset_behaviour %in% c("drop", "keep"))) {
@@ -785,6 +793,9 @@ read_taxonomy_data_sql <- function(username, password, locations = NULL,
   if (is.na(sf::st_crs(observations))) {
     sf::st_crs(observations) <- 4326
   }
+
+  # Traceability column: only returned on request (the geometry is kept)
+  if (!isTRUE(metadata)) observations$location_via_fallback <- NULL
 
   observations
 }
