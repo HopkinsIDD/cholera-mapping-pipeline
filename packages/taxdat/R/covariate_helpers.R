@@ -1398,8 +1398,63 @@ get_country_admin_units_db <- function(iso_code,
 }
 
 
+# Session-level cache so repeated requests for the same boundaries don't re-download
+.geoboundaries_cache <- new.env(parent = emptyenv())
+
+#' Get geoBoundaries admin units
+#' Downloads gbOpen boundaries for a country and admin level from the
+#' geoBoundaries API (https://www.geoboundaries.org) as GeoJSON. This replaces
+#' rgeoboundaries::geoboundaries()/gb_adm*(), which broke when geoBoundaries
+#' stopped shipping a top-level shapefile in its "-all.zip" downloads (Nov 2026).
+#' @param iso_code ISO3 country code, e.g. "UGA"
+#' @param admin_level admin level, 0 to 5
+#' @param simplified if TRUE, use the simplified geometries
+#'
+#' @return an sf object with columns shapeName, shapeISO, shapeID, shapeGroup,
+#'   shapeType and geometry (WGS84), as returned by rgeoboundaries
+#' @export
+#'
+get_geoboundaries <- function(iso_code,
+                              admin_level = 0,
+                              simplified = FALSE) {
+  iso_code <- toupper(unique(iso_code))
+  if (length(iso_code) > 1) {
+    return(do.call(rbind, lapply(iso_code, get_geoboundaries,
+                                 admin_level = admin_level, simplified = simplified)))
+  }
+  cache_key <-paste(iso_code, admin_level, simplified, sep = "_")
+  if (exists(cache_key, envir = .geoboundaries_cache, inherits = FALSE)) {
+    return(get(cache_key, envir = .geoboundaries_cache))
+  }
+
+  api_url <- paste0("https://www.geoboundaries.org/api/current/gbOpen/",
+                    iso_code, "/ADM", admin_level, "/")
+  meta <- tryCatch(
+    jsonlite::fromJSON(api_url),
+    error = function(e) {
+      stop("Could not get geoBoundaries metadata for ", iso_code, " ADM", admin_level,
+           " from ", api_url, ": ", conditionMessage(e))
+    })
+
+  gj_url <- if (simplified) meta$simplifiedGeometryGeoJSON else meta$gjDownloadURL
+  if (is.null(gj_url) || !nzchar(gj_url)) {
+    stop("geoBoundaries returned no GeoJSON link for ", iso_code, " ADM", admin_level)
+  }
+
+  gj_file <- tempfile(fileext = ".geojson")
+  on.exit(unlink(gj_file), add = TRUE)
+  utils::download.file(gj_url, gj_file, mode = "wb", quiet = TRUE)
+
+  boundary_sf <- sf::st_read(gj_file, quiet = TRUE)
+  sf::st_geometry(boundary_sf) <- "geometry"
+
+  assign(cache_key, boundary_sf, envir = .geoboundaries_cache)
+  boundary_sf
+}
+
+
 #' Get country admin units
-#' Pulls the admin units based on the iso3 code using rgeoboundaries
+#' Pulls the admin units based on the iso3 code using geoBoundaries
 #' @param iso_code 
 #' @param admin_level 
 #'
@@ -1416,9 +1471,9 @@ get_country_admin_units <- function(iso_code,
 
   message("Using the rgeoboundaries shapefiles for all countries, for this country a admin level: ", admin_level)
   
-  # Pull shapefiles from rgeoboundaries package
-  boundary_sf <- rgeoboundaries::geoboundaries(country = iso_code,
-                                                 adm_lvl = paste0('adm',admin_level)) %>% 
+  # Pull boundaries from geoBoundaries
+  boundary_sf <- get_geoboundaries(iso_code = iso_code,
+                                   admin_level = admin_level) %>%
     dplyr::mutate(shapeID = paste0(shapeGroup,"-",shapeType,"-",shapeID)) %>% 
     dplyr::select(shapeName, shapeID, shapeType, geometry) %>% 
     dplyr::mutate(source = "rgeoboundaries", country = iso_code) %>% 

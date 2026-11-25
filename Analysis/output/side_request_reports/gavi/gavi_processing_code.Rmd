@@ -30,26 +30,18 @@ library(sf)
 library(raster)
 library(stars)
 
-### other new packages (mainly for "rgeoboundaries")
+### other new packages
 chooseCRANmirror(ind = 77)
 
 package_list <- c(
   "fasterize", 
-  "remotes",
-  "rgeoboundaries"
+  "remotes"
 )
 
 for (package in package_list) {
   if (!require(package = package, character.only = T)) {
-    if (package == "rgeoboundaries"){
-      try({
-        remotes::install_gitlab("dickoa/rgeoboundaries")
-        remotes::install_github("wmgeolab/rgeoboundaries")
-      })
-    }else{
-      install.packages(pkgs = package)
-      library(package = package, character.only = T)
-    }
+    install.packages(pkgs = package)
+    library(package = package, character.only = T)
   }
 }
 ```
@@ -257,7 +249,7 @@ if(params$old_runs){
 
 #shapefile imported
 iso_code <- as.character(stringr::str_extract(params$config, "[A-Z]{3}"))
-shapefile <- rgeoboundaries::gb_adm0(iso_code)
+shapefile <- taxdat::get_geoboundaries(iso_code, 0)
 
 #rate raster
 rate_raster_2020 <- get_rate_raster(covar_data_filename=file_names[["covar"]],

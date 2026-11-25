@@ -51,13 +51,12 @@ library(sf)
 library(raster)
 library(stars)
 
-##### Other new packages (mainly for "rgeoboundaries")
+##### Other new packages
 chooseCRANmirror(ind = 77)
 
 package_list <- c(
   "fasterize", 
   "remotes",
-  "rgeoboundaries", 
   "gsheet", 
   "stringdist", 
   "reproducible"
@@ -65,15 +64,8 @@ package_list <- c(
 
 for (package in package_list) {
   if (!require(package = package, character.only = T)) {
-    if (package == "rgeoboundaries"){
-      try({
-        remotes::install_gitlab("dickoa/rgeoboundaries")
-        remotes::install_github("wmgeolab/rgeoboundaries")
-      })
-    }else{
-      install.packages(pkgs = package)
-      library(package = package, character.only = T)
-    }
+    install.packages(pkgs = package)
+    library(package = package, character.only = T)
   }
 }
 
@@ -298,12 +290,11 @@ aggregate_affected_pop_across_cells_by_districts <- function( sf_rate_pop,
                                                               district_level = 2, 
                                                               mutually_exclusive_in_the_end = TRUE){ 
   ### Loop through each admin-2 district 
-  library(rgeoboundaries)
   if(iso_code == "ZNZ"){
-    shapefiles <- gb_adm1("TZA")[gb_adm1("TZA")$shapeName %in% 
+    shapefiles <- taxdat::get_geoboundaries("TZA", 1)[taxdat::get_geoboundaries("TZA", 1)$shapeName %in% 
                                 c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
   }else{
-    shapefiles <- do.call(paste0('gb_adm', district_level), list(iso_code)) 
+    shapefiles <- taxdat::get_geoboundaries(iso_code, district_level) 
   }
   intermediate_table <- tibble(initial = NA) #initialize the output table
   threshold_list <- sort(threshold_list, decreasing = TRUE)
@@ -526,8 +517,8 @@ for(country_code in Dec_2021_list){
       }
 
       iso_code <- country_code
-      if(iso_code != "ZNZ"){shapefile <- rgeoboundaries::gb_adm0(iso_code)}else{
-        country_shp <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+      if(iso_code != "ZNZ"){shapefile <- taxdat::get_geoboundaries(iso_code, 0)}else{
+        country_shp <- taxdat::get_geoboundaries("TZA", 1)[taxdat::get_geoboundaries("TZA", 1)$shapeName %in% 
                                                       c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
         shapefile <- sf::st_union(country_shp)
         shapefile <- sf::as_Spatial(shapefile)
@@ -583,8 +574,8 @@ for(country_code in Dec_2021_list){
         }
 
         iso_code <- country_code
-        if(iso_code != "ZNZ"){shapefile <- rgeoboundaries::gb_adm0(iso_code)}else{
-          country_shp <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+        if(iso_code != "ZNZ"){shapefile <- taxdat::get_geoboundaries(iso_code, 0)}else{
+          country_shp <- taxdat::get_geoboundaries("TZA", 1)[taxdat::get_geoboundaries("TZA", 1)$shapeName %in% 
                                                         c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
           shapefile <- sf::st_union(country_shp)
           shapefile <- sf::as_Spatial(shapefile)
@@ -626,8 +617,8 @@ for(country_code in Dec_2021_list){
           }
 
           iso_code <- country_code
-          if(iso_code != "ZNZ"){shapefile <- rgeoboundaries::gb_adm0(iso_code)}else{
-            country_shp <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+          if(iso_code != "ZNZ"){shapefile <- taxdat::get_geoboundaries(iso_code, 0)}else{
+            country_shp <- taxdat::get_geoboundaries("TZA", 1)[taxdat::get_geoboundaries("TZA", 1)$shapeName %in% 
                                                           c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
             shapefile <- sf::st_union(country_shp)
             shapefile <- sf::as_Spatial(shapefile)
@@ -912,12 +903,11 @@ aggregate_affected_pop_across_cells_by_districts_based_on_raster <- function( po
                                                                               iso_code, 
                                                                               district_level = 2){ 
   ### Loop through each admin-2 district 
-  library(rgeoboundaries)
   if(iso_code == "ZNZ"){
-    shapefiles <- gb_adm1("TZA")[gb_adm1("TZA")$shapeName %in% 
+    shapefiles <- taxdat::get_geoboundaries("TZA", 1)[taxdat::get_geoboundaries("TZA", 1)$shapeName %in% 
                                 c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
   }else{
-    shapefiles <- do.call(paste0('gb_adm', district_level), list(iso_code)) 
+    shapefiles <- taxdat::get_geoboundaries(iso_code, district_level) 
   }
   intermediate_table <- tibble(initial = NA) #initialize the output table
   threshold_list <- sort(threshold_list, decreasing = TRUE)
