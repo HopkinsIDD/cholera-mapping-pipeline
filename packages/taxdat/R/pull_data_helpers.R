@@ -233,7 +233,7 @@ read_taxonomy_data_api <- function(username, api_key, locations = NULL, time_lef
   api_type <- ""
   if (is.null(uids)) {
     api_type <- "by_location"
-    if (length(locations == 1)) {
+    if (length(locations) == 1) {
       locations <- c(locations, locations)
     }
     
