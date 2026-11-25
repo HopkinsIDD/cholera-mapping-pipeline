@@ -366,10 +366,10 @@ plot_disaggregated_modeled_cases_time_varying_stitched <- function( disaggregate
                                                                     diff_only = FALSE){
 
   if(country_iso == "ZNZ"){
-    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+    boundary_sf <- get_geoboundaries("TZA", 1)[get_geoboundaries("TZA", 1)$shapeName %in% 
                                                     c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West"), ]
   }else{
-    boundary_sf <- rgeoboundaries::gb_adm0(country_iso)
+    boundary_sf <- get_geoboundaries(country_iso, 0)
   }
 
   disaggregated_case_sf <- disaggregated_case_sf %>% 

@@ -150,20 +150,20 @@ plot_cases_by_admin <- function(cache, config, cholera_directory, admin_level_fo
   iso_code <- as.character(stringr::str_extract(config, "[A-Z]{3}"))
   admin_level <- as.numeric(admin_level_for_summary_table)
   if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config))) & admin_level == 1){
-    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+    boundary_sf <- get_geoboundaries("TZA", 1)[get_geoboundaries("TZA", 1)$shapeName %in% 
       c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
   } else if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config))) & admin_level == 2){
-    boundary_sf <- rgeoboundaries::gb_adm2("TZA")[rgeoboundaries::gb_adm2("TZA")$shapeName %in% 
+    boundary_sf <- get_geoboundaries("TZA", 2)[get_geoboundaries("TZA", 2)$shapeName %in% 
       c("Micheweni", "Wete", "Chake Chake", "Mkoani", 
         "Kaskazini A", "Kaskazini B", "Mjini", "Magharibi", "Kati", "Kusini"), ]
   } else{
     if (admin_level == 1){
-      boundary_sf <- rgeoboundaries::gb_adm1(iso_code)
+      boundary_sf <- get_geoboundaries(iso_code, 1)
     }else if (admin_level == 2){
-      boundary_sf <- rgeoboundaries::gb_adm2(iso_code)
+      boundary_sf <- get_geoboundaries(iso_code, 2)
       warning('The current admin level is set at 2. ')
     }else if (admin_level == 3){
-      boundary_sf <- rgeoboundaries::gb_adm3(iso_code)
+      boundary_sf <- get_geoboundaries(iso_code, 3)
       warning('The current admin level is set at 3. ')
     }else{
       stop('Error: the current admin level is unnecessarily high or invalid, 
@@ -248,20 +248,20 @@ plot_incidence_by_admin <- function(cache,config,cholera_directory,admin_level_f
   iso_code <- as.character(stringr::str_extract(config, "[A-Z]{3}"))
   admin_level <- as.numeric(admin_level_for_summary_table)
   if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config))) & admin_level == 1){
-    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+    boundary_sf <- get_geoboundaries("TZA", 1)[get_geoboundaries("TZA", 1)$shapeName %in% 
       c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
   } else if ((iso_code == "ZNZ" | grepl("zanzibar", tolower(config))) & admin_level == 2){
-    boundary_sf <- rgeoboundaries::gb_adm2("TZA")[rgeoboundaries::gb_adm2("TZA")$shapeName %in% 
+    boundary_sf <- get_geoboundaries("TZA", 2)[get_geoboundaries("TZA", 2)$shapeName %in% 
       c("Micheweni", "Wete", "Chake Chake", "Mkoani", 
         "Kaskazini A", "Kaskazini B", "Mjini", "Magharibi", "Kati", "Kusini"), ]
   } else{
     if (admin_level == 1){
-      boundary_sf <- rgeoboundaries::gb_adm1(iso_code)
+      boundary_sf <- get_geoboundaries(iso_code, 1)
     }else if (admin_level == 2){
-      boundary_sf <- rgeoboundaries::gb_adm2(iso_code)
+      boundary_sf <- get_geoboundaries(iso_code, 2)
       warning('The current admin level is set at 2. ')
     }else if (admin_level == 3){
-      boundary_sf <- rgeoboundaries::gb_adm3(iso_code)
+      boundary_sf <- get_geoboundaries(iso_code, 3)
       warning('The current admin level is set at 3. ')
     }else{
       stop('Error: the current admin level is unnecessarily high or invalid, 
