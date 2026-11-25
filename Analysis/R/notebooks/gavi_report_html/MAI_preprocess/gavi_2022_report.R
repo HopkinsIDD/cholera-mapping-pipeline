@@ -232,7 +232,7 @@ library(raster)
 
 lambda <- raster::stack('gavi_vimc_cholera/input_data/incidence/afro_2010-2016_lambda_5k.tif') #this should be updated
 
-gin <- rgeoboundaries::gb_adm0("GIN")
+gin <- taxdat::get_geoboundaries("GIN", 0)
 lambda_gin <- raster::crop(lambda, gin)
 lambda_gin <- raster::mask(lambda_gin, gin)
 
