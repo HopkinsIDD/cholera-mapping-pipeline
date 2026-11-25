@@ -75,3 +75,4 @@ Collate:
     'transform_covariates.R'
 VignetteBuilder: knitr
 LazyData: true
+Config/roxygen2/version: 8.1.0
