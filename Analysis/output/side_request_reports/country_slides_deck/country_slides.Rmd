@@ -556,7 +556,7 @@ if (opt$redo | !file.exists(opt$bundle_filename)) {
 } else {
   load(opt$bundle_filename)
 }
-country_adm1<-rgeoboundaries::gb_adm1(country = country_iso)%>% dplyr::select(geometry,shapeName)
+country_adm1<-taxdat::get_geoboundaries(country_iso, 1)%>% dplyr::select(geometry,shapeName)
 
 ```
 
