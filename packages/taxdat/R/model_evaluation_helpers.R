@@ -363,7 +363,7 @@ plot_disaggregated_modeled_cases_time_varying <- function(config_file,
   iso_code <- taxdat::get_country_isocode(config_file) 
 
   if(any(iso_code == "ZNZ")){
-    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+    boundary_sf <- get_geoboundaries("TZA", 1)[get_geoboundaries("TZA", 1)$shapeName %in% 
       c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
     unionized <- sf::st_union(boundary_sf)
     boundary_sf <- boundary_sf[1, ]
@@ -371,7 +371,7 @@ plot_disaggregated_modeled_cases_time_varying <- function(config_file,
     boundary_sf$shapeName <- "Zanzibar"
     boundary_sf$shapeType <- "ADM0"
   }else{
-    boundary_sf <- rgeoboundaries::gb_adm0(iso_code)
+    boundary_sf <- get_geoboundaries(iso_code, 0)
   }
 
 # Get the country-level shape file from the stan input and plot it against the country-level shape file in the modeled case figure
@@ -467,7 +467,7 @@ plot_modeled_rates_time_varying <- function(config_file,
   iso_code <- taxdat::get_country_isocode(config_file)
 
   if(any(iso_code == "ZNZ")){
-    boundary_sf <- rgeoboundaries::gb_adm1("TZA")[rgeoboundaries::gb_adm1("TZA")$shapeName %in% 
+    boundary_sf <- get_geoboundaries("TZA", 1)[get_geoboundaries("TZA", 1)$shapeName %in% 
       c("Zanzibar South & Central", "Zanzibar North", "Zanzibar Urban/West", "North Pemba", "South Pemba"), ]
     unionized <- sf::st_union(boundary_sf)
     boundary_sf <- boundary_sf[1, ]
@@ -475,7 +475,7 @@ plot_modeled_rates_time_varying <- function(config_file,
     boundary_sf$shapeName <- "Zanzibar"
     boundary_sf$shapeType <- "ADM0"
   }else{
-    boundary_sf <- rgeoboundaries::gb_adm0(iso_code)
+    boundary_sf <- get_geoboundaries(iso_code, 0)
   }
 
   # Get the country-level shape file from the stan input and plot it against the country-level shape file in the modeled case figure
