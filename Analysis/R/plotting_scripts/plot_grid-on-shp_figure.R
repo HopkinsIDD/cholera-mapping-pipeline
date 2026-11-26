@@ -1,6 +1,5 @@
 ### Setup
 library(dplyr)
-library(rgeoboundaries)
 ## go to the mapping pipeline directory
 setwd("/home/.../cholera-mapping-pipeline")
 
@@ -15,10 +14,10 @@ who_annual_cases <- stan_input$sf_cases_resized
 who_annual_cases_from_db <- NULL
 who_annual_cases_from_db <- taxdat::pull_output_by_source(who_annual_cases, "%WHO Annual Cholera Reports%",
                                                           database_api_key_rfile = stringr::str_c(getwd(), "/Analysis/R/database_api_key.R"))
-## get the rgeoboundary shape files 
-cty0 <- gb_adm0(country_code)
-cty1 <- gb_adm1(country_code)
-cty2 <- gb_adm2(country_code)
+## get the geoBoundaries shape files
+cty0 <- taxdat::get_geoboundaries(country_code, 0)
+cty1 <- taxdat::get_geoboundaries(country_code, 1)
+cty2 <- taxdat::get_geoboundaries(country_code, 2)
 
 ### Plotting
 plt1 <- ggplot2::ggplot() +

@@ -54,10 +54,10 @@ intended_runs <- get_intended_runs_global()
 
 # Spatial data  ---------------------------------------
 ## create ADM0 shapefiles for all countries: 
-# boundary_sf <- rgeoboundaries::geoboundaries(country = NULL,adm_lvl = "adm0") %>%
+# boundary_sf <- taxdat::get_geoboundaries(iso_codes, 0) %>%
 #     dplyr::mutate(country = shapeGroup) %>%
 #     dplyr::select(country,shapeName, shapeType, geometry) %>%
-#     dplyr::mutate(source = "rgeoboundaries")
+#     dplyr::mutate(source = "geoboundaries")
 # 
 #   # Set reference WGS84 projection
 #   sf::st_crs(boundary_sf) <- sf::st_crs(4326)
