@@ -87,13 +87,13 @@ get_country_admin_units <- function(iso_code, admin_level = 1) {
   if (admin_level > 3) {
     stop("Admin level ", admin_level, " is invalid; use 0 to 3.")
   }
-  message("Using the rgeoboundaries shapefiles for all countries, for this country a admin level: ", admin_level)
+  message("Using the geoBoundaries shapefiles for all countries, for this country a admin level: ", admin_level)
 
   boundary_sf <- get_geoboundaries(iso_code = iso_code,
                                    admin_level = admin_level) %>%
     dplyr::mutate(shapeID = paste0(shapeGroup, "-", shapeType, "-", shapeID)) %>%
     dplyr::select(shapeName, shapeID, shapeType, geometry) %>%
-    dplyr::mutate(source = "rgeoboundaries", country = iso_code) %>%
+    dplyr::mutate(source = "geoboundaries", country = iso_code) %>%
     dplyr::rename(location_period_id = shapeID)
 
   sf::st_crs(boundary_sf) <- sf::st_crs(4326)

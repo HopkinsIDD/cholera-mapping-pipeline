@@ -1,4 +1,4 @@
-## testing for using rgeoboundaries shapefiles for certain country's national shapefiles
+## testing for using geoBoundaries shapefiles for certain country's national shapefiles
 
 # The test downloads from geoboundaries.org; skip it (rather than fail) when the
 # site does not answer, so an outage there does not break CI.
@@ -12,10 +12,10 @@ skip_if_geoboundaries_unreachable <- function(timeout = 10) {
 
 test_that("get_country_admin_units works", {
   skip_if_geoboundaries_unreachable()
-  expect_message(get_country_admin_units(iso_code="UGA",admin_level=0),"Using the rgeoboundaries shapefiles for all countries, for this country a admin level: 0")
+  expect_message(get_country_admin_units(iso_code="UGA",admin_level=0),"Using the geoBoundaries shapefiles for all countries, for this country a admin level: 0")
 })
 
-test_that("get_geoboundaries returns boundaries with the rgeoboundaries columns", {
+test_that("get_geoboundaries returns boundaries with the expected columns", {
   skip_if_geoboundaries_unreachable()
   uga <- get_geoboundaries(iso_code = "UGA", admin_level = 0)
   expect_s3_class(uga, "sf")
