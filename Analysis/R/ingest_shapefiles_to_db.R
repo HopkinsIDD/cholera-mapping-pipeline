@@ -42,55 +42,44 @@ countries <- yml_files %>%
   sort()
 
 print(countries)
-# Connect to covariates database
-conn_db <- connect_to_db(Sys.getenv("USER"))
-# Check if layer exists before starting the loop
-layer_exists <- dbExistsTable(conn_db, "output_shapefiles")
+sf::sf_use_s2(FALSE)
 
-# Delete existing layer if it exists
-if (layer_exists) {
-  dbExecute(conn_db, "DROP TABLE IF EXISTS output_shapefiles")
-  cat("Existing layer deleted\n")
+# Connect to covariates database (PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD)
+conn_db <- taxdat::connect_to_db()
+target <- DBI::Id(schema = "data", table = "output_shapefiles")
+if (dbExistsTable(conn_db, target)) {
+  dbExecute(conn_db, "DROP TABLE data.output_shapefiles")
+  cat("Existing data.output_shapefiles deleted\n")
 }
+# Lets readers detect shapes built with another version of the function
+fun_hash <- digest::digest(deparse(taxdat::get_country_admin_units), algo = "md5")
 first_write <- TRUE
 
-# Loop over countries, pull shapefiles from rgeoboundaries and insert to db
+# Loop over countries; boundaries come from the admin-units cache, or the
+# geoBoundaries API on a cache miss (needs internet)
 for (country in countries) {
   tryCatch(
     {
       cat("Processing:", country, "\n")
-
-      # Pull from rgeoboundaries
-      shps <- get_multi_country_admin_units(
-        iso_code = country,
-        admin_levels = 0:2,
-        source = "api"
-      )
-
-      # Skip if no data
+      shps <- get_multi_country_admin_units(iso_code = country, admin_levels = 0:2,
+                                            source = "cache")
       if (nrow(shps) == 0) {
         cat(country, "has no data, skipping\n")
         next
       }
-      shps <- mutate(shps, country = country)
-      # Write to PostgreSQL database
-      st_write(
-        obj = shps,
-        dsn = conn_db,
-        layer = "output_shapefiles",
-        append = !first_write, # FALSE for first write, TRUE afterwards
-        quiet = TRUE
-      )
-
-      # After first successful write, set flag to FALSE
-      if (first_write) first_write <- FALSE
-
+      shps <- dplyr::mutate(shps, country = country, get_country_admin_units_hash = fun_hash)
+      st_write(obj = shps, dsn = conn_db, layer = target, append = !first_write, quiet = TRUE)
+      first_write <- FALSE
       cat("Successfully wrote:", country, "\n")
     },
     error = function(e) {
       cat("Error processing", country, ":", e$message, "\n")
     }
   )
+}
+if (!first_write) {
+  dbExecute(conn_db, "CREATE INDEX ON data.output_shapefiles USING GIST (geom)")
+  dbExecute(conn_db, "CREATE INDEX ON data.output_shapefiles (country, admin_level)")
 }
 
 DBI::dbDisconnect(conn_db)
